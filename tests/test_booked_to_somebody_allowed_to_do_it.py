@@ -704,3 +704,58 @@ def test_the_columns_are_registered_for_a_clinic_already_running(hospital):
     for column in ("privilege_ack_by", "privilege_ack_at",
                    "privilege_ack_reason"):
         assert ("operations", column) in pairs
+
+
+# ------------------------------------- the two hours nobody was watching --
+def test_a_withdrawal_after_local_midnight_does_not_reach_back_a_day(hospital):
+    """**Found by a CI run that crossed local midnight**, and it was a real
+    bug rather than a flaky test.
+
+    ``withdrawn_at`` is a UTC ``DateTime``; ``.date()`` on it is the *UTC*
+    day, and it was being compared against a day in the clinic's own calendar.
+    Cairo is UTC+2, so a privilege withdrawn at half past midnight local is
+    stamped 22:30 the previous day in UTC — and for those two hours every
+    night, a case booked **the day before** read as outside the surgeon's
+    privileges. The program retroactively saying somebody was not allowed to
+    do an operation they were allowed to do.
+
+    Two or three hours a night is not a corner: it is every night, and it
+    lands on exactly the records an audit would be reading.
+    """
+    from datetime import date, datetime
+
+    from app.models import Setting
+    from app.models.privilege import ClinicalPrivilege
+
+    with hospital["app"].app_context():
+        Setting.set("clinic_timezone", "Africa/Cairo")
+        row = ClinicalPrivilege(doctor_id=hospital["ids"]["cutter"],
+                                service_type="surgery",
+                                # 22:30 UTC on the 13th is 00:30 on the 14th
+                                # in the clinic, which is when somebody
+                                # actually pressed the button.
+                                withdrawn_at=datetime(2026, 9, 13, 22, 30))
+        # The clinic's 13th — the day before the withdrawal happened.
+        assert row.stands_on(date(2026, 9, 13)) is True
+        # And the clinic's 14th, the day it did.
+        assert row.stands_on(date(2026, 9, 14)) is False
+
+
+def test_the_same_moment_read_by_a_clinic_behind_utc(hospital):
+    """The mirror, so the fix is a conversion and not a constant. A clinic
+    west of UTC has the opposite skew, and reading the stamp through its own
+    clock has to work there too."""
+    from datetime import date, datetime
+
+    from app.models import Setting
+    from app.models.privilege import ClinicalPrivilege
+
+    with hospital["app"].app_context():
+        Setting.set("clinic_timezone", "America/New_York")
+        row = ClinicalPrivilege(doctor_id=hospital["ids"]["cutter"],
+                                service_type="surgery",
+                                # 02:30 UTC on the 14th is 22:30 on the 13th
+                                # in New York.
+                                withdrawn_at=datetime(2026, 9, 14, 2, 30))
+        assert row.stands_on(date(2026, 9, 13)) is False   # it was withdrawn
+        assert row.stands_on(date(2026, 9, 12)) is True

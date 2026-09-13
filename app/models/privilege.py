@@ -25,6 +25,7 @@ booking**"*.
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.clock import local_date
 
 #: The kinds WFM.12 names, in its own words. The first is the ordinary one;
 #: the other three are quoted from the standard and each **ends differently**,
@@ -121,6 +122,22 @@ class ClinicalPrivilege(db.Model):
         rule the consent follows, and for the same reason: a case booked last
         March under a privilege that stood then must go on reading as correct
         after the privilege lapses or is withdrawn.
+
+        ``valid_from`` and ``valid_until`` are ``Date`` columns a person typed,
+        so they are already the clinic's dates and compare directly. **The
+        withdrawal is not**: ``withdrawn_at`` is a UTC ``DateTime``, and
+        ``.date()`` on it is the *UTC* day.
+
+        For any clinic ahead of UTC that is wrong for two or three hours every
+        night. Cairo is UTC+2: a privilege withdrawn at half past midnight
+        local is stamped 22:30 the previous day in UTC, and a case booked the
+        day before then read as **outside the surgeon's privileges** — the
+        program retroactively saying somebody was not allowed to do an
+        operation they were allowed to do. Found by a CI run that happened to
+        cross local midnight.
+
+        So the stamp is read through the clinic's clock, like every other
+        stored moment this program compares against a date somebody typed.
         """
         if day is None:
             return False
@@ -128,7 +145,7 @@ class ClinicalPrivilege(db.Model):
             return False
         if self.valid_until and day > self.valid_until:
             return False
-        if self.withdrawn_at and self.withdrawn_at.date() <= day:
+        if self.withdrawn_at and local_date(self.withdrawn_at) <= day:
             return False
         return True
 
