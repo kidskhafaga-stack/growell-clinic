@@ -35,6 +35,7 @@ from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
                                 Theatre)
 from app.utils import privileges as _privileges
 from app.utils import surgical_counts as _counts
+from app.utils import operative_report as _report
 from app.utils import recovery as _recovery
 from app.utils import theatres as theatre
 from app.utils.clock import local_today, to_utc
@@ -264,6 +265,16 @@ def operation(operation_id):
                            # equipment this case has.
                            equipment_state=theatre.equipment_state(row),
                            equipment=theatre.equipment_for(row),
+                           # What happened in the room (SAS.08). Five of
+                           # its nine elements are already in the record, so
+                           # the screen asks for four and a signature.
+                           report_state=_report.state(row),
+                           report=_report.for_operation(row),
+                           report_elements=_report.assemble(row),
+                           report_missing=_report.missing(row),
+                           report_late=_report.late(row),
+                           report_staff=_report.staff(row),
+                           report_implants=_report.implants(row),
                            # The sponges, needles and instruments (SAS.09).
                            # Three moments, two people, and the numbers — and
                            # the checklist box now reads off these rather than
@@ -972,6 +983,68 @@ def cancel(operation_id):
     theatre.cancel(row, reason=request.form.get("reason"), user=current_user)
     db.session.commit()
     flash(t("theatre.cancelled"), "info")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/report", methods=["POST"])
+@module_required(MODULE)
+def write_report(operation_id):
+    """The operative report — SAS.08.
+
+    Four boxes and two notes. The other five of the standard's nine elements
+    are read off the record, so nobody types a start time or an implant's lot
+    number twice.
+    """
+    row = Operation.query.get_or_404(operation_id)
+
+    def _tri(name):
+        """`yes` · `no` · nothing said. A checkbox cannot carry three."""
+        raw = (request.form.get(name) or "").strip()
+        return True if raw == "yes" else (False if raw == "no" else None)
+
+    def _number(name):
+        """A number, or nobody measured. **Nought is an answer; minus is not.**
+
+        The box says ``min="0"``, so a negative can only arrive from a browser
+        that ignored it — and filing it as nought would turn a typo into «no
+        measurable blood loss», which is a measurement somebody has to have
+        taken.
+        """
+        raw = (request.form.get(name) or "").strip()
+        if not raw:
+            return None
+        try:
+            number = int(raw)
+        except ValueError:
+            return None
+        return number if number >= 0 else None
+
+    _report.write(row, user=current_user,
+                  pre_diagnosis=request.form.get("pre_diagnosis"),
+                  post_diagnosis=request.form.get("post_diagnosis"),
+                  complications=_tri("complications"),
+                  complications_note=request.form.get("complications_note"),
+                  specimen=_tri("specimen"),
+                  specimen_note=request.form.get("specimen_note"),
+                  blood_loss_ml=_number("blood_loss_ml"),
+                  transfused_units=_number("transfused_units"))
+    db.session.commit()
+    short = _report.missing(row)
+    flash(t("op_report.saved_short", n=len(short)) if short else t("op_report.saved"),
+          "warning" if short else "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/report/sign", methods=["POST"])
+@module_required(MODULE)
+def sign_report(operation_id):
+    """Element (i) — the performing physician's signature."""
+    row = Operation.query.get_or_404(operation_id)
+    if _report.sign(row, user=current_user) is None:
+        flash(t("op_report.nothing_to_sign"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    db.session.commit()
+    flash(t("op_report.signed"), "success")
     return redirect(url_for("theatres.operation", operation_id=row.id))
 
 
