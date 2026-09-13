@@ -1,0 +1,174 @@
+{# `shell.html`, not `base.html`: the base has no `content` block and a page
+   extending it renders an empty body without saying why. #}
+{% extends "shell.html" %}
+{% set active_module = 'theatres' %}
+{% block title %}{{ t('privileges.title') }}{% endblock %}
+{% block page_heading %}{{ t('privileges.title') }}{% endblock %}
+
+{% block content %}
+
+{# GAHAR WFM.12. **The program holds no opinion about who may do what** — it
+   does not know that a paediatric surgeon may do a herniotomy; it knows that
+   this hospital wrote it down, when, until when, and who signed. Every other
+   reading would be the program inventing a credentialing decision. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <p class="hint" style="margin:0 0 10px;">{{ t('privileges.intro') }}</p>
+  <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <div class="form-row" style="margin:0;min-width:200px;">
+      <label for="pv_doctor">{{ t('privileges.doctor') }}</label>
+      <select class="select" id="pv_doctor" name="doctor"
+              onchange="this.form.submit()">
+        {% for doctor in doctors %}
+        <option value="{{ doctor.id }}" {{ 'selected' if doctor.id == who else '' }}>
+          {{ doctor.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+</div>
+
+{% if who %}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin:0 0 8px;font-size:1rem;">
+    <i class="bi bi-plus-circle"></i> {{ t('privileges.grant') }}</h2>
+  <form method="post" x-data="{ scope: 'type', kind: 'standard' }">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="doctor_id" value="{{ who }}">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+      <div class="form-row" style="margin:0;min-width:150px;">
+        <label for="pv_scope">{{ t('privileges.scope') }}</label>
+        {# Two shapes, and a clinic needs both: a delineation form reads
+           "general surgery: all of it, plus these four named procedures".
+           Services only would have somebody tick forty boxes per surgeon. #}
+        <select class="select" id="pv_scope" name="scope" x-model="scope">
+          <option value="type">{{ t('privileges.scope_type') }}</option>
+          <option value="service">{{ t('privileges.scope_service') }}</option>
+        </select>
+      </div>
+      <div class="form-row" style="margin:0;min-width:180px;" x-show="scope === 'type'">
+        <label for="pv_type">{{ t('privileges.service_type') }}</label>
+        <select class="select" id="pv_type" name="service_type">
+          {% for row in types %}
+          <option value="{{ row.key }}">{{ row.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin:0;min-width:180px;" x-show="scope === 'service'" x-cloak>
+        <label for="pv_service">{{ t('privileges.service') }}</label>
+        <select class="select" id="pv_service" name="service_id">
+          {% for service in services %}
+          <option value="{{ service.id }}">{{ service.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin:0;min-width:150px;">
+        <label for="pv_kind">{{ t('privileges.kind') }}</label>
+        {# The four the standard names. Each ends differently, which is why
+           they are not one word with a date on it. #}
+        <select class="select" id="pv_kind" name="kind" x-model="kind">
+          {% for k in kinds %}
+          <option value="{{ k }}">{{ t('privileges.kind_' ~ k) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+      <div class="form-row" style="margin:0;min-width:170px;">
+        <label for="pv_super">{{ t('privileges.supervisor') }}</label>
+        {# WFM.12 (g): a supervised privilege names the accountable
+           supervisor. "Supervised" with nobody named is the empty tick this
+           screen exists to replace, and the program reads it as an ordinary
+           privilege rather than pretending otherwise. #}
+        <select class="select" id="pv_super" name="supervisor_id">
+          <option value="">{{ t('common.none') }}</option>
+          {% for doctor in doctors if doctor.id != who %}
+          <option value="{{ doctor.id }}">{{ doctor.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin:0;flex:1;min-width:160px;">
+        <label for="pv_supertext">{{ t('privileges.supervision') }}</label>
+        <input class="input" id="pv_supertext" name="supervision" maxlength="160"></div>
+      <div class="form-row" style="margin:0;width:150px;">
+        <label for="pv_from">{{ t('privileges.valid_from') }}</label>
+        <input class="input" type="date" id="pv_from" name="valid_from" dir="ltr"></div>
+      <div class="form-row" style="margin:0;width:150px;">
+        <label for="pv_until">{{ t('privileges.valid_until') }}</label>
+        <input class="input" type="date" id="pv_until" name="valid_until" dir="ltr"></div>
+      <div class="form-row" style="margin:0;flex:1;min-width:150px;">
+        <label for="pv_note">{{ t('privileges.note') }}</label>
+        <input class="input" id="pv_note" name="note" maxlength="200"></div>
+      <button class="btn btn-primary gc-press" type="submit">
+        <i class="bi bi-check2"></i> {{ t('privileges.grant') }}</button>
+    </div>
+    {# The handbook's own maximum, quoted. **Nothing computes from it** — a
+       renewal date the program guessed is a renewal nobody scheduled. #}
+    <p class="hint" style="margin-top:8px;">{{ t('privileges.review_hint') }}</p>
+  </form>
+</div>
+
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin:0 0 8px;font-size:1rem;">
+    {{ t('privileges.on_file') }}</h2>
+  {% if rows %}
+  <div style="overflow-x:auto;">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('privileges.scope') }}</th>
+        <th>{{ t('privileges.kind') }}</th>
+        <th>{{ t('privileges.supervisor') }}</th>
+        <th>{{ t('privileges.valid') }}</th>
+        <th>{{ t('common.status') }}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{% if row.service %}{{ row.service.display_name(current_lang) }}
+              {% else %}<b>{{ t('service_types.' ~ row.service_type) }}</b>
+              <span class="hint">({{ t('privileges.whole_type') }})</span>{% endif %}
+            {% if row.note %}<div class="hint">{{ row.note }}</div>{% endif %}</td>
+          <td>{{ t('privileges.kind_' ~ row.kind) }}</td>
+          <td>{% if row.supervisor %}{{ row.supervisor.display_name(current_lang) }}
+              {% if row.supervision %}<div class="hint">{{ row.supervision }}</div>{% endif %}
+              {% else %}—{% endif %}</td>
+          <td dir="ltr">{{ row.valid_from or '—' }} → {{ row.valid_until or '—' }}</td>
+          <td>
+            {% if row.withdrawn_at %}
+            {# Withdrawn, never deleted: a case booked last month under a
+               privilege that stood then must go on reading as correct. #}
+            <span class="alert-pill warn">{{ t('privileges.withdrawn_on') }}
+              <span dir="ltr">{{ row.withdrawn_at|clinic_stamp }}</span></span>
+            {% if row.withdrawn_reason %}<div class="hint">{{ row.withdrawn_reason }}</div>{% endif %}
+            {% elif row.stands_on(today) %}
+            <span class="alert-pill ok">{{ t('privileges.standing') }}</span>
+            {% else %}
+            <span class="alert-pill warn">{{ t('privileges.not_in_force') }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if not row.withdrawn_at %}
+            <form method="post" style="display:flex;gap:6px;align-items:center;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="withdraw">
+              <input type="hidden" name="privilege_id" value="{{ row.id }}">
+              <input class="input" name="reason" maxlength="200"
+                     placeholder="{{ t('privileges.why') }}" style="min-width:130px;">
+              <button class="btn btn-outline gc-press" type="submit">
+                {{ t('privileges.withdraw') }}</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint">{{ t('privileges.none_on_file') }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

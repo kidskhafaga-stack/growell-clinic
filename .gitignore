@@ -64,3 +64,4 @@ licence_tool.py
 # sat in a commit until the next `git status`.
 *.bak
 *.orig
+*.mutbak

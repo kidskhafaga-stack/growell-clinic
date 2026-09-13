@@ -583,6 +583,12 @@ ADDITIONS = [
     # every case on a children's list. The implants themselves are a new
     # table — `operation_implants` — which `db.create_all` creates.
     ("operations", "implants_needed", "BOOLEAN"),
+    # Who accepted a booking outside the surgeon's privileges, and why
+    # (SAS.02 أ). The *check* is derived and needs no column; only the
+    # exception is a fact the program cannot work out for itself.
+    ("operations", "privilege_ack_by", "INTEGER"),
+    ("operations", "privilege_ack_at", "DATETIME"),
+    ("operations", "privilege_ack_reason", "VARCHAR(200)"),
 ]
 
 def apply_schema(report=None):

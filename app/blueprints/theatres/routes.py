@@ -33,10 +33,11 @@ from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
                                 SITE_SIDES,
                                 REVIEW_KINDS, REVIEW_VERDICTS, Operation,
                                 Theatre)
+from app.utils import privileges as _privileges
 from app.utils import recovery as _recovery
 from app.utils import theatres as theatre
 from app.utils.clock import local_today, to_utc
-from app.utils.decorators import module_required
+from app.utils.decorators import admin_required, module_required
 
 MODULE = "theatres"
 
@@ -266,6 +267,12 @@ def operation(operation_id):
                            # (SAS.06 ز / SAS.11). Two moments, kept apart.
                            implant_state=theatre.implant_state(row),
                            implants=theatre.implants_for(row),
+                           # Is this booking inside the surgeon's privileges
+                           # (SAS.02 أ)? Derived, and judged against the day of
+                           # the operation.
+                           privilege_state=theatre.privilege_state(row),
+                           privilege_rows=_privileges.matching(
+                               row.surgeon_id, row.service, row.on_date),
                            blood_state=theatre.blood_state(row),
                            plan=theatre.plan_for(row),
                            anaesthesia_types=ANAESTHESIA_TYPES,
@@ -485,6 +492,25 @@ def verify_identity(operation_id):
     return redirect(url_for("theatres.operation", operation_id=row.id))
 
 
+@theatres_bp.route("/operation/<int:operation_id>/privilege", methods=["POST"])
+@module_required(MODULE)
+def acknowledge_privilege(operation_id):
+    """Accept a booking outside the surgeon's privileges — with a reason.
+
+    The reason is the point. "Somebody clicked accept" is the tick this module
+    keeps replacing; the sentence they typed is the only part of this a review
+    afterwards can use.
+    """
+    row = Operation.query.get_or_404(operation_id)
+    if theatre.acknowledge_privilege(row, request.form.get("reason"),
+                                     user=current_user) is None:
+        flash(t("theatre.privilege_needs_reason"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    db.session.commit()
+    flash(t("theatre.privilege_acknowledged_ok"), "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
 @theatres_bp.route("/operation/<int:operation_id>/implants", methods=["POST"])
 @module_required(MODULE)
 def implants(operation_id):
@@ -527,6 +553,71 @@ def implants(operation_id):
     flash(t("theatre.implant_needs_lot") if complained
           else t("common.saved"), "warning" if complained else "success")
     return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/privileges", methods=["GET", "POST"])
+@module_required(MODULE)
+@admin_required
+def privileges_screen():
+    """What each doctor is authorised to do here (GAHAR WFM.12).
+
+    Admin-only to write, because granting a privilege is a credentialing
+    decision and the standard says so: *"approved by the medical staff
+    committee"*. Reading it is not restricted the same way — whoever books
+    has to see it, which is the fourth item of evidence.
+    """
+    from app.models import PRIVILEGE_KINDS, Service, ServiceType, User
+    from app.utils import privileges as priv
+
+    doctors = (User.query.filter(User.is_active.is_(True),
+                                 User.role.in_(("doctor", "admin")))
+               .order_by(User.full_name).all())
+    who = request.args.get("doctor", type=int) or (doctors[0].id if doctors
+                                                   else None)
+
+    if request.method == "POST":
+        action = (request.form.get("action") or "").strip()
+        if action == "withdraw":
+            from app.models import ClinicalPrivilege
+            row = ClinicalPrivilege.query.get_or_404(
+                request.form.get("privilege_id", type=int))
+            if priv.withdraw(row, reason=request.form.get("reason")) is None:
+                flash(t("privileges.already_withdrawn"), "warning")
+            else:
+                db.session.commit()
+                flash(t("privileges.withdrawn"), "success")
+        else:
+            scope = (request.form.get("scope") or "").strip()
+            granted = priv.grant(
+                request.form.get("doctor_id", type=int),
+                service_id=(request.form.get("service_id", type=int)
+                            if scope == "service" else None),
+                service_type=(request.form.get("service_type")
+                              if scope == "type" else None),
+                kind=(request.form.get("kind") or "standard").strip(),
+                supervisor_id=request.form.get("supervisor_id", type=int),
+                supervision=request.form.get("supervision"),
+                valid_from=_a_date(request.form.get("valid_from")),
+                valid_until=_a_date(request.form.get("valid_until")),
+                note=request.form.get("note"), user=current_user)
+            if granted is None:
+                # Named rather than a generic "could not save": the two ways
+                # this fails send somebody to two different corrections.
+                flash(t("privileges.needs_one_scope"), "warning")
+            else:
+                db.session.commit()
+                flash(t("privileges.granted"), "success")
+        return redirect(url_for("theatres.privileges_screen", doctor=who))
+
+    return render_template(
+        "theatres/privileges.html", doctors=doctors, who=who,
+        rows=priv.all_for(who), kinds=PRIVILEGE_KINDS,
+        today=local_today(),
+        # Only what a theatre actually books against.
+        services=(Service.query.filter(Service.is_active.is_(True))
+                  .order_by(Service.name).all()),
+        types=(ServiceType.query.filter(ServiceType.is_active.is_(True))
+               .order_by(ServiceType.sort_order, ServiceType.id).all()))
 
 
 @theatres_bp.route("/implants/recall")
