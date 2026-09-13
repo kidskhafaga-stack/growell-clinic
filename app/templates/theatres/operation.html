@@ -370,6 +370,180 @@
 </div>
 {% endif %}
 
+{# ------------------------------------------ what went in and came back -- #}
+{# GAHAR SAS.09 · GSR.17. البند بيقول العدّ يتحقّق «pre- and post-procedure»،
+   والنص بيفصّل: قبل، وعند قفل **كل تجويف**، وبعد قفل الجلد. ودليل ٢ بيقول
+   **شخصين**، والتاني شاهد للأول — ودي الرقابة كلها، مش إجراء إداري.
+
+   **وده كان خانة بتتعلّم.** `counts_correct` بند في الـsign-out أي حد
+   يعلّمه. دلوقتي البند بيتقرا من العدّات اللي اتسجّلت فعلاً، وحالة محدش
+   عدّها **ما بتتعلّمش** — وده بيت القصيد. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-counts>
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-123"></i> {{ t('counts.title') }}
+    {% if count_state == 'miscount' %}
+    {# الاختلاف بيسبق النقص: حالة ناقصة عدّة الخروج وعندها شاشة مش معروفة
+       هي فين مش «ورق ناقص». #}
+    <span class="alert-pill danger" data-count-state="miscount">
+      <i class="bi bi-exclamation-octagon"></i> {{ t('counts.miscount') }}</span>
+    {% elif count_state == 'unasked' %}
+    <span class="alert-pill warn" data-count-state="unasked">
+      {{ t('counts.nobody_counted') }}</span>
+    {% elif count_state == 'short' %}
+    <span class="alert-pill warn" data-count-state="short">
+      {{ t('counts.moments_missing') }}</span>
+    {% else %}
+    <span class="alert-pill ok" data-count-state="ok">
+      <i class="bi bi-check2"></i> {{ t('counts.all_agree') }}</span>
+    {% endif %}
+  </h2>
+
+  {% if counts %}
+  <div style="overflow-x:auto;">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('counts.moment') }}</th>
+        <th>{{ t('counts.what') }}</th>
+        <th>{{ t('counts.counted_by') }}</th>
+        <th>{{ t('counts.witness') }}</th>
+        <th dir="ltr"></th>
+      </tr></thead>
+      <tbody>
+        {% for count in counts %}
+        <tr data-count="{{ count.id }}">
+          <td>{{ t('counts.moment_' ~ count.moment) }}
+            <span class="hint" dir="ltr">{{ count.at|clinic_stamp }}</span></td>
+          <td>
+            {% for item in count.items %}
+            {# المتوقع والموجود الاتنين على الشاشة: رقم واحد بيرمي المقارنة
+               اللي البند كله عنها. #}
+            <span class="badge {{ 'badge--warn' if not item.agrees else 'badge--muted' }}"
+                  data-item="{{ item.item }}">
+              {{ t('counts.item_' ~ item.item) }}
+              <span dir="ltr">{{ item.found }}/{{ item.expected }}</span></span>
+            {% endfor %}</td>
+          <td>{{ count.counter.display_name(current_lang) if count.counter else '—' }}</td>
+          <td>{{ count.witness.display_name(current_lang) if count.witness else '—' }}</td>
+          <td>{% if not count.agrees %}
+            <a class="badge badge--warn" href="#miscount-{{ count.id }}">
+              {{ t('counts.handle') }}</a>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint">{{ t('counts.none_yet') }}</p>
+  {% endif %}
+
+  {# ---- ما اتعملش في الاختلاف (دليل ٤) ---- #}
+  {% for count in open_miscounts %}
+  <div class="card" style="margin-top:12px;border-color:var(--danger);"
+       id="miscount-{{ count.id }}" data-open-miscount="{{ count.id }}">
+    <h3 class="section-title" style="margin:0 0 8px;font-size:.95rem;">
+      {{ t('counts.miscount_at', moment=t('counts.moment_' ~ count.moment)) }}</h3>
+    <p class="hint" style="margin:0 0 8px;">
+      {% for item in count.short %}
+      <span class="badge badge--warn">{{ t('counts.item_' ~ item.item) }}
+        <span dir="ltr">{{ item.missing }}</span></span>
+      {% endfor %}</p>
+    <form method="post"
+          action="{{ url_for('theatres.handle_miscount', count_id=count.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        {# تلات حالات لكل سؤال: «محدش قال» غير «اتقرر إنها مش لازمة». checkbox
+           كان هيخلّي الاتنين نفس الصف. #}
+        {% for field in ('recounted', 'imaging') %}
+        <div class="form-row" style="margin:0;min-width:170px;">
+          <label for="mc_{{ field }}_{{ count.id }}">{{ t('counts.' ~ field) }}</label>
+          <select class="select" id="mc_{{ field }}_{{ count.id }}" name="{{ field }}">
+            <option value="">{{ t('counts.nobody_said') }}</option>
+            <option value="yes" {{ 'selected' if count[field] is sameas true else '' }}>{{ t('common.yes') }}</option>
+            <option value="no" {{ 'selected' if count[field] is sameas false else '' }}>{{ t('common.no') }}</option>
+          </select>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="form-row">
+        <label for="mc_res_{{ count.id }}">{{ t('counts.resolution') }}</label>
+        <textarea class="input" id="mc_res_{{ count.id }}" name="resolution"
+                  rows="2">{{ count.resolution or '' }}</textarea>
+      </div>
+      {% if not count.reported %}
+      <div class="form-row checkbox">
+        <input type="checkbox" id="mc_rep_{{ count.id }}" name="report" value="1">
+        <label for="mc_rep_{{ count.id }}">{{ t('counts.report_it') }}</label>
+      </div>
+      {% else %}
+      <p class="hint" data-reported>{{ t('counts.reported_on') }}
+        <span dir="ltr">{{ count.reported_at|clinic_stamp }}</span></p>
+      {% endif %}
+      <button class="btn btn-primary gc-press" type="submit">
+        <i class="bi bi-save"></i> {{ t('common.save') }}</button>
+    </form>
+  </div>
+  {% endfor %}
+
+  {# ---- عدّة جديدة ---- #}
+  <form method="post" style="margin-top:12px;"
+        action="{{ url_for('theatres.record_count', operation_id=operation.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <div class="form-row" style="margin:0;min-width:150px;">
+        <label for="ct_moment">{{ t('counts.moment') }}</label>
+        <select class="select" id="ct_moment" name="moment">
+          {% for moment in count_moments %}
+          <option value="{{ moment }}">{{ t('counts.moment_' ~ moment) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin:0;min-width:190px;">
+        {# الشاهد مش زينة: البرنامج بيرفض شاهد هو نفسه العدّاد. #}
+        <label for="ct_witness">{{ t('counts.witness') }}</label>
+        <select class="select" id="ct_witness" name="witness_id">
+          {% for person in surgeons %}
+          <option value="{{ person.id }}">{{ person.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+      {% for item in count_items %}
+      <div class="form-row" style="margin:0;min-width:130px;">
+        <label for="ct_e_{{ item }}">{{ t('counts.item_' ~ item) }}</label>
+        <div style="display:flex;gap:4px;">
+          <input class="input" type="number" min="0" id="ct_e_{{ item }}"
+                 name="expected_{{ item }}" dir="ltr"
+                 placeholder="{{ t('counts.expected') }}">
+          <input class="input" type="number" min="0"
+                 name="found_{{ item }}" dir="ltr"
+                 placeholder="{{ t('counts.found') }}">
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <button class="btn btn-outline gc-press" type="submit" style="margin-top:8px;">
+      <i class="bi bi-plus-lg"></i> {{ t('counts.record') }}</button>
+  </form>
+
+  {# ---- توقيع الجرّاح (دليل ٣) ---- #}
+  <div style="margin-top:12px;">
+    {% if count_signed %}
+    <p class="hint" data-count-signed>
+      <i class="bi bi-check2"></i> {{ t('counts.signed_on') }}
+      <span dir="ltr">{{ operation.counts_signed_at|clinic_stamp }}</span>
+      {% if operation.counts_signer %}· {{ operation.counts_signer.display_name(current_lang) }}{% endif %}</p>
+    {% else %}
+    <form method="post"
+          action="{{ url_for('theatres.sign_counts', operation_id=operation.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline gc-press" type="submit">
+        <i class="bi bi-pen"></i> {{ t('counts.sign') }}</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
 {# --------------------------------------- what is left inside the child -- #}
 {# SAS.06 (ز) asks one half — is the implant here before the patient is called
    for — and SAS.11 the other: what went in, **with its batch number**, so a

@@ -34,6 +34,7 @@ from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
                                 REVIEW_KINDS, REVIEW_VERDICTS, Operation,
                                 Theatre)
 from app.utils import privileges as _privileges
+from app.utils import surgical_counts as _counts
 from app.utils import recovery as _recovery
 from app.utils import theatres as theatre
 from app.utils.clock import local_today, to_utc
@@ -263,6 +264,16 @@ def operation(operation_id):
                            # equipment this case has.
                            equipment_state=theatre.equipment_state(row),
                            equipment=theatre.equipment_for(row),
+                           # The sponges, needles and instruments (SAS.09).
+                           # Three moments, two people, and the numbers — and
+                           # the checklist box now reads off these rather than
+                           # being tickable.
+                           count_state=_counts.state(row),
+                           counts=_counts.counts_for(row),
+                           count_moments=_counts.MOMENTS,
+                           count_items=_counts.ITEMS,
+                           count_signed=_counts.signed(row),
+                           open_miscounts=_counts.open_miscounts(row),
                            # What this case plans to implant, and what went in
                            # (SAS.06 ز / SAS.11). Two moments, kept apart.
                            implant_state=theatre.implant_state(row),
@@ -961,6 +972,85 @@ def cancel(operation_id):
     theatre.cancel(row, reason=request.form.get("reason"), user=current_user)
     db.session.commit()
     flash(t("theatre.cancelled"), "info")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/count", methods=["POST"])
+@module_required(MODULE)
+def record_count(operation_id):
+    """One counting event — SAS.09.
+
+    Two people, and the second is the control the standard asks for: a witness
+    who is the same person is refused rather than stored.
+    """
+    row = Operation.query.get_or_404(operation_id)
+    numbers = {}
+    for item in _counts.ITEMS:
+        expected = request.form.get("expected_%s" % item, type=int)
+        found = request.form.get("found_%s" % item, type=int)
+        if expected is None and found is None:
+            continue
+        numbers[item] = (expected or 0, found or 0)
+    try:
+        written = _counts.record(
+            row, (request.form.get("moment") or "").strip(), numbers,
+            counted_by=current_user,
+            witnessed_by=request.form.get("witness_id", type=int),
+            note=request.form.get("note"))
+    except _counts.NotTwoPeople:
+        flash(t("counts.needs_two_people"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    if written is None:
+        # Nothing was counted. An event with no items would make the state
+        # read `ok` for a case nobody counted, which is the tick again.
+        flash(t("counts.needs_numbers"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    db.session.commit()
+    flash(t("counts.short_by_one") if not written.agrees else t("common.saved"),
+          "error" if not written.agrees else "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/count/<int:count_id>/miscount", methods=["POST"])
+@module_required(MODULE)
+def handle_miscount(count_id):
+    """What the team did about a miscount — SAS.09 evidence 4.
+
+    The intent names the steps: *"conduct re-counting, check the missing item,
+    make provisions using imaging studies, and report the miscount."*
+    """
+    from app.models.surgical_count import SurgicalCount
+
+    row = SurgicalCount.query.get_or_404(count_id)
+    # Only what the form actually carried. A checkbox that is absent means
+    # "not ticked" on a form that showed it, so each is read as a tri-state
+    # from an explicit select rather than a checkbox.
+    def _said(name):
+        raw = (request.form.get(name) or "").strip()
+        return True if raw == "yes" else (False if raw == "no" else None)
+
+    _counts.handle_miscount(row, recounted=_said("recounted"),
+                            imaging=_said("imaging"),
+                            resolution=request.form.get("resolution"),
+                            user=current_user)
+    if request.form.get("report") == "1":
+        _counts.report(row, user=current_user)
+    db.session.commit()
+    flash(t("common.saved"), "success")
+    return redirect(url_for("theatres.operation",
+                            operation_id=row.operation_id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/count/sign", methods=["POST"])
+@module_required(MODULE)
+def sign_counts(operation_id):
+    """The performing physician signs the count record — SAS.09 evidence 3."""
+    row = Operation.query.get_or_404(operation_id)
+    if _counts.sign(row, user=current_user) is None:
+        flash(t("counts.nothing_to_sign"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    db.session.commit()
+    flash(t("counts.signed"), "success")
     return redirect(url_for("theatres.operation", operation_id=row.id))
 
 
