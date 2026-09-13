@@ -236,6 +236,43 @@ class Operation(db.Model):
     site_marked_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     site_marked_at = db.Column(db.DateTime)
 
+    # ------------------------------------- preparing for what it carries --
+    #
+    # SAS.06 (ح), and the whole of what the standard asks is one line:
+    # *"Special precautions for infection control **preparation**."*
+    #
+    # **The word is preparation**, and the timing is *before the patient is
+    # called for* — this is the pre-operative verification list, not the
+    # time-out. An earlier note in this repository had this item as "the
+    # prophylactic antibiotic within 60 minutes of the incision"; that is
+    # WHO's number and general practice, the handbook gives no number at all,
+    # and the antibiotic is a different standard (SAS.07, and even there it
+    # reads "if applicable"). The correction is recorded in
+    # docs/gahar/SAS_theatres_matrix.md.
+    #
+    # What a case actually needs recorded is **which precautions**, because
+    # the answer changes things people do: a contact-precautions case is put
+    # last on the list, the room is turned over differently afterwards, and
+    # whoever is drawing up tomorrow's order needs to know today.
+    #
+    # The vocabulary is **quoted, not invented** — see :data:`PRECAUTIONS`.
+    #
+    # NULL is nobody asked. ``standard`` is somebody considered it and this
+    # case needs nothing beyond what every case gets, which is the commonest
+    # answer and has to be sayable, or the honest answer is unavailable and
+    # the field fills up with guesses.
+    infection_precautions = db.Column(db.String(60))
+    # What for — the organism, or the test that is pending. Free text because
+    # a diagnosis is not a vocabulary the program owns.
+    infection_note = db.Column(db.String(160))
+    # *"Empiric Precautions are isolation precautions while waiting for a
+    # clear diagnosis"* (IPC.12). Kept apart from a confirmed one because they
+    # end differently: this one is released by a result, and somebody has to
+    # go back and look.
+    infection_empiric = db.Column(db.Boolean)
+    infection_noted_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    infection_noted_at = db.Column(db.DateTime)
+
     # ------------------------------------------------- the workup --------
     #
     # SAS.06 (هـ): the results of the **required** investigations, before the
@@ -317,6 +354,8 @@ class Operation(db.Model):
     marker = db.relationship("User", foreign_keys=[site_marked_by])
     identity_checker = db.relationship("User",
                                        foreign_keys=[identity_checked_by])
+    infection_noter = db.relationship("User",
+                                      foreign_keys=[infection_noted_by])
     consent = db.relationship("Consent")
 
     @property
@@ -588,6 +627,25 @@ class DoctorCaseRate(db.Model):
     def __repr__(self):
         return (f"<DoctorCaseRate doc={self.doctor_id} "
                 f"svc={self.service_id} {self.case_type}>")
+
+
+#: What this case needs beyond what every case gets. **Quoted, not invented.**
+#:
+#: GAHAR IPC.12 names them, and names all three: *"There are three main
+#: categories of Transmission-Based Precautions: Contact Precautions, Droplet
+#: Precautions, and Airborne Precautions."* It also says they are used *"in
+#: addition to standard precautions"* — which is why ``standard`` is on this
+#: list and is not the absence of an answer: standard precautions are always in
+#: force, so "standard only" is a real thing to have decided, and the
+#: commonest one.
+#:
+#: The program adds nothing of its own here. It does not decide which
+#: precautions a diagnosis calls for — that is a clinical judgement — it
+#: records the one somebody made.
+PRECAUTIONS = ("standard", "contact", "droplet", "airborne")
+
+#: The three that are *extra*. ``standard`` is what every case already gets.
+EXTRA_PRECAUTIONS = ("contact", "droplet", "airborne")
 
 
 #: Who from the family took part in confirming the child. **``none_present``

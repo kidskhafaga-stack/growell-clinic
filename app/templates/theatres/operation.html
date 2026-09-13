@@ -227,6 +227,68 @@
   </form>
 </div>
 
+{# ------------------------------------ what this case needs beyond usual -- #}
+{# SAS.06 (ح), and the whole of what the standard asks is one line: «Special
+   precautions for infection control **preparation**» — before the child is
+   called for, not during the time-out.
+
+   The three categories are quoted from GAHAR IPC.12, which names them. And
+   «standard» is on the list because standard precautions are in force on every
+   case anyway, so "standard only" is a real thing to have decided and the
+   commonest one — leaving it out would make the honest answer unavailable. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-shield-plus"></i> {{ t('theatre.precautions') }}
+    {% if infection_state == 'extra' %}
+    <span class="alert-pill warn"><i class="bi bi-shield-exclamation"></i>
+      {% for p in chosen_precautions %}{{ t('theatre.precaution_' ~ p) }}{% if not loop.last %} · {% endif %}{% endfor %}</span>
+    {% elif infection_state == 'standard' %}
+    <span class="alert-pill ok"><i class="bi bi-check2-circle"></i>
+      {{ t('theatre.precaution_standard') }}</span>
+    {% else %}
+    <span class="alert-pill warn"><i class="bi bi-question-circle"></i>
+      {{ t('theatre.precautions_unasked') }}</span>
+    {% endif %}
+  </h2>
+
+  {% if infection_state != 'unasked' %}
+  <p class="hint">
+    {% if operation.infection_note %}{{ operation.infection_note }} · {% endif %}
+    <span dir="ltr">{{ operation.infection_noted_at|clinic_stamp }}</span>
+    {% if operation.infection_noter %} ·
+      {{ operation.infection_noter.display_name(current_lang) }}{% endif %}</p>
+  {% endif %}
+
+  <form method="post"
+        action="{{ url_for('theatres.precautions', operation_id=operation.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;">
+      {% for p in precautions %}
+      <label style="font-weight:400;margin:0;">
+        <input type="checkbox" name="precaution" value="{{ p }}"
+               {{ 'checked' if p in chosen_precautions else '' }}>
+        {{ t('theatre.precaution_' ~ p) }}</label>
+      {% endfor %}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+      <div class="form-row" style="margin:0;flex:1;min-width:200px;">
+        <label for="op_infnote">{{ t('theatre.precaution_note') }}</label>
+        <input class="input" id="op_infnote" name="infection_note" maxlength="160"
+               value="{{ operation.infection_note or '' }}">
+      </div>
+      <div class="form-row" style="margin:0;">
+        {# «Empiric Precautions are isolation precautions while waiting for a
+           clear diagnosis» (IPC.12). Kept apart because it ends differently:
+           released by a result, and somebody has to go back and look. #}
+        <label style="font-weight:400;"><input type="checkbox" name="empiric" value="1"
+          {{ 'checked' if operation.infection_empiric else '' }}>
+          {{ t('theatre.precaution_empiric') }}</label>
+      </div>
+      <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+    </div>
+  </form>
+</div>
+
 {# --------------------------------------------- the results it waits on -- #}
 {# SAS.06 (هـ): the results of the **required** investigations, before the
    child goes in. The program does not decide which tests a procedure requires

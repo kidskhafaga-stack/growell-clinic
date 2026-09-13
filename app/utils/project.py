@@ -185,6 +185,13 @@ DONE = [
      "Site marking with its side and who marked it — the checklist item is "
      "read from it — and blood, recorded as the two facts it is "
      "(GAHAR SAS.06 d and f)"),
+    ("احتياطات مكافحة العدوى للحالة — تلامس ورشّ وهواء بأسماء منقولة من "
+     "المعيار، و«المعتادة بس» إجابة مسجّلة مش فراغ — وبتبان على شاشة اليوم "
+     "لأن حالة تلامس بتتحط آخر الليستة (GAHAR SAS.06 h)",
+     "A case's infection-control precautions — contact, droplet and airborne, "
+     "named as the standard names them, with \"standard only\" a recorded "
+     "answer rather than a blank — surfaced on the day screen, because a "
+     "contact case goes last on the list (GAHAR SAS.06 h)"),
     ("الفحوصات اللي الحالة مستنياها: حد بيربط الطلبات بالعملية والبرنامج بيقرا "
      "منها — وبند «الأشعة معروضة» الموجود أصلاً بقى بيتقرا من الأشعة المربوطة "
      "(GAHAR SAS.06 e)",

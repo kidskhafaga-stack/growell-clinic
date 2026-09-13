@@ -86,6 +86,38 @@
   </div>
 </div>
 
+{% if precaution_cases %}
+{# SAS.06 (ح), where the answer does work instead of being filed. Whoever
+   draws up the order of the list has to know *before* they draw it up — a
+   contact-precautions case goes last and the room is turned over differently
+   afterwards — so it is on the day screen and not only on the case. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:3px solid var(--warn,#b45309);">
+  <h3 class="section-title" style="margin:0 0 6px;font-size:1rem;">
+    <i class="bi bi-shield-exclamation"></i> {{ t('theatre.precautions_today') }}</h3>
+  <div style="display:flex;flex-direction:column;gap:4px;">
+    {% for op in precaution_cases %}
+    <div>
+      <a href="{{ url_for('theatres.operation', operation_id=op.id) }}">
+        {{ op.patient.full_name if op.patient else '—' }}</a>
+      <span class="hint">· {{ op.procedure }}
+        {% if op.theatre %}· {{ op.theatre.name }}{% endif %}</span>
+      {% for p in (op.infection_precautions or '').split(',') if p %}
+      <span class="alert-pill warn" style="font-size:.72rem;">
+        {{ t('theatre.precaution_' ~ p) }}</span>
+      {% endfor %}
+      {% if op.infection_empiric %}
+      {# Named because it ends differently: this one is released by a result,
+         and somebody has to go back and look. #}
+      <span class="alert-pill" style="font-size:.72rem;">
+        {{ t('theatre.precaution_empiric') }}</span>
+      {% endif %}
+      {% if op.infection_note %}<span class="hint">· {{ op.infection_note }}</span>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 {% if not rooms %}
 {# Empty says two different things now, and telling somebody to go build a
    theatre because they have no cases today would be the program answering a
