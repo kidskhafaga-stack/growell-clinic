@@ -256,6 +256,12 @@ def operation(operation_id):
                            infection_state=theatre.infection_state(row),
                            precautions=PRECAUTIONS,
                            chosen_precautions=theatre.precautions_of(row),
+                           # What the case needs in the room, and what was
+                           # found (SAS.06 ب). Two facts per item — there, and
+                           # works — because a stack whose light is dead is not
+                           # equipment this case has.
+                           equipment_state=theatre.equipment_state(row),
+                           equipment=theatre.equipment_for(row),
                            blood_state=theatre.blood_state(row),
                            plan=theatre.plan_for(row),
                            anaesthesia_types=ANAESTHESIA_TYPES,
@@ -472,6 +478,44 @@ def verify_identity(operation_id):
         return redirect(url_for("theatres.operation", operation_id=row.id))
     db.session.commit()
     flash(t("theatre.identity_ok"), "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/equipment", methods=["POST"])
+@module_required(MODULE)
+def equipment(operation_id):
+    """What this case needs in the room, and what was found.
+
+    SAS.06 (ب): *"The availability and functioning of needed equipment"*,
+    verified **before calling for the patient**. Blank is refused rather than
+    read as "needs nothing".
+    """
+    row = Operation.query.get_or_404(operation_id)
+    raw = (request.form.get("needed") or "").strip()
+    if raw not in ("yes", "no"):
+        flash(t("theatre.equipment_needs_answer"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    theatre.set_equipment_needed(row, raw == "yes", user=current_user)
+
+    # One more thing this list does not carry — most theatres, most days.
+    theatre.add_equipment(row, request.form.get("new_item"))
+    db.session.flush()
+
+    # What was found, item by item. A box nobody touched stays unknown: the
+    # form posts an explicit answer per item, and an absent one is not "no".
+    answers = {}
+    for item in theatre.equipment_for(row):
+        found = request.form.get(f"present_{item.id}")
+        if found not in ("yes", "no"):
+            continue
+        answers[item.id] = {"present": found == "yes",
+                            "working": request.form.get(
+                                f"working_{item.id}") == "yes",
+                            "note": request.form.get(f"note_{item.id}")}
+    if answers:
+        theatre.check_equipment(row, answers, user=current_user)
+    db.session.commit()
+    flash(t("common.saved"), "success")
     return redirect(url_for("theatres.operation", operation_id=row.id))
 
 

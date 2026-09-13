@@ -185,6 +185,13 @@ DONE = [
      "Site marking with its side and who marked it — the checklist item is "
      "read from it — and blood, recorded as the two facts it is "
      "(GAHAR SAS.06 d and f)"),
+    ("الأجهزة اللي الحالة محتاجاها: القايمة بتتكتب مرة على الإجراء وبتتنسخ "
+     "على الحالة، وكل حاجة بحقيقتين — **موجودة** و**شغّالة** — لأن منظار "
+     "لمبته فصلت مش جهاز الحالة عندها (GAHAR SAS.06 b)",
+     "The equipment a case needs: the list is written once against the "
+     "procedure and copied onto the case, and every item carries two facts — "
+     "**there** and **working** — because a stack whose light is dead is not "
+     "equipment this case has (GAHAR SAS.06 b)"),
     ("احتياطات مكافحة العدوى للحالة — تلامس ورشّ وهواء بأسماء منقولة من "
      "المعيار، و«المعتادة بس» إجابة مسجّلة مش فراغ — وبتبان على شاشة اليوم "
      "لأن حالة تلامس بتتحط آخر الليستة (GAHAR SAS.06 h)",

@@ -236,6 +236,40 @@ class Operation(db.Model):
     site_marked_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     site_marked_at = db.Column(db.DateTime)
 
+    # ------------------------------------------- what the case needs to run --
+    #
+    # SAS.06 (ب): *"The availability and functioning of needed equipment"* —
+    # and the intent names the moment and the shape:
+    #
+    #   *"The hospital is required to ensure the availability and functioning
+    #   of equipment needed for the surgery ... **before calling for the
+    #   patient**. This equipment and tools **could differ according to the
+    #   type of surgery** ... or the use of anesthesia and sedation."*
+    #
+    # Two facts, and the standard names both: **there**, and **works**. A
+    # theatre that has the stack but its light is dead is not equipped, and a
+    # single "checked" flag would call it equipped — see
+    # :class:`OperationEquipment`, which keeps them apart.
+    #
+    # **The program never decides what a procedure needs.** That is an
+    # operational judgement and belongs to whoever runs the theatres; the list
+    # is written once against the service (``Service.equipment_list``) and
+    # copied onto the case, so nobody retypes a laparoscopy stack every
+    # morning and nobody's list is invented for them.
+    #
+    # NULL is nobody asked. False is somebody considered it and this case
+    # needs nothing beyond what the room always has — a real answer for a
+    # circumcision, and the usual one.
+    #
+    # **What this is not:** the medical equipment *management* plan — the
+    # inventory, preventive maintenance, calibration schedule "according to
+    # the manufacturer's recommendations", and malfunction history — is a
+    # different standard and a module of its own. Nothing here should be read
+    # as covering it, and docs/gahar/SAS_theatres_matrix.md says so.
+    equipment_needed = db.Column(db.Boolean)
+    equipment_checked_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    equipment_checked_at = db.Column(db.DateTime)
+
     # ------------------------------------- preparing for what it carries --
     #
     # SAS.06 (ح), and the whole of what the standard asks is one line:
@@ -356,6 +390,8 @@ class Operation(db.Model):
                                        foreign_keys=[identity_checked_by])
     infection_noter = db.relationship("User",
                                       foreign_keys=[infection_noted_by])
+    equipment_checker = db.relationship("User",
+                                        foreign_keys=[equipment_checked_by])
     consent = db.relationship("Consent")
 
     @property
@@ -627,6 +663,66 @@ class DoctorCaseRate(db.Model):
     def __repr__(self):
         return (f"<DoctorCaseRate doc={self.doctor_id} "
                 f"svc={self.service_id} {self.case_type}>")
+
+
+class OperationEquipment(db.Model):
+    """One piece of equipment this case needs, and whether it is there and works.
+
+    **Two columns and not one**, because the standard asks two questions —
+    *"the availability **and functioning**"* — and they fail differently. The
+    stack is in the room but its light is dead; the ventilator works but is in
+    the other theatre. A single "checked" box would call both of those ready,
+    and the whole item exists to stop a case being called for when it is not.
+
+    Both start NULL: an item copied from the service's list that nobody has
+    looked at yet is not "missing", it is **unchecked**, and the third state is
+    the one this program keeps having to put back.
+
+    The name is stored, not a link to a catalogue row. A theatre list names
+    things a register may not carry ("مقص هارمونيك", "منظار ٥ مم"), and this is
+    a record of what somebody checked on the day — the same reason the
+    accompanying person on the identity check is a name and not a foreign key.
+    """
+    __tablename__ = "operation_equipment"
+
+    id = db.Column(db.Integer, primary_key=True)
+    operation_id = db.Column(db.Integer, db.ForeignKey("operations.id"),
+                             nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    #: Is it in the room? NULL until somebody looks.
+    present = db.Column(db.Boolean)
+    #: Does it work? NULL until somebody looks — and a thing that is not there
+    #: cannot be tested, so this stays NULL rather than becoming False, which
+    #: would read as "it is here and broken".
+    working = db.Column(db.Boolean)
+    note = db.Column(db.String(160))
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+
+    operation = db.relationship("Operation", backref="equipment")
+
+    @property
+    def ready(self):
+        """There **and** working. Anything else is not ready, including the
+        item nobody has looked at."""
+        return bool(self.present) and bool(self.working)
+
+    @property
+    def state(self):
+        """``unchecked`` · ``missing`` · ``broken`` · ``ready``.
+
+        Four, because they are four different errands: nobody has looked yet,
+        go and find it, go and get another one, and nothing to do.
+        """
+        if self.present is None:
+            return "unchecked"
+        if not self.present:
+            return "missing"
+        if self.working is None:
+            return "unchecked"
+        return "ready" if self.working else "broken"
+
+    def __repr__(self):
+        return f"<OperationEquipment {self.name} op={self.operation_id}>"
 
 
 #: What this case needs beyond what every case gets. **Quoted, not invented.**
