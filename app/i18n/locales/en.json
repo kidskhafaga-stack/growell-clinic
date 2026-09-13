@@ -405,6 +405,7 @@
     "birth_time_hint": "Only matters in the first days — jaundice thresholds move by the hour. Leave blank if nobody said.",
     "birth_time_bad": "The time of birth is not a valid time",
     "tab_dental": "Teeth",
+    "tab_stays": "Stays",
     "baseline_spo2": "This child's usual oxygen",
     "baseline_spo2_hint": "For a child who lives below the usual range (a cardiac shunt, chronic lung disease). The program says when a reading falls below it — and softens no triage rule because of it.",
     "baseline_spo2_range": "The usual oxygen saturation must be between 50 and 100"
@@ -5849,6 +5850,9 @@
     "no_beds_here": "No beds in this space yet",
     "no_spaces_here": "No spaces in this unit yet",
     "nothing_built": "No units yet. Start with a unit, then a space inside it, then the beds.",
+    "still_in": "Still in",
+    "doctor": "Responsible doctor",
+    "rounds_written": "{n} round notes",
     "unit_emergency": "Emergency",
     "unit_nicu": "Neonatal unit",
     "unit_icu": "Intensive care",

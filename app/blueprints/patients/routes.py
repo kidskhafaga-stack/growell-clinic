@@ -611,13 +611,23 @@ def _ward_context(patient_id):
     from app.utils.facility import module_enabled
 
     if not module_enabled("beds"):
-        return {"open_admission": None, "free_beds": [], "has_beds": False}
+        return {"open_admission": None, "stays": [], "free_beds": [],
+                "has_beds": False}
     from app.models import Bed
 
     from app.utils import beds as ward
 
     admission = ward.open_admission(patient_id)
     return {"open_admission": admission,
+            # **Every stay, not just the one that is open.** The button above
+            # takes somebody to the child who is in a bed *now*; this is the
+            # record — and without it a stay that ended was in the program and
+            # not in the file. `Admission`'s own docstring quotes the plan it
+            # was built to: «ملف الطفل واحد. لو الطفل اتنوّم، التنويم بيظهر في
+            # نفس الملف» — and GAHAR IMT.08 asks that the record be *available
+            # when needed by a healthcare professional*, which a stay nobody
+            # can reach is not.
+            "stays": ward.stays_for(patient_id),
             "free_beds": [] if admission else ward.free_beds(),
             "has_beds": Bed.query.filter_by(is_active=True).first() is not None}
 
