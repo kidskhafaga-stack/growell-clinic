@@ -204,6 +204,24 @@ class Service(db.Model):
     # with an unlabelled line silently missing from its own total is the one
     # failure a summary must not have.
     invoice_section = db.Column(db.String(30), index=True)
+    # **How long this service takes**, in minutes, written by the clinic.
+    #
+    # It sat here with an edit box and no reader until GAHAR SAS.02 (ب) asked
+    # that a booking *"specify the start time and end time for surgery"* and
+    # the standard's third item of evidence asked for *"determining the needed
+    # time for each procedure"*. That is this number, and a second column
+    # beside it would have been one fact in two places — the answer depending
+    # on which screen somebody happened to fill in.
+    #
+    # **The program ships no table of times.** "International surgery times",
+    # which the standard names, is a reference this program does not hold and
+    # must not invent — the same rule that keeps invented vaccine thresholds
+    # out of the code. The clinic writes the number it works to; the theatre
+    # booking offers it and derives the end time from it; and the case screen
+    # then shows planned beside actual. It measures. It does not judge.
+    #
+    # NULL stays the ordinary answer, and a case then simply has no expected
+    # time rather than a guessed one.
     duration_minutes = db.Column(db.Integer)
     price = db.Column(db.Float, default=0, nullable=False)
     cost = db.Column(db.Float)          # direct cost (for profitability)

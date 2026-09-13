@@ -278,6 +278,11 @@ def operation(operation_id):
                            timeline=theatre.timeline(row),
                            waited=theatre.waited_minutes(row),
                            turnover=theatre.turnover_minutes(row),
+                           # How long it was booked for against how long it
+                           # took (SAS.02 ب). Shown, never graded: the
+                           # "international surgery times" the standard names
+                           # are a reference this program does not hold.
+                           time_plan=theatre.time_plan(row),
                            blood_state=theatre.blood_state(row),
                            plan=theatre.plan_for(row),
                            anaesthesia_types=ANAESTHESIA_TYPES,
@@ -957,6 +962,53 @@ def cancel(operation_id):
     db.session.commit()
     flash(t("theatre.cancelled"), "info")
     return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/postpone", methods=["POST"])
+@module_required(MODULE)
+def postpone(operation_id):
+    """Moved to another day — not the same thing as called off.
+
+    SAS.02's fourth item of evidence asks a theatre to analyse *"postponed
+    and canceled"* procedures, which it can only do if the two were ever told
+    apart. Its own button beside the cancel one, because a postponement typed
+    into the cancel box is a cancellation for ever after.
+    """
+    row = Operation.query.get_or_404(operation_id)
+    try:
+        moved = theatre.postpone(row, _a_date(request.form.get("date")),
+                                 reason=request.form.get("reason"),
+                                 user=current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("theatre.postpone_needs_date"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    if moved is None:
+        # Nothing open to move: already done, or already called off once.
+        flash(t("theatre.postpone_not_open"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    db.session.commit()
+    flash(t("theatre.postponed"), "success")
+    # The new case, because that is the one somebody now has work on.
+    return redirect(url_for("theatres.operation", operation_id=moved.id))
+
+
+@theatres_bp.route("/call-offs")
+@module_required(MODULE)
+def call_offs():
+    """What the theatre lost in a period, and why.
+
+    *"There is a process for analyzing postponed and canceled procedures, and
+    action is taken to improve them."* The program's half of that is the
+    counting; the action is the clinic's, and nothing here grades it.
+    """
+    today = local_today()
+    start = _a_date(request.args.get("start")) or today.replace(day=1)
+    end = _a_date(request.args.get("end")) or today
+    return render_template("theatres/calloffs.html",
+                           start=start, end=end,
+                           summary=theatre.calloff_analysis(start, end),
+                           rows=theatre.call_offs(start, end))
 
 
 @theatres_bp.route("/patient-search")

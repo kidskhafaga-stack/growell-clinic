@@ -248,6 +248,24 @@
     {% endif %}
   </h2>
 
+  {# What it was booked for against what it took (SAS.02 ب). Two numbers and
+     the gap between them — **no verdict**: the «international surgery times»
+     the standard names are a reference this program does not hold, so it says
+     what happened and leaves the reading to the unit. #}
+  {% if time_plan.planned or time_plan.actual or time_plan.usual %}
+  <p class="hint" style="margin:0 0 8px;" dir="auto">
+    {% if time_plan.end %}<span dir="ltr">{{ time_plan.start.strftime('%H:%M') }}
+      – {{ time_plan.end.strftime('%H:%M') }}</span> ·{% endif %}
+    {% if time_plan.planned %}{{ t('theatre.planned_minutes', n=time_plan.planned) }}{% endif %}
+    {% if time_plan.actual %} · {{ t('theatre.actual_minutes', n=time_plan.actual) }}{% endif %}
+    {% if time_plan.difference is not none %}
+    <span class="badge badge--muted" dir="ltr">
+      {{ '+' if time_plan.difference > 0 else '' }}{{ time_plan.difference }}</span>
+    {% endif %}
+    {% if time_plan.usual %} · {{ t('theatre.usual_minutes', n=time_plan.usual) }}{% endif %}
+  </p>
+  {% endif %}
+
   <div style="display:flex;flex-direction:column;gap:2px;">
     {% for step in timeline %}
     {# A moment nobody recorded stays on the list. A chain that dropped it
@@ -985,6 +1003,16 @@
     {% if operation.finished_at %} — {{ operation.finished_at|clinic_stamp }}{% endif %}
     {% if operation.cancel_reason %} · {{ operation.cancel_reason }}{% endif %}
   </p>
+  {# Called off, or moved? The record answers it, so the screen does too —
+     and the case it became is one click away rather than something somebody
+     has to find by searching the child's name. #}
+  {% if operation.called_off_as == 'postponed' %}
+  <p class="hint" style="margin:0;">
+    <i class="bi bi-arrow-right-circle"></i>
+    <a href="{{ url_for('theatres.operation', operation_id=operation.postponed_to_id) }}">
+      {{ t('theatre.moved_to_case') }}</a>
+    <span dir="ltr">{{ operation.postponed_to.on_date }}</span></p>
+  {% endif %}
   {% endif %}
 
   {% if operation.status == 'done' and not safety.closed %}
@@ -1193,6 +1221,32 @@
 </div>
 
 {% if operation.is_open %}
+{# --------------------------------- moved, or called off ---------------- #}
+{# SAS.02's fourth item of evidence asks a theatre to analyse «postponed **and**
+   canceled» procedures — two numbers, and it can only ever have two if the
+   two were told apart on the day. So moving a case has its own button: a
+   postponement typed into the cancel box is a cancellation for ever after. #}
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <details>
+    <summary class="hint" style="cursor:pointer;">{{ t('theatre.postpone') }}</summary>
+    <p class="hint" style="margin:10px 0 0;">{{ t('theatre.postpone_hint') }}</p>
+    <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;"
+          action="{{ url_for('theatres.postpone', operation_id=operation.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin-bottom:0;min-width:160px;">
+        <label for="pp_date">{{ t('theatre.postpone_to') }}</label>
+        <input class="input" type="date" id="pp_date" name="date" dir="ltr">
+      </div>
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:220px;">
+        <label for="pp_reason">{{ t('theatre.cancel_reason') }}</label>
+        <input class="input" id="pp_reason" name="reason" maxlength="200">
+      </div>
+      <button class="btn btn-outline gc-press" type="submit">
+        <i class="bi bi-calendar-event"></i> {{ t('theatre.postpone') }}</button>
+    </form>
+  </details>
+</div>
+
 <div class="card gc-scale-in" style="margin-top:14px;">
   <details>
     <summary class="hint" style="cursor:pointer;">{{ t('theatre.cancel_case') }}</summary>

@@ -597,6 +597,11 @@ ADDITIONS = [
     ("operations", "called_to", "VARCHAR(120)"),
     ("operations", "cleaned_at", "DATETIME"),
     ("operations", "cleaned_by", "INTEGER"),
+    # Postponed is not cancelled (SAS.02, evidence 4). Derived from this link
+    # rather than a fifth status, because `status` is read by name across the
+    # codebase and a new word there would change what every one of those
+    # places means.
+    ("operations", "postponed_to_id", "INTEGER"),
 ]
 
 def apply_schema(report=None):
