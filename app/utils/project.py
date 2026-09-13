@@ -185,6 +185,13 @@ DONE = [
      "Site marking with its side and who marked it — the checklist item is "
      "read from it — and blood, recorded as the two facts it is "
      "(GAHAR SAS.06 d and f)"),
+    ("الصلاحيات الإكلينيكية: اللي المستشفى منحته لكل طبيب، والحجز بيتحكم عليه "
+     "بيوم العملية — و«بره الصلاحيات» بتتقبل بسبب مكتوب مش بدوسة "
+     "(GAHAR SAS.02 a · WFM.12)",
+     "Clinical privileges: what this hospital granted each doctor, with a "
+     "booking judged against the day of the operation — and going outside "
+     "them accepted with a written reason rather than a tick "
+     "(GAHAR SAS.02 a · WFM.12)"),
     ("الأجهزة المزروعة بلحظتين: موجودة في الأوضة، واتزرعت في الطفل — وغرسة "
      "اتزرعت بترفض من غير رقم تشغيلة، وشاشة استدعاء بتلاقي الأطفال بالباتش "
      "(GAHAR SAS.06 g · SAS.11)",
