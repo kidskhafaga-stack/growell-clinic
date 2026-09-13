@@ -179,6 +179,42 @@ class Operation(db.Model):
     consent_id = db.Column(db.Integer, db.ForeignKey("consents.id"),
                            nullable=True, index=True)
 
+    # ------------------------------------------- who this child is, verified --
+    #
+    # GAHAR SAS.06 (أ): the child's identity **and the planned procedure**,
+    # confirmed *with the family taking part*. The program had a checklist box
+    # called ``identity`` that anybody could tick on the way past — and in
+    # paediatrics that is the box with the most behind it: a child cannot
+    # confirm their own name, two siblings are booked the same morning under
+    # the same surname, and the family is the only witness in the room who
+    # knows which one this is.
+    #
+    # **What the program can honestly hold, and what it cannot.** The act
+    # happens in a room and no software sees it. What it can record is that a
+    # named person did it, when, who from the family was there, and what it
+    # was matched against — a *witnessed event* rather than a tick. So the box
+    # is answered from these, exactly as the consent and the site are.
+    #
+    # ``identity_with`` carries ``none_present`` as a real answer, for the
+    # child brought by a school or arriving without anybody. Leaving that out
+    # would have somebody name a guardian who was not there to get past the
+    # screen — and ``identity_state`` keeps the two apart so an audit can see
+    # which cases they were, instead of one tick covering both.
+    #
+    # The accompanying person is stored **by name**, not as a link to the
+    # guardian row. The row can be edited or deleted, and this is a record of
+    # who stood there on the day — the same reason a signed consent keeps its
+    # own copy of the wording instead of pointing at the current one.
+    identity_checked_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    identity_checked_at = db.Column(db.DateTime)
+    identity_with = db.Column(db.String(20))
+    identity_with_name = db.Column(db.String(120))
+    # Which identifiers were matched, comma-joined from :data:`IDENTITY_KEYS`.
+    # Recorded, **not judged**: the standard asks for the identity to be
+    # confirmed and does not name a number of identifiers, and a program that
+    # required two would be inventing a requirement it was never given.
+    identity_matched = db.Column(db.String(120))
+
     # ------------------------------------------------- marking the site --
     #
     # GAHAR SAS.06 (د) asks for the surgical site to be **marked** before the
@@ -264,6 +300,8 @@ class Operation(db.Model):
     surgeon = db.relationship("User", foreign_keys=[surgeon_id])
     discharger = db.relationship("User", foreign_keys=[discharged_by])
     marker = db.relationship("User", foreign_keys=[site_marked_by])
+    identity_checker = db.relationship("User",
+                                       foreign_keys=[identity_checked_by])
     consent = db.relationship("Consent")
 
     @property
@@ -535,6 +573,31 @@ class DoctorCaseRate(db.Model):
     def __repr__(self):
         return (f"<DoctorCaseRate doc={self.doctor_id} "
                 f"svc={self.service_id} {self.case_type}>")
+
+
+#: Who from the family took part in confirming the child. **``none_present``
+#: is an answer, not a gap** — a child arrives with a school, with a driver,
+#: or alone in an emergency, and a scheme without it has somebody naming a
+#: mother who was not in the corridor.
+#:
+#: ``other`` exists because the person who brings a child to theatre is very
+#: often the grandmother or an aunt, who is nobody's row in ``parents``.
+IDENTITY_WITH = ("father", "mother", "guardian", "other", "none_present")
+
+#: The roles above that mean somebody from the family was actually there.
+IDENTITY_PRESENT = ("father", "mother", "guardian", "other")
+
+#: What the child was matched against. ``procedure`` is on the list because
+#: the standard asks for the identity *and the planned procedure* in one
+#: breath — confirming who this is without confirming what is about to be
+#: done to them is half the sentence.
+#:
+#: ``wristband`` is last and is not offered unless a clinic uses them; the
+#: others are only offered when the program actually holds a value for this
+#: child, because a ticked "national id matched" on a child with no national
+#: id on file is a record of something that cannot have happened.
+IDENTITY_KEYS = ("name", "birth_date", "file_number", "national_id",
+                 "procedure", "wristband")
 
 
 #: Which side a procedure is on. **``not_applicable`` is a real answer** and

@@ -59,6 +59,96 @@
   </div>
 </div>
 
+{# ------------------------------------------------ who this child is ----- #}
+{# SAS.06 (أ): the child **and the planned procedure**, confirmed with the
+   family taking part. The other half of the never-event the site covers, and
+   in paediatrics the half with more behind it — a child cannot confirm their
+   own name, and two siblings are on the same morning's list under the same
+   surname.
+
+   The guardians already on file fill the name in, so confirming is a click
+   rather than a name typed again. And «محدش من الأسرة» is a real answer that
+   *clears* the name box: "nobody was there, and her name is Fatma" is a
+   contradiction, and the screen refuses to let somebody store it. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;"
+     x-data="{
+       who: '{{ operation.identity_with or '' }}',
+       name: {{ (operation.identity_with_name or '')|tojson }},
+       people: {{ identity_options.people|tojson }},
+       fill() {
+         const p = this.people.find(x => x.relation === this.who);
+         if (p) { this.name = p.name; }
+         if (this.who === 'none_present') { this.name = ''; }
+       }
+     }">
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-person-badge"></i> {{ t('theatre.identity') }}
+    {% if identity_state == 'with_family' %}
+    <span class="alert-pill ok"><i class="bi bi-check2-circle"></i>
+      {{ t('theatre.identity_with_family') }}</span>
+    {% elif identity_state == 'alone' %}
+    {# Recorded, and deliberately not green: the case is verified and the
+       standard's «بمشاركة الأسرة» was not met, and both are true at once. #}
+    <span class="alert-pill warn"><i class="bi bi-person-dash"></i>
+      {{ t('theatre.identity_alone') }}</span>
+    {% else %}
+    <span class="alert-pill warn"><i class="bi bi-exclamation-triangle"></i>
+      {{ t('theatre.identity_none') }}</span>
+    {% endif %}
+  </h2>
+
+  {% if identity_state != 'none' %}
+  <p class="hint">
+    {% if operation.identity_with_name %}{{ operation.identity_with_name }}
+      ({{ t('theatre.identity_role_' ~ operation.identity_with) }}) · {% endif %}
+    <span dir="ltr">{{ operation.identity_checked_at|clinic_stamp }}</span>
+    {% if operation.identity_checker %} ·
+      {{ operation.identity_checker.display_name(current_lang) }}{% endif %}
+    {% if identity_matched %} ·
+      {% for k in identity_matched %}{{ t('theatre.identity_key_' ~ k) }}{% if not loop.last %} · {% endif %}{% endfor %}
+    {% endif %}</p>
+  {% endif %}
+
+  <form method="post"
+        action="{{ url_for('theatres.verify_identity', operation_id=operation.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+      <div class="form-row" style="margin:0;min-width:190px;">
+        <label for="op_idwho">{{ t('theatre.identity_who') }}</label>
+        <select class="select" id="op_idwho" name="with_whom" required
+                x-model="who" @change="fill()">
+          <option value="">—</option>
+          {% for k in identity_with %}
+          {# The guardian on file is named in the label, so whoever is
+             confirming reads who the program has before choosing rather than
+             after. #}
+          <option value="{{ k }}" {{ 'selected' if operation.identity_with == k else '' }}>
+            {{ t('theatre.identity_role_' ~ k) }}{% if identity_options.named.get(k) %} — {{ identity_options.named[k] }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin:0;flex:1;min-width:190px;">
+        <label for="op_idname">{{ t('theatre.identity_name') }}</label>
+        <input class="input" id="op_idname" name="with_name" maxlength="120"
+               x-model="name" :disabled="who === 'none_present'">
+      </div>
+      <button class="btn btn-outline gc-press" type="submit">
+        <i class="bi bi-patch-check"></i> {{ t('theatre.identity_verify') }}</button>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;">
+      {# Only the identifiers the program actually holds for this child are
+         here. A ticked "national id matched" on a child with no national id
+         on file is a record of something that cannot have happened. #}
+      {% for k in identity_options.identifiers %}
+      <label style="font-weight:400;margin:0;">
+        <input type="checkbox" name="matched" value="{{ k }}"
+               {{ 'checked' if (k in identity_matched) or (identity_state == 'none' and k in ('name', 'birth_date', 'procedure')) else '' }}>
+        {{ t('theatre.identity_key_' ~ k) }}</label>
+      {% endfor %}
+    </div>
+  </form>
+</div>
+
 {# ------------------------------------------ the site, and the blood ----- #}
 {# SAS.06 (د) and (و). The site is the never-event: a box saying "marked"
    with no record of *which* site is how a wrong-side operation gets a
@@ -290,7 +380,20 @@
       <input type="hidden" name="stop" value="{{ stop }}">
       <div class="op-items">
         {% for item in items[stop] %}
-        {% if item == 'site_marked' %}
+        {% if item == 'identity' %}
+        {# Read from the recorded check. The other never-event box, and the
+           one where «محدش من الأسرة» still ticks it — the case *was* verified
+           by a named person, and the card above is where the absence shows.
+           Hiding it here and refusing the tick would only produce a guardian
+           who was not in the room. #}
+        <label class="op-item {{ 'op-missed' if short and item in short else '' }}"
+               title="{{ t('theatre.identity_read_only') }}">
+          <input type="checkbox" disabled
+                 {{ 'checked' if identity_state != 'none' else '' }}>
+          <span>{{ t('theatre.item_' ~ item) }}
+            <i class="bi bi-person-badge" style="opacity:.6;"></i></span>
+        </label>
+        {% elif item == 'site_marked' %}
         {# Read from the recorded marking. The never-event box. #}
         <label class="op-item {{ 'op-missed' if short and item in short else '' }}"
                title="{{ t('theatre.site_read_only') }}">

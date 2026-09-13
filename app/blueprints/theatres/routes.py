@@ -29,7 +29,7 @@ from app.i18n import t
 from app.models import Patient
 from app.models.admission import Admission
 from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
-                                ANAESTHESIA_TYPES, SITE_SIDES,
+                                ANAESTHESIA_TYPES, IDENTITY_WITH, SITE_SIDES,
                                 REVIEW_KINDS, REVIEW_VERDICTS, Operation,
                                 Theatre)
 from app.utils import recovery as _recovery
@@ -225,6 +225,16 @@ def operation(operation_id):
                            # sign-in items the standard asks be *verified*.
                            site_state=theatre.site_state(row),
                            site_sides=SITE_SIDES,
+                           # Who this child is — the other half of the
+                           # never-event. The guardians already on file are
+                           # offered so confirming is one click rather than
+                           # a name typed again, and only the identifiers
+                           # the program actually holds for this child are
+                           # offered at all.
+                           identity_state=theatre.identity_state(row),
+                           identity_with=IDENTITY_WITH,
+                           identity_options=theatre.identity_options(row),
+                           identity_matched=theatre.identity_matched_keys(row),
                            blood_state=theatre.blood_state(row),
                            plan=theatre.plan_for(row),
                            anaesthesia_types=ANAESTHESIA_TYPES,
@@ -416,6 +426,31 @@ def mark_site(operation_id):
         return redirect(url_for("theatres.operation", operation_id=row.id))
     db.session.commit()
     flash(t("theatre.site_marked_ok"), "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/identity", methods=["POST"])
+@module_required(MODULE)
+def verify_identity(operation_id):
+    """Record that somebody confirmed this child, and who stood with them.
+
+    SAS.06 (أ). The half of the never-event the site marking does not cover:
+    right patient, right procedure. A blank answer for who took part is
+    refused rather than read as "nobody was there" — *not asked* and *nobody
+    came* are two different mornings, and this program does not let one empty
+    value stand for two facts.
+    """
+    row = Operation.query.get_or_404(operation_id)
+    done = theatre.verify_identity(
+        row, (request.form.get("with_whom") or "").strip(),
+        name=request.form.get("with_name"),
+        matched=request.form.getlist("matched"),
+        user=current_user)
+    if done is None:
+        flash(t("theatre.identity_needs_who"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    db.session.commit()
+    flash(t("theatre.identity_ok"), "success")
     return redirect(url_for("theatres.operation", operation_id=row.id))
 
 

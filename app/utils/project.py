@@ -185,6 +185,13 @@ DONE = [
      "Site marking with its side and who marked it — the checklist item is "
      "read from it — and blood, recorded as the two facts it is "
      "(GAHAR SAS.06 d and f)"),
+    ("هوية الطفل والإجراء بمشاركة الأسرة: مين تحقّق ومين كان موجود وامتى — "
+     "و«محدش من الأسرة» إجابة مسجّلة مش فراغ، وبند الـchecklist بيتقرا منها "
+     "(GAHAR SAS.06 a)",
+     "The child and the procedure, confirmed with the family: who verified, "
+     "who was there and when — with \"nobody from the family\" a recorded "
+     "answer rather than a blank, and the checklist item read from it "
+     "(GAHAR SAS.06 a)"),
     ("رقم الملف بياخد حروفه من اسم العيادة اللي البرنامج متسطّب عندها — "
      "وبعد أول رقم يطلع، بياخدها من الأرقام نفسها، فتغيير اسم العيادة "
      "ما بيقسمش السلسلة",

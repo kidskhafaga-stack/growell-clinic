@@ -212,9 +212,10 @@ def test_a_stop_signed_short_keeps_what_was_not_ticked(hospital):
     to prevent, manufactured by the software meant to prevent it.
     """
     operation = _book(hospital, _child(hospital, "سلمى"))
-    # ``consent`` is posted here and still comes back missing, which is the
-    # assertion: it is no longer an ordinary box. It is read from the consent
-    # linked to the case — and this case has none.
+    # ``consent`` **and ``identity``** are posted here and both still come back
+    # missing, which is the assertion: neither is an ordinary box any more.
+    # One is read from the consent linked to the case, the other from the
+    # recorded identity check — and this case has neither.
     _sign(hospital, operation, "sign_in",
           items=["identity", "allergy", "airway", "consent"])
 
@@ -224,11 +225,14 @@ def test_a_stop_signed_short_keeps_what_was_not_ticked(hospital):
     assert state["ready"]
     # And short, with the missing items named rather than counted.
     #
-    # ``consent`` among them *although it was ticked* — the item a family's
-    # signature answers cannot be supplied by whoever is filling in the form.
-    # See test_the_tick_that_could_lie.py for the whole of that rule.
+    # ``consent`` and ``identity`` among them *although both were ticked* —
+    # the items a family answers cannot be supplied by whoever is filling in
+    # the form. See test_the_tick_that_could_lie.py and
+    # test_the_child_on_the_trolley_is_this_child.py for the whole of that
+    # rule.
     assert set(state["missed"]["sign_in"]) == {
-        "site_marked", "consent", "anaesthesia_check", "pulse_oximeter"}
+        "identity", "site_marked", "consent", "anaesthesia_check",
+        "pulse_oximeter"}
 
 
 def test_an_unknown_item_cannot_be_smuggled_into_a_signature(hospital):
@@ -238,14 +242,18 @@ def test_an_unknown_item_cannot_be_smuggled_into_a_signature(hospital):
     produced a signature naming a check nobody performs before anaesthesia.
     """
     operation = _book(hospital, _child(hospital, "جنى"))
+    # ``airway`` is an ordinary box, on purpose. Four of this stop's items are
+    # now answered from the record — ``identity``, ``site_marked``, ``consent``
+    # and ``anaesthesia_check`` — and using one of those here would be testing
+    # that feature instead of this one.
     _sign(hospital, operation, "sign_in",
-          items=["identity", "counts_correct", "made_up"])
+          items=["airway", "counts_correct", "made_up"])
 
     from app.models.theatre import Operation
 
     with hospital["app"].app_context():
         row = hospital["db"].session.get(Operation, operation)
-        assert row.check_for("sign_in").items == ["identity"]
+        assert row.check_for("sign_in").items == ["airway"]
 
 
 def test_signing_the_same_stop_again_updates_it(hospital):
@@ -257,15 +265,16 @@ def test_signing_the_same_stop_again_updates_it(hospital):
     from app.models.theatre import Operation, SafetyCheck
 
     operation = _book(hospital, _child(hospital, "لينا"))
-    _sign(hospital, operation, "sign_in", items=["identity"])
-    # Ordinary items on purpose: ``consent`` is answered from the record now,
-    # so using it here would be testing that feature rather than this one.
-    _sign(hospital, operation, "sign_in", items=["identity", "allergy"])
+    _sign(hospital, operation, "sign_in", items=["airway"])
+    # Ordinary items on purpose: ``identity`` and ``consent`` are answered
+    # from the record now, so using either here would be testing that feature
+    # rather than this one.
+    _sign(hospital, operation, "sign_in", items=["airway", "allergy"])
 
     with hospital["app"].app_context():
         rows = SafetyCheck.query.filter_by(operation_id=operation).all()
         assert len(rows) == 1
-        assert set(rows[0].items) == {"identity", "allergy"}
+        assert set(rows[0].items) == {"airway", "allergy"}
         assert len(hospital["db"].session.get(Operation, operation).checks) == 1
 
 
@@ -676,7 +685,7 @@ def test_the_day_screen_draws_where_each_checklist_stands(hospital):
 
     child = _child(hospital, "ف")
     operation = _book(hospital, child, on_date=local_today())
-    _sign(hospital, operation, "sign_in", items=["identity"])
+    _sign(hospital, operation, "sign_in", items=["airway"])
 
     page = hospital["sign_in"]("boss").get("/theatres/")
 
@@ -691,7 +700,7 @@ def test_the_case_screen_names_the_unticked_items(hospital):
     """Not a count on its own: which ones."""
     child = _child(hospital, "ص")
     operation = _book(hospital, child)
-    _sign(hospital, operation, "sign_in", items=["identity", "consent"])
+    _sign(hospital, operation, "sign_in", items=["airway", "consent"])
 
     page = hospital["sign_in"]("boss").get(f"/theatres/operation/{operation}")
 
@@ -713,7 +722,7 @@ def test_a_nurse_may_run_the_checklist(hospital):
     client = hospital["sign_in"]("scrub")
 
     page = client.post(f"/theatres/operation/{operation}/sign",
-                       data={"stop": "sign_in", "item": ["identity",
+                       data={"stop": "sign_in", "item": ["airway",
                                                          "allergy"]},
                        follow_redirects=True)
 
@@ -726,7 +735,7 @@ def test_a_nurse_may_run_the_checklist(hospital):
     # an empty checklist.
     with hospital["app"].app_context():
         row = hospital["db"].session.get(Operation, operation)
-        assert set(row.check_for("sign_in").items) == {"identity", "allergy"}
+        assert set(row.check_for("sign_in").items) == {"airway", "allergy"}
 
 
 def test_the_signature_carries_who_signed_it(hospital):
@@ -738,7 +747,7 @@ def test_the_signature_carries_who_signed_it(hospital):
     operation = _book(hospital, child)
     hospital["sign_in"]("scrub").post(
         f"/theatres/operation/{operation}/sign",
-        data={"stop": "sign_in", "item": ["identity"]}, follow_redirects=True)
+        data={"stop": "sign_in", "item": ["airway"]}, follow_redirects=True)
 
     with hospital["app"].app_context():
         row = hospital["db"].session.get(Operation, operation)

@@ -124,7 +124,7 @@ def test_fit_with_conditions_is_still_an_assessment(suite):
         suite["db"].session.commit()
         assert theatres.pre_induction_state(case) == "done"
         assert theatres.pre_induction_ok(case) is True
-        row = theatres.sign(case, SIGN_IN, items=["identity"], user=None)
+        row = theatres.sign(case, SIGN_IN, items=["airway"], user=None)
         suite["db"].session.commit()
         assert "anaesthesia_check" in row.items
 
@@ -149,7 +149,7 @@ def test_the_anaesthetic_tick_cannot_say_yes_when_nothing_does(suite):
 
     with suite["app"].app_context():
         row = theatres.sign(_case(suite), SIGN_IN,
-                            items=["identity", "anaesthesia_check", "airway"],
+                            items=["allergy", "anaesthesia_check", "airway"],
                             user=None)
         suite["db"].session.commit()
         assert "anaesthesia_check" not in row.items
@@ -163,7 +163,7 @@ def test_it_ticks_itself_when_the_assessment_is_there(suite):
 
     with suite["app"].app_context():
         theatres.review(_case(suite), "pre_induction", "fit")
-        row = theatres.sign(_case(suite), SIGN_IN, items=["identity"],
+        row = theatres.sign(_case(suite), SIGN_IN, items=["airway"],
                             user=None)
         suite["db"].session.commit()
         assert "anaesthesia_check" in row.items
@@ -190,7 +190,7 @@ def test_it_refuses_nothing(suite):
 
     with suite["app"].app_context():
         case = _case(suite)
-        theatres.sign(case, SIGN_IN, items=["identity"], user=None)
+        theatres.sign(case, SIGN_IN, items=["airway"], user=None)
         suite["db"].session.commit()
         theatres.start(case, user=None)
         suite["db"].session.commit()
