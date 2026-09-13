@@ -262,6 +262,10 @@ def operation(operation_id):
                            # equipment this case has.
                            equipment_state=theatre.equipment_state(row),
                            equipment=theatre.equipment_for(row),
+                           # What this case plans to implant, and what went in
+                           # (SAS.06 ز / SAS.11). Two moments, kept apart.
+                           implant_state=theatre.implant_state(row),
+                           implants=theatre.implants_for(row),
                            blood_state=theatre.blood_state(row),
                            plan=theatre.plan_for(row),
                            anaesthesia_types=ANAESTHESIA_TYPES,
@@ -479,6 +483,70 @@ def verify_identity(operation_id):
     db.session.commit()
     flash(t("theatre.identity_ok"), "success")
     return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/implants", methods=["POST"])
+@module_required(MODULE)
+def implants(operation_id):
+    """Plan, confirm and record what goes into this child.
+
+    SAS.06 (ز) — is it here — and SAS.11 — what went in, with its batch. One
+    screen because it is one row seen at two moments, and separating them
+    would have somebody retype a serial number.
+    """
+    from app.models.theatre import OperationImplant
+
+    row = Operation.query.get_or_404(operation_id)
+    raw = (request.form.get("needed") or "").strip()
+    if raw in ("yes", "no"):
+        theatre.set_implants_needed(row, raw == "yes", user=current_user)
+
+    theatre.add_implant(row, request.form.get("new_name"),
+                        lot=request.form.get("new_lot"),
+                        manufacturer=request.form.get("new_manufacturer"),
+                        serial=request.form.get("new_serial"),
+                        size=request.form.get("new_size"))
+    db.session.flush()
+
+    complained = False
+    for item in theatre.implants_for(row):
+        action = request.form.get(f"do_{item.id}")
+        if action == "here":
+            theatre.confirm_implant(item, user=current_user)
+        elif action == "in":
+            if theatre.record_implanted(
+                    item, lot=request.form.get(f"lot_{item.id}"),
+                    serial=request.form.get(f"serial_{item.id}"),
+                    user=current_user) is None:
+                # Refused, and the person has to be told why: a child with an
+                # implant and no batch number is a child a recall cannot find.
+                complained = True
+        elif action == "drop":
+            theatre.remove_implant(item)
+    db.session.commit()
+    flash(t("theatre.implant_needs_lot") if complained
+          else t("common.saved"), "warning" if complained else "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/implants/recall")
+@module_required(MODULE)
+def implant_recall():
+    """Which children have one of these.
+
+    *"There is a process for the recall of a patient who has an implantable
+    device when necessary."* Its own screen, because when it is needed it is
+    needed in a hurry and nobody should be hunting for it inside a case.
+    """
+    terms = {k: (request.args.get(k) or "").strip()
+             for k in ("name", "lot", "serial", "manufacturer")}
+    asked = any(terms.values())
+    return render_template(
+        "theatres/recall.html", terms=terms, asked=asked,
+        # Nothing is listed until somebody asks something: a screen that opens
+        # with every implant the clinic ever used is a list nobody reads, and
+        # the question a recall asks is always narrow.
+        hits=theatre.recall(**terms) if asked else [])
 
 
 @theatres_bp.route("/operation/<int:operation_id>/equipment", methods=["POST"])

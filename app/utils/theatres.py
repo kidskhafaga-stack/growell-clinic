@@ -388,6 +388,179 @@ def identity_matched_keys(operation):
     return [k for k in (p.strip() for p in raw.split(",")) if k]
 
 
+def implants_for(operation):
+    """The implants recorded against this case, in list order."""
+    if operation is None or getattr(operation, "id", None) is None:
+        return []
+    from app.models.theatre import OperationImplant
+
+    return (OperationImplant.query
+            .filter_by(operation_id=operation.id)
+            .order_by(OperationImplant.sort_order, OperationImplant.id).all())
+
+
+def implant_state(operation):
+    """Where this case stands on implants — in one word.
+
+    ``unasked`` · ``not_needed`` · ``none_named`` · ``waiting`` · ``ready``.
+
+    This is the **SAS.06 (ز)** half only: is what this case needs *here*,
+    before the patient is called for. What actually went into the child is a
+    different question with a different answer, asked after the case — see
+    :func:`implanted_in`.
+
+    ``not_needed`` is nearly every case on a children's list, which is exactly
+    why it has to be a recorded answer and not the absence of one.
+    """
+    if operation is None or operation.implants_needed is None:
+        return "unasked"
+    if not operation.implants_needed:
+        return "not_needed"
+    rows = implants_for(operation)
+    if not rows:
+        return "none_named"
+    return "ready" if all(r.available_at for r in rows) else "waiting"
+
+
+def implants_ready(operation):
+    """The one question somebody about to call for the patient is asking."""
+    return implant_state(operation) in ("not_needed", "ready")
+
+
+def set_implants_needed(operation, needed, user=None):
+    """Record whether this case implants anything at all."""
+    if operation is None or needed is None:
+        return None
+    operation.implants_needed = bool(needed)
+    return operation
+
+
+def add_implant(operation, name, lot=None, manufacturer=None, serial=None,
+                expiry=None, size=None, note=None):
+    """Name one implant this case plans to use. Returns it, or ``None``.
+
+    A blank name is refused. Everything else is optional at this point on
+    purpose: a plate is often chosen from a tray in the room, and demanding
+    the batch number before the case would have somebody type a placeholder —
+    which is worse than an empty field, because a recall would then search it.
+    """
+    from app.models.theatre import OperationImplant
+
+    if operation is None or getattr(operation, "id", None) is None:
+        return None
+    clean = (name or "").strip()[:160]
+    if not clean:
+        return None
+    row = OperationImplant(
+        operation_id=operation.id, name=clean,
+        manufacturer=(manufacturer or "").strip()[:120] or None,
+        lot=(lot or "").strip()[:60] or None,
+        serial=(serial or "").strip()[:60] or None,
+        expiry=expiry, size=(size or "").strip()[:60] or None,
+        note=(note or "").strip()[:160] or None,
+        sort_order=len(implants_for(operation)))
+    db.session.add(row)
+    # Naming one *is* the answer to "does this case implant anything".
+    if operation.implants_needed is None:
+        operation.implants_needed = True
+    return row
+
+
+def confirm_implant(implant, user=None, at=None):
+    """It is here, in the operating location. The SAS.06 (ز) half."""
+    if implant is None:
+        return None
+    implant.available_at = at or datetime.utcnow()
+    implant.available_by = getattr(user, "id", None)
+    return implant
+
+
+def record_implanted(implant, lot=None, serial=None, expiry=None, user=None,
+                     at=None):
+    """It went into this child. The SAS.11 half, and what a recall reads.
+
+    The batch number can be filled in **here**, because this is the moment it
+    is actually known: the wrapper is open and in somebody's hand. Refused
+    without it — *"the procedure report includes the details of any used
+    implantable device, including the batch number"* is the evidence the
+    standard asks for by name, and an implant in a child with no batch is a
+    child a recall cannot find.
+    """
+    if implant is None:
+        return None
+    if lot is not None:
+        implant.lot = (lot or "").strip()[:60] or None
+    if serial is not None:
+        implant.serial = (serial or "").strip()[:60] or None
+    if expiry is not None:
+        implant.expiry = expiry
+    if not implant.lot and not implant.serial:
+        # Neither a batch nor a serial is nothing to recall on.
+        return None
+    implant.implanted_at = at or datetime.utcnow()
+    implant.implanted_by = getattr(user, "id", None)
+    return implant
+
+
+def remove_implant(implant):
+    """Take one off the case's list. Only ever a *planned* one.
+
+    An implant recorded as having gone into a child is not deletable from
+    here: that row is what a recall reads, and a screen that can quietly drop
+    it is a screen that can lose a child.
+    """
+    if implant is None or implant.implanted_at:
+        return None
+    db.session.delete(implant)
+    return True
+
+
+def implanted_in(patient_id):
+    """Everything ever implanted in one child, newest first.
+
+    *"Every patient with an implantable device should be easily identified"* —
+    read from the patient's side, because that is the side somebody is
+    standing on when a family telephones.
+    """
+    from app.models.theatre import OperationImplant
+
+    return (OperationImplant.query
+            .join(Operation, OperationImplant.operation_id == Operation.id)
+            .filter(Operation.patient_id == patient_id,
+                    OperationImplant.implanted_at.isnot(None))
+            .order_by(OperationImplant.implanted_at.desc()).all())
+
+
+def recall(name=None, lot=None, serial=None, manufacturer=None):
+    """Which children have one of these — the recall list.
+
+    *"There is a process for the recall of a patient who has an implantable
+    device when necessary."* This is that process, and the only thing it has
+    to do is be **complete and quick**.
+
+    **Only what actually went in.** A planned implant that was never used is
+    not in a child, and putting it on a recall list would send somebody to
+    telephone a family about a device nobody implanted.
+
+    Matching is partial and case-insensitive on the text fields, because a
+    recall notice names a product the way the manufacturer writes it and the
+    theatre wrote it the way it was on the box.
+    """
+    from app.models.theatre import OperationImplant
+
+    q = (OperationImplant.query
+         .join(Operation, OperationImplant.operation_id == Operation.id)
+         .filter(OperationImplant.implanted_at.isnot(None)))
+    for column, value in ((OperationImplant.name, name),
+                          (OperationImplant.lot, lot),
+                          (OperationImplant.serial, serial),
+                          (OperationImplant.manufacturer, manufacturer)):
+        text = (value or "").strip()
+        if text:
+            q = q.filter(column.ilike(f"%{text}%"))
+    return q.order_by(OperationImplant.implanted_at.desc()).all()
+
+
 def equipment_list_for(operation):
     """What this procedure says it needs, as a list of names.
 

@@ -56,3 +56,11 @@ app/data/icd11_full.json.gz
 vendor_private.key
 *.pem
 licence_tool.py
+
+# Mutation-testing scratch. The scripts in this project copy a source file to
+# `<file>.bak`, apply one deliberate defect, run the suite, and move the copy
+# back. A `git add -A` fired while one is running commits **the mutated file**
+# and the backup beside it — which happened once, and the mutated routes.py
+# sat in a commit until the next `git status`.
+*.bak
+*.orig

@@ -185,6 +185,12 @@ DONE = [
      "Site marking with its side and who marked it — the checklist item is "
      "read from it — and blood, recorded as the two facts it is "
      "(GAHAR SAS.06 d and f)"),
+    ("الأجهزة المزروعة بلحظتين: موجودة في الأوضة، واتزرعت في الطفل — وغرسة "
+     "اتزرعت بترفض من غير رقم تشغيلة، وشاشة استدعاء بتلاقي الأطفال بالباتش "
+     "(GAHAR SAS.06 g · SAS.11)",
+     "Implants at two moments: in the room, and in the child — an implant "
+     "recorded as used is refused without a batch number, and a recall screen "
+     "finds the children by batch (GAHAR SAS.06 g · SAS.11)"),
     ("الأجهزة اللي الحالة محتاجاها: القايمة بتتكتب مرة على الإجراء وبتتنسخ "
      "على الحالة، وكل حاجة بحقيقتين — **موجودة** و**شغّالة** — لأن منظار "
      "لمبته فصلت مش جهاز الحالة عندها (GAHAR SAS.06 b)",

@@ -578,6 +578,11 @@ ADDITIONS = [
     ("operations", "equipment_checked_at", "DATETIME"),
     # What a procedure needs in the room, written once against the service.
     ("services", "equipment_list", "TEXT"),
+    # Whether this case implants anything (SAS.06 ز / SAS.11). NULL is
+    # "nobody asked"; False is "this case implants nothing", which is nearly
+    # every case on a children's list. The implants themselves are a new
+    # table — `operation_implants` — which `db.create_all` creates.
+    ("operations", "implants_needed", "BOOLEAN"),
 ]
 
 def apply_schema(report=None):

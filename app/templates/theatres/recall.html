@@ -1,0 +1,79 @@
+{# `shell.html`, not `base.html`: the base has no `content` block, so a page
+   extending it renders an empty body and says nothing about why. Every other
+   screen in this module extends the shell. #}
+{% extends "shell.html" %}
+{% set active_module = 'theatres' %}
+{% block title %}{{ t('theatre.recall_title') }}{% endblock %}
+{% block page_heading %}{{ t('theatre.recall_title') }}{% endblock %}
+
+{% block content %}
+
+{# *"There is a process for the recall of a patient who has an implantable
+   device when necessary"* (GAHAR SAS.11). Its own screen, because when it is
+   needed it is needed in a hurry — and the only two things it has to be are
+   complete and quick. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h1 class="section-title" style="margin:0 0 4px;">
+    <i class="bi bi-broadcast"></i> {{ t('theatre.recall_title') }}</h1>
+  <p class="hint" style="margin:0 0 12px;">{{ t('theatre.recall_hint') }}</p>
+
+  <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    {% for field in ('name', 'lot', 'serial', 'manufacturer') %}
+    <div class="form-row" style="margin:0;flex:1;min-width:150px;">
+      <label for="rc_{{ field }}">{{ t('theatre.implant_' ~ field) }}</label>
+      <input class="input" id="rc_{{ field }}" name="{{ field }}"
+             value="{{ terms[field] }}">
+    </div>
+    {% endfor %}
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-search"></i> {{ t('common.search') }}</button>
+  </form>
+</div>
+
+{% if asked %}
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin:0 0 8px;font-size:1rem;">
+    {{ t('theatre.recall_found', n=hits|length) }}</h2>
+  {% if hits %}
+  <div style="overflow-x:auto;">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('reports.patient') }}</th>
+        <th>{{ t('theatre.implant_name') }}</th>
+        <th>{{ t('theatre.implant_lot') }}</th>
+        <th>{{ t('theatre.implant_serial') }}</th>
+        <th>{{ t('theatre.implant_when') }}</th>
+        <th>{{ t('patients.phone') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for row in hits %}
+        {% set child = row.operation.patient if row.operation else None %}
+        <tr>
+          <td>{% if child %}
+            <a href="{{ url_for('patients.view', patient_id=child.id) }}">
+              {{ child.full_name }}</a>
+            <span class="hint" dir="ltr">{{ child.patient_number }}</span>
+            {% else %}—{% endif %}</td>
+          <td>{{ row.name }}
+            {% if row.manufacturer %}<span class="hint">· {{ row.manufacturer }}</span>{% endif %}</td>
+          <td dir="ltr">{{ row.lot or '—' }}</td>
+          <td dir="ltr">{{ row.serial or '—' }}</td>
+          <td dir="ltr">{{ row.implanted_at|clinic_stamp }}</td>
+          {# The reason this screen exists is somebody telephoning a family,
+             so the number is on it rather than one click away. #}
+          <td dir="ltr">{{ (child.own_phone if child else '')
+                           or (child.family.parents[0].phone
+                               if child and child.family and child.family.parents
+                               else '') or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint">{{ t('theatre.recall_none') }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}
