@@ -432,16 +432,23 @@ def test_the_derived_items_are_named_in_one_place(theatre_day):
     *generic tickable item* broke — and the only way to know which items are
     safe to use that way was to run the suite and read the red.
 
-    So the set is stated here. When a fifth item becomes derived this fails,
-    which is exactly the moment somebody should go and look at every test
-    posting checklist items by hand.
+    So the set is stated **here and nowhere else**. When another item becomes
+    derived this fails, which is exactly the moment somebody should go and
+    look at every test posting checklist items by hand.
+
+    It used to be stated in four files, and that was worse than useless: a
+    change that legitimately derived one more item broke all four, three of
+    them in suites about something else entirely, and the noise buried the one
+    that was trying to say something. The others now assert only their own
+    subject — see `test_no_checklist_item_was_added` in the precautions and
+    equipment suites.
     """
     from app.models.theatre import CHECK_ITEMS, SIGN_IN
     from app.utils import theatres as theatre
 
     derived = set(theatre.derived_items())
     assert derived == {"identity", "site_marked", "consent",
-                       "anaesthesia_check", "imaging_ready"}
+                       "anaesthesia_check", "imaging_ready", "counts_correct"}
     # And what is left for anybody needing a box that really is a box.
     assert set(CHECK_ITEMS[SIGN_IN]) - derived == {
         "allergy", "airway", "pulse_oximeter"}

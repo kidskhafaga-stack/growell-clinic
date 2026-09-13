@@ -424,9 +424,10 @@ def test_no_checklist_item_was_added(surgery):
         | set(CHECK_ITEMS[SIGN_OUT])
     for invented in ("equipment", "equipment_ready", "instruments"):
         assert invented not in every
-    assert set(theatre.derived_items()) == {
-        "identity", "site_marked", "consent", "anaesthesia_check",
-        "imaging_ready"}
+        # Nor did it sneak in as a derived answer to a box that was there.
+        assert invented not in theatre.derived_items()
+    # `pulse_oximeter` is the nearest existing item to this one, and it stays
+    # an ordinary box: the equipment check is not the anaesthetist's monitor.
     assert "pulse_oximeter" not in theatre.derived_items()
 
 

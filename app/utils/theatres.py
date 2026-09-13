@@ -27,6 +27,7 @@ from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, PREOP_KINDS,
                                 REVIEW_VERDICTS, SIGN_IN, SIGN_OUT, TIME_OUT,
                                 Operation, PreOpReview, SafetyCheck, Theatre)
 from app.utils import case_rates
+from app.utils import surgical_counts as _counts
 from app.utils.clock import local_today
 
 
@@ -1196,10 +1197,15 @@ def derived_items():
         # Which child, and the procedure (SAS.06 أ) — its other half.
         IDENTITY_ITEM: identity_ok,
         # Whether the imaging this case waits on is actually back
-        # (SAS.06 هـ). The only one of the five that ticks when nothing is
+        # (SAS.06 هـ). The only one of the six that ticks when nothing is
         # recorded: a case with no imaging has none to display. See
         # :func:`imaging_ok`.
         IMAGING_ITEM: imaging_ok,
+        # The sponges, needles and instruments (SAS.09 · GSR.17). The box said
+        # the count was right; now it is read from the counts that were
+        # actually made, by two people, at the three moments — and a case
+        # nobody counted does **not** tick, which is the whole point.
+        _counts.COUNTS_ITEM: _counts.counts_ok,
     }
 
 

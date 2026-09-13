@@ -300,6 +300,16 @@ class Operation(db.Model):
     # sometimes correct decision, and the standard's "ongoing process to
     # ensure that booked procedures match" is the check *plus* the recorded
     # exception — a process, not a wall.
+    # ------------------------------------- the count, signed for (SAS.09) --
+    #
+    # Evidence 3: *"The preoperative, intraoperative, and postoperative counts
+    # are recorded, **and the performing physician signs the record**."* The
+    # counts themselves are rows in ``surgical_counts``; this is the one
+    # signature that closes the sheet, exactly as a paper count sheet carries
+    # one at the bottom rather than three.
+    counts_signed_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    counts_signed_at = db.Column(db.DateTime)
+
     privilege_ack_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     privilege_ack_at = db.Column(db.DateTime)
     privilege_ack_reason = db.Column(db.String(200))
@@ -485,6 +495,8 @@ class Operation(db.Model):
     equipment_checker = db.relationship("User",
                                         foreign_keys=[equipment_checked_by])
     privilege_acker = db.relationship("User", foreign_keys=[privilege_ack_by])
+    counts_signer = db.relationship("User",
+                                    foreign_keys=[counts_signed_by])
     caller = db.relationship("User", foreign_keys=[called_by])
     #: The case this one became when it was moved. ``remote_side`` because both
     #: ends are the same table.
