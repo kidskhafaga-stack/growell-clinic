@@ -239,7 +239,7 @@ discharge_note = db.Column(db.Text)          # نص حر
 | **IMT.05** ٤ | *Only authorized individuals have access* | `module_required` · `can_access` على كل طريق، ومحروس بـ`tests/test_permission_sweep.py` | ✅ |
 | **IMT.05** ٥ | *signed confidentiality agreement in each staff member's personal file* | ملف الموظف موجود، **مفيش إقرار سرّية** | ❌ |
 | **IMT.06** ١ | *Medical records … secured and protected at all times* | نسخ احتياطية (`utils/backups.py`) + `ActivityLog` للتغييرات | 🟡 |
-| **IMT.07** | *Retention time **for each type of document*** + إجراءات الإتلاف | `backups.apply_retention` موجودة — **بس دي مدة حفظ النُسخ الاحتياطية، مش مدة حفظ السجل**، ومفيش إتلاف موثّق | ❌ |
+| **IMT.07** | *Retention time **for each type of document*** + إجراءات الإتلاف | **تصحيح:** غير `backups.apply_retention` (دي النُسخ الاحتياطية)، فيه `app/utils/archiving.py`: أرشفة الملفات الخاملة **بمدة تختارها العيادة** (١–٢٠ سنة، `archive_inactive_years`)، اختيارية، **وما بتمسحش حاجة أبداً** — بتقلب `is_active` وبتختم ليه. فده **قواعد أرشفة** (البند ج) وجزء من (ب). **واللي لسه:** مدة حفظ **لكل نوع مستند** (أ)، **وإجراءات الإتلاف** (د) — واللي البرنامج ما بيمسحش أصلاً معناه إن (د) قرار العيادة مش نقص في الكود. | 🟡 |
 | **IMT.04** GSR.29 | قايمة اختصارات معتمدة + قايمة ممنوعة (ISMP) | **مفيش**. (`utils/rx_shorthand.py` بتفكّ اختصارات الروشتة — ده العكس: بتفهم المكتوب، مش بتحكم اللي يتكتب) | ❌ |
 
 ---
@@ -312,7 +312,7 @@ discharge_note = db.Column(db.Text)          # نص حر
 |---|---|
 | `IMT.04` · GSR.29 — الاختصارات | ❌ مفيش قايمة معتمدة ولا ممنوعة |
 | `IMT.05` دليل ٥ — إقرار سرّية في ملف كل موظف | ❌ |
-| `IMT.07` — مدة حفظ السجل وإجراءات الإتلاف | ❌ (اللي موجود مدة حفظ **النُسخ الاحتياطية**، حاجة تانية) |
+| `IMT.07` — مدة حفظ لكل نوع مستند + الإتلاف | 🟡 الأرشفة بمدة مختارة موجودة (`archiving.py`)؛ الناقص التفصيل لكل نوع والإتلاف |
 
 ---
 

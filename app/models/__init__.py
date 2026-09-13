@@ -51,6 +51,8 @@ from app.models.chart_review import ChartReview
 from app.models.discharge_summary import DischargeSummary
 from app.models.record_review import (RecordReview, RecordReviewFinding,
                                      RecordReviewItem, RecordReviewMember)
+from app.models.surgical_count import (SurgicalCount,
+                                      SurgicalCountItem)
 from app.models.dose_prep import DosePrep
 from app.models.high_alert import HighAlertDrug
 from app.models.lasa_pair import LasaPair
@@ -304,6 +306,8 @@ __all__ = [
     "RecordReviewFinding",
     "RecordReviewItem",
     "RecordReviewMember",
+    "SurgicalCount",
+    "SurgicalCountItem",
     "DosePrep",
     "HighAlertDrug",
     "LasaPair",
