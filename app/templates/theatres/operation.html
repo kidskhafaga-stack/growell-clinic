@@ -227,6 +227,90 @@
   </form>
 </div>
 
+{# --------------------------------------- what is left inside the child -- #}
+{# SAS.06 (ز) asks one half — is the implant here before the patient is called
+   for — and SAS.11 the other: what went in, **with its batch number**, so a
+   recall can find this child years later.
+
+   One card because it is one row seen at two moments. Separating them would
+   have somebody retype a serial number, and a serial retyped is a serial
+   mistyped. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-cpu"></i> {{ t('theatre.implants') }}
+    <span class="alert-pill {{ 'ok' if implant_state in ('not_needed', 'ready') else 'warn' }}">
+      {{ t('theatre.implants_' ~ implant_state) }}</span>
+    <a class="btn btn-outline gc-press" style="float:inline-end;font-size:.8rem;"
+       href="{{ url_for('theatres.implant_recall') }}">
+      <i class="bi bi-broadcast"></i> {{ t('theatre.recall_title') }}</a>
+  </h2>
+
+  <form method="post" action="{{ url_for('theatres.implants', operation_id=operation.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0 0 10px;">
+      <label>{{ t('theatre.implants_needed') }}</label>
+      <div style="display:flex;gap:14px;align-items:center;">
+        <label style="font-weight:400;margin:0;"><input type="radio" name="needed" value="yes"
+          {{ 'checked' if operation.implants_needed else '' }}> {{ t('recovery.followup_yes') }}</label>
+        <label style="font-weight:400;margin:0;"><input type="radio" name="needed" value="no"
+          {{ 'checked' if operation.implants_needed is not none and not operation.implants_needed else '' }}> {{ t('recovery.followup_no') }}</label>
+      </div>
+    </div>
+
+    {% for item in implants %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;padding:8px 0;border-top:1px solid var(--line);">
+      <span style="min-width:160px;">{{ item.name }}
+        {% if item.size %}<span class="hint">· {{ item.size }}</span>{% endif %}
+        {% if item.manufacturer %}<span class="hint">· {{ item.manufacturer }}</span>{% endif %}
+        <span class="alert-pill {{ 'ok' if item.state == 'implanted' else 'warn' }}"
+              style="font-size:.72rem;">{{ t('theatre.implant_' ~ item.state) }}</span></span>
+      {# The batch is filled in **here**, at the moment it is known: the
+         wrapper is open and in somebody's hand. Asking for it at planning
+         time gets a placeholder typed, and a recall would then search it. #}
+      <div class="form-row" style="margin:0;width:130px;">
+        <label for="lot_{{ item.id }}">{{ t('theatre.implant_lot') }}</label>
+        <input class="input" id="lot_{{ item.id }}" name="lot_{{ item.id }}"
+               dir="ltr" value="{{ item.lot or '' }}"
+               {{ 'readonly' if item.implanted_at else '' }}></div>
+      <div class="form-row" style="margin:0;width:130px;">
+        <label for="serial_{{ item.id }}">{{ t('theatre.implant_serial') }}</label>
+        <input class="input" id="serial_{{ item.id }}" name="serial_{{ item.id }}"
+               dir="ltr" value="{{ item.serial or '' }}"
+               {{ 'readonly' if item.implanted_at else '' }}></div>
+      {% if not item.implanted_at %}
+      <div class="form-row" style="margin:0;">
+        <select class="select" name="do_{{ item.id }}">
+          <option value="">—</option>
+          <option value="here">{{ t('theatre.implant_here') }}</option>
+          <option value="in">{{ t('theatre.implant_in') }}</option>
+          <option value="drop">{{ t('theatre.implant_drop') }}</option>
+        </select>
+      </div>
+      {% else %}
+      {# No action offered on one that is in a child. That row is what a
+         recall reads, and a screen that can quietly drop it can lose a
+         child. #}
+      <span class="hint"><span dir="ltr">{{ item.implanted_at|clinic_stamp }}</span>
+        {% if item.implanter %} · {{ item.implanter.display_name(current_lang) }}{% endif %}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+      <div class="form-row" style="margin:0;flex:1;min-width:150px;">
+        <label for="imp_new">{{ t('theatre.implant_add') }}</label>
+        <input class="input" id="imp_new" name="new_name" maxlength="160"></div>
+      <div class="form-row" style="margin:0;width:130px;">
+        <label for="imp_maker">{{ t('theatre.implant_manufacturer') }}</label>
+        <input class="input" id="imp_maker" name="new_manufacturer" maxlength="120"></div>
+      <div class="form-row" style="margin:0;width:100px;">
+        <label for="imp_size">{{ t('theatre.implant_size') }}</label>
+        <input class="input" id="imp_size" name="new_size" maxlength="60"></div>
+      <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+    </div>
+  </form>
+</div>
+
 {# ------------------------------------- what the case needs in the room -- #}
 {# SAS.06 (ب): «The availability **and functioning** of needed equipment»,
    before the patient is called for.

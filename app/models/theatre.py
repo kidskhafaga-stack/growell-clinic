@@ -236,6 +236,30 @@ class Operation(db.Model):
     site_marked_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     site_marked_at = db.Column(db.DateTime)
 
+    # ------------------------------------------- what is left inside a child --
+    #
+    # SAS.06 (ز) asks one half: *"Implantable devices and special
+    # prostheses"* on the pre-operative list — is the implant this case needs
+    # **in the operating location before the patient is called for**.
+    #
+    # SAS.11 asks the other and names what it wants in evidence:
+    #
+    #   *"The procedure report includes the details of any used implantable
+    #   device, **including the batch number**."*
+    #   *"Every patient with an implantable device should be easily identified
+    #   and **reachable within a defined time frame** to be ready for any
+    #   device recall."*
+    #
+    # **The second half is the one with the weight.** A recall that cannot
+    # find the children is the failure the standard exists to prevent, and it
+    # is the one thing here software is actually good at. See
+    # :class:`OperationImplant`.
+    #
+    # NULL is nobody asked. False is somebody considered it and this case
+    # implants nothing — which is nearly every case on a children's list, and
+    # has to be sayable.
+    implants_needed = db.Column(db.Boolean)
+
     # ------------------------------------------- what the case needs to run --
     #
     # SAS.06 (ب): *"The availability and functioning of needed equipment"* —
@@ -663,6 +687,78 @@ class DoctorCaseRate(db.Model):
     def __repr__(self):
         return (f"<DoctorCaseRate doc={self.doctor_id} "
                 f"svc={self.service_id} {self.case_type}>")
+
+
+class OperationImplant(db.Model):
+    """One implant this case plans to use — and what actually went in.
+
+    **Two moments, kept apart, because they disagree in the room.** Before the
+    case: this is what we need and it is here (SAS.06 ز). After it: this is
+    what went into this child (SAS.11). A surgeon opens a size and uses
+    another; a plate is fetched that was never on the list. One "used" flag
+    would lose both of those, and the second one is exactly what a recall has
+    to find.
+
+    So ``available_at`` and ``implanted_at`` are separate, and either can
+    stand alone: a planned implant that was not used stays un-implanted, and
+    an implant used that nobody planned is recorded by adding it after.
+
+    The identity fields are what a recall searches on. ``lot`` is named
+    because the standard names it — *"including the batch number"* — and it is
+    the field that answers "which children have one from this batch".
+    """
+    __tablename__ = "operation_implants"
+
+    id = db.Column(db.Integer, primary_key=True)
+    operation_id = db.Column(db.Integer, db.ForeignKey("operations.id"),
+                             nullable=False, index=True)
+    name = db.Column(db.String(160), nullable=False)
+    manufacturer = db.Column(db.String(120))
+    #: The batch number. Indexed because the question a recall asks is
+    #: "everybody with one from this batch", and it is asked in a hurry.
+    lot = db.Column(db.String(60), index=True)
+    serial = db.Column(db.String(60), index=True)
+    expiry = db.Column(db.Date)
+    size = db.Column(db.String(60))
+    note = db.Column(db.String(160))
+
+    #: Confirmed present in the operating location — the SAS.06 (ز) half.
+    available_at = db.Column(db.DateTime)
+    available_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    #: It went into this child — the SAS.11 half, and what a recall reads.
+    implanted_at = db.Column(db.DateTime)
+    implanted_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+
+    operation = db.relationship("Operation", backref="implants")
+    confirmer = db.relationship("User", foreign_keys=[available_by])
+    implanter = db.relationship("User", foreign_keys=[implanted_by])
+
+    @property
+    def state(self):
+        """``planned`` · ``available`` · ``implanted`` · ``unused``.
+
+        ``unused`` is the one a simpler scheme would lose: an implant that was
+        fetched, confirmed, and then not used because the surgeon took another
+        size. It is not a gap and it is not in a child, and a recall must not
+        find it.
+
+        **Derived, not stored.** Nobody ticks "we did not use this" — they
+        just close the case. So it is read off the operation being finished:
+        before that, an unimplanted one is still waiting to be used; after it,
+        it never was.
+        """
+        if self.implanted_at:
+            return "implanted"
+        finished = getattr(self.operation, "finished_at", None)
+        if finished:
+            return "unused"
+        if self.available_at:
+            return "available"
+        return "planned"
+
+    def __repr__(self):
+        return f"<OperationImplant {self.name} lot={self.lot}>"
 
 
 class OperationEquipment(db.Model):
