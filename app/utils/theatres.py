@@ -388,6 +388,85 @@ def identity_matched_keys(operation):
     return [k for k in (p.strip() for p in raw.split(",")) if k]
 
 
+def precautions_of(operation):
+    """The precautions recorded for this case, as a list."""
+    raw = (getattr(operation, "infection_precautions", None) or "")
+    return [p for p in (x.strip() for x in raw.split(",")) if p]
+
+
+def infection_state(operation):
+    """What this case needs beyond what every case gets — in one word.
+
+    ``unasked`` · ``standard`` · ``extra``.
+
+    Three, and the first two are the pair that carries it. *Nobody asked* and
+    *this case needs nothing beyond the usual* are not the same sentence, and
+    on an infection question the difference is a theatre list drawn up in the
+    wrong order by somebody who thought the question had been answered.
+
+    ``extra`` is one word for three categories on purpose: the screen shows
+    *which*, and a state is for reading across a list at a glance.
+    """
+    if operation is None:
+        return "unasked"
+    from app.models.theatre import EXTRA_PRECAUTIONS
+
+    chosen = precautions_of(operation)
+    if not chosen:
+        return "unasked"
+    if operation.infection_noted_by is None or operation.infection_noted_at is None:
+        # Same rule as the site and the identity: an answer with nobody's name
+        # against it is a note, not a verification.
+        return "unasked"
+    return "extra" if any(p in EXTRA_PRECAUTIONS for p in chosen) else "standard"
+
+
+def note_precautions(operation, chosen, note=None, empiric=False, user=None,
+                     at=None):
+    """Record what this case needs. Returns the operation, or ``None``.
+
+    Refused when nothing recognisable was chosen, for the reason
+    :func:`mark_site` refuses a free-typed side. And ``standard`` is dropped
+    the moment a transmission-based precaution is named beside it: standard
+    precautions are in force on every case anyway, so "standard **and**
+    contact" says nothing "contact" does not already say, and a list carrying
+    both reads as a case somebody could not make up their mind about.
+    """
+    from app.models.theatre import EXTRA_PRECAUTIONS, PRECAUTIONS
+
+    if operation is None:
+        return None
+    keep = [p for p in PRECAUTIONS if p in set(chosen or ())]
+    if not keep:
+        return None
+    extra = [p for p in keep if p in EXTRA_PRECAUTIONS]
+    keep = extra or ["standard"]
+    operation.infection_precautions = ",".join(keep)
+    operation.infection_note = (note or "").strip()[:160] or None
+    # A case needing nothing extra is not waiting on a diagnosis, so the flag
+    # has no meaning there and carrying it would leave a stale yes behind
+    # somebody's changed answer.
+    operation.infection_empiric = bool(empiric) if extra else None
+    operation.infection_noted_by = getattr(user, "id", None)
+    operation.infection_noted_at = at or datetime.utcnow()
+    return operation
+
+
+def precaution_cases(day=None):
+    """Today's cases that need more than the usual, in list order.
+
+    This is the one place the answer does work rather than being filed:
+    whoever draws up the order of the list needs to know before they draw it
+    up, and the room is turned over differently afterwards.
+    """
+    when = day or local_today()
+    rows = (Operation.query
+            .filter(Operation.on_date == when,
+                    Operation.status != "cancelled")
+            .order_by(Operation.start_time, Operation.id).all())
+    return [r for r in rows if infection_state(r) == "extra"]
+
+
 def workup_orders(operation, kind=None):
     """The investigations this case is waiting on, oldest first.
 

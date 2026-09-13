@@ -561,6 +561,14 @@ ADDITIONS = [
     # anaesthetised before somebody read the result.
     ("operations", "workup_needed", "BOOLEAN"),
     ("visit_investigations", "operation_id", "INTEGER"),
+    # What this case needs beyond what every case gets (SAS.06 ح). NULL is
+    # "nobody asked"; "standard" is somebody deciding this case needs nothing
+    # extra, which is a different answer and the commonest one.
+    ("operations", "infection_precautions", "VARCHAR(60)"),
+    ("operations", "infection_note", "VARCHAR(160)"),
+    ("operations", "infection_empiric", "BOOLEAN"),
+    ("operations", "infection_noted_by", "INTEGER"),
+    ("operations", "infection_noted_at", "DATETIME"),
 ]
 
 def apply_schema(report=None):

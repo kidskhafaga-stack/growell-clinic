@@ -29,7 +29,8 @@ from app.i18n import t
 from app.models import Patient
 from app.models.admission import Admission
 from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
-                                ANAESTHESIA_TYPES, IDENTITY_WITH, SITE_SIDES,
+                                ANAESTHESIA_TYPES, IDENTITY_WITH, PRECAUTIONS,
+                                SITE_SIDES,
                                 REVIEW_KINDS, REVIEW_VERDICTS, Operation,
                                 Theatre)
 from app.utils import recovery as _recovery
@@ -69,6 +70,13 @@ def index():
                            # people who actually have a case on it rather
                            # than every doctor in the clinic.
                            on_today=theatre.people_on(on_date),
+                           # Which of today's cases need more than the usual
+                           # infection precautions (SAS.06 ح). **This is the
+                           # one place that answer does work instead of being
+                           # filed**: whoever draws up the order of the list
+                           # has to know before they draw it up, and the room
+                           # is turned over differently afterwards.
+                           precaution_cases=theatre.precaution_cases(on_date),
                            # The booking form's room picker reads this, not
                            # the filtered day: a doctor looking at their own
                            # list must still be able to book into any room,
@@ -244,6 +252,10 @@ def operation(operation_id):
                                                               kind="imaging"),
                            workup_orders=theatre.workup_orders(row),
                            workup_choices=theatre.workup_choices(row),
+                           # What this case needs beyond the usual (SAS.06 ح).
+                           infection_state=theatre.infection_state(row),
+                           precautions=PRECAUTIONS,
+                           chosen_precautions=theatre.precautions_of(row),
                            blood_state=theatre.blood_state(row),
                            plan=theatre.plan_for(row),
                            anaesthesia_types=ANAESTHESIA_TYPES,
@@ -460,6 +472,30 @@ def verify_identity(operation_id):
         return redirect(url_for("theatres.operation", operation_id=row.id))
     db.session.commit()
     flash(t("theatre.identity_ok"), "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/precautions",
+                  methods=["POST"])
+@module_required(MODULE)
+def precautions(operation_id):
+    """Record what this case needs beyond what every case gets.
+
+    SAS.06 (ح): *"Special precautions for infection control preparation."*
+    Nothing ticked is refused rather than stored as "standard" — *nobody
+    asked* and *this case needs nothing extra* are two different answers, and
+    the whole point of the field is to tell them apart.
+    """
+    row = Operation.query.get_or_404(operation_id)
+    if theatre.note_precautions(
+            row, request.form.getlist("precaution"),
+            note=request.form.get("infection_note"),
+            empiric=bool(request.form.get("empiric")),
+            user=current_user) is None:
+        flash(t("theatre.precautions_need_answer"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    db.session.commit()
+    flash(t("common.saved"), "success")
     return redirect(url_for("theatres.operation", operation_id=row.id))
 
 
