@@ -388,6 +388,161 @@ def identity_matched_keys(operation):
     return [k for k in (p.strip() for p in raw.split(",")) if k]
 
 
+def equipment_list_for(operation):
+    """What this procedure says it needs, as a list of names.
+
+    Read off the service the case was booked against. Empty when the clinic
+    has not written one — and that is the ordinary state, not a gap to fill
+    with a default: what a procedure needs in the room is the theatre's
+    judgement and the program does not have one.
+    """
+    service = getattr(operation, "service", None)
+    raw = (getattr(service, "equipment_list", None) or "")
+    seen, out = set(), []
+    for line in raw.splitlines():
+        name = line.strip()[:120]
+        # A list somebody pasted twice is one list.
+        if name and name not in seen:
+            seen.add(name)
+            out.append(name)
+    return out
+
+
+def equipment_for(operation):
+    """The items recorded against this case, in list order."""
+    if operation is None or getattr(operation, "id", None) is None:
+        return []
+    from app.models.theatre import OperationEquipment
+
+    return (OperationEquipment.query
+            .filter_by(operation_id=operation.id)
+            .order_by(OperationEquipment.sort_order,
+                      OperationEquipment.id).all())
+
+
+def stock_equipment(operation):
+    """Copy the procedure's list onto the case, once. Returns what is there.
+
+    **Copied, not referenced**: editing the service's list next year must not
+    rewrite what somebody checked in the room this morning. And it only ever
+    adds what is missing by name, so a case that has been checked keeps its
+    answers when somebody opens the screen again.
+    """
+    from app.models.theatre import OperationEquipment
+
+    if operation is None or getattr(operation, "id", None) is None:
+        return []
+    have = {row.name for row in equipment_for(operation)}
+    order = len(have)
+    for name in equipment_list_for(operation):
+        if name in have:
+            continue
+        db.session.add(OperationEquipment(operation_id=operation.id,
+                                          name=name, sort_order=order))
+        order += 1
+    return equipment_for(operation)
+
+
+def equipment_state(operation):
+    """Where this case stands on its equipment — in one word.
+
+    ``unasked`` · ``not_needed`` · ``none_named`` · ``checking`` · ``short`` ·
+    ``ready``.
+
+    ``short`` is deliberately one word for two errands — something is missing
+    and something is broken — because at this level the answer is the same:
+    do not call for the patient yet. *Which* item and *which* way is on the
+    screen, where somebody can go and do something about it.
+
+    ``checking`` is the state this program would have lost if the items were a
+    boolean: a list copied onto the case that nobody has been through yet is
+    not ready and is not short.
+    """
+    if operation is None or operation.equipment_needed is None:
+        return "unasked"
+    if not operation.equipment_needed:
+        return "not_needed"
+    rows = equipment_for(operation)
+    if not rows:
+        return "none_named"
+    if any(r.state in ("missing", "broken") for r in rows):
+        return "short"
+    if any(r.state == "unchecked" for r in rows):
+        return "checking"
+    return "ready"
+
+
+def equipment_ready(operation):
+    """The one question somebody about to call for the patient is asking."""
+    return equipment_state(operation) in ("not_needed", "ready")
+
+
+def set_equipment_needed(operation, needed, user=None):
+    """Record whether this case needs anything beyond what the room has.
+
+    ``None`` is refused rather than read as no: on this question a blank is
+    "nobody asked", and this program does not let one value carry two facts.
+    """
+    if operation is None or needed is None:
+        return None
+    operation.equipment_needed = bool(needed)
+    if operation.equipment_needed:
+        stock_equipment(operation)
+    return operation
+
+
+def add_equipment(operation, name, user=None):
+    """Name one more thing this case needs. Returns the row, or ``None``.
+
+    For the item the service's list does not carry — which is most theatres,
+    most days. A blank name is refused; an empty row on a checklist is a line
+    somebody ticks without reading.
+    """
+    from app.models.theatre import OperationEquipment
+
+    if operation is None or getattr(operation, "id", None) is None:
+        return None
+    clean = (name or "").strip()[:120]
+    if not clean:
+        return None
+    rows = equipment_for(operation)
+    for row in rows:
+        if row.name == clean:
+            return row
+    item = OperationEquipment(operation_id=operation.id, name=clean,
+                              sort_order=len(rows))
+    db.session.add(item)
+    return item
+
+
+def check_equipment(operation, answers, user=None, at=None):
+    """Record what was found, item by item. Returns the operation.
+
+    ``answers`` maps an item's id to ``present`` / ``working`` / ``note``.
+    A thing that is not there **cannot be tested**, so its ``working`` is left
+    unknown rather than written False — "it is here and broken" is a different
+    finding and would send somebody on the wrong errand.
+    """
+    rows = {row.id: row for row in equipment_for(operation)}
+    if operation is None or not rows:
+        return None
+    for item_id, answer in (answers or {}).items():
+        row = rows.get(item_id)
+        if row is None:
+            continue
+        present = answer.get("present")
+        row.present = None if present is None else bool(present)
+        if row.present:
+            working = answer.get("working")
+            row.working = None if working is None else bool(working)
+        else:
+            row.working = None
+        row.note = (answer.get("note") or "").strip()[:160] or None
+    operation.equipment_checked_by = getattr(user, "id", None)
+    operation.equipment_checked_at = at or datetime.utcnow()
+    return operation
+
+
 def precautions_of(operation):
     """The precautions recorded for this case, as a list."""
     raw = (getattr(operation, "infection_precautions", None) or "")

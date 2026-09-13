@@ -249,6 +249,22 @@ class Service(db.Model):
     # surgeon overrules per case, never the decision itself; that lives on
     # the case, where somebody actually made it.
     followup_days = db.Column(db.Integer)
+    # **What this procedure needs in the room**, one item per line, written
+    # once. GAHAR SAS.06 (ب) asks that the equipment needed for the surgery is
+    # there and working *before the patient is called for*, and the intent says
+    # plainly that it *"could differ according to the type of surgery"* — so
+    # the list belongs to the procedure, not to the clinic and not to the case.
+    #
+    # **The program never writes it.** What a laparoscopic appendicectomy needs
+    # is an operational judgement belonging to whoever runs the theatres, and a
+    # default list shipped from here would be this program inventing one.
+    # Blank is the ordinary answer for most services, and a case then starts
+    # with nothing to check rather than with somebody else's list.
+    #
+    # Copied onto the case when the check is opened — copied, not referenced,
+    # so editing this list next year does not rewrite what was checked in the
+    # room this morning.
+    equipment_list = db.Column(db.Text)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 

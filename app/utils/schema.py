@@ -569,6 +569,15 @@ ADDITIONS = [
     ("operations", "infection_empiric", "BOOLEAN"),
     ("operations", "infection_noted_by", "INTEGER"),
     ("operations", "infection_noted_at", "DATETIME"),
+    # Whether this case needs anything beyond what the room always has, and
+    # who checked (SAS.06 ب). NULL is "nobody asked". The items themselves are
+    # a new table — `operation_equipment` — which `db.create_all` creates and
+    # which therefore needs no entry here.
+    ("operations", "equipment_needed", "BOOLEAN"),
+    ("operations", "equipment_checked_by", "INTEGER"),
+    ("operations", "equipment_checked_at", "DATETIME"),
+    # What a procedure needs in the room, written once against the service.
+    ("services", "equipment_list", "TEXT"),
 ]
 
 def apply_schema(report=None):
