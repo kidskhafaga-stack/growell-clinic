@@ -80,6 +80,11 @@
       <i class="bi bi-heart-pulse"></i> {{ t('recovery.title') }}
       {% if in_recovery %}<span class="badge badge--warn">{{ in_recovery }}</span>{% endif %}</a>
     {% if may_build %}
+    {# «accessible to and used by staff involved in booking» (WFM.12, evidence
+       4) — so it is reached from the screen the booking form is on, not
+       buried in settings. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('theatres.privileges_screen') }}">
+      <i class="bi bi-person-badge"></i> {{ t('privileges.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('theatres.setup') }}">
       <i class="bi bi-door-closed"></i> {{ t('theatre.rooms') }}</a>
     {% endif %}

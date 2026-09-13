@@ -580,6 +580,123 @@ def test_the_review_interval_is_the_handbooks_and_computes_nothing(hospital):
         assert row.valid_until is None, "the program invented a renewal date"
 
 
+# --------------------------------------------------------- on the screens --
+def test_the_privileges_screen_lists_what_is_on_file(hospital):
+    from app.utils import privileges
+
+    with hospital["app"].app_context():
+        privileges.grant(hospital["ids"]["cutter"], service_type="surgery",
+                         note="بعد لجنة ٢٠٢٥", user=_user(hospital))
+        hospital["db"].session.commit()
+
+    html = hospital["sign_in"]().get(
+        f"/theatres/privileges?doctor={hospital['ids']['cutter']}"
+    ).get_data(as_text=True)
+    assert "بعد لجنة ٢٠٢٥" in html
+    # Pinned to real words: `t(key) in html` cannot fail on a missing phrase.
+    assert "الصلاحيات الإكلينيكية" in html
+    assert "سارية" in html
+
+
+def test_the_screen_grants_and_withdraws(hospital):
+    from app.utils import privileges
+
+    client = hospital["sign_in"]()
+    client.post("/theatres/privileges",
+                data={"doctor_id": hospital["ids"]["cutter"], "scope": "type",
+                      "service_type": "surgery", "kind": "standard"},
+                follow_redirects=True)
+    with hospital["app"].app_context():
+        rows = privileges.all_for(hospital["ids"]["cutter"])
+        assert len(rows) == 1
+        assert privileges.state(hospital["ids"]["cutter"],
+                                _svc(hospital, "hernia")) == "ok"
+        row_id = rows[0].id
+
+    client.post("/theatres/privileges",
+                data={"action": "withdraw", "privilege_id": row_id,
+                      "reason": "انتهت المدة"}, follow_redirects=True)
+    with hospital["app"].app_context():
+        assert privileges.state(hospital["ids"]["cutter"],
+                                _svc(hospital, "hernia")) == "outside"
+        assert privileges.all_for(hospital["ids"]["cutter"])[0].withdrawn_reason \
+            == "انتهت المدة"
+
+
+def test_the_screen_refuses_a_row_with_no_scope(hospital):
+    from app.i18n import t
+    from app.utils import privileges
+
+    html = hospital["sign_in"]().post(
+        "/theatres/privileges",
+        data={"doctor_id": hospital["ids"]["cutter"], "scope": "type",
+              "service_type": "", "kind": "standard"},
+        follow_redirects=True).get_data(as_text=True)
+    with hospital["app"].app_context():
+        assert privileges.all_for(hospital["ids"]["cutter"]) == []
+    with hospital["app"].test_request_context("/"):
+        assert t("privileges.needs_one_scope") in html
+    assert "اختار نطاق واحد" in html
+
+
+def test_only_an_admin_may_grant(hospital):
+    """*"approved by the medical staff committee"* — granting a privilege is a
+    credentialing decision, not something the surgeon does for himself."""
+    from app.utils import privileges
+
+    hospital["sign_in"]("cutter").post(
+        "/theatres/privileges",
+        data={"doctor_id": hospital["ids"]["cutter"], "scope": "type",
+              "service_type": "surgery", "kind": "standard"},
+        follow_redirects=True)
+    with hospital["app"].app_context():
+        assert privileges.all_for(hospital["ids"]["cutter"]) == []
+
+
+def test_the_case_screen_names_the_gap_and_takes_a_reason(hospital):
+    from app.utils import theatres as theatre
+
+    html = hospital["sign_in"]().get(
+        f"/theatres/operation/{hospital['ids']['case']}").get_data(as_text=True)
+    assert "بره صلاحياته" in html
+    assert "ليه اتحجزت كده؟" in html
+
+    hospital["sign_in"]().post(
+        f"/theatres/operation/{hospital['ids']['case']}/privilege",
+        data={"reason": "طوارئ، مفيش غيره"}, follow_redirects=True)
+    with hospital["app"].app_context():
+        assert theatre.privilege_state(_case(hospital)) == "acknowledged"
+
+
+def test_the_case_screen_refuses_an_empty_reason(hospital):
+    from app.i18n import t
+    from app.utils import theatres as theatre
+
+    html = hospital["sign_in"]().post(
+        f"/theatres/operation/{hospital['ids']['case']}/privilege",
+        data={"reason": "   "}, follow_redirects=True).get_data(as_text=True)
+    with hospital["app"].app_context():
+        assert theatre.privilege_state(_case(hospital)) == "outside"
+    with hospital["app"].test_request_context("/"):
+        assert t("theatre.privilege_needs_reason") in html
+
+
+def test_a_case_that_cannot_be_judged_shows_no_card(hospital):
+    """A card saying nothing is furniture. With no service behind the booking
+    there is nothing to check against, and the screen stays quiet."""
+    from app.i18n import t
+
+    with hospital["app"].app_context():
+        _case(hospital).service_id = None
+        hospital["db"].session.commit()
+
+    html = hospital["sign_in"]().get(
+        f"/theatres/operation/{hospital['ids']['case']}").get_data(as_text=True)
+    with hospital["app"].test_request_context("/"):
+        assert t("theatre.privilege_outside") not in html
+    assert "صلاحية الجرّاح" not in html
+
+
 def test_the_columns_are_registered_for_a_clinic_already_running(hospital):
     from app.utils.schema import ADDITIONS
 
