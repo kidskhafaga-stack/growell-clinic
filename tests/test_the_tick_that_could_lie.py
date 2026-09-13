@@ -237,18 +237,30 @@ def test_the_stop_is_still_signable_and_the_case_still_starts(suite):
         assert "consent" in theatres.safety(case)["missed"][SIGN_IN]
 
 
-def test_the_other_stops_are_untouched(suite):
-    """Only the item a signature answers is read from the record; the rest of
-    the checklist is the team's own to tick."""
-    from app.models.theatre import TIME_OUT
+def test_the_consent_item_does_not_leak_into_another_stop(suite):
+    """The consent derivation belongs to the sign-in and touches nothing else:
+    the time-out's ordinary boxes are the team's own to tick, and ``consent``
+    is not one of that stop's items at all.
+
+    **This assertion used to be a set equality**, and that over-claimed — it
+    was quietly asserting that *nothing anywhere* is derived on the time-out,
+    which stopped being true the moment ``imaging_ready`` was read from the
+    imaging attached to the case (SAS.06 هـ). The claim this test actually
+    makes is about the consent, so that is what it says now; the imaging
+    item's own behaviour is asserted where it lives, in
+    test_the_result_nobody_read_before_the_anaesthetic.py.
+    """
+    from app.models.theatre import CHECK_ITEMS, TIME_OUT
     from app.utils import theatres
 
+    assert "consent" not in CHECK_ITEMS[TIME_OUT]
     with suite["app"].app_context():
         row = theatres.sign(_case(suite), TIME_OUT,
                             items=["team_introduced", "antibiotic"],
                             user=None)
         suite["db"].session.commit()
-        assert set(row.items) == {"team_introduced", "antibiotic"}
+        assert row.has("team_introduced") and row.has("antibiotic")
+        assert not row.has("consent")
 
 
 # ------------------------------------------------------------- the linking --
