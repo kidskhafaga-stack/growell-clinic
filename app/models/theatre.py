@@ -700,12 +700,13 @@ class OperationEquipment(db.Model):
 
     operation = db.relationship("Operation", backref="equipment")
 
-    @property
-    def ready(self):
-        """There **and** working. Anything else is not ready, including the
-        item nobody has looked at."""
-        return bool(self.present) and bool(self.working)
-
+    # There was a ``ready`` property here — ``present and working`` — and
+    # nothing ever called it: ``state`` already answers that and four other
+    # questions besides. Measurement found it: a mutant dropping the
+    # ``working`` half of it left every test green, which is what an unused
+    # branch looks like from the outside. Deleted rather than given a test of
+    # its own, because a second way to ask the same question is a second thing
+    # to keep true.
     @property
     def state(self):
         """``unchecked`` · ``missing`` · ``broken`` · ``ready``.

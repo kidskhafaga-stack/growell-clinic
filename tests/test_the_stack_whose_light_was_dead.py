@@ -221,6 +221,29 @@ def test_a_thing_nobody_could_find_is_missing_not_broken(surgery):
         assert item.working is None, "an absent thing was recorded as tested"
 
 
+def test_a_thing_found_but_not_yet_tested_is_still_unchecked(surgery):
+    """**Caught by measurement.** Half an answer — "yes it is here", and
+    nobody has switched it on — is not a finding. Reading it as ``broken``
+    would report a fault nobody saw, and reading it as ``ready`` would say the
+    case is equipped on the strength of somebody glancing at a shelf."""
+    from app.utils import theatres as theatre
+
+    with surgery["app"].app_context():
+        theatre.set_equipment_needed(_op(surgery), True, user=_boss(surgery))
+        surgery["db"].session.commit()
+        rows = theatre.equipment_for(_op(surgery))
+        theatre.check_equipment(_op(surgery),
+                                {rows[0].id: {"present": True}},
+                                user=_boss(surgery))
+        surgery["db"].session.commit()
+
+        item = _items(surgery)["منظار ٥ مم"]
+        assert item.present is True
+        assert item.working is None
+        assert item.state == "unchecked"
+        assert theatre.equipment_state(_op(surgery)) == "checking"
+
+
 def test_the_whole_case_is_short_while_any_one_item_is(surgery):
     from app.utils import theatres as theatre
 
@@ -357,6 +380,26 @@ def test_a_blank_name_is_refused(surgery):
         assert theatre.add_equipment(_op(surgery), None) is None
         surgery["db"].session.commit()
         assert len(theatre.equipment_for(_op(surgery))) == 3
+
+
+def test_a_case_with_nothing_to_check_is_not_stamped_as_checked(surgery):
+    """**Caught by measurement.** Writing "checked at 09:15, by the boss" on a
+    case that has no items is a record of a verification nobody performed —
+    the same thing every derived item in this module exists to stop, wearing a
+    timestamp instead of a tick."""
+    from app.utils import theatres as theatre
+
+    with surgery["app"].app_context():
+        case = _op(surgery, "bare")
+        theatre.set_equipment_needed(case, True, user=_boss(surgery))
+        surgery["db"].session.commit()
+        assert theatre.equipment_for(_op(surgery, "bare")) == []
+
+        assert theatre.check_equipment(_op(surgery, "bare"), {},
+                                       user=_boss(surgery)) is None
+        surgery["db"].session.commit()
+        assert _op(surgery, "bare").equipment_checked_at is None
+        assert _op(surgery, "bare").equipment_checked_by is None
 
 
 def test_a_missing_answer_is_refused(surgery):
