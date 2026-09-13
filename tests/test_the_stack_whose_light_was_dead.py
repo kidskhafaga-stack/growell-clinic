@@ -443,8 +443,32 @@ def test_the_case_screen_lists_what_the_procedure_needs(surgery):
         f"/theatres/operation/{surgery['ids']['case']}").get_data(as_text=True)
     assert "منظار ٥ مم" in html and "مصدر إضاءة" in html
     with surgery["app"].test_request_context("/"):
-        assert t("theatre.equipment_checking") in html
-        assert t("theatre.equip_working") in html
+        for key in ("theatre.equipment_checking", "theatre.equip_working",
+                    "theatre.equip_present", "theatre.equip_absent"):
+            label = t(key)
+            # **``t(key) in html`` cannot fail on a missing phrase**, and this
+            # file shipped with that hole: when nothing answers to a key, ``t``
+            # hands back the key itself and the template prints the same
+            # string, so the assertion passes while the screen shows
+            # "theatre.equip_working" to a surgeon. It happened — the
+            # equipment phrases landed in the wrong section of the locale file
+            # (three keys in it are called "precautions", and a first-match
+            # anchor found the one in `vaccinations`), and this test stayed
+            # green. `test_no_raw_keys_on_screen` is what caught it.
+            assert label != key, f"{key} resolves to itself"
+            assert label in html
+    # And one phrase pinned to its actual words. Even `label != key` cannot
+    # catch a phrase missing from the *Arabic* file alone: `t` falls back to
+    # English, the template renders the same fallback, and both sides of the
+    # comparison move together. Only a literal holds still.
+    # **Distinctive literals only.** «محدش بصّ» looked like a good one and is
+    # useless: it also sits inside «لسه فيه حاجات محدش بصّ عليها», a different
+    # phrase on the same page, so removing the one being tested changed
+    # nothing. This session made the same mistake once already, asserting on
+    # «لسه» — three letters that appear in eight other theatre phrases. A
+    # literal has to be long enough to belong to one phrase.
+    assert "الأجهزة اللي الحالة محتاجاها" in html   # the card's own title
+    assert "الحالة محتاجة حاجة غير اللي في الأوضة دايماً؟" in html
 
 
 def test_the_screen_records_what_was_found(surgery):
