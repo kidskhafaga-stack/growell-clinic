@@ -546,6 +546,15 @@ ADDITIONS = [
     ("operations", "blood_units", "INTEGER"),
     ("operations", "blood_reserved_at", "DATETIME"),
     ("operations", "blood_reserved_by", "INTEGER"),
+    # Who confirmed this child is this child, and who from the family stood
+    # there. NULL on every case booked before it — and the true reading is
+    # then "nobody recorded it", which is what the checklist box now says
+    # instead of whatever somebody ticked.
+    ("operations", "identity_checked_by", "INTEGER"),
+    ("operations", "identity_checked_at", "DATETIME"),
+    ("operations", "identity_with", "VARCHAR(20)"),
+    ("operations", "identity_with_name", "VARCHAR(120)"),
+    ("operations", "identity_matched", "VARCHAR(120)"),
 ]
 
 def apply_schema(report=None):

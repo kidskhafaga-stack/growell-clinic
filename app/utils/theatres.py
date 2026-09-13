@@ -146,6 +146,14 @@ ANAESTHESIA_ITEM = "anaesthesia_check"
 #: signature saying it was verified.
 SITE_ITEM = "site_marked"
 
+#: And the one a recorded identity check answers. **The other half of the
+#: never-event.** SAS.06 (أ) asks for the child and the planned procedure to be
+#: confirmed *with the family taking part*; the program had a box anybody could
+#: tick — and in paediatrics that box carries the most, because the child
+#: cannot confirm their own name and two siblings are on the same morning's
+#: list under the same surname.
+IDENTITY_ITEM = "identity"
+
 
 def consent_state(operation):
     """Whether a signed, standing consent covers this case — in one word.
@@ -237,6 +245,140 @@ def mark_site(operation, side, user=None, note=None, at=None):
     operation.site_marked_by = getattr(user, "id", None)
     operation.site_marked_at = at or datetime.utcnow()
     return operation
+
+
+def identity_state(operation):
+    """Whether somebody confirmed this child, and who stood with them.
+
+    ``none`` · ``with_family`` · ``alone``.
+
+    Three words and not two, because the difference between the last two is
+    the thing the standard is actually asking about, and it must not vanish
+    into a tick. ``alone`` is an **honest answer**, not a failure: a child
+    brought by a school, or arriving in an emergency with nobody, still has
+    their identity confirmed by a named person at a recorded moment. What
+    ``alone`` does is leave that visible — so a month of them is a finding
+    somebody can go and look at, rather than a wall of green.
+
+    A record with nobody's name against it is ``none``: same rule as the site,
+    where a side with no signature is a note and not a marking.
+    """
+    if operation is None:
+        return "none"
+    from app.models.theatre import IDENTITY_PRESENT, IDENTITY_WITH
+
+    if operation.identity_with not in IDENTITY_WITH:
+        return "none"
+    if operation.identity_checked_by is None or operation.identity_checked_at is None:
+        return "none"
+    return "with_family" if operation.identity_with in IDENTITY_PRESENT else "alone"
+
+
+def identity_ok(operation):
+    """The one question the checklist item asks.
+
+    Both recorded answers count. The program records; it does not refuse a
+    case because the family could not come — and refusing would only teach
+    people to name somebody who was not there, which is the tick again.
+    """
+    return identity_state(operation) in ("with_family", "alone")
+
+
+def _wristbands():
+    """Does this clinic band its patients?
+
+    Off by default, and read rather than assumed: most outpatient paediatric
+    clinics do not use wristbands at all, and an identifier nobody wears is
+    one more box on a screen that people learn to tick without reading.
+    """
+    from app.models import Setting
+
+    return Setting.get("theatre_wristbands", "0") == "1"
+
+
+def identity_options(operation):
+    """What the screen may offer: the guardians on file, and the identifiers
+    this child actually has.
+
+    Two lists, and the second one is the point. ``national_id`` is not offered
+    for a child who has none on record, because a ticked "national id matched"
+    on a child with no national id is a record of something that cannot have
+    happened — the program would be collecting a confirmation of its own
+    empty column.
+    """
+    from app.models.theatre import IDENTITY_KEYS
+
+    people = []
+    patient = getattr(operation, "patient", None)
+    family = getattr(patient, "family", None) if patient is not None else None
+    for row in (getattr(family, "parents", None) or []):
+        people.append({"relation": row.relation if row.relation in
+                       ("father", "mother", "guardian") else "guardian",
+                       "name": row.display_name()})
+
+    have = {
+        # The name and the procedure are always there — a case cannot be
+        # booked without either.
+        "name": bool(getattr(patient, "full_name", None)),
+        "birth_date": getattr(patient, "date_of_birth", None) is not None,
+        "file_number": bool(getattr(patient, "patient_number", None)),
+        "national_id": bool((getattr(patient, "national_id", None) or "").strip()),
+        "procedure": bool(getattr(operation, "procedure", None)),
+        # A clinic that does not band its patients has nothing to match, and
+        # offering it invites a tick for a bracelet nobody wears.
+        "wristband": _wristbands(),
+    }
+    # Named ``identifiers`` and not ``keys`` on purpose. In Jinja,
+    # ``options.keys`` resolves to the dict's own ``keys`` *method* and renders
+    # as a bound method rather than the list — this program has already shipped
+    # that exact bug once, as ``row.items`` on the invoice screen. The name
+    # that cannot collide is the fix; ``['keys']`` would only work until the
+    # next person writes the dotted form.
+    # ``named`` is the same people keyed by relation, so the screen can put
+    # the guardian's actual name *in the option label* — «الأم — فاطمة السيد».
+    # Whoever is confirming then reads who is on file before choosing, instead
+    # of picking a role and finding out afterwards which name it filled in.
+    named = {}
+    for person in people:
+        named.setdefault(person["relation"], person["name"])
+    return {"people": people, "named": named,
+            "identifiers": [k for k in IDENTITY_KEYS if have.get(k)]}
+
+
+def verify_identity(operation, with_whom, name=None, matched=None, user=None,
+                    at=None):
+    """Record that somebody confirmed this child. Returns it, or ``None``.
+
+    Refused without a recognised answer for who took part, for the reason
+    :func:`mark_site` refuses a free-typed side: a value the program cannot
+    read puts the checklist's answer past anything it can derive, which is the
+    tick it replaced wearing a different hat.
+
+    ``none_present`` **clears the name**. "Nobody from the family was there,
+    and her name is Fatma" is a contradiction, and storing both halves of it
+    would leave whoever reads the record later choosing which one to believe.
+    """
+    from app.models.theatre import IDENTITY_KEYS, IDENTITY_PRESENT, IDENTITY_WITH
+
+    if operation is None or with_whom not in IDENTITY_WITH:
+        return None
+    operation.identity_with = with_whom
+    if with_whom in IDENTITY_PRESENT:
+        operation.identity_with_name = (name or "").strip()[:120] or None
+    else:
+        operation.identity_with_name = None
+    keys = [k for k in (matched or []) if k in IDENTITY_KEYS]
+    operation.identity_matched = ",".join(keys) or None
+    operation.identity_checked_by = getattr(user, "id", None)
+    operation.identity_checked_at = at or datetime.utcnow()
+    return operation
+
+
+def identity_matched_keys(operation):
+    """What was matched, as a list. ``identity_matched`` is a joined string
+    and every caller wants the parts."""
+    raw = (getattr(operation, "identity_matched", None) or "")
+    return [k for k in (p.strip() for p in raw.split(",")) if k]
 
 
 def blood_state(operation):
@@ -477,6 +619,17 @@ def sign(operation, stop, items=None, user=None, note=None, at=None):
         confirmed = [i for i in confirmed if i != SITE_ITEM]
         if site_ok(operation):
             confirmed.append(SITE_ITEM)
+
+    # **And who this child is.** The fourth box on this stop that a record
+    # answers better than a person ticking on the way past, and the other half
+    # of the never-event the site covers: right patient, right procedure. Both
+    # recorded answers count — including the one that says nobody from the
+    # family could be there — because the program records what happened and
+    # refusing would only produce a named guardian who was not in the room.
+    if IDENTITY_ITEM in known:
+        confirmed = [i for i in confirmed if i != IDENTITY_ITEM]
+        if identity_ok(operation):
+            confirmed.append(IDENTITY_ITEM)
 
     row = operation.check_for(stop)
     if row is None:
