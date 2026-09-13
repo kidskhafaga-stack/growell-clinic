@@ -441,21 +441,32 @@ def test_the_derived_items_are_named_in_one_place(theatre_day):
 
     derived = set(theatre.derived_items())
     assert derived == {"identity", "site_marked", "consent",
-                       "anaesthesia_check"}
+                       "anaesthesia_check", "imaging_ready"}
     # And what is left for anybody needing a box that really is a box.
     assert set(CHECK_ITEMS[SIGN_IN]) - derived == {
         "allergy", "airway", "pulse_oximeter"}
 
 
 def test_every_derived_item_is_dropped_from_a_form_that_posts_it(theatre_day):
-    """The property the mapping exists to guarantee, asserted over all four
+    """The property the mapping exists to guarantee, asserted over all of them
     rather than one at a time — a loop that answered only the first would pass
-    every single-item test."""
+    every single-item test.
+
+    Only the sign-in's own derived items: ``sign`` keeps each stop to its own
+    list, and ``imaging_ready`` belongs to the time-out (that one is covered in
+    test_the_result_nobody_read_before_the_anaesthetic.py). Also only the ones
+    that *withhold* a tick when nothing is recorded — ``imaging_ready`` is
+    deliberately the exception, because a case with no imaging has none to
+    display.
+    """
+    from app.models.theatre import CHECK_ITEMS, SIGN_IN
     from app.utils import theatres as theatre
 
     with theatre_day["app"].app_context():
-        derived = list(theatre.derived_items())
-        row = theatre.sign(_op(theatre_day), "sign_in",
+        derived = [i for i in theatre.derived_items()
+                   if i in CHECK_ITEMS[SIGN_IN]]
+        assert len(derived) == 4, "the sign-in's derived items changed"
+        row = theatre.sign(_op(theatre_day), SIGN_IN,
                            items=derived + ["allergy"],
                            user=_user(theatre_day))
         theatre_day["db"].session.commit()

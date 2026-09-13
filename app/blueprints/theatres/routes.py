@@ -235,6 +235,15 @@ def operation(operation_id):
                            identity_with=IDENTITY_WITH,
                            identity_options=theatre.identity_options(row),
                            identity_matched=theatre.identity_matched_keys(row),
+                           # The investigations this case waits on (SAS.06 هـ).
+                           # Whoever is attaching has to see the child's other
+                           # orders *with* their results, so an answer that is
+                           # not back yet is visible before it is relied on.
+                           workup_state=theatre.workup_state(row),
+                           imaging_state=theatre.workup_state(row,
+                                                              kind="imaging"),
+                           workup_orders=theatre.workup_orders(row),
+                           workup_choices=theatre.workup_choices(row),
                            blood_state=theatre.blood_state(row),
                            plan=theatre.plan_for(row),
                            anaesthesia_types=ANAESTHESIA_TYPES,
@@ -451,6 +460,45 @@ def verify_identity(operation_id):
         return redirect(url_for("theatres.operation", operation_id=row.id))
     db.session.commit()
     flash(t("theatre.identity_ok"), "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/workup", methods=["POST"])
+@module_required(MODULE)
+def workup(operation_id):
+    """Whether this case waits on investigations, and which ones.
+
+    SAS.06 (هـ). Blank is refused rather than read as "none needed": on this
+    question the difference is a child anaesthetised before anybody read the
+    result.
+    """
+    from app.models.visit import VisitInvestigation
+
+    row = Operation.query.get_or_404(operation_id)
+    raw = (request.form.get("needed") or "").strip()
+    if raw not in ("yes", "no"):
+        flash(t("theatre.workup_needs_answer"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    theatre.set_workup(row, raw == "yes", user=current_user)
+
+    # Which of this child's orders this case waits on. The whole set is
+    # rewritten from what was ticked, so unticking one detaches it — and
+    # detaching never deletes the order, which is a request somebody really
+    # made.
+    wanted = set(request.form.getlist("order", type=int))
+    for order in theatre.workup_choices(row):
+        if order.id in wanted:
+            theatre.link_investigation(row, order)
+        elif order.operation_id == row.id:
+            theatre.unlink_investigation(order)
+    # Ticking "no" and leaving orders attached is a contradiction; the answer
+    # somebody just gave wins, and the orders go back to being the child's.
+    if raw == "no":
+        for order in VisitInvestigation.query.filter_by(
+                operation_id=row.id).all():
+            theatre.unlink_investigation(order)
+    db.session.commit()
+    flash(t("common.saved"), "success")
     return redirect(url_for("theatres.operation", operation_id=row.id))
 
 

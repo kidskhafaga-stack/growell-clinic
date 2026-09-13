@@ -154,6 +154,13 @@ SITE_ITEM = "site_marked"
 #: list under the same surname.
 IDENTITY_ITEM = "identity"
 
+#: And the one the imaging half of the workup answers. **Already on the list**
+#: — the WHO time-out asks «الأشعة معروضة», and that is the same question
+#: SAS.06 (هـ) asks about imaging. Deriving an item that exists touches only
+#: what is signed from now on; adding a new one would make every checklist ever
+#: signed read as short, which is a record rewritten by a release.
+IMAGING_ITEM = "imaging_ready"
+
 
 def consent_state(operation):
     """Whether a signed, standing consent covers this case — in one word.
@@ -381,6 +388,133 @@ def identity_matched_keys(operation):
     return [k for k in (p.strip() for p in raw.split(",")) if k]
 
 
+def workup_orders(operation, kind=None):
+    """The investigations this case is waiting on, oldest first.
+
+    Only the ones somebody attached to this case. Never "everything
+    outstanding on the child's file" — a ferritin ordered last month would
+    then hold up this morning's appendix.
+    """
+    if operation is None or getattr(operation, "id", None) is None:
+        return []
+    from app.models.visit import VisitInvestigation
+
+    q = VisitInvestigation.query.filter_by(operation_id=operation.id)
+    if kind:
+        q = q.filter(VisitInvestigation.kind == kind)
+    return q.order_by(VisitInvestigation.id).all()
+
+
+def workup_state(operation, kind=None):
+    """Where this case stands on its investigations — in one word.
+
+    ``unasked`` · ``not_needed`` · ``none_named`` · ``waiting`` · ``ready``.
+
+    Five, and every one of them is a different sentence at the theatre door:
+
+    * ``unasked`` — nobody has said whether this case waits on anything. The
+      state of every case booked before the column existed, and **not** the
+      same as needing nothing.
+    * ``not_needed`` — somebody considered it and the answer is no. A healthy
+      five-year-old's tonsillectomy, most mornings.
+    * ``none_named`` — somebody said yes and named nothing. Half an answer,
+      and it has to look like one rather than pass as ready.
+    * ``waiting`` — an order is attached and its result is not back.
+    * ``ready`` — every attached order has a result.
+
+    ``kind`` narrows it to ``lab`` or ``imaging``; the imaging answer is what
+    the checklist's «الأشعة معروضة» item reads.
+    """
+    if operation is None:
+        return "unasked"
+    if operation.workup_needed is None:
+        return "unasked"
+    if not operation.workup_needed:
+        return "not_needed"
+    rows = workup_orders(operation, kind=kind)
+    if not rows:
+        return "none_named"
+    return "ready" if all(r.has_result for r in rows) else "waiting"
+
+
+def imaging_ok(operation):
+    """The one question the checklist's imaging item asks.
+
+    **Ticked unless there is an actual gap.** The WHO item asks whether the
+    essential imaging is up; a case with no imaging attached has nothing to
+    display and the honest answer is yes — the same way a procedure with no
+    side counts as marked. Refusing until somebody answered the workup
+    question would paint a red item on every appendicectomy in the country and
+    teach people to stop reading the colour.
+
+    So it only *withholds* the tick where the tick would be a lie: imaging was
+    ordered for this case and the result is not back.
+    """
+    return workup_state(operation, kind="imaging") in (
+        "unasked", "not_needed", "none_named", "ready")
+
+
+def set_workup(operation, needed, user=None):
+    """Record whether this case waits on investigations at all.
+
+    Blank is not an answer and the caller must not turn one into ``False`` —
+    see :func:`workup_state`.
+    """
+    if operation is None or needed is None:
+        return None
+    operation.workup_needed = bool(needed)
+    return operation
+
+
+def link_investigation(operation, order):
+    """Attach one order to this case. Returns it, or ``None``.
+
+    Refuses an order belonging to another child: an investigation attached
+    across patients would put somebody else's result in front of the person
+    deciding whether this child is ready.
+    """
+    if operation is None or order is None:
+        return None
+    if order.patient_id != operation.patient_id:
+        return None
+    order.operation_id = operation.id
+    # Attaching one *is* the answer to "does this case wait on anything" —
+    # leaving the flag NULL beside an attached order would have the screen say
+    # nobody asked while an order sits there waiting.
+    if operation.workup_needed is None:
+        operation.workup_needed = True
+    return order
+
+
+def unlink_investigation(order):
+    """Detach an order from its case. The order itself is never deleted — it
+    is a real request somebody made, and the wrong case is not a reason to
+    lose it."""
+    if order is None:
+        return None
+    order.operation_id = None
+    return order
+
+
+def workup_choices(operation):
+    """This child's orders that could be attached to this case, newest first.
+
+    Everything of theirs not already attached to **another** case, results and
+    all: whoever is attaching has to be able to see that the result they were
+    about to rely on is not back yet, and a list of only unresulted orders
+    would hide the ones already answered.
+    """
+    if operation is None or operation.patient_id is None:
+        return []
+    from app.models.visit import VisitInvestigation
+
+    rows = (VisitInvestigation.query
+            .filter_by(patient_id=operation.patient_id)
+            .order_by(VisitInvestigation.id.desc()).all())
+    return [r for r in rows
+            if r.operation_id in (None, operation.id)]
+
+
 def blood_state(operation):
     """Where this case stands on blood — in one word.
 
@@ -596,6 +730,11 @@ def derived_items():
         SITE_ITEM: site_ok,
         # Which child, and the procedure (SAS.06 أ) — its other half.
         IDENTITY_ITEM: identity_ok,
+        # Whether the imaging this case waits on is actually back
+        # (SAS.06 هـ). The only one of the five that ticks when nothing is
+        # recorded: a case with no imaging has none to display. See
+        # :func:`imaging_ok`.
+        IMAGING_ITEM: imaging_ok,
     }
 
 
