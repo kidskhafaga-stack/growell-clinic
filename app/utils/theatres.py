@@ -19,7 +19,7 @@ record: a stop signed with items unticked is stored with the unticked ones
 named, because a checklist that silently rounds "four of seven" up to "done"
 is worse than no checklist — it manufactures a signature.
 """
-from datetime import date, datetime, timedelta
+from datetime import datetime, time
 
 from app.extensions import db
 from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, PREOP_KINDS,
@@ -1356,12 +1356,21 @@ def planned_end(operation):
     A case running past midnight gives the wall-clock time, not tomorrow's
     date: this is what prints on a theatre list, and the list carries its own
     date at the top.
+
+    **Minutes, not a ``datetime``.** Written first as ``datetime.combine`` with
+    a placeholder date, which is how every local-date-read-as-UTC bug in this
+    program has started — and the repo-wide guard in
+    ``tests/test_a_shift_that_lands_on_the_wrong_day.py`` said so. It was a
+    false alarm in substance (nothing here is compared against a stored UTC
+    column) and a true one in shape, so the date is gone rather than excused:
+    an end time has no date, and arithmetic that never builds one cannot get
+    the day wrong.
     """
     if operation is None or not operation.start_time or not operation.minutes:
         return None
-    ends = (datetime.combine(date.min, operation.start_time)
-            + timedelta(minutes=operation.minutes))
-    return ends.time()
+    started = operation.start_time
+    total = started.hour * 60 + started.minute + operation.minutes
+    return time((total // 60) % 24, total % 60)
 
 
 def actual_minutes(operation):
