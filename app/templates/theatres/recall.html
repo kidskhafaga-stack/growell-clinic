@@ -50,8 +50,12 @@
         {% set child = row.operation.patient if row.operation else None %}
         <tr>
           <td>{% if child %}
+            {# `display_name(current_lang)`, never `full_name`: a clinic
+               running the screen in English gets the English name when the
+               child has one. Caught by `test_name_language` — the rule is
+               repo-wide and this screen was the exception. #}
             <a href="{{ url_for('patients.view', patient_id=child.id) }}">
-              {{ child.full_name }}</a>
+              {{ child.display_name(current_lang) }}</a>
             <span class="hint" dir="ltr">{{ child.patient_number }}</span>
             {% else %}—{% endif %}</td>
           <td>{{ row.name }}
