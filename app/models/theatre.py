@@ -236,6 +236,37 @@ class Operation(db.Model):
     site_marked_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     site_marked_at = db.Column(db.DateTime)
 
+    # ------------------------------------------ the clock the unit runs on ----
+    #
+    # SAS.02 (هـ) asks for *"a clear and safe mechanism to call patients for
+    # surgeries"*, and the fifth item of evidence says how far the clock has
+    # to reach:
+    #
+    #   *"Punctuality (timekeeping) of procedures in the operating room is
+    #   maintained and recorded, **starting with the patient's call** and
+    #   ending with **the room being cleaned** after the procedure."*
+    #
+    # The middle of that chain was already here — ``started_at``,
+    # ``finished_at``, ``recovery_at``. **Both ends were missing**, and they
+    # are the two the standard names by name.
+    #
+    # ``called_at`` is also where the wait a family actually feels begins. The
+    # gap between the call and the knife is the number a theatre list is run
+    # on, and no stamp in this program could measure it.
+    called_at = db.Column(db.DateTime, index=True)
+    called_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    #: Where the call went — the ward, the waiting area, the family's phone.
+    #: Free text because the standard asks for *a* mechanism and does not name
+    #: the channels, and a list invented here would be this program telling a
+    #: clinic how to call its patients.
+    called_to = db.Column(db.String(120))
+
+    #: *"ending with the room being cleaned after the procedure"*. The turnover
+    #: the next case waits on, and the one moment nobody records because it
+    #: happens after everybody has moved on.
+    cleaned_at = db.Column(db.DateTime)
+    cleaned_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+
     # --------------------------------- booking it to somebody allowed to do it --
     #
     # SAS.02 (أ): *"Surgeries and invasive procedures are booked according to
@@ -435,6 +466,8 @@ class Operation(db.Model):
     equipment_checker = db.relationship("User",
                                         foreign_keys=[equipment_checked_by])
     privilege_acker = db.relationship("User", foreign_keys=[privilege_ack_by])
+    caller = db.relationship("User", foreign_keys=[called_by])
+    cleaner = db.relationship("User", foreign_keys=[cleaned_by])
     consent = db.relationship("Consent")
 
     @property

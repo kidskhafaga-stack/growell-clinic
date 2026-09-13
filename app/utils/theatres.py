@@ -1244,6 +1244,99 @@ def sign(operation, stop, items=None, user=None, note=None, at=None):
     return row
 
 
+#: The chain of moments a theatre day is measured by, in order, with the
+#: column each one lives in. **Quoted at both ends**: SAS.02's fifth item of
+#: evidence says the clock runs *"starting with the patient's call and ending
+#: with the room being cleaned after the procedure"*.
+#:
+#: Held as data rather than five hand-written blocks because every screen that
+#: shows punctuality wants the same list, and because a sixth moment should be
+#: one line here and not a sixth place to forget.
+TIMELINE = (
+    ("called", "called_at"),
+    ("started", "started_at"),
+    ("finished", "finished_at"),
+    ("recovery", "recovery_at"),
+    ("cleaned", "cleaned_at"),
+)
+
+
+def timeline(operation):
+    """The moments this case has, in order, with the gap to the one before.
+
+    Returns a list of ``{"step", "at", "minutes"}``. ``minutes`` is the wait
+    since the **previous recorded** moment, not the previous one in the list:
+    a case whose recovery was never stamped still shows an honest gap between
+    finishing and the room being cleaned, instead of a blank that reads as
+    instant.
+
+    ``None`` for a moment that never happened — and it stays in the list. A
+    chain that silently drops what nobody recorded is a chain that always
+    looks complete, which is the opposite of what a punctuality record is for.
+    """
+    if operation is None:
+        return []
+    out, previous = [], None
+    for step, column in TIMELINE:
+        at = getattr(operation, column, None)
+        minutes = None
+        if at and previous:
+            minutes = int((at - previous).total_seconds() // 60)
+        out.append({"step": step, "at": at, "minutes": minutes})
+        if at:
+            previous = at
+    return out
+
+
+def waited_minutes(operation):
+    """From the call to the knife — the number a theatre list is run on.
+
+    ``None`` when either end is missing, because a wait with one end is not a
+    shorter wait, it is an unknown one.
+    """
+    if operation is None or not operation.called_at or not operation.started_at:
+        return None
+    return int((operation.started_at - operation.called_at).total_seconds() // 60)
+
+
+def turnover_minutes(operation):
+    """From the case finishing to the room being ready — what the next case
+    waits on, and the moment nobody records because it happens after everybody
+    has moved on."""
+    if operation is None or not operation.finished_at or not operation.cleaned_at:
+        return None
+    return int((operation.cleaned_at - operation.finished_at).total_seconds() // 60)
+
+
+def call_patient(operation, to=None, user=None, at=None):
+    """Record that the child was called for. Returns the operation, or ``None``.
+
+    SAS.02 (هـ). **Recorded once**: a second call is somebody chasing, not a
+    new beginning, and moving the stamp would quietly shorten every wait this
+    screen exists to measure.
+    """
+    if operation is None or operation.called_at:
+        return None
+    operation.called_at = at or datetime.utcnow()
+    operation.called_by = getattr(user, "id", None)
+    operation.called_to = (to or "").strip()[:120] or None
+    return operation
+
+
+def mark_cleaned(operation, user=None, at=None):
+    """The room is ready for the next case.
+
+    Refused before the case has finished: a room cleaned after an operation
+    that has not happened is not a fact, and a stamp that can land in the wrong
+    order makes every turnover figure computed from it wrong.
+    """
+    if operation is None or not operation.finished_at or operation.cleaned_at:
+        return None
+    operation.cleaned_at = at or datetime.utcnow()
+    operation.cleaned_by = getattr(user, "id", None)
+    return operation
+
+
 def start(operation, user=None, when=None):
     """Take the child into theatre — refused until the team has signed in.
 

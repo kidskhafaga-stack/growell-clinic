@@ -227,6 +227,73 @@
   </form>
 </div>
 
+{# --------------------------------------- the clock the unit runs on ----- #}
+{# SAS.02 (هـ) and its fifth item of evidence: «Punctuality (timekeeping) ...
+   **starting with the patient's call** and ending with **the room being
+   cleaned** after the procedure.»
+
+   The middle of this chain was already recorded. Both ends were missing — and
+   they are the two the corridor feels: the wait between the call and the
+   knife, and the turnover the next case is standing in. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-stopwatch"></i> {{ t('theatre.clock') }}
+    {% if waited is not none %}
+    <span class="alert-pill"><i class="bi bi-hourglass-split"></i>
+      {{ t('theatre.waited', n=waited) }}</span>
+    {% endif %}
+    {% if turnover is not none %}
+    <span class="alert-pill"><i class="bi bi-arrow-repeat"></i>
+      {{ t('theatre.turnover', n=turnover) }}</span>
+    {% endif %}
+  </h2>
+
+  <div style="display:flex;flex-direction:column;gap:2px;">
+    {% for step in timeline %}
+    {# A moment nobody recorded stays on the list. A chain that dropped it
+       would always look complete, which is the opposite of what a punctuality
+       record is for. #}
+    <div style="display:flex;gap:8px;align-items:baseline;{{ 'opacity:.5;' if not step.at else '' }}">
+      <span style="min-width:110px;">{{ t('theatre.step_' ~ step.step) }}</span>
+      <span dir="ltr">{{ step.at|clinic_stamp if step.at else '—' }}</span>
+      {% if step.minutes is not none %}
+      <span class="hint">+{{ step.minutes }} {{ t('theatre.minutes_short') }}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+    {% if not operation.called_at %}
+    <form method="post" action="{{ url_for('theatres.call_patient', operation_id=operation.id) }}"
+          style="display:flex;gap:8px;align-items:end;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;min-width:170px;">
+        {# Free text: the standard asks for *a* mechanism and does not name the
+           channels, and a list invented here would be the program telling a
+           clinic how to call its patients. #}
+        <label for="op_callto">{{ t('theatre.called_to') }}</label>
+        <input class="input" id="op_callto" name="called_to" maxlength="120">
+      </div>
+      <button class="btn btn-outline gc-press" type="submit">
+        <i class="bi bi-megaphone"></i> {{ t('theatre.call') }}</button>
+    </form>
+    {% else %}
+    <p class="hint" style="margin:0;">
+      {% if operation.called_to %}{{ operation.called_to }} · {% endif %}
+      {% if operation.caller %}{{ operation.caller.display_name(current_lang) }}{% endif %}</p>
+    {% endif %}
+
+    {% if operation.finished_at and not operation.cleaned_at %}
+    <form method="post" action="{{ url_for('theatres.mark_cleaned', operation_id=operation.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline gc-press" type="submit">
+        <i class="bi bi-droplet"></i> {{ t('theatre.cleaned') }}</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
 {# ------------------------------- booked to somebody allowed to do it ---- #}
 {# SAS.02 (أ): «Surgeries and invasive procedures are booked **according to
    granted clinical privileges**», and WFM.12's fourth item of evidence says

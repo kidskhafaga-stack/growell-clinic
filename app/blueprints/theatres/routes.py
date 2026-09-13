@@ -273,6 +273,11 @@ def operation(operation_id):
                            privilege_state=theatre.privilege_state(row),
                            privilege_rows=_privileges.matching(
                                row.surgeon_id, row.service, row.on_date),
+                           # The clock the unit runs on (SAS.02 هـ): from the
+                           # call to the room being cleaned, with the gaps.
+                           timeline=theatre.timeline(row),
+                           waited=theatre.waited_minutes(row),
+                           turnover=theatre.turnover_minutes(row),
                            blood_state=theatre.blood_state(row),
                            plan=theatre.plan_for(row),
                            anaesthesia_types=ANAESTHESIA_TYPES,
@@ -489,6 +494,41 @@ def verify_identity(operation_id):
         return redirect(url_for("theatres.operation", operation_id=row.id))
     db.session.commit()
     flash(t("theatre.identity_ok"), "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/call", methods=["POST"])
+@module_required(MODULE)
+def call_patient(operation_id):
+    """Call the child for the case, and start the clock.
+
+    SAS.02 (هـ). Recorded once — a second call is somebody chasing, not a new
+    beginning — and the screen says so rather than silently doing nothing.
+    """
+    row = Operation.query.get_or_404(operation_id)
+    if theatre.call_patient(row, to=request.form.get("called_to"),
+                            user=current_user) is None:
+        flash(t("theatre.call_already"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    db.session.commit()
+    flash(t("theatre.call_recorded"), "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/cleaned", methods=["POST"])
+@module_required(MODULE)
+def mark_cleaned(operation_id):
+    """The room is ready for the next case — the end of the clock.
+
+    Refused before the case has finished: a stamp that can land out of order
+    makes every turnover figure computed from it wrong.
+    """
+    row = Operation.query.get_or_404(operation_id)
+    if theatre.mark_cleaned(row, user=current_user) is None:
+        flash(t("theatre.cleaned_not_yet"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    db.session.commit()
+    flash(t("theatre.cleaned_recorded"), "success")
     return redirect(url_for("theatres.operation", operation_id=row.id))
 
 

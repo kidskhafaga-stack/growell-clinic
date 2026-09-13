@@ -526,6 +526,13 @@ def test_the_recall_screen_lists_the_children_and_their_number(ortho):
         "/theatres/implants/recall?lot=BAD-1").get_data(as_text=True)
     assert "طفل أول" in html
     assert "BAD-1" in html
+    # **The count, and the placeholder that was printing itself.** `translate`
+    # interpolates `{n}`, not `%(n)s` — the first version of this phrase used
+    # the wrong syntax and the heading rendered the literal "%(n)s نتيجة" at
+    # the person running a recall. Asserting on the rendered number is what
+    # catches it; asserting on `t(key)` cannot, because both sides move.
+    assert "1 نتيجة" in html
+    assert "%(n)s" not in html
     assert "01000000000" in html
     assert "P-first" in html
 
