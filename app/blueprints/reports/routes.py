@@ -5,7 +5,9 @@ import io
 from collections import Counter, defaultdict
 from datetime import datetime
 
-from flask import Response, g, render_template, request
+from flask import (Response, flash, g, redirect, render_template, request,
+                   url_for)
+from flask_login import current_user
 
 from app.blueprints.reports import reports_bp
 from app.models import (
@@ -21,7 +23,9 @@ from app.models import (
     Vaccine,
     Visit,
 )
-from app.utils.decorators import module_required
+from app.extensions import db
+from app.i18n import t
+from app.utils.decorators import admin_required, module_required
 from app.utils.clock import local_today
 
 MODULE = "reports"
@@ -854,3 +858,129 @@ def vaccines():
     return render_template(
         "reports/vaccines.html", date_from=date_from, date_to=date_to,
         rows=rows, totals=totals)
+
+
+# ------------------------------------------- the medical record review ----
+# GAHAR IMT.09. It lives under reports because evidence 3 is *"the hospital
+# leaders are reported on the medical record review's findings"* — this is
+# that report, and the leaders are already standing here.
+
+
+@reports_bp.route("/record-review")
+@module_required(MODULE)
+@admin_required
+def record_review():
+    """Every round so far, and whether the next one is owed."""
+    from app.utils import record_review as review
+
+    return render_template(
+        "reports/record_review.html", rounds=review.rounds(),
+        # «at least quarterly» (f). ``None`` for a clinic that has never run
+        # one — which is not "overdue since the beginning of time", and the
+        # screen says so in those words instead.
+        due=review.next_due(), overdue=review.overdue(),
+        percent=review.SAMPLE_PERCENT, today=local_today())
+
+
+@reports_bp.route("/record-review/run", methods=["POST"])
+@module_required(MODULE)
+@admin_required
+def record_review_run():
+    """Draw a sample and read it. Nothing is judged — findings are counted."""
+    from app.utils import record_review as review
+
+    row = review.run(start=_a_date(request.form.get("start")),
+                     end=_a_date(request.form.get("end")),
+                     user=current_user)
+    db.session.commit()
+    if not row.sampled:
+        # An empty period is not a review of a clean quarter. Said plainly,
+        # because a round of nought files that looked like a pass would be
+        # the worst evidence this screen could produce.
+        flash(t("record_review.drew_nothing"), "warning")
+    return redirect(url_for("reports.record_review_round", review_id=row.id))
+
+
+@reports_bp.route("/record-review/<int:review_id>")
+@module_required(MODULE)
+@admin_required
+def record_review_round(review_id):
+    """One round: what was drawn, what was found, who took part."""
+    from app.models.record_review import RecordReview
+    from app.utils import record_review as review
+
+    row = RecordReview.query.get_or_404(review_id)
+    return render_template(
+        "reports/record_review_round.html", round=row,
+        summary=review.summarise(row), clean=review.clean_files(row),
+        standard_of=review.STANDARD_OF,
+        doctors=User.query.filter(User.is_active.is_(True))
+        .order_by(User.full_name).all())
+
+
+@reports_bp.route("/record-review/<int:review_id>/member", methods=["POST"])
+@module_required(MODULE)
+@admin_required
+def record_review_member(review_id):
+    """Who took part — IMT.09 (d)."""
+    from app.models.record_review import RecordReview
+    from app.utils import record_review as review
+
+    row = RecordReview.query.get_or_404(review_id)
+    who = User.query.get(request.form.get("user_id", type=int))
+    if review.add_member(row, who,
+                         discipline=request.form.get("discipline")) is None:
+        flash(t("record_review.already_a_member"), "warning")
+        return redirect(url_for("reports.record_review_round", review_id=row.id))
+    db.session.commit()
+    flash(t("common.saved"), "success")
+    return redirect(url_for("reports.record_review_round", review_id=row.id))
+
+
+@reports_bp.route("/record-review/<int:review_id>/reported", methods=["POST"])
+@module_required(MODULE)
+@admin_required
+def record_review_reported(review_id):
+    """Evidence 3 — the leaders have been told."""
+    from app.models.record_review import RecordReview
+    from app.utils import record_review as review
+
+    row = RecordReview.query.get_or_404(review_id)
+    if review.report_to_leaders(row, user=current_user) is None:
+        flash(t("record_review.already_reported"), "warning")
+        return redirect(url_for("reports.record_review_round", review_id=row.id))
+    db.session.commit()
+    flash(t("record_review.reported"), "success")
+    return redirect(url_for("reports.record_review_round", review_id=row.id))
+
+
+@reports_bp.route("/record-review/<int:review_id>/action", methods=["POST"])
+@module_required(MODULE)
+@admin_required
+def record_review_action(review_id):
+    """Evidence 4 — what was done about it, and the legibility judgement (e)."""
+    from app.models.record_review import RecordReview
+    from app.utils import record_review as review
+
+    row = RecordReview.query.get_or_404(review_id)
+    # (e)'s second half is a person's, so it is saved whatever else happens —
+    # including on its own.
+    row.legibility_note = (request.form.get("legibility") or "").strip() or None
+    if review.record_action(row, request.form.get("action"),
+                            user=current_user) is None:
+        db.session.commit()
+        flash(t("record_review.action_needs_words"), "warning")
+        return redirect(url_for("reports.record_review_round", review_id=row.id))
+    db.session.commit()
+    flash(t("common.saved"), "success")
+    return redirect(url_for("reports.record_review_round", review_id=row.id))
+
+
+def _a_date(raw):
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date()
+    except ValueError:
+        return None
