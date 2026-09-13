@@ -1059,6 +1059,18 @@
        closed stay read-only, so each row links to it rather than growing a
        second half-version of it that drifts. This is the index that was
        missing. #}
+    {# **Gated on the same condition as its tab button**, not just hidden by
+       `x-show`. A clinic with no ward still had this whole panel — heading and
+       all — sitting in the page it was served, invisible only because Alpine
+       had not run yet. The tab and the panel are one decision and they are
+       now written as one.
+
+       And that decision is `module_enabled('beds')` doing its work upstream:
+       `stays` is empty for any facility that never switched a ward on, so a
+       single-doctor clinic, a two-doctor specialist clinic and a medical
+       centre all serve a file with no trace of an inpatient department in
+       it. See `test_the_file_fits_the_place_it_runs_in.py`. #}
+    {% if stays %}
     <div class="gc-tab-panel" x-show="tab==='stays'" x-cloak>
       <h3 class="section-title" style="margin:0 0 12px;">
         <i class="bi bi-hospital"></i> {{ t('patients.tab_stays') }}</h3>
@@ -1154,6 +1166,7 @@
       </div>
       {% endfor %}
     </div>
+    {% endif %}
 
     {# Studies: their own tab, grouped by device.
 
