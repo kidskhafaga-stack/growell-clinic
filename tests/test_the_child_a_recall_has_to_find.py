@@ -424,7 +424,16 @@ def test_two_terms_narrow_rather_than_widen(ortho):
 
 def test_asking_nothing_lists_nothing_rather_than_everything(ortho):
     """A recall question is always narrow, and a screen that opens with every
-    implant the clinic ever used is a list nobody reads."""
+    implant the clinic ever used is a list nobody reads.
+
+    **The count line had to be asserted too.** Checking only that the child's
+    name is absent left a mutant alive: `recall()` with no terms returns
+    *everything*, so a screen that called it unconditionally would still show
+    a row — and the name happened not to appear because the template's own
+    guard hid the block. Two things had to be wrong together for the test to
+    notice, and asserting the heading is what separates them.
+    """
+    from app.i18n import t
     from app.utils import theatres as theatre
 
     with ortho["app"].app_context():
@@ -436,6 +445,50 @@ def test_asking_nothing_lists_nothing_rather_than_everything(ortho):
 
     html = ortho["sign_in"]().get("/theatres/implants/recall").get_data(as_text=True)
     assert "طفل أول" not in html
+    # Nothing counted, because nothing was asked.
+    with ortho["app"].test_request_context("/"):
+        assert t("theatre.recall_found", n=1) not in html
+    assert "١ نتيجة" not in html and "1 نتيجة" not in html
+
+
+def test_the_screen_does_not_go_looking_until_somebody_asks(ortho):
+    """**Caught by measurement, and only this way.** Computing the whole list
+    and then hiding it behind the template's guard renders an identical page,
+    so every assertion about what is *on* the screen stayed green. What it
+    costs is real: on a clinic with ten years of implants on file, opening
+    this screen would scan every one of them and throw the answer away.
+
+    So the property asserted is the one that differs — the search is not run
+    at all.
+    """
+    from app.utils import theatres as theatre
+
+    calls = []
+    original = theatre.recall
+    theatre.recall = lambda **kw: calls.append(kw) or original(**kw)
+    try:
+        client = ortho["sign_in"]()
+        client.get("/theatres/implants/recall")
+        assert calls == [], "the screen searched before anybody asked"
+        client.get("/theatres/implants/recall?lot=BAD-1")
+        assert calls, "the screen did not search when asked"
+    finally:
+        theatre.recall = original
+
+
+def test_the_helper_with_no_terms_is_not_what_the_screen_calls(ortho):
+    """`recall()` asked nothing answers everything — which is right for a
+    helper and wrong for a screen. The screen is what has to withhold it, and
+    this pins the difference so neither side can drift into the other."""
+    from app.utils import theatres as theatre
+
+    with ortho["app"].app_context():
+        theatre.add_implant(_op(ortho), "شريحة", lot="X")
+        ortho["db"].session.commit()
+        theatre.record_implanted(theatre.implants_for(_op(ortho))[0],
+                                 user=_boss(ortho))
+        ortho["db"].session.commit()
+        assert len(theatre.recall()) == 1
 
 
 def test_the_childs_own_side_of_it(ortho):
