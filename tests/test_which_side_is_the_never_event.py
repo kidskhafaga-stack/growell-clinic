@@ -165,7 +165,7 @@ def test_the_tick_cannot_say_the_site_is_marked_when_nothing_does(suite):
 
     with suite["app"].app_context():
         row = theatres.sign(_case(suite), SIGN_IN,
-                            items=["identity", "site_marked", "allergy"],
+                            items=["airway", "site_marked", "allergy"],
                             user=None)
         suite["db"].session.commit()
         assert "site_marked" not in row.items
@@ -180,7 +180,7 @@ def test_it_ticks_itself_once_the_site_is_recorded(suite):
     with suite["app"].app_context():
         case = _case(suite)
         theatres.mark_site(case, "right", _user(suite))
-        row = theatres.sign(case, SIGN_IN, items=["identity"], user=None)
+        row = theatres.sign(case, SIGN_IN, items=["airway"], user=None)
         suite["db"].session.commit()
         assert "site_marked" in row.items
 
@@ -192,7 +192,7 @@ def test_it_refuses_nothing(suite):
 
     with suite["app"].app_context():
         case = _case(suite)
-        theatres.sign(case, SIGN_IN, items=["identity"], user=None)
+        theatres.sign(case, SIGN_IN, items=["airway"], user=None)
         suite["db"].session.commit()
         theatres.start(case, user=None)
         suite["db"].session.commit()
