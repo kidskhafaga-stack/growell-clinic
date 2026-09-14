@@ -456,6 +456,38 @@ class Consent(db.Model):
     def has_signature(self):
         return bool(self.signature_file)
 
+    # --- And who explained it -------------------------------------------
+    #
+    # GAHAR PCC.08, third item of evidence, in full: *"The responsible
+    # physician obtaining the informed consent **signs the form with the
+    # patient**."*
+    #
+    # `obtained_by` above is not that, and the difference matters. It records
+    # which account typed the row — a receptionist filing what came back from
+    # the clinic, most of the time. The standard is asking for the doctor who
+    # sat with the family, said what the risks were and what the alternatives
+    # were, and **put their own name at the bottom of the same sheet**. One is
+    # a system field; the other is a signature.
+    #
+    # It is the same argument the comment above makes about the guardian: a
+    # row carrying a name is a claim, and only the signature is evidence. It
+    # applies to the doctor exactly as it applies to the family.
+    physician_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # **The timestamp is the fact, not the file.** On paper there is one sheet
+    # and one scan: the guardian signs it, the doctor signs it, and
+    # `signature_file` already holds the image of both. A second file column
+    # would be empty on every paper consent ever taken, and an empty column
+    # that means "signed on the same page you are looking at" is the sort of
+    # blank this file keeps a comment about.
+    physician_signed_at = db.Column(db.DateTime)
+    # Their own drawn signature, when the consent was signed on screen: there
+    # the two signatures are two images, because there was never a sheet.
+    physician_signature_file = db.Column(db.String(255))
+
+    @property
+    def physician_signed(self):
+        return self.physician_signed_at is not None
+
     # --- Withdrawn, never deleted -------------------------------------
     #
     # The statement the guardian signs promises this in its own words — *"ولي
@@ -502,6 +534,16 @@ class Consent(db.Model):
         The signature is part of it and not a nicety. A consent row carrying a
         guardian's name and nothing else is a claim that somebody agreed; the
         signature is the only thing in it that is evidence.
+
+        **The physician's signature is deliberately not in here.** PCC.08 asks
+        for it and the program records it, but a consent this clinic took last
+        year, on paper, correctly, has no such row — and making it a condition
+        would have every one of them read as *unsigned* the morning after an
+        update, drop the consent item off cases that were fine yesterday, and
+        do it silently. The gap is named where somebody can still close it
+        (`app.utils.consent.physician_missing`); it does not reach back and
+        invalidate documents that were valid when they were signed. The same
+        rule `valid_until` follows two comments above.
         """
         return (self.has_signature
                 and not self.is_withdrawn
@@ -513,6 +555,7 @@ class Consent(db.Model):
     # withdrawal — so each relationship has to say which one it means.
     staff = db.relationship("User", foreign_keys=[obtained_by])
     withdrawn_staff = db.relationship("User", foreign_keys=[withdrawn_by])
+    physician = db.relationship("User", foreign_keys=[physician_id])
 
     def __repr__(self):
         return f"<Consent p={self.patient_id} {self.consent_type} {self.signed_date}>"

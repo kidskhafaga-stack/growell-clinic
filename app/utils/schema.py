@@ -623,6 +623,13 @@ ADDITIONS = [
     ("visit_investigations", "done_outside", "BOOLEAN DEFAULT 0"),
     ("visit_investigations", "outside_place", "VARCHAR(160)"),
     ("prescription_investigations", "done_outside", "BOOLEAN DEFAULT 0"),
+    # **Who explained it, and that they signed.** GAHAR PCC.08's third item of
+    # evidence. NULL on every consent already on file, which reads as «nobody
+    # has signed as the doctor» — true of them, and deliberately not a reason
+    # to stop trusting a document that was correct when it was taken.
+    ("consents", "physician_id", "INTEGER"),
+    ("consents", "physician_signed_at", "DATETIME"),
+    ("consents", "physician_signature_file", "VARCHAR(255)"),
 ]
 
 def apply_schema(report=None):

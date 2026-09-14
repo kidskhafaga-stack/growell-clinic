@@ -217,3 +217,78 @@ def record(patient, kind, guardian_name, relation=None, id_no=None,
     from app.extensions import db
     db.session.add(row)
     return row
+
+
+# --------------------------------------------- and who explained it --------
+#
+# GAHAR PCC.08, third item of evidence: *"The responsible physician obtaining
+# the informed consent **signs the form with the patient**."*
+#
+# The program had `obtained_by` — which account typed the row — and a witness
+# line on the printed sheet with that account's name under it. Neither is what
+# the standard asks for. A witness attests that they watched somebody sign; the
+# responsible physician attests that **they** explained the thing being agreed
+# to. Printing a receptionist's name under «شاهد» answered a question nobody
+# had asked and left the one that was asked blank.
+
+#: Who may sign as the responsible physician. Refused rather than warned about
+#: — unlike a clinical privilege, which is a judgement this program has no
+#: business overriding, this is a fact about the account: recording reception
+#: as the doctor who explained an anaesthetic would be a false statement on a
+#: signed document, and there is no three-in-the-morning case that makes it
+#: the right one.
+PHYSICIAN_ROLES = ("doctor", "admin")
+
+
+def may_sign(user):
+    """Whether this account can sign a consent as the responsible physician."""
+    return getattr(user, "role", None) in PHYSICIAN_ROLES
+
+
+def physician_missing(row):
+    """Whether this consent is one the physician still has to sign.
+
+    ``False`` for a consent nobody has signed at all — the guardian's
+    signature comes first, and a form with neither is not a form waiting on
+    the doctor, it is a form waiting on the conversation. Flagging it here
+    would put two warnings on one blank sheet and teach whoever reads them to
+    read neither.
+
+    ``False`` for a withdrawn one too: nobody needs chasing for a signature on
+    a document that has been taken back.
+    """
+    if row is None:
+        return False
+    if row.is_withdrawn or not row.has_signature:
+        return False
+    return not row.physician_signed
+
+
+def sign_as_physician(row, user, drawn_file=None, at=None):
+    """Record that the responsible physician signed this form. Caller commits.
+
+    Returns the row, or ``None`` when it is refused — no consent, no user, an
+    account that is not a physician, or a consent that has been withdrawn.
+
+    ``drawn_file`` is their own signature image, and only the on-screen path
+    has one: on paper both signatures are on the sheet that
+    ``signature_file`` already holds, and a second copy of it would be the
+    program storing the same picture twice and calling the second one a
+    different fact.
+
+    **Signing twice does not move the date.** The moment a doctor put their
+    name to this is a fact, and a second press on a slow screen must not
+    rewrite it — the same rule `privileges.withdraw` follows.
+    """
+    from datetime import datetime
+
+    if row is None or user is None or not may_sign(user):
+        return None
+    if row.is_withdrawn:
+        return None
+    if row.physician_signed:
+        return row
+    row.physician_id = user.id
+    row.physician_signed_at = at or datetime.utcnow()
+    row.physician_signature_file = drawn_file or None
+    return row

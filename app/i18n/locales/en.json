@@ -2304,7 +2304,6 @@
     "pediatric_hint": "The patient is a minor — consent is given and signed by the guardian on their behalf.",
     "default_statement": "I, the child's guardian, confirm that I have been informed of the nature, risks and alternatives of the medical service, and I consent to it.",
     "guardian_signature": "Guardian signature",
-    "witness": "Witness / staff",
     "guardian_relation": "Relation",
     "guardian_id_no": "Signer's ID number",
     "visit_hint": "Consent is taken while the guardian is in front of you — this shows what the visit calls for and what is already signed.",
@@ -2344,7 +2343,18 @@
     "sig_clear": "Clear",
     "sig_hint": "Print it, have the guardian sign it, and upload the scan — or have them sign on the screen now.",
     "signature_saved": "The signature is saved with the consent.",
-    "sig_upload": "Upload the signed scan"
+    "sig_upload": "Upload the signed scan",
+    "physician_signature": "Responsible physician's signature",
+    "physician_pending": "Needs the physician's signature",
+    "physician_signed_by": "Signed by",
+    "physician_sign": "Sign as the responsible physician",
+    "physician_sign_paper": "I signed the sheet",
+    "physician_only": "This signature belongs to the responsible physician — this account is not a doctor.",
+    "physician_refused": "Cannot be signed: this consent was withdrawn.",
+    "physician_already": "Already signed, and the original date was not changed.",
+    "physician_saved": "The responsible physician's signature was recorded.",
+    "physician_hint": "The standard asks the physician who obtained the consent to sign the form with the family. If you signed the paper, press « I signed the sheet ».",
+    "edit_wording": "Edit the consent wording"
   },
   "roles_mgmt": {
     "title": "Roles & permissions",

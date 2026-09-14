@@ -495,6 +495,7 @@ def view(patient_id):
         "paid": round(sum(i.paid for i in invoices), 2),
         "balance": round(sum(i.balance for i in invoices), 2),
     }
+    from app.utils import consent as _consent_utils
     from app.utils.consent import all_statements
     # Device studies — echo, audiometry, ECG, spirometry. They were in three
     # places on this screen: a table on the overview, a second list at the
@@ -561,6 +562,13 @@ def view(patient_id):
         dental=_dental_summary(patient),
         consent_types=CONSENT_TYPES,
         consent_statements=all_statements(),
+        # GAHAR PCC.08 (3). The gap is derived, never stored — the moment a
+        # doctor signs, the badge goes, on every screen at once. And the
+        # controls are shown only to an account that could truthfully make
+        # the claim: reception pressing «I am the responsible physician» is
+        # a false line on a signed document, not a warning to click past.
+        consent_gap=_consent_utils.physician_missing,
+        may_sign_consent=_consent_utils.may_sign(current_user),
         categories=CLIENT_CATEGORIES,
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
         ai_patient=ai_patient, ai_discuss=ai_discuss,
@@ -1190,6 +1198,49 @@ def withdraw_consent(consent_id):
         url_for("patients.view", patient_id=c.patient_id) + "#consent")
 
 
+def _a_signature():
+    """The posted signature as ``(stored filename, kind)``, or ``(None, None)``.
+
+    One reader for both signatures on the form — the guardian's and the
+    responsible physician's — because they arrive the same two ways and a
+    second copy of this is a second place for the sniffing to be forgotten.
+
+    **Neither path trusts what it was sent.** The upload goes through
+    `save_document`, which decides the type from the bytes and not the name.
+    The drawn one is a base64 image from a canvas, decoded and put through the
+    same sniffing: a data URL claiming to be a PNG is a string somebody typed,
+    and this writes files into a folder the browser serves.
+    """
+    import base64
+    import binascii
+    import os
+    import uuid
+
+    from app.utils.uploads import (ALLOWED_DOC_EXTENSIONS, docs_dir,
+                                   save_document, sniff_ext)
+
+    drawn = (request.form.get("drawn") or "").strip()
+    if not drawn:
+        stored = save_document(request.files.get("file"))
+        return (stored, "paper") if stored else (None, None)
+
+    # `data:image/png;base64,….` — the header is discarded rather than
+    # believed; what the bytes are is decided below.
+    payload = drawn.split(",", 1)[-1]
+    try:
+        raw = base64.b64decode(payload, validate=True)
+    except (binascii.Error, ValueError):
+        return None, None
+    ext = sniff_ext(raw[:64])
+    if ext not in ALLOWED_DOC_EXTENSIONS:
+        return None, None
+    stored = f"{uuid.uuid4().hex}.{ext}"
+    os.makedirs(docs_dir(), exist_ok=True)
+    with open(os.path.join(docs_dir(), stored), "wb") as fh:
+        fh.write(raw)
+    return stored, "drawn"
+
+
 @patients_bp.route("/consents/<int:consent_id>/signature", methods=["POST"])
 @module_required(MODULE)
 def consent_signature(consent_id):
@@ -1204,43 +1255,15 @@ def consent_signature(consent_id):
     put through the same sniffing: a data URL claiming to be a PNG is a string
     somebody typed, and this writes files into a folder the browser serves.
     """
-    import base64
-    import binascii
-    import os
-    import uuid
-
     from app.utils.clock import local_now
-    from app.utils.uploads import (ALLOWED_DOC_EXTENSIONS, docs_dir,
-                                   save_document, sniff_ext)
 
     c = db.get_or_404(Consent, consent_id)
     back = url_for("patients.view", patient_id=c.patient_id) + "#consent"
 
-    drawn = (request.form.get("drawn") or "").strip()
-    if drawn:
-        # `data:image/png;base64,….` — the header is discarded rather than
-        # believed; what the bytes are is decided below.
-        payload = drawn.split(",", 1)[-1]
-        try:
-            raw = base64.b64decode(payload, validate=True)
-        except (binascii.Error, ValueError):
-            flash(t("visits.att_bad_type"), "warning")
-            return redirect(back)
-        ext = sniff_ext(raw[:64])
-        if ext not in ALLOWED_DOC_EXTENSIONS:
-            flash(t("visits.att_bad_type"), "warning")
-            return redirect(back)
-        stored = f"{uuid.uuid4().hex}.{ext}"
-        os.makedirs(docs_dir(), exist_ok=True)
-        with open(os.path.join(docs_dir(), stored), "wb") as fh:
-            fh.write(raw)
-        kind = "drawn"
-    else:
-        stored = save_document(request.files.get("file"))
-        if not stored:
-            flash(t("visits.att_bad_type"), "warning")
-            return redirect(back)
-        kind = "paper"
+    stored, kind = _a_signature()
+    if stored is None:
+        flash(t("visits.att_bad_type"), "warning")
+        return redirect(back)
 
     c.signature_file = stored
     c.signature_kind = kind
@@ -1250,6 +1273,59 @@ def consent_signature(consent_id):
                        ip_address=client_ip())
     db.session.commit()
     flash(t("consent.signature_saved"), "success")
+    return redirect(back)
+
+
+@patients_bp.route("/consents/<int:consent_id>/physician-signature",
+                   methods=["POST"])
+@module_required(MODULE)
+def consent_physician_signature(consent_id):
+    """The responsible physician signs the form. GAHAR PCC.08, evidence 3.
+
+    *"The responsible physician obtaining the informed consent signs the form
+    with the patient."* — and the signature is the doctor's own, not the
+    account that typed the row. `obtained_by` records who filed it; this
+    records who explained it and put their name to that.
+
+    **A drawn signature only on the drawn path.** When the consent came back
+    on paper, the doctor's name is on the sheet `signature_file` already
+    holds: asking for a second image would be storing the same picture twice
+    and calling the second one a different fact. So a press with nothing
+    attached is a valid answer here — it says «I signed the sheet» — and
+    that is what the paper button sends.
+    """
+    from app.utils import consent as consent_utils
+
+    c = db.get_or_404(Consent, consent_id)
+    back = url_for("patients.view", patient_id=c.patient_id) + "#consent"
+
+    if not consent_utils.may_sign(current_user):
+        flash(t("consent.physician_only"), "warning")
+        return redirect(back)
+
+    # Asked before anything is written to disk: signing twice does not move
+    # the date, so a second press would otherwise leave an image on the disk
+    # that no row will ever point at.
+    if c.physician_signed:
+        flash(t("consent.physician_already"), "info")
+        return redirect(back)
+
+    drawn_file = None
+    if (request.form.get("drawn") or "").strip():
+        drawn_file, _kind = _a_signature()
+        if drawn_file is None:
+            flash(t("visits.att_bad_type"), "warning")
+            return redirect(back)
+
+    if consent_utils.sign_as_physician(c, current_user,
+                                       drawn_file=drawn_file) is None:
+        flash(t("consent.physician_refused"), "warning")
+        return redirect(back)
+    ActivityLog.record("consent.signature.physician", user_id=current_user.id,
+                       entity="patient", entity_id=c.patient_id,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("consent.physician_saved"), "success")
     return redirect(back)
 
 
