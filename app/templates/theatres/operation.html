@@ -370,6 +370,146 @@
 </div>
 {% endif %}
 
+{# ---------------------------------------- what happened in the room ----- #}
+{# GAHAR SAS.08: تفاصيل الإجراء تتسجّل **فوراً بعده**، و«before the patient
+   leaves the procedural unit». تسع بنود، **خمسة منهم في السجل أصلاً** —
+   التوقيتات، والفريق، والإجراء واللي اتلاقى، والغرسات **بأرقام تشغيلاتها**
+   (اللي اتعملت لـSAS.06 ز وSAS.11 من زمان). فالشاشة بتسأل عن أربعة وتوقيع. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-op-report>
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-journal-medical"></i> {{ t('op_report.title') }}
+    {% if report_state == 'none' %}
+    <span class="alert-pill danger" data-report-state="none">
+      <i class="bi bi-exclamation-triangle"></i> {{ t('op_report.not_written') }}</span>
+    {% elif report_state == 'short' %}
+    <span class="alert-pill warn" data-report-state="short">
+      {{ t('op_report.short', n=report_missing|length) }}</span>
+    {% elif report_state == 'unsigned' %}
+    {# كلمة لوحدها: تقرير كامل محدش وقّعه مش تقرير كامل (البند ط)، بس هو حاجة
+       تانية خالص عن تقرير نُصّه فاضي — وشاشة بتسمّي الاتنين «ناقص» بتبعت
+       الطبيب لخانات مليانة. #}
+    <span class="alert-pill warn" data-report-state="unsigned">
+      {{ t('op_report.unsigned') }}</span>
+    {% else %}
+    <span class="alert-pill ok" data-report-state="complete">
+      <i class="bi bi-check2"></i> {{ t('op_report.complete') }}</span>
+    {% endif %}
+    {% if report_late %}
+    {# دليل ١ بيسمّي الحدث بنفسه — «before leaving the procedural unit» —
+       فالبرنامج ما اخترعش دقايق، بيقارن بلحظة هو مسجّلها أصلاً. #}
+    <span class="alert-pill danger" data-report-late>{{ t('op_report.late') }}</span>
+    {% endif %}
+  </h2>
+  <p class="hint" style="margin:0 0 10px;">{{ t('op_report.hint') }}</p>
+
+  {# التسع بنود بحروفهم، وكل واحد بيقول جاي منين. #}
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+    {% for element in report_elements %}
+    <span class="badge {{ 'badge--muted' if element.filled else 'badge--warn' }}"
+          data-element="{{ element.letter }}"
+          data-filled="{{ 'yes' if element.filled else 'no' }}">
+      {{ element.letter }}) {{ t('op_report.el_' ~ element.key) }}
+      {%- if not element.written %} <i class="bi bi-link-45deg"
+            title="{{ t('op_report.from_the_record') }}"></i>{% endif %}</span>
+    {% endfor %}
+  </div>
+
+  {# ---- اللي السجل بيجاوبه، معروض مش متكتوب تاني ---- #}
+  <div class="hint" style="margin-bottom:12px;" data-report-derived>
+    <div>{{ t('op_report.el_times') }}:
+      <span dir="ltr">{{ operation.started_at|clinic_stamp if operation.started_at else '—' }}
+        → {{ operation.finished_at|clinic_stamp if operation.finished_at else '—' }}</span></div>
+    <div>{{ t('op_report.el_staff') }}:
+      {% for person in report_staff %}
+      <span class="badge badge--muted">{{ t('op_report.role_' ~ person.role) }}:
+        {{ person.name.display_name(current_lang) if person.role != 'team' else person.name }}</span>
+      {% else %}<span>{{ t('op_report.not_recorded') }}</span>{% endfor %}</div>
+    {% if report_implants %}
+    <div>{{ t('op_report.el_implants') }}:
+      {% for implant in report_implants %}
+      {# رقم التشغيلة اللي البند بيطلبه بالحرف — موجود من SAS.06 (ز). #}
+      <span class="badge badge--muted">{{ implant.name }}
+        <span dir="ltr">{{ implant.lot or implant.serial or '—' }}</span></span>
+      {% endfor %}</div>
+    {% endif %}
+  </div>
+
+  <form method="post"
+        action="{{ url_for('theatres.write_report', operation_id=operation.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      {# (ج) — التشخيصين. البند بيطلب الاتنين **عشان ممكن يختلفوا**، وخانة
+         واحدة ما كانتش هتقدر تشيل اختلاف أصلاً. #}
+      <div class="form-row" style="flex:1;min-width:220px;">
+        <label for="rp_pre">{{ t('op_report.pre_diagnosis') }}</label>
+        <textarea class="input" id="rp_pre" name="pre_diagnosis" rows="2">{{ report.pre_diagnosis if report else '' }}</textarea>
+      </div>
+      <div class="form-row" style="flex:1;min-width:220px;">
+        <label for="rp_post">{{ t('op_report.post_diagnosis') }}</label>
+        <textarea class="input" id="rp_post" name="post_diagnosis" rows="2">{{ report.post_diagnosis if report else '' }}</textarea>
+      </div>
+    </div>
+    <p class="hint" style="margin:0 0 10px;">{{ t('op_report.diagnosis_hint') }}</p>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      {# (و) و(ز) — البند بيقول «occurrence of complications **or not**»
+         و«any removed specimen **or not**». الفراغ مش «ما حصلش» — ده محدش
+         قال، والاتنين حقيقتين مختلفتين. select بتلاتة مش checkbox. #}
+      {% for field in ('complications', 'specimen') %}
+      <div class="form-row" style="flex:1;min-width:240px;">
+        <label for="rp_{{ field }}">{{ t('op_report.el_' ~ field) }}</label>
+        <select class="select" id="rp_{{ field }}" name="{{ field }}">
+          <option value="">{{ t('op_report.nobody_said') }}</option>
+          <option value="yes" {{ 'selected' if report and report[field] is sameas true else '' }}>{{ t('common.yes') }}</option>
+          <option value="no" {{ 'selected' if report and report[field] is sameas false else '' }}>{{ t('common.no') }}</option>
+        </select>
+        <textarea class="input" name="{{ field }}_note" rows="2"
+                  placeholder="{{ t('op_report.' ~ field ~ '_note') }}">{{ report[field ~ '_note'] if report else '' }}</textarea>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      {# (ح) — رقمين مختلفين: اللي اتفقد واللي رجع. والدم اللي على الحالة
+         حاجة تالتة خالص (اللي **اتحجز قبل** العملية، SAS.06 و). #}
+      <div class="form-row" style="min-width:170px;">
+        <label for="rp_loss">{{ t('op_report.blood_loss') }}</label>
+        <input class="input" type="number" min="0" id="rp_loss"
+               name="blood_loss_ml" dir="ltr"
+               value="{{ report.blood_loss_ml if report and report.blood_loss_ml is not none else '' }}">
+      </div>
+      <div class="form-row" style="min-width:170px;">
+        <label for="rp_tx">{{ t('op_report.transfused') }}</label>
+        <input class="input" type="number" min="0" id="rp_tx"
+               name="transfused_units" dir="ltr"
+               value="{{ report.transfused_units if report and report.transfused_units is not none else '' }}">
+      </div>
+    </div>
+    <p class="hint" style="margin:0 0 10px;">{{ t('op_report.blood_hint') }}</p>
+
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-save"></i> {{ t('common.save') }}</button>
+  </form>
+
+  {# (ط) — التوقيع ختم لوحده عن الكتابة: المقيم بيكتب والجرّاح بيوقّع، وختم
+     واحد للاتنين كان هيقول إن الجرّاح كتبه. #}
+  <div style="margin-top:12px;">
+    {% if report and report.signed %}
+    <p class="hint" data-report-signed>
+      <i class="bi bi-check2"></i> {{ t('op_report.signed_on') }}
+      <span dir="ltr">{{ report.signed_at|clinic_stamp }}</span>
+      {% if report.signer %}· {{ report.signer.display_name(current_lang) }}{% endif %}</p>
+    {% else %}
+    <form method="post"
+          action="{{ url_for('theatres.sign_report', operation_id=operation.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline gc-press" type="submit">
+        <i class="bi bi-pen"></i> {{ t('op_report.sign') }}</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
 {# ------------------------------------------ what went in and came back -- #}
 {# GAHAR SAS.09 · GSR.17. البند بيقول العدّ يتحقّق «pre- and post-procedure»،
    والنص بيفصّل: قبل، وعند قفل **كل تجويف**، وبعد قفل الجلد. ودليل ٢ بيقول
