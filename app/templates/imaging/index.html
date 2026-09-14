@@ -1,0 +1,113 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{# One template, two rooms. The words follow the room because the words are
+   the whole point: a film is taken in radiology, an echo is done by the team
+   that ordered it, and a screen calling both «الأشعة» is the same category
+   error one room along from the one that put an echo on the lab bench. #}
+{% set room = 'nav.imaging' if kind == 'imaging' else 'nav.diagnostics' %}
+{% block title %}{{ t(room) }}{% endblock %}
+{% block page_heading %}{{ t(room) }}{% endblock %}
+
+{% block content %}
+<style>
+  /* The lab's row, and deliberately the same shape: it is the same order
+     table and the same two-stage job, so somebody who works both screens
+     should not have to learn two layouts. What differs is the words — a scan
+     is *performed*, never *drawn* — and that difference is the whole reason
+     this screen exists. */
+  .im-row { border:1px solid var(--line); border-radius:12px; padding:11px 13px;
+            margin-bottom:9px; display:flex; gap:12px; flex-wrap:wrap;
+            align-items:center; }
+  .im-row.st-requested { border-inline-start:5px solid #d97706; }
+  .im-row.st-collected { border-inline-start:5px solid var(--green-600); }
+  .im-row__who { min-width:190px; flex:1; }
+  .im-name { font-weight:600; }
+  .im-waited { font-variant-numeric: tabular-nums; }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">
+      <i class="bi bi-{{ 'radioactive' if kind == 'imaging' else 'activity' }}"></i>
+      {{ t(room) }}</h1>
+    <p class="page-sub" style="margin:0;">
+      {{ t('imaging.sub' if kind == 'imaging' else 'imaging.sub_diagnostic') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    {# The same two jobs as the bench, in this room's own words: what has not
+       been done, and what has been done and is waiting for a report. #}
+    <a class="badge {{ 'badge--muted' if state != 'requested' else '' }}"
+       style="text-decoration:none;" data-count="to_do"
+       href="{{ url_for(endpoint, state='requested') }}">
+      {{ t('imaging.to_do', n=counts.to_collect) }}</a>
+    <a class="badge {{ 'badge--muted' if state != 'collected' else '' }}"
+       style="text-decoration:none;" data-count="to_report"
+       href="{{ url_for(endpoint, state='collected') }}">
+      {{ t('imaging.to_report', n=counts.to_run) }}</a>
+    <a class="btn btn-outline gc-press{{ ' btn-primary' if not state else '' }}"
+       href="{{ url_for(endpoint) }}">{{ t('lab.everything') }}</a>
+    {# The other room, with its count. Splitting the list must never be the
+       thing that makes an order go quiet. #}
+    <a class="btn btn-outline gc-press" data-to-other
+       href="{{ url_for('imaging.diagnostics' if other_kind == 'diagnostic' else 'imaging.index') }}">
+      <i class="bi bi-{{ 'activity' if other_kind == 'diagnostic' else 'radioactive' }}"></i>
+      {{ t('nav.diagnostics' if other_kind == 'diagnostic' else 'nav.imaging') }}
+      {% if other_open %}<span class="badge">{{ other_open }}</span>{% endif %}</a>
+    <a class="btn btn-outline gc-press" data-to-lab
+       href="{{ url_for('labs.index') }}">
+      <i class="bi bi-eyedropper"></i> {{ t('nav.labs') }}</a>
+  </div>
+</div>
+
+{% if not rows %}
+<div class="card gc-scale-in">
+  <p class="hint" style="margin:0;">{{ t('imaging.nothing_waiting') }}</p>
+</div>
+{% else %}
+<div class="card gc-scale-in">
+  {% for row in rows %}
+  <div class="im-row st-{{ row.status }}" data-status="{{ row.status }}">
+    <div class="im-row__who">
+      <div class="im-name">
+        <a href="{{ url_for('labs.order', order_id=row.id) }}">{{ row.name }}</a>
+      </div>
+      <div class="hint">
+        <a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
+          {{ row.patient.display_name(current_lang) }}</a>
+        {% if row.request_notes %} · {{ row.request_notes }}{% endif %}
+      </div>
+    </div>
+
+    {# **No sample code, because there is no sample.** The lab's row shows a
+       tube number here; this one shows when the study was actually done. #}
+    {% if row.status == 'collected' %}
+    <span class="alert-pill ok" data-performed>
+      <i class="bi bi-check2"></i> {{ t('imaging.done_on') }}
+      <span dir="ltr">{{ bench.done_at(row)|clinic_stamp if bench.done_at(row) else '—' }}</span></span>
+    {% else %}
+    <span class="alert-pill warn" data-not-done>
+      <i class="bi bi-hourglass"></i> {{ t('imaging.not_done') }}</span>
+    {% endif %}
+
+    <span class="hint im-waited" dir="ltr" data-waited>
+      {{ t('lab.waiting_n', n=bench.waiting_minutes(row, now)) }}</span>
+
+    {% if row.status == 'requested' %}
+    <form method="post"
+          action="{{ url_for('imaging.performed', order_id=row.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">
+        <i class="bi bi-camera"></i> {{ t('imaging.mark_done') }}</button>
+    </form>
+    {% endif %}
+
+    {# The report is written on the order screen, the same one the lab uses:
+       one box for an answer, whichever room the answer came from. #}
+    <a class="btn btn-sm btn-outline gc-press"
+       href="{{ url_for('labs.order', order_id=row.id) }}">
+      {{ t('lab.open') }}</a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

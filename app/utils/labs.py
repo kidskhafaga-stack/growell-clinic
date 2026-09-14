@@ -52,12 +52,35 @@ REQUESTED, COLLECTED, RESULTED = "requested", "collected", "resulted"
 OPEN_STATES = tuple(INVESTIGATION_OPEN)
 
 
-def worklist(kind=None, state=None, limit=200):
+#: The three halves of the same table — three rooms, three sets of hands.
+#:
+#: ``imaging`` is radiology: films, CT, MRI, reported by a radiologist.
+#: ``diagnostic`` is what the treating team does itself — a sonar, an echo, an
+#: ECG, an EEG. Asked for in those words: «الاشعة العادية غير الايكو واللترا
+#: سونت وال eeg و ال ECG». The person on the X-ray machine and the person
+#: doing echoes are not each other's cover.
+LAB, IMAGING, DIAGNOSTIC = "lab", "imaging", "diagnostic"
+
+#: The two that are not a sample. Both are *performed*, never drawn.
+ROOMS = (IMAGING, DIAGNOSTIC)
+
+
+def worklist(kind=LAB, state=None, limit=200):
     """Everything ordered and not yet answered, longest-waiting first.
 
     Oldest first and not newest: a rack works from the bottom, and a list that
     puts this minute's order on top is a list where the sample taken at eight
     is still sitting there at two.
+
+    **``kind`` defaults to the lab, and that default is the fix.** It used to
+    default to ``None`` — everything — so the bench's own screen listed every
+    echocardiogram in the building beside the blood counts, counted them under
+    «to collect», and offered a «sample taken» button on them. Reported as
+    «ليه ركويست الايكو موجود فى المعمل؟», which is the right question: an echo
+    has no tube, and a screen that asks somebody to draw one is asking for a
+    record of something that cannot happen.
+
+    ``None`` still means both, for a caller that genuinely wants the lot.
     """
     from sqlalchemy.orm import selectinload
 
@@ -73,16 +96,22 @@ def worklist(kind=None, state=None, limit=200):
                            VisitInvestigation.id).limit(limit).all())
 
 
-def counts():
+def counts(kind=LAB):
     """How many are waiting to be drawn and how many to be run.
 
     Two numbers rather than one total, because they are two different jobs
     done by two different people.
+
+    **And of one kind**, for the same reason the list is: a bench told it has
+    five to draw, two of which are scans, has been told a number it cannot
+    work to.
     """
-    rows = (db.session.query(VisitInvestigation.status,
-                             db.func.count(VisitInvestigation.id))
-            .filter(VisitInvestigation.status.in_(OPEN_STATES))
-            .group_by(VisitInvestigation.status).all())
+    query = (db.session.query(VisitInvestigation.status,
+                              db.func.count(VisitInvestigation.id))
+             .filter(VisitInvestigation.status.in_(OPEN_STATES)))
+    if kind:
+        query = query.filter(VisitInvestigation.kind == kind)
+    rows = (query.group_by(VisitInvestigation.status).all())
     found = dict(rows)
     return {"to_collect": found.get(REQUESTED, 0),
             "to_run": found.get(COLLECTED, 0)}
@@ -108,6 +137,11 @@ def collect(row, user=None, code=None, at=None):
     """
     if row is None:
         raise ValueError("no order")
+    if row.kind in ROOMS:
+        # **Refused, not ignored.** Neither a film nor an echo has a sample to
+        # draw, and a caller that reaches here has the wrong row: quietly
+        # doing nothing would leave a screen saying it had been collected.
+        raise ValueError("this order has no sample")
     if row.status == RESULTED:
         raise ValueError("already resulted")
     row.collected_at = at or datetime.utcnow()
@@ -115,6 +149,46 @@ def collect(row, user=None, code=None, at=None):
     row.sample_code = (code or "").strip()[:24] or sample_code(row)
     row.status = COLLECTED
     return row
+
+
+def perform(row, user=None, at=None):
+    """The scan was done. The imaging half of :func:`collect`.
+
+    Same shape, same middle state, different event — and **the state is shared
+    on purpose**. ``collected`` means "it is under way and nobody has answered
+    yet", which is as true of a scan that has been performed as of a sample
+    that has been drawn; see the note above ``INVESTIGATION_STATUSES`` for why
+    a fourth state would have made orders vanish from four screens that ask
+    "has this been answered" rather than "which stage is it at".
+
+    What it does **not** do is write a sample code or a collection time. A
+    scan has neither, and this exists precisely so nobody has to pretend it
+    does to move the order along.
+
+    Re-performing overwrites — a study repeated because the child moved is the
+    same order, and the time that matters is the one the pictures came from.
+    """
+    if row is None:
+        raise ValueError("no order")
+    if row.kind not in ROOMS:
+        raise ValueError("a lab order is collected, not performed")
+    if row.status == RESULTED:
+        raise ValueError("already resulted")
+    row.performed_at = at or datetime.utcnow()
+    row.performed_by = getattr(user, "id", None)
+    row.status = COLLECTED
+    return row
+
+
+def done_at(row):
+    """When this order's own middle event happened, whichever kind it is.
+
+    One reader so a screen showing both — the doctor's own file view — does
+    not have to know which column belongs to which kind.
+    """
+    if row is None:
+        return None
+    return row.performed_at if row.kind in ROOMS else row.collected_at
 
 
 def sample_code(row):
