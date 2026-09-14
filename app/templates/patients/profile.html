@@ -745,7 +745,21 @@
             <textarea class="input" name="statement" rows="4"
                       x-init="$el.value = texts[kind] || ''"
                       x-effect="$el.value = texts[kind] || ''"></textarea>
-            <span class="hint">{{ t('consent.statement_hint') }}</span></div>
+            <span class="hint">{{ t('consent.statement_hint') }}</span>
+            {# The wording is editable per kind and per language, and the
+               screen that does it is on the other side of the program — so
+               nobody standing here, at the moment they are reading the
+               sentence a family is about to sign, knew it existed. A feature
+               with no door into it from where it is used is a feature the
+               clinic does not have.
+
+               Admin only, like the screen it points at: a link that lands on
+               «مالكش صلاحية» is worse than no link. #}
+            {% if current_user.is_admin %}
+            <span class="hint" data-consent-wording-link>
+              <i class="bi bi-pencil-square"></i>
+              <a href="{{ url_for('settings.index') }}?tab=consent">{{ t('consent.edit_wording') }}</a></span>
+            {% endif %}</div>
         </div>
         <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('consent.add') }}</button>
       </form>

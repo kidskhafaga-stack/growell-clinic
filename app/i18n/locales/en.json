@@ -2353,7 +2353,8 @@
     "physician_refused": "Cannot be signed: this consent was withdrawn.",
     "physician_already": "Already signed, and the original date was not changed.",
     "physician_saved": "The responsible physician's signature was recorded.",
-    "physician_hint": "The standard asks the physician who obtained the consent to sign the form with the family. If you signed the paper, press « I signed the sheet »."
+    "physician_hint": "The standard asks the physician who obtained the consent to sign the form with the family. If you signed the paper, press « I signed the sheet ».",
+    "edit_wording": "Edit the consent wording"
   },
   "roles_mgmt": {
     "title": "Roles & permissions",

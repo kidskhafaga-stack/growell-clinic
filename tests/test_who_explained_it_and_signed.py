@@ -441,3 +441,44 @@ def test_naming_the_physician_is_not_the_same_as_their_signature(clinic):
         clinic["db"].session.commit()
 
         assert row.physician_signed is False
+
+
+# ------------------------------------- the screen nobody could find --------
+def test_the_wording_editor_has_a_door_from_where_it_is_used(clinic):
+    """Asked for a second time — *«عايز برده شاشة لتعديل صياغات الاقرارات»* —
+    about a screen that was already built, complete, per kind and per
+    language, with the program's own text still reachable underneath.
+
+    **It had no way in from anywhere a consent is written.** Whoever is
+    reading the sentence a family is about to sign is exactly the person who
+    notices it is wrong, and they were two screens and a guess away from the
+    box that fixes it. A feature with no door into it from where it is used is
+    a feature the clinic does not have.
+    """
+    page = clinic["sign_in"]("boss").get(
+        "/patients/%s" % clinic["ids"]["kid"]).get_data(as_text=True)
+
+    assert "data-consent-wording-link" in page
+    assert "?tab=consent" in page
+
+
+def test_and_not_to_somebody_it_would_refuse(clinic):
+    """The settings screen is `@admin_required`. A link that lands on «مالكش
+    صلاحية» is worse than no link — the same rule as the physician's own
+    button above."""
+    page = clinic["sign_in"]("doc").get(
+        "/patients/%s" % clinic["ids"]["kid"]).get_data(as_text=True)
+
+    assert "data-consent-wording-link" not in page
+
+
+def test_the_door_opens_on_the_wording_tab(clinic):
+    """And it is the tab the link names — `?tab=consent` rather than a hash,
+    because the settings screen rewrites its own hash and a link to one it is
+    already on does nothing at all. The comment in that screen's `init()` is
+    about exactly this."""
+    page = clinic["sign_in"]("boss").get(
+        "/settings/?tab=consent").get_data(as_text=True)
+
+    assert 'id="consent-text"' in page
+    assert 'name="consent_text_general_ar"' in page
