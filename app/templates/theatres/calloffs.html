@@ -1,0 +1,135 @@
+{# `shell.html`, like every other screen in this module — `base.html` has no
+   `content` block and renders an empty page without saying why. #}
+{% extends "shell.html" %}
+{% set active_module = 'theatres' %}
+{% block title %}{{ t('theatre.calloffs_title') }}{% endblock %}
+{% block page_heading %}{{ t('theatre.calloffs_title') }}{% endblock %}
+
+{% block content %}
+
+{# GAHAR SAS.02, fourth item of evidence: «There is a process for analyzing
+   **postponed and canceled** procedures, and action is taken to improve
+   them.» The program's half is the counting. The action is the clinic's, and
+   nothing on this page grades it — there is no target here, and no red. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h1 class="section-title" style="margin:0 0 4px;">
+    <i class="bi bi-clipboard-x"></i> {{ t('theatre.calloffs_title') }}</h1>
+  <p class="hint" style="margin:0 0 12px;">{{ t('theatre.calloffs_hint') }}</p>
+
+  <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <div class="form-row" style="margin:0;min-width:150px;">
+      <label for="co_start">{{ t('reports.from') }}</label>
+      <input class="input" type="date" id="co_start" name="start" dir="ltr"
+             value="{{ start }}">
+    </div>
+    <div class="form-row" style="margin:0;min-width:150px;">
+      <label for="co_end">{{ t('reports.to') }}</label>
+      <input class="input" type="date" id="co_end" name="end" dir="ltr"
+             value="{{ end }}">
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-search"></i> {{ t('common.search') }}</button>
+  </form>
+</div>
+
+{# Two numbers, not one. A theatre with thirty postponements and two
+   cancellations is booking badly; one with two postponements and thirty
+   cancellations is losing its cases — and a single «called off» count
+   answers neither of them. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <div style="display:flex;gap:20px;flex-wrap:wrap;">
+    <div>
+      <div class="hint">{{ t('theatre.postponed_count') }}</div>
+      <div style="font-size:1.6rem;" dir="ltr"
+           data-postponed="{{ summary.postponed }}">{{ summary.postponed }}</div>
+    </div>
+    <div>
+      <div class="hint">{{ t('theatre.cancelled_count') }}</div>
+      <div style="font-size:1.6rem;" dir="ltr"
+           data-cancelled="{{ summary.cancelled }}">{{ summary.cancelled }}</div>
+    </div>
+    <div>
+      {# The denominator. A count of call-offs on its own is a number that
+         grows with the theatre and says nothing. #}
+      <div class="hint">{{ t('theatre.booked_count') }}</div>
+      <div style="font-size:1.6rem;" dir="ltr"
+           data-booked="{{ summary.booked }}">{{ summary.booked }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin:0 0 8px;font-size:1rem;">
+    {{ t('theatre.by_reason') }}</h2>
+  {% if summary.reasons %}
+  <div style="overflow-x:auto;">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('theatre.cancel_reason') }}</th>
+        <th>{{ t('theatre.postponed_count') }}</th>
+        <th>{{ t('theatre.cancelled_count') }}</th>
+        <th>{{ t('common.total') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for row in summary.reasons %}
+        <tr data-reason-row>
+          {# A call-off with nothing written gets its own row and is named for
+             what it is. It is **not** «other»: a theatre where half the
+             call-offs carry no reason cannot improve anything, and that is the
+             first finding this page has to be able to show. #}
+          <td>{{ row.reason or t('theatre.no_reason_written') }}</td>
+          <td dir="ltr">{{ row.postponed }}</td>
+          <td dir="ltr">{{ row.cancelled }}</td>
+          <td dir="ltr">{{ row.total }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint">{{ t('theatre.no_calloffs') }}</p>
+  {% endif %}
+</div>
+
+{% if rows %}
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin:0 0 8px;font-size:1rem;">
+    {{ t('theatre.the_cases') }}</h2>
+  <div style="overflow-x:auto;">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('theatre.the_day') }}</th>
+        <th>{{ t('reports.patient') }}</th>
+        <th>{{ t('theatre.procedure') }}</th>
+        <th>{{ t('theatre.surgeon') }}</th>
+        <th>{{ t('theatre.cancel_reason') }}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        {% for op in rows %}
+        <tr>
+          <td dir="ltr">{{ op.on_date }}</td>
+          <td><a href="{{ url_for('patients.view', patient_id=op.patient_id) }}">
+            {{ op.patient.display_name(current_lang) }}</a></td>
+          <td><a href="{{ url_for('theatres.operation', operation_id=op.id) }}">
+            {{ op.procedure }}</a></td>
+          <td>{{ op.surgeon.display_name(current_lang) if op.surgeon else '—' }}</td>
+          <td>{{ op.cancel_reason or t('theatre.no_reason_written') }}</td>
+          <td>
+            {% if op.called_off_as == 'postponed' %}
+            <a class="badge badge--muted"
+               href="{{ url_for('theatres.operation', operation_id=op.postponed_to_id) }}">
+              {{ t('theatre.postponed_to_day') }}
+              <span dir="ltr">{{ op.postponed_to.on_date }}</span></a>
+            {% else %}
+            <span class="badge badge--warn">{{ t('theatre.cancelled_count') }}</span>
+            {% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

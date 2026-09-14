@@ -249,6 +249,19 @@
         {% if dental is not none %}
         {% set ns.tabs = ns.tabs + [('dental','tab_dental','emoji-smile')] %}
         {% endif %}
+        {% if stays %}
+        {# **The half of the file that was missing.** The child was admitted,
+           moved beds, was operated on, went home — and none of it appeared
+           here: `open_admission` answered "where is this child now", and a
+           stay that had ended was in the database and nowhere on the record.
+           GAHAR IMT.08 evidence 5 — the record is *available when needed by a
+           healthcare professional*.
+
+           Only when there is something in it, like the imported history below:
+           a tab labelled "stays" on the file of a child who has never been
+           admitted is furniture, and this clinic's files are mostly those. #}
+        {% set ns.tabs = ns.tabs + [('stays','tab_stays','hospital')] %}
+        {% endif %}
         {% if imported %}
         {# Only when there is something in it: an empty tab labelled "history"
            on every file is furniture. #}
@@ -1026,6 +1039,134 @@
       {% endif %}
 
     </div>
+
+    {# --------------------------------------------- the stays ---------- #}
+    {# **This tab is the answer to a gap, not a feature.** Everything on it was
+       already in the database and already hanging off this child — the stay,
+       the beds they moved through, the operations, the ward rounds. What was
+       missing was **a way in**: `open_admission` finds the stay a child is in
+       *now*, and once they went home their stay was reachable only by already
+       knowing its id.
+
+       So a doctor seeing this child again could not learn from the file that
+       they had ever been admitted. GAHAR IMT.08 asks that the record's
+       contents be standardized (evidence 4) and *available when needed by a
+       healthcare professional* (evidence 5) — and `HOSPITAL_PLAN.md` ٨ asked
+       for it in the clinic's own words: «ملف الطفل واحد. لو الطفل اتنوّم،
+       التنويم بيظهر في نفس الملف».
+
+       **The detail is not copied here.** The stay screen already renders a
+       closed stay read-only, so each row links to it rather than growing a
+       second half-version of it that drifts. This is the index that was
+       missing. #}
+    {# **Gated on the same condition as its tab button**, not just hidden by
+       `x-show`. A clinic with no ward still had this whole panel — heading and
+       all — sitting in the page it was served, invisible only because Alpine
+       had not run yet. The tab and the panel are one decision and they are
+       now written as one.
+
+       And that decision is `module_enabled('beds')` doing its work upstream:
+       `stays` is empty for any facility that never switched a ward on, so a
+       single-doctor clinic, a two-doctor specialist clinic and a medical
+       centre all serve a file with no trace of an inpatient department in
+       it. See `test_the_file_fits_the_place_it_runs_in.py`. #}
+    {% if stays %}
+    <div class="gc-tab-panel" x-show="tab==='stays'" x-cloak>
+      <h3 class="section-title" style="margin:0 0 12px;">
+        <i class="bi bi-hospital"></i> {{ t('patients.tab_stays') }}</h3>
+
+      {% for stay in stays %}
+      {# `data-stay` so a test can assert that a thing is under **this** stay
+         rather than merely somewhere on a long file — two stays a year apart
+         each with their own theatre case is exactly the pairing that would
+         otherwise pass by accident. #}
+      <div class="card gc-scale-in" data-stay="{{ stay.id }}" style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline;">
+          <div>
+            <a href="{{ url_for('beds.admission', admission_id=stay.id) }}"
+               style="font-weight:600;">
+              <span dir="ltr">{{ stay.admitted_at|clinic_stamp }}</span>
+              {% if stay.discharged_at %}
+              — <span dir="ltr">{{ stay.discharged_at|clinic_stamp }}</span>
+              {% endif %}
+            </a>
+            {% if stay.reason %}<div class="hint">{{ stay.reason }}</div>{% endif %}
+          </div>
+          {# Open, or how it ended. `outcome` is recorded rather than inferred
+             precisely so this line can be written: "went home" and "was moved
+             to another hospital" are not the same event to whoever reads the
+             file later. #}
+          {% if stay.is_open %}
+          <span class="badge badge--warn" data-stay-open>{{ t('beds.still_in') }}</span>
+          {% elif stay.outcome %}
+          <span class="badge badge--muted">{{ t('beds.outcome_' ~ stay.outcome) }}</span>
+          {% endif %}
+        </div>
+
+        <div class="hint" style="margin-top:8px;">
+          {# Where they were, in the order they were there. A stay carries its
+             beds rather than one `bed_id`, so a child moved from the bay to an
+             isolation partition reads as one stay in two places — which is the
+             internal-movement record, not a detail. #}
+          {% for bed_stay in stay.stays %}
+          {% if bed_stay.bed %}
+          <span class="badge badge--muted">{{ bed_stay.bed.unit.name }} ·
+            {{ bed_stay.bed.space.name }} · {{ bed_stay.bed.name }}</span>
+          {% endif %}
+          {% endfor %}
+          {% if stay.doctor %}
+          <span>{{ t('beds.doctor') }}: {{ stay.doctor.display_name(current_lang) }}</span>
+          {% endif %}
+        </div>
+
+        {# What happened in the stay. Filtered from the operations already
+           loaded for this file rather than queried again — the link is
+           `Operation.admission_id`, which has existed since the theatres
+           module was built and had nothing reading it from this side. #}
+        {% set in_stay = operations | selectattr('admission_id', 'equalto', stay.id) | list %}
+        {% if in_stay %}
+        <ul style="margin:8px 0 0;padding-inline-start:18px;">
+          {% for op in in_stay %}
+          <li>
+            <a href="{{ url_for('theatres.operation', operation_id=op.id) }}">{{ op.procedure }}</a>
+            <span class="hint" dir="ltr">{{ op.on_date }}</span>
+            <span class="badge badge--muted">{{ t('theatre.status_' ~ op.status) }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if stay.round_notes %}
+        <p class="hint" style="margin:8px 0 0;">
+          {{ t('beds.rounds_written', n=stay.round_notes|length) }}</p>
+        {% endif %}
+
+        {# The discharge note as it was written. It is the only thing the
+           program holds about how the stay ended beyond the outcome word —
+           see `docs/gahar/IMT_record_matrix.md` on ACT.15, which asks for
+           nine named elements this is not yet. #}
+        {% if stay.discharge_note %}
+        <p style="margin:8px 0 0;">{{ stay.discharge_note }}</p>
+        {% endif %}
+
+        {# The document the stay is supposed to end with (GAHAR ACT.15). On
+           the file rather than only on the ward screen, because this is where
+           somebody reading the record afterwards would notice it missing —
+           and a summary nobody wrote is exactly what evidence 2 is about.
+           Only for a stay that has ended: a child still in a bed has not been
+           discharged, and asking for their discharge summary would be a
+           finding that can never be cleared. #}
+        {% if not stay.is_open %}
+        <p class="hint" style="margin:8px 0 0;" data-summary-state="{{ summary_state(stay) }}">
+          <i class="bi bi-file-earmark-medical"></i>
+          {% if summary_state(stay) == 'none' %}{{ t('summary.not_written') }}
+          {% elif summary_state(stay) == 'short' %}{{ t('summary.short', n=summary_missing(stay)|length) }}
+          {% else %}{{ t('summary.title') }} · {{ t('summary.complete') }}{% endif %}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
 
     {# Studies: their own tab, grouped by device.
 

@@ -127,6 +127,36 @@ def open_admission(patient_id):
             .first())
 
 
+def stays_for(patient_id):
+    """Every stay this child has ever had, newest first — **open and closed**.
+
+    **The question the file could not ask.** ``open_admission`` above answers
+    *where is this child now*, which is a ward question and the only one the
+    program had. This answers *has this child ever been admitted, and what
+    happened* — which is the record's question, and the one a doctor seeing
+    them again next year needs. Until this existed, a stay that had ended was
+    reachable only by already knowing its id: the child's file said nothing
+    about it, and neither did the medical report.
+
+    ``HOSPITAL_PLAN.md`` ٨ asked for exactly this, and ``Admission``'s own
+    docstring quotes it: *«ملف الطفل واحد. لو الطفل اتنوّم، التنويم بيظهر في
+    نفس الملف»*. GAHAR IMT.08 asks for it twice over — the record's contents
+    are standardized (evidence 4) and it is *available when needed by a
+    healthcare professional* (evidence 5).
+
+    **Eagerly loaded down to the bed**, because a stay with no place in it is
+    half a record, and because the screen lists them all: left lazy this would
+    be three queries per row.
+    """
+    from sqlalchemy.orm import selectinload
+
+    return (Admission.query
+            .filter(Admission.patient_id == patient_id)
+            .options(selectinload(Admission.stays).selectinload(BedStay.bed))
+            .order_by(Admission.admitted_at.desc(), Admission.id.desc())
+            .all())
+
+
 def admit(patient, bed, user=None, visit=None, doctor_id=None, reason=None,
           when=None):
     """Put a child in a bed and open their stay.

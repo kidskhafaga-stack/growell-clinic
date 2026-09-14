@@ -8,7 +8,7 @@
 <p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('reports.subtitle') }}</p>
 
 <div class="grid gc-stagger" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-top:14px;">
-  {% for ep, icon, title, desc, edge in [
+  {% set ns = namespace(cards=[
       ('reports.financial','cash-coin', t('reports.financial'), t('reports.financial_desc'),'edge-green'),
       ('reports.income','graph-up-arrow', t('reports.income'), t('reports.income_desc'),'edge-green'),
       ('reports.trial_balance','list-columns-reverse', t('trial.title'), t('trial.desc'),'edge-blue'),
@@ -20,7 +20,17 @@
       ('reports.analytics','clipboard2-data', t('reports.analytics'), t('reports.analytics_desc'),'edge-green'),
       ('reports.discounts','tags', t('reports.discounts'), t('reports.discounts_desc'),'edge-yellow'),
       ('reports.staff','people', t('reports.staff'), t('reports.staff_desc'),'edge-blue'),
-      ('reports.vaccines','shield-plus', t('reports.vaccines'), t('reports.vaccines_desc'),'edge-green')] %}
+      ('reports.vaccines','shield-plus', t('reports.vaccines'), t('reports.vaccines_desc'),'edge-green')]) %}
+  {# GAHAR IMT.09. Behind the admin flag because the route is — a card that
+     leads to a refusal is a dead switch, and this repo has a guard against
+     exactly that. It sits among the reports because evidence 3 is «the
+     hospital leaders are reported on the review's findings», and the leaders
+     are already standing here. #}
+  {% if current_user.is_admin %}
+  {% set ns.cards = ns.cards + [('reports.record_review','clipboard-check',
+       t('record_review.title'), t('record_review.desc'),'edge-blue')] %}
+  {% endif %}
+  {% for ep, icon, title, desc, edge in ns.cards %}
   <a class="card gc-lift" href="{{ url_for(ep) }}" style="text-decoration:none;">
     <div class="hub-ico {{ edge }}"><i class="bi bi-{{ icon }}"></i></div>
     <h3 style="margin:10px 0 4px;">{{ title }}</h3>

@@ -31,6 +31,7 @@ from app.extensions import db
 from app.i18n import t
 from app.models import Patient, Visit
 from app.models.admission import OUTCOMES, Admission
+from app.models.discharge_summary import DischargeSummary
 from app.models.medication import (DOSE_OUTCOMES, ROUTES, MedicationOrder)
 from app.models.place import BED_KINDS, SPACE_KINDS, UNIT_KINDS, Bed, Space, Unit
 from app.models.prescription import Drug
@@ -38,6 +39,8 @@ from app.models.round_note import ROUND_TRENDS
 from app.utils import beds as ward
 from app.utils import bed_billing
 from app.utils import drug_round
+from app.utils.clock import local_today
+from app.utils import discharge_summary as summary
 from app.utils import round_billing
 from app.utils import rounds as ward_round
 from app.utils.clock import to_local, to_utc
@@ -262,6 +265,17 @@ def admission(admission_id):
         meds=drug_round.for_admissions([row.id]).get(row.id) or {},
         # The ward's own shelf, so an order can point at what it takes.
         store_items=_ward_items(),
+        # The document the stay ends with (GAHAR ACT.15). Six of its nine
+        # elements are written and three are read off the record, so the
+        # screen can show a doctor which ones need them and which are already
+        # answered — and can say «not written» about a stay that has none,
+        # which is a different fact from one whose boxes are empty.
+        discharge_summary=summary.for_admission(row),
+        summary_state=summary.state(row),
+        summary_missing=summary.missing(row),
+        summary_elements=summary.assemble(row),
+        summary_delay=summary.delay_hours(row),
+        provisional=summary.provisional_diagnoses(row),
         # The second door into the theatres. A day case is booked from the
         # theatre list; a child already in a bed is booked from here, where
         # whoever is looking after them is standing. One door would have
@@ -342,6 +356,62 @@ def move(admission_id):
     db.session.commit()
     flash(t("beds.moved"), "success")
     return redirect(url_for("beds.admission", admission_id=row.id))
+
+
+@beds_bp.route("/admission/<int:admission_id>/summary", methods=["POST"])
+@module_required(MODULE)
+def write_summary(admission_id):
+    """Write or correct this stay's discharge summary (GAHAR ACT.15).
+
+    Six boxes, because the other three of the standard's nine elements are
+    already in the record and the program will not ask anybody to type them
+    twice — see ``app/utils/discharge_summary.py``.
+    """
+    row = Admission.query.get_or_404(admission_id)
+    summary.write(row, user=current_user,
+                  **{name: request.form.get(name)
+                     for name in DischargeSummary.WRITTEN})
+    db.session.commit()
+    # Which elements are still blank, said now rather than found by a surveyor
+    # — and "signed short" is a state this program already names elsewhere.
+    short = summary.missing(row)
+    flash(t("summary.saved_short", n=len(short)) if short
+          else t("summary.saved"), "warning" if short else "success")
+    return redirect(url_for("beds.admission", admission_id=row.id))
+
+
+@beds_bp.route("/admission/<int:admission_id>/summary/given", methods=["POST"])
+@module_required(MODULE)
+def summary_given(admission_id):
+    """Record that a copy reached the family — ACT.15 evidence 4."""
+    row = Admission.query.get_or_404(admission_id)
+    if summary.hand_over(row, user=current_user) is None:
+        flash(t("summary.nothing_to_give"), "warning")
+        return redirect(url_for("beds.admission", admission_id=row.id))
+    db.session.commit()
+    flash(t("summary.given"), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id))
+
+
+@beds_bp.route("/admission/<int:admission_id>/summary/print")
+@module_required(MODULE)
+def summary_print(admission_id):
+    """The copy. Evidence 3 keeps one in the record, evidence 4 hands one over.
+
+    All nine elements on one sheet, the derived ones read off the record at
+    the moment of printing — so a summary printed after somebody linked the
+    missing operation carries it, without anybody rewriting the document.
+    """
+    row = Admission.query.get_or_404(admission_id)
+    return render_template(
+        "beds/summary_print.html", admission=row,
+        summary=summary.for_admission(row),
+        elements=summary.assemble(row),
+        investigations=summary.investigations_during(row),
+        procedures=summary.procedures_during(row),
+        meds_during=summary.medicines_during(row),
+        meds_before=summary.medicines_before(row),
+        today=local_today(), generated_by=current_user)
 
 
 @beds_bp.route("/admission/<int:admission_id>/discharge", methods=["POST"])

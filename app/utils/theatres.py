@@ -19,7 +19,7 @@ record: a stop signed with items unticked is stored with the unticked ones
 named, because a checklist that silently rounds "four of seven" up to "done"
 is worse than no checklist — it manufactures a signature.
 """
-from datetime import datetime
+from datetime import datetime, time
 
 from app.extensions import db
 from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, PREOP_KINDS,
@@ -1244,6 +1244,207 @@ def sign(operation, stop, items=None, user=None, note=None, at=None):
     return row
 
 
+#: The chain of moments a theatre day is measured by, in order, with the
+#: column each one lives in. **Quoted at both ends**: SAS.02's fifth item of
+#: evidence says the clock runs *"starting with the patient's call and ending
+#: with the room being cleaned after the procedure"*.
+#:
+#: Held as data rather than five hand-written blocks because every screen that
+#: shows punctuality wants the same list, and because a sixth moment should be
+#: one line here and not a sixth place to forget.
+TIMELINE = (
+    ("called", "called_at"),
+    ("started", "started_at"),
+    ("finished", "finished_at"),
+    ("recovery", "recovery_at"),
+    ("cleaned", "cleaned_at"),
+)
+
+
+def timeline(operation):
+    """The moments this case has, in order, with the gap to the one before.
+
+    Returns a list of ``{"step", "at", "minutes"}``. ``minutes`` is the wait
+    since the **previous recorded** moment, not the previous one in the list:
+    a case whose recovery was never stamped still shows an honest gap between
+    finishing and the room being cleaned, instead of a blank that reads as
+    instant.
+
+    ``None`` for a moment that never happened — and it stays in the list. A
+    chain that silently drops what nobody recorded is a chain that always
+    looks complete, which is the opposite of what a punctuality record is for.
+    """
+    if operation is None:
+        return []
+    out, previous = [], None
+    for step, column in TIMELINE:
+        at = getattr(operation, column, None)
+        minutes = None
+        if at and previous:
+            minutes = int((at - previous).total_seconds() // 60)
+        out.append({"step": step, "at": at, "minutes": minutes})
+        if at:
+            previous = at
+    return out
+
+
+def waited_minutes(operation):
+    """From the call to the knife — the number a theatre list is run on.
+
+    ``None`` when either end is missing, because a wait with one end is not a
+    shorter wait, it is an unknown one.
+    """
+    if operation is None or not operation.called_at or not operation.started_at:
+        return None
+    return int((operation.started_at - operation.called_at).total_seconds() // 60)
+
+
+def turnover_minutes(operation):
+    """From the case finishing to the room being ready — what the next case
+    waits on, and the moment nobody records because it happens after everybody
+    has moved on."""
+    if operation is None or not operation.finished_at or not operation.cleaned_at:
+        return None
+    return int((operation.cleaned_at - operation.finished_at).total_seconds() // 60)
+
+
+# ------------------------------------------ how long it was meant to take --
+#
+# SAS.02 (ب) asks that a booking *"specify the start time and end time for
+# surgery based on the international surgery times"*, and the standard's third
+# item of evidence asks for a process for booking elective procedures *"and
+# determining the needed time for each procedure"*.
+#
+# **The program holds no table of surgery times, and will not invent one.**
+# "International surgery times" is a reference this program does not have —
+# the same rule that keeps invented vaccine thresholds out of the code. So the
+# clinic writes the number it works to, once, on the procedure
+# (``Service.duration_minutes``); the booking offers it; the end time is
+# derived from the start; and the planned length is shown beside the actual
+# one.
+#
+# **It measures, it does not judge.** No "ran late", no target, no red. A
+# theatre that can see its own two numbers can decide for itself which of its
+# cases are booked wrong — and a program that decided that for them would be
+# deciding it from a reference it does not hold.
+
+
+def expected_minutes(service):
+    """How long this procedure usually needs, as the clinic wrote it.
+
+    ``Service.duration_minutes`` — **the column that was already there.** It
+    has had an edit box on the price list since long before this standard was
+    read, and nothing read it. A second "how long does this take" column
+    beside it would have made the answer depend on which of two screens
+    somebody had filled in.
+
+    ``None`` where nobody wrote one, and ``None`` for a zero: a procedure
+    that takes no time is not something anybody meant, and letting it through
+    would prefill every booking of it with nothing and call that an answer.
+    """
+    minutes = getattr(service, "duration_minutes", None)
+    return minutes if minutes and minutes > 0 else None
+
+
+def planned_end(operation):
+    """The time the list says this case will be finished by, or ``None``.
+
+    **Derived, not a second column.** The booking already carries a start and
+    a length, and storing the end as well means a case moved half an hour
+    later keeps an end time that belongs to where it used to be.
+
+    A case running past midnight gives the wall-clock time, not tomorrow's
+    date: this is what prints on a theatre list, and the list carries its own
+    date at the top.
+
+    **Minutes, not a ``datetime``.** Written first as ``datetime.combine`` with
+    a placeholder date, which is how every local-date-read-as-UTC bug in this
+    program has started — and the repo-wide guard in
+    ``tests/test_a_shift_that_lands_on_the_wrong_day.py`` said so. It was a
+    false alarm in substance (nothing here is compared against a stored UTC
+    column) and a true one in shape, so the date is gone rather than excused:
+    an end time has no date, and arithmetic that never builds one cannot get
+    the day wrong.
+    """
+    if operation is None or not operation.start_time or not operation.minutes:
+        return None
+    started = operation.start_time
+    total = started.hour * 60 + started.minute + operation.minutes
+    return time((total // 60) % 24, total % 60)
+
+
+def actual_minutes(operation):
+    """Knife to close, or ``None`` — and ``None`` is *unknown*, not short.
+
+    Read off the two stamps the theatre already makes when a case starts and
+    finishes, so the measurement costs nobody a keystroke.
+    """
+    if operation is None or not operation.started_at or not operation.finished_at:
+        return None
+    return int((operation.finished_at
+                - operation.started_at).total_seconds() // 60)
+
+
+def time_plan(operation):
+    """Planned against actual for one case.
+
+    ``{"start", "end", "planned", "usual", "actual", "difference"}``.
+
+    ``planned`` is what this booking was given, ``usual`` what the procedure
+    is normally given, and they are kept apart on purpose: a case booked at
+    half the clinic's own usual length is visible *before* the morning it
+    overruns, and only two separate numbers can show that.
+
+    ``difference`` is **actual minus planned**, signed. A case that finished
+    twenty minutes early is as much a booking worth looking at as one that ran
+    twenty minutes over, and an unsigned "overrun" would hide half of them.
+    It is ``None`` unless both numbers exist — a difference measured from a
+    number nobody wrote is not a small difference, it is no difference at all.
+    """
+    if operation is None:
+        return {"start": None, "end": None, "planned": None, "usual": None,
+                "actual": None, "difference": None}
+    booked = operation.minutes if (operation.minutes or 0) > 0 else None
+    done = actual_minutes(operation)
+    return {
+        "start": operation.start_time,
+        "end": planned_end(operation),
+        "planned": booked,
+        "usual": expected_minutes(operation.service),
+        "actual": done,
+        "difference": None if booked is None or done is None else done - booked,
+    }
+
+
+def call_patient(operation, to=None, user=None, at=None):
+    """Record that the child was called for. Returns the operation, or ``None``.
+
+    SAS.02 (هـ). **Recorded once**: a second call is somebody chasing, not a
+    new beginning, and moving the stamp would quietly shorten every wait this
+    screen exists to measure.
+    """
+    if operation is None or operation.called_at:
+        return None
+    operation.called_at = at or datetime.utcnow()
+    operation.called_by = getattr(user, "id", None)
+    operation.called_to = (to or "").strip()[:120] or None
+    return operation
+
+
+def mark_cleaned(operation, user=None, at=None):
+    """The room is ready for the next case.
+
+    Refused before the case has finished: a room cleaned after an operation
+    that has not happened is not a fact, and a stamp that can land in the wrong
+    order makes every turnover figure computed from it wrong.
+    """
+    if operation is None or not operation.finished_at or operation.cleaned_at:
+        return None
+    operation.cleaned_at = at or datetime.utcnow()
+    operation.cleaned_by = getattr(user, "id", None)
+    return operation
+
+
 def start(operation, user=None, when=None):
     """Take the child into theatre — refused until the team has signed in.
 
@@ -1312,6 +1513,124 @@ def book(patient, theatre, procedure, on_date=None, user=None, **extra):
         **{k: v for k, v in extra.items() if v not in ("", None)})
     db.session.add(row)
     return row
+
+
+# --------------------------------------- postponed is not cancelled -------
+#
+# SAS.02's fourth item of evidence: *"There is a process for analyzing
+# **postponed and canceled** procedures, and action is taken to improve
+# them."* It names two things, and they are two different problems. A theatre
+# with thirty postponements and two cancellations is booking badly; one with
+# two postponements and thirty cancellations is losing its cases. A single
+# "called off" count answers neither of them.
+#
+# **A postponement is a cancellation that has a successor**, and that is the
+# whole mechanism. No fifth status: ``status`` is read by name in this
+# codebase — the billing query, ``is_open`` — and a new word there would
+# quietly change what every one of those places means.
+
+
+def postpone(operation, to_date, reason=None, user=None, **extra):
+    """Move this case to another day: called off here, booked there, linked.
+
+    Returns the new case, or ``None`` where there was nothing open to move —
+    a case already done, or already called off once. Raises ``ValueError``
+    with no date, because a postponement to nowhere is a cancellation and the
+    two must not be the same button.
+
+    The replacement carries the old case's room, surgeon, anaesthetist,
+    service, length, kind and team: a postponed case is the *same* case on
+    another day, and retyping it is how the second booking quietly ends up
+    different from the first. All of it stays correctable afterwards.
+    """
+    if operation is None or not operation.is_open:
+        return None
+    if to_date is None:
+        raise ValueError("no date")
+    replacement = book(
+        operation.patient, operation.theatre, operation.procedure,
+        on_date=to_date, user=user,
+        admission_id=operation.admission_id,
+        service_id=operation.service_id,
+        surgeon_id=operation.surgeon_id,
+        anaesthetist_id=operation.anaesthetist_id,
+        start_time=operation.start_time,
+        minutes=operation.minutes,
+        case_type=operation.case_type,
+        team=operation.team,
+        **extra)
+    # Flushed for its id: the link is the only thing that tells a postponement
+    # from a cancellation, and a link written to ``None`` would file every
+    # moved case under "lost".
+    db.session.flush()
+    cancel(operation, reason=reason, user=user)
+    operation.postponed_to_id = replacement.id
+    return replacement
+
+
+def _in_period(query, start=None, end=None):
+    """Narrow to the days a theatre list was read on. Either end may be open."""
+    if start is not None:
+        query = query.filter(Operation.on_date >= start)
+    if end is not None:
+        query = query.filter(Operation.on_date <= end)
+    return query
+
+
+def call_offs(start=None, end=None):
+    """Every case called off in a period, most recent first.
+
+    Counted on **the day it was meant to happen**, not the day somebody
+    pressed cancel: the day the theatre lost is the day its list had a hole
+    in it, and a case cancelled in March off an April list is April's hole.
+    """
+    return (_in_period(Operation.query.filter(Operation.status == "cancelled"),
+                       start, end)
+            .order_by(Operation.on_date.desc(), Operation.id.desc())
+            .all())
+
+
+def calloff_analysis(start=None, end=None):
+    """Postponed against cancelled, and why — SAS.02's fourth evidence item.
+
+    Returns ``{"postponed", "cancelled", "booked", "reasons"}``, where each
+    row of ``reasons`` is ``{"reason", "postponed", "cancelled", "total"}``,
+    commonest first.
+
+    **Grouped by the reason exactly as it was written.** The program ships no
+    list of cancellation reasons and invents none, so two spellings stay two
+    rows: deciding that «الطفل بيكح» and «عدوى صدر» are one thing is a
+    judgement about this clinic's own words, and only this clinic can make it.
+
+    **A case called off with nothing written gets its own row**, keyed
+    ``None``. It is not "other". A theatre where half the call-offs carry no
+    reason cannot improve anything at all, and that is the first finding this
+    screen has to be able to put on a page.
+
+    ``booked`` is every case the period had, called-off ones included — a
+    count of call-offs with no denominator is a number that grows with the
+    theatre and means nothing on its own.
+    """
+    totals = {"postponed": 0, "cancelled": 0}
+    reasons = {}
+    for row in call_offs(start, end):
+        kind = row.called_off_as
+        totals[kind] += 1
+        bucket = reasons.setdefault(
+            row.cancel_reason,
+            {"reason": row.cancel_reason, "postponed": 0, "cancelled": 0,
+             "total": 0})
+        bucket[kind] += 1
+        bucket["total"] += 1
+    return {
+        "postponed": totals["postponed"],
+        "cancelled": totals["cancelled"],
+        "booked": _in_period(Operation.query, start, end).count(),
+        # Commonest first, then by the words themselves so a screen reloaded
+        # twice reads the same way twice.
+        "reasons": sorted(reasons.values(),
+                          key=lambda r: (-r["total"], r["reason"] or "")),
+    }
 
 
 def charge(admission, invoice, user=None, lang="ar"):

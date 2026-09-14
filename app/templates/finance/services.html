@@ -563,7 +563,12 @@
                     <span class="hint">{{ t('recovery.service_followup_hint') }}</span></div>
                   <div class="form-row"><label>{{ t('services.price') }}</label><input class="input" type="number" step="0.01" name="price" value="{{ s.price }}"></div>
                   <div class="form-row"><label>{{ t('services.cost') }}</label><input class="input" type="number" step="0.01" name="cost" value="{{ s.cost if s.cost is not none else '' }}"></div>
-                  <div class="form-row"><label>{{ t('services.duration') }}</label><input class="input" type="number" min="0" name="duration_minutes" value="{{ s.duration_minutes or '' }}"></div>
+                  {# It had an edit box and no reader for a long time. The
+                     theatre booking reads it now (GAHAR SAS.02 ب): it offers
+                     this many minutes when the procedure is picked, and the
+                     case screen shows it beside how long the case took. #}
+                  <div class="form-row"><label>{{ t('services.duration') }}</label><input class="input" type="number" min="0" name="duration_minutes" value="{{ s.duration_minutes or '' }}">
+                    <span class="hint">{{ t('services.duration_hint') }}</span></div>
                   <div class="form-row"><label>{{ t('services.max_discount') }}</label><input class="input" type="number" step="0.01" name="max_discount" value="{{ s.max_discount or '' }}"></div>
                   <div class="form-row"><label>{{ t('services.commission_type') }}</label>{{ commission_select('commission_type', s.commission_type) }}</div>
                   <div class="form-row"><label>{{ t('services.commission_value') }}</label><input class="input" type="number" step="0.01" name="commission_value" value="{{ s.commission_value or '' }}"></div>

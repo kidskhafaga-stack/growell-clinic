@@ -236,6 +236,56 @@ class Operation(db.Model):
     site_marked_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     site_marked_at = db.Column(db.DateTime)
 
+    # ------------------------------------ called off, or moved to another day --
+    #
+    # SAS.02's fourth item of evidence asks for *"a process for analyzing
+    # **postponed and canceled** procedures, and action is taken to improve
+    # them"* — and it names **two** things, not one.
+    #
+    # A theatre with thirty postponements and two cancellations has a
+    # scheduling problem; one with two postponements and thirty cancellations
+    # has an entirely different problem. A single number answers neither, and
+    # `status` had only ``cancelled``.
+    #
+    # **Derived, not a fifth status.** ``status`` is read by name in this
+    # codebase — the billing query filters ``done``, ``is_open`` lists two of
+    # them — and a fifth word would have every one of those places quietly
+    # mean something new. So a postponement is *a cancellation that has a
+    # successor*: this case is called off, the replacement is booked, and the
+    # two are linked. Nothing already written changes its reading.
+    postponed_to_id = db.Column(db.Integer, db.ForeignKey("operations.id"))
+
+    # ------------------------------------------ the clock the unit runs on ----
+    #
+    # SAS.02 (هـ) asks for *"a clear and safe mechanism to call patients for
+    # surgeries"*, and the fifth item of evidence says how far the clock has
+    # to reach:
+    #
+    #   *"Punctuality (timekeeping) of procedures in the operating room is
+    #   maintained and recorded, **starting with the patient's call** and
+    #   ending with **the room being cleaned** after the procedure."*
+    #
+    # The middle of that chain was already here — ``started_at``,
+    # ``finished_at``, ``recovery_at``. **Both ends were missing**, and they
+    # are the two the standard names by name.
+    #
+    # ``called_at`` is also where the wait a family actually feels begins. The
+    # gap between the call and the knife is the number a theatre list is run
+    # on, and no stamp in this program could measure it.
+    called_at = db.Column(db.DateTime, index=True)
+    called_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    #: Where the call went — the ward, the waiting area, the family's phone.
+    #: Free text because the standard asks for *a* mechanism and does not name
+    #: the channels, and a list invented here would be this program telling a
+    #: clinic how to call its patients.
+    called_to = db.Column(db.String(120))
+
+    #: *"ending with the room being cleaned after the procedure"*. The turnover
+    #: the next case waits on, and the one moment nobody records because it
+    #: happens after everybody has moved on.
+    cleaned_at = db.Column(db.DateTime)
+    cleaned_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+
     # --------------------------------- booking it to somebody allowed to do it --
     #
     # SAS.02 (أ): *"Surgeries and invasive procedures are booked according to
@@ -435,6 +485,12 @@ class Operation(db.Model):
     equipment_checker = db.relationship("User",
                                         foreign_keys=[equipment_checked_by])
     privilege_acker = db.relationship("User", foreign_keys=[privilege_ack_by])
+    caller = db.relationship("User", foreign_keys=[called_by])
+    #: The case this one became when it was moved. ``remote_side`` because both
+    #: ends are the same table.
+    postponed_to = db.relationship("Operation", remote_side=[id],
+                                   foreign_keys=[postponed_to_id])
+    cleaner = db.relationship("User", foreign_keys=[cleaned_by])
     consent = db.relationship("Consent")
 
     @property
@@ -463,6 +519,18 @@ class Operation(db.Model):
     @property
     def is_open(self):
         return self.status in ("scheduled", "in_theatre")
+
+    @property
+    def called_off_as(self):
+        """``postponed`` · ``cancelled`` · ``None``.
+
+        The distinction SAS.02's fourth item of evidence asks for, read off the
+        record rather than stored: a cancelled case that has a successor was
+        moved, and one that has none was called off.
+        """
+        if self.status != "cancelled":
+            return None
+        return "postponed" if self.postponed_to_id else "cancelled"
 
     def check_for(self, stop):
         """The signed-off stop, or ``None`` — which is the finding."""

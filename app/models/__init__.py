@@ -48,6 +48,9 @@ from app.models.duty import (DUTY_COVER, DUTY_PAYABLE, DUTY_ROLE_ICONS,
                             Duty, DutyRate, DutyRole, DutySlot)
 from app.models.panel_alert_rule import PanelAlertRule
 from app.models.chart_review import ChartReview
+from app.models.discharge_summary import DischargeSummary
+from app.models.record_review import (RecordReview, RecordReviewFinding,
+                                     RecordReviewItem, RecordReviewMember)
 from app.models.dose_prep import DosePrep
 from app.models.high_alert import HighAlertDrug
 from app.models.lasa_pair import LasaPair
@@ -296,6 +299,11 @@ __all__ = [
     "DutyRole",
     "PanelAlertRule",
     "ChartReview",
+    "DischargeSummary",
+    "RecordReview",
+    "RecordReviewFinding",
+    "RecordReviewItem",
+    "RecordReviewMember",
     "DosePrep",
     "HighAlertDrug",
     "LasaPair",
