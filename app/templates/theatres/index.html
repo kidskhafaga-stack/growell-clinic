@@ -200,6 +200,16 @@
       <span class="badge badge--muted" data-moved>{{ t('theatre.postponed_to_day') }}
         <span dir="ltr">{{ op.postponed_to.on_date }}</span></span>
       {% endif %}
+      {# A general — or regional, or sedated — case with nobody named to hold
+         the airway. Read off the row rather than from inside the case,
+         because the person who has to fix it is whoever is drawing up the
+         order of the list, and they are looking at this screen. Silent on a
+         case nobody has chosen the anaesthetic for yet: «محدش قال» is not
+         «ناقص». #}
+      {% if case.needs_gas %}
+      <span class="alert-pill warn" data-no-anaesthetist>
+        <i class="bi bi-lungs"></i> {{ t('theatre.no_anaesthetist_yet') }}</span>
+      {% endif %}
       {% if op.status == 'scheduled' and not case.safety.ready %}
       <span class="alert-pill warn" data-unsigned>
         <i class="bi bi-shield-exclamation"></i> {{ t('theatre.not_signed_in_short') }}</span>
@@ -220,16 +230,93 @@
 <div class="card gc-scale-in" style="margin-top:14px;"
      x-data="{
        picker: window.gcPicker({ url: '{{ url_for('theatres.patient_search') }}', minChars: 2 }),
+       /* `minChars: 0` on purpose: a clinic has a handful of surgeons, and
+          opening the box should show them rather than wait for two letters
+          somebody has to guess. `extra` is read at search time, not at
+          creation, so the privilege is always judged against whichever
+          procedure is chosen **now**. */
+       docs: window.gcPicker({ url: SURGEONS, minChars: 0,
+                               extra: () => 'service_id=' + (document.getElementById('th_service').value || '') +
+                                            '&date=' + (document.getElementById('th_date').value || '') }),
        q: '',
+       sq: '',
+       /* The child in front of the desk is not always in the program yet.
+          Three fields, and the file gets finished later — the gap stays
+          visible everywhere until somebody does. */
+       quick: { open: false, busy: false, error: '',
+                full_name: '', date_of_birth: '', gender: '' },
+       anaes: '',
+       gas: '',
+       chosenState: '',
        pick(r) {
          this.picker.close();
          this.$refs.patient.value = r.id || '';
          this.q = r.name || '';
        },
+       async addChild() {
+         if (!this.quick.full_name || !this.quick.date_of_birth || !this.quick.gender) {
+           this.quick.error = QUICK_ALL; return;
+         }
+         this.quick.busy = true; this.quick.error = '';
+         try {
+           const reply = await fetch(QUICK_URL, {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() }}' },
+             body: JSON.stringify({ full_name: this.quick.full_name,
+                                    date_of_birth: this.quick.date_of_birth,
+                                    gender: this.quick.gender })
+           });
+           const said = await reply.json();
+           if (said.ok) {
+             this.pick(said.patient);
+             this.quick = { open: false, busy: false, error: '',
+                            full_name: '', date_of_birth: '', gender: '' };
+             return;
+           }
+           this.quick.error = said.error || QUICK_ALL;
+         } catch (e) { this.quick.error = QUICK_ALL; }
+         this.quick.busy = false;
+       },
+       findSurgeons() { this.docs.q = this.sq; this.docs.search(); },
+       pickSurgeon(d) {
+         this.docs.close();
+         this.$refs.surgeon.value = d.id || '';
+         this.sq = d.name || '';
+         this.chosenState = d.state || '';
+       },
+       /* Typing over a chosen name un-chooses him. Leaving the id behind
+          would book the case under the surgeon whose name is no longer in
+          the box — the worst kind of wrong, because the screen shows one
+          person and the record keeps another. */
+       forgetSurgeon() {
+         if (this.$refs.surgeon.value) {
+           this.$refs.surgeon.value = ''; this.chosenState = '';
+         }
+       },
+       /* The privilege is read **against the procedure**, so changing the
+          procedure makes the answer on screen stale. Asking again is the
+          only honest move: clearing it silently would drop a warning
+          somebody had already been shown. */
+       async recheck() {
+         const id = this.$refs.surgeon.value;
+         if (!id) { this.chosenState = ''; return; }
+         const service = document.getElementById('th_service').value || '';
+         try {
+           const reply = await fetch(SURGEONS + '?q=' + encodeURIComponent(this.sq) +
+                                     '&service_id=' + encodeURIComponent(service) +
+                                     '&date=' + encodeURIComponent(document.getElementById('th_date').value || ''));
+           const rows = await reply.json();
+           const found = (rows || []).find(d => String(d.id) === String(id));
+           this.chosenState = found ? found.state : '';
+         } catch (e) { this.chosenState = ''; }
+       },
+       needsGas() { return GAS.indexOf(this.anaes) >= 0; },
        suggest(event) {
          const option = event.target.options[event.target.selectedIndex];
          const usual = option ? option.dataset.minutes : '';
          if (usual && !this.$refs.minutes.value) { this.$refs.minutes.value = usual; }
+         this.recheck();
        }
      }">
   <h2 class="card-title" style="margin-top:0;">
@@ -237,7 +324,7 @@
   <form method="post" action="{{ url_for('theatres.book') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="patient_id" x-ref="patient">
-    <input type="hidden" name="date" value="{{ on_date }}">
+    <input type="hidden" id="th_date" name="date" value="{{ on_date }}">
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
       <div class="form-row" style="margin-bottom:0;flex:1;min-width:220px;position:relative;">
         <label for="th_patient">{{ t('theatre.patient') }}</label>
@@ -263,6 +350,42 @@
                     x-text="BASICS_N.replace('{n}', (r.missing || []).length)"></span>
             </button>
           </template>
+        </div>
+        {# «ونعمل ان ممكن نضيف حالة جديدة». Sending whoever is booking to
+           another screen to register the child is how a case ends up booked
+           under the wrong file — or on paper. The same three fields the
+           appointment desk asks for, and the same rule after them: the file
+           is not finished, and every screen that picks this child says so
+           until somebody finishes it. #}
+        <button type="button" class="btn btn-outline btn-sm gc-press"
+                style="margin-top:6px;" data-quick-child
+                x-on:click="quick.open = !quick.open">
+          <i class="bi bi-person-plus"></i> {{ t('patients.quick_add') }}</button>
+        <div x-show="quick.open" x-cloak style="margin-top:8px;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+            <div class="form-row" style="margin-bottom:0;flex:1;min-width:150px;">
+              <label for="th_new_name">{{ t('patients.full_name') }}</label>
+              <input class="input" id="th_new_name" x-model="quick.full_name">
+            </div>
+            <div class="form-row" style="margin-bottom:0;min-width:140px;">
+              <label for="th_new_dob">{{ t('patients.dob') }}</label>
+              <input class="input" type="date" id="th_new_dob" dir="ltr"
+                     x-model="quick.date_of_birth">
+            </div>
+            <div class="form-row" style="margin-bottom:0;min-width:120px;">
+              <label for="th_new_sex">{{ t('patients.gender') }}</label>
+              <select class="select" id="th_new_sex" x-model="quick.gender">
+                <option value="">—</option>
+                <option value="male">{{ t('genders.male') }}</option>
+                <option value="female">{{ t('genders.female') }}</option>
+              </select>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm gc-press"
+                    x-on:click="addChild()" :disabled="quick.busy">
+              <i class="bi bi-check-lg"></i> {{ t('patients.quick_save') }}</button>
+          </div>
+          <div class="hint" x-show="quick.error" x-cloak x-text="quick.error"
+               data-quick-error style="color:var(--danger);"></div>
         </div>
       </div>
       <div class="form-row" style="margin-bottom:0;min-width:160px;">
@@ -312,14 +435,91 @@
         </select>
       </div>
       {% endif %}
-      <div class="form-row" style="margin-bottom:0;min-width:170px;">
+      {# The surgeon, **with where each one stands on the chosen procedure**.
+         A plain list of names told whoever books nothing they did not already
+         know; SAS.02 (أ) asks that the privileges be used by the people who
+         book, and «outside» beside a name is that. Nobody is hidden — at
+         three in the morning the only surgeon in the building may be the one
+         without the privilege, and omitting them moves the booking somewhere
+         the program cannot see. #}
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:210px;position:relative;">
         <label for="th_surgeon">{{ t('theatre.surgeon') }}</label>
-        <select class="select" id="th_surgeon" name="surgeon_id">
+        <input type="hidden" name="surgeon_id" x-ref="surgeon">
+        <input class="input" id="th_surgeon" type="text" autocomplete="off"
+               x-model="sq" role="combobox" aria-autocomplete="list"
+               :aria-expanded="docs.open ? 'true' : 'false'"
+               x-on:input.debounce.250ms="forgetSurgeon(); findSurgeons()"
+               x-on:focus="findSurgeons()"
+               x-on:keydown.arrow-down.prevent="docs.move(1)"
+               x-on:keydown.arrow-up.prevent="docs.move(-1)"
+               x-on:keydown.enter.prevent="docs.items[docs.active] && pickSurgeon(docs.items[docs.active])"
+               x-on:keydown.escape="docs.close()"
+               x-on:blur="setTimeout(() => docs.close(), 150)">
+        <div class="gc-picker" x-show="docs.open" x-cloak role="listbox">
+          <template x-for="(d, idx) in docs.items" :key="d.id">
+            <button type="button" class="gc-picker-item" role="option"
+                    data-surgeon
+                    :aria-selected="idx === docs.active ? 'true' : 'false'"
+                    x-on:mouseenter="docs.active = idx"
+                    x-on:click="pickSurgeon(d)">
+              <span x-text="d.name"></span>
+              {# The whole reason this is a search and not the dropdown it
+                 replaced: a list of names told whoever books nothing they did
+                 not already know. «بره صلاحياته» beside a name does. #}
+              <span class="badge"
+                    :class="{'badge--green': d.state === 'ok',
+                             'badge--role': d.state === 'supervised',
+                             'badge--warn': d.state === 'outside',
+                             'badge--muted': d.state === 'unknown'}"
+                    :data-privilege="d.state"
+                    x-text="PRIV[d.state] || d.state"></span>
+            </button>
+          </template>
+          <div class="gc-picker-empty" x-show="docs.searched && !docs.items.length"
+               x-cloak>{{ t('theatre.no_surgeon_found') }}</div>
+        </div>
+        {# It tells; it never blocks. The booking goes through either way and
+           the operation screen is where the reason gets written down. #}
+        <div class="hint" x-show="PRIV_WARN[chosenState]" x-cloak
+             data-surgeon-warning style="color:#b45309;"
+             x-text="PRIV_WARN[chosenState] || ''"></div>
+      </div>
+
+      {# What the anaesthetic is expected to be — a **scheduling** fact, and
+         the reason the next box exists at all. Not the anaesthetist's own
+         plan, which they write later and which is allowed to say something
+         else. #}
+      <div class="form-row" style="margin-bottom:0;min-width:150px;">
+        <label for="th_anaes">{{ t('theatre.anaesthesia') }}</label>
+        <select class="select" id="th_anaes" name="anaesthesia_kind"
+                x-model="anaes">
+          <option value="">{{ t('theatre.anaes_unset') }}</option>
+          {% for k in anaesthesia_types %}
+          <option value="{{ k }}">{{ t('theatre.anaes_' ~ k) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# Only where it is needed. A box that is always there, always empty and
+         never relevant is a box people stop reading. #}
+      <div class="form-row" style="margin-bottom:0;min-width:170px;"
+           x-show="needsGas()" x-cloak data-anaesthetist-box>
+        <label for="th_gas">{{ t('theatre.anaesthetist') }}</label>
+        {# Disabled while it is hidden, so a name chosen and then switched
+           away from is not quietly posted with a case the screen says is
+           local — and is still there if the anaesthetic is switched back. #}
+        <select class="select" id="th_gas" name="anaesthetist_id" x-model="gas"
+                :disabled="!needsGas()">
           <option value="">{{ t('common.none') }}</option>
           {% for doctor in surgeons %}
           <option value="{{ doctor.id }}">{{ doctor.display_name(current_lang) }}</option>
           {% endfor %}
         </select>
+        {# Only while it is still unanswered. A warning that stays put after
+           somebody has done what it asked is a warning people learn to read
+           past — and this one has to survive to matter. #}
+        <div class="hint" x-show="!gas" x-cloak data-gas-needed
+             style="color:#b45309;">{{ t('theatre.gas_needed') }}</div>
       </div>
       <div class="form-row" style="margin-bottom:0;min-width:120px;">
         <label for="th_start">{{ t('theatre.start_time') }}</label>
@@ -336,4 +536,45 @@
   </form>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Words for the screen, piped through `tojson` rather than quoted inline:
+  // these land in JavaScript and Jinja escapes for HTML — an apostrophe would
+  // arrive as the five characters `&#39;` and `x-text` would write them out.
+  // The same reason the settings screen builds its `UPD` this way.
+
+  // Where the surgeon search lives. One constant, because the box asks twice:
+  // once as you type, and again when the procedure changes underneath a name
+  // that was already chosen.
+  const SURGEONS = {{ url_for('theatres.surgeon_search') | tojson }};
+
+  // Registering the child who is not in the program yet.
+  const QUICK_URL = {{ url_for('theatres.patient_quick') | tojson }};
+  const QUICK_ALL = {{ t('patients.quick_fill_all') | tojson }};
+
+  // The kinds that need somebody watching the airway. **Sedation is on this
+  // side of the line deliberately** — it reads like the small one and it is
+  // the one that catches people out. Mirrors NEEDS_ANAESTHETIST in
+  // app/utils/theatres.py, which is what the record is judged by; this copy
+  // only decides whether a box appears.
+  const GAS = {{ needs_anaesthetist | list | tojson }};
+
+  // Where a surgeon stands on the chosen procedure, in one word.
+  const PRIV = {
+    ok:         {{ t('theatre.privilege_ok')         | tojson }},
+    supervised: {{ t('theatre.privilege_supervised') | tojson }},
+    outside:    {{ t('theatre.privilege_outside')    | tojson }},
+    unknown:    {{ t('theatre.privilege_unknown')    | tojson }}
+  };
+
+  // And what that means for the person booking. `ok` and `unknown` are
+  // absent on purpose: there is nothing to say about a surgeon who holds the
+  // privilege, and nothing honest to say about a procedure nobody has named.
+  const PRIV_WARN = {
+    supervised: {{ t('theatre.privilege_warn_supervised') | tojson }},
+    outside:    {{ t('theatre.privilege_warn_outside')    | tojson }}
+  };
+</script>
 {% endblock %}
