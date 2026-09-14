@@ -53,24 +53,70 @@ OPEN_STATES = tuple(INVESTIGATION_OPEN)
 
 
 def worklist(kind=None, state=None, limit=200):
-    """Everything ordered and not yet answered, longest-waiting first.
+    """Everything ordered **here** and not yet answered, longest-waiting first.
 
     Oldest first and not newest: a rack works from the bottom, and a list that
     puts this minute's order on top is a list where the sample taken at eight
     is still sitting there at two.
+
+    **What is being done elsewhere is not on it.** A clinic with no echo
+    machine, or a family who would rather go to the hospital down the road,
+    leaves an order that is real — it prints, it sits on the child's file, its
+    result comes back on it — and that nobody in this building is ever going
+    to draw. Left on the bench it is a row that can only be cleared by
+    somebody deciding to ignore it, and a rack people learn to ignore is the
+    thing this module exists to stop being.
     """
     from sqlalchemy.orm import selectinload
 
     query = (VisitInvestigation.query
              .options(selectinload(VisitInvestigation.patient),
                       selectinload(VisitInvestigation.investigation))
-             .filter(VisitInvestigation.status.in_(OPEN_STATES)))
+             .filter(VisitInvestigation.status.in_(OPEN_STATES),
+                     _ours()))
     if kind:
         query = query.filter(VisitInvestigation.kind == kind)
     if state:
         query = query.filter(VisitInvestigation.status == state)
     return (query.order_by(VisitInvestigation.created_at,
                            VisitInvestigation.id).limit(limit).all())
+
+
+def _ours():
+    """The filter that keeps the bench's lists about the bench's own work.
+
+    ``is_not(True)`` rather than ``is_(False)``. On every schema this program
+    creates the two are the same query — a fresh table has the column NOT
+    NULL, and the upgrade adds it with a default SQLite writes into every
+    existing row — so this is not a guard against a state that happens. It is
+    a choice of which way to be wrong if one ever does: this one puts an
+    unanswered order **on** the bench, where somebody sees it and can say
+    otherwise. The other one makes it disappear, and an order nobody can see
+    is the failure this whole module was written to stop.
+    """
+    return VisitInvestigation.done_outside.is_not(True)
+
+
+def goes_outside(investigation, asked=None):
+    """Is this order going to be done somewhere else? The default, and the
+    override.
+
+    ``asked`` is what the person ordering said — ``True`` or ``False`` when
+    they said anything, and ``None`` when nobody asked them. **Nobody asked
+    is the ordinary case**, and the answer then is the clinic's own: a test
+    it does not do is written this way without anybody being prompted, which
+    is the whole point of holding the answer on the catalogue. اللي بيكتب في
+    الأوضة ما يكتبش أكتر.
+
+    ``is False`` and not ``not in_house``: a catalogue row whose column has
+    never been written reads NULL, and treating that as "we do not do it"
+    would send every order in an upgraded clinic out of the building.
+    """
+    if asked is not None:
+        return bool(asked)
+    if investigation is None:
+        return False
+    return investigation.in_house is False
 
 
 def counts():
@@ -81,7 +127,7 @@ def counts():
     """
     rows = (db.session.query(VisitInvestigation.status,
                              db.func.count(VisitInvestigation.id))
-            .filter(VisitInvestigation.status.in_(OPEN_STATES))
+            .filter(VisitInvestigation.status.in_(OPEN_STATES), _ours())
             .group_by(VisitInvestigation.status).all())
     found = dict(rows)
     return {"to_collect": found.get(REQUESTED, 0),

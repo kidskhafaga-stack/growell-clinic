@@ -1002,6 +1002,25 @@
           <span class="badge {{ 'badge--role' if x.kind=='lab' else 'badge--muted' }}">{{ t('rx.inv_lab') if x.kind=='lab' else t('rx.inv_imaging') }}</span>
           <strong style="flex:1;">{{ x.display_name(current_lang) }}{% if x.request_notes %} <span style="color:var(--muted);font-weight:400;">— {{ x.request_notes }}</span>{% endif %}</strong>
           {{ inv_files.state_badge(x) }}
+          {# Where it is being done, and the one press that changes it. The
+             family decides this after the order is written as often as
+             before it — «طلبنا إيكو، والمكان فيه إيكو، بس هيعمله بره» — so
+             it flips rather than being frozen at the moment of ordering.
+             Hidden once there is a result: where an answered test was done
+             is part of what happened, not a plan to revise. #}
+          {% if x.done_outside %}
+          <span class="badge badge--warn" data-inv-outside>
+            <i class="bi bi-box-arrow-up-right"></i> {{ t('rx.inv_outside_short') }}{% if x.outside_place %} · {{ x.outside_place }}{% endif %}</span>
+          {% endif %}
+          {% if x.status != 'resulted' %}
+          <form method="post" style="display:inline;"
+                action="{{ url_for('visits.move_investigation', inv_id=x.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="done_outside" value="{{ '0' if x.done_outside else '1' }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"
+                    data-inv-where>{{ t('rx.inv_move_in') if x.done_outside else t('rx.inv_move_out') }}</button>
+          </form>
+          {% endif %}
           <form method="post" action="{{ url_for('visits.delete_investigation', inv_id=x.id) }}" style="display:inline;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
@@ -1055,6 +1074,14 @@
             <option value="lab">{{ t('rx.inv_lab') }}</option>
             <option value="imaging">{{ t('rx.inv_imaging') }}</option>
           </select></div>
+        {# Always submitted, never a bare checkbox: nothing is sent for an
+           unticked box, and the route has to tell «قال لأ» from «محدش سأل» —
+           the second one is where the catalogue's own answer stands. #}
+        <input type="hidden" name="done_outside" :value="outside ? '1' : '0'">
+        <div class="form-row"><label>{{ t('rx.inv_where') }}</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;">
+            <input type="checkbox" x-model="outside" data-inv-outside-box>
+            <span>{{ t('rx.inv_outside') }}</span></label></div>
         <div class="form-row" style="position:relative;"><label>{{ t('rx.inv_name') }} *</label>
           <input class="input" name="name" x-model="name" autocomplete="off" required
                  placeholder="{{ t('rx.inv_search_ph') }}"
@@ -2315,6 +2342,10 @@
     const state = { kind: 'lab' };
     return {
       kind: 'lab', name: '', nameAr: '', nameEn: '', invId: '',
+      // Where it is going to be done. Ticked from the catalogue when a test
+      // this clinic does not do is picked; typing a name nobody has picked
+      // leaves it as whoever is ordering set it.
+      outside: false,
       // `extra` is read at request time, so switching lab↔imaging changes what
       // the next keystroke searches rather than what the last one did.
       picker: window.gcPicker({
@@ -2330,6 +2361,12 @@
         this.invId = s.id; this.kind = s.kind;
         this.nameAr = s.name_ar; this.nameEn = s.name_en;
         this.name = (current_lang === 'ar' ? s.name_ar : (s.name_en || s.name_ar));
+        // The clinic's own answer arrives with the pick, so nobody in the
+        // room is asked a question the catalogue has already answered. It
+        // only ever ticks the box: a doctor who has said «ده هيتعمل بره»
+        // about a test the clinic does have must not have it unticked
+        // underneath them by the next keystroke.
+        if (s.in_house === false) { this.outside = true; }
       },
       onEnter(ev) {
         const s = this.picker.take();

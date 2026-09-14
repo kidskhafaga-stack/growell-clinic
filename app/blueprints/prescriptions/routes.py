@@ -846,9 +846,11 @@ def investigation_search():
     if kind in ("lab", "imaging"):
         query = query.filter(Investigation.kind == kind)
     rows = query.order_by(Investigation.name_ar).limit(15).all()
+    # **Does this clinic do it here?** — carried with the pick so the screen
+    # can mark the order before anybody is asked.
     return jsonify([{
         "id": x.id, "name": x.display_name(), "kind": x.kind,
-        "category": x.category or "",
+        "category": x.category or "", "in_house": x.in_house is not False,
     } for x in rows])
 
 
@@ -932,6 +934,7 @@ def new():
         inv_kinds = request.form.getlist("inv_kind")
         inv_names = request.form.getlist("inv_name")
         inv_notes = request.form.getlist("inv_notes")
+        inv_outside = request.form.getlist("inv_outside")
         inv_count = 0
         for i in range(len(inv_names)):
             name = (inv_names[i] or "").strip()
@@ -946,10 +949,12 @@ def new():
             except (ValueError, TypeError):
                 iid = None
             inv_obj = db.session.get(Investigation, iid) if iid else None
+            outside = (inv_outside[i] == "1") if i < len(inv_outside) else False
             rx.investigations.append(PrescriptionInvestigation(
                 investigation_id=iid, kind=kind, name=name,
                 name_en=(inv_obj.name_en if inv_obj else None),
                 notes=(inv_notes[i].strip() if i < len(inv_notes) else "") or None,
+                done_outside=outside,
             ))
             inv_count += 1
 
@@ -993,6 +998,11 @@ def new():
                 "kind": vi.kind or "lab",
                 "name": vi.display_name(lang),
                 "notes": vi.request_notes or "",
+                # Carried so the paper says where it is going. The family
+                # walks out holding this sheet, and «بره العيادة» beside a
+                # line is the difference between a request they take
+                # somewhere and one they bring back here.
+                "outside": bool(vi.done_outside),
             })
     # Medicines the doctor already wrote in the visit carry over too, so what
     # was decided in the room is what prints (same idea as the investigations).

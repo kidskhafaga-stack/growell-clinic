@@ -127,6 +127,10 @@ def add_test():
         kind=kind if kind in INVESTIGATION_KINDS else "lab",
         unit=(request.form.get("unit") or "").strip()[:20] or None,
         sample_type=(request.form.get("sample_type") or "").strip()[:40] or None,
+        # Ticked by default on the add form, so a clinic that never touches
+        # this box builds a catalogue of things it does — which is what a
+        # catalogue has always meant here.
+        in_house=request.form.get("in_house") == "1",
         service_id=request.form.get("service_id", type=int)))
     db.session.commit()
     flash(t("lab.test_added"), "success")
@@ -152,6 +156,11 @@ def edit_test(test_id):
     # rather than "leave it as it was".
     row.service_id = request.form.get("service_id", type=int)
     row.is_active = request.form.get("is_active") == "1"
+    # **«ما عندناش إيكو» — قالتها العيادة مرة واحدة.** A different question
+    # from `is_active`: a test the clinic sends out still belongs in the
+    # search, because the *order* is written here whoever performs it. All
+    # this decides is whether the order joins this building's own worklist.
+    row.in_house = request.form.get("in_house") == "1"
     db.session.commit()
     flash(t("lab.test_saved"), "success")
     return redirect(url_for("labs.tests"))

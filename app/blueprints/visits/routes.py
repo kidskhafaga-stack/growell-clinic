@@ -900,8 +900,12 @@ def investigation_search():
     if kind in ("lab", "imaging"):
         query = query.filter(Investigation.kind == kind)
     rows = query.order_by(Investigation.name_ar).limit(15).all()
+    # **Does this clinic do it here?** — carried with the pick so the room
+    # can mark the order without anybody being asked a question the catalogue
+    # has already answered.
     return jsonify([{"id": x.id, "name": x.display_name(), "name_ar": x.name_ar,
                      "name_en": x.name_en or "", "kind": x.kind,
+                     "in_house": x.in_house is not False,
                      "category": x.category or ""} for x in rows])
 
 
@@ -946,10 +950,25 @@ def add_investigation(visit_id):
             db.session.flush()
         inv_id = existing.id
 
+    # **Where it is going to be done**, and in the ordinary case nobody is
+    # asked: a test this clinic does not do is written «outside» from the
+    # catalogue's own answer. The box on the form is the exception — the
+    # family who would rather go elsewhere for something the clinic does
+    # have — and it is one press. See `app.utils.labs.goes_outside`.
+    from app.utils import labs as _labs
+
+    asked = request.form.get("done_outside")
+    catalogue = db.session.get(Investigation, inv_id) if inv_id else None
+    outside = _labs.goes_outside(catalogue,
+                                 asked=(asked == "1") if asked is not None
+                                 else None)
     db.session.add(VisitInvestigation(
         visit_id=visit.id, patient_id=visit.patient_id,
         investigation_id=inv_id, kind=kind, name=name, name_en=name_en or None,
         request_notes=(request.form.get("request_notes") or "").strip() or None,
+        done_outside=outside,
+        outside_place=((request.form.get("outside_place") or "").strip()[:160]
+                       or None) if outside else None,
     ))
     db.session.commit()
     flash(t("visits.inv_added"), "success")
@@ -1447,6 +1466,36 @@ def unlink_attachment(att_id):
     fallback = (url_for("visits.record", visit_id=inv.visit_id) + "#inv"
                 if inv else url_for("patients.view", patient_id=att.patient_id))
     return redirect(request.referrer or fallback)
+
+
+@visits_bp.route("/investigations/<int:inv_id>/where", methods=["POST"])
+@module_required(MODULE)
+def move_investigation(inv_id):
+    """Here, or somewhere else — said after the order was already written.
+
+    «طلب إيكو، المكان فيه إيكو، بس المريض عايز يعمله بره» is a conversation
+    that happens *after* the order exists, and the family changes its mind
+    the other way just as often. So this flips, rather than being a decision
+    taken once at the moment of ordering and then frozen.
+
+    **Refused once there is an answer.** A result already on the row is a
+    result somebody read from a report, and where it was done is then part of
+    what happened rather than a plan that can be revised. It would also put
+    an answered order back on a bench that has nothing left to do with it.
+    """
+    inv = db.get_or_404(VisitInvestigation, inv_id)
+    if inv.status == "resulted":
+        flash(t("visits.inv_where_too_late"), "warning")
+        return redirect(url_for("visits.record", visit_id=inv.visit_id) + "#inv")
+    inv.done_outside = request.form.get("done_outside") == "1"
+    # Cleared when it comes back in-house: the place it *was* going to be done
+    # is not a fact about an order being done here, and leaving it behind
+    # would print a lab's name on a test drawn in this building.
+    inv.outside_place = ((request.form.get("outside_place") or "")
+                         .strip()[:160] or None) if inv.done_outside else None
+    db.session.commit()
+    flash(t("visits.inv_where_saved"), "success")
+    return redirect(url_for("visits.record", visit_id=inv.visit_id) + "#inv")
 
 
 @visits_bp.route("/investigations/<int:inv_id>/delete", methods=["POST"])

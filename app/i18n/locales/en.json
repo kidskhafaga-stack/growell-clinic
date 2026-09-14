@@ -925,7 +925,9 @@
     "bp_arm_right": "Right",
     "bp_arm_left": "Left",
     "icd_loaded": "Searching {v}. Anything not listed: type the code and name yourself and pick the version.",
-    "proc_on_a_plan": "Careful: \"{what}\" is already on an accepted treatment plan for this child, and the plan has been billed for it. If this is extra work outside the plan, carry on."
+    "proc_on_a_plan": "Careful: \"{what}\" is already on an accepted treatment plan for this child, and the plan has been billed for it. If this is extra work outside the plan, carry on.",
+    "inv_where_saved": "Where it is done was recorded",
+    "inv_where_too_late": "This order already has a result — where it was done is part of what happened, not a plan to revise."
   },
   "diagnosis_types": {
     "working": "Working",
@@ -2824,7 +2826,12 @@
     "ai_ask_hint": "e.g. the fever syrup for an infant",
     "ai_ask_go": "Find",
     "ai_ask_none": "nothing in the catalogue matches that description",
-    "ai_ask_from": "searched for"
+    "ai_ask_from": "searched for",
+    "inv_where": "Done where?",
+    "inv_outside": "Outside the clinic",
+    "inv_outside_short": "outside",
+    "inv_move_out": "Done outside",
+    "inv_move_in": "Done here"
   },
   "drug_forms": {
     "tablet": "Tablet",
@@ -6527,7 +6534,8 @@
     "state_requested": "Waiting for a sample",
     "state_collected": "Sample drawn",
     "state_resulted": "Resulted",
-    "n_charged": "{n} tests put on the bill"
+    "n_charged": "{n} tests put on the bill",
+    "in_house": "We do it here"
   },
   "pharm": {
     "sub": "The queue: who is waiting, and what for",

@@ -54,6 +54,15 @@
         {% endfor %}
       </select>
     </div>
+    {# **«ما عندناش إيكو» — بتتقال مرة واحدة، هنا.** Ticked by default, so a
+       clinic that never touches this box builds a catalogue of things it
+       does. A different question from «شغّالة» beside it: a test the clinic
+       sends out still belongs in the doctor's search, because the *order* is
+       written here whoever performs it. All this decides is whether the
+       order joins this building's own worklist. #}
+    <label class="hint" style="min-width:120px;">
+      <input type="checkbox" name="in_house" value="1" checked>
+      {{ t('lab.in_house') }}</label>
     <button class="btn btn-primary gc-press" type="submit">
       <i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
   </form>
@@ -109,6 +118,13 @@
     <label class="hint" style="min-width:80px;">
       <input type="checkbox" name="is_active" value="1"
              {{ 'checked' if row.is_active else '' }}> {{ t('lab.in_use') }}</label>
+    <label class="hint" style="min-width:110px;">
+      {# `is not false` and not a plain truth test: a row from before this
+         column existed reads NULL, and NULL means «here» — which is exactly
+         how every one of them has behaved until now. #}
+      <input type="checkbox" name="in_house" value="1" data-in-house
+             {{ 'checked' if row.in_house is not false else '' }}>
+      {{ t('lab.in_house') }}</label>
     <button class="btn btn-sm btn-outline gc-press" type="submit">
       {{ t('common.save') }}</button>
   </form>
