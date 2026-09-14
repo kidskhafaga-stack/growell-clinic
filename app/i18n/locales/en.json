@@ -6951,5 +6951,20 @@
     "anaesthesia": "Anaesthesia",
     "nursing": "Nursing",
     "surgeon": "Surgery"
+  },
+  "basics": {
+    "complete": "File is complete",
+    "complete_the_file": "Complete the file",
+    "f_address": "Address",
+    "f_blood_type": "Blood type",
+    "f_guardian": "A recorded guardian",
+    "f_guardian_id": "Guardian's national id",
+    "f_national_id": "Child's national id",
+    "f_phone": "A phone number",
+    "hint": "The clinic decides what counts as basic. The program only says so — it never stops a booking, a visit or an emergency arrival.",
+    "incomplete": "Details missing",
+    "missing_n": "{n} missing",
+    "none_required": "This clinic asks for no extra details.",
+    "title": "Basic details on file"
   }
 }

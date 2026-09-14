@@ -39,7 +39,7 @@
 <!-- Pricing & units (editable straight from the card) -->
 <div class="card gc-scale-in" style="margin-bottom:16px;"
      x-data="pricing({{ brand.purchase_price or 0 }}, {{ brand.price or 0 }}, {{ brand.doctor_fee or 0 }},
-                     {{ (brand.price_policy or 'manual')|tojson }},
+                     {{ (brand.price_policy or 'manual')|tojson|forceescape }},
                      {{ brand.margin_percent if brand.margin_percent is not none else 'null' }},
                      {{ default_margin }})">
   <h2 class="section-title"><i class="bi bi-cash-coin"></i> {{ t('inventory.pricing_units') }}</h2>

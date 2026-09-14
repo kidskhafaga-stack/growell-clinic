@@ -73,8 +73,8 @@
 <div class="card gc-scale-in" style="margin-bottom:14px;"
      x-data="{
        who: '{{ operation.identity_with or '' }}',
-       name: {{ (operation.identity_with_name or '')|tojson }},
-       people: {{ identity_options.people|tojson }},
+       name: {{ (operation.identity_with_name or '')|tojson|forceescape }},
+       people: {{ identity_options.people|tojson|forceescape }},
        fill() {
          const p = this.people.find(x => x.relation === this.who);
          if (p) { this.name = p.name; }

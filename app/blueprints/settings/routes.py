@@ -13,6 +13,7 @@ from app.i18n import t
 from app.models import CONSENT_TYPES as _CONSENT_TYPES
 from app.models import ActivityLog, Setting
 from app.utils import clinical_rules as _clinical
+from app.utils import patient_basics as _basics
 from app.utils import consent as _consent
 from app.utils import facility as _facility
 from app.utils import jaundice as _jaundice
@@ -527,6 +528,16 @@ def index():
         for key in TOGGLE_KEYS:
             Setting.set(key, "1" if request.form.get(key) else "0")
 
+        # Which details the clinic counts as basic. **Written whenever the
+        # form carries the marker**, not only when something is ticked: a
+        # clinic that unticks the last box is saying «ask for none», and a
+        # save that skipped an empty answer would quietly hand the default
+        # back and go on nagging about files the clinic had decided were fine.
+        if request.form.get(_basics.SETTING + "__present"):
+            chosen = request.form.getlist(_basics.SETTING)
+            Setting.set(_basics.SETTING,
+                        ",".join(k for k in _basics.ORDER if k in chosen))
+
         # Who accepted the bilirubin table, and when. A tick in a box is not a
         # sign-off: the gate exists because a person took responsibility for a
         # hand-transcribed clinical table, and "somebody ticked it" names
@@ -626,6 +637,11 @@ def index():
                             for lang in ("ar", "en")}
                      for kind in _CONSENT_TYPES},
         update_pending=_update_pending(),
+        # The «basic details» card: the whole vocabulary to draw, and what
+        # this clinic has actually asked for.
+        basics_fields=_basics.ORDER,
+        basics_setting=_basics.SETTING,
+        basics_required=_basics.required(),
         # Whether this copy can start the external updater at all: Windows,
         # and the hand-off script actually on disk. Without it the template's
         # `{% if can_hand_off %}` is an undefined name — falsy, silent, and
