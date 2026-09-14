@@ -264,10 +264,12 @@ def test_no_checklist_item_was_added(theatre_list):
     for invented in ("precautions", "infection", "infection_control",
                      "isolation"):
         assert invented not in every
-    # And nothing here joined the derived set.
-    assert set(theatre.derived_items()) == {
-        "identity", "site_marked", "consent", "anaesthesia_check",
-        "imaging_ready"}
+        # And nothing here joined the derived set either — which is the claim
+        # this test is actually making. It used to assert the whole derived
+        # set by equality, so every unrelated standard that derived an item
+        # broke a suite about infection precautions. The set is pinned in
+        # `test_the_child_on_the_trolley_is_this_child.py`.
+        assert invented not in theatre.derived_items()
 
 
 # ------------------------------------------ where the answer does its work --

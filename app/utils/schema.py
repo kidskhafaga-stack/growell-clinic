@@ -602,6 +602,10 @@ ADDITIONS = [
     # codebase and a new word there would change what every one of those
     # places means.
     ("operations", "postponed_to_id", "INTEGER"),
+    # The physician's signature on the count sheet (SAS.09 evidence 3). The
+    # counts are a new table and need no entry; these two sit on an old one.
+    ("operations", "counts_signed_by", "INTEGER"),
+    ("operations", "counts_signed_at", "DATETIME"),
 ]
 
 def apply_schema(report=None):

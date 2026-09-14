@@ -359,18 +359,20 @@ def test_a_pending_lab_does_not_withhold_the_imaging_tick(surgical):
         assert theatre.workup_state(_case(surgical)) == "waiting"
 
 
-def test_the_derived_items_are_five_now(surgical):
-    """The guard that made this change visible: it failed the moment
-    ``imaging_ready`` joined the set, which is exactly when somebody should
-    look at every test posting checklist items by hand."""
-    from app.models.theatre import CHECK_ITEMS, SIGN_IN, TIME_OUT
+def test_the_imaging_item_is_derived_and_its_neighbours_are_not(surgical):
+    """What *this* suite has to say about the derived set: ``imaging_ready``
+    joined it, and the rest of the time-out did not.
+
+    It used to assert the whole derived set by equality, which made it break
+    every time some other standard derived some other item — noise in a suite
+    about imaging. The set itself is pinned in one place, in
+    `test_the_child_on_the_trolley_is_this_child.py`.
+    """
+    from app.models.theatre import CHECK_ITEMS, TIME_OUT
     from app.utils import theatres as theatre
 
     derived = set(theatre.derived_items())
-    assert derived == {"identity", "site_marked", "consent",
-                       "anaesthesia_check", "imaging_ready"}
-    assert set(CHECK_ITEMS[SIGN_IN]) - derived == {
-        "allergy", "airway", "pulse_oximeter"}
+    assert "imaging_ready" in derived
     assert set(CHECK_ITEMS[TIME_OUT]) - derived == {
         "team_introduced", "patient_site_procedure", "antibiotic",
         "critical_steps", "anticipated_blood_loss"}
