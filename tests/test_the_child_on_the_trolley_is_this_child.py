@@ -492,3 +492,62 @@ def test_the_column_is_registered_for_a_clinic_already_running(theatre_day):
               "identity_with_name", "identity_matched"}
     have = {col for table, col, _ in ADDITIONS if table == "operations"}
     assert wanted <= have, f"not registered: {wanted - have}"
+
+
+# --------------------------------------- the attribute the browser cuts ---
+#
+# A browser ends a double-quoted attribute at the first double quote inside
+# it, whatever that quote was meant to be. `tojson` writes one around every
+# string, so an unescaped `{{ … | tojson }}` inside `x-data="…"` truncates the
+# component — and Alpine is handed a fragment that does not parse.
+#
+# Nothing looks broken when it happens. The card renders, the server-side text
+# is all there, and only the parts Alpine was supposed to fill stay empty.
+
+
+def _x_data_after(html, anchor):
+    """The `x-data` before `anchor`, read the way a browser reads it."""
+    at = html.index(anchor)
+    start = html.rindex('x-data="', 0, at) + len('x-data="')
+    rest = html[start:]
+    return rest[:rest.find('"')]
+
+
+def test_the_identity_cards_script_is_not_cut_in_half(theatre_day):
+    """This card was truncated at 31 characters on **every** render.
+
+    ``name: {{ … | tojson }}`` writes ``""`` even when the name is empty, and
+    those two quotes ended the attribute before ``people`` or ``fill()``
+    existed. So the relation dropdown never filled a name in — the whole
+    reason the card was built — and no test saw it, because every test here
+    reads what the server wrote.
+    """
+    html = theatre_day["sign_in"]().get(
+        "/theatres/operation/%s" % theatre_day["ids"]["op"]).get_data(as_text=True)
+
+    kept = _x_data_after(html, "who: '")
+
+    assert "people:" in kept, "the attribute ends before `people` exists"
+    assert "fill()" in kept, "the attribute ends before `fill()` exists"
+    assert kept.rstrip().endswith("}"), \
+        "the x-data does not close its own brace: ..." + kept[-60:]
+
+
+def test_it_is_still_cut_when_somebody_has_a_name_in_it(theatre_day):
+    """The empty case is the one that proves the escape, and the filled case
+    is the one a clinic actually has. Both, because a name with an apostrophe
+    or a quote in it is the next thing that would break this."""
+    from app.utils import theatres as theatre  # noqa: F401
+
+    with theatre_day["app"].app_context():
+        op = _op(theatre_day)
+        op.identity_with = "mother"
+        op.identity_with_name = 'فاطمة "أم أحمد" السيد'
+        theatre_day["db"].session.commit()
+
+    html = theatre_day["sign_in"]().get(
+        "/theatres/operation/%s" % theatre_day["ids"]["op"]).get_data(as_text=True)
+
+    kept = _x_data_after(html, "who: '")
+    assert "fill()" in kept, \
+        "a quote inside the stored name cut the attribute: ..." + kept[-60:]

@@ -212,6 +212,42 @@
     </div>
   </div>
 
+  {# ------------------------------------------- what a file has to carry --
+     Asked for as a rule for the whole building, not one screen: «اي حد ليه
+     بيانات الاساسية غير كاملة فى الطوارئ فى العيادات فى اي حته يعلم ان يوجد
+     بيانات ناقصة وهو بيحجز».
+
+     **The clinic ticks these, not the program.** A village practice and a
+     hospital admitting from theatre do not need the same things on file, and
+     this program does not get to decide that for either of them.
+
+     **And it never blocks.** Nothing below refuses a booking, a visit or a
+     child arriving at three in the morning — it puts a badge on the row so
+     the desk can fix it while the family is still standing there. The same
+     rule the clinical privileges follow, for the same reason: a program that
+     refuses at the wrong moment gets worked around. #}
+  <div class="card gc-scale-in" x-show="tab==='clinic'" x-cloak>
+    <h2 class="section-title">
+      <i class="bi bi-person-vcard"></i> {{ t('basics.title') }}</h2>
+    <p class="hint" style="margin-top:0;">{{ t('basics.hint') }}</p>
+    {# The marker: it says the form carried this card at all, so unticking the
+       last box saves «none» instead of looking like the card was never shown.
+       Without it an empty answer is indistinguishable from an absent one. #}
+    <input type="hidden" name="{{ basics_setting }}__present" value="1">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;">
+      {% for key in basics_fields %}
+      <label class="check" style="min-width:190px;">
+        <input type="checkbox" name="{{ basics_setting }}" value="{{ key }}"
+               {{ 'checked' if key in basics_required else '' }}>
+        <span>{{ t('basics.f_' ~ key) }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    {% if not basics_required %}
+    <p class="hint" style="margin-bottom:0;">{{ t('basics.none_required') }}</p>
+    {% endif %}
+  </div>
+
   <!-- Logo -->
   <div class="card gc-scale-in" x-show="tab==='logo'" x-cloak>
     <h2 class="section-title"><i class="bi bi-image"></i> {{ t('settings.logo') }}</h2>
@@ -1158,20 +1194,28 @@
                  live: null,
                  behind() { return this.live ? this.live.behind : {{ 'true' if update_pending else 'false' }}; },
                  latest() { return this.live ? this.live.latest : '{{ (update_pending.latest if update_pending else '')[:12] }}'; },
-                 notes() { return this.live ? this.live.notes : {{ ((update_pending.notes if update_pending else []) or []) | tojson }}; },
+                 notes() { return this.live ? this.live.notes : {{ ((update_pending.notes if update_pending else []) or []) | tojson | forceescape }}; },
                  // What the vendor wrote, grouped. Preferred over the
                  // commit subjects where it exists: a line filed under
                  // «fixed» tells a clinic what kind of release this is, and
                  // the subject the change was committed under does not.
                  // (No double quotes in here — this whole block is inside a
-                 // double-quoted attribute, and one would end it.)
+                 // double-quoted attribute, and one would end it. Which is
+                 // also why every `tojson` below is paired with `forceescape`:
+                 // `tojson` emits double quotes around every string it
+                 // writes, so an unescaped one ends this attribute **as soon
+                 // as the clinic actually has a notice** — the commit
+                 // subjects are strings. Both were written without it, and it
+                 // killed this whole card on exactly the screens where it
+                 // mattered. Reported with a photo: the state badge blank and
+                 // the arrow pointing at nothing.)
                  // `or []` is not decoration. A notice stored by a launch
                  // before this field existed — which is every clinic that has
                  // one right now — has no `release_notes` key, and Jinja's
                  // Undefined raises inside `tojson`. That is a 500 on the
                  // settings screen of an install that upgraded.
                  groups() { return this.live ? this.live.release_notes
-                            : {{ ((update_pending.release_notes if update_pending else []) or []) | tojson }}; },
+                            : {{ ((update_pending.release_notes if update_pending else []) or []) | tojson | forceescape }}; },
                  async check() {
                    this.busy = true; this.said = '';
                    try {

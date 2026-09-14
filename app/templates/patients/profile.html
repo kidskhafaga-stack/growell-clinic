@@ -120,6 +120,15 @@
         <span class="badge badge--role" title="{{ t('patients.system_number') }}">{{ patient.patient_number }}</span>
         {% if patient.reference_number %}<span class="badge badge--muted" title="{{ t('patients.reference_number') }}"><i class="bi bi-archive"></i> {{ patient.reference_number }}</span>{% endif %}
         {% if not patient.is_active %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}
+        {# A half-written file, said on the file itself — the one screen where
+           somebody has everything in front of them to finish it. Derived on
+           every render, so it is gone the moment the last box is filled. #}
+        {% if basics_missing %}
+        <span class="badge badge--warn" data-basics-missing
+              title="{% for k in basics_missing %}{{ t('basics.f_' ~ k) }}{{ ' · ' if not loop.last }}{% endfor %}">
+          <i class="bi bi-person-exclamation"></i>
+          {{ t('basics.missing_n', n=basics_missing|length) }}</span>
+        {% endif %}
       </div>
       <div class="meta-row">
         <span class="badge {{ 'gender-male' if patient.gender == 'male' else 'gender-female' }}" style="border-radius:999px;">

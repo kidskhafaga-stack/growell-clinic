@@ -62,6 +62,7 @@
                     x-on:click="picker.close(); choose(p)">
               <span class="badge badge--role" x-text="p.number"></span>
               <span x-text="p.name"></span>
+              <span class="badge badge--warn" data-basics-missing x-show="p.missing && p.missing.length" x-cloak :title="(p.missing || []).map(k => BASICS[k] || k).join(' \u00b7 ')" x-text="BASICS_N.replace('{n}', (p.missing || []).length)"></span>
             </button>
           </template>
         </div>

@@ -26,6 +26,7 @@ folder — the one place a file survives being replaced by the next update.
 Without that, the notice could never fire for exactly the clinics that most
 need it.
 """
+import json
 import os
 import sys
 
@@ -83,6 +84,153 @@ def test_the_notice_says_what_changed(clinic, published):
     assert "older thing" in notes
     assert not any("body" in n for n in notes), \
         "the whole commit message is being printed, not its subject"
+
+
+# ------------------------------ the card the notice itself switched off ---
+#
+# `tojson` writes a double quote around every string. The update card put two
+# of them straight into `x-data="…"` unescaped, so the browser ended the
+# attribute at the first quote of the first commit subject and Alpine got a
+# fragment that does not parse.
+#
+# Which means the card broke **only on a clinic that had an update** — with no
+# notice the lists render as `[]` and carry no quote at all. Reported with a
+# photo: the state badge blank and «4fcd14f →» pointing at nothing, on the one
+# screen whose whole job was to say what to install.
+
+def _stored_notice(clinic_ctx, notes, release_notes=()):
+    from app.models import Setting
+
+    with clinic_ctx["app"].app_context():
+        Setting.set("update_pending", json.dumps(
+            {"installed": "a" * 40, "latest": "b" * 40,
+             "notes": list(notes), "release_notes": list(release_notes)}))
+        clinic_ctx["db"].session.commit()
+
+
+def _update_card_script(clinic_ctx):
+    """The update card's `x-data`, cut where a browser would cut it."""
+    html = clinic_ctx["sign_in"]("boss").get("/settings/").get_data(as_text=True)
+    at = html.index('id="update"')
+    start = html.index('x-data="', at) + len('x-data="')
+    rest = html[start:]
+    return rest[:rest.find('"')]
+
+
+def test_a_real_notice_does_not_cut_the_card_that_shows_it(clinic):
+    """The bug in the photo, from the screen's own side."""
+    _stored_notice(clinic, ["تقرير العملية (GAHAR SAS.08) (#357)", "عدّ الشاش"])
+
+    kept = _update_card_script(clinic)
+
+    for needed in ("behind()", "latest()", "notes()", "groups()", "check()"):
+        assert needed in kept, \
+            "the x-data ends before `%s` exists: ...%s" % (needed, kept[-60:])
+    assert kept.rstrip().endswith("}"), "the x-data does not close its brace"
+
+
+def test_the_vendors_own_notes_do_not_cut_it_either(clinic):
+    """`release_notes` is the second one, and it is dicts — every key and
+    every value carries a pair of quotes."""
+    _stored_notice(clinic, [], [{"heading": "2026.09", "new": ["حاجة"],
+                                 "improved": [], "fixed": ["إصلاح"]}])
+
+    kept = _update_card_script(clinic)
+
+    assert "check()" in kept, "the release notes cut the attribute: ..." + kept[-60:]
+
+
+def test_with_nothing_pending_it_was_always_fine(clinic):
+    """Named so the next person knows why this went unseen for so long: with
+    no notice both lists render as `[]`, which carries no quote."""
+    kept = _update_card_script(clinic)
+
+    assert "check()" in kept
+
+
+# ------------------------------------------- what the console can draw ---
+#
+# Reported with a photo of the window: every Arabic subject line came out as a
+# row of ▯ boxes while the English around it was perfectly readable. That is
+# the console font having no Arabic glyph — not an encoding fault — and the
+# classic console host does no Arabic shaping either. The notice now says how
+# many lines it cannot draw and points at the screen that can.
+
+def _notice(clinic_ctx):
+    """Run `update-check` the way `start.bat` does, and hand back what it
+    printed."""
+    return clinic_ctx["app"].test_cli_runner().invoke(
+        args=["update-check"]).output
+
+
+def test_the_console_does_not_print_what_it_cannot_draw(clinic, monkeypatch):
+    """The bug in the photo. An Arabic subject line reaches the console as
+    boxes, so it is not sent there at all."""
+    from app.utils import updates
+
+    arabic = "تقرير العملية — تسع عناصر (GAHAR SAS.08) (#357)"
+    monkeypatch.setattr(updates, "installed_revision", lambda: "a" * 40)
+    monkeypatch.setattr(updates, "latest_revision", lambda: "b" * 40)
+    monkeypatch.setattr(updates, "notes_between",
+                        lambda a, b, limit=5: [arabic, "an English one"])
+    monkeypatch.setattr(updates, "release_notes", lambda rev: [])
+
+    with clinic["app"].app_context():
+        out = _notice(clinic)
+
+    assert "There is a newer version" in out
+    assert "an English one" in out, "a line it CAN draw was dropped"
+    assert arabic not in out, "the line that comes out as boxes was printed"
+    assert "1 line(s) this window cannot draw" in out
+    assert "Version and updates" in out, "nowhere to go and read it"
+
+
+def test_the_notice_itself_is_all_drawable(clinic, monkeypatch):
+    """**The warning must not be drawn in the thing it warns about.** The
+    first draft of this wrote «cannot draw — read them» with an em dash in it,
+    which is above its own ceiling."""
+    from app.cli import _console_can_draw
+    from app.utils import updates
+
+    monkeypatch.setattr(updates, "installed_revision", lambda: "a" * 40)
+    monkeypatch.setattr(updates, "latest_revision", lambda: "b" * 40)
+    monkeypatch.setattr(updates, "notes_between",
+                        lambda a, b, limit=5: ["كله عربي"])
+    monkeypatch.setattr(updates, "release_notes", lambda rev: [])
+
+    with clinic["app"].app_context():
+        out = _notice(clinic)
+
+    unshowable = sorted({c for c in out if not _console_can_draw(c)})
+    assert not unshowable, \
+        "the notice prints characters it says the console cannot draw: %r" % (
+            unshowable,)
+
+
+def test_the_notice_names_which_version_it_is_offering(clinic, monkeypatch):
+    """Hex is drawable everywhere, and it is the one fact the screen and the
+    window can both state. Without it the window says «there is a newer
+    version» and nothing about which."""
+    from app.utils import updates
+
+    monkeypatch.setattr(updates, "installed_revision", lambda: "4fcd14f" + "0" * 33)
+    monkeypatch.setattr(updates, "latest_revision", lambda: "0dff4ab" + "0" * 33)
+    monkeypatch.setattr(updates, "notes_between", lambda a, b, limit=5: [])
+    monkeypatch.setattr(updates, "release_notes", lambda rev: [])
+
+    with clinic["app"].app_context():
+        out = _notice(clinic)
+
+    assert "4fcd14f -> 0dff4ab" in out
+
+
+def test_a_notice_with_nothing_undrawable_says_nothing_about_it(clinic, published):
+    """No apology where there is nothing to apologise for."""
+    with clinic["app"].app_context():
+        out = _notice(clinic)
+
+    assert "newest thing" in out
+    assert "cannot draw" not in out
 
 
 def test_it_fetches_nothing(clinic, published):
