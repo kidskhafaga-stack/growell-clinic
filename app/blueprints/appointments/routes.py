@@ -912,14 +912,22 @@ def patient_search():
     q = (request.args.get("q") or "").strip()
     if len(q) < 2:
         return jsonify({"patients": []})
+    from sqlalchemy.orm import selectinload
+
+    from app.models import Family as _F
+    from app.utils import patient_basics as basics
     from app.utils.patients import apply_patient_search
+    # The family and its guardians ride along: this runs on every keystroke
+    # and `missing` reads both, so without it each row costs its own queries.
     rows = (
         apply_patient_search(Patient.query.filter(Patient.is_active.is_(True)), q)
+        .options(selectinload(Patient.family).selectinload(_F.parents))
         .order_by(Patient.full_name)
         .limit(15)
         .all()
     )
-    return jsonify({"patients": [_patient_brief(p) for p in rows]})
+    wanted = basics.required()
+    return jsonify({"patients": [_patient_brief(p, wanted) for p in rows]})
 
 
 @appointments_bp.route("/patient-quick", methods=["POST"])
@@ -948,8 +956,10 @@ def patient_quick():
     return jsonify({"ok": True, "patient": _patient_brief(patient)})
 
 
-def _patient_brief(p):
+def _patient_brief(p, wanted=None):
     """Compact patient dict for the booking search/quick-create widgets."""
+    from app.utils import patient_basics as basics
+
     years, months = p.age_parts
     return {
         "id": p.id,
@@ -957,6 +967,11 @@ def _patient_brief(p):
         "number": p.patient_number,
         "age": f"{years}y {months}m" if years else f"{months}m",
         "phone": p.contact_phone or "",
+        # Which of the clinic's basics this file still has not got. Here
+        # rather than on each screen, because this one dict feeds the search,
+        # the quick-create and the already-chosen patient — so the badge
+        # lights up in all three from one place.
+        "missing": basics.missing(p, keys=wanted),
     }
 
 

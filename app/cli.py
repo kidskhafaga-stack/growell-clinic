@@ -12,6 +12,39 @@ from app.extensions import db
 from app.models import Setting, User
 
 
+# How far up Unicode **text the program did not write** may go before the
+# Windows console stops being able to draw it.
+#
+# Not an encoding problem, which is the thing it looks like. Python writes to
+# the Windows console through ``WriteConsoleW``, so the characters arrive
+# intact whatever the code page is — and a clinic reported the update notice
+# coming out as rows of ▯ boxes with the English around it perfectly fine. A
+# wrong code page garbles into other letters; boxes mean the characters got
+# there and the **font** has no glyph. On top of that the classic console host
+# does no Arabic shaping or bidi at all. `chcp 65001` changes neither, and a
+# console font cannot be set from a batch file.
+#
+# So the terminal is simply not a surface Arabic can be printed to, and the
+# honest thing is to say so and point at the screen that can — the settings
+# page, in a browser, where it renders properly.
+#
+# **This is an allow-list for arbitrary text, not a style rule for our own.**
+# What it guards is commit subjects and release notes: text written elsewhere,
+# in whatever script the person who wrote it used. Latin Extended-A is the cut
+# because that is what the shipped console fonts certainly cover. Hardcoded
+# English above it — an em dash, an ellipsis — is deliberately out of scope:
+# Consolas draws both, and they were checked rather than assumed.
+#
+# It is a judgement about a surface this code cannot test from here, and it
+# errs toward saying «not shown» rather than toward drawing boxes.
+CONSOLE_CEILING = 0x0180
+
+
+def _console_can_draw(line):
+    """Whether this line will come out as text rather than as boxes."""
+    return all(ord(c) < CONSOLE_CEILING for c in (line or ""))
+
+
 # Demo accounts created by ``seed`` — handy during Phase 1 development.
 DEMO_USERS = [
     ("admin", "admin123", "مدير النظام", "System Administrator", "admin"),
@@ -128,11 +161,22 @@ def register_commands(app):
             return
         if not found:
             return
+        shown = [n for n in found["notes"] if _console_can_draw(n)]
+        hidden = len(found["notes"]) - len(shown)
         click.secho("", err=False)
         click.secho("  " + "-" * 56, fg="yellow")
         click.secho("   There is a newer version of the program.", fg="yellow")
-        for line in found["notes"]:
+        click.secho("     %s -> %s" % (found["installed"][:7],
+                                       found["latest"][:7]), fg="yellow")
+        for line in shown:
             click.secho(f"     - {line}", fg="yellow")
+        if hidden:
+            # Said plainly rather than shown as boxes. Reported from a clinic
+            # PC with exactly that on screen: every Arabic subject line came
+            # out as ▯▯▯ while the English around it was fine.
+            click.secho("     (%d line(s) this window cannot draw - read "
+                        "them in Settings > Version and updates)" % hidden,
+                        fg="yellow")
         click.secho("   Close the clinic and run update.bat when convenient.",
                     fg="yellow")
         click.secho("  " + "-" * 56, fg="yellow")

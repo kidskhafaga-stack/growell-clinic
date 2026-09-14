@@ -225,10 +225,10 @@
           <button class="btn btn-outline btn-sm gc-press"
                   x-on:click="vId={{ v.id }}; vName='{{ v.display_name(current_lang)|e }}'; locked={{ 'true' if item.locked else 'false' }};
                               lockedName='{{ item.brand.display_name(current_lang)|e }}';
-                              brands={{ v.brands|map(attribute='id')|list|tojson }}; modal=true;
+                              brands={{ v.brands|map(attribute='id')|list|tojson|forceescape }}; modal=true;
                               outside=false;
                               doseNo='{{ (dose_options.get(v.id) or [])|selectattr('given', 'equalto', false)|map(attribute='number')|first|default('') }}';
-                              brandOptions={{ v.brands|map(attribute='id')|list|tojson }}">
+                              brandOptions={{ v.brands|map(attribute='id')|list|tojson|forceescape }}">
             <i class="bi bi-plus-lg"></i> {{ t('vaccinations.record_dose') }}</button>
           <button class="btn btn-outline btn-sm gc-press" title="{{ t('vaccinations.refuse_delay') }}"
                   x-on:click="evVid={{ v.id }}; evVname='{{ v.display_name(current_lang)|e }}'; eventModal=true">

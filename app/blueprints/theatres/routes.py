@@ -1245,21 +1245,34 @@ def patient_search():
     different module, and a theatre whose patient search stops working because
     somebody changed an unrelated setting is a bug waiting to happen.
     """
+    from sqlalchemy.orm import selectinload
+
+    from app.models import Family as _F
+    from app.models import Patient as _P
+    from app.utils import patient_basics as basics
     from app.utils.patients import apply_patient_search
 
     query = (request.args.get("q") or "").strip()
     if len(query) < 2:
         return jsonify([])
+    # The family and its guardians come with the rows, not one query per name:
+    # this runs on every keystroke, and `missing` reads both.
     rows = (apply_patient_search(
         Patient.query.filter(Patient.is_active.is_(True)), query)
+        .options(selectinload(_P.family).selectinload(_F.parents))
         .limit(10).all())
     lang = getattr(g, "lang", "ar")
+    wanted = basics.required()
     return jsonify([{"id": p.id, "name": p.display_name(lang),
-                     # `patient_number`, not `file_number`. There has never
-                     # been a `file_number` on `Patient`, so every keystroke
-                     # in this box raised a 500 and the search had never once
-                     # returned a name.
-                     "file": p.patient_number} for p in rows])
+                     # `patient_number`, not `file_number`. This read the
+                     # second for as long as it has existed and `Patient` has
+                     # never had it, so every keystroke in the booking box got
+                     # a 500 and the list stayed empty — a search that looked
+                     # wired up and had never once returned a name.
+                     "file": p.patient_number,
+                     # Half-written files are named on the row somebody picks
+                     # from, which is the moment reception can still fix it.
+                     "missing": basics.missing(p, keys=wanted)} for p in rows])
 
 
 @theatres_bp.route("/patient-quick", methods=["POST"])

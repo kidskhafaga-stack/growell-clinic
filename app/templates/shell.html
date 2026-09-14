@@ -324,6 +324,11 @@
       body: 'sidebar=' + next
     }).catch(function () {});
   }
+  // The names behind the «details missing» badge, and the wording of the
+  // badge itself. Here in the layout because four screens carry the badge and
+  // they must all say the same thing — see `inject_basics_labels`.
+  const BASICS = {{ (basics_labels or {}) | tojson }};
+  const BASICS_N = {{ (basics_missing_n or '') | tojson }};
   function popupStack() {
     return {
       gone: [], note: '',

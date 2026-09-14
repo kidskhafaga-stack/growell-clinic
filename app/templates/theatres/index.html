@@ -344,6 +344,10 @@
                     x-on:click="pick(r)">
               <span x-text="r.name"></span>
               <span class="badge badge--muted" x-text="r.file"></span>
+              <span class="badge badge--warn" data-basics-missing
+                    x-show="r.missing && r.missing.length" x-cloak
+                    :title="(r.missing || []).map(k => BASICS[k] || k).join(' \u00b7 ')"
+                    x-text="BASICS_N.replace('{n}', (r.missing || []).length)"></span>
             </button>
           </template>
         </div>

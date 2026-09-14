@@ -382,9 +382,9 @@ def test_a_child_can_be_registered_from_the_booking_screen(theatre):
         row = Patient.query.get(said["patient"]["id"])
         assert row.full_name == "طفل تاني"
         assert row.patient_number
-        # The same three keys the search returns, so the picker fills in from
-        # either without knowing which one answered.
-        assert set(said["patient"]) == {"id", "name", "file"}
+        # Everything `pick()` reads, so the box fills in from this reply
+        # exactly as it does from a search result.
+        assert {"id", "name", "file"} <= set(said["patient"])
 
 
 @pytest.mark.parametrize("missing,payload", [
