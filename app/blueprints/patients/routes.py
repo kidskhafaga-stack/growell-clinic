@@ -41,6 +41,7 @@ from app.models import (
     PatientAttachment,
     PatientProblem,
 )
+from app.utils import patient_basics as _basics
 from app.utils.clock import local_today
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
 from app.utils.decorators import capability_required, client_ip, module_required
@@ -537,6 +538,9 @@ def view(patient_id):
 
     return render_template(
         "patients/profile.html",
+        # What this file still owes the clinic, worked out now rather than
+        # kept anywhere — see `app/utils/patient_basics`.
+        basics_missing=_basics.missing(patient),
         vaccine_cards=certificate_cards(vaccine_plan),
         vaccine_plan=vaccine_plan,
         vaccine_next=vaccine_next,

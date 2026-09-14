@@ -212,6 +212,42 @@
     </div>
   </div>
 
+  {# ------------------------------------------- what a file has to carry --
+     Asked for as a rule for the whole building, not one screen: «اي حد ليه
+     بيانات الاساسية غير كاملة فى الطوارئ فى العيادات فى اي حته يعلم ان يوجد
+     بيانات ناقصة وهو بيحجز».
+
+     **The clinic ticks these, not the program.** A village practice and a
+     hospital admitting from theatre do not need the same things on file, and
+     this program does not get to decide that for either of them.
+
+     **And it never blocks.** Nothing below refuses a booking, a visit or a
+     child arriving at three in the morning — it puts a badge on the row so
+     the desk can fix it while the family is still standing there. The same
+     rule the clinical privileges follow, for the same reason: a program that
+     refuses at the wrong moment gets worked around. #}
+  <div class="card gc-scale-in" x-show="tab==='clinic'" x-cloak>
+    <h2 class="section-title">
+      <i class="bi bi-person-vcard"></i> {{ t('basics.title') }}</h2>
+    <p class="hint" style="margin-top:0;">{{ t('basics.hint') }}</p>
+    {# The marker: it says the form carried this card at all, so unticking the
+       last box saves «none» instead of looking like the card was never shown.
+       Without it an empty answer is indistinguishable from an absent one. #}
+    <input type="hidden" name="{{ basics_setting }}__present" value="1">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;">
+      {% for key in basics_fields %}
+      <label class="check" style="min-width:190px;">
+        <input type="checkbox" name="{{ basics_setting }}" value="{{ key }}"
+               {{ 'checked' if key in basics_required else '' }}>
+        <span>{{ t('basics.f_' ~ key) }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    {% if not basics_required %}
+    <p class="hint" style="margin-bottom:0;">{{ t('basics.none_required') }}</p>
+    {% endif %}
+  </div>
+
   <!-- Logo -->
   <div class="card gc-scale-in" x-show="tab==='logo'" x-cloak>
     <h2 class="section-title"><i class="bi bi-image"></i> {{ t('settings.logo') }}</h2>

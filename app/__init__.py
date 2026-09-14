@@ -304,6 +304,26 @@ def create_app(config_name="default"):
         }
 
     @app.context_processor
+    def inject_basics_labels():
+        """The names of the basic details, for the badge every picker shows.
+
+        In the layout rather than on each screen because four different
+        screens carry the same badge, and a label that says «phone» on one of
+        them and nothing on the next is worse than no badge: the reception
+        desk would learn that the warning means different things in different
+        places, which is the same as learning to ignore it.
+        """
+        from app.i18n import translate as _t
+
+        try:
+            from app.utils.patient_basics import ORDER
+
+            return {"basics_labels": {k: _t("basics.f_" + k) for k in ORDER},
+                    "basics_missing_n": _t("basics.missing_n", n="{n}")}
+        except Exception:  # noqa: BLE001 — never break a page over a badge
+            return {"basics_labels": {}, "basics_missing_n": ""}
+
+    @app.context_processor
     def inject_open_shift():
         """Topbar "close your shift" chip for cashiers with an open till."""
         from flask_login import current_user

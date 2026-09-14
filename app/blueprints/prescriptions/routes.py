@@ -1280,7 +1280,10 @@ def patient_search():
     the patient was not in the program. Searching has no such edge.
     """
     from flask import jsonify
+    from sqlalchemy.orm import selectinload
 
+    from app.models import Family as _F
+    from app.utils import patient_basics as basics
     from app.utils.patients import apply_patient_search
 
     q = (request.args.get("q") or "").strip()
@@ -1288,13 +1291,16 @@ def patient_search():
         return jsonify([])
     rows = (apply_patient_search(
         Patient.query.filter(Patient.is_active.is_(True)), q)
+        .options(selectinload(Patient.family).selectinload(_F.parents))
         .order_by(Patient.full_name).limit(20).all())
     lang = getattr(g, "lang", "ar")
     # A bare array, because that is what the shared picker widget consumes —
     # every other search on these screens answers the same way.
+    wanted = basics.required()
     return jsonify([
         {"id": p.id, "name": p.display_name(lang), "number": p.patient_number,
-         "dob": p.date_of_birth.isoformat() if p.date_of_birth else ""}
+         "dob": p.date_of_birth.isoformat() if p.date_of_birth else "",
+         "missing": basics.missing(p, keys=wanted)}
         for p in rows])
 
 
