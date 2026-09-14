@@ -5,6 +5,7 @@ from datetime import datetime
 
 from werkzeug.utils import secure_filename
 
+from app.extensions import db
 from app.i18n import t
 from app.models import Patient, Setting
 from app.utils import numbering
@@ -198,3 +199,63 @@ def delete_patient_photo(filename, upload_dir):
             os.remove(path)
         except OSError:
             pass
+
+
+# ----------------------------------------- the file that gets finished later
+#
+# Reception registers a child in three fields because there is a child in
+# front of them, and the rest of the file gets written when there is time.
+# That is not sloppiness — it is the only way an emergency desk can work, and
+# refusing it would push the registration onto paper.
+#
+# **What makes it safe is that the gap is visible afterwards**, which is what
+# `app.utils.patient_basics` is for. This function exists so the three fields
+# are the *same* three wherever the quick door is opened: the appointment
+# desk had its own copy, the booking screen was about to grow a second, and
+# two copies of a rule about what a patient record must contain is how the
+# two screens end up disagreeing about it.
+
+#: What to tell whoever is registering, per missing field. Three fields, and
+#: each one is there for a reason: a name so somebody can be called; a date of
+#: birth because every dose in the program is weight- and age-bound and a child
+#: with no age cannot be prescribed for; a sex because the growth charts and
+#: the reference ranges are different curves.
+QUICK_REASONS = {"name": "patients.quick_need_name",
+                 "gender": "patients.quick_need_gender",
+                 "dob": "patients.quick_need_dob"}
+
+
+def quick_create(full_name, gender, date_of_birth):
+    """Register a child from the three fields, or say which one is wrong.
+
+    Returns ``(patient, reason)`` — exactly one of them set. ``reason`` is a
+    key from :data:`QUICK_REASONS`, not a sentence, because the two screens
+    that call this show their errors in different places and neither of them
+    should be handed a string the other one worded.
+
+    The row is added to the session and flushed so the caller has an id; the
+    commit is the caller's, because on the booking screen the child and the
+    case are one action and half of it landing is worse than neither.
+    """
+    from app.models import GENDERS
+
+    name = (full_name or "").strip()
+    if not name:
+        return None, "name"
+    if (gender or "").strip() not in GENDERS:
+        return None, "gender"
+    born = date_of_birth
+    if isinstance(born, str):
+        try:
+            born = datetime.strptime(born.strip(), "%Y-%m-%d").date()
+        except ValueError:
+            return None, "dob"
+    if born is None:
+        return None, "dob"
+
+    patient = Patient(patient_number=generate_patient_number(),
+                      full_name=name, gender=gender.strip(),
+                      date_of_birth=born, is_active=True)
+    db.session.add(patient)
+    db.session.flush()
+    return patient, None

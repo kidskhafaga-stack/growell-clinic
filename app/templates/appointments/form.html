@@ -91,7 +91,7 @@
               </div>
               <button type="button" class="btn btn-outline btn-sm gc-press" style="margin-top:8px;"
                       x-on:click="quick.open = !quick.open">
-                <i class="bi bi-person-plus"></i> {{ t('appointments.quick_add_patient') }}</button>
+                <i class="bi bi-person-plus"></i> {{ t('patients.quick_add') }}</button>
 
               <!-- Quick create -->
               <div class="quick-add" x-show="quick.open" x-cloak>
@@ -110,7 +110,7 @@
                 <div style="display:flex;gap:8px;align-items:center;">
                   <button type="button" class="btn btn-primary btn-sm gc-press"
                           x-on:click="createQuick()" :disabled="quick.busy">
-                    <i class="bi bi-check-lg"></i> {{ t('appointments.quick_add_save') }}</button>
+                    <i class="bi bi-check-lg"></i> {{ t('patients.quick_save') }}</button>
                   <span class="muted" x-text="quick.error" style="color:var(--danger,#c0392b);font-size:0.85rem;"></span>
                 </div>
               </div>
@@ -442,7 +442,7 @@
       async createQuick() {
         this.quick.error = '';
         if (!this.quick.full_name.trim() || !this.quick.gender || !this.quick.date_of_birth) {
-          this.quick.error = {{ t('appointments.qc_fill_all') | tojson }}; return;
+          this.quick.error = {{ t('patients.quick_fill_all') | tojson }}; return;
         }
         this.quick.busy = true;
         try {

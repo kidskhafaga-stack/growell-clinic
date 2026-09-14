@@ -606,6 +606,10 @@ ADDITIONS = [
     # counts are a new table and need no entry; these two sit on an old one.
     ("operations", "counts_signed_by", "INTEGER"),
     ("operations", "counts_signed_at", "DATETIME"),
+    # What the booking expects of the anaesthetic — the scheduling fact that
+    # decides whether the case needs an anaesthetist at all. Not the plan's
+    # own `kind`, which is what the anaesthetist intends to do.
+    ("operations", "anaesthesia_kind", "VARCHAR(12)"),
     # When the scan was actually done, and by whom. Imaging shares the order
     # table with the lab and shared its *state*, but never had its own event:
     # the only way to move an echo along was to stamp it as a drawn sample.
