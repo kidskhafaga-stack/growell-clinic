@@ -26,6 +26,7 @@ folder — the one place a file survives being replaced by the next update.
 Without that, the notice could never fire for exactly the clinics that most
 need it.
 """
+import json
 import os
 import sys
 
@@ -83,6 +84,68 @@ def test_the_notice_says_what_changed(clinic, published):
     assert "older thing" in notes
     assert not any("body" in n for n in notes), \
         "the whole commit message is being printed, not its subject"
+
+
+# ------------------------------ the card the notice itself switched off ---
+#
+# `tojson` writes a double quote around every string. The update card put two
+# of them straight into `x-data="…"` unescaped, so the browser ended the
+# attribute at the first quote of the first commit subject and Alpine got a
+# fragment that does not parse.
+#
+# Which means the card broke **only on a clinic that had an update** — with no
+# notice the lists render as `[]` and carry no quote at all. Reported with a
+# photo: the state badge blank and «4fcd14f →» pointing at nothing, on the one
+# screen whose whole job was to say what to install.
+
+def _stored_notice(clinic_ctx, notes, release_notes=()):
+    from app.models import Setting
+
+    with clinic_ctx["app"].app_context():
+        Setting.set("update_pending", json.dumps(
+            {"installed": "a" * 40, "latest": "b" * 40,
+             "notes": list(notes), "release_notes": list(release_notes)}))
+        clinic_ctx["db"].session.commit()
+
+
+def _update_card_script(clinic_ctx):
+    """The update card's `x-data`, cut where a browser would cut it."""
+    html = clinic_ctx["sign_in"]("boss").get("/settings/").get_data(as_text=True)
+    at = html.index('id="update"')
+    start = html.index('x-data="', at) + len('x-data="')
+    rest = html[start:]
+    return rest[:rest.find('"')]
+
+
+def test_a_real_notice_does_not_cut_the_card_that_shows_it(clinic):
+    """The bug in the photo, from the screen's own side."""
+    _stored_notice(clinic, ["تقرير العملية (GAHAR SAS.08) (#357)", "عدّ الشاش"])
+
+    kept = _update_card_script(clinic)
+
+    for needed in ("behind()", "latest()", "notes()", "groups()", "check()"):
+        assert needed in kept, \
+            "the x-data ends before `%s` exists: ...%s" % (needed, kept[-60:])
+    assert kept.rstrip().endswith("}"), "the x-data does not close its brace"
+
+
+def test_the_vendors_own_notes_do_not_cut_it_either(clinic):
+    """`release_notes` is the second one, and it is dicts — every key and
+    every value carries a pair of quotes."""
+    _stored_notice(clinic, [], [{"heading": "2026.09", "new": ["حاجة"],
+                                 "improved": [], "fixed": ["إصلاح"]}])
+
+    kept = _update_card_script(clinic)
+
+    assert "check()" in kept, "the release notes cut the attribute: ..." + kept[-60:]
+
+
+def test_with_nothing_pending_it_was_always_fine(clinic):
+    """Named so the next person knows why this went unseen for so long: with
+    no notice both lists render as `[]`, which carries no quote."""
+    kept = _update_card_script(clinic)
+
+    assert "check()" in kept
 
 
 # ------------------------------------------- what the console can draw ---
