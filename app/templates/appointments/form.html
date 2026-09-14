@@ -61,6 +61,10 @@
               <div>
                 <strong x-text="chosen.name"></strong>
                 <span class="muted" x-text="'— ' + chosen.number + ' · ' + chosen.age"></span>
+                <span class="badge badge--warn" data-basics-missing
+                      x-show="chosen.missing && chosen.missing.length" x-cloak
+                      :title="(chosen.missing || []).map(k => BASICS[k] || k).join(' \u00b7 ')"
+                      x-text="BASICS_N.replace('{n}', (chosen.missing || []).length)"></span>
               </div>
               <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="clear()">
                 <i class="bi bi-x-lg"></i> {{ t('appointments.change_patient') }}</button>
@@ -78,6 +82,7 @@
                   <button type="button" class="patient-result gc-press" x-on:click="pick(p)">
                     <span x-text="p.name"></span>
                     <span class="muted" x-text="p.number + ' · ' + p.age + (p.phone ? ' · ' + p.phone : '')"></span>
+                    <span class="badge badge--warn" data-basics-missing x-show="p.missing && p.missing.length" x-cloak :title="(p.missing || []).map(k => BASICS[k] || k).join(' \u00b7 ')" x-text="BASICS_N.replace('{n}', (p.missing || []).length)"></span>
                   </button>
                 </template>
                 <div x-show="!searching && results.length === 0" class="patient-result muted" style="cursor:default;">
