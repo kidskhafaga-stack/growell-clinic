@@ -85,6 +85,91 @@ def test_the_notice_says_what_changed(clinic, published):
         "the whole commit message is being printed, not its subject"
 
 
+# ------------------------------------------- what the console can draw ---
+#
+# Reported with a photo of the window: every Arabic subject line came out as a
+# row of ▯ boxes while the English around it was perfectly readable. That is
+# the console font having no Arabic glyph — not an encoding fault — and the
+# classic console host does no Arabic shaping either. The notice now says how
+# many lines it cannot draw and points at the screen that can.
+
+def _notice(clinic_ctx):
+    """Run `update-check` the way `start.bat` does, and hand back what it
+    printed."""
+    return clinic_ctx["app"].test_cli_runner().invoke(
+        args=["update-check"]).output
+
+
+def test_the_console_does_not_print_what_it_cannot_draw(clinic, monkeypatch):
+    """The bug in the photo. An Arabic subject line reaches the console as
+    boxes, so it is not sent there at all."""
+    from app.utils import updates
+
+    arabic = "تقرير العملية — تسع عناصر (GAHAR SAS.08) (#357)"
+    monkeypatch.setattr(updates, "installed_revision", lambda: "a" * 40)
+    monkeypatch.setattr(updates, "latest_revision", lambda: "b" * 40)
+    monkeypatch.setattr(updates, "notes_between",
+                        lambda a, b, limit=5: [arabic, "an English one"])
+    monkeypatch.setattr(updates, "release_notes", lambda rev: [])
+
+    with clinic["app"].app_context():
+        out = _notice(clinic)
+
+    assert "There is a newer version" in out
+    assert "an English one" in out, "a line it CAN draw was dropped"
+    assert arabic not in out, "the line that comes out as boxes was printed"
+    assert "1 line(s) this window cannot draw" in out
+    assert "Version and updates" in out, "nowhere to go and read it"
+
+
+def test_the_notice_itself_is_all_drawable(clinic, monkeypatch):
+    """**The warning must not be drawn in the thing it warns about.** The
+    first draft of this wrote «cannot draw — read them» with an em dash in it,
+    which is above its own ceiling."""
+    from app.cli import _console_can_draw
+    from app.utils import updates
+
+    monkeypatch.setattr(updates, "installed_revision", lambda: "a" * 40)
+    monkeypatch.setattr(updates, "latest_revision", lambda: "b" * 40)
+    monkeypatch.setattr(updates, "notes_between",
+                        lambda a, b, limit=5: ["كله عربي"])
+    monkeypatch.setattr(updates, "release_notes", lambda rev: [])
+
+    with clinic["app"].app_context():
+        out = _notice(clinic)
+
+    unshowable = sorted({c for c in out if not _console_can_draw(c)})
+    assert not unshowable, \
+        "the notice prints characters it says the console cannot draw: %r" % (
+            unshowable,)
+
+
+def test_the_notice_names_which_version_it_is_offering(clinic, monkeypatch):
+    """Hex is drawable everywhere, and it is the one fact the screen and the
+    window can both state. Without it the window says «there is a newer
+    version» and nothing about which."""
+    from app.utils import updates
+
+    monkeypatch.setattr(updates, "installed_revision", lambda: "4fcd14f" + "0" * 33)
+    monkeypatch.setattr(updates, "latest_revision", lambda: "0dff4ab" + "0" * 33)
+    monkeypatch.setattr(updates, "notes_between", lambda a, b, limit=5: [])
+    monkeypatch.setattr(updates, "release_notes", lambda rev: [])
+
+    with clinic["app"].app_context():
+        out = _notice(clinic)
+
+    assert "4fcd14f -> 0dff4ab" in out
+
+
+def test_a_notice_with_nothing_undrawable_says_nothing_about_it(clinic, published):
+    """No apology where there is nothing to apologise for."""
+    with clinic["app"].app_context():
+        out = _notice(clinic)
+
+    assert "newest thing" in out
+    assert "cannot draw" not in out
+
+
 def test_it_fetches_nothing(clinic, published):
     """The promise that separates this from what was removed. Nothing in this
     module writes a file into the project or runs a fetch.
