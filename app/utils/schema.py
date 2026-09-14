@@ -615,6 +615,14 @@ ADDITIONS = [
     # the only way to move an echo along was to stamp it as a drawn sample.
     ("visit_investigations", "performed_at", "DATETIME"),
     ("visit_investigations", "performed_by", "INTEGER"),
+    # **Where a test is being done**, and the default that makes an upgrade
+    # change nothing: every catalogue entry reads «we do it here» and every
+    # order already written reads «here», which is exactly how they behave
+    # today. A clinic says «ما عندناش إيكو» once, on its own screen.
+    ("investigations", "in_house", "BOOLEAN DEFAULT 1"),
+    ("visit_investigations", "done_outside", "BOOLEAN DEFAULT 0"),
+    ("visit_investigations", "outside_place", "VARCHAR(160)"),
+    ("prescription_investigations", "done_outside", "BOOLEAN DEFAULT 0"),
 ]
 
 def apply_schema(report=None):

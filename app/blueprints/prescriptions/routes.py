@@ -14,6 +14,7 @@ from app.extensions import db
 from app.i18n import t
 from app.models import (
     DRUG_FORMS,
+    INVESTIGATION_KINDS,
     ActivityLog,
     Drug,
     DrugClass,
@@ -843,12 +844,14 @@ def investigation_search():
     query = Investigation.query.filter(Investigation.is_active.is_(True)).filter(
         or_(Investigation.name_ar.ilike(like), Investigation.name_en.ilike(like))
     )
-    if kind in ("lab", "imaging"):
+    if kind in INVESTIGATION_KINDS:
         query = query.filter(Investigation.kind == kind)
     rows = query.order_by(Investigation.name_ar).limit(15).all()
+    # **Does this clinic do it here?** — carried with the pick so the screen
+    # can mark the order before anybody is asked.
     return jsonify([{
         "id": x.id, "name": x.display_name(), "kind": x.kind,
-        "category": x.category or "",
+        "category": x.category or "", "in_house": x.in_house is not False,
     } for x in rows])
 
 
@@ -932,13 +935,17 @@ def new():
         inv_kinds = request.form.getlist("inv_kind")
         inv_names = request.form.getlist("inv_name")
         inv_notes = request.form.getlist("inv_notes")
+        inv_outside = request.form.getlist("inv_outside")
         inv_count = 0
         for i in range(len(inv_names)):
             name = (inv_names[i] or "").strip()
             if not name:
                 continue
             kind = inv_kinds[i] if i < len(inv_kinds) else "lab"
-            if kind not in ("lab", "imaging"):
+            # The catalogue's own list — see `add_investigation` in the
+            # visits blueprint for what a hard-coded pair did to the third
+            # kind the moment it existed.
+            if kind not in INVESTIGATION_KINDS:
                 kind = "lab"
             iid = None
             try:
@@ -946,10 +953,12 @@ def new():
             except (ValueError, TypeError):
                 iid = None
             inv_obj = db.session.get(Investigation, iid) if iid else None
+            outside = (inv_outside[i] == "1") if i < len(inv_outside) else False
             rx.investigations.append(PrescriptionInvestigation(
                 investigation_id=iid, kind=kind, name=name,
                 name_en=(inv_obj.name_en if inv_obj else None),
                 notes=(inv_notes[i].strip() if i < len(inv_notes) else "") or None,
+                done_outside=outside,
             ))
             inv_count += 1
 
@@ -993,6 +1002,11 @@ def new():
                 "kind": vi.kind or "lab",
                 "name": vi.display_name(lang),
                 "notes": vi.request_notes or "",
+                # Carried so the paper says where it is going. The family
+                # walks out holding this sheet, and «بره العيادة» beside a
+                # line is the difference between a request they take
+                # somewhere and one they bring back here.
+                "outside": bool(vi.done_outside),
             })
     # Medicines the doctor already wrote in the visit carry over too, so what
     # was decided in the room is what prints (same idea as the investigations).

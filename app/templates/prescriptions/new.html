@@ -398,6 +398,11 @@
       <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;position:relative;">
         <button type="button" class="btn-x" style="position:absolute;inset-inline-end:8px;top:8px;border:none;background:none;cursor:pointer;color:var(--muted);" x-on:click="invs.splice(i,1)"><i class="bi bi-x-lg"></i></button>
         <input type="hidden" name="inv_id" :value="inv.id">
+        {# Always submitted, never a bare checkbox: an unticked box sends
+           nothing, and the server reads these as parallel arrays — one
+           missing entry and every line after it carries the one below's
+           answer. #}
+        <input type="hidden" name="inv_outside" :value="inv.outside ? '1' : '0'">
         <div class="form-grid">
           <div class="form-row"><label>{{ t('rx.inv_kind') }}</label>
             <select class="select" name="inv_kind" x-model="inv.kind">
@@ -435,6 +440,14 @@
             </div>
           </div>
           <div class="form-row"><label>{{ t('rx.inv_notes') }}</label><input class="input" name="inv_notes" x-model="inv.notes"></div>
+          {# Where it is being done. Prints on the paper the family walks out
+             with, and the reason the clinic's own bench never sees it. #}
+          <div class="form-row">
+            <label>{{ t('rx.inv_where') }}</label>
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;">
+              <input type="checkbox" x-model="inv.outside" data-inv-outside>
+              <span>{{ t('rx.inv_outside') }}</span></label>
+          </div>
         </div>
       </div>
     </template>
@@ -579,7 +592,7 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
     },
     invs: (prefillInvs || []).map(function(x){
       return {id: x.id || '', kind: x.kind || 'lab', name: x.name || '',
-              notes: x.notes || ''};
+              notes: x.notes || '', outside: !!x.outside};
     }),
     weight: prefillWeight || '',
     dx: prefillDx || '', dxCode: prefillDxCode || '',
@@ -720,9 +733,15 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
       });
       return v;
     },
-    addInv(kind){ this.invs.push(this.withInvPicker({id:'',kind:kind,name:'',notes:''})); },
+    addInv(kind){ this.invs.push(this.withInvPicker({id:'',kind:kind,name:'',notes:'',outside:false})); },
     askInv(v){ v.picker.q = v.name; v.picker.search(); },
-    applyInv(v, s){ v.id=s.id; v.name=s.name; v.kind=s.kind; },
+    applyInv(v, s){
+      v.id=s.id; v.name=s.name; v.kind=s.kind;
+      // The clinic's own answer, carried with the pick: a test this place
+      // does not do arrives already marked, and nobody in the room is asked
+      // a question the catalogue has answered.
+      if (s.in_house === false) { v.outside = true; }
+    },
     enterInv(v, ev){
       const s = v.picker.take();
       if (s) { ev.preventDefault(); this.applyInv(v, s); }

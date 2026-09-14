@@ -163,6 +163,43 @@ class VisitInvestigation(db.Model):
     request_notes = db.Column(db.String(255))
 
     status = db.Column(db.String(12), default="requested", nullable=False)
+
+    # ---- where it is being done -----------------------------------------
+    # **Not a fourth status.** `status` says how far the order has got;
+    # this says where it is going, and the two are independent — an order
+    # done outside is `requested` until a report comes back and is written
+    # on it, exactly like one done here. Putting «outside» inside `status`
+    # would have made it a stage of the same pipeline, and `labs.py` already
+    # records what a fourth state costs: every screen that asks "has this
+    # been answered yet" reads one list, and a new word in it is the
+    # difference between a state appearing everywhere and an order vanishing
+    # off four screens.
+    #
+    # Two ways a test ends up here, and they are the same fact:
+    #
+    # * **the clinic does not do it** — `Investigation.in_house` is off, and
+    #   the order is written this way without anybody being asked; and
+    # * **the family would rather go elsewhere** — a clinic that has an echo
+    #   machine still meets this every day, and it is one press.
+    #
+    # What it changes is exactly one thing: the bench's own worklist. The
+    # order still prints on the prescription, still sits on the child's file,
+    # still counts for the pre-operative results SAS.06 asks about, and its
+    # result still goes on this same row when the report comes back — see
+    # `results_inbox`, which was written for precisely that journey. And it
+    # was never going to be billed: `labs.unbilled` reads `collected_at`,
+    # *drawn* and not merely ordered.
+    #
+    # The same shape the vaccines have used since the beginning —
+    # `PatientVaccine.given_outside` + `outside_place`, "informational only:
+    # no stock deduction, no charge, no doctor fee".
+    done_outside = db.Column(db.Boolean, default=False, nullable=False)
+    # Where — the lab down the road, a hospital, a scan centre. Asked for the
+    # same reason the vaccine asks it: "somewhere else" is only half an
+    # answer, and the half that is missing is the one somebody chasing a
+    # result two weeks later needs.
+    outside_place = db.Column(db.String(160))
+
     result_text = db.Column(db.Text)        # the doctor's recorded result
     result_comment = db.Column(db.Text)     # the doctor's interpretation
 

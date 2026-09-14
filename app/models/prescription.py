@@ -377,6 +377,25 @@ class Investigation(db.Model):
     category = db.Column(db.String(80))     # grouping (e.g. Hematology, X-ray)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
 
+    # **Does this clinic do it here?**
+    #
+    # A fact about the place, said once, and a different question from both
+    # of the two it sits between. `is_active` means "offer it in the search";
+    # a clinic that sends every echo out still wants «إيكو» in the list,
+    # because the *order* is written here whoever performs it. And
+    # `service_id` means "charge for it": a clinic that does echoes and does
+    # not bill them separately has no service either, so reading capability
+    # off the price would be one empty value standing for two facts.
+    #
+    # Default true, which is exactly what every existing row behaves like
+    # today — a clinic that upgrades sees nothing change until it says «ما
+    # عندناش إيكو» on this screen, once.
+    #
+    # What it decides: an order for a test the clinic does not do is written
+    # `done_outside` from the start, so it prints, stays on the file, and
+    # never joins a rack nobody in this building is going to work through.
+    in_house = db.Column(db.Boolean, default=True, nullable=False)
+
     # The unit this test is reported in, so nobody types "%" beside every
     # HbA1c for the rest of the clinic's life. A unit is a fact about the
     # measurement and is safe to hold centrally — which is exactly why the
@@ -589,6 +608,11 @@ class PrescriptionInvestigation(db.Model):
     name = db.Column(db.String(200), nullable=False)  # Arabic / primary snapshot
     name_en = db.Column(db.String(200))               # English snapshot (bilingual)
     notes = db.Column(db.String(255))
+    # Carried from the order so the paper says where it is going. A snapshot
+    # like the name and the kind beside it: the family walks out holding this
+    # sheet, and «(بره العيادة)» beside a line is the difference between a
+    # request they take somewhere and one they bring back here.
+    done_outside = db.Column(db.Boolean, default=False, nullable=False)
 
     prescription = db.relationship("Prescription", back_populates="investigations")
     investigation = db.relationship("Investigation")
