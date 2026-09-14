@@ -579,6 +579,24 @@
           {% else %}
           <span class="badge badge--muted">{{ t('consent.sig_none') }}</span>
           {% endif %}
+          {# GAHAR PCC.08 (3): the responsible physician who obtained the
+             consent signs the form **with the patient**. `obtained_by` is not
+             that — it is whichever account typed the row. #}
+          {% if cs.physician_signed %}
+          {% if cs.physician_signature_file %}
+          <a class="badge badge--green" target="_blank" data-physician-signed
+             href="{{ url_for('static', filename='uploads/patient_docs/' ~ cs.physician_signature_file) }}">
+            <i class="bi bi-person-check"></i> {{ t('consent.physician_signed_by') }}
+            {{ cs.physician.display_name(current_lang) if cs.physician else '' }}</a>
+          {% else %}
+          <span class="badge badge--green" data-physician-signed>
+            <i class="bi bi-person-check"></i> {{ t('consent.physician_signed_by') }}
+            {{ cs.physician.display_name(current_lang) if cs.physician else '' }}</span>
+          {% endif %}
+          {% elif consent_gap(cs) %}
+          <span class="badge badge--warn" data-physician-missing>
+            <i class="bi bi-person-exclamation"></i> {{ t('consent.physician_pending') }}</span>
+          {% endif %}
           <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.print_consent', consent_id=cs.id) }}" target="_blank"><i class="bi bi-printer"></i> {{ t('common.print') }}</a>
           <form method="post" action="{{ url_for('patients.withdraw_consent', consent_id=cs.id) }}" style="display:inline;"
                 {% if not cs.is_withdrawn %}onsubmit="return confirm('{{ t('consent.withdraw_confirm') }}');"{% endif %}>
@@ -641,6 +659,49 @@
               <input type="hidden" name="drawn" x-ref="drawn">
             </form>
           </div>
+          {# And the doctor's own, on the same form. Shown only to an account
+             that can actually make the claim, and only once the guardian has
+             signed: a blank sheet is waiting on the conversation, not on the
+             doctor. #}
+          {% if cs.has_signature and not cs.physician_signed and may_sign_consent %}
+          <div style="flex-basis:100%;border-top:1px dashed var(--line);padding-top:8px;"
+               data-physician-box
+               x-data="sigPad('{{ url_for('patients.consent_physician_signature', consent_id=cs.id) }}')">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <form method="post" style="display:inline;"
+                    action="{{ url_for('patients.consent_physician_signature', consent_id=cs.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {# Nothing attached, and that is the whole answer: on paper the
+                   doctor's name is already on the sheet that was scanned. #}
+                <button class="btn btn-outline btn-sm gc-press" type="submit"
+                        data-physician-paper>
+                  <i class="bi bi-check2-square"></i> {{ t('consent.physician_sign_paper') }}</button>
+              </form>
+              <button type="button" class="btn btn-outline btn-sm gc-press"
+                      x-on:click="open = !open">
+                <i class="bi bi-vector-pen"></i> {{ t('consent.physician_sign') }}</button>
+              <span class="hint" style="margin:0;">{{ t('consent.physician_hint') }}</span>
+            </div>
+            <div x-show="open" x-cloak style="margin-top:8px;">
+              <canvas x-ref="pad" width="520" height="160"
+                      style="border:1px dashed var(--line);border-radius:8px;touch-action:none;max-width:100%;"
+                      x-on:pointerdown="start($event)" x-on:pointermove="move($event)"
+                      x-on:pointerup="stop()" x-on:pointerleave="stop()"></canvas>
+              <div style="display:flex;gap:8px;margin-top:6px;">
+                <button type="button" class="btn btn-primary btn-sm gc-press"
+                        x-on:click="save()" :disabled="!drew">
+                  <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+                <button type="button" class="btn btn-outline btn-sm gc-press"
+                        x-on:click="clear()">{{ t('consent.sig_clear') }}</button>
+              </div>
+            </div>
+            <form method="post" x-ref="send" style="display:none;"
+                  action="{{ url_for('patients.consent_physician_signature', consent_id=cs.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="drawn" x-ref="drawn">
+            </form>
+          </div>
+          {% endif %}
           {% endif %}
           {% if current_user.is_admin %}
           <form method="post" action="{{ url_for('patients.delete_consent', consent_id=cs.id) }}" style="display:inline;"

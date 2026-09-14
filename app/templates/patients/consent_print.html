@@ -40,9 +40,23 @@
       {% if c.guardian_id_no %}<div><strong>{{ t('consent.guardian_id') }}:</strong> <span dir="ltr">{{ c.guardian_id_no }}</span></div>{% endif %}
       <div style="border-top:1px solid var(--ink);width:220px;padding-top:6px;margin-top:34px;">{{ t('consent.guardian_signature') }}</div>
     </div>
+    {# GAHAR PCC.08, third item of evidence: *"The responsible physician
+       obtaining the informed consent signs the form with the patient."*
+
+       **This line used to say «شاهد».** A witness attests that they watched
+       somebody sign; the responsible physician attests that *they* explained
+       what was being agreed to, and they are not the same person or the same
+       claim. Worse, the name printed under it was `obtained_by` — whichever
+       account typed the row, often reception — so the sheet carried a
+       statement nobody had made, on the one line a surveyor reads.
+
+       The line is on every printed form whether or not the program has the
+       signature yet, because the form is what somebody signs **on**: a sheet
+       with no line for the doctor is a sheet the doctor cannot sign. #}
     <div style="text-align:center;">
-      <div style="border-top:1px solid var(--ink);width:200px;padding-top:6px;">{{ t('consent.witness') }}</div>
-      {% if c.staff %}<div style="font-size:0.78rem;color:var(--muted);margin-top:4px;">{{ c.staff.display_name(current_lang) }}</div>{% endif %}
+      <div style="border-top:1px solid var(--ink);width:220px;padding-top:6px;">{{ t('consent.physician_signature') }}</div>
+      {% if c.physician %}<div style="font-size:0.78rem;color:var(--muted);margin-top:4px;">{{ c.physician.display_name(current_lang) }}</div>{% endif %}
+      {% if c.physician_signed_at %}<div style="font-size:0.72rem;color:var(--muted);" dir="ltr">{{ c.physician_signed_at.strftime('%Y-%m-%d %H:%M') }}</div>{% endif %}
     </div>
   </div>
 </div>
