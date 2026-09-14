@@ -25,6 +25,10 @@ from app.blueprints.labs import labs_bp
 from app.extensions import db
 from app.i18n import t
 from app.models import Investigation, VisitInvestigation
+# Still both kinds here, and rightly: the **catalogue** screen lists
+# every investigation the clinic offers and `add_test` creates either.
+# What stopped being two kinds is the *rack* — see `index`.
+from app.models.prescription import INVESTIGATION_KINDS
 from app.utils import labs as bench
 from app.utils.decorators import module_required
 
