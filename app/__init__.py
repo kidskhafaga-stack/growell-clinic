@@ -148,6 +148,7 @@ def create_app(config_name="default"):
     from app.blueprints.ward import ward_bp
     from app.blueprints.theatres import theatres_bp
     from app.blueprints.duty import duty_bp
+    from app.blueprints.imaging import imaging_bp
     from app.blueprints.labs import labs_bp
     from app.blueprints.pharmacy import pharmacy_bp
     from app.blueprints.observations import observations_bp
@@ -181,6 +182,7 @@ def create_app(config_name="default"):
     app.register_blueprint(theatres_bp)
     app.register_blueprint(duty_bp)
     app.register_blueprint(labs_bp)
+    app.register_blueprint(imaging_bp)
     app.register_blueprint(pharmacy_bp)
     app.register_blueprint(vaccinations_bp)
     app.register_blueprint(prescriptions_bp)

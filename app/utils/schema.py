@@ -606,6 +606,11 @@ ADDITIONS = [
     # counts are a new table and need no entry; these two sit on an old one.
     ("operations", "counts_signed_by", "INTEGER"),
     ("operations", "counts_signed_at", "DATETIME"),
+    # When the scan was actually done, and by whom. Imaging shares the order
+    # table with the lab and shared its *state*, but never had its own event:
+    # the only way to move an echo along was to stamp it as a drawn sample.
+    ("visit_investigations", "performed_at", "DATETIME"),
+    ("visit_investigations", "performed_by", "INTEGER"),
 ]
 
 def apply_schema(report=None):

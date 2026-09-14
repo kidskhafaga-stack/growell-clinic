@@ -209,6 +209,20 @@ class VisitInvestigation(db.Model):
     sample_code = db.Column(db.String(24), index=True)
     collected_at = db.Column(db.DateTime)
     collected_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+
+    # **The imaging half of the same middle state.** An echo has no tube, so
+    # `sample_code` and `collected_at` can never be true of one — and until
+    # this existed the only way to move a scan along was to stamp it as a
+    # drawn sample, which is a record of something that did not happen.
+    #
+    # The *status* is shared on purpose: `collected` means "it is under way
+    # and nobody has answered yet", which is exactly as true of a scan that
+    # has been performed as of a sample that has been drawn. What differs is
+    # the event that got it there, and that is what these two carry. See the
+    # note above `INVESTIGATION_STATUSES` for why a fourth state would have
+    # been the wrong answer.
+    performed_at = db.Column(db.DateTime)
+    performed_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     # Who ran it. Separate from the doctor who reads it: the person who put
     # the number in is the person a query about the number goes to, and on the
     # old flow that was always the doctor because there was nobody else.
