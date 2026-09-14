@@ -14,6 +14,7 @@ from app.extensions import db
 from app.i18n import t
 from app.models import (
     DRUG_FORMS,
+    INVESTIGATION_KINDS,
     ActivityLog,
     Drug,
     DrugClass,
@@ -843,7 +844,7 @@ def investigation_search():
     query = Investigation.query.filter(Investigation.is_active.is_(True)).filter(
         or_(Investigation.name_ar.ilike(like), Investigation.name_en.ilike(like))
     )
-    if kind in ("lab", "imaging"):
+    if kind in INVESTIGATION_KINDS:
         query = query.filter(Investigation.kind == kind)
     rows = query.order_by(Investigation.name_ar).limit(15).all()
     # **Does this clinic do it here?** — carried with the pick so the screen
@@ -941,7 +942,10 @@ def new():
             if not name:
                 continue
             kind = inv_kinds[i] if i < len(inv_kinds) else "lab"
-            if kind not in ("lab", "imaging"):
+            # The catalogue's own list — see `add_investigation` in the
+            # visits blueprint for what a hard-coded pair did to the third
+            # kind the moment it existed.
+            if kind not in INVESTIGATION_KINDS:
                 kind = "lab"
             iid = None
             try:

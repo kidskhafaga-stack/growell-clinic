@@ -417,3 +417,47 @@ def test_a_clinic_can_add_a_test_it_does_not_do(clinic):
 
     assert sent_out.in_house is False
     assert ours.in_house is True
+
+
+# ------------------------------- and the third kind the routes could not see
+def test_a_diagnostic_order_is_not_filed_as_a_lab(clinic):
+    """**The dropdown offered a word the route threw away.** Three screens
+    grew an «تشخيصي» option when the third kind arrived, and five places went
+    on checking `("lab", "imaging")` — so a doctor who picked it got the order
+    filed as a lab, and the echo landed back on the bench that the third kind
+    was added to get it off.
+
+    The fix is not a longer tuple: it is `INVESTIGATION_KINDS`, the same list
+    the dropdowns are built from, so the next kind cannot come apart the same
+    way.
+    """
+    with clinic["app"].app_context():
+        clinic["sign_in"]().post(
+            "/visits/%s/investigations" % clinic["ids"]["visit"],
+            data={"name": "إيكو على القلب", "kind": "diagnostic"},
+            follow_redirects=True)
+
+        assert _only_order(clinic).kind == "diagnostic"
+
+
+def test_a_word_that_is_not_a_kind_still_falls_back_to_the_lab(clinic):
+    with clinic["app"].app_context():
+        clinic["sign_in"]().post(
+            "/visits/%s/investigations" % clinic["ids"]["visit"],
+            data={"name": "حاجة", "kind": "ultrasound-ish"},
+            follow_redirects=True)
+
+        assert _only_order(clinic).kind == "lab"
+
+
+def test_the_search_can_be_narrowed_to_the_third_kind_too(clinic):
+    from app.models import Investigation
+
+    with clinic["app"].app_context():
+        clinic["db"].session.add(Investigation(
+            name_ar="رسم قلب", kind="diagnostic", is_active=True))
+        clinic["db"].session.commit()
+        found = clinic["sign_in"]().get(
+            "/visits/investigations/search?q=رسم&kind=diagnostic").get_json()
+
+    assert [r["name"] for r in found] == ["رسم قلب"]

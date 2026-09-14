@@ -143,6 +143,18 @@ class Operation(db.Model):
     # missing.
     case_type = db.Column(db.String(30), index=True)
 
+    # **What the booking expects, not what was given.** The plan's own `kind`
+    # (`AnaesthesiaPlan`) is the anaesthetist's clinical record, written before
+    # the case and describing what they actually intend to do. This is the
+    # scheduling fact: *does this case need an anaesthetist at all*, decided by
+    # whoever puts it on the list.
+    #
+    # Two moments, two facts — and they are allowed to differ, exactly like the
+    # pre- and post-procedure diagnoses SAS.08 asks for separately. A booking
+    # that said «general» and a plan that says «sedation» is information, not a
+    # contradiction to be resolved by overwriting one of them.
+    anaesthesia_kind = db.Column(db.String(12))
+
     # The anaesthesia line, when the clinic bills it separately. A second
     # link rather than a second use of ``invoice_item_id``: the two lines are
     # owed to two different people, and one column pointing at whichever was

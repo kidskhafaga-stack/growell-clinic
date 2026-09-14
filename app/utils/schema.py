@@ -606,6 +606,15 @@ ADDITIONS = [
     # counts are a new table and need no entry; these two sit on an old one.
     ("operations", "counts_signed_by", "INTEGER"),
     ("operations", "counts_signed_at", "DATETIME"),
+    # What the booking expects of the anaesthetic — the scheduling fact that
+    # decides whether the case needs an anaesthetist at all. Not the plan's
+    # own `kind`, which is what the anaesthetist intends to do.
+    ("operations", "anaesthesia_kind", "VARCHAR(12)"),
+    # When the scan was actually done, and by whom. Imaging shares the order
+    # table with the lab and shared its *state*, but never had its own event:
+    # the only way to move an echo along was to stamp it as a drawn sample.
+    ("visit_investigations", "performed_at", "DATETIME"),
+    ("visit_investigations", "performed_by", "INTEGER"),
     # **Where a test is being done**, and the default that makes an upgrade
     # change nothing: every catalogue entry reads «we do it here» and every
     # order already written reads «here», which is exactly how they behave
@@ -717,6 +726,21 @@ def apply_schema(report=None):
         db.session.commit()
         if filled and report:
             report(f"  ~ vaccine_brands: filled the facts on {filled}")
+    except Exception:  # noqa: BLE001 — never blocks an upgrade
+        db.session.rollback()
+
+    # The studies that are not radiology. `diagnostic` arrived after these
+    # rows existed, so every sonar, echo and ECG a clinic already had sits
+    # under `imaging` and would land on the radiology list — the same category
+    # error that put an echo on the lab bench, one room along. Its own
+    # transaction, like the rest: refiling seeded data must never be able to
+    # stop the program starting.
+    try:
+        from app.utils.investigations import move_diagnostics_out_of_radiology
+
+        moved = move_diagnostics_out_of_radiology()
+        if moved and report:
+            report(f"  ~ investigations: moved {moved} out of radiology")
     except Exception:  # noqa: BLE001 — never blocks an upgrade
         db.session.rollback()
 

@@ -22,6 +22,7 @@ from app.blueprints.visits import visits_bp
 from app.extensions import db
 from app.i18n import t
 from app.models import (
+    INVESTIGATION_KINDS,
     ActivityLog,
     Appointment,
     Diagnosis,
@@ -897,7 +898,7 @@ def investigation_search():
     query = Investigation.query.filter(Investigation.is_active.is_(True)).filter(
         or_(Investigation.name_ar.ilike(like), Investigation.name_en.ilike(like))
     )
-    if kind in ("lab", "imaging"):
+    if kind in INVESTIGATION_KINDS:
         query = query.filter(Investigation.kind == kind)
     rows = query.order_by(Investigation.name_ar).limit(15).all()
     # **Does this clinic do it here?** — carried with the pick so the room
@@ -918,7 +919,13 @@ def add_investigation(visit_id):
     # a manually-typed name falls back to the visible field.
     name = (request.form.get("name_ar") or request.form.get("name") or "").strip()
     name_en = (request.form.get("name_en") or "").strip()
-    kind = request.form.get("kind") if request.form.get("kind") in ("lab", "imaging") else "lab"
+    # **The catalogue's own list, not a copy of it.** This read
+    # `("lab", "imaging")` after a third kind was added, so a doctor who
+    # picked «تشخيصي» in the room got the order filed as a lab — an echo
+    # back on the bench, which is the exact bug the third kind was added to
+    # fix. The dropdown offers what `INVESTIGATION_KINDS` says; so does this.
+    posted = request.form.get("kind")
+    kind = posted if posted in INVESTIGATION_KINDS else "lab"
     inv_id = request.form.get("investigation_id", type=int) or None
 
     # A chip on the specialty panel sends the catalogue id and nothing else,
@@ -931,7 +938,7 @@ def add_investigation(visit_id):
         if row is not None:
             name = (row.name_ar or "").strip()
             name_en = (row.name_en or "").strip()
-            kind = row.kind if row.kind in ("lab", "imaging") else kind
+            kind = row.kind if row.kind in INVESTIGATION_KINDS else kind
         else:
             inv_id = None
 

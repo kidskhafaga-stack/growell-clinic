@@ -1073,6 +1073,10 @@
           <select class="select" name="kind" x-model="kind">
             <option value="lab">{{ t('rx.inv_lab') }}</option>
             <option value="imaging">{{ t('rx.inv_imaging') }}</option>
+            {# The third room. Without this line a doctor cannot order an
+               ECG at all: the kind exists and the box that writes
+               it does not offer it. #}
+            <option value="diagnostic">{{ t('rx.inv_diagnostic') }}</option>
           </select></div>
         {# Always submitted, never a bare checkbox: nothing is sent for an
            unticked box, and the route has to tell «قال لأ» from «محدش سأل» —

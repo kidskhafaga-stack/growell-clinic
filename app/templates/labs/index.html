@@ -29,14 +29,28 @@
        number, not a total that mixes it with somebody else's. #}
     <a class="badge {{ 'badge--muted' if state != 'requested' else '' }}"
        style="text-decoration:none;" data-count="to_collect"
-       href="{{ url_for('labs.index', state='requested', kind=kind) }}">
+       href="{{ url_for('labs.index', state='requested') }}">
       {{ t('lab.to_collect', n=counts.to_collect) }}</a>
     <a class="badge {{ 'badge--muted' if state != 'collected' else '' }}"
        style="text-decoration:none;" data-count="to_run"
-       href="{{ url_for('labs.index', state='collected', kind=kind) }}">
+       href="{{ url_for('labs.index', state='collected') }}">
       {{ t('lab.to_run', n=counts.to_run) }}</a>
-    <a class="btn btn-outline gc-press{{ ' btn-primary' if not state and not kind else '' }}"
+    <a class="btn btn-outline gc-press{{ ' btn-primary' if not state else '' }}"
        href="{{ url_for('labs.index') }}">{{ t('lab.everything') }}</a>
+    {# The scans' door. **This is the screen's own nav entry**: imaging shares
+       the `labs` module rather than bringing an opt-in one of its own — a new
+       module ships *off*, and every clinic already running would have lost
+       sight of its outstanding scans on upgrade. So the link lives where the
+       person who used to see those scans in this very list will look for
+       them, and the count comes with it so nothing goes quiet. #}
+    <a class="btn btn-outline gc-press" data-to-imaging
+       href="{{ url_for('imaging.index') }}">
+      <i class="bi bi-radioactive"></i> {{ t('nav.imaging') }}
+      {% if imaging_open %}<span class="badge">{{ imaging_open }}</span>{% endif %}</a>
+    <a class="btn btn-outline gc-press" data-to-diagnostics
+       href="{{ url_for('imaging.diagnostics') }}">
+      <i class="bi bi-activity"></i> {{ t('nav.diagnostics') }}
+      {% if diagnostic_open %}<span class="badge">{{ diagnostic_open }}</span>{% endif %}</a>
     {% if may_build %}
     <a class="btn btn-outline gc-press" href="{{ url_for('labs.tests') }}">
       <i class="bi bi-list-check"></i> {{ t('lab.tests') }}</a>

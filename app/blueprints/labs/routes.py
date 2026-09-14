@@ -25,6 +25,9 @@ from app.blueprints.labs import labs_bp
 from app.extensions import db
 from app.i18n import t
 from app.models import Investigation, VisitInvestigation
+# Still both kinds here, and rightly: the **catalogue** screen lists
+# every investigation the clinic offers and `add_test` creates either.
+# What stopped being two kinds is the *rack* — see `index`.
 from app.models.prescription import INVESTIGATION_KINDS
 from app.utils import labs as bench
 from app.utils.decorators import module_required
@@ -35,16 +38,30 @@ MODULE = "labs"
 @labs_bp.route("/")
 @module_required(MODULE)
 def index():
-    """The rack."""
-    kind = (request.args.get("kind") or "").strip() or None
+    """The rack — **the lab's, and only the lab's**.
+
+    It used to read a `kind` off the query string and default it to `None`,
+    which is «every kind»: the bench's own screen listed every echocardiogram
+    in the building beside the blood counts, counted them under «to collect»,
+    and offered a «sample taken» button on them. Reported as «ليه ركويست
+    الايكو موجود فى المعمل؟».
+
+    There is no kind here now, because this screen is one of them. Scans have
+    their own screen, with their own verb — see `app/blueprints/imaging`.
+    """
     state = (request.args.get("state") or "").strip() or None
     if state not in bench.OPEN_STATES:
         state = None
-    rows = bench.worklist(kind=kind, state=state)
+    rows = bench.worklist(kind=bench.LAB, state=state)
     return render_template("labs/index.html",
-                           rows=rows, kind=kind, state=state,
-                           counts=bench.counts(), bench=bench,
-                           kinds=INVESTIGATION_KINDS,
+                           rows=rows, state=state,
+                           counts=bench.counts(bench.LAB), bench=bench,
+                           # On the door to the scans, so a rack that no
+                           # longer lists them still says they are there.
+                           imaging_open=sum(
+                               bench.counts(bench.IMAGING).values()),
+                           diagnostic_open=sum(
+                               bench.counts(bench.DIAGNOSTIC).values()),
                            now=datetime.utcnow(),
                            may_build=current_user.is_admin)
 

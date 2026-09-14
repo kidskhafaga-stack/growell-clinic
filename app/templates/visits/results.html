@@ -106,6 +106,10 @@
         <select class="select" name="test_kind" style="width:auto;">
           <option value="lab">{{ t('rx.inv_lab') }}</option>
           <option value="imaging">{{ t('rx.inv_imaging') }}</option>
+          {# The third room. Without this line a doctor cannot order an
+             ECG at all: the kind exists and the box that writes
+             it does not offer it. #}
+          <option value="diagnostic">{{ t('rx.inv_diagnostic') }}</option>
         </select>
       </div>
 

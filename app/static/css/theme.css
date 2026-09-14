@@ -139,6 +139,7 @@
 :root[data-theme="dark"] .st-no_show,
 :root[data-theme="dark"] .vst-overdue,
 :root[data-theme="dark"] .flash--danger { background: #3a1d21; color: #fca5a5; border-color: #5b2a30; }
+:root[data-theme="dark"] .badge--warn,
 :root[data-theme="dark"] .alert-pill.warn,
 :root[data-theme="dark"] .st-waiting,
 :root[data-theme="dark"] .vst-due,
@@ -442,6 +443,11 @@ a:hover { color: var(--green-900); }
 .badge--muted { background: #eef1f4; color: var(--muted); }
 .badge--role { background: var(--green-050); color: var(--green-800); border: 1px solid var(--green-100); }
 .badge--danger { background: #fde8e8; color: var(--danger); }
+/* Amber, and not `--danger`: «outside his privileges» is a gap somebody has
+   to answer for, not a refusal. The booking still goes through — see
+   app/utils/privileges.py — and a red pill on a list of surgeons would read
+   as "you may not", which is the one thing it does not mean. */
+.badge--warn { background: #fff4e0; color: #9a6700; }
 /* Popover edit forms must float above sibling cards. Sibling .card elements
    create stacking contexts (animations/transforms), so lift the card that
    holds an open <details> above the rest.

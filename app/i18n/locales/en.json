@@ -196,7 +196,9 @@
     "theatres": "Theatres",
     "labs": "The lab",
     "pharmacy": "Pharmacy",
-    "duty": "Duty rota"
+    "duty": "Duty rota",
+    "diagnostics": "Diagnostic studies",
+    "imaging": "Imaging"
   },
   "auth": {
     "login": "Login",
@@ -408,7 +410,13 @@
     "tab_stays": "Stays",
     "baseline_spo2": "This child's usual oxygen",
     "baseline_spo2_hint": "For a child who lives below the usual range (a cardiac shunt, chronic lung disease). The program says when a reading falls below it — and softens no triage rule because of it.",
-    "baseline_spo2_range": "The usual oxygen saturation must be between 50 and 100"
+    "baseline_spo2_range": "The usual oxygen saturation must be between 50 and 100",
+    "quick_need_name": "Patient name is required",
+    "quick_need_gender": "Gender is required",
+    "quick_need_dob": "A valid date of birth is required",
+    "quick_add": "Quick add new patient",
+    "quick_save": "Add & select",
+    "quick_fill_all": "Please fill name, date of birth and gender"
   },
   "import": {
     "title": "Import patient data",
@@ -568,12 +576,6 @@
     "change_patient": "Change",
     "search_patient_ph": "Search patient by name or file number…",
     "no_patient_found": "No patient found",
-    "quick_add_patient": "Quick add new patient",
-    "quick_add_save": "Add & select",
-    "qc_fill_all": "Please fill name, date of birth and gender",
-    "qc_need_name": "Patient name is required",
-    "qc_need_gender": "Gender is required",
-    "qc_need_dob": "A valid date of birth is required",
     "visit_type": "Visit type",
     "next_available": "Next available",
     "find_next_available": "Nearest slot for this doctor",
@@ -2831,7 +2833,8 @@
     "inv_outside": "Outside the clinic",
     "inv_outside_short": "outside",
     "inv_move_out": "Done outside",
-    "inv_move_in": "Done here"
+    "inv_move_in": "Done here",
+    "inv_diagnostic": "Diagnostic study"
   },
   "drug_forms": {
     "tablet": "Tablet",
@@ -6487,7 +6490,14 @@
     "the_stay": "The stay",
     "unknown_stop": "Unknown stop",
     "whose_list": "Whose list",
-    "why_out": "Why (optional)"
+    "why_out": "Why (optional)",
+    "anaes_unset": "Not decided yet",
+    "no_surgeon_found": "No doctor by that name.",
+    "gas_needed": "This anaesthetic needs an anaesthetist. Name one now or name one later — the booking goes through either way.",
+    "privilege_unknown": "No procedure chosen yet",
+    "privilege_warn_supervised": "Privileged under supervision — this case needs a named accountable supervisor.",
+    "privilege_warn_outside": "Outside this surgeon's recorded privileges. The booking goes through, and the operation screen asks for the reason in writing.",
+    "no_anaesthetist_yet": "Needs an anaesthetist"
   },
   "lab": {
     "sub": "The rack: what was asked for and has no answer yet",
@@ -6966,5 +6976,18 @@
     "missing_n": "{n} missing",
     "none_required": "This clinic asks for no extra details.",
     "title": "Basic details on file"
+  },
+  "imaging": {
+    "already_reported": "That order already has a report.",
+    "done_on": "Done",
+    "mark_done": "Mark as done",
+    "marked_done": "Recorded as done.",
+    "not_a_scan": "That is a lab order, not a scan — it belongs on the lab screen.",
+    "not_done": "Not done yet",
+    "nothing_waiting": "Nothing is waiting.",
+    "sub": "Scans and tracings: what has been asked for and not done, and what has been done and is waiting for a report.",
+    "sub_diagnostic": "Sonar, echo, ECG and EEG — the studies the treating team does itself.",
+    "to_do": "{n} not done yet",
+    "to_report": "{n} awaiting a report"
   }
 }
