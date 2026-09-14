@@ -47,6 +47,10 @@
        href="{{ url_for('imaging.index') }}">
       <i class="bi bi-radioactive"></i> {{ t('nav.imaging') }}
       {% if imaging_open %}<span class="badge">{{ imaging_open }}</span>{% endif %}</a>
+    <a class="btn btn-outline gc-press" data-to-diagnostics
+       href="{{ url_for('imaging.diagnostics') }}">
+      <i class="bi bi-activity"></i> {{ t('nav.diagnostics') }}
+      {% if diagnostic_open %}<span class="badge">{{ diagnostic_open }}</span>{% endif %}</a>
     {% if may_build %}
     <a class="btn btn-outline gc-press" href="{{ url_for('labs.tests') }}">
       <i class="bi bi-list-check"></i> {{ t('lab.tests') }}</a>

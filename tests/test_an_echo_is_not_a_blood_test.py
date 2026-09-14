@@ -358,3 +358,260 @@ def test_the_scan_screen_is_behind_the_same_module_as_the_lab(rack):
 
     assert answer.status_code in (302, 403, 404), \
         "the scan screen is open on a clinic with the module switched off"
+
+
+# =====================================================================
+# And then: a chest film is not an echo either.
+#
+# > «الاشعة العادية غير الايكو واللترا سونت وال eeg و ال ECG خد بالك بس»
+#
+# One room along from the first bug. A film is taken in radiology and reported
+# by a radiologist; a sonar, an echo, an ECG and an EEG are done by the
+# treating team — the clinic room, cardiology, neurophysiology. The person on
+# the X-ray machine is not the echo list's cover.
+#
+# `diagnostic` is a **third kind**, and the note above INVESTIGATION_STATUSES
+# is the reason this section is as long as it is: a new value in a shared
+# vocabulary does not make screens learn it. Everything that asked
+# `kind == "imaging"` to mean *not a lab test* had to be found.
+
+
+@pytest.fixture()
+def three_rooms(rack):
+    """A blood count, a chest film and an echo — one order each."""
+    from app.models.visit import VisitInvestigation
+
+    with rack["app"].app_context():
+        film = VisitInvestigation(visit_id=rack["ids"]["visit"],
+                                  patient_id=rack["ids"]["kid"],
+                                  kind="imaging", name="أشعة صدر",
+                                  status="requested")
+        rack["db"].session.add(film)
+        rack["db"].session.commit()
+        rack["ids"]["film"] = film.id
+        # the echo from the base fixture moves to its real room
+        echo = _order(rack, "echo")
+        echo.kind = "diagnostic"
+        rack["db"].session.commit()
+    return rack
+
+
+def test_the_two_rooms_do_not_read_each_others_lists(three_rooms):
+    from app.utils import labs as bench
+
+    with three_rooms["app"].app_context():
+        radiology = [r.name for r in bench.worklist(kind=bench.IMAGING)]
+        studies = [r.name for r in bench.worklist(kind=bench.DIAGNOSTIC)]
+
+    assert radiology == ["أشعة صدر"]
+    assert studies == ["إيكو قلب ECHO"]
+
+
+def test_each_room_has_its_own_screen(three_rooms):
+    with three_rooms["app"].app_context():
+        client = three_rooms["sign_in"]()
+        xray = client.get("/imaging/").get_data(as_text=True)
+        studies = client.get("/imaging/diagnostics").get_data(as_text=True)
+
+    assert "أشعة صدر" in xray and "إيكو قلب ECHO" not in xray
+    assert "إيكو قلب ECHO" in studies and "أشعة صدر" not in studies
+
+
+def test_each_room_carries_a_door_to_the_other_with_its_count(three_rooms):
+    """Splitting a list must never be the thing that makes an order go
+    quiet."""
+    with three_rooms["app"].app_context():
+        client = three_rooms["sign_in"]()
+        xray = client.get("/imaging/").get_data(as_text=True)
+        studies = client.get("/imaging/diagnostics").get_data(as_text=True)
+
+    for html in (xray, studies):
+        assert "data-to-other" in html
+        marker = html.split("data-to-other", 1)[1][:420]
+        assert ">1<" in marker, "the door does not say how many are waiting"
+
+
+def test_the_rack_has_a_door_to_both(three_rooms):
+    with three_rooms["app"].app_context():
+        html = three_rooms["sign_in"]().get("/labs/").get_data(as_text=True)
+
+    assert "data-to-imaging" in html
+    assert "data-to-diagnostics" in html
+
+
+def test_a_study_is_performed_not_drawn_either(three_rooms):
+    """Both rooms are on the same side of the rule: nothing here has a tube."""
+    from app.utils import labs as bench
+
+    with three_rooms["app"].app_context():
+        with pytest.raises(ValueError):
+            bench.collect(_order(three_rooms, "echo"), user=None)
+        three_rooms["db"].session.rollback()
+
+        bench.perform(_order(three_rooms, "echo"), user=None)
+        bench.perform(_order(three_rooms, "film"), user=None)
+        three_rooms["db"].session.commit()
+
+        assert _order(three_rooms, "echo").performed_at is not None
+        assert _order(three_rooms, "film").performed_at is not None
+        assert _order(three_rooms, "echo").collected_at is None
+
+
+def test_done_lands_back_in_the_room_it_was_pressed_in(three_rooms):
+    with three_rooms["app"].app_context():
+        answer = three_rooms["sign_in"]().post(
+            "/imaging/order/%s/performed" % three_rooms["ids"]["echo"])
+
+    assert "/imaging/diagnostics" in answer.headers.get("Location", "")
+
+
+# ------------------------------- what a third value costs, paid explicitly --
+def test_the_printed_prescription_still_carries_both(three_rooms):
+    """**The one that would have gone unnoticed.** `Prescription.imaging()` is
+    what prints on the paper the family walks out with. It asked for
+    `kind == "imaging"` exactly, so adding a third kind would have silently
+    dropped every echo and ECG off the printout."""
+    from app.models import NOT_A_SAMPLE
+    from app.models.prescription import Prescription, PrescriptionInvestigation
+
+    with three_rooms["app"].app_context():
+        rx = Prescription(patient_id=three_rooms["ids"]["kid"],
+                          doctor_id=three_rooms["ids"]["tech"])
+        three_rooms["db"].session.add(rx)
+        three_rooms["db"].session.flush()
+        for kind, name in (("imaging", "أشعة صدر"), ("diagnostic", "إيكو")):
+            three_rooms["db"].session.add(PrescriptionInvestigation(
+                prescription_id=rx.id, kind=kind, name=name))
+        three_rooms["db"].session.commit()
+
+        printed = [x.name for x in rx.imaging()]
+
+    assert printed == ["أشعة صدر", "إيكو"], \
+        "a study dropped off the printed prescription"
+    assert set(NOT_A_SAMPLE) == {"imaging", "diagnostic"}
+
+
+def test_a_doctor_can_actually_order_one(three_rooms):
+    """A kind the order box does not offer is a kind nobody can ask for."""
+    from app.i18n import translate as t
+
+    with three_rooms["app"].app_context():
+        html = three_rooms["sign_in"]().get(
+            "/visits/%s/record" % three_rooms["ids"]["visit"]).get_data(as_text=True)
+
+        assert 'value="diagnostic"' in html, \
+            "the order box offers no way to ask for an ECG"
+        assert t("rx.inv_diagnostic") in html
+
+
+# ------------------------------------- the move of a clinic's own records --
+def test_the_seeded_studies_move_and_the_films_stay(three_rooms):
+    """A clinic that upgrades finds its echoes where the echo team looks."""
+    from app.models import Investigation
+    from app.utils.investigations import move_diagnostics_out_of_radiology
+
+    with three_rooms["app"].app_context():
+        db = three_rooms["db"]
+        db.session.add_all([
+            Investigation(name_ar="إيكو على القلب", kind="imaging",
+                          category="قلب", is_active=True),
+            Investigation(name_ar="موجات صوتية على البطن", kind="imaging",
+                          category="سونار", is_active=True),
+            Investigation(name_ar="أشعة صدر", kind="imaging",
+                          category="أشعة عادية", is_active=True),
+        ])
+        db.session.commit()
+
+        assert move_diagnostics_out_of_radiology() == 2
+
+        kinds = {i.name_ar: i.kind for i in Investigation.query.all()}
+        assert kinds["إيكو على القلب"] == "diagnostic"
+        assert kinds["موجات صوتية على البطن"] == "diagnostic"
+        assert kinds["أشعة صدر"] == "imaging", "a film was moved out of radiology"
+
+
+def test_the_move_leaves_a_clinics_own_words_alone(three_rooms):
+    """**It moves only the program's own vocabulary.** A category somebody
+    typed is theirs, and guessing at it refiles a catalogue on an assumption
+    nobody made — which here hides a child's outstanding order on a screen
+    that department never opens."""
+    from app.models import Investigation
+    from app.utils.investigations import move_diagnostics_out_of_radiology
+
+    with three_rooms["app"].app_context():
+        three_rooms["db"].session.add(
+            Investigation(name_ar="إيكو بتاعنا", kind="imaging",
+                          category="قسم القلب عندنا", is_active=True))
+        three_rooms["db"].session.commit()
+
+        move_diagnostics_out_of_radiology()
+
+        row = Investigation.query.filter_by(name_ar="إيكو بتاعنا").first()
+        assert row.kind == "imaging", "somebody else's category was guessed at"
+
+
+def test_the_orders_move_with_their_catalogue_row(three_rooms):
+    """An order carries its own `kind` as a snapshot, so it would keep
+    pointing at radiology after the catalogue moved — and it is followed by
+    `investigation_id`, never by a name that merely looks similar."""
+    from app.models import Investigation
+    from app.models.visit import VisitInvestigation
+    from app.utils.investigations import move_diagnostics_out_of_radiology
+
+    with three_rooms["app"].app_context():
+        db = three_rooms["db"]
+        cat = Investigation(name_ar="إيكو على القلب", kind="imaging",
+                            category="قلب", is_active=True)
+        db.session.add(cat)
+        db.session.flush()
+        linked = VisitInvestigation(visit_id=three_rooms["ids"]["visit"],
+                                    patient_id=three_rooms["ids"]["kid"],
+                                    investigation_id=cat.id, kind="imaging",
+                                    name="إيكو على القلب", status="requested")
+        free = VisitInvestigation(visit_id=three_rooms["ids"]["visit"],
+                                  patient_id=three_rooms["ids"]["kid"],
+                                  kind="imaging", name="إيكو على القلب",
+                                  status="requested")
+        db.session.add_all([linked, free])
+        db.session.commit()
+        ids = (linked.id, free.id)
+
+        move_diagnostics_out_of_radiology()
+
+        moved = db.session.get(VisitInvestigation, ids[0])
+        typed = db.session.get(VisitInvestigation, ids[1])
+        assert moved.kind == "diagnostic"
+        assert typed.kind == "imaging", \
+            "a free-typed order was moved on the strength of its name"
+
+
+def test_the_move_is_idempotent(three_rooms):
+    """It runs on every upgrade. A second pass must find nothing."""
+    from app.models import Investigation
+    from app.utils.investigations import move_diagnostics_out_of_radiology
+
+    with three_rooms["app"].app_context():
+        three_rooms["db"].session.add(
+            Investigation(name_ar="إيكو على القلب", kind="imaging",
+                          category="قلب", is_active=True))
+        three_rooms["db"].session.commit()
+
+        assert move_diagnostics_out_of_radiology() == 1
+        assert move_diagnostics_out_of_radiology() == 0
+
+
+def test_ecg_and_eeg_are_in_the_catalogue_at_all(three_rooms):
+    """They were in no catalogue anywhere, so a doctor who wanted one had to
+    free-type it and it reached no worklist under a name anything could group
+    by."""
+    from app.models import Investigation
+    from app.utils.investigations import seed_investigations
+
+    with three_rooms["app"].app_context():
+        seed_investigations()
+
+        rows = {i.name_en: i for i in Investigation.query.all()}
+        assert "ECG" in rows and rows["ECG"].kind == "diagnostic"
+        assert "EEG" in rows and rows["EEG"].kind == "diagnostic"
+        assert rows["Chest X-ray"].kind == "imaging"
+        assert rows["Echocardiography"].kind == "diagnostic"

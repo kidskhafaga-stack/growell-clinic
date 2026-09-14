@@ -717,6 +717,21 @@ def apply_schema(report=None):
     except Exception:  # noqa: BLE001 — never blocks an upgrade
         db.session.rollback()
 
+    # The studies that are not radiology. `diagnostic` arrived after these
+    # rows existed, so every sonar, echo and ECG a clinic already had sits
+    # under `imaging` and would land on the radiology list — the same category
+    # error that put an echo on the lab bench, one room along. Its own
+    # transaction, like the rest: refiling seeded data must never be able to
+    # stop the program starting.
+    try:
+        from app.utils.investigations import move_diagnostics_out_of_radiology
+
+        moved = move_diagnostics_out_of_radiology()
+        if moved and report:
+            report(f"  ~ investigations: moved {moved} out of radiology")
+    except Exception:  # noqa: BLE001 — never blocks an upgrade
+        db.session.rollback()
+
     # A schedule band that was tagged with the wrong reference. Seeding only
     # ever adds — it keys on (vaccine, code, source) — so correcting a tag in
     # the catalogue leaves the old row in place on every install that already

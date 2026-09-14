@@ -14,7 +14,26 @@ DRUG_FORMS = ["tablet", "capsule", "syrup", "suspension", "drops",
               "injection", "cream", "ointment", "suppository", "inhaler", "other"]
 
 # Investigation kinds: lab tests (تحاليل) and radiology / imaging (أشعة).
-INVESTIGATION_KINDS = ["lab", "imaging"]
+# What a doctor can order, and **where it gets done**.
+#
+# ``diagnostic`` arrived third and it is a *room*, not a refinement: a chest
+# film is taken in radiology and reported by a radiologist, while an echo, a
+# sonar, an ECG and an EEG are done by the treating team — cardiology, the
+# clinic room, neurophysiology. Asked for exactly that way:
+# «الاشعة العادية غير الايكو واللترا سونت وال eeg و ال ECG».
+#
+# **A third value is not free, and the note above INVESTIGATION_STATUSES says
+# why.** Everything that asked ``kind == "imaging"`` to mean *not a lab test*
+# had to be found and widened, or an order would simply have stopped
+# appearing: `Prescription.imaging()` prints the studies on the paper the
+# family walks out with, and four order boxes offered two kinds where a
+# doctor now needs three.
+INVESTIGATION_KINDS = ["lab", "imaging", "diagnostic"]
+
+#: Everything that is not a lab sample — the two rooms together. The predicate
+#: most of the program actually wants, and the one that stops a new kind from
+#: making an order vanish off a screen that never asked about rooms.
+NOT_A_SAMPLE = ["imaging", "diagnostic"]
 
 # Supported print paper sizes, and what they measure. The millimetres are
 # here rather than in the page because the fit-to-page pass has to know the
@@ -478,7 +497,14 @@ class Prescription(db.Model):
         return [x for x in self.investigations if x.kind == "lab"]
 
     def imaging(self):
-        return [x for x in self.investigations if x.kind == "imaging"]
+        """Everything on this prescription that is not a blood test.
+
+        **Both rooms, deliberately.** This is what gets printed on the paper
+        the family carries out, and the family does not care which department
+        does it. Narrowing this to radiology when ``diagnostic`` was added
+        would have quietly dropped every ECG and echo off the printout.
+        """
+        return [x for x in self.investigations if x.kind in NOT_A_SAMPLE]
 
     def __repr__(self):
         return f"<Prescription {self.id} p={self.patient_id}>"

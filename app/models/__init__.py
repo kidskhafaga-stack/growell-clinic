@@ -189,6 +189,7 @@ from app.models.expense import EXPENSE_CATEGORIES, Expense
 from app.models.prescription import (
     DRUG_FORMS,
     INVESTIGATION_KINDS,
+    NOT_A_SAMPLE,
     RX_PAGE_SIZES,
     Drug,
     DrugInteraction,
@@ -485,6 +486,7 @@ __all__ = [
     "RxPrintTemplate",
     "DRUG_FORMS",
     "INVESTIGATION_KINDS",
+    "NOT_A_SAMPLE",
     "RX_PAGE_SIZES",
     "Conversation",
     "DEFAULT_QUICK_REPLIES",

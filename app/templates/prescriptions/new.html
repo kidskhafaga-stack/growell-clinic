@@ -402,6 +402,10 @@
             <select class="select" name="inv_kind" x-model="inv.kind">
               <option value="lab">{{ t('rx.inv_lab') }}</option>
               <option value="imaging">{{ t('rx.inv_imaging') }}</option>
+              {# The third room. Without this line a doctor cannot order an
+                 ECG at all: the kind exists and the box that writes
+                 it does not offer it. #}
+              <option value="diagnostic">{{ t('rx.inv_diagnostic') }}</option>
             </select></div>
           <div class="form-row" style="position:relative;">
             <label>{{ t('rx.inv_name') }}</label>

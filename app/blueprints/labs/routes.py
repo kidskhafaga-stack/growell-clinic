@@ -60,6 +60,8 @@ def index():
                            # longer lists them still says they are there.
                            imaging_open=sum(
                                bench.counts(bench.IMAGING).values()),
+                           diagnostic_open=sum(
+                               bench.counts(bench.DIAGNOSTIC).values()),
                            now=datetime.utcnow(),
                            may_build=current_user.is_admin)
 

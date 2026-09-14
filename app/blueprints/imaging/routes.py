@@ -36,18 +36,48 @@ from app.utils.decorators import module_required
 MODULE = "labs"
 
 
-@imaging_bp.route("/")
-@module_required(MODULE)
-def index():
-    """Everything scanned or waiting to be, longest-waiting first."""
+def _room(kind, endpoint):
+    """One worklist, drawn for whichever room asked for it.
+
+    Two routes and one template because it is one job — done, then reported —
+    in two places. What the screens do **not** share is a list: the person on
+    the X-ray machine and the person doing echoes are not each other's cover,
+    and a single list would make each of them read the other's work. That is
+    the same sentence the lab's own stylesheet has carried for years.
+    """
     state = (request.args.get("state") or "").strip() or None
     if state not in bench.OPEN_STATES:
         state = None
+    other = (bench.DIAGNOSTIC if kind == bench.IMAGING else bench.IMAGING)
     return render_template(
         "imaging/index.html",
-        rows=bench.worklist(kind=bench.IMAGING, state=state),
-        state=state, counts=bench.counts(bench.IMAGING), bench=bench,
+        rows=bench.worklist(kind=kind, state=state),
+        state=state, counts=bench.counts(kind), bench=bench,
+        kind=kind, endpoint=endpoint,
+        # The door to the other room, with its count on it — nothing is
+        # allowed to go quiet just because it moved screens.
+        other_kind=other, other_open=sum(bench.counts(other).values()),
         now=datetime.utcnow())
+
+
+@imaging_bp.route("/")
+@module_required(MODULE)
+def index():
+    """Radiology: films, CT and MRI — taken and reported by the X-ray room."""
+    return _room(bench.IMAGING, "imaging.index")
+
+
+@imaging_bp.route("/diagnostics")
+@module_required(MODULE)
+def diagnostics():
+    """The studies the treating team does itself.
+
+    A sonar, an echo, an ECG, an EEG. **Not radiology**, and asked for that
+    way: «الاشعة العادية غير الايكو واللترا سونت وال eeg و ال ECG». They are
+    done in the clinic room, in cardiology, in neurophysiology — by people who
+    never open the X-ray list.
+    """
+    return _room(bench.DIAGNOSTIC, "imaging.diagnostics")
 
 
 @imaging_bp.route("/order/<int:order_id>/performed", methods=["POST"])
@@ -66,9 +96,15 @@ def performed(order_id):
         # Named rather than a bare «no»: the two refusals are different
         # mistakes. A lab order here is somebody on the wrong screen; an
         # order that already has a report is a keystroke on the wrong row.
-        flash(t("imaging.not_a_scan") if row.kind != bench.IMAGING
+        flash(t("imaging.not_a_scan") if row.kind not in bench.ROOMS
               else t("imaging.already_reported"), "warning")
-        return redirect(url_for("imaging.index"))
+        return redirect(url_for(_back_to(row)))
     db.session.commit()
     flash(t("imaging.marked_done"), "success")
-    return redirect(url_for("imaging.index"))
+    return redirect(url_for(_back_to(row)))
+
+
+def _back_to(row):
+    """The room this order belongs to, so «done» lands where it was pressed."""
+    return ("imaging.diagnostics" if row.kind == bench.DIAGNOSTIC
+            else "imaging.index")

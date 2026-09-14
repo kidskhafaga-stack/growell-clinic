@@ -102,18 +102,81 @@ COMMON_INVESTIGATIONS = [
     ("urine_culture", "مزرعة بول (زرع)", "Urine Culture", "lab", "بول/كلى", None),
     ("vit_b12", "فيتامين ب١٢", "Vitamin B12", "lab", "فيتامينات", "pg/mL"),
 
-    # --- Imaging (أشعة) ---
+    # --- Radiology (الأشعة) — taken and reported by the radiology room ---
     (None, "أشعة صدر", "Chest X-ray", "imaging", "أشعة عادية", None),
     (None, "أشعة بطن", "Abdominal X-ray", "imaging", "أشعة عادية", None),
-    (None, "موجات صوتية على البطن", "Abdominal Ultrasound", "imaging", "سونار", None),
-    (None, "موجات صوتية على المخ", "Cranial Ultrasound", "imaging", "سونار", None),
-    (None, "موجات صوتية على الكلى", "Renal Ultrasound", "imaging", "سونار", None),
-    (None, "إيكو على القلب", "Echocardiography", "imaging", "قلب", None),
     (None, "أشعة مقطعية على المخ", "Brain CT", "imaging", "مقطعية", None),
     (None, "رنين مغناطيسي على المخ", "Brain MRI", "imaging", "رنين", None),
     (None, "أشعة على عظام", "Bone X-ray", "imaging", "أشعة عادية", None),
     (None, "أشعة بانوراما للأسنان", "Panoramic Dental X-ray", "imaging", "أسنان", None),
+
+    # --- Diagnostic studies (الفحوصات التشخيصية) ------------------------
+    #
+    # **A different room, not a lesser kind.** A sonar, an echo, an ECG and an
+    # EEG are done by the treating team — the clinic room, cardiology,
+    # neurophysiology — not by radiology, and the person who works the X-ray
+    # list is not the person who works these. Asked for in those words:
+    # «الاشعة العادية غير الايكو واللترا سونت وال eeg و ال ECG».
+    (None, "موجات صوتية على البطن", "Abdominal Ultrasound", "diagnostic", "سونار", None),
+    (None, "موجات صوتية على المخ", "Cranial Ultrasound", "diagnostic", "سونار", None),
+    (None, "موجات صوتية على الكلى", "Renal Ultrasound", "diagnostic", "سونار", None),
+    (None, "إيكو على القلب", "Echocardiography", "diagnostic", "قلب", None),
+    # **These two were in no catalogue at all**, so a doctor who wanted one
+    # had to free-type it and it reached no worklist under a name anything
+    # could group by.
+    (None, "رسم قلب (ECG)", "ECG", "diagnostic", "قلب", None),
+    (None, "رسم مخ (EEG)", "EEG", "diagnostic", "مخ وأعصاب", None),
 ]
+
+#: The seeded categories that belong to each room, for the one-time move of a
+#: clinic's existing rows. **Only the program's own words are moved**: a
+#: category somebody typed themselves is theirs, and guessing at it would
+#: refile their catalogue on an assumption they never made.
+SEEDED_DIAGNOSTIC_CATEGORIES = ("سونار", "قلب", "مخ وأعصاب")
+
+
+def move_diagnostics_out_of_radiology():
+    """One-time: refile the studies that are not radiology. Returns the count.
+
+    ``diagnostic`` arrived after these rows existed, so every sonar, echo and
+    ECG a clinic already had is sitting under ``imaging`` and would land on
+    the radiology list — which is the same category error that put an echo on
+    the lab bench, one room along.
+
+    **It moves only the program's own words.** A row is refiled when its
+    category is one this seed wrote (:data:`SEEDED_DIAGNOSTIC_CATEGORIES`) and
+    its kind is still the old one. A clinic that typed its own category keeps
+    it, because guessing at somebody else's vocabulary is how a catalogue gets
+    refiled on an assumption nobody made — and a wrong guess here hides a
+    child's outstanding order on a screen its department never opens.
+
+    **The orders move with the catalogue, and only with it.** A
+    ``VisitInvestigation`` carries its own ``kind`` as a snapshot, so an
+    existing echo order would keep pointing at radiology even after the
+    catalogue row moved. They are moved by following ``investigation_id`` —
+    never by matching on the name, which would catch a free-typed order whose
+    words merely look similar.
+
+    Idempotent: a second run finds nothing left with the old kind.
+    """
+    from app.extensions import db
+    from app.models.visit import VisitInvestigation
+
+    rows = (Investigation.query
+            .filter(Investigation.kind == "imaging",
+                    Investigation.category.in_(SEEDED_DIAGNOSTIC_CATEGORIES))
+            .all())
+    if not rows:
+        return 0
+    ids = [r.id for r in rows]
+    for row in rows:
+        row.kind = "diagnostic"
+    (VisitInvestigation.query
+     .filter(VisitInvestigation.investigation_id.in_(ids),
+             VisitInvestigation.kind == "imaging")
+     .update({"kind": "diagnostic"}, synchronize_session=False))
+    db.session.commit()
+    return len(rows)
 
 
 def seed_investigations():

@@ -52,9 +52,17 @@ REQUESTED, COLLECTED, RESULTED = "requested", "collected", "resulted"
 OPEN_STATES = tuple(INVESTIGATION_OPEN)
 
 
-#: The two halves of the same table, and they are two different jobs done by
-#: two different people in two different rooms.
-LAB, IMAGING = "lab", "imaging"
+#: The three halves of the same table — three rooms, three sets of hands.
+#:
+#: ``imaging`` is radiology: films, CT, MRI, reported by a radiologist.
+#: ``diagnostic`` is what the treating team does itself — a sonar, an echo, an
+#: ECG, an EEG. Asked for in those words: «الاشعة العادية غير الايكو واللترا
+#: سونت وال eeg و ال ECG». The person on the X-ray machine and the person
+#: doing echoes are not each other's cover.
+LAB, IMAGING, DIAGNOSTIC = "lab", "imaging", "diagnostic"
+
+#: The two that are not a sample. Both are *performed*, never drawn.
+ROOMS = (IMAGING, DIAGNOSTIC)
 
 
 def worklist(kind=LAB, state=None, limit=200):
@@ -129,11 +137,11 @@ def collect(row, user=None, code=None, at=None):
     """
     if row is None:
         raise ValueError("no order")
-    if row.kind == IMAGING:
-        # **Refused, not ignored.** There is no sample to draw for a scan, and
-        # a caller that reaches here has the wrong row: quietly doing nothing
-        # would leave a screen saying it had been collected.
-        raise ValueError("an imaging order has no sample")
+    if row.kind in ROOMS:
+        # **Refused, not ignored.** Neither a film nor an echo has a sample to
+        # draw, and a caller that reaches here has the wrong row: quietly
+        # doing nothing would leave a screen saying it had been collected.
+        raise ValueError("this order has no sample")
     if row.status == RESULTED:
         raise ValueError("already resulted")
     row.collected_at = at or datetime.utcnow()
@@ -162,7 +170,7 @@ def perform(row, user=None, at=None):
     """
     if row is None:
         raise ValueError("no order")
-    if row.kind != IMAGING:
+    if row.kind not in ROOMS:
         raise ValueError("a lab order is collected, not performed")
     if row.status == RESULTED:
         raise ValueError("already resulted")
@@ -180,7 +188,7 @@ def done_at(row):
     """
     if row is None:
         return None
-    return row.performed_at if row.kind == IMAGING else row.collected_at
+    return row.performed_at if row.kind in ROOMS else row.collected_at
 
 
 def sample_code(row):
