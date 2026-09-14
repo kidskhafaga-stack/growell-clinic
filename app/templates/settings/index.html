@@ -1158,20 +1158,28 @@
                  live: null,
                  behind() { return this.live ? this.live.behind : {{ 'true' if update_pending else 'false' }}; },
                  latest() { return this.live ? this.live.latest : '{{ (update_pending.latest if update_pending else '')[:12] }}'; },
-                 notes() { return this.live ? this.live.notes : {{ ((update_pending.notes if update_pending else []) or []) | tojson }}; },
+                 notes() { return this.live ? this.live.notes : {{ ((update_pending.notes if update_pending else []) or []) | tojson | forceescape }}; },
                  // What the vendor wrote, grouped. Preferred over the
                  // commit subjects where it exists: a line filed under
                  // «fixed» tells a clinic what kind of release this is, and
                  // the subject the change was committed under does not.
                  // (No double quotes in here — this whole block is inside a
-                 // double-quoted attribute, and one would end it.)
+                 // double-quoted attribute, and one would end it. Which is
+                 // also why every `tojson` below is paired with `forceescape`:
+                 // `tojson` emits double quotes around every string it
+                 // writes, so an unescaped one ends this attribute **as soon
+                 // as the clinic actually has a notice** — the commit
+                 // subjects are strings. Both were written without it, and it
+                 // killed this whole card on exactly the screens where it
+                 // mattered. Reported with a photo: the state badge blank and
+                 // the arrow pointing at nothing.)
                  // `or []` is not decoration. A notice stored by a launch
                  // before this field existed — which is every clinic that has
                  // one right now — has no `release_notes` key, and Jinja's
                  // Undefined raises inside `tojson`. That is a 500 on the
                  // settings screen of an install that upgraded.
                  groups() { return this.live ? this.live.release_notes
-                            : {{ ((update_pending.release_notes if update_pending else []) or []) | tojson }}; },
+                            : {{ ((update_pending.release_notes if update_pending else []) or []) | tojson | forceescape }}; },
                  async check() {
                    this.busy = true; this.said = '';
                    try {

@@ -105,6 +105,73 @@ def test_no_alpine_attribute_is_cut_off_by_a_quote():
         + "; ".join(f"{p} {a} …{tail}" for p, a, tail in broken))
 
 
+# The quote that is not in the template ------------------------------------
+#
+# `test_no_alpine_attribute_is_cut_off_by_a_quote` above reads the template
+# **source**, and that is what let the fourth instance of this bug ship. In the
+# source `{{ notes | tojson }}` is ordinary Jinja text with no double quote in
+# it at all, so the attribute reads as whole and balanced. The quote appears
+# only after rendering, and only when the value is not empty: `[]` carries
+# none, `["a subject line"]` carries two.
+#
+# So the update card passed every guard on a clinic with nothing to install
+# and broke on every clinic that had something — the state badge blank, the
+# arrow pointing at nothing, and no error anywhere a person would look.
+#
+# This is the rule the source *can* be checked against: inside a
+# double-quoted attribute, `tojson` without `forceescape` is a quote waiting
+# for data.
+
+#: One whole ``{{ … }}``, newlines and all — these attributes span lines.
+INTERPOLATION = re.compile(r"\{\{.*?\}\}", re.S)
+
+
+def _unescaped_tojson(value):
+    """Every `tojson` in this attribute that is not paired with `forceescape`.
+
+    Whole interpolations, not the filter alone: the escape is somewhere else
+    in the same ``{{ … }}``, so a pattern that stops at the filter can never
+    see it — which is what the first draft of this did, and it called every
+    correctly written attribute a fault.
+    """
+    out = []
+    for m in INTERPOLATION.finditer(value):
+        text = m.group(0)
+        if "tojson" in text and "forceescape" not in text:
+            out.append(" ".join(text.split()))
+    return out
+
+
+def test_no_double_quoted_attribute_renders_tojson_unescaped():
+    """The fourth instance, and the first the source can be read for.
+
+    `tojson` writes `"` around every string. A double-quoted attribute ends at
+    the first one. The two are only ever safe together when something turns
+    that quote into `&quot;` — which is what `forceescape` is for, and what
+    every other attribute in this program already does.
+    """
+    guilty = []
+    for path, attr, value in _attributes():
+        for bad in _unescaped_tojson(value):
+            guilty.append((path, attr, bad))
+
+    assert not guilty, (
+        "`tojson` inside a double-quoted attribute needs `|forceescape`, or "
+        "the first quote it writes ends the attribute — and it only does that "
+        "once the value is non-empty, so the screen works until it matters: "
+        + "; ".join(f"{p} {a} {bad}" for p, a, bad in guilty))
+
+
+def test_that_checker_would_notice_too():
+    """A detector nobody exercised is a detector nobody can trust."""
+    assert _unescaped_tojson("{ notes: {{ rows | tojson }} }"), \
+        "an unescaped tojson in an attribute went unnoticed"
+    assert not _unescaped_tojson("{ notes: {{ rows | tojson | forceescape }} }"), \
+        "a correctly escaped tojson was reported as a fault"
+    assert not _unescaped_tojson("{ tab: 'clinic' }"), \
+        "an attribute with no tojson at all was reported as a fault"
+
+
 def test_the_ai_settings_block_survives_to_its_own_end():
     """The one that was actually broken, named so the failure says which.
 
