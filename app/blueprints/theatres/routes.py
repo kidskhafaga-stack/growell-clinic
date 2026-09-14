@@ -26,7 +26,7 @@ from flask_login import current_user
 from app.blueprints.theatres import theatres_bp
 from app.extensions import db
 from app.i18n import t
-from app.models import Patient
+from app.models import ActivityLog, Patient
 from app.models.admission import Admission
 from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
                                 ANAESTHESIA_TYPES, IDENTITY_WITH, PRECAUTIONS,
@@ -39,7 +39,8 @@ from app.utils import operative_report as _report
 from app.utils import recovery as _recovery
 from app.utils import theatres as theatre
 from app.utils.clock import local_today, to_utc
-from app.utils.decorators import admin_required, module_required
+from app.utils.decorators import (admin_required, client_ip,
+                                  module_required)
 
 MODULE = "theatres"
 
@@ -91,6 +92,16 @@ def index():
                                       .all()),
                            stops=CHECK_STOPS,
                            surgeons=_surgeons(),
+                           # Whether this case needs an anaesthetist at all is
+                           # the question that decides whether the booking
+                           # form asks for one — so the four words are on the
+                           # form, in the same vocabulary the plan uses.
+                           anaesthesia_types=ANAESTHESIA_TYPES,
+                           # Which of them the screen asks for a name after.
+                           # Rendered rather than repeated in the JavaScript,
+                           # so the box that appears and the record that is
+                           # judged cannot drift apart.
+                           needs_anaesthetist=theatre.NEEDS_ANAESTHETIST,
                            services=_procedures(),
                            may_build=current_user.is_admin)
 
@@ -165,6 +176,19 @@ def _a_case_type(raw):
     return key if key in {row.key for row in case_types.all_types()} else None
 
 
+def _an_anaesthetic(raw):
+    """A posted anaesthetic, or ``None``.
+
+    Checked against the vocabulary the plan already uses rather than stored as
+    typed. This one word decides whether the booking screen asks for an
+    anaesthetist at all, and a value nothing matches would sit in the column
+    reading like an answer while behaving like «local» — the single kind that
+    needs nobody.
+    """
+    kind = (raw or "").strip()
+    return kind if kind in ANAESTHESIA_TYPES else None
+
+
 # ------------------------------------------------------------ booking it ---
 @theatres_bp.route("/book", methods=["POST"])
 @module_required(MODULE)
@@ -182,6 +206,13 @@ def book():
             service_id=request.form.get("service_id", type=int),
             surgeon_id=request.form.get("surgeon_id", type=int),
             anaesthetist_id=request.form.get("anaesthetist_id", type=int),
+            # What the anaesthetic is expected to be — a **scheduling** fact,
+            # not the anaesthetist's plan. The plan is written later, on the
+            # pre-induction assessment, and it is allowed to say something
+            # else: two moments, two facts, exactly as SAS.08 keeps the
+            # pre- and post-procedure diagnoses apart.
+            anaesthesia_kind=_an_anaesthetic(
+                request.form.get("anaesthesia_kind")),
             start_time=_a_time(request.form.get("start_time")),
             minutes=request.form.get("minutes", type=int),
             case_type=_a_case_type(request.form.get("case_type")),
@@ -1174,6 +1205,36 @@ def call_offs():
                            rows=theatre.call_offs(start, end))
 
 
+@theatres_bp.route("/surgeon-search")
+@module_required(MODULE)
+def surgeon_search():
+    """Who could operate, and where each one stands on this procedure.
+
+    **The privilege comes back with the name**, which is the whole reason this
+    is a search and not the plain dropdown it replaced: SAS.02 (أ) asks that
+    privileges be *used by the people who book*, and a list of names tells
+    whoever is booking nothing they did not already know. A name with
+    «outside» beside it does.
+
+    Nobody is filtered out — see :func:`app.utils.theatres.surgeon_choices`.
+    """
+    from app.models import Service
+
+    service = None
+    service_id = request.args.get("service_id", type=int)
+    if service_id:
+        service = db.session.get(Service, service_id)
+    # **Judged against the day of the operation, never against today.** A
+    # privilege that lapses next week still stands for a case booked for
+    # tomorrow, and one granted next week does not cover a case being booked
+    # for today. The same rule `app.utils.privileges` states and the consent
+    # item already follows.
+    return jsonify(theatre.surgeon_choices(
+        service, on_date=_a_date(request.args.get("date")),
+        query=(request.args.get("q") or "").strip(),
+        lang=getattr(g, "lang", "ar")))
+
+
 @theatres_bp.route("/patient-search")
 @module_required(MODULE)
 def patient_search():
@@ -1194,7 +1255,44 @@ def patient_search():
         .limit(10).all())
     lang = getattr(g, "lang", "ar")
     return jsonify([{"id": p.id, "name": p.display_name(lang),
-                     "file": p.file_number} for p in rows])
+                     # `patient_number`, not `file_number`. There has never
+                     # been a `file_number` on `Patient`, so every keystroke
+                     # in this box raised a 500 and the search had never once
+                     # returned a name.
+                     "file": p.patient_number} for p in rows])
+
+
+@theatres_bp.route("/patient-quick", methods=["POST"])
+@module_required(MODULE)
+def patient_quick():
+    """Register a child from the booking screen, in three fields.
+
+    «ونعمل ان ممكن نضيف حالة جديدة» — the child in front of the desk is not
+    always in the program yet, and sending whoever is booking to another
+    screen to put them there is how a case ends up booked under the wrong
+    file, or on paper.
+
+    **The three fields are not the file.** What makes this safe is that the
+    gap is visible afterwards, everywhere: see `app.utils.patient_basics`,
+    which is what puts «بيانات ناقصة» beside the name on every screen that
+    picks a patient until somebody finishes it.
+    """
+    from app.utils.patients import QUICK_REASONS, quick_create
+
+    data = request.get_json(silent=True) or {}
+    patient, why = quick_create(data.get("full_name"), data.get("gender"),
+                                data.get("date_of_birth"))
+    if patient is None:
+        return jsonify({"ok": False, "error": t(QUICK_REASONS[why])}), 400
+    ActivityLog.record("patient.create", user_id=current_user.id,
+                       entity="patient", entity_id=patient.id,
+                       detail=patient.patient_number, ip_address=client_ip())
+    db.session.commit()
+    lang = getattr(g, "lang", "ar")
+    return jsonify({"ok": True,
+                    "patient": {"id": patient.id,
+                                "name": patient.display_name(lang),
+                                "file": patient.patient_number}})
 
 
 # ------------------------------------------------------------- helpers -----

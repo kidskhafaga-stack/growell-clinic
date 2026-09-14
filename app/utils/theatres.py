@@ -75,8 +75,12 @@ def day(on_date=None, who=None):
     for booking in bookings:
         by_theatre.setdefault(booking.theatre_id, []).append(booking)
 
+    # `needs_gas` is read off the row rather than from inside the case,
+    # because the person who has to fix it is whoever is drawing up the order
+    # of the list — and they are looking at this screen, not at the case.
     rooms = [{"theatre": room,
-              "operations": [{"operation": op, "safety": safety(op)}
+              "operations": [{"operation": op, "safety": safety(op),
+                              "needs_gas": anaesthetist_missing(op)}
                              for op in by_theatre.get(room.id, [])]}
              for room in theatres]
     # Empty rooms are part of the day — a theatre with nothing in it is a
@@ -1493,6 +1497,77 @@ def cancel(operation, reason=None, user=None):
     operation.status = "cancelled"
     operation.cancel_reason = (reason or "").strip()[:200] or None
     return operation
+
+
+#: The one anaesthetic a case can have without an anaesthetist on it.
+#:
+#: Everything else — general, regional, sedation — is somebody else's airway
+#: to hold, and a list that does not say who is a list the day cannot be
+#: rostered from. Asked for in those words: «لو تخدير كلي نبحث على طبيب
+#: التخدير».
+#:
+#: **Sedation is on this side of the line deliberately.** It reads like the
+#: small one and it is the one that catches people out: a child sedated for a
+#: scan is a child whose breathing somebody has to be watching, and the
+#: program does not get to decide that a clinic meant «light» sedation.
+NEEDS_ANAESTHETIST = ("general", "regional", "sedation")
+
+
+def anaesthetist_missing(operation):
+    """Whether this booking expects an anaesthetist and has not named one.
+
+    ``False`` when the case is local, and ``False`` when nobody has said what
+    the anaesthetic will be — **an unanswered question is not a missing
+    person**. A booking screen that flagged every case before anybody had
+    chosen would train whoever books to click past the warning, which is the
+    one thing the warning cannot survive.
+    """
+    if operation is None:
+        return False
+    kind = (getattr(operation, "anaesthesia_kind", None) or "").strip()
+    if kind not in NEEDS_ANAESTHETIST:
+        return False
+    return getattr(operation, "anaesthetist_id", None) is None
+
+
+def surgeon_choices(service=None, on_date=None, query=None, lang="ar"):
+    """Who could be named as operating, each with where they stand.
+
+    ``[{"id", "name", "state"}]`` — ``state`` from
+    :func:`app.utils.privileges.state`: ``ok`` · ``supervised`` · ``outside``
+    · ``unknown``.
+
+    **Marked, never filtered.** SAS.02 (أ) asks that privileges be *used by
+    the people who book*, and the program's answer to that has always been to
+    show the gap rather than to hide the surgeon: at three in the morning the
+    only surgeon in the building may be the one without the privilege, and a
+    list that omitted them would move the booking somewhere the program cannot
+    see. The same reasoning `doctors_for` already carries.
+
+    ``unknown`` is what a search with no procedure chosen yet answers, and it
+    is honest: nothing can be said about a privilege for a procedure nobody
+    has named.
+    """
+    from app.utils import privileges
+
+    rows = _surgeon_pool(query)
+    return [{"id": d.id, "name": d.display_name(lang),
+             "state": privileges.state(d.id, service, on_date)} for d in rows]
+
+
+def _surgeon_pool(query=None):
+    """The clinic's own doctors, optionally narrowed by what was typed."""
+    from app.models import User
+
+    rows = User.query.filter(User.is_active.is_(True),
+                             User.role.in_(("doctor", "admin")))
+    text = (query or "").strip()
+    if text:
+        like = f"%{text}%"
+        rows = rows.filter(db.or_(User.full_name.ilike(like),
+                                  User.full_name_en.ilike(like),
+                                  User.username.ilike(like)))
+    return rows.order_by(User.full_name).limit(12).all()
 
 
 def book(patient, theatre, procedure, on_date=None, user=None, **extra):

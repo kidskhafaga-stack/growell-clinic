@@ -606,6 +606,10 @@ ADDITIONS = [
     # counts are a new table and need no entry; these two sit on an old one.
     ("operations", "counts_signed_by", "INTEGER"),
     ("operations", "counts_signed_at", "DATETIME"),
+    # What the booking expects of the anaesthetic — the scheduling fact that
+    # decides whether the case needs an anaesthetist at all. Not the plan's
+    # own `kind`, which is what the anaesthetist intends to do.
+    ("operations", "anaesthesia_kind", "VARCHAR(12)"),
 ]
 
 def apply_schema(report=None):

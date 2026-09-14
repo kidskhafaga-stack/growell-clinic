@@ -865,7 +865,7 @@ def waitlist_add():
     """Add a patient to the waiting list (used when no slot suits them)."""
     patient_id = request.form.get("patient_id", type=int)
     if not patient_id or not db.session.get(Patient, patient_id):
-        flash(t("appointments.qc_need_name"), "danger")
+        flash(t("patients.quick_need_name"), "danger")
         return redirect(url_for("appointments.index"))
 
     entry = WaitlistEntry(
@@ -925,33 +925,21 @@ def patient_search():
 @appointments_bp.route("/patient-quick", methods=["POST"])
 @module_required(MODULE)
 def patient_quick():
-    """Create a minimal patient inline during booking and return it as JSON."""
-    from app.models import GENDERS
-    from app.utils.patients import generate_patient_number
+    """Create a minimal patient inline during booking and return it as JSON.
+
+    The three fields, and what counts as each, live in
+    :func:`app.utils.patients.quick_create` — the theatre booking screen has
+    the same door, and two copies of a rule about what a patient record must
+    contain is how two screens end up disagreeing about it.
+    """
+    from app.utils.patients import QUICK_REASONS, quick_create
 
     data = request.get_json(silent=True) or {}
-    name = (data.get("full_name") or "").strip()
-    gender = (data.get("gender") or "").strip()
-    dob_raw = (data.get("date_of_birth") or "").strip()
+    patient, why = quick_create(data.get("full_name"), data.get("gender"),
+                                data.get("date_of_birth"))
+    if patient is None:
+        return jsonify({"ok": False, "error": t(QUICK_REASONS[why])}), 400
 
-    if not name:
-        return jsonify({"ok": False, "error": t("appointments.qc_need_name")}), 400
-    if gender not in GENDERS:
-        return jsonify({"ok": False, "error": t("appointments.qc_need_gender")}), 400
-    try:
-        dob = datetime.strptime(dob_raw, "%Y-%m-%d").date()
-    except ValueError:
-        return jsonify({"ok": False, "error": t("appointments.qc_need_dob")}), 400
-
-    patient = Patient(
-        patient_number=generate_patient_number(),
-        full_name=name,
-        gender=gender,
-        date_of_birth=dob,
-        is_active=True,
-    )
-    db.session.add(patient)
-    db.session.flush()
     ActivityLog.record(
         "patient.create", user_id=current_user.id, entity="patient",
         entity_id=patient.id, detail=patient.patient_number, ip_address=client_ip(),
