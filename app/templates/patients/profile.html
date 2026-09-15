@@ -259,6 +259,12 @@
         {% if dental is not none %}
         {% set ns.tabs = ns.tabs + [('dental','tab_dental','emoji-smile')] %}
         {% endif %}
+        {% if operations %}
+        {# Only where there are any, like the stays below: a tab labelled
+           «عمليات» on the file of a child who has never had one is furniture,
+           and most of this clinic's files are those. #}
+        {% set ns.tabs = ns.tabs + [('operations','tab_operations','scissors')] %}
+        {% endif %}
         {% if stays %}
         {# **The half of the file that was missing.** The child was admitted,
            moved beds, was operated on, went home — and none of it appeared
@@ -394,21 +400,6 @@
          only place it appeared was the theatre list for one date — a screen
          nobody opens six months later. Read-only here; the booking doors are
          the theatre day and the stay. #}
-      {% if operations %}
-      <h3 class="section-title" style="margin-top:24px;" id="operations" data-operations>
-        <i class="bi bi-scissors"></i> {{ t('nav.theatres') }}</h3>
-      <ul style="margin:0;padding-inline-start:18px;">
-        {% for op in operations %}
-        <li>
-          <a href="{{ url_for('theatres.operation', operation_id=op.id) }}">{{ op.procedure }}</a>
-          <span class="hint" dir="ltr">{{ op.on_date }}</span>
-          <span class="badge badge--muted">{{ t('theatre.status_' ~ op.status) }}</span>
-          {% if op.surgeon %}<span class="hint">{{ op.surgeon.display_name(current_lang) }}</span>{% endif %}
-        </li>
-        {% endfor %}
-      </ul>
-      {% endif %}
-
       <!-- Problem list (GAHAR): structured ongoing/past problems across visits -->
       <h3 class="section-title" style="margin-top:24px;" id="problems"><i class="bi bi-card-checklist"></i> {{ t('problems.title_list') }}</h3>
       {% set active_problems = patient.problems | selectattr('status', 'equalto', 'active') | list %}
@@ -766,6 +757,56 @@
       </form>
       {% endif %}{# patient_medical #}
     </div>
+
+    {# Operations — **and whether anybody wrote them up.**
+
+       The list was a few lines at the bottom of *overview*, which is the tab
+       a receptionist opens: an operative history filed under «نظرة عامة»
+       beside the phone number. It moves here, and it stops being a second
+       copy of the one inside each stay.
+
+       And it gains the column the old list could not have: `SAS.08` asks for
+       the report to be **kept in the patient's medical record**, and the file
+       could say an operation happened without being able to say whether
+       anybody had written it up. `none` · `short` · `unsigned` · `complete` —
+       and `unsigned` is its own word because a finished report nobody signed
+       is a different errand from a half-written one. #}
+    {% if operations %}
+    <div class="gc-tab-panel" x-show="tab==='operations'" x-cloak>
+      <h3 class="section-title" style="margin-top:0;">
+        <i class="bi bi-scissors"></i> {{ t('patients.tab_operations') }}</h3>
+      <div style="overflow-x:auto;" data-operations>
+        <table class="table">
+          <thead><tr>
+            <th>{{ t('invoices.date') }}</th>
+            <th>{{ t('theatre.procedure') }}</th>
+            <th>{{ t('theatre.surgeon') }}</th>
+            <th>{{ t('invoices.status') }}</th>
+            <th>{{ t('op_report.title') }}</th>
+          </tr></thead>
+          <tbody>
+            {% for op in operations %}
+            <tr>
+              <td dir="ltr" style="white-space:nowrap;">{{ op.on_date }}</td>
+              <td>
+                <a href="{{ url_for('theatres.operation', operation_id=op.id) }}">{{ op.procedure }}</a>
+                {% if op.theatre %}<div class="hint" style="margin:0;">{{ op.theatre.name }}</div>{% endif %}
+              </td>
+              <td>{{ op.surgeon.display_name(current_lang) if op.surgeon else '—' }}</td>
+              <td><span class="badge badge--muted">{{ t('theatre.status_' ~ op.status) }}</span></td>
+              <td>
+                {% set rs = report_state(op) %}
+                <span class="badge {{ 'badge--green' if rs == 'complete' else ('badge--muted' if rs == 'none' else 'badge--warn') }}"
+                      data-report-state="{{ rs }}">{% if rs == 'none' %}{{ t('op_report.not_written') }}{% elif rs == 'short' %}{{ t('op_report.short', n=report_missing(op)) }}{% else %}{{ t('op_report.' ~ rs) }}{% endif %}</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% endif %}
 
     {# Investigations — **the tab the file did not have.**
 

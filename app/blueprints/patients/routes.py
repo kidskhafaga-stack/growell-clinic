@@ -604,7 +604,35 @@ def view(patient_id):
         # appeared was one date's theatre list, which nobody opens again six
         # months later — the feature built and no door to it.
         operations=_operations(patient.id),
+        # Where each operation's report stands — SAS.08 asks for the report to
+        # be *kept in the patient's medical record*, and the file could show
+        # that an operation happened without being able to say whether anybody
+        # had written it up. `none` · `short` · `unsigned` · `complete`.
+        report_state=_report_state,
+        # How many of the report's written elements are still empty. «ناقص ٣
+        # بنود» is a different errand from «مفيش تقرير», and the word for the
+        # first one carries a number.
+        report_missing=_report_missing,
     )
+
+
+def _report_state(operation):
+    """The operative report's state for one case, or ``None`` with no module.
+
+    A function rather than a dict built in the route: a child with thirty
+    operations would have thirty reports read to draw a tab nobody may open,
+    and the theatre module being off makes the whole column meaningless.
+    """
+    from app.utils import operative_report
+
+    return operative_report.state(operation)
+
+
+def _report_missing(operation):
+    """How many written elements of the report are still empty."""
+    from app.utils import operative_report
+
+    return len(operative_report.missing(operation))
 
 
 def _discharge_summaries(patient_id):

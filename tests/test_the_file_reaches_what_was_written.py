@@ -265,3 +265,83 @@ def test_another_childs_discharge_summary_is_not_on_this_file(other_child):
     assert len(mine) == 1
     assert len(theirs) == 1
     assert set(mine) & set(theirs) == set()
+
+
+# ------------------------------------------------------ the operations tab -
+@pytest.fixture()
+def operated(clinic):
+    """A child with two operations: one written up short, one not at all."""
+    from app.models import Setting
+    from app.models.operative_report import OperativeReport
+    from app.models.theatre import Operation, Theatre
+    from app.utils.clock import local_today
+
+    with clinic["app"].app_context():
+        db = clinic["db"]
+        Setting.set("mod_enabled:theatres", "1")
+        room = Theatre(name="غرفة ١")
+        db.session.add(room)
+        db.session.flush()
+        written = Operation(patient_id=clinic["ids"]["child"],
+                            theatre_id=room.id, procedure="استئصال زائدة",
+                            on_date=local_today(),
+                            surgeon_id=clinic["ids"]["doctor"])
+        blank = Operation(patient_id=clinic["ids"]["child"],
+                          theatre_id=room.id, procedure="ختان",
+                          on_date=local_today())
+        db.session.add_all([written, blank])
+        db.session.flush()
+        db.session.add(OperativeReport(operation_id=written.id,
+                                       pre_diagnosis="التهاب زائدة"))
+        db.session.commit()
+    return clinic
+
+
+def test_operations_have_a_tab_of_their_own(operated):
+    """They were a few lines at the bottom of *overview* — an operative
+    history filed beside the phone number, on the tab reception opens."""
+    page = _file(operated)
+
+    assert "tab==='operations'" in page
+    assert "استئصال زائدة" in page
+    assert "ختان" in page
+
+
+def test_the_tab_says_whether_anybody_wrote_the_case_up(operated):
+    """**`SAS.08` asks for the report to be kept in the medical record**, and
+    the file could say an operation happened without being able to say
+    whether anybody had written it up."""
+    page = _file(operated)
+
+    assert 'data-report-state="short"' in page
+    assert 'data-report-state="none"' in page
+
+
+def test_a_half_written_report_says_how_many_are_left(operated):
+    """«ناقص ٤ بنود» and «مفيش تقرير» are two different errands."""
+    import re
+
+    page = _file(operated)
+    said = re.search(r'data-report-state="short">([^<]*)<', page)
+
+    assert said and any(ch.isdigit() for ch in said.group(1))
+
+
+def test_the_list_left_the_overview_tab(operated):
+    """Moved, not copied — the same rule the curves follow above."""
+    page = _file(operated)
+    before = page.split("tab==='operations'")[0]
+
+    assert "data-operations" not in before
+
+
+def test_a_child_with_no_operations_gets_no_tab(clinic):
+    """A tab labelled «عمليات» on the file of a child who has never had one
+    is furniture, and most of this clinic's files are those."""
+    from app.models import Setting
+
+    with clinic["app"].app_context():
+        Setting.set("mod_enabled:theatres", "1")
+        clinic["db"].session.commit()
+
+    assert "tab==='operations'" not in _file(clinic)

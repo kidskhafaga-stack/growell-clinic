@@ -418,7 +418,8 @@
     "quick_save": "Add & select",
     "quick_fill_all": "Please fill name, date of birth and gender",
     "tab_labs": "Labs & imaging",
-    "no_labs": "No investigations on this file."
+    "no_labs": "No investigations on this file.",
+    "tab_operations": "Operations"
   },
   "import": {
     "title": "Import patient data",
