@@ -318,13 +318,25 @@ def test_the_tab_says_whether_anybody_wrote_the_case_up(operated):
 
 
 def test_a_half_written_report_says_how_many_are_left(operated):
-    """«ناقص ٤ بنود» and «مفيش تقرير» are two different errands."""
+    """«ناقص ٤ بنود» and «مفيش تقرير» are two different errands.
+
+    The count itself is asserted, not merely «there is a digit» — a mutation
+    that made the number always nought passed that, and «ناقص ٠ بنود» is a
+    sentence that tells a registrar to go and do nothing.
+    """
     import re
+
+    from app.blueprints.patients.routes import _report_missing
+    from app.models.theatre import Operation
 
     page = _file(operated)
     said = re.search(r'data-report-state="short">([^<]*)<', page)
+    with operated["app"].app_context():
+        op = Operation.query.filter_by(procedure="استئصال زائدة").one()
+        left = _report_missing(op)
 
-    assert said and any(ch.isdigit() for ch in said.group(1))
+    assert left == 4, "one of the five written elements was filled"
+    assert said and str(left) in said.group(1)
 
 
 def test_the_list_left_the_overview_tab(operated):
@@ -345,3 +357,67 @@ def test_a_child_with_no_operations_gets_no_tab(clinic):
         clinic["db"].session.commit()
 
     assert "tab==='operations'" not in _file(clinic)
+
+
+def test_the_tab_says_whether_the_anaesthetic_was_planned(operated):
+    """**SAS.16 EOC 2** asks for *a detailed plan for anesthesia care* and
+    names six elements. The file could say a child was anaesthetised without
+    being able to say whether anybody planned it."""
+    from app.models.theatre import AnaesthesiaPlan, Operation
+
+    with operated["app"].app_context():
+        db = operated["db"]
+        op = (Operation.query.filter_by(procedure="استئصال زائدة").one())
+        db.session.add(AnaesthesiaPlan(operation_id=op.id, kind="general",
+                                       induction="بروبوفول", airway="أنبوبة",
+                                       fluids="محلول ملح"))
+        db.session.commit()
+
+    page = _file(operated)
+
+    assert 'data-plan-state="planned"' in page
+    assert 'data-plan-state="none"' in page
+
+
+def test_only_the_four_that_belong_before_the_case_count_as_missing(operated):
+    """What was given during the anaesthetic and what went wrong are an
+    account of what happened — empty beforehand is not a gap, and a plan
+    marked short for them would be the checklist problem in another shape."""
+    from app.blueprints.patients.routes import _plan_state
+    from app.models.theatre import AnaesthesiaPlan, Operation
+
+    with operated["app"].app_context():
+        db = operated["db"]
+        op = Operation.query.filter_by(procedure="ختان").one()
+        db.session.add(AnaesthesiaPlan(operation_id=op.id, kind="local",
+                                       induction="موضعي", airway="طبيعي",
+                                       fluids="مفيش"))
+        db.session.commit()
+
+        # `given_during` and `events` are both empty and it is still planned.
+        assert _plan_state(op) == "planned"
+
+
+def test_a_plan_missing_one_of_the_four_reads_as_short(operated):
+    from app.blueprints.patients.routes import _plan_state
+    from app.models.theatre import AnaesthesiaPlan, Operation
+
+    with operated["app"].app_context():
+        db = operated["db"]
+        op = Operation.query.filter_by(procedure="ختان").one()
+        db.session.add(AnaesthesiaPlan(operation_id=op.id, kind="local",
+                                       induction="موضعي", airway="طبيعي"))
+        db.session.commit()
+
+        assert _plan_state(op) == "short"
+
+
+def test_a_case_with_no_plan_says_so(operated):
+    from app.blueprints.patients.routes import _plan_state
+    from app.models.theatre import Operation
+
+    with operated["app"].app_context():
+        op = Operation.query.filter_by(procedure="ختان").one()
+
+        assert _plan_state(op) == "none"
+        assert _plan_state(None) == "none"

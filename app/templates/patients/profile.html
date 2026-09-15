@@ -783,6 +783,7 @@
             <th>{{ t('theatre.surgeon') }}</th>
             <th>{{ t('invoices.status') }}</th>
             <th>{{ t('op_report.title') }}</th>
+            <th>{{ t('theatre.anaesthesia') }}</th>
           </tr></thead>
           <tbody>
             {% for op in operations %}
@@ -798,6 +799,16 @@
                 {% set rs = report_state(op) %}
                 <span class="badge {{ 'badge--green' if rs == 'complete' else ('badge--muted' if rs == 'none' else 'badge--warn') }}"
                       data-report-state="{{ rs }}">{% if rs == 'none' %}{{ t('op_report.not_written') }}{% elif rs == 'short' %}{{ t('op_report.short', n=report_missing(op)) }}{% else %}{{ t('op_report.' ~ rs) }}{% endif %}</span>
+              </td>
+              <td>
+                {# SAS.16: **a detailed plan for anaesthesia care.** Only the
+                   four elements that belong before the case count as missing
+                   — what was given during it and what went wrong are an
+                   account of what happened, and empty beforehand is not a
+                   gap. The rule is `AnaesthesiaPlan.BEFORE`; this reads it. #}
+                {% set ps = plan_state(op) %}
+                <span class="badge {{ 'badge--green' if ps == 'planned' else ('badge--muted' if ps == 'none' else 'badge--warn') }}"
+                      data-plan-state="{{ ps }}">{{ t('anaes_plan.' ~ ps) }}</span>
               </td>
             </tr>
             {% endfor %}

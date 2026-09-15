@@ -613,7 +613,29 @@ def view(patient_id):
         # بنود» is a different errand from «مفيش تقرير», and the word for the
         # first one carries a number.
         report_missing=_report_missing,
+        # And whether the anaesthetist wrote their plan — SAS.16 EOC 2 asks
+        # for *a detailed plan for anesthesia care* and names six elements,
+        # four of which belong before the case. Same reason the report's
+        # state is here: the file could say a child was anaesthetised without
+        # being able to say whether anybody planned it.
+        plan_state=_plan_state,
     )
+
+
+def _plan_state(operation):
+    """``none`` · ``short`` · ``planned`` for one case's anaesthesia plan.
+
+    Only the four elements that belong *before* the case count as missing:
+    what was given during it and what went wrong are an account of what
+    happened, and an empty one beforehand is not a gap. That rule lives on
+    `AnaesthesiaPlan.BEFORE`, and this reads it rather than repeating it.
+    """
+    from app.utils import theatres
+
+    row = theatres.plan_for(operation)
+    if row is None:
+        return "none"
+    return "planned" if row.is_planned else "short"
 
 
 def _report_state(operation):

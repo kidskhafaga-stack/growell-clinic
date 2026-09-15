@@ -7028,5 +7028,10 @@
     "submit": "Send to accounts",
     "submitted": "The invoice was sent to accounts.",
     "title": "Invoice review"
+  },
+  "anaes_plan": {
+    "none": "No anaesthesia plan",
+    "planned": "Plan written",
+    "short": "Plan incomplete"
   }
 }
