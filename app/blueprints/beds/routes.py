@@ -41,6 +41,7 @@ from app.utils import bed_billing
 from app.utils import drug_round
 from app.utils.clock import local_today
 from app.utils import discharge_summary as summary
+from app.utils import risks
 from app.utils import round_billing
 from app.utils import rounds as ward_round
 from app.utils.clock import to_local, to_utc
@@ -254,6 +255,9 @@ def admit(patient_id):
 def admission(admission_id):
     """One stay: where they are, where they have been, and how it ended."""
     row = Admission.query.get_or_404(admission_id)
+    # Read once. The headline counts and the rows under them come off the same
+    # list, so they cannot end up saying different things about one stay.
+    risk_rows = risks.panel(row)
     return render_template(
         "beds/admission.html", admission=row,
         free=ward.free_beds(), outcomes=OUTCOMES, trends=ROUND_TRENDS,
@@ -270,6 +274,14 @@ def admission(admission_id):
         # screen can show a doctor which ones need them and which are already
         # answered — and can say «not written» about a stay that has none,
         # which is a different fact from one whose boxes are empty.
+        # The three risks GAHAR requires a hospital to look for — ICD.10
+        # falls, ICD.11 pressure ulcers, ICD.12 VTE. One row per risk the
+        # clinic looks for, present whether or not anybody has assessed it:
+        # an absence has no row of its own to find, and an unassessed risk is
+        # the thing this panel is for.
+        risk_panel=risk_rows,
+        risk_unassessed=risks.unassessed(risk_rows),
+        risk_bare=risks.without_plan(risk_rows),
         discharge_summary=summary.for_admission(row),
         summary_state=summary.state(row),
         summary_missing=summary.missing(row),
@@ -478,6 +490,56 @@ def round_note(admission_id):
     db.session.commit()
     flash(t("rounds.saved"), "success")
     return _back_to(row)
+
+
+@beds_bp.route("/admission/<int:admission_id>/risk", methods=["POST"])
+@module_required(MODULE)
+def risk_assessment(admission_id):
+    """Record one look at one of the three required risks — ICD.10/11/12.
+
+    **No capability of its own, like the round**, and for the same reason: the
+    person who assesses a child for falls is whoever is standing at the bed,
+    and on a night shift that is nursing. A capability here would have put the
+    assessment behind the ward's door twice.
+    """
+    row = Admission.query.get_or_404(admission_id)
+    try:
+        risks.record(
+            row.patient, (request.form.get("kind") or "").strip(),
+            user=current_user, admission=row,
+            tool=request.form.get("tool"),
+            level=request.form.get("level"),
+            at_risk=_yes_no(request.form.get("at_risk")),
+            general_measures=request.form.get("general_measures"),
+            plan=request.form.get("plan"),
+            family_told=_yes_no(request.form.get("family_told")),
+            at=_happened_at())
+    except ValueError:
+        db.session.rollback()
+        # Said out loud rather than swallowed. A post that quietly saved
+        # nothing would leave a nurse believing the record carries an
+        # assessment it does not — the failure this whole screen exists to
+        # make visible, arriving through the screen itself.
+        flash(t("risks.not_saved"), "error")
+        return redirect(url_for("beds.admission", admission_id=row.id))
+    db.session.commit()
+    flash(t("risks.saved"), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id))
+
+
+def _yes_no(raw):
+    """``"yes"``/``"no"`` as a boolean, and everything else as ``None``.
+
+    The third state is the point: the form's blank option means nobody
+    committed to an answer, which is not "no" — see the model's docstring on
+    why ``at_risk`` and ``family_told`` are nullable.
+    """
+    said = (raw or "").strip().lower()
+    if said == "yes":
+        return True
+    if said == "no":
+        return False
+    return None
 
 
 def _back_to(admission):

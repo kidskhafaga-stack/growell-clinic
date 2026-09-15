@@ -800,6 +800,46 @@ def visit_types():
                            colors=VISIT_TYPE_COLORS)
 
 
+@settings_bp.route("/risks", methods=["GET", "POST"])
+@admin_required
+def risks():
+    """Which risks this place looks for, on what timeframe, with which tool.
+
+    **The whole of the policy the program is allowed to hold**, and nothing
+    clinical is in it. ICD.10 (ب) / ICD.11 (ب) / ICD.12 put the tool and its
+    contents to the hospital in as many words, so the program keeps the name
+    the hospital gave and the frequency it stated, and computes nothing from
+    either. See `utils/risks`.
+
+    **Admin, not a doctor.** This is configuration — which risks the place's
+    own policy covers — and not a decision about a child. Recording the
+    assessment itself is the ward's, at the bedside, with no capability at all.
+    """
+    from app.models.risk_assessment import RISK_KINDS, STANDARDS
+    from app.utils import risks as risk_rules
+
+    if request.method == "POST":
+        for kind in RISK_KINDS:
+            risk_rules.save_policy(
+                kind,
+                on=bool(request.form.get(f"on_{kind}")),
+                hours=request.form.get(f"hours_{kind}"),
+                tool=request.form.get(f"tool_{kind}"))
+        ActivityLog.record("settings.risks", user_id=current_user.id,
+                           entity="setting", detail="risk policy",
+                           ip_address=client_ip())
+        db.session.commit()
+        flash(t("risks.policy_saved"), "success")
+        return redirect(url_for("settings.risks"))
+
+    enabled = risk_rules.enabled_kinds()
+    return render_template(
+        "settings/risks.html", kinds=RISK_KINDS, standards=STANDARDS,
+        policy={k: {"on": k in enabled,
+                    "hours": risk_rules.interval_hours(k) or "",
+                    "tool": risk_rules.tool_name(k)} for k in RISK_KINDS})
+
+
 def _device_matches(dev, needle, lang):
     """Name in either language, plus the maker, model and serial — a device is
     usually looked for by the label on its side, not by what we called it."""
