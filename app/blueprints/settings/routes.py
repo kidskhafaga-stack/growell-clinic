@@ -818,6 +818,8 @@ def risks():
     from app.models.risk_assessment import RISK_KINDS, STANDARDS
     from app.utils import risks as risk_rules
 
+    from app.utils import blood as blood_rules
+
     if request.method == "POST":
         for kind in RISK_KINDS:
             risk_rules.save_policy(
@@ -825,6 +827,18 @@ def risks():
                 on=bool(request.form.get(f"on_{kind}")),
                 hours=request.form.get(f"hours_{kind}"),
                 tool=request.form.get(f"tool_{kind}"))
+        # **The setting that had no screen at all.** `blood_watch_minutes` was
+        # read by `utils/blood` and could only be set by editing the database
+        # — a policy the hospital is asked for that the hospital cannot state.
+        # It lives here because it is the same kind of answer as the risk
+        # frequencies beside it: how often this place looks at a patient.
+        try:
+            minutes = int((request.form.get("blood_watch_minutes")
+                           or "").strip())
+        except (TypeError, ValueError):
+            minutes = 0
+        Setting.set(blood_rules.INTERVAL_SETTING,
+                    str(minutes) if minutes > 0 else "")
         ActivityLog.record("settings.risks", user_id=current_user.id,
                            entity="setting", detail="risk policy",
                            ip_address=client_ip())
@@ -835,6 +849,7 @@ def risks():
     enabled = risk_rules.enabled_kinds()
     return render_template(
         "settings/risks.html", kinds=RISK_KINDS, standards=STANDARDS,
+        blood_watch_minutes=blood_rules.interval_minutes() or "",
         policy={k: {"on": k in enabled,
                     "hours": risk_rules.interval_hours(k) or "",
                     "tool": risk_rules.tool_name(k)} for k in RISK_KINDS})

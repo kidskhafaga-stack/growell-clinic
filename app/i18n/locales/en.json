@@ -420,7 +420,8 @@
     "tab_labs": "Labs & imaging",
     "no_labs": "No investigations on this file.",
     "tab_operations": "Operations",
-    "tab_care_plan": "Plan of care"
+    "tab_care_plan": "Plan of care",
+    "tab_blood": "Blood"
   },
   "import": {
     "title": "Import patient data",
@@ -7217,6 +7218,20 @@
     "cannot_cancel": "A request with a bag hung against it cannot be cancelled — the blood went into the child.",
     "yes": "Yes",
     "no": "No",
-    "unsaid": "Nobody said"
+    "unsaid": "Nobody said",
+    "watch_every_hint": "How often a reading is taken while a bag is running, in minutes. Empty = your policy names no interval, and nothing is ever called overdue."
+  },
+  "watch": {
+    "title": "Needs looking at now",
+    "subtitle": "Across {n} open stay(s)",
+    "all_clear": "Nothing needs anybody right now — every running bag has readings, and every stay's risks have been assessed.",
+    "emergency_blood": "Emergency blood still waiting",
+    "where": "Bed",
+    "what": "Needs",
+    "plans_title": "Care-plan goals past their date",
+    "plans_sub": "A doctor wrote a goal with a date; the date has passed and the goal is still open",
+    "plans_clear": "No goal is past its date.",
+    "goal_of": "Plan",
+    "open_plan": "Open the plan"
   }
 }

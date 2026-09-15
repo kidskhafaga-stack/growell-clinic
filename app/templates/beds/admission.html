@@ -518,16 +518,16 @@
 <div class="card gc-scale-in" style="margin-bottom:16px;" data-blood>
   <h2 class="section-title" style="margin-top:0;">
     <i class="bi bi-droplet-fill"></i> {{ t('blood.title') }}
-    {% set unwatched = [] %}
-    {% for group in blood_panel %}{% for item in group.bags %}
-      {% if item.state == 'unwatched' %}{% set _ = unwatched.append(item) %}{% endif %}
-    {% endfor %}{% endfor %}
-    {% if unwatched %}
+    {# The count comes from `blood.unwatched` and not from a loop here. It was
+       written out in Jinja as well as in the util — two spellings of one rule,
+       which is the shape a mutation sweep caught in `followup` and the shape
+       that lets a screen and its own reader disagree. #}
+    {% if blood_unwatched %}
     {# The one finding on this card: a bag going into a child right now with
        nothing written down. #}
     <span class="alert-pill danger" data-blood-summary="unwatched">
       <i class="bi bi-exclamation-triangle"></i>
-      {{ t('blood.n_unwatched', n=unwatched|length) }}</span>
+      {{ t('blood.n_unwatched', n=blood_unwatched|length) }}</span>
     {% endif %}
   </h2>
 

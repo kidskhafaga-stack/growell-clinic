@@ -640,7 +640,28 @@ def view(patient_id):
         # per consultation: a child with three years on the books is a hundred
         # encounters.
         followups=followups_util.by_visit(patient.visits),
+        # GAHAR ICD.20/ICD.21 — this child's blood across every stay they have
+        # had. The stay screen shows one admission's; the record is the child's
+        # and a transfusion six months ago is exactly what a doctor seeing them
+        # again needs to find. Read only where the clinic has a ward at all.
+        blood_history=_blood_history(patient.id),
     )
+
+
+def _blood_history(patient_id):
+    """This child's blood requests, or nothing when the ward is off.
+
+    The same module guard as ``_stays`` and ``_discharge_summaries``, and for
+    the reason the cost test caught the second time: this read touches a table
+    a clinic with no beds can never have a row in.
+    """
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("beds"):
+        return []
+    from app.utils import blood
+
+    return blood.for_patient(patient_id)
 
 
 def _plan_state(operation):
@@ -1122,6 +1143,25 @@ def delete_parent(parent_id):
 # consultation is, and element (أ) says *all relevant disciplines* — nursing
 # included. The one act narrowed to a person is the signature, which is
 # element (أ)'s whole point.
+@patients_bp.route("/care-plans")
+@module_required(MODULE)
+@capability_required("patient_medical")
+def care_plan_goals():
+    """Every care-plan goal whose date has passed with the goal still open.
+
+    **The door `care_plan.overdue_everywhere` did not have.** ICD.15 (هـ) asks
+    for *"desired outcomes **with timeframes**"*, and a timeframe nothing ever
+    looks at is a date in a box — so the reader was written, tested, and
+    reachable from nothing. The file shows one child's; this is the clinic's.
+
+    Read-only. The work is done on the plan, and every row links to it.
+    """
+    from app.utils import care_plan as care_planning
+
+    return render_template("patients/care_plan_goals.html",
+                           goals=care_planning.overdue_everywhere())
+
+
 def _care_plan_back(patient_id):
     return url_for("patients.view", patient_id=patient_id) + "#care_plan"
 

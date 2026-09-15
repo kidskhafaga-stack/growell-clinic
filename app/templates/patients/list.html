@@ -32,6 +32,13 @@
     <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.archive') }}">
       <i class="bi bi-archive"></i> {{ t('archive.title') }}
     </a>
+    {# ICD.15 (هـ) بيطلب مُدد، و(ز) بيطلب متابعة. مدة محدّش بيبصّ عليها مش
+       مدة — ودي الشاشة اللي بتخلّي الاتنين يعملوا حاجة. #}
+    {% if current_user.can('patient_medical') %}
+    <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.care_plan_goals') }}">
+      <i class="bi bi-list-check"></i> {{ t('watch.plans_title') }}
+    </a>
+    {% endif %}
     <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.bulk_import') }}">
       <i class="bi bi-upload"></i> {{ t('patients.import_patients') }}
     </a>

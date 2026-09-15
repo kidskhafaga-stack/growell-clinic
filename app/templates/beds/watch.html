@@ -1,0 +1,92 @@
+{% extends "shell.html" %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('watch.title') }}{% endblock %}
+{% block page_heading %}{{ t('watch.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('watch.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('watch.subtitle', n=open_stays) }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('beds.index') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i>
+    {{ t('beds.board') }}</a>
+</div>
+
+{# Three *now* questions on one board, because a ward manager asks all three
+   standing in the same doorway — and because each of the three readers behind
+   them was written with no screen to call it. #}
+
+{% if emergencies %}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-watch-emergencies>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-droplet-fill"></i> {{ t('watch.emergency_blood') }}
+    <span class="alert-pill danger">{{ emergencies|length }}</span></h2>
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('followup.child') }}</th>
+      <th>{{ t('blood.product') }}</th>
+      <th>{{ t('blood.indication') }}</th>
+      <th>{{ t('blood.req_requested') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for req in emergencies %}
+      <tr data-emergency="{{ req.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=req.patient_id) }}">
+          {{ req.patient.full_name if req.patient else '—' }}</a></td>
+        <td>{{ t('blood.product_' ~ req.product) }}
+          {%- if req.units %} · {{ req.units }}{% endif %}</td>
+        <td>{{ req.indication }}</td>
+        <td dir="ltr">{{ req.requested_at|clinic_stamp }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;" data-watch-board>
+  {% if not rows %}
+  {# «مفيش حاجة» جملة، مش شاشة فاضية. لوحة بتترسم فاضية من غير كلام بتقرا
+     كأنها بايظة، وده اللي بيخلّي حد يبطّل يفتحها. #}
+  <p class="hint" style="margin:0;padding:18px;">{{ t('watch.all_clear') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('followup.child') }}</th>
+      <th>{{ t('watch.where') }}</th>
+      <th>{{ t('watch.what') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr data-watch-stay="{{ row.stay.id }}">
+        <td>
+          <a href="{{ url_for('beds.admission', admission_id=row.stay.id) }}">
+            {{ row.stay.patient.full_name if row.stay.patient else '—' }}</a>
+        </td>
+        <td>{{ row.stay.bed.name if row.stay.bed else '—' }}</td>
+        <td>
+          {# الدم الأول: كيس ماشي ومحدّش بيشوفه بيحصل دلوقتي، والتقييم الناقص
+             فجوة بتستنى. الاتنين محتاجين حد، بس مش بنفس السرعة. #}
+          {% if row.bags %}
+          <span class="badge badge--danger" data-watch-bags="{{ row.bags|length }}">
+            <i class="bi bi-droplet-fill"></i>
+            {{ t('blood.n_unwatched', n=row.bags|length) }}</span>
+          {% endif %}
+          {% for kind in row.risks %}
+          <span class="badge badge--warn" data-watch-risk="{{ kind }}">
+            {{ t('risks.kind_' ~ kind) }}: {{ t('risks.state_none') }}</span>
+          {% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
