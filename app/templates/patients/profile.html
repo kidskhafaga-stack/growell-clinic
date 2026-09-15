@@ -244,15 +244,34 @@
         ('family','tab_family','people')
       ]) %}
       {% if current_user.can('patient_medical') %}
+        {# The ones every file has, whatever kind of place this is: a child is
+           seen, measured, vaccinated, prescribed for, and things are filed
+           about them. Everything past this point has to earn its place. #}
         {% set ns.tabs = ns.tabs + [
           ('visits','tab_visits','clipboard2-pulse'),
-          ('studies','tab_studies','activity'),
-          ('labs','tab_labs','droplet-half'),
           ('growth','tab_growth','graph-up'),
           ('vaccinations','tab_vaccinations','shield-plus'),
           ('prescriptions','tab_prescriptions','capsule'),
           ('documents','tab_documents','folder')
         ] %}
+        {# **These two were the exception, and they should not have been.**
+           Every other conditional tab on this file — dental, operations,
+           stays, blood, the plan — appears only when there is something in
+           it, and the comment beside each says why: a tab labelled for
+           something a child has never had is furniture. `studies` and `labs`
+           were drawn unconditionally, so a single-doctor clinic with no echo
+           and no bench opened every file onto two empty rooms.
+
+           `labs` follows the plain rule: the child has a test on file.
+           `studies` adds one clause — a clinic that owns a machine keeps the
+           tab even before the first study, because that is where the first
+           one is started from. #}
+        {% if studies and studies.total or has_devices %}
+        {% set ns.tabs = ns.tabs + [('studies','tab_studies','activity')] %}
+        {% endif %}
+        {% if lab_orders or lab_series %}
+        {% set ns.tabs = ns.tabs + [('labs','tab_labs','droplet-half')] %}
+        {% endif %}
         {# Only where the clinic does dentistry. A tab labelled "teeth" on
            every paediatric file is furniture, which is why the module is off
            by default in the first place. #}
