@@ -476,11 +476,17 @@ def create():
 @module_required(MODULE)
 def view(patient_id):
     from app.models import Invoice, PayerEntity, Prescription
+    from app.models.care_plan import GOAL_PROGRESS
     from app.utils import ai as ai_utils
+    from app.utils import care_plan as care_planning
     from app.utils import followup as followups_util
     from app.utils import lab_series, series
 
     patient = db.get_or_404(Patient, patient_id)
+    # Read once, and everything about ICD.15 is worked out from it. Four
+    # separate reads would be four chances for the badge, the checklist and
+    # the goals to describe different plans.
+    _care_plan = care_planning.current(patient.id)
     ai_patient = (current_user.can_access("ai") and ai_utils.is_ready()
                   and ai_utils.patient_context_enabled())
     # The discussion card needs both: the record still leaves the building, and
@@ -620,6 +626,15 @@ def view(patient_id):
         # state is here: the file could say a child was anaesthetised without
         # being able to say whether anybody planned it.
         plan_state=_plan_state,
+        # ICD.15 — the one plan the other eleven standards point at. Element
+        # (ب) is the record itself, so the plan points at the assessments and
+        # never copies them; see `utils/care_plan`.
+        care_plan=_care_plan,
+        care_plan_state=care_planning.state(_care_plan),
+        care_plan_elements=care_planning.assemble(_care_plan, patient.id),
+        care_plan_stands_on=care_planning.stands_on(patient.id),
+        care_plan_missing=care_planning.missing(_care_plan),
+        goal_progress=GOAL_PROGRESS,
         # GAHAR ICD.05 evidence 5 — what each visit told the family, and
         # whether they came back. One query for the whole file rather than one
         # per consultation: a child with three years on the books is a hundred
@@ -1094,6 +1109,137 @@ def delete_parent(parent_id):
     if patient_id:
         return redirect(url_for("patients.view", patient_id=patient_id) + "#family")
     return redirect(url_for("patients.index"))
+
+
+# ------------------------------------------------------- plan of care -------
+# GAHAR ICD.15. Four addresses because the plan is written in four different
+# moments by four different people: a plan is opened, needs are identified as
+# they are found, progress is reviewed at the bedside, and the responsible
+# physician signs. One form holding all of it would have asked whoever opened
+# the plan to know things nobody knows yet.
+#
+# **No capability of its own beyond the file's.** Writing a plan is what a
+# consultation is, and element (أ) says *all relevant disciplines* — nursing
+# included. The one act narrowed to a person is the signature, which is
+# element (أ)'s whole point.
+def _care_plan_back(patient_id):
+    return url_for("patients.view", patient_id=patient_id) + "#care_plan"
+
+
+@patients_bp.route("/<int:patient_id>/care-plan", methods=["POST"])
+@module_required(MODULE)
+def care_plan_start(patient_id):
+    """Open a plan, and save the cover — elements (ج) and (د).
+
+    One address for both because pressing «ابدأ خطة» on a child who already
+    has one is a save, not a second plan. `care_plan.start` returns the
+    existing plan rather than creating another; see its docstring.
+    """
+    from app.utils import care_plan as care_planning
+
+    patient = db.get_or_404(Patient, patient_id)
+    plan = care_planning.start(patient, user=current_user)
+    db.session.flush()
+    care_planning.describe(
+        plan,
+        family_involved=_tri(request.form.get("family_involved")),
+        family_note=request.form.get("family_note"),
+        guideline=request.form.get("guideline"),
+        preferences=request.form.get("preferences"))
+    db.session.commit()
+    flash(t("care_plan.saved"), "success")
+    return redirect(_care_plan_back(patient.id))
+
+
+@patients_bp.route("/<int:patient_id>/care-plan/goal", methods=["POST"])
+@module_required(MODULE)
+def care_plan_goal(patient_id):
+    """Element (هـ) — one identified need, with its own timeframe."""
+    from app.utils import care_plan as care_planning
+
+    patient = db.get_or_404(Patient, patient_id)
+    plan = care_planning.current(patient.id)
+    if plan is None:
+        plan = care_planning.start(patient, user=current_user)
+        db.session.flush()
+    try:
+        care_planning.add_goal(
+            plan, request.form.get("need"),
+            intervention=request.form.get("intervention"),
+            outcome=request.form.get("outcome"),
+            by_when=_parse_date("by_when"))
+    except ValueError:
+        db.session.rollback()
+        # Refused out loud. A goal that saved nothing would leave a doctor
+        # believing the plan carries a need it does not — and element (ز) then
+        # monitors an outcome that was never written.
+        flash(t("care_plan.needs_a_need"), "error")
+        return redirect(_care_plan_back(patient.id))
+    db.session.commit()
+    flash(t("care_plan.goal_added"), "success")
+    return redirect(_care_plan_back(patient.id))
+
+
+@patients_bp.route("/care-plan/goal/<int:goal_id>/progress", methods=["POST"])
+@module_required(MODULE)
+def care_plan_progress(goal_id):
+    """Element (ز) — how this goal is going."""
+    from app.models.care_plan import CarePlanGoal
+    from app.utils import care_plan as care_planning
+
+    goal = db.get_or_404(CarePlanGoal, goal_id)
+    try:
+        care_planning.record_progress(
+            goal, (request.form.get("progress") or "").strip(),
+            user=current_user, note=request.form.get("progress_note"))
+    except ValueError:
+        db.session.rollback()
+        flash(t("care_plan.bad_progress"), "error")
+        return redirect(_care_plan_back(goal.plan.patient_id))
+    db.session.commit()
+    flash(t("care_plan.progress_saved"), "success")
+    return redirect(_care_plan_back(goal.plan.patient_id))
+
+
+@patients_bp.route("/<int:patient_id>/care-plan/sign", methods=["POST"])
+@module_required(MODULE)
+@capability_required("patient_medical")
+def care_plan_sign(patient_id):
+    """Element (أ) — the most responsible physician puts their name to it.
+
+    **The one act here that is narrowed**, because the element is a claim
+    about a named clinician supervising the plan. A signature from an account
+    that does not carry the clinical record would be a name against a claim it
+    cannot make — the same argument the operative report's signature settled.
+    """
+    from app.utils import care_plan as care_planning
+
+    patient = db.get_or_404(Patient, patient_id)
+    plan = care_planning.current(patient.id)
+    if care_planning.sign(plan, user=current_user) is None:
+        # A signature under a plan with no goals would read as complete while
+        # element (هـ) — the body of the thing — is missing.
+        flash(t("care_plan.cannot_sign_empty"), "error")
+        return redirect(_care_plan_back(patient.id))
+    db.session.commit()
+    flash(t("care_plan.signed"), "success")
+    return redirect(_care_plan_back(patient.id))
+
+
+def _tri(raw):
+    """``"yes"``/``"no"`` as a boolean, everything else as ``None``.
+
+    The third state is element (ج)'s: evidence 3 has a surveyor *interview the
+    family* about their involvement, so a blank box standing for "no" would be
+    the program telling a hospital it had done something the family will say
+    it did not.
+    """
+    said = (raw or "").strip().lower()
+    if said == "yes":
+        return True
+    if said == "no":
+        return False
+    return None
 
 
 # ------------------------------------------------------ problem list -------
