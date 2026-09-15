@@ -261,9 +261,13 @@ def seed_demo():
         made += 1
         # Mark the first two as ETA tax invoices and submit (demo).
         if i < 2:
+            # ``None`` when the demo clinic has asked for an accounts
+            # review and this bill has not had one — see
+            # `app.utils.invoice_signoff`.
             edoc = eta.queue_for_invoice(inv, user_id=doc.id)
-            db.session.flush()
-            eta.submit(edoc, user_id=doc.id)
+            if edoc is not None:
+                db.session.flush()
+                eta.submit(edoc, user_id=doc.id)
 
     # --- WhatsApp message logs (varied statuses for the send dashboard) ---
     _msg_defs = [

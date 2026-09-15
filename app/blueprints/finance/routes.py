@@ -345,8 +345,15 @@ def _apply_service_engine_fields(svc):
 @finance_bp.route("/")
 @module_required(MODULE)
 def index():
+    from app.utils import invoice_signoff as _review
+
     services = Service.query.order_by(Service.sort_order, Service.name).all()
-    return render_template("finance/index.html", services=services)
+    # ``None`` when this clinic asks for no audit, and the card is left off
+    # entirely — a way in to a queue that can never hold anything is the
+    # «screen with no way in» problem turned inside out.
+    waiting = len(_review.waiting()) if _review.policy() else None
+    return render_template("finance/index.html", services=services,
+                           review_waiting=waiting)
 
 
 def _service_matches(svc, needle, lang):
@@ -1125,6 +1132,66 @@ def _deduct_service_consumables(item, invoice):
         ))
         n += 1
     return n
+
+
+# ------------------------------------------ the bills accounts sign off ----
+@finance_bp.route("/invoice-review")
+@module_required(MODULE)
+def invoice_signoff_queue():
+    """What accounts still have to go through — «تدقيق وتصديق الفاتورة».
+
+    Empty, and not offered at all, in a clinic that has asked for no review:
+    a queue that is always empty is a menu item people stop seeing.
+    """
+    from app.utils import invoice_signoff as review
+
+    return render_template("finance/invoice_signoff.html",
+                           rows=review.waiting(), review=review,
+                           policy=review.policy())
+
+
+@finance_bp.route("/invoices/<int:invoice_id>/review", methods=["POST"])
+@module_required(MODULE)
+def invoice_signoff_decide(invoice_id):
+    """Submit it, sign it off, or send it back with a sentence."""
+    from app.utils import invoice_signoff as review
+
+    invoice = db.get_or_404(Invoice, invoice_id)
+    back = url_for("finance.invoice_view", invoice_id=invoice.id)
+    action = (request.form.get("action") or "").strip()
+
+    # **Signing off is accounts'; saying «the bill is complete» is anybody's.**
+    # The ward coordinator submits it; only an admin signs it or sends it
+    # back. Checked here as well as hidden on the screen — a guard from one
+    # side is half a rule, and the missing half is the one somebody gets
+    # through.
+    if action in ("approve", "query") and not review.may_sign_off(current_user):
+        flash(t("auth.no_permission"), "warning")
+        return redirect(back)
+
+    if action == "approve":
+        done = review.approve(invoice, user=current_user)
+        said = "invoice_signoff.approved"
+    elif action == "query":
+        done = review.query(invoice, request.form.get("note"),
+                            user=current_user)
+        said = "invoice_signoff.queried"
+    else:
+        done = review.submit(invoice, user=current_user)
+        said = "invoice_signoff.submitted"
+
+    if done is None:
+        # Either the bill is not one anybody audits, or a query arrived with
+        # no sentence on it — and «مرفوضة» on its own is not a finding the
+        # ward can act on.
+        flash(t("invoice_signoff.refused"), "warning")
+        return redirect(back)
+    ActivityLog.record("invoice.review." + (action or "submit"),
+                       user_id=current_user.id, entity="invoice",
+                       detail=invoice.invoice_number, ip_address=client_ip())
+    db.session.commit()
+    flash(t(said), "success")
+    return redirect(back)
 
 
 @finance_bp.route("/invoices")
@@ -3899,6 +3966,8 @@ def _parse_date_arg(name):
 @finance_bp.route("/invoices/<int:invoice_id>")
 @cashier_access
 def invoice_view(invoice_id):
+    from app.utils import invoice_signoff as _review
+
     invoice = db.get_or_404(Invoice, invoice_id)
     return render_template(
         "finance/invoice_view.html", invoice=invoice, methods=PAYMENT_METHODS,
@@ -3911,6 +3980,13 @@ def invoice_view(invoice_id):
         # can see a correction rather than only its result.
         history=invoice_history(invoice.id),
         period_open=not _period_blocked(invoice.invoice_date, flash_it=False),
+        # Where this bill stands with accounts, and whether it is even one
+        # they audit — a clinic that asks for no review never sees the card.
+        # Signing off is the admin's; sending it to them is anybody's, which
+        # is the ward coordinator saying «the bill is complete».
+        review_needed=_review.needs_review(invoice),
+        review_state=_review.state(invoice),
+        may_review=_review.may_sign_off(current_user),
         # The summary a family reads first, over the detail they open when
         # one of its numbers looks wrong. Both are the same lines: the totals
         # here are their own nets added up, never a second figure.
@@ -5018,7 +5094,14 @@ def invoice_mark_tax(invoice_id):
         flash(t("einvoice.unmarked"), "info")
         return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
 
-    eta.queue_for_invoice(invoice, user_id=current_user.id)
+    # Refused while accounts still have the bill. The tax invoice is the
+    # document that leaves the building with the hospital's name on it, and
+    # «تصديق الفاتورة» means somebody reads it first — see
+    # `app.utils.invoice_signoff`. A hospital that asks for no review never
+    # reaches this branch.
+    if eta.queue_for_invoice(invoice, user_id=current_user.id) is None:
+        flash(t("invoice_signoff.not_signed_off"), "warning")
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
     ActivityLog.record("einvoice.queue", user_id=current_user.id, entity="invoice",
                        detail=invoice.invoice_number, ip_address=client_ip())
     db.session.commit()

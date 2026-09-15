@@ -571,6 +571,23 @@
   <!-- ETA e-invoicing -->
   <div class="card gc-scale-in" x-show="tab==='eta'" x-cloak>
     <h2 class="section-title"><i class="bi bi-receipt-cutoff"></i> {{ t('settings.eta_title') }}</h2>
+
+    {# Which bills accounts sign off before the tax invoice goes out. On this
+       tab because the tax invoice is what it gates — collection never stops.
+
+       Empty by default, and empty is a real answer: a single-doctor clinic
+       has one person writing the whole bill and nothing to audit. #}
+    <div class="form-row" style="max-width:340px;">
+      <label for="invoice_signoff">{{ t('invoice_signoff.policy') }}</label>
+      <select class="select" id="invoice_signoff" name="invoice_signoff">
+        {% for value in ('', 'stay', 'all') %}
+        <option value="{{ value }}" {{ 'selected' if values.get('invoice_signoff','') == value else '' }}>
+          {{ t('invoice_signoff.policy_' ~ (value or 'none')) }}</option>
+        {% endfor %}
+      </select>
+      <div class="hint">{{ t('invoice_signoff.policy_hint') }}</div>
+    </div>
+
     <div class="form-row checkbox">
       <input type="checkbox" id="eta_enabled" name="eta_enabled" value="1" {{ 'checked' if values.get('eta_enabled')=='1' else '' }}>
       <label for="eta_enabled" style="margin:0;font-weight:400;">{{ t('settings.eta_enabled') }}</label>
