@@ -1,0 +1,57 @@
+{% extends "shell.html" %}
+{% set active_module = 'settings' %}
+{% block title %}{{ t('risks.policy_title') }}{% endblock %}
+{% block page_heading %}{{ t('risks.policy_title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('risks.policy_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('risks.policy_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('settings.index') }}">
+    <i class="bi bi-arrow-right"></i> {{ t('settings.title') }}</a>
+</div>
+
+{# Why this screen has three boxes and no scale: ICD.10 (ب), ICD.11 (ب) and
+   ICD.12 all hand the assessment tool and its contents to the hospital, and
+   ICD.11's intent says outright that more than one international guideline
+   recommends one. The program keeps the name the hospital gave its tool and
+   the frequency its policy states — and reads neither. #}
+<div class="card gc-scale-in" data-risk-policy>
+  <p class="hint" style="margin-top:0;">{{ t('risks.policy_note') }}</p>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for kind in kinds %}
+    <div class="form-row" style="border-top:1px solid var(--line);padding-top:12px;"
+         data-risk-policy-row="{{ kind }}">
+      <label style="display:flex;gap:8px;align-items:center;">
+        <input type="checkbox" name="on_{{ kind }}" value="1"
+               {% if policy[kind].on %}checked{% endif %}>
+        <strong>{{ t('risks.kind_' ~ kind) }}</strong>
+        <span class="hint" dir="ltr">{{ standards[kind] }}</span>
+      </label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+        <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+          <label for="tool_{{ kind }}">{{ t('risks.tool') }}</label>
+          <input class="input" id="tool_{{ kind }}" name="tool_{{ kind }}"
+                 maxlength="120" value="{{ policy[kind].tool }}">
+          <div class="hint">{{ t('risks.tool_hint') }}</div>
+        </div>
+        <div class="form-row" style="margin-bottom:0;min-width:180px;">
+          {# Empty is the default and stays a valid answer: while it is empty
+             nothing is ever called overdue, which is what keeps upgrade
+             morning quiet in a ward that has been running for two years. #}
+          <label for="hours_{{ kind }}">{{ t('risks.hours') }}</label>
+          <input class="input" type="number" min="0" id="hours_{{ kind }}"
+                 name="hours_{{ kind }}" value="{{ policy[kind].hours }}">
+          <div class="hint">{{ t('risks.hours_hint') }}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    <button class="btn btn-primary gc-press" type="submit" style="margin-top:14px;">
+      <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
+  </form>
+</div>
+{% endblock %}

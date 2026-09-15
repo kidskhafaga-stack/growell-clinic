@@ -10,7 +10,7 @@ from app.extensions import db
 
 # Prefixes read as a group by `Setting.group`. Writing any key under one
 # has to drop that group's cached read as well as its own.
-GROUPED_PREFIXES = ("mod_enabled:",)
+GROUPED_PREFIXES = ("mod_enabled:", "risk:")
 
 
 class Setting(db.Model):

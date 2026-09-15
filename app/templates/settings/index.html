@@ -69,6 +69,14 @@
       <i class="bi bi-calendar2-week"></i> {{ t('visit_types.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('settings.devices') }}">
       <i class="bi bi-hdd-stack"></i> {{ t('devices.title') }}</a>
+    {# Only where there are beds. The three risks are assessed at a bedside,
+       so a clinic with no ward would be setting a policy for a screen it can
+       never open — and a settings page that leads nowhere is the dead switch
+       this program keeps taking out. #}
+    {% if module_enabled('beds') %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('settings.risks') }}">
+      <i class="bi bi-shield-exclamation"></i> {{ t('risks.policy_title') }}</a>
+    {% endif %}
     {# The prescription layouts were only reachable from an already-printed
        prescription, so setting the clinic up meant printing something first. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.templates') }}">

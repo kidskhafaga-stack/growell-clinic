@@ -502,6 +502,163 @@
 {% endif %}
 
 {# ---- the round --------------------------------------------------------- #}
+{# ---- the three risks a hospital has to look for ------------------------ #}
+{# GAHAR ICD.10 falls, ICD.11 pressure ulcers, ICD.12 venous thromboembolism.
+   Three standards with one shape — assess with a tool, reassess on a
+   timeframe, general measures, **a tailored care plan**, and all of it
+   «recorded in the patient's medical record», which is the sentence this card
+   answers.
+
+   **No score is computed here and none is shown.** The tool and what it said
+   are the hospital's own two words; the one thing the program reads is «معرّض
+   ولا لأ», because «متوسط» is above the line in one hospital's policy and
+   below it in another's. See `utils/risks`.
+
+   **A row per risk, not a row per assessment.** An absence leaves nothing to
+   find, so the list is built from the risks the clinic looks for and the
+   assessments are hung onto it — which is the only way «ما اتقيّمش» can
+   appear at all. #}
+{% if risk_panel %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" data-risks>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-shield-exclamation"></i> {{ t('risks.title') }}
+    {# The plan-less ones first and in red: «somebody looked, somebody said
+       yes, and the element the standard ends on is blank» is a finding, where
+       an unassessed risk is only a gap. Both counts are worked out in
+       `utils/risks` off the same list the rows below are drawn from. #}
+    {% if risk_bare %}
+    <span class="alert-pill danger" data-risk-summary="bare">
+      <i class="bi bi-exclamation-triangle"></i>
+      {{ t('risks.n_bare', n=risk_bare|length) }}</span>
+    {% endif %}
+    {% if risk_unassessed %}
+    <span class="alert-pill warn" data-risk-summary="none">
+      {{ t('risks.n_unassessed', n=risk_unassessed|length) }}</span>
+    {% endif %}
+    {% if not risk_bare and not risk_unassessed %}
+    <span class="alert-pill" data-risk-summary="done">
+      <i class="bi bi-check2"></i> {{ t('risks.all_done') }}</span>
+    {% endif %}
+  </h2>
+
+  {% for item in risk_panel %}
+  {% set last = item.assessment %}
+  <div class="form-row" style="margin-bottom:10px;" data-risk="{{ item.kind }}">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <strong>{{ t('risks.kind_' ~ item.kind) }}</strong>
+      <span class="badge {{ {'none':'badge--warn', 'unsaid':'badge--warn',
+                             'clear':'badge--green', 'bare':'badge--danger',
+                             'planned':'badge--green'}[item.state] }}"
+            data-risk-state="{{ item.state }}">
+        {{ t('risks.state_' ~ item.state) }}</span>
+      {% if item.due == 'due' %}
+      <span class="badge badge--warn" data-risk-due="due">
+        <i class="bi bi-clock-history"></i> {{ t('risks.overdue') }}</span>
+      {% endif %}
+      {% if last %}
+      <span class="hint" dir="ltr">{{ last.at|clinic_stamp }}</span>
+      <span class="hint">{{ last.by.display_name(current_lang) if last.by else '—' }}</span>
+      {% endif %}
+      {% if item.hours %}
+      <span class="hint">{{ t('risks.every_n', n=item.hours) }}</span>
+      {% endif %}
+    </div>
+
+    {% if last %}
+    <div class="hint" style="margin-top:4px;">
+      {% if last.tool %}{{ t('risks.tool') }}: {{ last.tool }} · {% endif %}
+      {% if last.level %}{{ t('risks.level') }}: {{ last.level }} · {% endif %}
+      {{ t('risks.plan') }}: {{ last.plan or '—' }}
+      {% if last.general_measures %}
+      · {{ t('risks.general_measures') }}: {{ last.general_measures }}{% endif %}
+      {# Three states printed as three words. A family that was never asked
+         about and a family that said no are not the same line in a record. #}
+      · {{ t('risks.family_told') }}:
+      {{ t('risks.yes') if last.family_told
+         else (t('risks.unsaid') if last.family_told is none else t('risks.no')) }}
+    </div>
+    {% endif %}
+
+    {% if admission.is_open %}
+    {# Open only while the child is here. A risk assessment written onto a
+       closed stay would be a bedside observation of a child who went home. #}
+    <details style="margin-top:6px;">
+      <summary class="hint" style="cursor:pointer;">
+        {{ t('risks.record') }}</summary>
+      <form method="post" style="margin-top:8px;"
+            action="{{ url_for('beds.risk_assessment', admission_id=admission.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="kind" value="{{ item.kind }}">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <div class="form-row" style="margin-bottom:0;flex:1;min-width:170px;">
+            {# Prefilled from the hospital's policy so nobody types the name of
+               their own tool twice — and still stored as whatever the person
+               leaves in the box, because what goes in the record is what they
+               wrote and not what a setting said. #}
+            <label for="rk_tool_{{ item.kind }}">{{ t('risks.tool') }}</label>
+            <input class="input" id="rk_tool_{{ item.kind }}" name="tool"
+                   maxlength="120" value="{{ last.tool if last else item.tool }}">
+          </div>
+          <div class="form-row" style="margin-bottom:0;flex:1;min-width:140px;">
+            <label for="rk_level_{{ item.kind }}">{{ t('risks.level') }}</label>
+            <input class="input" id="rk_level_{{ item.kind }}" name="level"
+                   maxlength="60" placeholder="{{ t('risks.level_hint') }}">
+          </div>
+          <div class="form-row" style="margin-bottom:0;min-width:150px;">
+            <label for="rk_at_risk_{{ item.kind }}">{{ t('risks.at_risk') }}</label>
+            <select class="input" id="rk_at_risk_{{ item.kind }}" name="at_risk">
+              <option value="">{{ t('risks.unsaid') }}</option>
+              <option value="yes">{{ t('risks.yes') }}</option>
+              <option value="no">{{ t('risks.no') }}</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin-bottom:0;min-width:150px;">
+            <label for="rk_family_{{ item.kind }}">{{ t('risks.family_told') }}</label>
+            <select class="input" id="rk_family_{{ item.kind }}" name="family_told">
+              <option value="">{{ t('risks.unsaid') }}</option>
+              <option value="yes">{{ t('risks.yes') }}</option>
+              <option value="no">{{ t('risks.no') }}</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin-bottom:0;min-width:180px;">
+            <label for="rk_at_{{ item.kind }}">{{ t('risks.at') }}</label>
+            <input class="input" type="datetime-local" id="rk_at_{{ item.kind }}"
+                   name="at">
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+          <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+            {# Carried forward, where the plan below deliberately is not. The
+               general measures are the ward's standing ones — rails, a call
+               bell, a pressure-relieving mattress — and they do not change
+               between two assessments of the same child. The tailored plan is
+               the one element all three standards end on, and a copy of last
+               week's typed in by default is exactly the false green tick this
+               screen exists to remove. #}
+            <label for="rk_gm_{{ item.kind }}">{{ t('risks.general_measures') }}</label>
+            <input class="input" id="rk_gm_{{ item.kind }}" name="general_measures"
+                   maxlength="500"
+                   value="{{ last.general_measures if last and last.general_measures else '' }}">
+          </div>
+          <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+            {# The element all three standards end on, and the reason this card
+               distinguishes «معرّض» from «معرّض من غير خطة». #}
+            <label for="rk_plan_{{ item.kind }}">{{ t('risks.plan') }}</label>
+            <input class="input" id="rk_plan_{{ item.kind }}" name="plan"
+                   maxlength="500">
+          </div>
+        </div>
+        <button class="btn btn-sm btn-primary gc-press" type="submit"
+                style="margin-top:8px;" data-risk-save="{{ item.kind }}">
+          <i class="bi bi-check2"></i> {{ t('risks.record') }}</button>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 {# The stay's own thread. The board answers "has anybody been round today"
    across a whole department; this is the other half of the same fact — what
    was actually decided, day by day, for one child. A doctor coming on shift
