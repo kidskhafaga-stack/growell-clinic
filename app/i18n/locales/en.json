@@ -416,7 +416,10 @@
     "quick_need_dob": "A valid date of birth is required",
     "quick_add": "Quick add new patient",
     "quick_save": "Add & select",
-    "quick_fill_all": "Please fill name, date of birth and gender"
+    "quick_fill_all": "Please fill name, date of birth and gender",
+    "tab_labs": "Labs & imaging",
+    "no_labs": "No investigations on this file.",
+    "tab_operations": "Operations"
   },
   "import": {
     "title": "Import patient data",
@@ -7062,5 +7065,10 @@
     "policy_saved": "Policy saved.",
     "hours": "Reassess every (hours)",
     "hours_hint": "Empty = your policy names no interval"
+  },
+  "anaes_plan": {
+    "none": "No anaesthesia plan",
+    "planned": "Plan written",
+    "short": "Plan incomplete"
   }
 }

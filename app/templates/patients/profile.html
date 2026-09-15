@@ -247,6 +247,7 @@
         {% set ns.tabs = ns.tabs + [
           ('visits','tab_visits','clipboard2-pulse'),
           ('studies','tab_studies','activity'),
+          ('labs','tab_labs','droplet-half'),
           ('growth','tab_growth','graph-up'),
           ('vaccinations','tab_vaccinations','shield-plus'),
           ('prescriptions','tab_prescriptions','capsule'),
@@ -257,6 +258,12 @@
            by default in the first place. #}
         {% if dental is not none %}
         {% set ns.tabs = ns.tabs + [('dental','tab_dental','emoji-smile')] %}
+        {% endif %}
+        {% if operations %}
+        {# Only where there are any, like the stays below: a tab labelled
+           «عمليات» on the file of a child who has never had one is furniture,
+           and most of this clinic's files are those. #}
+        {% set ns.tabs = ns.tabs + [('operations','tab_operations','scissors')] %}
         {% endif %}
         {% if stays %}
         {# **The half of the file that was missing.** The child was admitted,
@@ -393,21 +400,6 @@
          only place it appeared was the theatre list for one date — a screen
          nobody opens six months later. Read-only here; the booking doors are
          the theatre day and the stay. #}
-      {% if operations %}
-      <h3 class="section-title" style="margin-top:24px;" id="operations" data-operations>
-        <i class="bi bi-scissors"></i> {{ t('nav.theatres') }}</h3>
-      <ul style="margin:0;padding-inline-start:18px;">
-        {% for op in operations %}
-        <li>
-          <a href="{{ url_for('theatres.operation', operation_id=op.id) }}">{{ op.procedure }}</a>
-          <span class="hint" dir="ltr">{{ op.on_date }}</span>
-          <span class="badge badge--muted">{{ t('theatre.status_' ~ op.status) }}</span>
-          {% if op.surgeon %}<span class="hint">{{ op.surgeon.display_name(current_lang) }}</span>{% endif %}
-        </li>
-        {% endfor %}
-      </ul>
-      {% endif %}
-
       <!-- Problem list (GAHAR): structured ongoing/past problems across visits -->
       <h3 class="section-title" style="margin-top:24px;" id="problems"><i class="bi bi-card-checklist"></i> {{ t('problems.title_list') }}</h3>
       {% set active_problems = patient.problems | selectattr('status', 'equalto', 'active') | list %}
@@ -766,6 +758,134 @@
       {% endif %}{# patient_medical #}
     </div>
 
+    {# Operations — **and whether anybody wrote them up.**
+
+       The list was a few lines at the bottom of *overview*, which is the tab
+       a receptionist opens: an operative history filed under «نظرة عامة»
+       beside the phone number. It moves here, and it stops being a second
+       copy of the one inside each stay.
+
+       And it gains the column the old list could not have: `SAS.08` asks for
+       the report to be **kept in the patient's medical record**, and the file
+       could say an operation happened without being able to say whether
+       anybody had written it up. `none` · `short` · `unsigned` · `complete` —
+       and `unsigned` is its own word because a finished report nobody signed
+       is a different errand from a half-written one. #}
+    {% if operations %}
+    <div class="gc-tab-panel" x-show="tab==='operations'" x-cloak>
+      <h3 class="section-title" style="margin-top:0;">
+        <i class="bi bi-scissors"></i> {{ t('patients.tab_operations') }}</h3>
+      <div style="overflow-x:auto;" data-operations>
+        <table class="table">
+          <thead><tr>
+            <th>{{ t('invoices.date') }}</th>
+            <th>{{ t('theatre.procedure') }}</th>
+            <th>{{ t('theatre.surgeon') }}</th>
+            <th>{{ t('invoices.status') }}</th>
+            <th>{{ t('op_report.title') }}</th>
+            <th>{{ t('theatre.anaesthesia') }}</th>
+          </tr></thead>
+          <tbody>
+            {% for op in operations %}
+            <tr>
+              <td dir="ltr" style="white-space:nowrap;">{{ op.on_date }}</td>
+              <td>
+                <a href="{{ url_for('theatres.operation', operation_id=op.id) }}">{{ op.procedure }}</a>
+                {% if op.theatre %}<div class="hint" style="margin:0;">{{ op.theatre.name }}</div>{% endif %}
+              </td>
+              <td>{{ op.surgeon.display_name(current_lang) if op.surgeon else '—' }}</td>
+              <td><span class="badge badge--muted">{{ t('theatre.status_' ~ op.status) }}</span></td>
+              <td>
+                {% set rs = report_state(op) %}
+                <span class="badge {{ 'badge--green' if rs == 'complete' else ('badge--muted' if rs == 'none' else 'badge--warn') }}"
+                      data-report-state="{{ rs }}">{% if rs == 'none' %}{{ t('op_report.not_written') }}{% elif rs == 'short' %}{{ t('op_report.short', n=report_missing(op)) }}{% else %}{{ t('op_report.' ~ rs) }}{% endif %}</span>
+              </td>
+              <td>
+                {# SAS.16: **a detailed plan for anaesthesia care.** Only the
+                   four elements that belong before the case count as missing
+                   — what was given during it and what went wrong are an
+                   account of what happened, and empty beforehand is not a
+                   gap. The rule is `AnaesthesiaPlan.BEFORE`; this reads it. #}
+                {% set ps = plan_state(op) %}
+                <span class="badge {{ 'badge--green' if ps == 'planned' else ('badge--muted' if ps == 'none' else 'badge--warn') }}"
+                      data-plan-state="{{ ps }}">{{ t('anaes_plan.' ~ ps) }}</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% endif %}
+
+    {# Investigations — **the tab the file did not have.**
+
+       The numbers have been drawable since `series_for`: a curve per test
+       across every visit, and the latest value of each beside it. They were
+       rendered at the top of the *visits* tab, which is a list of encounters
+       — so a cross-visit view lived inside one, and the orders themselves
+       were visible one encounter at a time. «ورّيني تحاليل الطفل ده» meant
+       opening visits until you found them.
+
+       The curves are **moved** here and not copied. Two drawings of one
+       reading is two chances to disagree, which is the argument this file
+       already makes about the device studies.
+
+       And the list below them is everything ordered, answered or not: an
+       order still waiting is the one somebody has to chase, and a list of
+       results only cannot show what is missing. #}
+    <div class="gc-tab-panel" x-show="tab==='labs'" x-cloak>
+      <h3 class="section-title" style="margin-top:0;">
+        <i class="bi bi-droplet-half"></i> {{ t('patients.tab_labs') }}</h3>
+
+      {{ lab_curves.panel(lab_series, lab_latest) }}
+
+      {% if lab_orders %}
+      <div style="overflow-x:auto;margin-top:14px;" data-lab-orders>
+        <table class="table">
+          <thead><tr>
+            <th>{{ t('invoices.date') }}</th>
+            <th>{{ t('rx.inv_kind') }}</th>
+            <th>{{ t('rx.inv_name') }}</th>
+            <th>{{ t('visits.inv_result') }}</th>
+            <th>{{ t('invoices.status') }}</th>
+          </tr></thead>
+          <tbody>
+            {% for x in lab_orders %}
+            <tr>
+              <td dir="ltr" style="white-space:nowrap;">
+                {{ x.created_at.strftime('%Y-%m-%d') if x.created_at else '—' }}</td>
+              <td><span class="badge {{ 'badge--role' if x.kind == 'lab' else 'badge--muted' }}">
+                {{ t('rx.inv_' ~ x.kind) }}</span></td>
+              <td>
+                <strong>{{ x.display_name(current_lang) }}</strong>
+                {% if x.done_outside %}
+                <span class="badge badge--warn">{{ t('rx.inv_outside_short') }}{% if x.outside_place %} · {{ x.outside_place }}{% endif %}</span>
+                {% endif %}
+                {% if x.visit %}
+                <div class="hint" style="margin:0;">
+                  <a href="{{ url_for('visits.view', visit_id=x.visit_id) }}">{{ t('visits.title') }}</a></div>
+                {% endif %}
+              </td>
+              <td>
+                {% if x.result_value is not none %}
+                <span dir="ltr" style="font-variant-numeric:tabular-nums;">{{ x.result_value }}{% if x.result_unit %} {{ x.result_unit }}{% endif %}</span>
+                {% elif x.result_text %}{{ x.result_text[:80] }}
+                {% else %}<span style="color:var(--muted);">—</span>{% endif %}
+              </td>
+              <td><span class="badge {{ 'badge--green' if x.status == 'resulted' else 'badge--muted' }}"
+                        data-order-state="{{ x.status }}">{{ t('lab.state_' ~ x.status) }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% elif not lab_series and not lab_latest %}
+      <p style="color:var(--muted);">{{ t('patients.no_labs') }}</p>
+      {% endif %}
+    </div>
+
     <!-- Family -->
     <div class="gc-tab-panel" x-show="tab==='family'" x-cloak x-data="{ editFamily: false }">
       {% if patient.family %}
@@ -1099,8 +1219,6 @@
           <i class="bi bi-plus-circle"></i> {{ t('visits.start_visit') }}</a>
         {% endif %}
       </div>
-      {{ lab_curves.panel(lab_series, lab_latest) }}
-
       {% set pvisits = patient.visits|sort(attribute='created_at', reverse=true) %}
       {% if pvisits %}
       <div class="gc-stagger" style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">
@@ -1225,10 +1343,30 @@
           {{ t('beds.rounds_written', n=stay.round_notes|length) }}</p>
         {% endif %}
 
+        {# **ملخّص الخروج** — ACT.15's third item of evidence: *"A copy of the
+           discharge summary is kept in the patient's medical record."*
+
+           It was built in full, signed, and reachable from one place: the
+           screen of a stay that had already ended, which nobody opens again
+           six months later. A summary the record cannot produce is not in
+           the record — the same «built and no door to it» this file has now
+           been on both sides of. #}
+        {% set summary = stay_summaries.get(stay.id) %}
+        {% if summary %}
+        <a class="btn btn-outline btn-sm gc-press" style="margin-top:8px;"
+           data-stay-summary
+           href="{{ url_for('beds.admission', admission_id=stay.id) }}#discharge-summary">
+          <i class="bi bi-file-earmark-medical"></i> {{ t('summary.title') }}
+          {% if summary.blanks %}
+          <span class="badge badge--warn">{{ t('summary.short', n=summary.blanks|length) }}</span>
+          {% else %}
+          <span class="badge badge--green">{{ t('summary.complete') }}</span>
+          {% endif %}
+        </a>
+        {% endif %}
+
         {# The discharge note as it was written. It is the only thing the
-           program holds about how the stay ended beyond the outcome word —
-           see `docs/gahar/IMT_record_matrix.md` on ACT.15, which asks for
-           nine named elements this is not yet. #}
+           program holds about how the stay ended beyond the outcome word. #}
         {% if stay.discharge_note %}
         <p style="margin:8px 0 0;">{{ stay.discharge_note }}</p>
         {% endif %}

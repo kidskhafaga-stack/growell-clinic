@@ -583,6 +583,16 @@ def view(patient_id):
         # EF the cardiologist wrote. See app/utils/series.py.
         lab_series=series.curves_for(patient.id, getattr(g, "lang", "ar")),
         lab_latest=lab_series.latest_values(patient.id, getattr(g, "lang", "ar")),
+        # **Every order, not only the ones that came back.** They existed only
+        # inside the visit each was written in, so «ورّيني تحاليل الطفل ده»
+        # meant opening encounters until you found them — and an order still
+        # waiting, the one somebody has to chase, appeared nowhere at all.
+        # GAHAR IMT.08 evidence 5: *available when needed*.
+        lab_orders=lab_series.every_order(patient.id),
+        # The summary a stay ends with. Built in full for ACT.15 — *"a copy of
+        # the discharge summary is kept in the patient's medical record"* —
+        # and reachable from nowhere on the record until now.
+        stay_summaries=_discharge_summaries(patient.id),
         # Where this child is, if they are in a bed, and what is free if they
         # are not. Asked only when the clinic has beds at all: a query per
         # patient file for a module nobody switched on is work for nothing,
@@ -594,7 +604,83 @@ def view(patient_id):
         # appeared was one date's theatre list, which nobody opens again six
         # months later — the feature built and no door to it.
         operations=_operations(patient.id),
+        # Where each operation's report stands — SAS.08 asks for the report to
+        # be *kept in the patient's medical record*, and the file could show
+        # that an operation happened without being able to say whether anybody
+        # had written it up. `none` · `short` · `unsigned` · `complete`.
+        report_state=_report_state,
+        # How many of the report's written elements are still empty. «ناقص ٣
+        # بنود» is a different errand from «مفيش تقرير», and the word for the
+        # first one carries a number.
+        report_missing=_report_missing,
+        # And whether the anaesthetist wrote their plan — SAS.16 EOC 2 asks
+        # for *a detailed plan for anesthesia care* and names six elements,
+        # four of which belong before the case. Same reason the report's
+        # state is here: the file could say a child was anaesthetised without
+        # being able to say whether anybody planned it.
+        plan_state=_plan_state,
     )
+
+
+def _plan_state(operation):
+    """``none`` · ``short`` · ``planned`` for one case's anaesthesia plan.
+
+    Only the four elements that belong *before* the case count as missing:
+    what was given during it and what went wrong are an account of what
+    happened, and an empty one beforehand is not a gap. That rule lives on
+    `AnaesthesiaPlan.BEFORE`, and this reads it rather than repeating it.
+    """
+    from app.utils import theatres
+
+    row = theatres.plan_for(operation)
+    if row is None:
+        return "none"
+    return "planned" if row.is_planned else "short"
+
+
+def _report_state(operation):
+    """The operative report's state for one case, or ``None`` with no module.
+
+    A function rather than a dict built in the route: a child with thirty
+    operations would have thirty reports read to draw a tab nobody may open,
+    and the theatre module being off makes the whole column meaningless.
+    """
+    from app.utils import operative_report
+
+    return operative_report.state(operation)
+
+
+def _report_missing(operation):
+    """How many written elements of the report are still empty."""
+    from app.utils import operative_report
+
+    return len(operative_report.missing(operation))
+
+
+def _discharge_summaries(patient_id):
+    """``{admission_id: summary}`` for this child's stays.
+
+    ACT.15's third item of evidence asks for a copy in the record, and the
+    summaries were written, signed and then reachable only from the stay
+    screen of a stay that had already ended — which is the same «built and no
+    door to it» this file has now been on both sides of.
+
+    **Nothing at all when the ward is off**, the same guard as ``_stays`` two
+    functions down. This read joins ``admissions``, so without it every
+    outpatient file in a clinic that has no beds pays a query for a table it
+    can never have a row in — and the clinic with no ward is most of them.
+    """
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("beds"):
+        return {}
+    from app.models.admission import Admission
+    from app.models.discharge_summary import DischargeSummary
+
+    rows = (DischargeSummary.query
+            .join(Admission, DischargeSummary.admission_id == Admission.id)
+            .filter(Admission.patient_id == patient_id).all())
+    return {r.admission_id: r for r in rows}
 
 
 def _operations(patient_id):
