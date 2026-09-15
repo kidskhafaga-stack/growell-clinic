@@ -416,7 +416,10 @@
     "quick_need_dob": "A valid date of birth is required",
     "quick_add": "Quick add new patient",
     "quick_save": "Add & select",
-    "quick_fill_all": "Please fill name, date of birth and gender"
+    "quick_fill_all": "Please fill name, date of birth and gender",
+    "tab_labs": "Labs & imaging",
+    "no_labs": "No investigations on this file.",
+    "tab_operations": "Operations"
   },
   "import": {
     "title": "Import patient data",
@@ -7025,5 +7028,10 @@
     "submit": "Send to accounts",
     "submitted": "The invoice was sent to accounts.",
     "title": "Invoice review"
+  },
+  "anaes_plan": {
+    "none": "No anaesthesia plan",
+    "planned": "Plan written",
+    "short": "Plan incomplete"
   }
 }
