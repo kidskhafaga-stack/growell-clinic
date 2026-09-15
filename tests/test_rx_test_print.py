@@ -103,6 +103,15 @@ def test_no_real_patient_is_printed(clinic):
         from app.models import Patient, Prescription, PrescriptionItem
         db = clinic["db"]
         patient = db.session.get(Patient, clinic["ids"]["child"])
+        # **A file number long enough to mean something.** The probe below
+        # used the fixture's `P1`, and two characters is not a needle: the
+        # page carries a CSRF token — 43 random characters out of an alphabet
+        # of 64 — so `P1` turns up inside one about once in a hundred runs,
+        # and this test failed on a pull request that had never touched
+        # printing. The leak it is looking for is a *real child's file
+        # number* reaching the paper, and giving this one a number nothing
+        # else can spell tests exactly that and nothing else.
+        patient.patient_number = "P-LEAK-CHECK-0001"
         patient.allergies = "حساسية سرية جداً"
         rx = Prescription(patient_id=patient.id,
                           doctor_id=clinic["ids"]["doctor"],
@@ -116,7 +125,8 @@ def test_no_real_patient_is_printed(clinic):
     tpl_id = _template(clinic, mode="white")
     body = _print(clinic, tpl_id).get_data(as_text=True)
     paper = body.split('id="rxPaper"')[1]
-    for leak in ("P1", "حساسية سرية جداً", "تشخيص حقيقي", "دواء حقيقي"):
+    for leak in ("P-LEAK-CHECK-0001", "حساسية سرية جداً", "تشخيص حقيقي",
+                 "دواء حقيقي"):
         assert leak not in paper, f"the real patient's {leak!r} reached the test page"
 
 
