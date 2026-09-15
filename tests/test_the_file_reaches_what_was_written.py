@@ -421,3 +421,19 @@ def test_a_case_with_no_plan_says_so(operated):
 
         assert _plan_state(op) == "none"
         assert _plan_state(None) == "none"
+
+
+def test_a_clinic_with_no_ward_pays_nothing_for_the_stay_summaries(clinic):
+    """The reader joins ``admissions``, so without a module guard every
+    outpatient file in a clinic that has no beds pays a query for a table it
+    can never have a row in — and the clinic with no ward is most of them.
+
+    Shipped without the guard and caught by the file's own cost test, which is
+    the third time that test has earned its place.
+    """
+    from app.blueprints.patients.routes import _discharge_summaries
+    from app.utils.facility import module_enabled
+
+    with clinic["app"].app_context():
+        assert not module_enabled("beds")
+        assert _discharge_summaries(clinic["ids"]["child"]) == {}

@@ -664,7 +664,16 @@ def _discharge_summaries(patient_id):
     summaries were written, signed and then reachable only from the stay
     screen of a stay that had already ended — which is the same «built and no
     door to it» this file has now been on both sides of.
+
+    **Nothing at all when the ward is off**, the same guard as ``_stays`` two
+    functions down. This read joins ``admissions``, so without it every
+    outpatient file in a clinic that has no beds pays a query for a table it
+    can never have a row in — and the clinic with no ward is most of them.
     """
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("beds"):
+        return {}
     from app.models.admission import Admission
     from app.models.discharge_summary import DischargeSummary
 
