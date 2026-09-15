@@ -278,6 +278,15 @@
            admitted is furniture, and this clinic's files are mostly those. #}
         {% set ns.tabs = ns.tabs + [('stays','tab_stays','hospital')] %}
         {% endif %}
+        {% if care_plan %}
+        {# ICD.15 — *an individualized plan of care is developed for **every
+           patient***. The tab appears only where there is a plan, like the
+           stays and the operations above and for the same reason: a tab
+           labelled «خطة الرعاية» on a file that has none is furniture. The
+           door that starts one is on the overview, beside the problem list
+           the plan is built out of. #}
+        {% set ns.tabs = ns.tabs + [('care_plan','tab_care_plan','list-check')] %}
+        {% endif %}
         {% if imported %}
         {# Only when there is something in it: an empty tab labelled "history"
            on every file is furniture. #}
@@ -294,6 +303,214 @@
       </button>
       {% endfor %}
     </div>
+
+    {# ---- ICD.15: the plan of care ------------------------------------- #}
+    {# *"An individualized plan of care is developed for **every patient**."*
+       Seven elements, and three of them the record already answers — which is
+       why this screen shows a checklist before it shows a form: a doctor can
+       see that (ب) is answered by the assessments already in the file and
+       needs nothing from them. «المهم الطبيب ميكتبش كتير».
+
+       **The plan points at the record and never copies it.** What it stands
+       on is read live below — the problem list, the risk assessments, the
+       readings, the results — because a snapshot of a moving fact is the
+       stale one, and it would be the copy on the plan. #}
+    {% if care_plan %}
+    <div class="gc-tab-panel" x-show="tab==='care_plan'" x-cloak>
+      <div class="card gc-scale-in" id="care_plan" data-care-plan>
+        <h2 class="section-title" style="margin-top:0;">
+          <i class="bi bi-list-check"></i> {{ t('care_plan.title') }}
+          {# `.get`, not a bare lookup. The map is total for every state this
+             panel can be drawn in — but a lookup that raises on an unexpected
+             word turns a missing colour into a 500 on the whole patient file,
+             and a sweep found exactly that: the panel crashed instead of
+             rendering wrongly, which is a harder failure to see. #}
+          <span class="alert-pill {{ {'empty':'danger', 'unsigned':'warn',
+                                      'stale':'warn',
+                                      'current':''}.get(care_plan_state, 'warn') }}"
+                data-care-plan-state="{{ care_plan_state }}">
+            {{ t('care_plan.state_' ~ care_plan_state) }}</span>
+          {% if care_plan.overdue_goals %}
+          {# The timeframes element (هـ) asks for, actually compared against
+             something. A date in a box nothing ever reads is not a timeframe. #}
+          <span class="alert-pill danger" data-care-plan-overdue>
+            <i class="bi bi-clock-history"></i>
+            {{ t('care_plan.n_overdue', n=care_plan.overdue_goals|length) }}</span>
+          {% endif %}
+        </h2>
+
+        {# The seven, in the standard's own lettering, each saying where its
+           answer comes from — the same shape the discharge summary uses. #}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+          {% for el in care_plan_elements %}
+          <span class="badge {{ 'badge--muted' if el.filled else 'badge--warn' }}"
+                data-cp-element="{{ el.letter }}"
+                data-filled="{{ 'yes' if el.filled else 'no' }}">
+            {{ el.letter }}) {{ t('care_plan.el_' ~ el.key) }}
+            {%- if not el.written %} <i class="bi bi-link-45deg"
+                  title="{{ t('care_plan.from_the_record') }}"></i>{% endif %}</span>
+          {% endfor %}
+        </div>
+
+        {# (ب) — read live. Counts and not copies. #}
+        <h3 class="section-title" style="margin-top:0;">
+          {{ t('care_plan.el_assessments') }}</h3>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
+          {% for item in care_plan_stands_on %}
+          <span class="badge {{ 'badge--green' if item.rows else 'badge--muted' }}"
+                data-stands-on="{{ item.key }}">
+            {{ t('care_plan.on_' ~ item.key) }}: {{ item.rows|length }}</span>
+          {% endfor %}
+        </div>
+
+        {# (هـ) + (ز) — the body. A list, because «احتياجات وتدخلات ونتايج
+           مرجوّة بمُدد» is four things that belong to each other one need at a
+           time, and one paragraph could not say which outcome is overdue. #}
+        <h3 class="section-title">{{ t('care_plan.el_goals') }}</h3>
+        {% if not care_plan.goals %}
+        <p class="hint" style="margin:0 0 12px;">{{ t('care_plan.no_goals') }}</p>
+        {% else %}
+        <div style="overflow-x:auto;margin-bottom:12px;">
+        <table class="table">
+          <thead><tr>
+            <th>{{ t('care_plan.need') }}</th>
+            <th>{{ t('care_plan.intervention') }}</th>
+            <th>{{ t('care_plan.outcome') }}</th>
+            <th>{{ t('care_plan.by_when') }}</th>
+            <th>{{ t('care_plan.progress') }}</th>
+          </tr></thead>
+          <tbody>
+            {% for goal in care_plan.goals %}
+            <tr data-goal="{{ goal.id }}">
+              <td>{{ goal.need }}</td>
+              <td>{{ goal.intervention or '—' }}</td>
+              <td>{{ goal.outcome or '—' }}</td>
+              <td dir="ltr">
+                {{ goal.by_when or '—' }}
+                {% if goal in care_plan.overdue_goals %}
+                <span class="badge badge--danger" data-goal-overdue="{{ goal.id }}">
+                  {{ t('care_plan.overdue') }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <form method="post" style="display:flex;gap:6px;flex-wrap:wrap;"
+                      action="{{ url_for('patients.care_plan_progress', goal_id=goal.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <select class="input" name="progress" style="min-width:130px;"
+                          data-goal-progress="{{ goal.id }}">
+                    {% for p in goal_progress %}
+                    <option value="{{ p }}"
+                            {% if goal.progress == p %}selected{% endif %}>
+                      {{ t('care_plan.progress_' ~ p) }}</option>
+                    {% endfor %}
+                  </select>
+                  <input class="input" name="progress_note" maxlength="300"
+                         style="min-width:140px;"
+                         placeholder="{{ t('care_plan.progress_note') }}"
+                         value="{{ goal.progress_note or '' }}">
+                  <button class="btn btn-sm btn-outline gc-press" type="submit">
+                    <i class="bi bi-check2"></i></button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        {% endif %}
+
+        <form method="post" style="margin-bottom:18px;"
+              action="{{ url_for('patients.care_plan_goal', patient_id=patient.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <div class="form-row" style="margin-bottom:0;flex:1;min-width:180px;">
+              <label for="cp_need">{{ t('care_plan.need') }}</label>
+              <input class="input" id="cp_need" name="need" maxlength="255" required>
+            </div>
+            <div class="form-row" style="margin-bottom:0;flex:1;min-width:180px;">
+              <label for="cp_intervention">{{ t('care_plan.intervention') }}</label>
+              <input class="input" id="cp_intervention" name="intervention" maxlength="500">
+            </div>
+            <div class="form-row" style="margin-bottom:0;flex:1;min-width:180px;">
+              <label for="cp_outcome">{{ t('care_plan.outcome') }}</label>
+              <input class="input" id="cp_outcome" name="outcome" maxlength="500">
+            </div>
+            <div class="form-row" style="margin-bottom:0;min-width:150px;">
+              <label for="cp_by_when">{{ t('care_plan.by_when') }}</label>
+              <input class="input" type="date" id="cp_by_when" name="by_when">
+            </div>
+          </div>
+          <button class="btn btn-sm btn-primary gc-press" type="submit"
+                  style="margin-top:8px;" data-add-goal>
+            <i class="bi bi-plus-lg"></i> {{ t('care_plan.add_goal') }}</button>
+        </form>
+
+        {# (ج) and (د) — the cover. Two boxes for (د) because `ICD.16` is the
+           hospital's adopted guideline and `PCC.12` is this child's
+           preferences, and one box would let either stand in for both. #}
+        <h3 class="section-title">{{ t('care_plan.cover') }}</h3>
+        <form method="post"
+              action="{{ url_for('patients.care_plan_start', patient_id=patient.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <div class="form-row" style="margin-bottom:0;min-width:170px;">
+              {# Three answers, not two: evidence 3 has a surveyor interview
+                 the family about this, so a blank standing for «لأ» would be
+                 the program claiming something the family will deny. #}
+              <label for="cp_family">{{ t('care_plan.el_family') }}</label>
+              <select class="input" id="cp_family" name="family_involved">
+                <option value="">{{ t('care_plan.unsaid') }}</option>
+                <option value="yes" {% if care_plan.family_involved %}selected{% endif %}>
+                  {{ t('care_plan.yes') }}</option>
+                <option value="no"
+                        {% if care_plan.family_involved is false %}selected{% endif %}>
+                  {{ t('care_plan.no') }}</option>
+              </select>
+            </div>
+            <div class="form-row" style="margin-bottom:0;flex:1;min-width:180px;">
+              <label for="cp_family_note">{{ t('care_plan.family_note') }}</label>
+              <input class="input" id="cp_family_note" name="family_note"
+                     maxlength="500" value="{{ care_plan.family_note or '' }}">
+            </div>
+            <div class="form-row" style="margin-bottom:0;flex:1;min-width:180px;">
+              <label for="cp_guideline">{{ t('care_plan.el_guideline') }}</label>
+              <input class="input" id="cp_guideline" name="guideline"
+                     maxlength="200" value="{{ care_plan.guideline or '' }}">
+            </div>
+            <div class="form-row" style="margin-bottom:0;flex:1;min-width:180px;">
+              <label for="cp_preferences">{{ t('care_plan.preferences') }}</label>
+              <input class="input" id="cp_preferences" name="preferences"
+                     maxlength="500" value="{{ care_plan.preferences or '' }}">
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline gc-press" type="submit"
+                  style="margin-top:8px;">
+            <i class="bi bi-save"></i> {{ t('common.save') }}</button>
+        </form>
+
+        {# (أ) — its own stamp and its own person. Written and supervised are
+           two events: a registrar drafts the plan, the consultant signs it. #}
+        <h3 class="section-title">{{ t('care_plan.el_disciplines') }}</h3>
+        {% if care_plan.is_signed %}
+        <p class="hint" style="margin:0;" data-care-plan-signed>
+          <i class="bi bi-patch-check"></i>
+          {{ t('care_plan.signed_by') }}:
+          {{ care_plan.signer.display_name(current_lang) if care_plan.signer else '—' }}
+          · <span dir="ltr">{{ care_plan.mrp_signed_at|clinic_stamp }}</span></p>
+        {% elif current_user.can('patient_medical') %}
+        <form method="post"
+              action="{{ url_for('patients.care_plan_sign', patient_id=patient.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <p class="hint" style="margin:0 0 8px;">{{ t('care_plan.sign_hint') }}</p>
+          <button class="btn btn-sm btn-primary gc-press" type="submit" data-care-plan-sign>
+            <i class="bi bi-pen"></i> {{ t('care_plan.sign') }}</button>
+        </form>
+        {% else %}
+        <p class="hint" style="margin:0;">{{ t('care_plan.sign_is_the_doctors') }}</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
 
     {# Case history from the program this clinic used before. The vaccinations
        among it became real vaccination records and show on that tab; these are
@@ -400,6 +617,36 @@
          only place it appeared was the theatre list for one date — a screen
          nobody opens six months later. Read-only here; the booking doors are
          the theatre day and the stay. #}
+      {# ---- the door to ICD.15 ------------------------------------------ #}
+      {# Here and not on a tab of its own, because a plan that does not exist
+         has no tab — and the overview beside the problem list is where the
+         needs it is built out of are already being read. Six times in this
+         project something was built and nothing led to it. #}
+      <h3 class="section-title" style="margin-top:24px;" id="care_plan_door">
+        <i class="bi bi-list-check"></i> {{ t('care_plan.title') }}</h3>
+      {% if care_plan %}
+      <p class="hint" style="margin:0 0 8px;" data-care-plan-door="has">
+        {{ t('care_plan.state_' ~ care_plan_state) }}
+        {%- if care_plan_missing %} · {{ t('care_plan.short',
+              n=care_plan_missing|length) }}{% endif %}</p>
+      <button class="btn btn-sm btn-outline gc-press" type="button"
+              x-on:click="tab='care_plan'; history.replaceState(null,'','#care_plan')">
+        <i class="bi bi-arrow-left-circle"></i> {{ t('care_plan.open') }}</button>
+      {% else %}
+      {# **Quiet, deliberately.** ICD.15 asks for a plan for every patient, but
+         a clinic upgrading into this version has none for anybody — so the
+         file offers the door and says nothing about the absence. Nothing here
+         blocks a visit, an admission or a prescription. #}
+      <p class="hint" style="margin:0 0 8px;" data-care-plan-door="none">
+        {{ t('care_plan.none_yet') }}</p>
+      <form method="post"
+            action="{{ url_for('patients.care_plan_start', patient_id=patient.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-outline gc-press" type="submit" data-care-plan-start>
+          <i class="bi bi-plus-lg"></i> {{ t('care_plan.start') }}</button>
+      </form>
+      {% endif %}
+
       <!-- Problem list (GAHAR): structured ongoing/past problems across visits -->
       <h3 class="section-title" style="margin-top:24px;" id="problems"><i class="bi bi-card-checklist"></i> {{ t('problems.title_list') }}</h3>
       {% set active_problems = patient.problems | selectattr('status', 'equalto', 'active') | list %}

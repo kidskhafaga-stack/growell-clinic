@@ -55,6 +55,8 @@ from app.models.surgical_count import (SurgicalCount,
                                       SurgicalCountItem)
 from app.models.operative_report import OperativeReport
 from app.models.risk_assessment import RISK_KINDS, RiskAssessment
+from app.models.care_plan import (GOAL_PROGRESS, CarePlan,
+                                  CarePlanGoal)
 from app.models.dose_prep import DosePrep
 from app.models.high_alert import HighAlertDrug
 from app.models.lasa_pair import LasaPair
@@ -314,6 +316,9 @@ __all__ = [
     "OperativeReport",
     "RiskAssessment",
     "RISK_KINDS",
+    "CarePlan",
+    "CarePlanGoal",
+    "GOAL_PROGRESS",
     "DosePrep",
     "HighAlertDrug",
     "LasaPair",
