@@ -70,6 +70,43 @@ class Invoice(db.Model):
 
     invoice_date = db.Column(db.Date, default=local_today, nullable=False)
     status = db.Column(db.String(10), default="unpaid", nullable=False)
+
+    # ---- and whether accounts have signed it off ------------------------
+    #
+    # Asked for in these words: *«فواتير الداخلي والعمليات بتبقى محتاجة مراجعة
+    # من الحسابات للتدقيق وتصديق الفاتورة، علشان المنصرف على المريض مع
+    # التمريض»*.
+    #
+    # **Not a fifth `status`.** `status` answers "has the money arrived" —
+    # unpaid, partial, paid, refunded. This answers "has anybody checked what
+    # is on it", and the two are independent in both directions: a stay's bill
+    # can be audited and signed off on Tuesday and settled the following
+    # month, and a family can pay a bill at the desk that nobody in accounts
+    # has ever read. One column holding both would be unable to say either.
+    #
+    # A fortnight's inpatient bill is assembled by five different hands —
+    # nights from the bed, doses from the round, tests from the bench, a
+    # theatre from the list, consumables from the nurse at the bedside — and
+    # none of them sees the whole. That is what there is to audit, and it is
+    # why a clinic bill for one afternoon does not need this at all.
+    #
+    # NULL is «draft», which is what every invoice already raised carries and
+    # what every invoice in a clinic that never turns this on will carry for
+    # ever. See `app.utils.invoice_signoff`.
+    #
+    # **«Sign-off» and not «review»**, because this module already had one:
+    # `test_invoice_review` is the trail of what was *changed* on a bill and
+    # by whom, which an accountant reads when a figure moved. Two different
+    # things under one word in the same money module is how somebody ends up
+    # reading the wrong screen and saying the bill was checked.
+    review_state = db.Column(db.String(10), index=True)
+    review_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    review_at = db.Column(db.DateTime)
+    # Why it went back. **The sentence is the point** — «مرفوضة» is not a
+    # finding anybody downstream can act on, and the ward has to know which
+    # line accounts is asking about. Same reasoning as the pharmacist's query
+    # on a prescription line.
+    review_note = db.Column(db.String(255))
     is_tax = db.Column(db.Boolean, default=False, nullable=False)  # ETA tax invoice
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -77,6 +114,7 @@ class Invoice(db.Model):
     patient = db.relationship("Patient")
     doctor = db.relationship("User", foreign_keys=[doctor_id])
     creator = db.relationship("User", foreign_keys=[created_by])
+    reviewer = db.relationship("User", foreign_keys=[review_by])
     visit = db.relationship("Visit")
     payer = db.relationship("PayerEntity", back_populates="invoices")
     items = db.relationship("InvoiceItem", back_populates="invoice",

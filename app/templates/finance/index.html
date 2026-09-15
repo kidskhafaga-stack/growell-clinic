@@ -116,6 +116,20 @@
     <h3 style="margin:10px 0 4px;">{{ t('refunds.requests_title') }}</h3>
     <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('refunds.requests_subtitle') }}</p>
   </a>
+
+  {# The bills accounts still have to go through. **Shown only to a hospital
+     that asked for the audit** — this hub is the same screen in a
+     single-doctor clinic, and a card leading to a queue that can never hold
+     anything is the fourth screen with no way in turned inside out. #}
+  {% if review_waiting is not none %}
+  <a class="card gc-lift" href="{{ url_for('finance.invoice_signoff_queue') }}"
+     style="text-decoration:none;" data-review-hub>
+    <div class="hub-ico edge-blue"><i class="bi bi-clipboard2-check"></i></div>
+    <h3 style="margin:10px 0 4px;">{{ t('invoice_signoff.title') }}
+      {% if review_waiting %}<span class="badge badge--warn">{{ review_waiting }}</span>{% endif %}</h3>
+    <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('invoice_signoff.sub') }}</p>
+  </a>
+  {% endif %}
 </div>
 {% endblock %}
 

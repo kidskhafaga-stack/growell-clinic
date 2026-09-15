@@ -630,6 +630,14 @@ ADDITIONS = [
     ("consents", "physician_id", "INTEGER"),
     ("consents", "physician_signed_at", "DATETIME"),
     ("consents", "physician_signature_file", "VARCHAR(255)"),
+    # **Whether accounts have been through the bill**, which is a different
+    # question from whether the money arrived — see `app.utils.invoice_signoff`.
+    # NULL on every invoice already raised, and NULL reads as «draft», which
+    # is what they have always been.
+    ("invoices", "review_state", "VARCHAR(10)"),
+    ("invoices", "review_by", "INTEGER"),
+    ("invoices", "review_at", "DATETIME"),
+    ("invoices", "review_note", "VARCHAR(255)"),
 ]
 
 def apply_schema(report=None):

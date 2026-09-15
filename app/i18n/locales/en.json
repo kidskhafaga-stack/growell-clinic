@@ -6999,5 +6999,31 @@
     "sub_diagnostic": "Sonar, echo, ECG and EEG — the studies the treating team does itself.",
     "to_do": "{n} not done yet",
     "to_report": "{n} awaiting a report"
+  },
+  "invoice_signoff": {
+    "approve": "Sign off the invoice",
+    "approved": "The invoice was signed off.",
+    "none_waiting": "No invoices waiting for review.",
+    "not_signed_off": "Accounts have not signed this bill off — a tax invoice does not go out before it is.",
+    "note": "The query — name the line you are asking about",
+    "off": "This clinic asks for no invoice review. It is set under Settings → Tax invoice.",
+    "open": "Open the invoice",
+    "policy": "Invoice review",
+    "policy_all": "Every invoice",
+    "policy_hint": "In a hospital a stay's bill is assembled by five different hands — nights, doses, tests, a theatre, and nursing consumables — and none of them sees the whole. The review gates the tax invoice only, never collection.",
+    "policy_none": "No review",
+    "policy_stay": "Inpatient and theatre bills",
+    "queried": "The invoice was sent back with a query.",
+    "query": "Send back with a query",
+    "refused": "Not done: either this bill is not one that gets reviewed, or the query arrived with nothing written on it.",
+    "state": "State",
+    "state_approved": "Signed off",
+    "state_draft": "Not sent yet",
+    "state_queried": "Sent back with a query",
+    "state_submitted": "Waiting for review",
+    "sub": "Bills accounts have not been through yet, longest-waiting first.",
+    "submit": "Send to accounts",
+    "submitted": "The invoice was sent to accounts.",
+    "title": "Invoice review"
   }
 }

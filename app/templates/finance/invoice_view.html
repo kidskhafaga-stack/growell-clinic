@@ -25,6 +25,60 @@
   </div>
 </div>
 
+{# What accounts have said about this bill — «تدقيق وتصديق الفاتورة».
+
+   Shown only on a bill that is actually audited: a clinic that asks for no
+   review never sees this card, and on an outpatient receipt in a hospital
+   that reviews only stays and theatres it is equally absent. A card that
+   appears everywhere saying «nothing to do» is a card people stop reading.
+
+   It gates the tax invoice and nothing else — collection is never stopped,
+   because a desk that cannot take money raises a second bill. #}
+{% if review_needed %}
+<div class="card gc-scale-in no-print" style="margin-bottom:14px;{{ 'border-inline-start:3px solid var(--warn,#b45309);' if review_state == 'queried' else '' }}"
+     data-invoice-review>
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-clipboard2-check"></i> {{ t('invoice_signoff.title') }}
+    <span class="alert-pill {{ 'ok' if review_state == 'approved' else 'warn' }}"
+          data-review-state="{{ review_state }}">
+      {{ t('invoice_signoff.state_' ~ review_state) }}</span>
+  </h2>
+  {% if invoice.review_note %}
+  <p class="hint" style="color:#b45309;">{{ invoice.review_note }}</p>
+  {% endif %}
+  {% if invoice.reviewer and invoice.review_at %}
+  <p class="hint">{{ invoice.reviewer.display_name(current_lang) }} ·
+    <span dir="ltr">{{ invoice.review_at.strftime('%Y-%m-%d %H:%M') }}</span></p>
+  {% endif %}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    {% if review_state != 'approved' %}
+    <form method="post" action="{{ url_for('finance.invoice_signoff_decide', invoice_id=invoice.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="submit">
+      <button class="btn btn-outline btn-sm gc-press" type="submit" data-review-submit>
+        <i class="bi bi-send"></i> {{ t('invoice_signoff.submit') }}</button></form>
+    {% endif %}
+    {% if may_review %}
+    <form method="post" action="{{ url_for('finance.invoice_signoff_decide', invoice_id=invoice.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="approve">
+      <button class="btn btn-primary btn-sm gc-press" type="submit" data-review-approve>
+        <i class="bi bi-check2-circle"></i> {{ t('invoice_signoff.approve') }}</button></form>
+    <form method="post" action="{{ url_for('finance.invoice_signoff_decide', invoice_id=invoice.id) }}"
+          style="display:flex;gap:6px;align-items:end;flex-wrap:wrap;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="query">
+      <div class="form-row" style="margin:0;min-width:220px;">
+        <label for="rv_note">{{ t('invoice_signoff.note') }}</label>
+        <input class="input" id="rv_note" name="note" maxlength="255" required>
+      </div>
+      <button class="btn btn-outline btn-sm gc-press" type="submit" data-review-query>
+        <i class="bi bi-arrow-counterclockwise"></i> {{ t('invoice_signoff.query') }}</button></form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <!-- Edit invoice header -->
 <details class="card gc-scale-in no-print" id="editInvoiceBox">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-pencil-square"></i> {{ t('invoices.edit_invoice') }}</summary>

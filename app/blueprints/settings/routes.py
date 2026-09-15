@@ -55,6 +55,9 @@ TEXT_KEYS = [
     "eta_tax_number", "eta_activity_code", "eta_company_name",
     "eta_branch_address", "eta_signing_url", "eta_default_tax",
     "eta_vat_rate", "eta_send_gap", "eta_default_item_type", "eta_client_secret2",
+    # Which bills accounts sign off before the tax invoice goes out. Empty =
+    # none, and empty is the default — see `app.utils.invoice_signoff`.
+    "invoice_signoff",
     # AI assistant (provider-agnostic).
     "ai_provider", "ai_api_key", "ai_model", "ai_base_url", "ai_system_prompt",
     # ICD-11 from WHO. The credentials are the clinic's own, registered free

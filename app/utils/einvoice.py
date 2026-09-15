@@ -197,7 +197,22 @@ def _sign(signing_url, payload):
 
 
 def queue_for_invoice(invoice, user_id=None):
-    """Flag an invoice as a tax invoice and ensure it has a queued document."""
+    """Flag an invoice as a tax invoice and ensure it has a queued document.
+
+    Returns ``None`` when the bill is one accounts still have to sign off.
+
+    **This is the step the audit is for.** Collection is never gated — a desk
+    that cannot take money because a bill is waiting on an audit is a desk
+    that raises a second bill — but the tax invoice is the document that goes
+    out of the building with the hospital's name on it, and «تصديق الفاتورة»
+    means it does not go until somebody has read it. A hospital that asks for
+    no review has every bill signed off by definition, so nothing here
+    changes for a clinic that never switches it on.
+    """
+    from app.utils import invoice_signoff
+
+    if not invoice_signoff.signed_off(invoice):
+        return None
     invoice.is_tax = True
     doc = EInvoiceDocument.query.filter_by(invoice_id=invoice.id).first()
     if doc is None:
