@@ -583,6 +583,16 @@ def view(patient_id):
         # EF the cardiologist wrote. See app/utils/series.py.
         lab_series=series.curves_for(patient.id, getattr(g, "lang", "ar")),
         lab_latest=lab_series.latest_values(patient.id, getattr(g, "lang", "ar")),
+        # **Every order, not only the ones that came back.** They existed only
+        # inside the visit each was written in, so «ورّيني تحاليل الطفل ده»
+        # meant opening encounters until you found them — and an order still
+        # waiting, the one somebody has to chase, appeared nowhere at all.
+        # GAHAR IMT.08 evidence 5: *available when needed*.
+        lab_orders=lab_series.every_order(patient.id),
+        # The summary a stay ends with. Built in full for ACT.15 — *"a copy of
+        # the discharge summary is kept in the patient's medical record"* —
+        # and reachable from nowhere on the record until now.
+        stay_summaries=_discharge_summaries(patient.id),
         # Where this child is, if they are in a bed, and what is free if they
         # are not. Asked only when the clinic has beds at all: a query per
         # patient file for a module nobody switched on is work for nothing,
@@ -595,6 +605,23 @@ def view(patient_id):
         # months later — the feature built and no door to it.
         operations=_operations(patient.id),
     )
+
+
+def _discharge_summaries(patient_id):
+    """``{admission_id: summary}`` for this child's stays.
+
+    ACT.15's third item of evidence asks for a copy in the record, and the
+    summaries were written, signed and then reachable only from the stay
+    screen of a stay that had already ended — which is the same «built and no
+    door to it» this file has now been on both sides of.
+    """
+    from app.models.admission import Admission
+    from app.models.discharge_summary import DischargeSummary
+
+    rows = (DischargeSummary.query
+            .join(Admission, DischargeSummary.admission_id == Admission.id)
+            .filter(Admission.patient_id == patient_id).all())
+    return {r.admission_id: r for r in rows}
 
 
 def _operations(patient_id):

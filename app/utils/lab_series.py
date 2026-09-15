@@ -143,3 +143,30 @@ def latest_by_investigation(patient_id):
             "visit_id": row.visit_id,
         }
     return latest
+
+
+def every_order(patient_id, limit=300):
+    """Every investigation ever ordered for this child, newest first.
+
+    **The list the file could not answer.** The numbers have been drawable
+    since `series_for` — a curve per test across every visit — and the orders
+    themselves were only ever visible one encounter at a time, inside the
+    visit they were written in. «وَرّيني تحاليل الطفل ده» meant opening visits
+    until you found them.
+
+    Everything is here, not only what came back: an order still waiting is
+    the one somebody has to chase, and a list of answers only is a list that
+    cannot show you what is missing. The same reasoning the lab's own rack
+    runs on.
+    """
+    from sqlalchemy.orm import selectinload
+
+    from app.models import VisitInvestigation
+
+    return (VisitInvestigation.query
+            .options(selectinload(VisitInvestigation.visit),
+                     selectinload(VisitInvestigation.investigation))
+            .filter(VisitInvestigation.patient_id == patient_id)
+            .order_by(VisitInvestigation.created_at.desc(),
+                      VisitInvestigation.id.desc())
+            .limit(limit).all())
