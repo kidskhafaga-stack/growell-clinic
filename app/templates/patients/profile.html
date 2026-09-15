@@ -278,6 +278,12 @@
            admitted is furniture, and this clinic's files are mostly those. #}
         {% set ns.tabs = ns.tabs + [('stays','tab_stays','hospital')] %}
         {% endif %}
+        {% if blood_history %}
+        {# ICD.20/ICD.21 — الدم بتاع الطفل عبر كل الإقامات. تبويب لما يبقى فيه
+           حاجة بس، زي الإقامات والعمليات: تبويب «دم» على ملف طفل عمره ما أخد
+           دم هو أثاث. #}
+        {% set ns.tabs = ns.tabs + [('blood','tab_blood','droplet-fill')] %}
+        {% endif %}
         {% if care_plan %}
         {# ICD.15 — *an individualized plan of care is developed for **every
            patient***. The tab appears only where there is a plan, like the
@@ -303,6 +309,62 @@
       </button>
       {% endfor %}
     </div>
+
+    {# ---- the blood this child has had ------------------------------- #}
+    {# الشاشة الإقامة بتوري دم إقامة واحدة. السجل بتاع الطفل، ونقل دم من ست
+       شهور هو بالظبط اللي طبيب شايفه تاني محتاج يلاقيه — نفس الحُجّة اللي
+       تبويب الإقامات والعمليات اتعملوا بيها. #}
+    {% if blood_history %}
+    <div class="gc-tab-panel" x-show="tab==='blood'" x-cloak>
+      <div class="card gc-scale-in" data-blood-history>
+        <h2 class="section-title" style="margin-top:0;">
+          <i class="bi bi-droplet-fill"></i> {{ t('patients.tab_blood') }}</h2>
+        <div style="overflow-x:auto;">
+        <table class="table">
+          <thead><tr>
+            <th>{{ t('blood.product') }}</th>
+            <th>{{ t('blood.indication') }}</th>
+            <th>{{ t('blood.urgency') }}</th>
+            <th>{{ t('blood.req_requested') }}</th>
+            <th>{{ t('blood.title') }}</th>
+          </tr></thead>
+          <tbody>
+            {% for req in blood_history %}
+            <tr data-blood-row="{{ req.id }}">
+              <td>{{ t('blood.product_' ~ req.product) }}
+                {%- if req.units %} · {{ req.units }}{% endif %}</td>
+              <td>{{ req.indication }}</td>
+              <td><span class="badge {{ 'badge--danger' if req.urgency == 'emergency'
+                                        else 'badge--muted' }}">
+                {{ t('blood.urgency_' ~ req.urgency) }}</span></td>
+              <td dir="ltr">{{ req.requested_at|clinic_stamp }}</td>
+              <td>
+                {% if not req.transfusions %}
+                <span class="badge badge--muted">{{ t('blood.req_' ~ req.state) }}</span>
+                {% endif %}
+                {% for bag in req.transfusions %}
+                {# رد الفعل بيتطبع هنا أول حاجة: ده اللي طبيب بيفتح الملف
+                   بعد شهور بيدوّر عليه قبل أي حاجة تانية. #}
+                <span class="badge {{ 'badge--danger' if bag.reaction else 'badge--muted' }}"
+                      data-history-bag="{{ bag.id }}">
+                  {{ bag.unit_code or t('blood.title') }}
+                  {%- if bag.reaction %} · {{ t('blood.reaction') }}{% endif %}
+                  {%- if bag.stopped_early %} · {{ t('blood.stopped_early') }}{% endif %}</span>
+                {% endfor %}
+                {% if req.admission_id %}
+                <a class="btn btn-sm btn-outline gc-press"
+                   href="{{ url_for('beds.admission', admission_id=req.admission_id) }}">
+                  <i class="bi bi-hospital"></i></a>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
 
     {# ---- ICD.15: the plan of care ------------------------------------- #}
     {# *"An individualized plan of care is developed for **every patient**."*

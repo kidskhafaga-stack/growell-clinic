@@ -1,0 +1,58 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('watch.plans_title') }}{% endblock %}
+{% block page_heading %}{{ t('watch.plans_title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('watch.plans_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('watch.plans_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.index') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i>
+    {{ t('nav.patients') }}</a>
+</div>
+
+{# GAHAR ICD.15 (هـ) بيطلب «نتايج مرجوّة **بمُدد**»، و(ز) بيطلب متابعة التقدّم.
+   المدة اللي محدّش بيبصّ عليها مش مدة — دي تاريخ في خانة. الشاشة دي هي اللي
+   بتخلّي البندين دول يعملوا حاجة، والأقدم الأول زي كل طابور في البرنامج. #}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;" data-overdue-goals>
+  {% if not goals %}
+  <p class="hint" style="margin:0;padding:18px;">{{ t('watch.plans_clear') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('followup.child') }}</th>
+      <th>{{ t('care_plan.need') }}</th>
+      <th>{{ t('care_plan.outcome') }}</th>
+      <th>{{ t('care_plan.by_when') }}</th>
+      <th>{{ t('care_plan.progress') }}</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      {% for goal in goals %}
+      <tr data-overdue-goal="{{ goal.id }}">
+        <td>
+          {% set child = goal.plan.patient if goal.plan else None %}
+          <a href="{{ url_for('patients.view', patient_id=goal.plan.patient_id) }}">
+            {{ child.full_name if child else '—' }}</a>
+        </td>
+        <td>{{ goal.need }}</td>
+        <td>{{ goal.outcome or '—' }}</td>
+        <td dir="ltr"><span class="badge badge--danger">{{ goal.by_when }}</span></td>
+        <td>{{ t('care_plan.progress_' ~ goal.progress) }}</td>
+        <td>
+          <a class="btn btn-sm btn-outline gc-press"
+             href="{{ url_for('patients.view', patient_id=goal.plan.patient_id) }}#care_plan">
+            {{ t('watch.open_plan') }}</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

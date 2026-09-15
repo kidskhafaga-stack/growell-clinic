@@ -261,6 +261,7 @@ def admission(admission_id):
     # Read once. The headline counts and the rows under them come off the same
     # list, so they cannot end up saying different things about one stay.
     risk_rows = risks.panel(row)
+    blood_rows = blood.panel(row)
     return render_template(
         "beds/admission.html", admission=row,
         free=ward.free_beds(), outcomes=OUTCOMES, trends=ROUND_TRENDS,
@@ -286,7 +287,10 @@ def admission(admission_id):
         # checked the bag and watched the child. The monitoring is ordinary
         # observations tied to the bag, so nothing here is a second copy of a
         # reading; see `utils/blood`.
-        blood_panel=blood.panel(row),
+        blood_panel=blood_rows,
+        # Counted once, in the util the board reads too — so the badge on this
+        # screen and the ward's safety board can never say different numbers.
+        blood_unwatched=blood.unwatched(row),
         blood_products=BLOOD_PRODUCTS,
         blood_urgencies=BLOOD_URGENCIES,
         ward_people=_ward_people(),
@@ -687,6 +691,37 @@ def blood_cancel(request_id):
     db.session.commit()
     flash(t("blood.cancelled"), "info")
     return redirect(_blood_back(row))
+
+
+@beds_bp.route("/watch")
+@module_required(MODULE)
+def watch():
+    """What the ward has to look at **right now**, across every open stay.
+
+    **This screen is the door three readers did not have.** `blood.unwatched`,
+    `blood.emergencies_waiting` and `risks.unassessed` were written, tested and
+    reachable from nothing — the exact failure this project has now found on
+    itself seven times, and the one the file screen was rebuilt for.
+
+    Three questions, and each is a *now* question, which is why they are on one
+    board and not three: a bag going into a child with nothing written down, an
+    emergency unit nobody has issued, and a stay whose required risks nobody
+    has looked at. A ward manager asks all three standing in the same doorway.
+
+    Read-only, and nothing here sends or books. Every row is a link to the stay
+    where the thing is actually done.
+    """
+    stays = (Admission.query.filter(Admission.discharged_at.is_(None))
+             .order_by(Admission.admitted_at).all())
+    watching = []
+    for stay in stays:
+        bags = blood.unwatched(stay)
+        gaps = risks.unassessed(risks.panel(stay))
+        if bags or gaps:
+            watching.append({"stay": stay, "bags": bags, "risks": gaps})
+    return render_template("beds/watch.html", rows=watching,
+                           emergencies=blood.emergencies_waiting(),
+                           open_stays=len(stays))
 
 
 def _ward_people():

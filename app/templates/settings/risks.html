@@ -50,6 +50,25 @@
       </div>
     </div>
     {% endfor %}
+    {# نقل الدم — نفس نوع السؤال اللي فوق بالظبط: كل قد إيه المكان ده بيبصّ
+       على الطفل. و`ICD.21` بيسيب المدة للمستشفى زي ما `ICD.10/11/12` بيسيبوا
+       الأداة، فهي بتبدأ فاضية وطول ما هي فاضية مفيش حاجة بتتقال عليها إنها
+       اتأخرت.
+
+       وكانت **إعداد بيتقرا من الكود ومالوش أي شاشة** — يعني سياسة بتتطلب من
+       المستشفى وما تقدرش تقولها غير بتعديل الداتابيز. #}
+    <div class="form-row" style="border-top:1px solid var(--line);padding-top:12px;"
+         data-blood-watch-policy>
+      <label for="blood_watch_minutes">
+        <strong>{{ t('blood.title') }}</strong>
+        <span class="hint" dir="ltr">ICD.21</span></label>
+      <div style="max-width:220px;">
+        <input class="input" type="number" min="0" id="blood_watch_minutes"
+               name="blood_watch_minutes" value="{{ blood_watch_minutes }}">
+        <div class="hint">{{ t('blood.watch_every_hint') }}</div>
+      </div>
+    </div>
+
     <button class="btn btn-primary gc-press" type="submit" style="margin-top:14px;">
       <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
   </form>

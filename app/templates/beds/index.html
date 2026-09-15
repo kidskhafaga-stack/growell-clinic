@@ -37,6 +37,11 @@
        reach it sends whoever is on hunting through the sidebar. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.drugs') }}">
       <i class="bi bi-capsule"></i> {{ t('meds.round') }}</a>
+    {# The third half of a stay: what needs looking at *now* across every open
+       one. Three readers were written for these questions and had no screen
+       to call them — «بتعمل الشغل وتنسى تحط باب ليه». #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('beds.watch') }}">
+      <i class="bi bi-eye"></i> {{ t('watch.title') }}</a>
     {% if may_build %}
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.setup') }}">
       <i class="bi bi-diagram-3"></i> {{ t('beds.setup') }}</a>
