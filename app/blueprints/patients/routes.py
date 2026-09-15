@@ -479,6 +479,7 @@ def view(patient_id):
     from app.models.care_plan import GOAL_PROGRESS
     from app.utils import ai as ai_utils
     from app.utils import care_plan as care_planning
+    from app.utils import followup as followups_util
     from app.utils import lab_series, series
 
     patient = db.get_or_404(Patient, patient_id)
@@ -634,6 +635,11 @@ def view(patient_id):
         care_plan_stands_on=care_planning.stands_on(patient.id),
         care_plan_missing=care_planning.missing(_care_plan),
         goal_progress=GOAL_PROGRESS,
+        # GAHAR ICD.05 evidence 5 — what each visit told the family, and
+        # whether they came back. One query for the whole file rather than one
+        # per consultation: a child with three years on the books is a hundred
+        # encounters.
+        followups=followups_util.by_visit(patient.visits),
     )
 
 

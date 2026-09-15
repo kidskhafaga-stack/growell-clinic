@@ -737,6 +737,33 @@
           <i class="bi bi-send"></i> {{ t('visits.nurse_send') }}</button>
       </form>
 
+      {# What the family is told on the way out — GAHAR ICD.05 evidence 5:
+         *"The plans of care and **follow-up instructions** are recorded in the
+         patient's medical records."*
+
+         **Two boxes, because they are two instructions.** «تعالى بعد أسبوعين»
+         has a date; «تعالى فوراً لو سخن» is the safety net that brings a child
+         back *before* it, and one box holding both would let a booked
+         appointment stand in for having given one.
+
+         And nothing here books anything: the date is what the doctor asked
+         for, and whether an appointment exists for it is read back from the
+         appointment book rather than written down twice. #}
+      <form method="post" action="{{ url_for('visits.followup', visit_id=visit.id) }}"
+            class="form-row">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label><i class="bi bi-arrow-repeat"></i> {{ t('followup.title') }}</label>
+        <input class="input" type="date" name="followup_due"
+               value="{{ visit.followup_due or '' }}">
+        <textarea class="input" name="followup_instructions" rows="2"
+                  style="margin-top:6px;"
+                  placeholder="{{ t('followup.instructions_ph') }}">{{ visit.followup_instructions or '' }}</textarea>
+        <div class="hint">{{ t('followup.hint') }}</div>
+        <button class="btn btn-outline btn-sm gc-press" type="submit"
+                style="margin-top:6px;align-self:start;" data-followup-save>
+          <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
+      </form>
+
       <form method="post" action="{{ url_for('visits.refer', visit_id=visit.id) }}"
             class="form-row">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

@@ -83,6 +83,25 @@ class Visit(db.Model):
     referred_to = db.Column(db.String(120))
     referral_note = db.Column(db.Text)
 
+    # ---- what the family was told on the way out (GAHAR ICD.05 evidence 5) --
+    #
+    # > *"The plans of care and **follow-up instructions** are recorded in the
+    # > patient's medical records."*
+    #
+    # **Two columns, because «تعالى بعد أسبوعين» and «تعالى فوراً لو سخن» are
+    # two different instructions** and only one of them has a date. The second
+    # is the safety net — the sentence that sends a child back *before* the
+    # appointment when something changes — and a single box holding both would
+    # let a booked follow-up stand in for having given one. `ICD.03` (هـ) names
+    # *follow-up care instructions* as element (viii) of what a patient leaves
+    # the emergency department with, for the same reason.
+    #
+    # A **date** and not a duration: "in two weeks" is a sentence whose meaning
+    # moves every day it is read, and this one is read months later by somebody
+    # asking whether the child ever came back.
+    followup_due = db.Column(db.Date, index=True)
+    followup_instructions = db.Column(db.Text)
+
     @property
     def is_referred(self):
         return self.referred_at is not None

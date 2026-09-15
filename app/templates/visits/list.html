@@ -16,6 +16,11 @@
       <i class="bi bi-heart-pulse"></i> {{ t('visits.station_title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('visits.results') }}">
       <i class="bi bi-file-earmark-medical"></i> {{ t('results.title') }}</a>
+    {# The children a doctor asked back who have not been seen. Beside the
+       results rack because it is the same kind of errand: something was
+       started in a consultation and nobody has closed it. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('visits.followups') }}">
+      <i class="bi bi-arrow-repeat"></i> {{ t('followup.outstanding_title') }}</a>
   </div>
 </div>
 

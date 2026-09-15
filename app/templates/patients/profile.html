@@ -1480,6 +1480,23 @@
             {% for dx in v.final_diagnoses() %}<span class="badge badge--green">{{ dx.title }}</span> {% else %}<span style="color:var(--muted);">{{ v.chief_complaint or '—' }}</span>{% endfor %}
           </span>
           <span class="status-badge {{ 'st-completed' if v.is_completed else 'st-in_progress' }}">{{ t('visits.completed_status') if v.is_completed else t('visits.open') }}</span>
+          {# GAHAR ICD.05 evidence 5 — what the family was told on the way out,
+             **and whether they came back**. The instruction alone is half the
+             fact: a file that says «ارجع بعد أسبوعين» and cannot say whether
+             they did is the half that was never worth writing down.
+
+             Derived, never stored: right the moment reception books, and
+             `none` for every visit recorded before this existed — which is
+             true, because nobody was ever asked. #}
+          {% set fu = followups.get(v.id, {}) %}
+          {% if fu.state and fu.state != 'none' %}
+          <span class="badge {{ 'badge--danger' if fu.state in ('missed', 'overdue')
+                                else ('badge--green' if fu.state == 'came'
+                                      else 'badge--muted') }}"
+                data-followup="{{ fu.state }}">
+            <i class="bi bi-arrow-repeat"></i> {{ t('followup.state_' ~ fu.state) }}
+            {%- if fu.missed %} · {{ t('followup.n_missed', n=fu.missed) }}{% endif %}</span>
+          {% endif %}
         </a>
         {% endfor %}
       </div>
