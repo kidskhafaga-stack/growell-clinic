@@ -32,6 +32,20 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 import pytest  # noqa: E402
 
+from app.utils.clock import local_today  # noqa: E402
+
+# **The clinic's today, never the machine's.**
+#
+# This file first wrote its dates with `date.today()`, and CI went red at
+# 22:41 UTC — when it is already tomorrow in Cairo. `followup.state` asks
+# `local_today()`, correctly, so a due date of "the machine's today" was in the
+# clinic's *past* and a child due back today read as overdue.
+#
+# Production was right and the test was wrong, which is the exact shape the
+# conftest's docstring was written about: the suite has gone red in that window
+# three separate times before this. `pytest --tz=Pacific/Midway` forces the two
+# clocks eleven hours apart all day and is how this fix was checked.
+
 
 @pytest.fixture()
 def seen(clinic):
@@ -130,7 +144,7 @@ def test_a_safety_net_with_no_date_is_still_an_instruction(seen):
 
 def test_a_date_with_no_words_is_also_an_instruction(seen):
     visit = _visit(seen)
-    _tell(seen, visit, due=(date.today() + timedelta(days=30)).isoformat())
+    _tell(seen, visit, due=(local_today() + timedelta(days=30)).isoformat())
 
     assert _state(seen, visit) == "told"
 
@@ -166,7 +180,7 @@ def test_a_blank_date_clears_it_and_a_missing_one_does_not(seen):
 def test_a_booking_answers_it_without_anybody_telling_the_visit(seen):
     """Derived, never stored: right the moment reception books."""
     visit = _visit(seen)
-    _tell(seen, visit, due=(date.today() + timedelta(days=14)).isoformat())
+    _tell(seen, visit, due=(local_today() + timedelta(days=14)).isoformat())
     assert _state(seen, visit) == "told"
 
     _book(seen, seen["ids"]["child"], days_ahead=14)
@@ -177,7 +191,7 @@ def test_coming_back_beats_everything(seen):
     """A child who attended is not also missed, whatever was booked and broken
     along the way: the point of the instruction was that they come back."""
     visit = _visit(seen, days_ago=30)
-    _tell(seen, visit, due=(date.today() - timedelta(days=5)).isoformat())
+    _tell(seen, visit, due=(local_today() - timedelta(days=5)).isoformat())
     _book(seen, seen["ids"]["child"], days_ahead=-3, status="no_show")
     _book(seen, seen["ids"]["child"], days_ahead=-1, status="completed")
 
@@ -188,7 +202,7 @@ def test_a_rebooking_beats_a_missed_one_behind_it(seen):
     """The family that missed Tuesday and rebooked for Thursday is booked, not
     missed — the same rule `no_show` follows before it sends anything."""
     visit = _visit(seen, days_ago=30)
-    _tell(seen, visit, due=(date.today() - timedelta(days=5)).isoformat())
+    _tell(seen, visit, due=(local_today() - timedelta(days=5)).isoformat())
     _book(seen, seen["ids"]["child"], days_ahead=-3, status="no_show")
     _book(seen, seen["ids"]["child"], days_ahead=4, status="scheduled")
 
@@ -197,7 +211,7 @@ def test_a_rebooking_beats_a_missed_one_behind_it(seen):
 
 def test_booked_and_never_came_is_its_own_state(seen):
     visit = _visit(seen, days_ago=30)
-    _tell(seen, visit, due=(date.today() - timedelta(days=5)).isoformat())
+    _tell(seen, visit, due=(local_today() - timedelta(days=5)).isoformat())
     _book(seen, seen["ids"]["child"], days_ahead=-3, status="no_show")
 
     assert _state(seen, visit) == "missed"
@@ -211,7 +225,7 @@ def test_the_number_of_missed_bookings_is_the_errand(seen):
     from app.utils import followup
 
     visit = _visit(seen, days_ago=40)
-    _tell(seen, visit, due=(date.today() - timedelta(days=20)).isoformat())
+    _tell(seen, visit, due=(local_today() - timedelta(days=20)).isoformat())
     for ago in (15, 10, 4):
         _book(seen, seen["ids"]["child"], days_ahead=-ago, status="no_show")
 
@@ -222,7 +236,7 @@ def test_the_number_of_missed_bookings_is_the_errand(seen):
 
 def test_a_date_that_passed_with_nothing_booked_is_overdue(seen):
     visit = _visit(seen)
-    _tell(seen, visit, due=(date.today() - timedelta(days=2)).isoformat())
+    _tell(seen, visit, due=(local_today() - timedelta(days=2)).isoformat())
 
     assert _state(seen, visit) == "overdue"
 
@@ -261,7 +275,7 @@ def test_the_day_itself_is_not_late(seen):
     """A child due back today has all day to come. Calling them overdue at
     midnight puts them on a chasing list the morning they were asked for."""
     visit = _visit(seen, days_ago=14)
-    _tell(seen, visit, due=date.today().isoformat())
+    _tell(seen, visit, due=local_today().isoformat())
 
     assert _state(seen, visit) == "told"
 
@@ -273,7 +287,7 @@ def test_only_the_missed_bookings_are_counted(seen):
     from app.utils import followup
 
     visit = _visit(seen, days_ago=40)
-    _tell(seen, visit, due=(date.today() - timedelta(days=20)).isoformat())
+    _tell(seen, visit, due=(local_today() - timedelta(days=20)).isoformat())
     _book(seen, seen["ids"]["child"], days_ahead=-15, status="no_show")
     _book(seen, seen["ids"]["child"], days_ahead=-10, status="no_show")
     _book(seen, seen["ids"]["child"], days_ahead=-5, status="cancelled")
@@ -293,7 +307,7 @@ def test_the_file_reads_the_same_rule_as_the_visit_does(seen):
     from app.utils import followup
 
     visit = _visit(seen, days_ago=1)
-    _tell(seen, visit, due=(date.today() + timedelta(days=10)).isoformat())
+    _tell(seen, visit, due=(local_today() + timedelta(days=10)).isoformat())
     _book(seen, seen["ids"]["child"], days_ahead=-30, status="completed")
     _book(seen, seen["ids"]["other_child"], days_ahead=2, status="completed")
 
@@ -318,8 +332,8 @@ def test_one_file_two_visits_and_the_booking_belongs_to_only_one(seen):
 
     older = _visit(seen, days_ago=60)
     newer = _visit(seen, days_ago=2)
-    _tell(seen, older, due=(date.today() - timedelta(days=40)).isoformat())
-    _tell(seen, newer, due=(date.today() + timedelta(days=10)).isoformat())
+    _tell(seen, older, due=(local_today() - timedelta(days=40)).isoformat())
+    _tell(seen, newer, due=(local_today() + timedelta(days=10)).isoformat())
     # Missed a month ago: after the older consultation, before the newer one.
     _book(seen, seen["ids"]["child"], days_ahead=-30, status="no_show")
 
@@ -337,7 +351,7 @@ def test_a_booking_before_the_visit_is_not_this_visits_follow_up(seen):
     """The question is what was arranged **as a result of** this consultation.
     An appointment already on the books last month answers a different one."""
     visit = _visit(seen, days_ago=1)
-    _tell(seen, visit, due=(date.today() + timedelta(days=10)).isoformat())
+    _tell(seen, visit, due=(local_today() + timedelta(days=10)).isoformat())
     _book(seen, seen["ids"]["child"], days_ahead=-30, status="completed")
 
     assert _state(seen, visit) == "told"
@@ -345,7 +359,7 @@ def test_a_booking_before_the_visit_is_not_this_visits_follow_up(seen):
 
 def test_another_childs_appointment_never_answers_this_visit(seen):
     visit = _visit(seen)
-    _tell(seen, visit, due=(date.today() + timedelta(days=7)).isoformat())
+    _tell(seen, visit, due=(local_today() + timedelta(days=7)).isoformat())
     _book(seen, seen["ids"]["other_child"], days_ahead=3)
 
     assert _state(seen, visit) == "told"
@@ -356,7 +370,7 @@ def test_a_cancelled_booking_is_not_a_booking(seen):
     would take the child off the chasing list for the exact reason they
     belong on it."""
     visit = _visit(seen, days_ago=30)
-    _tell(seen, visit, due=(date.today() - timedelta(days=3)).isoformat())
+    _tell(seen, visit, due=(local_today() - timedelta(days=3)).isoformat())
     _book(seen, seen["ids"]["child"], days_ahead=-1, status="cancelled")
 
     assert _state(seen, visit) == "overdue"
@@ -369,11 +383,11 @@ def test_the_outstanding_list_is_the_two_errands_and_nothing_else(seen):
     from app.utils import followup
 
     came = _visit(seen, days_ago=30)
-    _tell(seen, came, due=(date.today() - timedelta(days=20)).isoformat())
+    _tell(seen, came, due=(local_today() - timedelta(days=20)).isoformat())
     _book(seen, seen["ids"]["child"], days_ahead=-18, status="completed")
 
     waiting = _visit(seen, patient_id=seen["ids"]["other_child"], days_ago=20)
-    _tell(seen, waiting, due=(date.today() - timedelta(days=6)).isoformat())
+    _tell(seen, waiting, due=(local_today() - timedelta(days=6)).isoformat())
 
     with seen["app"].app_context():
         rows = [v.id for v in followup.outstanding()]
@@ -386,9 +400,9 @@ def test_the_list_puts_the_oldest_first(seen):
     from app.utils import followup
 
     older = _visit(seen, days_ago=60)
-    _tell(seen, older, due=(date.today() - timedelta(days=50)).isoformat())
+    _tell(seen, older, due=(local_today() - timedelta(days=50)).isoformat())
     newer = _visit(seen, patient_id=seen["ids"]["other_child"], days_ago=10)
-    _tell(seen, newer, due=(date.today() - timedelta(days=3)).isoformat())
+    _tell(seen, newer, due=(local_today() - timedelta(days=3)).isoformat())
 
     with seen["app"].app_context():
         assert [v.id for v in followup.outstanding()] == [older, newer]
@@ -396,7 +410,7 @@ def test_the_list_puts_the_oldest_first(seen):
 
 def test_the_screen_shows_them_and_says_how_many_were_missed(seen):
     visit = _visit(seen, days_ago=30)
-    _tell(seen, visit, due=(date.today() - timedelta(days=20)).isoformat(),
+    _tell(seen, visit, due=(local_today() - timedelta(days=20)).isoformat(),
           instructions="ارجع لو سخن")
     for ago in (15, 5):
         _book(seen, seen["ids"]["child"], days_ahead=-ago, status="no_show")
@@ -417,7 +431,7 @@ def test_an_empty_list_says_so_rather_than_drawing_nothing(seen):
 
 def test_the_file_shows_the_state_against_each_visit(seen):
     visit = _visit(seen, days_ago=30)
-    _tell(seen, visit, due=(date.today() - timedelta(days=20)).isoformat())
+    _tell(seen, visit, due=(local_today() - timedelta(days=20)).isoformat())
     _book(seen, seen["ids"]["child"], days_ahead=-10, status="no_show")
 
     page = seen["sign_in"]("doc").get(f"/patients/{seen['ids']['child']}")
@@ -444,7 +458,7 @@ def test_the_file_costs_one_query_however_many_visits(seen):
 
     for ago in range(8):
         visit = _visit(seen, days_ago=ago + 1)
-        _tell(seen, visit, due=(date.today() + timedelta(days=ago)).isoformat())
+        _tell(seen, visit, due=(local_today() + timedelta(days=ago)).isoformat())
 
     seen_sql = []
 
@@ -476,7 +490,7 @@ def test_nothing_here_books_or_sends_anything(seen):
     from app.models import Appointment, MessageLog
 
     visit = _visit(seen)
-    _tell(seen, visit, due=(date.today() + timedelta(days=14)).isoformat(),
+    _tell(seen, visit, due=(local_today() + timedelta(days=14)).isoformat(),
           instructions="ارجع لو سخن")
 
     with seen["app"].app_context():
