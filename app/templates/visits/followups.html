@@ -1,0 +1,67 @@
+{% extends "shell.html" %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('followup.outstanding_title') }}{% endblock %}
+{% block page_heading %}{{ t('followup.outstanding_title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('followup.outstanding_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('followup.outstanding_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('visits.index') }}">
+    <i class="bi bi-arrow-right"></i> {{ t('nav.visits') }}</a>
+</div>
+
+{# The half that makes the instruction worth recording. A doctor asked these
+   children back and nobody has seen them — every row needed to say so was
+   already in the database, in two tables nothing joined.
+
+   **Oldest first**, like the bench's rack and the audit queue: a list that
+   puts this morning's on top is a list where last month's is still there at
+   the end of the year. #}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;" data-followups>
+  {% if not rows %}
+  <p class="hint" style="margin:0;padding:18px;">{{ t('followup.nobody_waiting') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('followup.child') }}</th>
+      <th>{{ t('followup.seen_on') }}</th>
+      <th>{{ t('followup.due') }}</th>
+      <th>{{ t('followup.state') }}</th>
+      <th>{{ t('followup.instructions') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for visit in rows %}
+      {% set info = states.get(visit.id, {}) %}
+      <tr data-followup-row="{{ visit.id }}">
+        <td>
+          <a href="{{ url_for('patients.view', patient_id=visit.patient_id) }}">
+            {{ visit.patient.full_name if visit.patient else '—' }}</a>
+        </td>
+        <td dir="ltr">{{ visit.visit_date or '—' }}</td>
+        <td dir="ltr">{{ visit.followup_due or '—' }}</td>
+        <td>
+          <span class="badge {{ 'badge--danger' if info.state == 'missed'
+                                else 'badge--warn' }}"
+                data-followup-state="{{ info.state }}">
+            {{ t('followup.state_' ~ info.state) }}</span>
+          {# The number is the errand. One missed appointment is a family stuck
+             in traffic; three is a child nobody has seen since a doctor said
+             they needed to be seen. #}
+          {% if info.missed %}
+          <span class="badge badge--danger" data-followup-missed="{{ info.missed }}">
+            {{ t('followup.n_missed', n=info.missed) }}</span>
+          {% endif %}
+        </td>
+        <td>{{ visit.followup_instructions or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

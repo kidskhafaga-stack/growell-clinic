@@ -1676,6 +1676,83 @@ def nurse_instructions(visit_id):
     return redirect(request.referrer or url_for("visits.record", visit_id=visit.id))
 
 
+def _a_date(raw):
+    """A ``YYYY-MM-DD`` from a form field that was present.
+
+    **Three answers, because the form has three things to say**, and the first
+    version of this had two — which quietly deleted a date every time the
+    safety-net box was saved on its own:
+
+    * a date        — the person picked one
+    * ``""``        — the person **emptied the box**, which is an instruction
+    * ``None``      — unreadable, so leave what is there alone
+
+    The fourth case, *the form did not carry this field at all*, is not this
+    function's to answer: the caller sees ``request.form.get`` return ``None``
+    before it gets here, and that is a different fact from an empty box.
+    """
+    said = (raw or "").strip()
+    if not said:
+        return ""
+    try:
+        return datetime.strptime(said, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+@visits_bp.route("/<int:visit_id>/followup", methods=["POST"])
+@module_required(MODULE)
+def followup(visit_id):
+    """What the family was told on the way out — GAHAR ICD.05 evidence 5.
+
+    > *"The plans of care and **follow-up instructions** are recorded in the
+    > patient's medical records."*
+
+    **Its own action, like the nursing instruction beside it**, and for the
+    same reason: it leaves the room with the family whether or not anybody
+    remembers to press Save on the consultation. It also books nothing — the
+    date is what the doctor asked for, and whether an appointment exists for
+    it is reception's answer, read back from the appointment book rather than
+    written here twice.
+    """
+    from app.utils import followup as followups
+
+    visit = db.get_or_404(Visit, visit_id)
+    # **A field the form did not carry is not a field somebody emptied.** The
+    # consultation screen has several forms on it and only one of them holds
+    # the date, so reading an absent field as a blank deleted the follow-up
+    # date every time the safety net was saved by itself.
+    raw_due = request.form.get("followup_due")
+    followups.record(visit,
+                     due=None if raw_due is None else _a_date(raw_due),
+                     instructions=request.form.get("followup_instructions"))
+    ActivityLog.record("visit.followup", user_id=current_user.id,
+                       entity="visit", entity_id=visit.id,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("followup.saved"), "success")
+    return redirect(request.referrer
+                    or url_for("visits.record", visit_id=visit.id))
+
+
+@visits_bp.route("/followups")
+@module_required(MODULE)
+def followups():
+    """The children a doctor asked back who have not been seen.
+
+    **The half that makes the instruction worth recording.** «اتحجزله ٣ مواعيد
+    وما جاش في ولا واحد» was answerable from two tables nothing joined, so it
+    was answered by nobody. Read-only and pressed by nobody: what the clinic
+    *says* to those families is `utils/no_show` and `utils/recall`, both of
+    which a person presses.
+    """
+    from app.utils import followup as followups_util
+
+    rows = followups_util.outstanding()
+    return render_template("visits/followups.html", rows=rows,
+                           states=followups_util.by_visit(rows))
+
+
 @visits_bp.route("/<int:visit_id>/refer", methods=["POST"])
 @module_required(MODULE)
 def refer(visit_id):

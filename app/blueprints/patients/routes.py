@@ -477,6 +477,7 @@ def create():
 def view(patient_id):
     from app.models import Invoice, PayerEntity, Prescription
     from app.utils import ai as ai_utils
+    from app.utils import followup as followups_util
     from app.utils import lab_series, series
 
     patient = db.get_or_404(Patient, patient_id)
@@ -619,6 +620,11 @@ def view(patient_id):
         # state is here: the file could say a child was anaesthetised without
         # being able to say whether anybody planned it.
         plan_state=_plan_state,
+        # GAHAR ICD.05 evidence 5 — what each visit told the family, and
+        # whether they came back. One query for the whole file rather than one
+        # per consultation: a child with three years on the books is a hundred
+        # encounters.
+        followups=followups_util.by_visit(patient.visits),
     )
 
 

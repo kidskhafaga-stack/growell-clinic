@@ -7070,5 +7070,26 @@
     "none": "No anaesthesia plan",
     "planned": "Plan written",
     "short": "Plan incomplete"
+  },
+  "followup": {
+    "title": "Follow-up instructions",
+    "hint": "«Come back in two weeks» has a date; «come back at once if…» is the safety net. Nothing is booked from here — this is what the doctor asked for.",
+    "instructions_ph": "Come back at once if the fever goes above 39 or breathing gets harder",
+    "saved": "Follow-up instructions recorded.",
+    "due": "Due back",
+    "instructions": "Instructions",
+    "state": "State",
+    "child": "Child",
+    "seen_on": "Seen on",
+    "state_none": "No follow-up asked for",
+    "state_told": "Told to come back",
+    "state_booked": "Appointment booked",
+    "state_came": "Came back",
+    "state_missed": "Booked and did not come",
+    "state_overdue": "Past due, nothing booked",
+    "n_missed": "Missed {n}",
+    "outstanding_title": "Asked back and not seen",
+    "outstanding_sub": "A doctor asked for this child again, and nobody has seen them",
+    "nobody_waiting": "Nobody waiting. Everyone asked back has come, or is not due yet."
   }
 }

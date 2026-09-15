@@ -475,6 +475,13 @@ ADDITIONS = [
     ("visits", "channel", "VARCHAR(12) DEFAULT 'clinic'"),
     ("visits", "decision", "VARCHAR(16)"),
     ("visits", "based_on_id", "INTEGER"),
+    # What the family was told on the way out — GAHAR ICD.05 evidence 5.
+    # Two columns because «تعالى بعد أسبوعين» and «تعالى فوراً لو سخن» are two
+    # instructions and only one has a date. Both nullable with no default:
+    # every consultation recorded before this existed truthfully said nothing,
+    # and a default would put a follow-up in a child's record nobody asked for.
+    ("visits", "followup_due", "DATE"),
+    ("visits", "followup_instructions", "TEXT"),
     ("conversations", "topic", "VARCHAR(16)"),
     ("drugs", "trade_name_ar", "VARCHAR(160)"),
     ("drugs", "route", "VARCHAR(20)"),
