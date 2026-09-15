@@ -480,6 +480,12 @@ ADDITIONS = [
     # instructions and only one has a date. Both nullable with no default:
     # every consultation recorded before this existed truthfully said nothing,
     # and a default would put a follow-up in a child's record nobody asked for.
+    # The bag a reading was taken to watch — GAHAR ICD.21 evidence 4. On the
+    # observations table, which every ward already has rows in, so it must
+    # reach an existing clinic rather than only a fresh install. Nullable and
+    # null for every reading ever taken: almost no observation is a
+    # transfusion's.
+    ("observations", "transfusion_id", "INTEGER"),
     ("visits", "followup_due", "DATE"),
     ("visits", "followup_instructions", "TEXT"),
     ("conversations", "topic", "VARCHAR(16)"),

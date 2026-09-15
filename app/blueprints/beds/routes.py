@@ -31,6 +31,8 @@ from app.extensions import db
 from app.i18n import t
 from app.models import Patient, Visit
 from app.models.admission import OUTCOMES, Admission
+from app.models.blood import PRODUCTS as BLOOD_PRODUCTS
+from app.models.blood import URGENCIES as BLOOD_URGENCIES
 from app.models.discharge_summary import DischargeSummary
 from app.models.medication import (DOSE_OUTCOMES, ROUTES, MedicationOrder)
 from app.models.place import BED_KINDS, SPACE_KINDS, UNIT_KINDS, Bed, Space, Unit
@@ -38,6 +40,7 @@ from app.models.prescription import Drug
 from app.models.round_note import ROUND_TRENDS
 from app.utils import beds as ward
 from app.utils import bed_billing
+from app.utils import blood
 from app.utils import drug_round
 from app.utils.clock import local_today
 from app.utils import discharge_summary as summary
@@ -279,6 +282,14 @@ def admission(admission_id):
         # clinic looks for, present whether or not anybody has assessed it:
         # an absence has no row of its own to find, and an unassessed risk is
         # the thing this panel is for.
+        # GAHAR ICD.20/ICD.21 — what was ordered and why, and whether anybody
+        # checked the bag and watched the child. The monitoring is ordinary
+        # observations tied to the bag, so nothing here is a second copy of a
+        # reading; see `utils/blood`.
+        blood_panel=blood.panel(row),
+        blood_products=BLOOD_PRODUCTS,
+        blood_urgencies=BLOOD_URGENCIES,
+        ward_people=_ward_people(),
         risk_panel=risk_rows,
         risk_unassessed=risks.unassessed(risk_rows),
         risk_bare=risks.without_plan(risk_rows),
@@ -540,6 +551,162 @@ def _yes_no(raw):
     if said == "no":
         return False
     return None
+
+
+# ---------------------------------------------------------------- blood -----
+# GAHAR ICD.20 (requesting) and ICD.21 (transfusing). Four addresses, because
+# the four things happen at four different moments and by four different
+# people: a doctor orders it, the blood bank confirms the sample, two nurses
+# hang the bag, and whoever is at the bedside watches it. One form holding all
+# of that would have asked the person who ordered the blood to know what the
+# bag's number would be.
+#
+# **No capability beyond the ward's**, like the round and the risk assessment:
+# the person watching a transfusion at three in the morning is nursing, and a
+# capability here would have put the record behind the ward's door twice.
+@beds_bp.route("/admission/<int:admission_id>/blood", methods=["POST"])
+@module_required(MODULE)
+def blood_request(admission_id):
+    """Order blood for this child — ICD.20."""
+    row = Admission.query.get_or_404(admission_id)
+    try:
+        blood.request(
+            row.patient, (request.form.get("product") or "").strip(),
+            request.form.get("indication"),
+            user=current_user, admission=row,
+            units=request.form.get("units", type=int),
+            urgency=(request.form.get("urgency") or "").strip(),
+            product_note=request.form.get("product_note"),
+            family_told=_yes_no(request.form.get("family_told")),
+            at=_happened_at())
+    except ValueError:
+        db.session.rollback()
+        # Said out loud. The indication is the one thing ICD.20 evidence 3 is
+        # about, and a request that silently saved nothing would put the gap
+        # in the blood bank instead of on this screen.
+        flash(t("blood.not_requested"), "error")
+        return redirect(url_for("beds.admission", admission_id=row.id))
+    db.session.commit()
+    flash(t("blood.requested"), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id))
+
+
+@beds_bp.route("/blood/<int:request_id>/sample", methods=["POST"])
+@module_required(MODULE)
+def blood_sample(request_id):
+    """ICD.20 (ز) — the label on the sample matches the form."""
+    from app.models import BloodRequest
+
+    row = BloodRequest.query.get_or_404(request_id)
+    blood.sample_checked(row, user=current_user)
+    db.session.commit()
+    flash(t("blood.sample_ok"), "success")
+    return redirect(_blood_back(row))
+
+
+@beds_bp.route("/blood/<int:request_id>/hang", methods=["POST"])
+@module_required(MODULE)
+def blood_hang(request_id):
+    """Start one bag — ICD.21."""
+    from app.models import BloodRequest, User
+
+    row = BloodRequest.query.get_or_404(request_id)
+    # The second name is chosen from the ward's own people and checked against
+    # the user table, because the whole of ICD.21's intent is that two people
+    # looked — and a name typed into a box is not a person who looked.
+    second = User.query.get(request.form.get("checked_by", type=int) or 0)
+    try:
+        blood.hang(row, unit_code=request.form.get("unit_code"),
+                   given_by=current_user, checked_by=second,
+                   bag_checked=_yes_no(request.form.get("bag_checked")),
+                   bag_note=request.form.get("bag_note"),
+                   rate=request.form.get("rate"), at=_happened_at())
+    except ValueError:
+        db.session.rollback()
+        flash(t("blood.not_hung"), "error")
+        return redirect(_blood_back(row))
+    db.session.commit()
+    flash(t("blood.hung"), "success")
+    return redirect(_blood_back(row))
+
+
+@beds_bp.route("/blood/bag/<int:bag_id>/watch", methods=["POST"])
+@module_required(MODULE)
+def blood_watch(bag_id):
+    """ICD.21 evidence 4 — one set of readings taken to watch the bag."""
+    from app.models import Transfusion
+
+    bag = Transfusion.query.get_or_404(bag_id)
+    try:
+        blood.watch(bag, user=current_user, at=_happened_at(),
+                    temperature_c=request.form.get("temperature_c", type=float),
+                    pulse_bpm=request.form.get("pulse_bpm", type=int),
+                    resp_rate=request.form.get("resp_rate", type=int),
+                    spo2=request.form.get("spo2", type=int),
+                    bp_systolic=request.form.get("bp_systolic", type=int),
+                    bp_diastolic=request.form.get("bp_diastolic", type=int),
+                    note=(request.form.get("note") or "").strip() or None)
+    except ValueError:
+        db.session.rollback()
+        # An empty reading would clear «محدّش بيشوفه» without anybody having
+        # gone near the child — the same refusal the blank round is built on.
+        flash(t("blood.needs_a_reading"), "error")
+        return redirect(_blood_back(bag.request))
+    db.session.commit()
+    flash(t("blood.watched"), "success")
+    return redirect(_blood_back(bag.request))
+
+
+@beds_bp.route("/blood/bag/<int:bag_id>/finish", methods=["POST"])
+@module_required(MODULE)
+def blood_finish(bag_id):
+    """The bag is down — and whether anything happened, or not."""
+    from app.models import Transfusion
+
+    bag = Transfusion.query.get_or_404(bag_id)
+    blood.finish(bag, reaction=_yes_no(request.form.get("reaction")),
+                 reaction_note=request.form.get("reaction_note"),
+                 stopped_early=bool(request.form.get("stopped_early")),
+                 at=_happened_at())
+    db.session.commit()
+    flash(t("blood.finished"), "success")
+    return redirect(_blood_back(bag.request))
+
+
+@beds_bp.route("/blood/<int:request_id>/cancel", methods=["POST"])
+@module_required(MODULE)
+def blood_cancel(request_id):
+    """The blood is not going to be given."""
+    from app.models import BloodRequest
+
+    row = BloodRequest.query.get_or_404(request_id)
+    if blood.cancel(row, reason=request.form.get("cancel_reason")) is None:
+        # A request a bag was already hung against cannot be un-asked.
+        flash(t("blood.cannot_cancel"), "error")
+        return redirect(_blood_back(row))
+    db.session.commit()
+    flash(t("blood.cancelled"), "info")
+    return redirect(_blood_back(row))
+
+
+def _ward_people():
+    """Who can be named as the second pair of eyes on a bag.
+
+    ICD.21's intent is about *misidentification*, so the second checker is
+    picked from the people this clinic actually employs rather than typed —
+    a name in a free box is not a person who looked.
+    """
+    from app.models import User
+
+    return (User.query.filter(User.is_active.is_(True))
+            .order_by(User.full_name).all())
+
+
+def _blood_back(request_row):
+    """Back to the stay the blood belongs to, or to the board without one."""
+    if request_row is not None and request_row.admission_id:
+        return url_for("beds.admission", admission_id=request_row.admission_id)
+    return url_for("beds.index")
 
 
 def _back_to(admission):

@@ -108,6 +108,21 @@ class Observation(db.Model):
                          nullable=True, index=True)
     order_id = db.Column(db.Integer, db.ForeignKey("observation_orders.id"),
                          nullable=True, index=True)
+    # **The bag this reading was taken to watch** — GAHAR ICD.21 evidence 4:
+    # *"Monitoring of the patient's condition during transfusion is recorded
+    # in the patient's medical record."*
+    #
+    # A column here rather than a table of its own, because the readings taken
+    # every quarter of an hour during a transfusion are **these** readings:
+    # the same temperature, pulse and blood pressure the ward writes all day.
+    # A second table would have put one kind of fact in two places, which is
+    # the thing this codebase keeps taking out — and it would have left the
+    # transfusion's own observations off the child's chart.
+    #
+    # Nullable, and null for every reading ever taken: almost no observation
+    # is a transfusion's.
+    transfusion_id = db.Column(db.Integer, db.ForeignKey("transfusions.id"),
+                               nullable=True, index=True)
 
     # **Two times, and they are not the same time.** ``taken_at`` is when the
     # thermometer came out; ``recorded_at`` is when somebody typed it in. A

@@ -502,6 +502,274 @@
 {% endif %}
 
 {# ---- the round --------------------------------------------------------- #}
+{# ---- the blood, and who was watching it ------------------------------- #}
+{# GAHAR ICD.20 (الطلب) و ICD.21 (النقل). المعياران بيطلبوا أربع حاجات في
+   الملف بالنص: **ليه اتطلب** (ICD.20 دليل ٣) · عاجل ولا عادي (دليل ٤) · **حد
+   شاف الكيس** قبل ما يتعلّق (ICD.21 دليل ٣) · **وحد كان قاعد جنب الطفل** وهو
+   ماشي (دليل ٤).
+
+   والمراقبة مش صفوف جديدة — دي `Observation` عادية متعلّمة بالكيس، فالقراية
+   بتبان على شارت الطفل زي أي قراية، ومفيش نسخة تانية منها تبوظ.
+
+   **ومفيش حاجة هنا بترفض.** الكيس بيتعلّق والشاشة بتفضل تقول إن حد ما شافوش:
+   برنامج بيرفض هنا هو برنامج الناس بتلفّ حواليه بورق، وساعتها مفيش حاجة
+   بتتسجّل خالص. #}
+{% if blood_panel or admission.is_open %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" data-blood>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-droplet-fill"></i> {{ t('blood.title') }}
+    {% set unwatched = [] %}
+    {% for group in blood_panel %}{% for item in group.bags %}
+      {% if item.state == 'unwatched' %}{% set _ = unwatched.append(item) %}{% endif %}
+    {% endfor %}{% endfor %}
+    {% if unwatched %}
+    {# The one finding on this card: a bag going into a child right now with
+       nothing written down. #}
+    <span class="alert-pill danger" data-blood-summary="unwatched">
+      <i class="bi bi-exclamation-triangle"></i>
+      {{ t('blood.n_unwatched', n=unwatched|length) }}</span>
+    {% endif %}
+  </h2>
+
+  {% if not blood_panel %}
+  <p class="hint" style="margin:0 0 12px;">{{ t('blood.none_yet') }}</p>
+  {% endif %}
+
+  {% for group in blood_panel %}
+  {% set req = group.request %}
+  <div class="form-row" style="border-top:1px solid var(--line);padding-top:10px;"
+       data-blood-request="{{ req.id }}">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <strong>{{ t('blood.product_' ~ req.product) }}</strong>
+      {% if req.product_note %}<span class="hint">{{ req.product_note }}</span>{% endif %}
+      {% if req.units %}<span class="badge badge--muted">{{ req.units }}</span>{% endif %}
+      <span class="badge {{ 'badge--danger' if req.urgency == 'emergency' else 'badge--muted' }}"
+            data-blood-urgency="{{ req.urgency }}">
+        {{ t('blood.urgency_' ~ req.urgency) }}</span>
+      <span class="badge badge--muted" data-blood-state="{{ req.state }}">
+        {{ t('blood.req_' ~ req.state) }}</span>
+      <span class="hint" dir="ltr">{{ req.requested_at|clinic_stamp }}</span>
+      <span class="hint">{{ req.requester.display_name(current_lang) if req.requester else '—' }}</span>
+    </div>
+    {# ICD.20 دليل ٣ — الدواعي، وهي مكتوبة كاملة مش مختصرة: دي الجملة اللي
+       بنك الدم بيتأكد بيها إن المنتج مناسب للتشخيص. #}
+    <p class="hint" style="margin:4px 0 0;">
+      {{ t('blood.indication') }}: {{ req.indication }}
+      · {{ t('blood.family_told') }}:
+      {{ t('blood.yes') if req.family_told
+         else (t('blood.unsaid') if req.family_told is none else t('blood.no')) }}
+      {%- if req.sample_checked_at %} · <i class="bi bi-check2-circle"></i>
+      {{ t('blood.sample_ok_short') }}{% endif %}</p>
+
+    {% for item in group.bags %}
+    {% set bag = item.bag %}
+    <div style="margin-top:8px;padding-{{ 'right' if direction=='rtl' else 'left' }}:12px;"
+         data-blood-bag="{{ bag.id }}">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <span class="badge {{ {'unchecked':'badge--warn', 'unwatched':'badge--danger',
+                               'running':'badge--green', 'reacted':'badge--danger',
+                               'done':'badge--muted',
+                               'ordered':'badge--muted'}.get(item.state, 'badge--muted') }}"
+              data-bag-state="{{ item.state }}">
+          {{ t('blood.bag_' ~ item.state) }}</span>
+        {% if bag.unit_code %}<span class="hint" dir="ltr">{{ bag.unit_code }}</span>{% endif %}
+        {% if item.late %}
+        <span class="badge badge--warn" data-bag-late>
+          <i class="bi bi-clock-history"></i> {{ t('blood.watch_late') }}</span>
+        {% endif %}
+        {# ICD.21: اتنين شافوا، مش واحد راجع نفسه. #}
+        {% if not bag.two_people_checked %}
+        <span class="badge badge--warn" data-bag-one-person>
+          {{ t('blood.one_person') }}</span>
+        {% endif %}
+        {% if bag.reaction %}
+        <span class="badge badge--danger" data-bag-reaction>
+          {{ t('blood.reaction') }}</span>
+        {% endif %}
+        <span class="hint">{{ t('blood.n_readings', n=item.readings|length) }}</span>
+      </div>
+      {% if bag.reaction_note %}
+      <p class="hint" style="margin:3px 0 0;">{{ bag.reaction_note }}</p>
+      {% endif %}
+
+      {% if admission.is_open and bag.is_running %}
+      <details style="margin-top:6px;">
+        <summary class="hint" style="cursor:pointer;">{{ t('blood.watch') }}</summary>
+        <form method="post" style="margin-top:6px;"
+              action="{{ url_for('beds.blood_watch', bag_id=bag.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            {% for field, label in [('temperature_c','temp'), ('pulse_bpm','pulse'),
+                                    ('spo2','spo2'), ('bp_systolic','sys'),
+                                    ('bp_diastolic','dia')] %}
+            <div class="form-row" style="margin-bottom:0;min-width:96px;">
+              <label for="bw_{{ field }}_{{ bag.id }}">{{ t('blood.' ~ label) }}</label>
+              <input class="input" id="bw_{{ field }}_{{ bag.id }}" name="{{ field }}"
+                     type="number" step="any" dir="ltr">
+            </div>
+            {% endfor %}
+            <div class="form-row" style="margin-bottom:0;flex:1;min-width:150px;">
+              <label for="bw_note_{{ bag.id }}">{{ t('blood.note') }}</label>
+              <input class="input" id="bw_note_{{ bag.id }}" name="note" maxlength="200">
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline gc-press" type="submit"
+                  style="margin-top:6px;" data-bag-watch="{{ bag.id }}">
+            <i class="bi bi-eye"></i> {{ t('blood.watch') }}</button>
+        </form>
+        <form method="post" style="margin-top:8px;"
+              action="{{ url_for('beds.blood_finish', bag_id=bag.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+            <div class="form-row" style="margin-bottom:0;min-width:150px;">
+              {# «حصل رد فعل ولا لأ» — تلات حالات، زي مضاعفات تقرير العملية:
+                 فاضي مش معناه إنه ما حصلش. #}
+              <label for="bf_reaction_{{ bag.id }}">{{ t('blood.reaction_q') }}</label>
+              <select class="input" id="bf_reaction_{{ bag.id }}" name="reaction">
+                <option value="">{{ t('blood.unsaid') }}</option>
+                <option value="no">{{ t('blood.no') }}</option>
+                <option value="yes">{{ t('blood.yes') }}</option>
+              </select>
+            </div>
+            <div class="form-row" style="margin-bottom:0;flex:1;min-width:170px;">
+              <label for="bf_note_{{ bag.id }}">{{ t('blood.reaction_note') }}</label>
+              <input class="input" id="bf_note_{{ bag.id }}" name="reaction_note"
+                     maxlength="400">
+            </div>
+            <label class="hint" style="display:flex;gap:5px;align-items:center;">
+              <input type="checkbox" name="stopped_early" value="1">
+              {{ t('blood.stopped_early') }}</label>
+            <button class="btn btn-sm btn-outline gc-press" type="submit"
+                    data-bag-finish="{{ bag.id }}">
+              <i class="bi bi-check2"></i> {{ t('blood.finish') }}</button>
+          </div>
+        </form>
+      </details>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    {% if admission.is_open and req.is_open %}
+    <details style="margin-top:8px;">
+      <summary class="hint" style="cursor:pointer;">{{ t('blood.hang') }}</summary>
+      <form method="post" style="margin-top:6px;"
+            action="{{ url_for('beds.blood_hang', request_id=req.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div class="form-row" style="margin-bottom:0;min-width:150px;">
+            <label for="bh_code_{{ req.id }}">{{ t('blood.unit_code') }}</label>
+            <input class="input" id="bh_code_{{ req.id }}" name="unit_code"
+                   maxlength="64" dir="ltr">
+          </div>
+          <div class="form-row" style="margin-bottom:0;min-width:150px;">
+            {# ICD.21 دليل ٣ — تلات حالات: كيس اتشاف ولقوه غلط ده واقعة تستاهل
+               صف، مش غياب. #}
+            <label for="bh_checked_{{ req.id }}">{{ t('blood.bag_checked_q') }}</label>
+            <select class="input" id="bh_checked_{{ req.id }}" name="bag_checked">
+              <option value="">{{ t('blood.unsaid') }}</option>
+              <option value="yes">{{ t('blood.bag_sound') }}</option>
+              <option value="no">{{ t('blood.bag_wrong') }}</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin-bottom:0;min-width:170px;">
+            <label for="bh_second_{{ req.id }}">{{ t('blood.second_checker') }}</label>
+            <select class="input" id="bh_second_{{ req.id }}" name="checked_by">
+              <option value="">—</option>
+              {% for person in ward_people %}
+              {% if person.id != current_user.id %}
+              <option value="{{ person.id }}">{{ person.display_name(current_lang) }}</option>
+              {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-row" style="margin-bottom:0;min-width:130px;">
+            <label for="bh_rate_{{ req.id }}">{{ t('blood.rate') }}</label>
+            <input class="input" id="bh_rate_{{ req.id }}" name="rate" maxlength="60">
+          </div>
+          <div class="form-row" style="margin-bottom:0;min-width:180px;">
+            <label for="bh_at_{{ req.id }}">{{ t('blood.hung_at') }}</label>
+            <input class="input" type="datetime-local" id="bh_at_{{ req.id }}" name="at">
+          </div>
+        </div>
+        <button class="btn btn-sm btn-primary gc-press" type="submit"
+                style="margin-top:6px;" data-blood-hang="{{ req.id }}">
+          <i class="bi bi-droplet"></i> {{ t('blood.hang') }}</button>
+      </form>
+      {% if not req.sample_checked_at %}
+      <form method="post" style="margin-top:6px;"
+            action="{{ url_for('beds.blood_sample', request_id=req.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-outline gc-press" type="submit"
+                data-blood-sample="{{ req.id }}">
+          <i class="bi bi-upc-scan"></i> {{ t('blood.sample_check') }}</button>
+      </form>
+      {% endif %}
+      {% if not req.transfusions %}
+      <form method="post" style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;"
+            action="{{ url_for('beds.blood_cancel', request_id=req.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="input" name="cancel_reason" maxlength="200"
+               style="max-width:220px;" placeholder="{{ t('blood.cancel_reason') }}">
+        <button class="btn btn-sm btn-outline gc-press" type="submit"
+                data-blood-cancel="{{ req.id }}">
+          {{ t('blood.cancel') }}</button>
+      </form>
+      {% endif %}
+    </details>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  {% if admission.is_open %}
+  <form method="post" style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px;"
+        action="{{ url_for('beds.blood_request', admission_id=admission.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div class="form-row" style="margin-bottom:0;min-width:150px;">
+        <label for="br_product">{{ t('blood.product') }}</label>
+        <select class="input" id="br_product" name="product">
+          {% for p in blood_products %}
+          <option value="{{ p }}">{{ t('blood.product_' ~ p) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:110px;">
+        <label for="br_units">{{ t('blood.units') }}</label>
+        <input class="input" type="number" min="1" id="br_units" name="units">
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:140px;">
+        <label for="br_urgency">{{ t('blood.urgency') }}</label>
+        <select class="input" id="br_urgency" name="urgency">
+          {% for u in blood_urgencies %}
+          <option value="{{ u }}">{{ t('blood.urgency_' ~ u) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:150px;">
+        <label for="br_family">{{ t('blood.family_told') }}</label>
+        <select class="input" id="br_family" name="family_told">
+          <option value="">{{ t('blood.unsaid') }}</option>
+          <option value="yes">{{ t('blood.yes') }}</option>
+          <option value="no">{{ t('blood.no') }}</option>
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+        {# مطلوبة، وهي البند الوحيد المطلوب هنا: ICD.20 (د) بيقول إنها بتتكتب
+           «so that the blood bank can check that the product ordered is
+           suitable for diagnosis». #}
+        <label for="br_indication">{{ t('blood.indication') }}</label>
+        <input class="input" id="br_indication" name="indication" required
+               maxlength="500" placeholder="{{ t('blood.indication_ph') }}">
+      </div>
+    </div>
+    <button class="btn btn-sm btn-primary gc-press" type="submit"
+            style="margin-top:8px;" data-blood-order>
+      <i class="bi bi-plus-lg"></i> {{ t('blood.order') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
 {# ---- the three risks a hospital has to look for ------------------------ #}
 {# GAHAR ICD.10 falls, ICD.11 pressure ulcers, ICD.12 venous thromboembolism.
    Three standards with one shape — assess with a tool, reassess on a
