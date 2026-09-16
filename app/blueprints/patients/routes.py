@@ -553,6 +553,13 @@ def view(patient_id):
         vaccine_plan=vaccine_plan,
         vaccine_next=vaccine_next,
         studies=patient_studies(patient, getattr(g, "lang", "ar")),
+        # Whether this clinic owns a machine at all. **A tab has to earn its
+        # place**: «فحوصات الأجهزة» on the file of a single-doctor clinic with
+        # no echo and no spirometer is furniture, and the same rule already
+        # governs the dental, operations, stays and blood tabs. Shown when the
+        # child has a study **or** the clinic has a device — because the first
+        # study on a new machine has to be startable from somewhere.
+        has_devices=_clinic_has_a_device(),
         imported=imported,
         payment_flag=flags.active(patient.id),
         medications=meds.history(patient),
@@ -646,6 +653,27 @@ def view(patient_id):
         # again needs to find. Read only where the clinic has a ward at all.
         blood_history=_blood_history(patient.id),
     )
+
+
+def _clinic_has_a_device():
+    """Whether any device is set up in this clinic.
+
+    ``EXISTS`` and not a catalogue: the tab needs to know *whether*, and a
+    clinic with no devices is the common case.
+
+    **Not wrapped in the per-request cache**, although the settings reads
+    beside it are. The file asks this once, so a cache around it would be a
+    layer a sweep can delete with nothing changing — which is exactly what a
+    sweep did. `is_active`, because a clinic that sold the echo is a clinic
+    with no echo, and that is the column the devices screen sets.
+    """
+    from app.models.device import MedicalDevice
+
+    try:
+        return MedicalDevice.query.filter(
+            MedicalDevice.is_active.is_(True)).first() is not None
+    except Exception:                   # noqa: BLE001 — table not ready yet
+        return False
 
 
 def _blood_history(patient_id):
