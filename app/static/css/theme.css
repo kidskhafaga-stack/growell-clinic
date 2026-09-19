@@ -151,6 +151,52 @@
 :root[data-theme="dark"] .flash--success { background: #143221; color: #86efac; border-color: #1f5b37; }
 :root[data-theme="dark"] .flash--info { background: #12303a; color: #7dd3fc; border-color: #1f4d5b; }
 
+/* ---------- The patient file at night ----------------------------------
+   Four things in the top of a child's file kept their daytime colours in the
+   dark theme, because each one wrote a light value literally instead of
+   taking a token. The header's own gradient is fixed at the class itself
+   (it now ends on `--card`); these four need real dark values, the same way
+   the tints above do.
+
+   They sit together because they are one strip on the screen: the safety
+   banner, its icon disc, the gender chip, and the ring round the photo. A
+   file opened at night showed that whole strip as a bright band across an
+   otherwise dark page. */
+:root[data-theme="dark"] .alert-banner__item.ab-danger {
+  background: #3a1d21; border-color: #5b2a30; color: #fca5a5;
+}
+:root[data-theme="dark"] .alert-banner__item.ab-warn {
+  background: #392f16; border-color: #5b4a1f; color: #fcd34d;
+}
+:root[data-theme="dark"] .alert-banner__item.ab-growth {
+  background: #16283f; border-color: #1f3f63; color: #93c5fd;
+}
+/* The disc behind the icon was 60% white — a bright coin on a dark banner.
+   Tinted from the banner's own text colour instead, so it stays a disc and
+   never a hole. */
+:root[data-theme="dark"] .alert-banner .ab-ico {
+  background: rgba(255, 255, 255, 0.08);
+}
+/* Semantic and literal on purpose, like the success green above: blue reads
+   as "boy" and pink as "girl" whatever colour the clinic painted its
+   sidebar, so these are darkened rather than recoloured. */
+:root[data-theme="dark"] .gender-male { background: #16283f; color: #93c5fd; }
+:root[data-theme="dark"] .gender-female { background: #3a1b2c; color: #f9a8d4; }
+/* The ring round the photo was white, which on a dark card drew a bright
+   circle round every child's face. */
+:root[data-theme="dark"] .patient-avatar.lg { border-color: var(--card); }
+
+/* The calm half of the status badges. Their loud siblings — waiting, missed,
+   overdue — were given dark values when the theme was built and these four
+   were not, so a board at night showed the alarming states correctly and the
+   ordinary ones as pale daylight chips. Found by the guard that came with
+   the patient header, not by anybody looking. */
+:root[data-theme="dark"] .st-scheduled { background: #16283f; color: #93c5fd; }
+:root[data-theme="dark"] .st-in_progress,
+:root[data-theme="dark"] .vst-done { background: #143221; color: #86efac; }
+:root[data-theme="dark"] .st-completed { background: #11303a; color: #7dd3fc; }
+:root[data-theme="dark"] .st-cancelled { background: #232b35; color: #9aa7b4; }
+
 /* Top bar: today's date + theme toggle. */
 .topbar-date { font-size: 0.82rem; color: var(--muted); display: flex; align-items: center; gap: 5px; white-space: nowrap; }
 .theme-toggle { border: 1px solid var(--line); background: var(--card); color: var(--ink);
@@ -663,7 +709,14 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 /* ---------- Profile header ---------- */
 .profile-header {
   display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
-  background: linear-gradient(120deg, var(--green-050), #fff);
+  /* `var(--card)` and not `#fff`. The gradient ended on a literal white, so
+     in the dark theme the child's own header stayed a bright card in an
+     otherwise dark page — the one panel on the file that ignored the theme,
+     and the first thing anybody opening a file at night looked at.
+     Both stops are tokens the dark palette already redefines
+     (`--green-050` → #17251e, `--card` → #171e28), so this needs no override
+     of its own: it follows whichever theme is on. */
+  background: linear-gradient(120deg, var(--green-050), var(--card));
   border: 1px solid var(--green-100);
 }
 .profile-header .meta-row { display: flex; gap: 8px 16px; flex-wrap: wrap; color: var(--muted); font-size: 0.9rem; margin-top: 6px; }

@@ -84,25 +84,56 @@
 <!-- What went out today, in the three numbers somebody acts on. -->
 <div class="card gc-scale-in" style="animation-delay:0.05s;">
   <h2 class="section-title"><i class="bi bi-send"></i> {{ t('messages_mod.desk_today') }}</h2>
-  <div class="info-grid">
-    <div class="info-item"><div class="k">{{ t('messages_mod.desk_sent') }}</div>
-      <div class="v" dir="ltr">{{ sent_today }}</div></div>
-    <div class="info-item"><div class="k">{{ t('messages_mod.desk_failed') }}</div>
-      <div class="v" dir="ltr" {% if failed_today %}style="color:var(--danger);"{% endif %}>{{ failed_today }}</div></div>
-    <div class="info-item"><div class="k">{{ t('messages_mod.desk_due') }}</div>
-      <div class="v" dir="ltr">{{ due_now }}</div></div>
+  {# **أرقام، مش بيانات.** الشكل القديم كان `info-grid` — وده تنسيق «اسم صغير
+     فوق قيمة» معمول لبيانات المريض: تاريخ ميلاد، فصيلة دم. تلات أرقام حد
+     بيتصرّف بناءً عليهم اتكتبوا بيه فطلعوا باهتين وسط كل حاجة تانية في
+     البرنامج، ومحدّش بيشوفهم.
+
+     `stat-card` هو الشكل اللي البرنامج بيعرض بيه الأرقام في المرضى
+     والتطعيمات، فمستعمل هنا زي ما هو — والفشل بيقلب أحمر لما يبقى فيه فشل
+     ويفضل رمادي لما ميكونش، عشان اللون يبقى معلومة مش زينة. #}
+  <div class="stat-grid" style="margin-bottom:4px;" data-desk-today>
+    <div class="stat-card edge-green gc-lift" data-desk-stat="sent">
+      <i class="bi bi-check2-circle ico"></i>
+      <div class="value gc-counter" data-count="{{ sent_today }}" dir="ltr">0</div>
+      <div class="label">{{ t('messages_mod.desk_sent') }}</div>
+    </div>
+    <div class="stat-card {{ 'edge-red' if failed_today else 'edge-blue' }} gc-lift"
+         data-desk-stat="failed">
+      <i class="bi bi-exclamation-octagon ico"></i>
+      <div class="value gc-counter" data-count="{{ failed_today }}" dir="ltr">0</div>
+      <div class="label">{{ t('messages_mod.desk_failed') }}</div>
+    </div>
+    <div class="stat-card {{ 'edge-yellow' if due_now else 'edge-blue' }} gc-lift"
+         data-desk-stat="due">
+      <i class="bi bi-hourglass-split ico"></i>
+      <div class="value gc-counter" data-count="{{ due_now }}" dir="ltr">0</div>
+      <div class="label">{{ t('messages_mod.desk_due') }}</div>
+    </div>
   </div>
 
   {% if failures %}
-  <div style="margin-top:12px;">
-    <div class="hint" style="margin:0 0 6px;">{{ t('messages_mod.desk_failures') }}</div>
-    <ul style="margin:0;padding-inline-start:20px;">
+  {# **صفوف، مش قايمة نقط.** ده مش نص — ده أسماء ناس رسايلهم ما وصلتش، وكل
+     سطر فيه حاجتين مختلفتين: مين، وليه. `<ul>` رمادية كانت بتلزقهم في بعض
+     فالعين ما بتفرّقش بين الاسم والسبب، والسبب هو اللي بيقول للموظف يعمل إيه:
+     «رقم ناقص» شغلانة في الملف، وفشل الشبكة زرار إعادة إرسال. #}
+  <div style="margin-top:14px;" data-desk-failures>
+    <div class="hint" style="margin:0 0 8px;">{{ t('messages_mod.desk_failures') }}</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
       {% for f in failures %}
-      <li style="color:var(--muted);font-size:0.88rem;">
-        {{ f.patient.display_name(current_lang) if f.patient else f.to_phone }}
-        {% if f.error %}— {{ f.error[:70] }}{% endif %}</li>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+                  border:1px solid var(--line);border-radius:10px;padding:7px 11px;"
+           data-desk-failure>
+        <i class="bi bi-x-circle" style="color:var(--danger);"></i>
+        <span style="flex:1;min-width:120px;">
+          {{ f.patient.display_name(current_lang) if f.patient else f.to_phone }}</span>
+        {% if f.error %}
+        <span class="badge badge--danger" dir="ltr"
+              title="{{ f.error }}">{{ f.error[:48] }}</span>
+        {% endif %}
+      </div>
       {% endfor %}
-    </ul>
+    </div>
   </div>
   {% endif %}
 
