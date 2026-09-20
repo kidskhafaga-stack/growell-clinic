@@ -126,6 +126,18 @@ def armed(key, code, known=None):
     return rule.threshold if rule is not None and rule.is_armed else None
 
 
+def window_for(key, code, known=None):
+    """How long the move may have taken, for the shapes that ask.
+
+    Its own reader rather than a second return value from :func:`armed`,
+    because every caller of that one wants the number and only one wants
+    this — and a tuple would have made the common call read worse to serve
+    the rare one.
+    """
+    rule = (known or rules()).get((key, code))
+    return rule.within_days if rule is not None and rule.is_armed else None
+
+
 #: The comparisons that answer without anybody writing a number. Only one so
 #: far, and it is the shape the catalogue calls `overdue` in its own words.
 NEEDS_NO_NUMBER = ("past",)
@@ -137,7 +149,11 @@ NEEDS_NO_NUMBER = ("past",)
 DATE_SHAPES = ("past", "within", "since_date")
 
 #: The comparisons that need **two** readings rather than the latest one.
-TREND_SHAPES = ("rise", "drop")
+TREND_SHAPES = ("rise", "drop", "rise_within")
+
+#: The shapes that take a **second** number: how long the move may have taken.
+#: Only one so far, and it is the one where the gap is the whole point.
+WINDOWED_SHAPES = ("rise_within",)
 
 
 def needs_a_number(alert):
@@ -372,7 +388,8 @@ def _last_two(patient_id, source, code):
     survey — was dormant for want of a reader that looks back one step. There
     is no new data here: every reading it compares was already in the table.
     """
-    from app.models import Investigation, Measurement, VisitInvestigation
+    from app.models import (Investigation, Measurement, VisitInvestigation,
+                            Visit, VitalSigns)
 
     if source == "panel":
         rows = (Measurement.query
@@ -396,10 +413,23 @@ def _last_two(patient_id, source, code):
         return [(r.result_value, r.resulted_at or r.created_at) for r in rows]
     if source == "growth":
         return _growth_z(patient_id, code)
+    if source == "vital":
+        # **Kilograms, not centiles.** A sudden gain over days is fluid, and
+        # fluid is measured on the scale — the Z-score barely moves in three
+        # days and would say nothing at all about the thing this watches.
+        column = getattr(VitalSigns, code, None)
+        if column is None:
+            return []
+        rows = (db.session.query(column, Visit.visit_date)
+                .join(Visit, VitalSigns.visit_id == Visit.id)
+                .filter(Visit.patient_id == patient_id, column.isnot(None))
+                .order_by(Visit.visit_date.desc(), VitalSigns.id.desc())
+                .limit(2).all())
+        return [(value, on_date) for value, on_date in rows]
     return []
 
 
-def _moved(patient_id, watches, threshold):
+def _moved(patient_id, watches, threshold, within_days=None):
     """How far the newest reading moved from the one before it, if far enough.
 
     **One reading is not a trend, and neither is a reading and a silence.** A
@@ -423,14 +453,37 @@ def _moved(patient_id, watches, threshold):
         # one — turned "compare the last two" into a ValueError on the
         # patient's own file. A mutation found it; nothing else could,
         # because no test had a third reading.
-        (new, when), (old, _) = pair[0], pair[1]
+        (new, when), (old, _before) = pair[0], pair[1]
         if new is None or old is None:
             continue
-        moved = (new - old) if rule == "rise" else (old - new)
-        if moved > threshold:
-            return {"from": old, "to": new, "moved": round(moved, 2),
-                    "limit": threshold, "at": when, "of": code}
+        moved = (old - new) if rule == "drop" else (new - old)
+        if moved <= threshold:
+            continue
+        days = None
+        if rule in WINDOWED_SHAPES:
+            # **Half a kilo is nothing over a year and is fluid over three
+            # days.** The gap is not a detail of this alert, it is half of
+            # what the alert means, so a reading pair that moved far enough
+            # over too long a stretch is a child growing, not a child
+            # retaining — and saying "sudden" about it would send somebody
+            # looking for heart failure in a healthy toddler.
+            if when is None or _before is None or within_days is None:
+                continue
+            days = abs((_when_date(when) - _when_date(_before)).days)
+            if days > within_days:
+                continue
+        found = {"from": old, "to": new, "moved": round(moved, 2),
+                 "limit": threshold, "at": when, "of": code}
+        if days is not None:
+            found["days"] = days
+            found["window"] = within_days
+        return found
     return None
+
+
+def _when_date(moment):
+    """A date out of whatever the reader handed back — a date or a datetime."""
+    return getattr(moment, "date", lambda: moment)()
 
 
 def _months_since(when, now=None):
@@ -587,8 +640,16 @@ def evaluate(patient_id, keys):
                 # dormant as it was before this existed, which is the state a
                 # fresh install is in and stays in until somebody decides.
                 limit = armed(key, code, known)
-                if limit is not None:
-                    detail = _answer(patient_id, alert, limit)
+                window = window_for(key, code, known)
+                # **Both numbers or neither.** A windowed alert with a
+                # kilogram and no window would compare against nothing and
+                # quietly never fire, which is the dormant-box failure this
+                # whole screen exists to end.
+                needs_window = (alert["watches"].get("when")
+                                in WINDOWED_SHAPES)
+                if limit is not None and not (needs_window
+                                              and window is None):
+                    detail = _answer(patient_id, alert, limit, window)
 
             # **One gate for both kinds, and both polarities.** A live alert
             # and an armed one can each be about something the record already
@@ -617,11 +678,11 @@ def evaluate(patient_id, keys):
     return fired
 
 
-def _answer(patient_id, alert, limit):
+def _answer(patient_id, alert, limit, within_days=None):
     """Whether this armed alert is firing for this child right now."""
     watches = alert.get("watches") or {}
     if watches.get("when") in TREND_SHAPES:
-        return _moved(patient_id, watches, limit)
+        return _moved(patient_id, watches, limit, within_days)
     if watches.get("when") == "pending":
         # An order that never came back. The threshold is a number of days,
         # and the reading is the wait itself rather than any measurement.
@@ -655,6 +716,10 @@ def waiting(keys):
                 continue        # answers itself; waiting on nobody
             if alert.get("watches") and armed(key, alert["code"],
                                               known) is not None:
-                continue
+                if (alert["watches"].get("when") in WINDOWED_SHAPES
+                        and window_for(key, alert["code"], known) is None):
+                    pass        # half set is not set — still waiting
+                else:
+                    continue
             counts[alert["needs"]] = counts.get(alert["needs"], 0) + 1
     return counts

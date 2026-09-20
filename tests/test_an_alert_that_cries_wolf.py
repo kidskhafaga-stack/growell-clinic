@@ -792,6 +792,40 @@ def test_a_blocked_alert_is_never_also_a_wired_one(specialty):
                 assert not alert.get("live"), f"{key}.{alert['code']}"
 
 
+def test_every_shape_and_source_has_a_word_on_the_settings_screen(specialty):
+    """**شاشة الإعدادات بتبني كلامها من اسم الشكل.**
+
+    `t('panel_alerts.when_' ~ watches.when)` — يعني شكل جديد من غير كلمة
+    بيطلع على الشاشة **بمفتاحه الخام**: `panel_alerts.when_rise`. وده حصل
+    فعلاً: ستّ أشكال ومصدر اتضافوا على مدار شغلانتين ومحدّش كتبلهم كلمة،
+    والشاشة كانت هتوري مفاتيح لمدير العيادة.
+
+    وحارس «مفيش مفاتيح خام على الشاشة» مشافش حاجة لأنه بيقرا صفحات
+    اترسمت، والشاشة دي ما بترسمش سطر التنبيه ده غير لو الكتالوج فيه
+    الشكل ده — فالقاعدة لازم تتقال من ناحية الكتالوج.
+    """
+    from app.i18n import _load_translations, _lookup
+    from app.utils import panel_alerts, panels
+
+    tables = _load_translations()
+    whens, sources = set(), set()
+    for key in panels.all_panels():
+        for alert in panel_alerts.declared(key):
+            watches = alert.get("watches")
+            if watches:
+                whens.add(watches["when"])
+                sources.add(watches["source"])
+    assert whens and sources
+    for lang in ("ar", "en"):
+        for when in sorted(whens):
+            for prefix in ("when", "unit"):
+                key = f"panel_alerts.{prefix}_{when}"
+                assert _lookup(tables, lang, key), f"{lang}:{key}"
+        for source in sorted(sources):
+            key = f"panel_alerts.watch_{source}"
+            assert _lookup(tables, lang, key), f"{lang}:{key}"
+
+
 def test_the_catalogue_still_holds_no_clinical_number(specialty):
     """القاعدة اللي البرنامج كله قايم عليها: الكتالوج بيقول **يبصّ على إيه**،
     والعيادة بتقول **إمتى تقلق**."""

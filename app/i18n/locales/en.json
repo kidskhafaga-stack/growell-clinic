@@ -6617,7 +6617,21 @@
     "unit_above": "Upper limit",
     "unit_below": "Lower limit",
     "unit_since": "Months",
-    "unit_pending": "Days"
+    "unit_pending": "Days",
+    "within_days": "Within how many days",
+    "when_rise_within": "rose within a window",
+    "unit_rise_within": "rise, in the reading's own unit",
+    "when_past": "the date has gone by",
+    "unit_past": "no number needed",
+    "when_within": "the date is coming up",
+    "unit_within": "how many days before",
+    "when_since_date": "months since the recorded date",
+    "unit_since_date": "in months",
+    "when_rise": "rose above the previous reading",
+    "unit_rise": "rise, in the reading's own unit",
+    "when_drop": "fell below the previous reading",
+    "unit_drop": "fall, in the reading's own unit",
+    "watch_growth": "growth curve (Z-score)"
   },
   "cpharm": {
     "title": "Inpatient chart review",

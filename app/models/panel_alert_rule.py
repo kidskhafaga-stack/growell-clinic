@@ -48,6 +48,14 @@ class PanelAlertRule(db.Model):
     # clinic can clear a number without losing that they once looked at it.
     threshold = db.Column(db.Float)
 
+    # **A second number, only where a shape genuinely takes two.** «زيادة وزن
+    # مفاجئة خلال أيام» is two facts and neither means anything alone: half a
+    # kilo is nothing over a year and is fluid over three days. Deliberately
+    # named for what it is rather than kept as a spare `threshold_2` slot —
+    # the range shapes (an INR outside a band) take two numbers of a
+    # different kind, and a generic second box would have to guess which.
+    within_days = db.Column(db.Integer)
+
     # Switched off without losing the number. A clinic silencing an alert for
     # a month should not have to remember what it was set to.
     is_active = db.Column(db.Boolean, default=True, nullable=False)

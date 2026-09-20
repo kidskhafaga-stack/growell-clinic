@@ -103,7 +103,11 @@ def alerts():
             "waiting": panel_alerts.waiting([key]),
         })
     rows.sort(key=lambda r: r["key"])
-    return render_template("panels/alerts.html", rows=rows)
+    # Which shapes draw a second box. Passed rather than hard-coded in the
+    # template so the screen and the engine cannot disagree about which
+    # alerts take two numbers.
+    return render_template("panels/alerts.html", rows=rows,
+                           windowed=panel_alerts.WINDOWED_SHAPES)
 
 
 @panels_bp.route("/alerts/set", methods=["POST"])
@@ -138,6 +142,14 @@ def set_alert():
         row.threshold = float(raw) if raw else None
     except ValueError:
         row.threshold = None
+    # The window, for the shapes that take one. Read unconditionally and
+    # cleared when empty: a clinic that switches an alert to a shape without
+    # a window should not leave a stale number behind it in the table.
+    window = (request.form.get("within_days") or "").strip()
+    try:
+        row.within_days = int(float(window)) if window else None
+    except ValueError:
+        row.within_days = None
     row.is_active = request.form.get("is_active") == "1"
     row.note = (request.form.get("note") or "").strip()[:160] or None
     row.set_by = current_user.id
