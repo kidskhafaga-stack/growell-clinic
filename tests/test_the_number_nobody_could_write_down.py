@@ -349,7 +349,7 @@ def test_every_watched_alert_names_a_source_the_reader_knows(specialty):
     that silently never fires — the exact failure this replaced."""
     from app.utils import panel_alerts, panels
 
-    known_sources = {"lab", "vital", "panel", "age_months", "order"}
+    known_sources = {"lab", "vital", "panel", "age_months", "order", "growth"}
     known_whens = {"above", "below", "since", "since_date", "past", "within",
                    "rise", "drop", "pending"}
     # **Every declared alert, not only the ones offered a box.** `watchable`

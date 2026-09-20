@@ -287,6 +287,34 @@ def reference_for(patient):
         return "WHO"
 
 
+def concern(rows, record=None):
+    """The one reading worth putting at the top of the file, or ``None``.
+
+    The furthest from the middle, and only once it is past two standard
+    deviations — the band :func:`status_for_z` already names. **Derived from
+    rows somebody already computed**, because this used to re-query the same
+    record and re-run the same arithmetic on the very page that had just done
+    it: two answers to one question, on one screen, with nothing making them
+    agree. `reference_for`'s docstring warns about exactly that drift between
+    the printed prescription and the profile's flag; this had it between the
+    profile's flag and the profile's own tab.
+    """
+    worst = None
+    for row in rows or []:
+        if row.get("z") is None or row.get("status") not in ("caution",
+                                                             "alert"):
+            continue
+        if worst is None or abs(row["z"]) > abs(worst["z"]):
+            worst = row
+    if worst is None:
+        return None
+    out = {k: worst[k] for k in ("indicator", "z", "percentile", "status",
+                                 "corrected")}
+    if record is not None:
+        out["date"] = record.record_date.isoformat()
+    return out
+
+
 def summarise(patient, record):
     """One measurement event, with a percentile against each indicator.
 

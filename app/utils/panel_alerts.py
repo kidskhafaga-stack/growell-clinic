@@ -322,6 +322,48 @@ def _panel_date(patient_id, code):
     return _date_in(value)
 
 
+def _growth_z(patient_id, indicator, limit=2):
+    """The newest ``limit`` growth Z-scores for one indicator, newest first.
+
+    **A weight is not a growth curve.** «عبر منحنى النمو لأسفل» is not the
+    kilogram going down — a child can gain a kilo and still cross a line, and
+    hold a steady weight while tracking perfectly. The thing that moved is the
+    **Z-score**, which is the whole reason the LMS engine exists, and until
+    now nothing outside the chart screen and the printed prescription ever
+    read it.
+
+    Nothing new is computed here: `growth.summarise` already turns one record
+    into a percentile per indicator, and this asks it for the last few
+    records instead of the newest one.
+    """
+    from app.models import GrowthRecord, Patient
+    from app.utils import growth
+
+    child = db.session.get(Patient, patient_id)
+    if child is None:
+        return []
+    records = (GrowthRecord.query
+               .filter(GrowthRecord.patient_id == patient_id)
+               .order_by(GrowthRecord.record_date.desc(),
+                         GrowthRecord.id.desc())
+               .limit(limit + 3).all())
+    out = []
+    for record in records:
+        for row in growth.summarise(child, record):
+            if row["indicator"] == indicator and row["z"] is not None:
+                out.append((row["z"], record.record_date))
+                break
+        if len(out) >= limit:
+            # Stops reading, nothing more. Removing it is an **equivalent
+            # mutation** and is meant to be: the rows come back newest-first
+            # and the comparison takes the first two by index, so a longer
+            # list gives the same answer for more work. That was not true an
+            # hour ago — the comparison unpacked the list and a third reading
+            # raised — and the fix is what made this line merely a saving.
+            break
+    return out
+
+
 def _last_two(patient_id, source, code):
     """The two newest readings of one thing, newest first.
 
@@ -352,6 +394,8 @@ def _last_two(patient_id, source, code):
                           VisitInvestigation.id.desc())
                 .limit(2).all())
         return [(r.result_value, r.resulted_at or r.created_at) for r in rows]
+    if source == "growth":
+        return _growth_z(patient_id, code)
     return []
 
 
@@ -374,7 +418,12 @@ def _moved(patient_id, watches, threshold):
         pair = _last_two(patient_id, (watches or {}).get("source"), code)
         if len(pair) < 2:
             continue
-        (new, when), (old, _before) = pair
+        # Sliced, not unpacked. A reader that returned three readings — a
+        # child with three measurements is the ordinary case, not the odd
+        # one — turned "compare the last two" into a ValueError on the
+        # patient's own file. A mutation found it; nothing else could,
+        # because no test had a third reading.
+        (new, when), (old, _) = pair[0], pair[1]
         if new is None or old is None:
             continue
         moved = (new - old) if rule == "rise" else (old - new)

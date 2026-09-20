@@ -117,13 +117,24 @@
     <section>
       <h2 class="sec">{{ t('report.growth') }}</h2>
       {% if latest_growth %}
-      <div class="grid">
+      {# التقرير كان بيطبع كيلوجرامات جنب علامة محسوبة من **نفس الصف**،
+         وما بيوريش المئوي اللي العلامة اتعملت منه. #}
+      <div class="grid" data-growth-picture>
         <div><span class="k">{{ t('growth.date') }}:</span> <span class="v">{{ latest_growth.record_date }}</span></div>
-        <div><span class="k">{{ t('visits.weight') }}:</span> <span class="v">{{ latest_growth.weight_kg or '—' }} {% if latest_growth.weight_kg %}kg{% endif %}</span></div>
-        <div><span class="k">{{ t('visits.height') }}:</span> <span class="v">{{ latest_growth.height_cm or '—' }} {% if latest_growth.height_cm %}cm{% endif %}</span></div>
-        <div><span class="k">{{ t('visits.head_circ') }}:</span> <span class="v">{{ latest_growth.head_circ_cm or '—' }} {% if latest_growth.head_circ_cm %}cm{% endif %}</span></div>
-        {% if latest_growth.bmi %}<div><span class="k">BMI:</span> <span class="v">{{ latest_growth.bmi }}</span></div>{% endif %}
+        {% for row in growth_picture.rows %}
+        <div data-growth-row="{{ row.indicator }}">
+          <span class="k">{{ t('growth.short_' ~ row.indicator) }}:</span>
+          <span class="v">{{ row.value }} {{ row.unit }}</span>
+          {% if row.percentile is not none %}
+          <span class="pill {{ '' if row.status == 'normal' else ('warn' if row.status == 'caution' else 'danger') }}"
+                data-growth-centile="{{ row.indicator }}">P{{ row.percentile }}</span>
+          {% endif %}
+        </div>
+        {% endfor %}
       </div>
+      {% if growth_picture.rows and growth_picture.rows[0].corrected %}
+      <div class="muted" style="margin-top:4px;" data-growth-corrected>{{ t('growth.on_corrected_age') }}</div>
+      {% endif %}
       {% if growth_alert %}<div style="margin-top:6px;"><span class="pill {{ 'danger' if growth_alert.status == 'alert' else 'warn' }}">{{ t('report.growth_flag') }}: {{ growth_alert.indicator }} · Z {{ growth_alert.z }}</span></div>{% endif %}
       {% else %}<div class="muted">{{ t('report.no_growth') }}</div>{% endif %}
     </section>

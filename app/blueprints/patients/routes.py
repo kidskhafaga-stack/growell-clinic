@@ -491,6 +491,10 @@ def view(patient_id):
     # the goals to describe different plans.
     _care_plan = care_planning.current(patient.id)
     _education_rows = education_util.given(patient.id)
+    # Same rule for growth: one read feeds the banner at the top and the tab
+    # further down, so the two cannot quote different numbers for the same
+    # measurement.
+    _growth_picture = patient.growth_picture
     ai_patient = (current_user.can_access("ai") and ai_utils.is_ready()
                   and ai_utils.patient_context_enabled())
     # The discussion card needs both: the record still leaves the building, and
@@ -595,7 +599,8 @@ def view(patient_id):
         # only at the till, because "how many are left" is asked on the phone
         # and in the corridor as often as it is asked at the desk.
         packages=_package_card(patient.id),
-        growth_alert=_growth_concern(patient),
+        growth_picture=_growth_picture,
+        growth_alert=_growth_concern(_growth_picture),
         # One reading across every visit — labs, device studies and specialty
         # panels in one list, and the EF from an echo on the same line as the
         # EF the cardiologist wrote. See app/utils/series.py.
@@ -901,7 +906,7 @@ def report(patient_id):
     problem list, growth, vaccination status, recent visits, current meds — all
     assembled from the record. The doctor can edit any section inline in the
     browser and print it (editing is browser-side; the record isn't changed)."""
-    from app.models import GrowthRecord, Prescription, Visit
+    from app.models import Prescription, Visit
     from app.utils.vaccines import patient_plan, plan_summary
 
     patient = db.get_or_404(Patient, patient_id)
@@ -910,9 +915,11 @@ def report(patient_id):
                 if p.status == "active"]
     visits = (Visit.query.filter_by(patient_id=patient.id)
               .order_by(Visit.visit_date.desc(), Visit.id.desc()).limit(10).all())
-    latest_growth = (GrowthRecord.query.filter_by(patient_id=patient.id)
-                     .order_by(GrowthRecord.record_date.desc(),
-                               GrowthRecord.id.desc()).first())
+    # One read for the record and its percentiles — the report printed raw
+    # kilograms beside a flag computed from the same row and never showed the
+    # percentile that flag was made of.
+    picture = patient.growth_picture
+    latest_growth = picture["record"]
     try:
         vac = plan_summary(patient_plan(patient, getattr(g, "lang", "ar")))
     except Exception:  # noqa: BLE001
@@ -936,45 +943,24 @@ def report(patient_id):
         # ten of fourteen operations is a surgical history that reads
         # complete and is not.
         stays=_stays(patient.id), operations=_operations(patient.id),
-        latest_rx=latest_rx, growth_alert=_growth_concern(patient),
+        latest_rx=latest_rx, growth_picture=picture,
+        growth_alert=_growth_concern(picture),
         generated_by=current_user, today=local_today(),
     )
 
 
-def _growth_concern(patient):
-    """If the patient's latest growth measurement falls in a caution/alert band
-    (|z|>2), return a compact dict so the profile can flag it prominently."""
-    from app.models import GrowthRecord
-    from app.utils.growth import (
-        INDICATORS, age_for, compute_point, reference_for, status_for_z,
-    )
+def _growth_concern(picture):
+    """The reading worth flagging at the top of the file, from rows already read.
 
-    rec = (GrowthRecord.query.filter_by(patient_id=patient.id)
-           .order_by(GrowthRecord.record_date.desc(), GrowthRecord.id.desc()).first())
-    if rec is None:
-        return None
-    ref = reference_for(patient)
-    # A premature child scored at their birthday age reads as small when they
-    # are on course, and "small" on a growth chart is what starts a workup.
-    age = age_for(patient, rec.record_date)
-    worst = None
-    for ind, meta in INDICATORS.items():
-        value = getattr(rec, meta["field"], None)
-        if not value:
-            continue
-        pt = compute_point(ref, ind, patient.gender,
-                           patient.date_of_birth, rec.record_date, value,
-                           age_months=age["months"])
-        if not pt or pt.get("z") is None:
-            continue
-        status = status_for_z(pt["z"])
-        if status in ("caution", "alert"):
-            cand = {"indicator": ind, "z": pt["z"], "percentile": pt["percentile"],
-                    "status": status, "date": rec.record_date.isoformat(),
-                    "corrected": age["corrected"]}
-            if worst is None or abs(pt["z"]) > abs(worst["z"]):
-                worst = cand
-    return worst
+    This used to do its own query and its own arithmetic over the same record
+    the page had just summarised — two answers to one question on one screen.
+    It now takes the picture, so the banner and the growth tab are the same
+    numbers by construction rather than by luck. A premature child is scored
+    at their corrected age inside `summarise`, which is where that belongs.
+    """
+    from app.utils.growth import concern
+
+    return concern((picture or {}).get("rows"), (picture or {}).get("record"))
 
 
 # ---------------------------------------------------------------- edit -----
