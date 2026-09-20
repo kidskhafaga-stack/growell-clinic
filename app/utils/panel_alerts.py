@@ -130,6 +130,12 @@ def armed(key, code, known=None):
 #: far, and it is the shape the catalogue calls `overdue` in its own words.
 NEEDS_NO_NUMBER = ("past",)
 
+#: The comparisons that read the **value** of a date field rather than when
+#: somebody typed it. Named once and used by the reader, so a new date shape
+#: cannot be added to `_fires` and quietly left reading the wrong column —
+#: which is exactly what happened to `within` the first time it was written.
+DATE_SHAPES = ("past", "within", "since_date")
+
 
 def needs_a_number(alert):
     """Whether this alert waits on a figure the clinic has to write.
@@ -361,7 +367,7 @@ def measure(patient_id, watches):
         # a choice, so it reads every kind of reading. ``above``/``below``
         # stay numeric — see the two readers' docstrings.
         when = (watches or {}).get("when")
-        if when in ("past", "since_date"):
+        if when in DATE_SHAPES:
             return _panel_date(patient_id, of), None
         if when == "since":
             return _latest_panel_reading(patient_id, of)
@@ -375,13 +381,15 @@ def measure(patient_id, watches):
     return None, None
 
 
-def _fires(watches, value, when, threshold):
+def _fires(watches, value, when, threshold):   # noqa: C901
     """Whether this alert's condition is met. Returns the detail, or ``None``.
 
     Four comparisons and no fifth: above, below, how long since, and an order
     that never came back. A shape the catalogue cannot express is one the
     program refuses to guess at.
     """
+    from datetime import timedelta
+
     rule = (watches or {}).get("when")
     if rule == "above":
         if value is not None and value > threshold:
@@ -400,6 +408,17 @@ def _fires(watches, value, when, threshold):
         today = local_today()
         if value is not None and value < today:
             return {"date": value, "days": (today - value).days}
+    elif rule == "within":
+        # A date coming up, and close enough to act on. The mirror of `past`,
+        # and unlike it this one **does** need a number: «قربت» is a window,
+        # and how many days count as near is a clinic's own answer.
+        from app.utils.clock import local_today
+
+        today = local_today()
+        if value is not None and today <= value <= today + timedelta(
+                days=threshold):
+            return {"date": value, "days": (value - today).days,
+                    "limit": threshold}
     elif rule == "since_date":
         from app.utils.clock import local_today
 
@@ -457,12 +476,23 @@ def evaluate(patient_id, keys):
                 if limit is not None:
                     detail = _answer(patient_id, alert, limit)
 
-            # **One gate for both kinds.** A live alert and an armed one can
-            # each be about something the record already holds, and putting
-            # the check here rather than in `_answer` means a `live` alert
-            # gaining an `unless` tomorrow needs no second implementation.
+            # **One gate for both kinds, and both polarities.** A live alert
+            # and an armed one can each be about something the record already
+            # holds, and putting the check here rather than in `_answer` means
+            # a `live` alert gaining one of these tomorrow needs no second
+            # implementation.
+            #
+            # `unless` and `given` ask the same question — *does the record
+            # hold this?* — and differ only in which answer stops the alert.
+            # Two names for one reader, because an alert that fires **only
+            # when** something happened and an alert that stops **once**
+            # something happened are the two halves of every "and then what"
+            # in this catalogue.
             if detail and alert.get("unless") and _already_on_record(
                     patient_id, alert["unless"]):
+                detail = None
+            if detail and alert.get("given") and not _already_on_record(
+                    patient_id, alert["given"]):
                 detail = None
 
             if detail:
