@@ -124,6 +124,12 @@ class Observation(db.Model):
     transfusion_id = db.Column(db.Integer, db.ForeignKey("transfusions.id"),
                                nullable=True, index=True)
 
+    # ونفس الحكاية للتقييد — `CSS.12` (و) بيطلب **مراقبة وإعادة تقييم أثناء
+    # الاستعمال**، ودي قراءات الطفل العادية متعلّمة. جدول تاني كان هيشيلها
+    # من شارت الطفل، واللي بيبصّ على الشارت هو اللي محتاج يشوفها.
+    restraint_id = db.Column(db.Integer, db.ForeignKey("restraints.id"),
+                             nullable=True, index=True)
+
     # **Two times, and they are not the same time.** ``taken_at`` is when the
     # thermometer came out; ``recorded_at`` is when somebody typed it in. A
     # nurse writes four readings on paper at the bedside and enters them at
