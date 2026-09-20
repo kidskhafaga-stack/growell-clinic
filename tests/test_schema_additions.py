@@ -74,6 +74,35 @@ def test_the_column_that_broke_a_clinic_is_listed(clinic):
     assert ("named_discounts", "members_only") in {(t, c) for t, c, _ in ADDITIONS}
 
 
+def test_the_tables_the_baseline_cannot_see_are_pinned_by_name(clinic):
+    """**A blind spot in the test above, found by a mutation.**
+
+    `test_every_new_column_on_an_old_table_is_in_additions` skips any table
+    that is not in the baseline — reasonably, because a brand-new table is
+    created whole by `create_all`. But the baseline is a snapshot taken at a
+    moment, and `observations` shipped *after* it: so that table is not in
+    the baseline, is very much on every running ward's database, and every
+    column added to it is invisible to the guard.
+
+    Removing `observations.restraint_id` from ADDITIONS left the suite green
+    while a running clinic would get a reader querying a column it does not
+    have. Both of that table's added columns are therefore pinned here, the
+    same way the discount column above is.
+
+    The wider fix is to regenerate the baseline, which is a separate decision:
+    it asserts that everything now in the models is already on every clinic's
+    database, and that is a claim about what has shipped rather than about
+    this diff.
+    """
+    from app.utils.schema import ADDITIONS
+
+    listed = {(t, c) for t, c, _ in ADDITIONS}
+    for column in ("transfusion_id", "restraint_id"):
+        assert ("observations", column) in listed, (
+            f"observations.{column} is not in ADDITIONS, and the baseline "
+            "cannot catch it because `observations` is not in the baseline")
+
+
 def test_additions_only_names_columns_the_models_really_have(clinic):
     """A stale entry is harmless at runtime and misleading forever: it says a
     column exists that nothing reads, and the next person to touch this list
