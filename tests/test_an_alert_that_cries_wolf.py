@@ -244,6 +244,50 @@ def test_today_itself_is_not_late(specialty):
     assert "ga_overdue" not in _fired(specialty, ["dentistry"])
 
 
+def test_it_is_the_clinics_today_that_decides_not_the_servers(specialty):
+    """طفرة عاشت: `date.today()` مكان `local_today()`.
+
+    والاختبار اللي فوق مكانش يقدر يمسكها، لأنه بيحسب الميعاد بنفس الساعة
+    اللي الكود بيقراها — فالغلط بينزاح على الاتنين مع بعض ويفضل أخضر.
+
+    فالساعتين بيتبعدوا عن بعض هنا بالقوة: عيادة يومها قدّام السيرفر بخمس
+    تيام، وميعاد بعد بكرة **بتوقيت السيرفر**. بتوقيت العيادة ده ميعاد
+    عدّى. ودي مش حالة نظرية: نفس المقارنة اتعملت بإهمال قبل كده وحطّت
+    تلات ساعات من ورديّة كل ليلة على اليوم الغلط.
+    """
+    from datetime import date
+
+    import app.utils.clock as clock
+
+    ahead = date.today() + timedelta(days=5)
+    was = clock.local_today
+    clock.local_today = lambda: ahead
+    try:
+        _date_reading(specialty, "planned_surgery",
+                      date.today() + timedelta(days=2))
+        assert "surgery_overdue" in _fired(specialty, ["surgery"])
+    finally:
+        clock.local_today = was
+
+
+def test_and_a_clinic_behind_the_server_is_not_late_yet(specialty):
+    """الاتجاه التاني، علشان الحارس ما يبقاش نص قاعدة: عيادة يومها ورا
+    السيرفر بخمس تيام، وميعاد إمبارح بتوقيت السيرفر لسه ما جاش عندها."""
+    from datetime import date
+
+    import app.utils.clock as clock
+
+    behind = date.today() - timedelta(days=5)
+    was = clock.local_today
+    clock.local_today = lambda: behind
+    try:
+        _date_reading(specialty, "planned_surgery",
+                      date.today() - timedelta(days=1))
+        assert "surgery_overdue" not in _fired(specialty, ["surgery"])
+    finally:
+        clock.local_today = was
+
+
 def test_no_date_written_is_not_overdue(specialty):
     assert "surgery_overdue" not in _fired(specialty, ["surgery"])
 
@@ -432,6 +476,45 @@ def test_every_means_no_is_a_real_option_of_that_field(specialty):
                 assert any(word in options[code] for word in words), \
                     f"{alert['code']}: خانة {code} مالهاش «ما اتعملش» مغطّاة"
     assert checked, "مفيش ولا `means_no` اتفحصت — الاختبار ده بيعدّي فاضي"
+
+
+def test_every_overdue_alert_is_answered_or_says_why_not(specialty):
+    """**تنبيه محدّش قرّر فيه حاجة.**
+
+    `overdue` هو الصنف اللي الكتالوج بيقول عنه إنه *"a date the program
+    already holds; nothing has to be invented"* — فواحد منهم مش مجاوب هو
+    إمّا شغل لسه ما اتعملش أو حاجة مستحيلة، **والفرق بينهم لازم يكون
+    مكتوب**. من غير السطر ده الاتنين بيبانوا نفس الشكل: فاضي.
+
+    ودي القاعدة اللي منعت الشغلانة دي تقول «مش قابل للإجابة» على تلات
+    تنبيهات طلعت مجاوبة — البنسلين والكيماوي والغلوبولين — لأن اللوحات
+    فيها خانات تاريخ محدّش كان بصّ عليها.
+    """
+    from app.utils import panel_alerts, panels
+
+    undecided = []
+    for key in panels.all_panels():
+        for alert in panel_alerts.declared(key):
+            if alert.get("needs") != "overdue":
+                continue
+            if alert.get("watches") or alert.get("live"):
+                continue
+            if not (alert.get("blocked_by_ar") or "").strip():
+                undecided.append(f"{key}.{alert['code']}")
+    assert not undecided, (
+        "تنبيهات «متأخر» مش مجاوبة ومحدّش كاتب ليه: " + ", ".join(undecided))
+
+
+def test_a_blocked_alert_is_never_also_a_wired_one(specialty):
+    """السطر بيقول «ما نقدرش»، والتوصيلة بتقول «نقدر». وجودهم مع بعض معناه
+    إن واحد فيهم اتنسي وهو بيتحدّث — وده بيخلّي الشاشة تكدب في اتجاه."""
+    from app.utils import panel_alerts, panels
+
+    for key in panels.all_panels():
+        for alert in panel_alerts.declared(key):
+            if alert.get("blocked_by_ar"):
+                assert not alert.get("watches"), f"{key}.{alert['code']}"
+                assert not alert.get("live"), f"{key}.{alert['code']}"
 
 
 def test_the_catalogue_still_holds_no_clinical_number(specialty):
