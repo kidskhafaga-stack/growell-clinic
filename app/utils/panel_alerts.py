@@ -136,6 +136,9 @@ NEEDS_NO_NUMBER = ("past",)
 #: which is exactly what happened to `within` the first time it was written.
 DATE_SHAPES = ("past", "within", "since_date")
 
+#: The comparisons that need **two** readings rather than the latest one.
+TREND_SHAPES = ("rise", "drop")
+
 
 def needs_a_number(alert):
     """Whether this alert waits on a figure the clinic has to write.
@@ -317,6 +320,68 @@ def _panel_date(patient_id, code):
     """
     value, _when = _latest_panel_reading(patient_id, code)
     return _date_in(value)
+
+
+def _last_two(patient_id, source, code):
+    """The two newest readings of one thing, newest first.
+
+    **A trend is the one question that needs more than the latest value**, and
+    the whole `trend` class — twenty-nine alerts, the biggest block in the
+    survey — was dormant for want of a reader that looks back one step. There
+    is no new data here: every reading it compares was already in the table.
+    """
+    from app.models import Investigation, Measurement, VisitInvestigation
+
+    if source == "panel":
+        rows = (Measurement.query
+                .filter(Measurement.patient_id == patient_id,
+                        Measurement.code == code,
+                        Measurement.value_num.isnot(None))
+                .order_by(Measurement.recorded_at.desc(),
+                          Measurement.id.desc())
+                .limit(2).all())
+        return [(r.value_num, r.recorded_at) for r in rows]
+    if source == "lab":
+        rows = (VisitInvestigation.query
+                .join(Investigation,
+                      VisitInvestigation.investigation_id == Investigation.id)
+                .filter(VisitInvestigation.patient_id == patient_id,
+                        Investigation.code == code,
+                        VisitInvestigation.result_value.isnot(None))
+                .order_by(VisitInvestigation.resulted_at.desc(),
+                          VisitInvestigation.id.desc())
+                .limit(2).all())
+        return [(r.result_value, r.resulted_at or r.created_at) for r in rows]
+    return []
+
+
+def _moved(patient_id, watches, threshold):
+    """How far the newest reading moved from the one before it, if far enough.
+
+    **One reading is not a trend, and neither is a reading and a silence.** A
+    child seen once has no direction, and reporting one would invent the
+    comparison the alert is named after — so this answers nothing until there
+    are two.
+
+    The number is an **absolute difference in the reading's own unit** — five
+    degrees of Cobb angle, ten points of EF. Not a percentage: a percentage of
+    a small reading is a different alert from a percentage of a large one, and
+    the clinic writing «٥» beside «زاوية الجنف» means five degrees.
+    """
+    rule = (watches or {}).get("when")
+    for code in [c.strip() for c in ((watches or {}).get("of") or "").split(",")
+                 if c.strip()]:
+        pair = _last_two(patient_id, (watches or {}).get("source"), code)
+        if len(pair) < 2:
+            continue
+        (new, when), (old, _before) = pair
+        if new is None or old is None:
+            continue
+        moved = (new - old) if rule == "rise" else (old - new)
+        if moved > threshold:
+            return {"from": old, "to": new, "moved": round(moved, 2),
+                    "limit": threshold, "at": when, "of": code}
+    return None
 
 
 def _months_since(when, now=None):
@@ -506,6 +571,8 @@ def evaluate(patient_id, keys):
 def _answer(patient_id, alert, limit):
     """Whether this armed alert is firing for this child right now."""
     watches = alert.get("watches") or {}
+    if watches.get("when") in TREND_SHAPES:
+        return _moved(patient_id, watches, limit)
     if watches.get("when") == "pending":
         # An order that never came back. The threshold is a number of days,
         # and the reading is the wait itself rather than any measurement.

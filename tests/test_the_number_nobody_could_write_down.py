@@ -351,7 +351,7 @@ def test_every_watched_alert_names_a_source_the_reader_knows(specialty):
 
     known_sources = {"lab", "vital", "panel", "age_months", "order"}
     known_whens = {"above", "below", "since", "since_date", "past", "within",
-                   "pending"}
+                   "rise", "drop", "pending"}
     # **Every declared alert, not only the ones offered a box.** `watchable`
     # now leaves out the shapes that need no number, and reading the rule
     # through it would have stopped checking exactly the entries nobody sets
@@ -391,7 +391,12 @@ def test_a_watched_panel_reading_is_a_field_that_panel_actually_takes(specialty)
         for alert in panel_alerts.watchable(key):
             watches = alert["watches"]
             if watches["source"] == "panel":
-                assert watches["of"] in fields, f"{key}.{alert['code']}"
+                # Comma-separated, same as `unless`: «عتبة السمع تدهورت» is
+                # one alert about two ears, and splitting it into a left and
+                # a right alert would put two rows on the screen where a
+                # doctor needs one.
+                for code in watches["of"].split(","):
+                    assert code.strip() in fields, f"{key}.{alert['code']}"
 
 
 # ===================== the doors ===========================================
