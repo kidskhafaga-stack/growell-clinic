@@ -839,6 +839,17 @@ def risks():
             minutes = 0
         Setting.set(blood_rules.INTERVAL_SETTING,
                     str(minutes) if minutes > 0 else "")
+        # ونفس الحكاية للتقييد — CSS.12 (و). اتحطّت جنبها لأنها نفس نوع
+        # الإجابة: كل قد إيه المكان ده بيبصّ على مريض.
+        from app.utils import restraint as tied
+
+        try:
+            tied_minutes = int((request.form.get("restraint_watch_minutes")
+                                or "").strip())
+        except (TypeError, ValueError):
+            tied_minutes = 0
+        Setting.set(tied.INTERVAL_SETTING,
+                    str(tied_minutes) if tied_minutes > 0 else "")
         ActivityLog.record("settings.risks", user_id=current_user.id,
                            entity="setting", detail="risk policy",
                            ip_address=client_ip())
@@ -847,9 +858,16 @@ def risks():
         return redirect(url_for("settings.risks"))
 
     enabled = risk_rules.enabled_kinds()
+
+    def _restraint_minutes():
+        from app.utils import restraint as tied
+
+        return tied.interval_minutes()
+
     return render_template(
         "settings/risks.html", kinds=RISK_KINDS, standards=STANDARDS,
         blood_watch_minutes=blood_rules.interval_minutes() or "",
+        restraint_watch_minutes=_restraint_minutes() or "",
         policy={k: {"on": k in enabled,
                     "hours": risk_rules.interval_hours(k) or "",
                     "tool": risk_rules.tool_name(k)} for k in RISK_KINDS})

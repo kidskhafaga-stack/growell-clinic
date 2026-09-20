@@ -719,9 +719,26 @@ def watch():
         gaps = risks.unassessed(risks.panel(stay))
         if bags or gaps:
             watching.append({"stay": stay, "bags": bags, "risks": gaps})
+    # **والخامسة والسادسة على نفس الباب.** الدوكسترينج فوق بيقول إن مدير
+    # القسم بيسأل التلاتة وهو واقف في نفس الباب — والاتنين دول من نفس
+    # الشكل بالظبط: حاجة **دلوقتي**، ليها مكان واحد بتتعمل فيه، ومحدّش
+    # عنده شاشة بتقولها.
+    #
+    # وأمر تقييد خلص والطفل لسه مربوط هو أخطرهم: مش ورقة ناقصة، ده تقييد
+    # بقى من غير إذن، وبيعدّي لأن مفيش حاجة بتتغيّر على أي شاشة لما ساعة
+    # تعدّي.
+    from app.utils import restraint as tied
+    from app.utils import resuscitation as cpr
+    watch_minutes = tied.interval_minutes()
     return render_template("beds/watch.html", rows=watching,
                            emergencies=blood.emergencies_waiting(),
-                           open_stays=len(stays))
+                           open_stays=len(stays),
+                           restraints_expired=tied.expired(),
+                           restraints_unlimited=tied.no_limit_set(),
+                           restraints_unwatched=tied.unwatched(),
+                           restraint_minutes=watch_minutes,
+                           resus_running=cpr.running(),
+                           resus_unanswered=cpr.never_answered(limit=20))
 
 
 def _ward_people():
@@ -735,6 +752,153 @@ def _ward_people():
 
     return (User.query.filter(User.is_active.is_(True))
             .order_by(User.full_name).all())
+
+
+# ------------------------------------------------- التقييد والإنعاش ----
+def _stay_back(admission_id, anchor):
+    return redirect(url_for("beds.stay", admission_id=admission_id) + anchor)
+
+
+@beds_bp.route("/stay/<int:admission_id>/restraint", methods=["POST"])
+@module_required(MODULE)
+@capability_required("patient_medical")
+def restraint_start(admission_id):
+    """أمر تقييد — `CSS.12` (أ) و(ب).
+
+    **الصلاحية هنا مش زي التثقيف.** التثقيف متعدّد التخصصات بالنص، وده
+    أمر طبيب بالنص كمان — والفرق ده مكتوب في المعيارين نفسهم.
+    """
+    from app.utils import restraint as tied
+
+    stay = db.get_or_404(Admission, admission_id)
+    try:
+        tied.start(stay.patient, (request.form.get("kind") or "").strip(),
+                   request.form.get("reason"), current_user,
+                   method=request.form.get("method"),
+                   alternatives=request.form.get("alternatives"),
+                   valid_until=_a_moment("valid_until"),
+                   admission=stay)
+    except ValueError:
+        db.session.rollback()
+        flash(t("restraint.needs_reason_and_order"), "error")
+        return _stay_back(admission_id, "#restraint")
+    db.session.commit()
+    flash(t("restraint.started"), "success")
+    return _stay_back(admission_id, "#restraint")
+
+
+@beds_bp.route("/restraint/<int:restraint_id>/renew", methods=["POST"])
+@module_required(MODULE)
+@capability_required("patient_medical")
+def restraint_renew(restraint_id):
+    """تجديد — (ز). صف جديد، والقديم بيتقفل."""
+    from app.models import Restraint
+    from app.utils import restraint as tied
+
+    row = db.get_or_404(Restraint, restraint_id)
+    tied.renew(row, current_user, valid_until=_a_moment("valid_until"))
+    db.session.commit()
+    flash(t("restraint.renewed"), "success")
+    return _stay_back(row.admission_id, "#restraint")
+
+
+@beds_bp.route("/restraint/<int:restraint_id>/end", methods=["POST"])
+@module_required(MODULE)
+@capability_required("patient_medical")
+def restraint_end(restraint_id):
+    """فكّ التقييد — (ط)."""
+    from app.models import Restraint
+    from app.utils import restraint as tied
+
+    row = db.get_or_404(Restraint, restraint_id)
+    tied.end(row, current_user, reason=request.form.get("reason"))
+    db.session.commit()
+    flash(t("restraint.ended"), "success")
+    return _stay_back(row.admission_id, "#restraint")
+
+
+@beds_bp.route("/stay/<int:admission_id>/arrest", methods=["POST"])
+@module_required(MODULE)
+def resus_start(admission_id):
+    """توقّف اتعرف — `CSS.05`.
+
+    **ومفيش صلاحية زيادة عن القسم.** اللي بيشوف الطفل واقف هو اللي بيفتح
+    السجل، ومش هيبقى دايماً طبيب — ودليل ٣ بيقول إن حامل الإنعاش الأساسي
+    بيبدأ **فوراً**. شاشة بترفض بتحوّل الثواني دي لورق يتكتب بعدين.
+    """
+    from app.utils import resuscitation as cpr
+
+    stay = db.get_or_404(Admission, admission_id)
+    cpr.start(stay.patient, user=current_user,
+              place=request.form.get("place"), admission=stay)
+    db.session.commit()
+    flash(t("resus.started"), "success")
+    return _stay_back(admission_id, "#arrest")
+
+
+@beds_bp.route("/arrest/<int:resus_id>/mark", methods=["POST"])
+@module_required(MODULE)
+def resus_mark(resus_id):
+    """الاستغاثة اتبعتت، أو الفريق وصل — (هـ) و(و).
+
+    زرار واحد لكل لحظة، مش فورم بتتملّى بعدين: الأوقات دي هي بالظبط اللي
+    الذاكرة بتضيّعها، والمعيار بيقيس عليها.
+    """
+    from app.models import Resuscitation
+    from app.utils import resuscitation as cpr
+
+    row = db.get_or_404(Resuscitation, resus_id)
+    what = (request.form.get("what") or "").strip()
+    if what == "called":
+        cpr.called(row)
+    elif what == "team":
+        cpr.team_arrived(row, lead=current_user)
+    else:
+        flash(t("resus.not_saved"), "error")
+        return _stay_back(row.admission_id, "#arrest")
+    db.session.commit()
+    flash(t("resus.marked"), "success")
+    return _stay_back(row.admission_id, "#arrest")
+
+
+@beds_bp.route("/arrest/<int:resus_id>/finish", methods=["POST"])
+@module_required(MODULE)
+def resus_finish(resus_id):
+    """خلص — النتيجة واللي اتعمل (ح)."""
+    from app.models import Resuscitation
+    from app.utils import resuscitation as cpr
+
+    row = db.get_or_404(Resuscitation, resus_id)
+    try:
+        cpr.finish(row, (request.form.get("outcome") or "").strip(),
+                   management=request.form.get("management"),
+                   user=current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("resus.not_saved"), "error")
+        return _stay_back(row.admission_id, "#arrest")
+    db.session.commit()
+    flash(t("resus.finished"), "success")
+    return _stay_back(row.admission_id, "#arrest")
+
+
+def _a_moment(field):
+    """``datetime-local`` من الفورم، أو ``None``.
+
+    و``None`` هنا معناها **محدّش حطّ مدة** — وهي بنفسها ملاحظة بتتعدّ على
+    الشاشة، مش قيمة فاضية بتتجاهل.
+    """
+    from datetime import datetime
+
+    raw = (request.form.get(field) or "").strip()
+    if not raw:
+        return None
+    for shape in ("%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(raw, shape)
+        except ValueError:
+            continue
+    return None
 
 
 def _blood_back(request_row):

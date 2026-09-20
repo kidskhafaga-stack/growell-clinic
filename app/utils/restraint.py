@@ -75,14 +75,38 @@ def last_check(restraint_id):
     return row.taken_at if row is not None else None
 
 
-def unwatched(minutes=30, now=None, limit=200):
-    """مربوط ومحدّش بصّ عليه من كذا دقيقة.
+#: فترة المراقبة اللي العيادة بتكتبها. نفس شكل `blood.INTERVAL_SETTING`
+#: بالظبط، وللسبب نفسه.
+INTERVAL_SETTING = "restraint_watch_minutes"
 
-    **والرقم بييجي من العيادة مش من هنا.** المعيار (و) بيقول «مراقبة وإعادة
-    تقييم» وما بيقولش كل قد إيه — وده مقصود منه، لأن الفترة بتختلف بنوع
-    التقييد وبسن الطفل. فالدالة دي بتاخد الرقم، واللي بينده عليها بيجيبه
-    من إعدادات العيادة.
+
+def interval_minutes():
+    """كل قد إيه المفروض حد يبصّ، أو ``None`` لو محدّش كتب رقم.
+
+    **والمعيار ما بيدّيش الرقم ده عن قصد.** (و) بيقول «مراقبة وإعادة تقييم
+    أثناء الاستعمال» وبس — لأن الفترة بتختلف بنوع التقييد وبسن الطفل
+    وبسياسة المستشفى. فالبرنامج ما بيخترعوش، والشاشة بتفضل ساكتة لحد ما
+    العيادة تكتبه. وده اللي حصل غلط أول مرة الدالة دي اتكتبت: حطّيت
+    «٣٠» كقيمة افتراضية، وقيمة افتراضية هنا هي رقم إكلينيكي مخترع.
     """
+    from app.models import Setting
+
+    try:
+        raw = (Setting.get(INTERVAL_SETTING) or "").strip()
+    except Exception:                   # noqa: BLE001 — الإعدادات لسه
+        return None
+    try:
+        minutes = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return minutes if minutes > 0 else None
+
+
+def unwatched(minutes=None, now=None, limit=200):
+    """مربوط ومحدّش بصّ عليه من كذا دقيقة — فاضية لو محدّش كتب الرقم."""
+    minutes = minutes if minutes is not None else interval_minutes()
+    if not minutes:
+        return []
     moment = now or datetime.utcnow()
     edge = moment - timedelta(minutes=minutes)
     out = []
