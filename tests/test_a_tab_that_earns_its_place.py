@@ -52,12 +52,21 @@ def _plain_child(clinic):
 
 # ------------------------------------------------------ what every file has ----
 def test_the_tabs_every_file_has_whatever_kind_of_place_this_is(bare):
-    """A child is seen, measured, vaccinated, prescribed for, and things are
-    filed about them. Those never depend on the building."""
+    """A child is seen, measured, vaccinated, prescribed for, things are
+    filed about them, and somebody explains what is going on. Those never
+    depend on the building.
+
+    **`education` is on the list on purpose**, and it is the one tab with no
+    condition. `PCC.07` (أ) asks for three topics *"for **all** patients"* —
+    the diagnosis, the plan of care, the discharge instructions — so a file
+    with no education is a file that is **short**, not one the subject does
+    not apply to. That is the difference between it and «فحوصات الأجهزة»,
+    which depends on the clinic owning a machine.
+    """
     found = _tabs(bare, _plain_child(bare))
 
     assert found == ["overview", "family", "visits", "growth", "vaccinations",
-                     "prescriptions", "documents"]
+                     "prescriptions", "documents", "education"]
 
 
 def test_a_clinic_with_no_machine_is_not_shown_a_device_tab(bare):

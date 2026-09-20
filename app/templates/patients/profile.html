@@ -252,8 +252,15 @@
           ('growth','tab_growth','graph-up'),
           ('vaccinations','tab_vaccinations','shield-plus'),
           ('prescriptions','tab_prescriptions','capsule'),
-          ('documents','tab_documents','folder')
+          ('documents','tab_documents','folder'),
+          ('education','tab_education','mortarboard')
         ] %}
+        {# **`education` مالوش شرط عن قصد**، على عكس كل تبويب مشروط تحته.
+           `PCC.07` (أ) بيقول إن تلات مواضيع مطلوبة *"for **all** patients"* —
+           التشخيص، خطة الرعاية، تعليمات الخروج — فملف مفيهوش تثقيف هو ملف
+           **ناقص**، مش ملف الموضوع مالوش علاقة بيه. وده الفرق بينه وبين
+           «فحوصات الأجهزة»: الأولانية بتعتمد على إن العيادة عندها جهاز،
+           والتانية المعيار بيطلبها من كل ملف. #}
         {# **These two were the exception, and they should not have been.**
            Every other conditional tab on this file — dental, operations,
            stays, blood, the plan — appears only when there is something in
@@ -327,6 +334,147 @@
         <i class="bi bi-{{ icon }}"></i> {{ t('patients.' ~ label) }}
       </button>
       {% endfor %}
+    </div>
+
+    {# ---- PCC.07: اتقالهم إيه، وفهموا ولا لأ --------------------------- #}
+    {# المعيار (د) بيطلب تلات حاجات في جملة واحدة: **المحتوى**، و**الطريقة**،
+       و**تأكيد إن الأهل فهموا**. والتالتة هي المهمة — أهل ما فهموش هما أهل
+       اتقالهم ومفيش حاجة حصلت. #}
+    <div class="gc-tab-panel" x-show="tab==='education'" x-cloak>
+      <div class="card gc-scale-in" id="education" data-education>
+        <h2 class="section-title" style="margin-top:0;">
+          <i class="bi bi-mortarboard"></i> {{ t('education.title') }}
+          {% set gaps = education_owed|selectattr('state', 'equalto', 'none')|list %}
+          {% set again = education_owed|selectattr('state', 'equalto', 'again')|list %}
+          {% if again %}
+          {# «اتقاله وما فهمش» مهمة لحد، مش فجوة — فبتيجي الأول وبالأحمر. #}
+          <span class="alert-pill danger" data-education-again="{{ again|length }}">
+            <i class="bi bi-arrow-repeat"></i>
+            {{ t('education.n_again', n=again|length) }}</span>
+          {% endif %}
+          {% if gaps %}
+          <span class="alert-pill warn" data-education-gaps="{{ gaps|length }}">
+            {{ t('education.n_missing', n=gaps|length) }}</span>
+          {% endif %}
+          {% if not gaps and not again %}
+          <span class="alert-pill" data-education-state="done">
+            <i class="bi bi-check2"></i> {{ t('education.all_done') }}</span>
+          {% endif %}
+        </h2>
+
+        {% if education_ticked %}
+        {# **اللي الجدول ده بيشوفه ومحدّش كان يشوفه.** شاشات التقييم والدم
+           بتسأل «الأهل اتقالهم؟» بنعم/لأ، ودي بتجاوب معيارها هي. `PCC.07` (د)
+           عايز المحتوى والطريقة والتأكيد — فعلامة «أيوه» من غير صف تثقيف هي
+           فجوة حقيقية: حد دوس، والسجل مفيهوش حاجة المراجِع يقراها. #}
+        <div class="alert-pill warn" style="display:block;margin-bottom:12px;"
+             data-education-ticked>
+          <i class="bi bi-exclamation-triangle"></i>
+          {{ t('education.ticked_not_taught') }}:
+          {% for topic in education_ticked %}
+          <strong>{{ t('education.topic_' ~ topic) }}</strong>
+          {%- if not loop.last %}، {% endif %}
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {# المواضيع المطلوبة، وكل واحد بيقول هو فين. التلاتة الأولانيين
+           بيتطلبوا من أي ملف؛ والباقي بيظهر لما السجل يدّي سبب. #}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+          {% for item in education_owed %}
+          <span class="badge {{ {'none':'badge--warn', 'unchecked':'badge--warn',
+                                 'again':'badge--danger',
+                                 'done':'badge--green'}[item.state] }}"
+                data-education-topic="{{ item.topic }}"
+                data-education-topic-state="{{ item.state }}">
+            {{ t('education.topic_' ~ item.topic) }} ·
+            {{ t('education.state_' ~ item.state) }}</span>
+          {% endfor %}
+        </div>
+
+        {% if education %}
+        <div style="overflow-x:auto;margin-bottom:12px;">
+        <table class="table">
+          <thead><tr>
+            <th>{{ t('education.topic') }}</th>
+            <th>{{ t('education.detail') }}</th>
+            <th>{{ t('education.method') }}</th>
+            <th>{{ t('education.understood') }}</th>
+            <th>{{ t('education.by') }}</th>
+            <th>{{ t('education.at') }}</th>
+          </tr></thead>
+          <tbody>
+            {% for row in education %}
+            <tr data-education-row="{{ row.id }}">
+              <td>{{ t('education.topic_' ~ row.topic) }}</td>
+              <td>{{ row.detail or '—' }}</td>
+              <td>{{ t('education.method_' ~ row.method) }}
+                {%- if row.interpreter %} · {{ t('education.interpreter') }}{% endif %}</td>
+              <td>
+                {# تلات كلمات مش اتنين: «محدّش سأل» مش زي «سألنا وما فهموش». #}
+                <span class="badge {{ 'badge--green' if row.understood
+                                      else ('badge--danger' if row.understood is false
+                                            else 'badge--warn') }}"
+                      data-education-understood="{{ 'yes' if row.understood
+                                                    else ('no' if row.understood is false
+                                                          else 'unsaid') }}">
+                  {{ t('education.yes') if row.understood
+                     else (t('education.unsaid') if row.understood is none
+                           else t('education.no')) }}</span>
+              </td>
+              <td>{{ row.by.display_name(current_lang) if row.by else '—' }}</td>
+              <td dir="ltr">{{ row.at|clinic_stamp }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        {% else %}
+        <p class="hint" style="margin:0 0 12px;">{{ t('education.none_yet') }}</p>
+        {% endif %}
+
+        <form method="post"
+              action="{{ url_for('patients.education_record', patient_id=patient.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <div class="form-row" style="margin-bottom:0;min-width:170px;">
+              <label for="ed_topic">{{ t('education.topic') }}</label>
+              <select class="input" id="ed_topic" name="topic">
+                {% for topic in education_topics %}
+                <option value="{{ topic }}">{{ t('education.topic_' ~ topic) }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-row" style="margin-bottom:0;min-width:150px;">
+              <label for="ed_method">{{ t('education.method') }}</label>
+              <select class="input" id="ed_method" name="method">
+                {% for method in education_methods %}
+                <option value="{{ method }}">{{ t('education.method_' ~ method) }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-row" style="margin-bottom:0;min-width:160px;">
+              <label for="ed_understood">{{ t('education.understood') }}</label>
+              <select class="input" id="ed_understood" name="understood">
+                <option value="">{{ t('education.unsaid') }}</option>
+                <option value="yes">{{ t('education.yes') }}</option>
+                <option value="no">{{ t('education.no') }}</option>
+              </select>
+            </div>
+            <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+              <label for="ed_detail">{{ t('education.detail') }}</label>
+              <input class="input" id="ed_detail" name="detail" maxlength="500"
+                     placeholder="{{ t('education.detail_ph') }}">
+            </div>
+          </div>
+          <label class="hint" style="display:flex;gap:6px;align-items:center;margin-top:8px;">
+            <input type="checkbox" name="interpreter" value="1">
+            {{ t('education.interpreter_q') }}</label>
+          <button class="btn btn-sm btn-primary gc-press" type="submit"
+                  style="margin-top:8px;" data-education-save>
+            <i class="bi bi-plus-lg"></i> {{ t('education.add') }}</button>
+        </form>
+      </div>
     </div>
 
     {# ---- the blood this child has had ------------------------------- #}

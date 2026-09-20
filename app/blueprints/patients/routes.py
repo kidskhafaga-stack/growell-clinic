@@ -477,6 +477,9 @@ def create():
 def view(patient_id):
     from app.models import Invoice, PayerEntity, Prescription
     from app.models.care_plan import GOAL_PROGRESS
+    from app.models.patient_education import METHODS as EDUCATION_METHODS
+    from app.models.patient_education import TOPICS as EDUCATION_TOPICS
+    from app.utils import education as education_util
     from app.utils import ai as ai_utils
     from app.utils import care_plan as care_planning
     from app.utils import followup as followups_util
@@ -487,6 +490,7 @@ def view(patient_id):
     # separate reads would be four chances for the badge, the checklist and
     # the goals to describe different plans.
     _care_plan = care_planning.current(patient.id)
+    _education_rows = education_util.given(patient.id)
     ai_patient = (current_user.can_access("ai") and ai_utils.is_ready()
                   and ai_utils.patient_context_enabled())
     # The discussion card needs both: the record still leaves the building, and
@@ -652,7 +656,49 @@ def view(patient_id):
         # and a transfusion six months ago is exactly what a doctor seeing them
         # again needs to find. Read only where the clinic has a ward at all.
         blood_history=_blood_history(patient.id),
+        # GAHAR PCC.07 — what was explained to this family, how, and whether
+        # they understood. Read once: the checklist, the rows and the «ticked
+        # but never taught» finding all come off the same list, so they cannot
+        # describe different files.
+        education=_education_rows,
+        education_owed=education_util.owed(patient.id, _education_rows),
+        education_ticked=education_util.said_told_but_never_taught(patient.id),
+        education_topics=EDUCATION_TOPICS,
+        education_methods=EDUCATION_METHODS,
     )
+
+
+@patients_bp.route("/<int:patient_id>/education", methods=["POST"])
+@module_required(MODULE)
+def education_record(patient_id):
+    """Record one piece of teaching — PCC.07 (د).
+
+    **No capability beyond the file's.** *"Multidisciplinary responsibility of
+    patient and family education process"* is element (ب) in as many words:
+    the person who shows a mother how to use a spacer is nursing, and the one
+    who explains a diagnosis is the doctor. A capability here would have
+    picked one of them.
+    """
+    from app.utils import education
+
+    patient = db.get_or_404(Patient, patient_id)
+    try:
+        education.record(
+            patient, (request.form.get("topic") or "").strip(),
+            user=current_user,
+            detail=request.form.get("detail"),
+            method=(request.form.get("method") or "").strip() or None,
+            understood=_tri(request.form.get("understood")),
+            interpreter=bool(request.form.get("interpreter")))
+    except ValueError:
+        db.session.rollback()
+        flash(t("education.not_saved"), "error")
+        return redirect(url_for("patients.view", patient_id=patient.id)
+                        + "#education")
+    db.session.commit()
+    flash(t("education.saved"), "success")
+    return redirect(url_for("patients.view", patient_id=patient.id)
+                    + "#education")
 
 
 def _clinic_has_a_device():

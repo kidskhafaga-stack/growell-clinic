@@ -57,6 +57,8 @@ from app.models.operative_report import OperativeReport
 from app.models.risk_assessment import RISK_KINDS, RiskAssessment
 from app.models.care_plan import (GOAL_PROGRESS, CarePlan,
                                   CarePlanGoal)
+from app.models.patient_education import (METHODS, PatientEducation,
+                                          REQUIRED_TOPICS, TOPICS)
 from app.models.blood import (BloodRequest, PRODUCTS,
                               REQUEST_STATES, Transfusion,
                               URGENCIES)
@@ -322,6 +324,10 @@ __all__ = [
     "CarePlan",
     "CarePlanGoal",
     "GOAL_PROGRESS",
+    "PatientEducation",
+    "TOPICS",
+    "REQUIRED_TOPICS",
+    "METHODS",
     "BloodRequest",
     "Transfusion",
     "PRODUCTS",
