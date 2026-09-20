@@ -566,6 +566,116 @@ def test_every_date_shape_actually_reads_the_date(specialty):
                 f"{key}.{alert['code']} بيقرا خانة تاريخ بشكل مش بيقرا التاريخ"
 
 
+# ------------------------------------- اتجاه: قراية واحدة مش اتجاه ----
+def test_one_reading_is_not_a_direction(specialty):
+    """طفل اتشاف مرة مالوش اتجاه. تنبيه بيتكلّم عنه بيخترع المقارنة اللي
+    هو متسمّي عليها."""
+    _number(specialty, "orthopaedics", "cobb_progress", 5)
+    _reading(specialty, "cobb_angle", num=40)
+
+    assert "cobb_progress" not in _fired(specialty, ["orthopaedics"])
+
+
+def test_a_rise_past_the_number_is_the_alert(specialty):
+    _number(specialty, "orthopaedics", "cobb_progress", 5)
+    _reading(specialty, "cobb_angle", num=20, days_ago=200)
+    _reading(specialty, "cobb_angle", num=31, days_ago=1)
+
+    assert "cobb_progress" in _fired(specialty, ["orthopaedics"])
+
+
+def test_a_rise_under_the_number_is_not(specialty):
+    _number(specialty, "orthopaedics", "cobb_progress", 5)
+    _reading(specialty, "cobb_angle", num=20, days_ago=200)
+    _reading(specialty, "cobb_angle", num=23, days_ago=1)
+
+    assert "cobb_progress" not in _fired(specialty, ["orthopaedics"])
+
+
+def test_it_is_the_last_two_that_are_compared_not_the_first_and_last(specialty):
+    """اتجاه معناه «عن الزيارة السابقة» — مش «عن أول مرة شفناه».
+
+    طفل اتحسّن كتير بعدين رجع شوية: المقارنة مع أول قراية كانت هتقول
+    «اتحسّن» على طفل بيسوء دلوقتي.
+    """
+    _number(specialty, "orthopaedics", "cobb_progress", 5)
+    _reading(specialty, "cobb_angle", num=50, days_ago=400)
+    _reading(specialty, "cobb_angle", num=20, days_ago=200)
+    _reading(specialty, "cobb_angle", num=31, days_ago=1)
+
+    assert "cobb_progress" in _fired(specialty, ["orthopaedics"])
+
+
+def test_a_drop_alert_watches_the_other_direction(specialty):
+    """EF بينزل، ودرجة السيطرة على الربو بتنزل — الاتنين سوء. والاتجاه
+    مكتوب في الكتالوج لأن البرنامج مش هيعرفه من اسم الخانة."""
+    _number(specialty, "cardiology", "ef_drop", 10)
+    _reading(specialty, "ef_pct", num=62, days_ago=90)
+    _reading(specialty, "ef_pct", num=45, days_ago=1)
+
+    assert "ef_drop" in _fired(specialty, ["cardiology"])
+
+
+def test_a_drop_alert_is_silent_when_it_rises(specialty):
+    _number(specialty, "cardiology", "ef_drop", 10)
+    _reading(specialty, "ef_pct", num=45, days_ago=90)
+    _reading(specialty, "ef_pct", num=62, days_ago=1)
+
+    assert "ef_drop" not in _fired(specialty, ["cardiology"])
+
+
+def test_a_trend_reads_this_childs_readings_only(specialty):
+    _number(specialty, "orthopaedics", "cobb_progress", 5)
+    _reading(specialty, "cobb_angle", num=20, days_ago=200)
+    _reading(specialty, "cobb_angle", num=60, days_ago=1,
+             patient_id=specialty["ids"]["other_child"])
+
+    assert "cobb_progress" not in _fired(specialty, ["orthopaedics"])
+
+
+def test_either_ear_getting_worse_is_the_one_alert(specialty):
+    """«عتبة السمع تدهورت» تنبيه واحد عن ودنين. تقسيمه لاتنين بيحطّ صفّين
+    على الشاشة مكان اللي الطبيب محتاج فيه واحد."""
+    _number(specialty, "ent", "pta_worse", 10)
+    _reading(specialty, "pta_left", num=20, days_ago=200)
+    _reading(specialty, "pta_left", num=45, days_ago=1)
+
+    assert "pta_worse" in _fired(specialty, ["ent"])
+
+
+def test_a_trend_needs_the_clinics_number_like_the_rest(specialty):
+    _reading(specialty, "cobb_angle", num=20, days_ago=200)
+    _reading(specialty, "cobb_angle", num=60, days_ago=1)
+
+    assert "cobb_progress" not in _fired(specialty, ["orthopaedics"])
+
+
+def test_a_trend_alert_reads_a_numeric_field(specialty):
+    """اتجاه على خانة اختيار مالوش معنى — «طبيعي» ناقص «غير طبيعي» مش رقم.
+
+    والحارس ده مكتوب لأن الأشكال بقت ستة، والكتالوج مالوش حاجة تمنع حد
+    يوصّل `rise` بخانة كلام.
+    """
+    from app.utils import panel_alerts, panels
+
+    checked = 0
+    for key in panels.all_panels():
+        fields = {f["code"]: f for f in (panels.panel(key).get("fields") or [])}
+        for alert in panel_alerts.declared(key):
+            watches = alert.get("watches") or {}
+            if watches.get("when") not in panel_alerts.TREND_SHAPES:
+                continue
+            if watches.get("source") != "panel":
+                continue
+            for code in watches["of"].split(","):
+                field = fields.get(code.strip())
+                assert field is not None, f"{key}.{alert['code']}:{code}"
+                assert field["type"] == "number", \
+                    f"{key}.{alert['code']}: {code} مش رقم"
+                checked += 1
+    assert checked, "مفيش ولا تنبيه اتجاه اتفحص — الاختبار ده بيعدّي فاضي"
+
+
 # ------------------------------------------------- قواعد الكتالوج ----
 def test_every_unless_names_a_source_the_reader_knows(specialty):
     from app.utils import panel_alerts, panels
