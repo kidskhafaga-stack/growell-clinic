@@ -401,6 +401,171 @@ def test_another_childs_date_is_not_this_childs(specialty):
         specialty, ["surgery"], patient_id=specialty["ids"]["other_child"])
 
 
+# ---------------------- تاريخ عدّى مش حدث — نفس الغلطة من ناحية تانية ----
+def test_a_session_that_happened_is_not_overdue(specialty):
+    """**الباج ده كان في شغل الشغلانة دي نفسها.**
+
+    وصّلت «ميعاد الجلسة» بـ`past` من غير ما أسأل: طيب والجلسة حصلت؟
+    فجلسة اتعملت من شهر ومتابعتها خلصت فضلت بتقول «فات ميعادها» — نفس
+    الغلطة اللي الملف ده اتكتب علشانها، من ناحية تانية.
+    """
+    from app.utils.clock import local_today
+
+    _date_reading(specialty, "ga_planned_date",
+                  local_today() - timedelta(days=30))
+    _reading(specialty, "surgical_procedure", text="خلع")
+    _reading(specialty, "post_op_check", text="تمام")
+
+    assert "ga_overdue" not in _fired(specialty, ["dentistry"])
+
+
+def test_an_operation_that_happened_is_not_overdue(specialty):
+    from app.utils.clock import local_today
+
+    _date_reading(specialty, "planned_surgery",
+                  local_today() - timedelta(days=30))
+    _reading(specialty, "wound_status", text="ملتئم")
+
+    assert "surgery_overdue" not in _fired(specialty, ["surgery"])
+
+
+def test_the_three_states_of_a_session_do_not_overlap(specialty):
+    """«ما حصلتش» و«حصلت ومفيش متابعة» و«تمام» تلات إجابات مختلفة، وتنبيه
+    واحد لكل واحدة — واتنين بيشتغلوا مع بعض معناه إن الشاشة مش عارفة
+    الفرق."""
+    from app.utils.clock import local_today
+
+    _date_reading(specialty, "ga_planned_date",
+                  local_today() - timedelta(days=30))
+
+    assert _fired(specialty, ["dentistry"]) & {
+        "ga_overdue", "post_op_missing"} == {"ga_overdue"}
+
+    _reading(specialty, "surgical_procedure", text="خلع")
+
+    assert _fired(specialty, ["dentistry"]) & {
+        "ga_overdue", "post_op_missing"} == {"post_op_missing"}
+
+    _reading(specialty, "post_op_check", text="تمام")
+
+    assert _fired(specialty, ["dentistry"]) & {
+        "ga_overdue", "post_op_missing"} == set()
+
+
+def test_given_is_what_stops_the_follow_up_alert_firing_on_nothing(specialty):
+    """`given` هو النص التاني: «ما تشتغلش غير لو ده حصل».
+
+    من غيره «مفيش متابعة بعد الجلسة» كان هيشتغل على طفل الجلسة بتاعته
+    ما اتعملتش أصلاً — ويبعت حد يدوّر على متابعة لحاجة محصلتش.
+    """
+    from app.utils.clock import local_today
+
+    _date_reading(specialty, "ga_planned_date",
+                  local_today() - timedelta(days=30))
+
+    assert "post_op_missing" not in _fired(specialty, ["dentistry"])
+
+
+def test_a_recorded_none_is_not_a_procedure(specialty):
+    """«لا يوجد» إجابة صادقة معناها مفيش إجراء — مش إجراء اسمه «لا يوجد»."""
+    from app.utils.clock import local_today
+
+    _date_reading(specialty, "ga_planned_date",
+                  local_today() - timedelta(days=30))
+    _reading(specialty, "surgical_procedure", text="لا يوجد")
+
+    fired = _fired(specialty, ["dentistry"])
+
+    assert "post_op_missing" not in fired
+    assert "ga_overdue" in fired
+
+
+# ------------------------------------------ وشبّاك قدّام، عكس اللي عدّى ----
+def test_a_session_coming_up_with_fasting_unconfirmed_says_so(specialty):
+    from app.utils.clock import local_today
+
+    _number(specialty, "dentistry", "ga_fasting_unconfirmed", 7)
+    _date_reading(specialty, "ga_planned_date", local_today() + timedelta(days=3))
+
+    assert "ga_fasting_unconfirmed" in _fired(specialty, ["dentistry"])
+
+
+def test_confirming_the_fasting_clears_it(specialty):
+    from app.utils.clock import local_today
+
+    _number(specialty, "dentistry", "ga_fasting_unconfirmed", 7)
+    _date_reading(specialty, "ga_planned_date", local_today() + timedelta(days=3))
+    _reading(specialty, "fasting_confirmed", text="نعم")
+
+    assert "ga_fasting_unconfirmed" not in _fired(specialty, ["dentistry"])
+
+
+def test_saying_no_to_the_fasting_is_not_confirming_it(specialty):
+    """«لأ» و«لا ينطبق» مش «نعم». واحدة بس بتقفل التنبيه ده."""
+    from app.utils.clock import local_today
+
+    _number(specialty, "dentistry", "ga_fasting_unconfirmed", 7)
+    _date_reading(specialty, "ga_planned_date", local_today() + timedelta(days=3))
+    _reading(specialty, "fasting_confirmed", text="لأ")
+
+    assert "ga_fasting_unconfirmed" in _fired(specialty, ["dentistry"])
+
+
+def test_a_session_already_gone_by_is_not_coming_up(specialty):
+    """طفرة عاشت: شبّاك من غير حدّ سُفلي.
+
+    «الصيام مااتأكدش» سؤال عن جلسة **جاية** — بتتعمل حاجة قبلها. جلسة
+    عدّت خلاص ليها تنبيهاتها هي (فات ميعادها · مفيش متابعة)، وسؤال
+    الصيام عليها بيبعت حد يحضّر لحاجة راحت.
+    """
+    from app.utils.clock import local_today
+
+    _number(specialty, "dentistry", "ga_fasting_unconfirmed", 7)
+    _date_reading(specialty, "ga_planned_date", local_today() - timedelta(days=3))
+
+    assert "ga_fasting_unconfirmed" not in _fired(specialty, ["dentistry"])
+
+
+def test_a_session_beyond_the_window_is_not_near(specialty):
+    from app.utils.clock import local_today
+
+    _number(specialty, "dentistry", "ga_fasting_unconfirmed", 7)
+    _date_reading(specialty, "ga_planned_date", local_today() + timedelta(days=30))
+
+    assert "ga_fasting_unconfirmed" not in _fired(specialty, ["dentistry"])
+
+
+def test_a_window_alert_does_need_a_number(specialty):
+    """عكس `past`: «قربت» شبّاك، وكام يوم يعتبر قريب جواب العيادة مش جوابنا."""
+    from app.utils import panel_alerts
+    from app.utils.clock import local_today
+
+    _date_reading(specialty, "ga_planned_date", local_today() + timedelta(days=3))
+
+    assert "ga_fasting_unconfirmed" not in _fired(specialty, ["dentistry"])
+    assert "ga_fasting_unconfirmed" in {
+        a["code"] for a in panel_alerts.watchable("dentistry")}
+
+
+def test_every_date_shape_actually_reads_the_date(specialty):
+    """غلطة اتمسكت بالتشغيل وأنا بكتب: `within` اتضاف لقايمة المقارنات
+    ومااتضافش لقايمة الأشكال اللي بتقرا **قيمة** التاريخ، فكان بيقرا
+    العمود الرقمي ويرجع فاضي دايماً."""
+    from app.utils import panel_alerts, panels
+
+    for key in panels.all_panels():
+        for alert in panel_alerts.declared(key):
+            watches = alert.get("watches") or {}
+            if watches.get("source") != "panel":
+                continue
+            field = next((f for f in panels.panel(key).get("fields") or []
+                          if f["code"] == watches.get("of")), None)
+            if field is None or field.get("type") != "date":
+                continue
+            assert watches["when"] in panel_alerts.DATE_SHAPES, \
+                f"{key}.{alert['code']} بيقرا خانة تاريخ بشكل مش بيقرا التاريخ"
+
+
 # ------------------------------------------------- قواعد الكتالوج ----
 def test_every_unless_names_a_source_the_reader_knows(specialty):
     from app.utils import panel_alerts, panels
