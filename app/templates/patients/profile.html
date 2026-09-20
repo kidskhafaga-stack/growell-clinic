@@ -279,6 +279,12 @@
         {% if lab_orders or lab_series %}
         {% set ns.tabs = ns.tabs + [('labs','tab_labs','droplet-half')] %}
         {% endif %}
+        {# نفس القاعدة: طفل عمره ما دخل طوارئ مالوش تبويب طوارئ. والتبويب
+           موجود لأن `ICD.03(e)` هو القايمة الوحيدة اللي الجهار بيعدّدها
+           بالنص، والمراجِع بيفتح ملف الطفل وفي إيده التمن بنود. #}
+        {% if emergency_visits %}
+        {% set ns.tabs = ns.tabs + [('emergency','tab_emergency','truck-front')] %}
+        {% endif %}
         {# Only where the clinic does dentistry. A tab labelled "teeth" on
            every paediatric file is furniture, which is why the module is off
            by default in the first place. #}
@@ -1970,6 +1976,52 @@
          that happened to be nearest. #}
       <p style="color:var(--muted);margin-top:14px;">{{ t('studies.none') }}</p>
       {% endif %}
+    </div>
+
+    <!-- Emergency -->
+    <div class="gc-tab-panel" x-show="tab==='emergency'" x-cloak>
+      <h3 class="section-title" style="margin:0 0 4px;">
+        <i class="bi bi-truck-front"></i> {{ t('patients.tab_emergency') }}</h3>
+      {# القايمة التمانية بتاعت `ICD.03(e)` — البند الناقص بيتقال باسمه،
+         لأن «الملف ناقص» من غير «ناقص إيه» بتخلّي اللي بيقرا يعيد قراية
+         كل حاجة علشان يلاقيه. #}
+      <div class="info-grid" style="margin-top:14px;" data-emergency>
+        {% for row in emergency_visits %}
+        <div class="card" style="padding:12px;grid-column:1/-1;"
+             data-emergency-visit="{{ row.id }}">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <strong dir="ltr">{{ row.arrived_at.strftime('%Y-%m-%d %H:%M') }}</strong>
+            <span class="hint">{{ t('emergency.arr_' ~ row.arrival) }}</span>
+            {% if row.level %}
+            <span class="badge {{ 'badge--danger' if row.urgent else 'badge--muted' }}"
+                  data-emergency-level>{{ row.level }}{% if row.scale %} · {{ row.scale }}{% endif %}</span>
+            {% endif %}
+            {% if row.departed_at %}
+            <span class="badge badge--muted" dir="ltr">{{ row.minutes }}′</span>
+            <span class="badge badge--muted">{{ t('emergency.disp_' ~ row.disposition) if row.disposition else '—' }}</span>
+            {% else %}
+            <span class="badge badge--warning">{{ t('emergency.still_here') }}</span>
+            {% endif %}
+          </div>
+          {% if row.condition %}
+          <div style="margin-top:6px;"><span class="hint">{{ t('emergency.condition_ph') }}:</span>
+            {{ row.condition }}</div>
+          {% endif %}
+          {% if row.followup_instructions %}
+          <div style="margin-top:4px;"><span class="hint">{{ t('emergency.followup_ph') }}:</span>
+            {{ row.followup_instructions }}</div>
+          {% endif %}
+          {% set gaps = emergency_missing.get(row.id) or [] %}
+          {% if gaps %}
+          <div style="margin-top:8px;" data-emergency-gaps>
+            {% for gap in gaps %}
+            <span class="badge badge--warning" data-missing="{{ gap }}">{{ t('emergency.item_' ~ gap) }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
     </div>
 
     <!-- Growth -->

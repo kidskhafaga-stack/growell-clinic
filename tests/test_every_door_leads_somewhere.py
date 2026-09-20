@@ -43,6 +43,9 @@ READERS = [
     ("recall", "candidates"),
     ("education", "needing_a_second_go"),
     ("education", "ticked_but_never_taught"),
+    ("emergency", "open_visits"),
+    ("emergency", "untriaged"),
+    ("emergency", "incomplete_departed"),
 ]
 
 #: Tabs on the patient file that must stay conditional. The file varies by
@@ -70,6 +73,7 @@ DOORS = [
     ("patients.care_plan_goals", "app/templates/patients/list.html"),
     ("settings.risks", "app/templates/settings/index.html"),
     ("patients.education_board", "app/templates/patients/list.html"),
+    ("emergency.register", "app/templates/departments/board.html"),
 ]
 
 

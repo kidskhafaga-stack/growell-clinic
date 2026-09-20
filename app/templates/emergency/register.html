@@ -1,0 +1,168 @@
+{% extends "shell.html" %}
+{% set active_module = 'emergency' %}
+{% block title %}{{ t('emergency.register_title') }}{% endblock %}
+{% block page_heading %}{{ t('emergency.register_title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('emergency.register_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('emergency.register_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('emergency.index') }}">
+    <i class="bi bi-hospital"></i> {{ t('emergency.board') }}</a>
+</div>
+
+{# اللي وصل ومحدّش فرزه. أول حاجة على الشاشة لأنها أول حاجة بتتعمل —
+   ودليل ICD.03(e) i بيطلب الفرز متسجّل، والمدة من الوصول للفرز هي اللي
+   بتخلّي «متسجّل» تفرق عن «اتعمل في وقته». #}
+{% if untriaged %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;border-inline-start:3px solid var(--danger);"
+     data-untriaged>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('emergency.untriaged') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('emergency.untriaged_hint') }}</span>
+  </div>
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('followup.child') }}</th>
+      <th>{{ t('emergency.arrived') }}</th>
+      <th>{{ t('emergency.waiting') }}</th>
+      <th>{{ t('emergency.triage') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for row in untriaged %}
+      <tr data-untriaged-row="{{ row.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
+          {{ row.patient.display_name(current_lang) if row.patient else '—' }}</a></td>
+        <td dir="ltr">{{ row.arrived_at.strftime('%H:%M') }}</td>
+        <td><span class="badge badge--danger" dir="ltr">{{ row.minutes }}′</span></td>
+        <td>
+          <form method="post" action="{{ url_for('emergency.triage', visit_id=row.id) }}"
+                style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {# المستوى بكلام المستشفى — البرنامج ما بيخترعش مقياس فرز. #}
+            <input class="input" name="level" style="max-width:110px;"
+                   placeholder="{{ t('emergency.level_ph') }}" data-triage-level>
+            <input class="input" name="scale" style="max-width:110px;"
+                   placeholder="{{ t('emergency.scale_ph') }}">
+            <select class="select" name="urgent" style="max-width:120px;" data-triage-urgent>
+              <option value="">{{ t('education.unsaid') }}</option>
+              <option value="yes">{{ t('emergency.urgent_yes') }}</option>
+              <option value="no">{{ t('emergency.urgent_no') }}</option>
+            </select>
+            <button class="btn btn-sm btn-primary gc-press" type="submit">
+              {{ t('emergency.save_triage') }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+{# مين في القسم دلوقتي — الأقدم الأول، لأن اللي قاعد من ساعتين هو اللي
+   محدّش بصّله. والشاشة الحيّة بتقرا الأسرّة؛ دي بتقرا الحضور. #}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;" data-open-visits>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('emergency.in_department') }}</strong>
+  </div>
+  {% if not open_visits %}
+  <p class="hint" style="margin:0;padding:18px;">{{ t('emergency.nobody_here') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('followup.child') }}</th>
+      <th>{{ t('emergency.arrived') }}</th>
+      <th>{{ t('emergency.stay_minutes') }}</th>
+      <th>{{ t('emergency.triage') }}</th>
+      <th>{{ t('emergency.depart') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for row in open_visits %}
+      <tr data-open-row="{{ row.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
+          {{ row.patient.display_name(current_lang) if row.patient else '—' }}</a></td>
+        <td dir="ltr">{{ row.arrived_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td dir="ltr">{{ row.minutes }}′</td>
+        <td>
+          {% if row.level %}
+          <span class="badge {{ 'badge--danger' if row.urgent else 'badge--muted' }}"
+                data-triage-of="{{ row.id }}">{{ row.level }}</span>
+          {% if row.wait_to_triage is not none %}
+          <span class="hint" dir="ltr">+{{ row.wait_to_triage }}′</span>{% endif %}
+          {% else %}
+          <span class="hint">{{ t('emergency.not_triaged') }}</span>
+          {% endif %}
+        </td>
+        <td>
+          {# الخروج حركة واحدة: ماشي فين، خرج على إيه، ويعمل إيه بعد كده.
+             تلات شاشات كانت هتخلّي اتنين منهم فاضيين في كل ملف. #}
+          <form method="post" action="{{ url_for('emergency.depart', visit_id=row.id) }}"
+                style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <select class="select" name="disposition" style="max-width:130px;" data-disposition>
+              {% for d in dispositions %}
+              <option value="{{ d }}">{{ t('emergency.disp_' ~ d) }}</option>
+              {% endfor %}
+            </select>
+            <input class="input" name="condition" style="max-width:150px;"
+                   placeholder="{{ t('emergency.condition_ph') }}" data-condition>
+            <input class="input" name="followup" style="max-width:170px;"
+                   placeholder="{{ t('emergency.followup_ph') }}" data-followup>
+            <button class="btn btn-sm btn-outline gc-press" type="submit">
+              {{ t('emergency.save_depart') }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+
+{# خرج وملفه ناقص. مفتوح مش شغل — الطفل لسه جوّه؛ مقفول وناقص هو الملف
+   اللي المراجِع هيفتحه ويلاقيه ناقص. #}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;" data-incomplete>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('emergency.incomplete') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('emergency.incomplete_hint') }}</span>
+  </div>
+  {% if not incomplete %}
+  <p class="hint" style="margin:0;padding:18px;">{{ t('emergency.all_complete') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('followup.child') }}</th>
+      <th>{{ t('emergency.departed_at') }}</th>
+      <th>{{ t('emergency.missing_items') }}</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      {% for item in incomplete %}
+      <tr data-incomplete-row="{{ item.visit.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=item.visit.patient_id) }}">
+          {{ item.visit.patient.display_name(current_lang) if item.visit.patient else '—' }}</a></td>
+        <td dir="ltr">{{ item.visit.departed_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>
+          {% for gap in item.missing %}
+          <span class="badge badge--warning" data-missing="{{ gap }}">{{ t('emergency.item_' ~ gap) }}</span>
+          {% endfor %}
+        </td>
+        <td><a class="btn btn-sm btn-outline gc-press"
+               href="{{ url_for('patients.view', patient_id=item.visit.patient_id) }}#emergency">
+          {{ t('education.board_open') }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

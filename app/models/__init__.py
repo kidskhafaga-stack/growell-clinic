@@ -59,6 +59,8 @@ from app.models.care_plan import (GOAL_PROGRESS, CarePlan,
                                   CarePlanGoal)
 from app.models.patient_education import (METHODS, PatientEducation,
                                           REQUIRED_TOPICS, TOPICS)
+from app.models.emergency_visit import (ARRIVALS, DISPOSITIONS,
+                                        EmergencyVisit)
 from app.models.blood import (BloodRequest, PRODUCTS,
                               REQUEST_STATES, Transfusion,
                               URGENCIES)
@@ -325,6 +327,9 @@ __all__ = [
     "CarePlanGoal",
     "GOAL_PROGRESS",
     "PatientEducation",
+    "EmergencyVisit",
+    "ARRIVALS",
+    "DISPOSITIONS",
     "TOPICS",
     "REQUIRED_TOPICS",
     "METHODS",
