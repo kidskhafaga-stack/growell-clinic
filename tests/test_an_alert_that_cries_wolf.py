@@ -118,6 +118,20 @@ def test_any_one_of_the_listed_readings_is_enough(specialty):
     assert "never_examined" not in _fired(specialty, ["ophthalmology"])
 
 
+def test_some_other_reading_entirely_does_not_count_as_an_eye_exam(specialty):
+    """طفرة عاشت: قارئ من غير فلتر كود.
+
+    من غيره أي قراية على الطفل — عدد أيام السخونة، ساعات النضّارة، أي حاجة —
+    كانت بتقفل التنبيه، لأن السؤال بقى «فيه أي قراية؟» بدل «الفحص ده اتعمل؟».
+    والفرق بينهم إن الأولانية بتبقى صح على كل طفل دخل العيادة مرة.
+    """
+    _number(specialty, "ophthalmology", "never_examined", 48)
+    _reading(specialty, "fever_days", num=9)
+    _reading(specialty, "glasses_hours", num=4)
+
+    assert "never_examined" in _fired(specialty, ["ophthalmology"])
+
+
 def test_another_childs_examination_does_not_shut_this_ones_up(specialty):
     _number(specialty, "ophthalmology", "never_examined", 48)
     _reading(specialty, "fundus", text="طبيعي",
