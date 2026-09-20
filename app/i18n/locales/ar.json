@@ -6617,7 +6617,21 @@
     "unit_above": "الحد الأعلى",
     "unit_below": "الحد الأدنى",
     "unit_since": "كام شهر",
-    "unit_pending": "كام يوم"
+    "unit_pending": "كام يوم",
+    "within_days": "خلال كام يوم",
+    "when_rise_within": "زادت خلال مدة",
+    "unit_rise_within": "زيادة بوحدة القراية",
+    "when_past": "التاريخ عدّى",
+    "unit_past": "مش محتاج رقم",
+    "when_within": "التاريخ قرّب",
+    "unit_within": "قبله بكام يوم",
+    "when_since_date": "بقى قد إيه من التاريخ المكتوب",
+    "unit_since_date": "بالشهور",
+    "when_rise": "زادت عن القراية اللي قبلها",
+    "unit_rise": "زيادة بوحدة القراية",
+    "when_drop": "قلّت عن القراية اللي قبلها",
+    "unit_drop": "نقص بوحدة القراية",
+    "watch_growth": "منحنى النمو (Z-score)"
   },
   "cpharm": {
     "title": "مراجعة علاج المنوّمين",

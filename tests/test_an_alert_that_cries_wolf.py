@@ -676,6 +676,137 @@ def test_a_trend_alert_reads_a_numeric_field(specialty):
     assert checked, "مفيش ولا تنبيه اتجاه اتفحص — الاختبار ده بيعدّي فاضي"
 
 
+# ------------------------------- رقمين، ومفيش معنى لواحد من غير التاني ----
+def _weight(specialty, kg, days_ago):
+    """وزن على زيارة — علامة حيوية، زي ما التمريض بيسجّلها."""
+    from app.models import Visit, VitalSigns
+    from app.utils.clock import local_today
+
+    with specialty["app"].app_context():
+        visit = Visit(patient_id=specialty["ids"]["child"],
+                      doctor_id=specialty["ids"]["doctor"],
+                      visit_date=local_today() - timedelta(days=days_ago))
+        specialty["db"].session.add(visit)
+        specialty["db"].session.flush()
+        specialty["db"].session.add(VitalSigns(visit_id=visit.id,
+                                               weight_kg=kg))
+        specialty["db"].session.commit()
+
+
+def _window(specialty, panel, code, amount, days):
+    return specialty["sign_in"]("boss").post("/panels/alerts/set", data={
+        "panel_key": panel, "alert_code": code, "threshold": str(amount),
+        "within_days": str(days), "is_active": "1"}, follow_redirects=True)
+
+
+def test_the_same_gain_is_an_alert_in_days_and_silence_in_months(specialty):
+    """**السطر اللي التنبيه ده موجود علشانه.**
+
+    نفس الـ٨٠٠ جرام: على تلات أيام دي سوائل، وعلى ست شهور ده طفل بيكبر.
+    الرقم لوحده ما بيفرّقش بينهم — المدة هي اللي بتفرّق.
+    """
+    _window(specialty, "cardiology", "wt_gain", 0.5, 7)
+    _weight(specialty, 14.0, 3)
+    _weight(specialty, 14.8, 0)
+
+    assert "wt_gain" in _fired(specialty, ["cardiology"])
+
+
+def test_and_the_same_gain_over_six_months_says_nothing(specialty):
+    _window(specialty, "cardiology", "wt_gain", 0.5, 7)
+    _weight(specialty, 14.0, 180)
+    _weight(specialty, 14.8, 0)
+
+    assert "wt_gain" not in _fired(specialty, ["cardiology"])
+
+
+def test_half_the_numbers_is_not_half_a_rule(specialty):
+    """كيلو من غير مدة مش قاعدة ناقصة — دي قاعدة مالهاش معنى.
+
+    ولو اشتغلت بنص أرقامها كانت هتبقى «أي زيادة نص كيلو من أي وقت»،
+    اللي هي كل طفل بيكبر.
+    """
+    _weight(specialty, 14.0, 3)
+    _weight(specialty, 14.8, 0)
+    specialty["sign_in"]("boss").post("/panels/alerts/set", data={
+        "panel_key": "cardiology", "alert_code": "wt_gain",
+        "threshold": "0.5", "is_active": "1"}, follow_redirects=True)
+
+    assert "wt_gain" not in _fired(specialty, ["cardiology"])
+
+
+def test_a_half_set_rule_still_counts_as_waiting(specialty):
+    """الشاشة بتقول «مستني كام» — ونص مكتوب لازم يفضل محسوب، وإلا الرقم
+    بينزل والتنبيه لسه نايم."""
+    from app.utils import panel_alerts
+
+    with specialty["app"].app_context():
+        before = panel_alerts.waiting(["cardiology"]).get("trend", 0)
+    specialty["sign_in"]("boss").post("/panels/alerts/set", data={
+        "panel_key": "cardiology", "alert_code": "wt_gain",
+        "threshold": "0.5", "is_active": "1"}, follow_redirects=True)
+    with specialty["app"].app_context():
+        after = panel_alerts.waiting(["cardiology"]).get("trend", 0)
+
+    assert before >= 1, "الاختبار محتاج تنبيه اتجاه مستني في القلب"
+    assert after == before, "نصّ الأرقام نزّل العدّاد والتنبيه لسه نايم"
+
+
+def test_writing_both_takes_it_off_the_waiting_count(specialty):
+    from app.utils import panel_alerts
+
+    with specialty["app"].app_context():
+        before = panel_alerts.waiting(["cardiology"]).get("trend", 0)
+    _window(specialty, "cardiology", "wt_gain", 0.5, 7)
+    with specialty["app"].app_context():
+        after = panel_alerts.waiting(["cardiology"]).get("trend", 0)
+
+    assert after == before - 1
+
+
+def test_a_gain_under_the_number_is_not_sudden(specialty):
+    _window(specialty, "cardiology", "wt_gain", 0.5, 7)
+    _weight(specialty, 14.0, 3)
+    _weight(specialty, 14.2, 0)
+
+    assert "wt_gain" not in _fired(specialty, ["cardiology"])
+
+
+def test_losing_weight_is_not_a_rise(specialty):
+    _window(specialty, "cardiology", "wt_gain", 0.5, 7)
+    _weight(specialty, 14.8, 3)
+    _weight(specialty, 14.0, 0)
+
+    assert "wt_gain" not in _fired(specialty, ["cardiology"])
+
+
+def test_the_screen_offers_the_second_box_only_where_it_means_something(
+        specialty):
+    page = specialty["sign_in"]("boss").get("/panels/alerts").get_data(
+        as_text=True)
+
+    assert page.count("data-within-days") == 1
+
+
+def test_another_childs_weight_is_not_this_ones(specialty):
+    from app.models import Visit, VitalSigns
+    from app.utils.clock import local_today
+
+    _window(specialty, "cardiology", "wt_gain", 0.5, 7)
+    with specialty["app"].app_context():
+        for kg, days in ((14.0, 3), (14.8, 0)):
+            visit = Visit(patient_id=specialty["ids"]["other_child"],
+                          doctor_id=specialty["ids"]["doctor"],
+                          visit_date=local_today() - timedelta(days=days))
+            specialty["db"].session.add(visit)
+            specialty["db"].session.flush()
+            specialty["db"].session.add(VitalSigns(visit_id=visit.id,
+                                                   weight_kg=kg))
+        specialty["db"].session.commit()
+
+    assert "wt_gain" not in _fired(specialty, ["cardiology"])
+
+
 # ------------------------------------------------- قواعد الكتالوج ----
 def test_every_unless_names_a_source_the_reader_knows(specialty):
     from app.utils import panel_alerts, panels
@@ -790,6 +921,40 @@ def test_a_blocked_alert_is_never_also_a_wired_one(specialty):
             if alert.get("blocked_by_ar"):
                 assert not alert.get("watches"), f"{key}.{alert['code']}"
                 assert not alert.get("live"), f"{key}.{alert['code']}"
+
+
+def test_every_shape_and_source_has_a_word_on_the_settings_screen(specialty):
+    """**شاشة الإعدادات بتبني كلامها من اسم الشكل.**
+
+    `t('panel_alerts.when_' ~ watches.when)` — يعني شكل جديد من غير كلمة
+    بيطلع على الشاشة **بمفتاحه الخام**: `panel_alerts.when_rise`. وده حصل
+    فعلاً: ستّ أشكال ومصدر اتضافوا على مدار شغلانتين ومحدّش كتبلهم كلمة،
+    والشاشة كانت هتوري مفاتيح لمدير العيادة.
+
+    وحارس «مفيش مفاتيح خام على الشاشة» مشافش حاجة لأنه بيقرا صفحات
+    اترسمت، والشاشة دي ما بترسمش سطر التنبيه ده غير لو الكتالوج فيه
+    الشكل ده — فالقاعدة لازم تتقال من ناحية الكتالوج.
+    """
+    from app.i18n import _load_translations, _lookup
+    from app.utils import panel_alerts, panels
+
+    tables = _load_translations()
+    whens, sources = set(), set()
+    for key in panels.all_panels():
+        for alert in panel_alerts.declared(key):
+            watches = alert.get("watches")
+            if watches:
+                whens.add(watches["when"])
+                sources.add(watches["source"])
+    assert whens and sources
+    for lang in ("ar", "en"):
+        for when in sorted(whens):
+            for prefix in ("when", "unit"):
+                key = f"panel_alerts.{prefix}_{when}"
+                assert _lookup(tables, lang, key), f"{lang}:{key}"
+        for source in sorted(sources):
+            key = f"panel_alerts.watch_{source}"
+            assert _lookup(tables, lang, key), f"{lang}:{key}"
 
 
 def test_the_catalogue_still_holds_no_clinical_number(specialty):

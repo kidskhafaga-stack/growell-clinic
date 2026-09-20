@@ -26,6 +26,10 @@ chose to run it.
 
 # (table, column, column DDL type) introduced by later phases.
 ADDITIONS = [
+    # The second half of "a sudden weight gain over days". A clinic that has
+    # already written its kilogram keeps it; the window arrives empty and the
+    # alert stays exactly as dormant as it was.
+    ("panel_alert_rules", "within_days", "INTEGER"),
     # The trade name's regulatory and window facts. `max_age_final_dose_days`
     # is what stops a three-year-old being offered rotavirus, so it is the one
     # that must reach an existing clinic rather than only a fresh install.
