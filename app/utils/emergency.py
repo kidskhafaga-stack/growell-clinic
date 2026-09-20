@@ -102,6 +102,9 @@ def _has_diagnosis(row):
     from app.models import Diagnosis
 
     if not row.visit_id:
+        # **طفرة مكافئة عن قصد.** شيل السطرين دول ما بيغيّرش جواب:
+        # `Diagnosis.visit_id` مش nullable، فالمقارنة بـ`None` بترجع صفر
+        # صفوف برضه. الفايدة استعلام بيتوفّر، مش حكم بيتصحّح.
         return False
     return (Diagnosis.query.filter(Diagnosis.visit_id == row.visit_id)
             .first() is not None)
