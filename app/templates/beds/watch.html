@@ -35,7 +35,7 @@
       {% for req in emergencies %}
       <tr data-emergency="{{ req.id }}">
         <td><a href="{{ url_for('patients.view', patient_id=req.patient_id) }}">
-          {{ req.patient.full_name if req.patient else '—' }}</a></td>
+          {{ req.patient.display_name(current_lang) if req.patient else '—' }}</a></td>
         <td>{{ t('blood.product_' ~ req.product) }}
           {%- if req.units %} · {{ req.units }}{% endif %}</td>
         <td>{{ req.indication }}</td>
@@ -66,7 +66,7 @@
       <tr data-watch-stay="{{ row.stay.id }}">
         <td>
           <a href="{{ url_for('beds.admission', admission_id=row.stay.id) }}">
-            {{ row.stay.patient.full_name if row.stay.patient else '—' }}</a>
+            {{ row.stay.patient.display_name(current_lang) if row.stay.patient else '—' }}</a>
         </td>
         <td>{{ row.stay.bed.name if row.stay.bed else '—' }}</td>
         <td>

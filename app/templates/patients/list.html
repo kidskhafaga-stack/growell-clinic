@@ -38,6 +38,11 @@
     <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.care_plan_goals') }}">
       <i class="bi bi-list-check"></i> {{ t('watch.plans_title') }}
     </a>
+    {# PCC.07 (د): «ما فهموش» مَهمّة على حد إنه يرجع، و«اتقال إنه اتبلّغ» علامة
+       من غير سند. الاتنين مش شغل الطفل اللي قدّامك دلوقتي — فمحتاجين شاشة. #}
+    <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.education_board') }}">
+      <i class="bi bi-mortarboard"></i> {{ t('education.board_title') }}
+    </a>
     {% endif %}
     <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.bulk_import') }}">
       <i class="bi bi-upload"></i> {{ t('patients.import_patients') }}

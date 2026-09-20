@@ -49,7 +49,7 @@
     {% if current_user.photo %}
       <img src="{{ url_for('static', filename='uploads/users/' ~ current_user.photo) }}" alt="" style="width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid var(--green-100);">
     {% else %}
-      <div class="patient-avatar lg">{{ current_user.full_name[:1] }}</div>
+      <div class="patient-avatar lg">{{ current_user.display_name(current_lang)[:1] }}</div>
     {% endif %}
     <div style="flex:1;min-width:220px;">
       <h2 style="margin:0;">{{ current_user.display_name(current_lang) }}</h2>

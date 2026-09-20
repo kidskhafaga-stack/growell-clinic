@@ -108,7 +108,7 @@
     {% for op in precaution_cases %}
     <div>
       <a href="{{ url_for('theatres.operation', operation_id=op.id) }}">
-        {{ op.patient.full_name if op.patient else '—' }}</a>
+        {{ op.patient.display_name(current_lang) if op.patient else '—' }}</a>
       <span class="hint">· {{ op.procedure }}
         {% if op.theatre %}· {{ op.theatre.name }}{% endif %}</span>
       {% for p in (op.infection_precautions or '').split(',') if p %}

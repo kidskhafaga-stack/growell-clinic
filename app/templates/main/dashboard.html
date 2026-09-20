@@ -90,7 +90,7 @@
   <div class="queue-row queue-row--current" style="margin-top:14px;">
     <span class="status-badge st-in_progress">{{ t('statuses.in_progress') }}</span>
     <span style="flex:1;">
-      <strong>{{ home.current.patient.full_name if home.current.patient else '—' }}</strong>
+      <strong>{{ home.current.patient.display_name(current_lang) if home.current.patient else '—' }}</strong>
       <span style="color:var(--muted);">· {{ home.current.appt_time.strftime('%H:%M') }}</span>
     </span>
     <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('visits.start', patient_id=home.current.patient_id, appointment_id=home.current.id) }}">
@@ -110,7 +110,7 @@
     <div class="queue-row">
       <span class="status-badge st-{{ a.status }}">{{ t('statuses.' ~ a.status) }}</span>
       <span style="flex:1;min-width:0;">
-        <strong>{{ a.patient.full_name if a.patient else '—' }}</strong>
+        <strong>{{ a.patient.display_name(current_lang) if a.patient else '—' }}</strong>
         <span style="color:var(--muted);">· {{ a.appt_time.strftime('%H:%M') }}{% if a.reason %} · {{ a.reason }}{% endif %}</span>
       </span>
       {% if a.status == 'scheduled' %}

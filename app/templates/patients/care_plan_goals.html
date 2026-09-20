@@ -37,7 +37,7 @@
         <td>
           {% set child = goal.plan.patient if goal.plan else None %}
           <a href="{{ url_for('patients.view', patient_id=goal.plan.patient_id) }}">
-            {{ child.full_name if child else '—' }}</a>
+            {{ child.display_name(current_lang) if child else '—' }}</a>
         </td>
         <td>{{ goal.need }}</td>
         <td>{{ goal.outcome or '—' }}</td>

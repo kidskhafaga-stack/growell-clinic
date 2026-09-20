@@ -1,0 +1,94 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('education.board_title') }}{% endblock %}
+{% block page_heading %}{{ t('education.board_title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('education.board_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('education.board_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.index') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i>
+    {{ t('nav.patients') }}</a>
+</div>
+
+{# دليل (د) بيطلب التأكّد إن الأهل فهموا. «ما فهمش» مش فجوة — دي مَهمّة على حد
+   إنه يرجع تاني، فبتيجي الأول. #}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;"
+     data-education-again-board>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('education.board_again') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('education.board_again_hint') }}</span>
+  </div>
+  {% if not again %}
+  <p class="hint" style="margin:0;padding:18px;">{{ t('education.board_again_clear') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('followup.child') }}</th>
+      <th>{{ t('education.topic') }}</th>
+      <th>{{ t('education.method') }}</th>
+      <th>{{ t('education.when') }}</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      {% for row in again %}
+      <tr data-education-again-row="{{ row.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
+          {{ row.patient.display_name(current_lang) if row.patient else '—' }}</a></td>
+        <td>{{ t('education.topic_' ~ row.topic) }}</td>
+        <td>{{ t('education.method_' ~ row.method) }}</td>
+        <td dir="ltr">{{ row.at.strftime('%Y-%m-%d') if row.at else '—' }}</td>
+        <td><a class="btn btn-sm btn-outline gc-press"
+               href="{{ url_for('patients.view', patient_id=row.patient_id) }}#education">
+          {{ t('education.board_open') }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+
+{# الملاحظة اللي مكانش فيه حاجة تشوفها: علامة «الأهل اتقالهم» متحطّة جنب تقييم
+   خطورة أو طلب دم، ومفيش ولا صف تثقيف في الملف. العلامة بتجاوب معيارها هي،
+   وما بتقدرش تجاوب PCC.07 (د). #}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;" data-education-ticked-board>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('education.board_ticked') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('education.board_ticked_hint') }}</span>
+  </div>
+  {% if not ticked %}
+  <p class="hint" style="margin:0;padding:18px;">{{ t('education.board_ticked_clear') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('followup.child') }}</th>
+      <th>{{ t('education.board_topics') }}</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      {% for item in ticked %}
+      <tr data-education-ticked-row="{{ item.patient.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=item.patient.id) }}">
+          {{ item.patient.display_name(current_lang) }}</a></td>
+        <td>
+          {% for topic in item.topics %}
+          <span class="badge badge--warning">{{ t('education.topic_' ~ topic) }}</span>
+          {% endfor %}
+        </td>
+        <td><a class="btn btn-sm btn-outline gc-press"
+               href="{{ url_for('patients.view', patient_id=item.patient.id) }}#education">
+          {{ t('education.board_open') }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
