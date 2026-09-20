@@ -186,7 +186,12 @@ def _latest_vital(patient_id, field):
 
 
 def _latest_panel(patient_id, code):
-    """``(value, when)`` of the newest reading the panel itself took."""
+    """``(value, when)`` of the newest **numeric** reading the panel took.
+
+    Numbers only, because this feeds ``above`` and ``below`` and comparing a
+    threshold with the word «طبيعي» is not a comparison. The other question —
+    *was this done at all* — is answered by :func:`_latest_panel_reading`.
+    """
     from app.models import Measurement
 
     row = (Measurement.query
@@ -198,6 +203,64 @@ def _latest_panel(patient_id, code):
     if row is None:
         return None, None
     return row.value_num, row.recorded_at
+
+
+def _latest_panel_reading(patient_id, code):
+    """``(value, when)`` of the newest reading of **any** kind.
+
+    **The panels answer "was it done?" with a word, never a number.** Every
+    screening question in the catalogue — `rop_screen`, `hearing_screen`,
+    `hip_exam`, `uveitis_screen` — is a choice whose options start with «لم
+    يُعمل», so its answer lands in ``value_text`` and the numeric reader above
+    cannot see it at all. An alert that asked "has this been done" through
+    that reader got ``None`` for a child screened this morning, which reads as
+    *never*.
+    """
+    from app.models import Measurement
+
+    row = (Measurement.query
+           .filter(Measurement.patient_id == patient_id,
+                   Measurement.code == code)
+           .order_by(Measurement.recorded_at.desc(), Measurement.id.desc())
+           .first())
+    if row is None:
+        return None, None
+    value = row.value_num if row.value_num is not None else row.value_text
+    return value, row.recorded_at
+
+
+def _already_on_record(patient_id, unless):
+    """Whether the thing this alert is about has already happened.
+
+    **An age is not an event.** ``age_months`` can say the child is older than
+    the figure a clinic wrote; it cannot say the screening never happened, and
+    three alerts whose own label says «لم يُفحص» were wired to it alone — so
+    they fired for a child examined that same morning, and went on firing for
+    every child in the clinic over that age. An alert that cries wolf on
+    everybody is worse than no alert: the one that matters arrives in the same
+    grey row as the ninety that did not.
+
+    So an alert may name what would clear it. ``means_no`` lists the recorded
+    answers that mean *still not done* — every one of these fields offers «لم
+    يُعمل» as an option, and a record saying so is not the screening.
+    """
+    source = (unless or {}).get("source")
+    means_no = {str(v).strip() for v in (unless or {}).get("means_no") or ()}
+    codes = [c.strip() for c in ((unless or {}).get("of") or "").split(",")
+             if c.strip()]
+    for code in codes:
+        if source == "panel":
+            value, _when = _latest_panel_reading(patient_id, code)
+        elif source == "lab":
+            value, _when = _latest_lab(patient_id, code)
+        else:
+            continue
+        if value is None:
+            continue
+        if str(value).strip() in means_no:
+            continue        # written down, and what it says is "not yet"
+        return True
+    return False
 
 
 def _months_since(when, now=None):
@@ -244,6 +307,11 @@ def measure(patient_id, watches):
     if source == "vital":
         return _latest_vital(patient_id, of)
     if source == "panel":
+        # ``since`` asks *when was this last done*, and the answer to that is
+        # a choice, so it reads every kind of reading. ``above``/``below``
+        # stay numeric — see the two readers' docstrings.
+        if (watches or {}).get("when") == "since":
+            return _latest_panel_reading(patient_id, of)
         return _latest_panel(patient_id, of)
     if source == "age_months":
         from app.utils.dosing import age_months_of
@@ -306,6 +374,14 @@ def evaluate(patient_id, keys):
                 limit = armed(key, code, known)
                 if limit is not None:
                     detail = _answer(patient_id, alert, limit)
+
+            # **One gate for both kinds.** A live alert and an armed one can
+            # each be about something the record already holds, and putting
+            # the check here rather than in `_answer` means a `live` alert
+            # gaining an `unless` tomorrow needs no second implementation.
+            if detail and alert.get("unless") and _already_on_record(
+                    patient_id, alert["unless"]):
+                detail = None
 
             if detail:
                 seen.add(code)

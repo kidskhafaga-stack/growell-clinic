@@ -1949,7 +1949,18 @@
         {
           "code": "rop_due",
           "label_ar": "موعد فحص الشبكية اقترب أو فات *",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "age_months",
+            "when": "above"
+          },
+          "unless": {
+            "source": "panel",
+            "of": "rop_screen",
+            "means_no": [
+              "لم يُعمل"
+            ]
+          }
         },
         {
           "code": "wrong_vaccine",
@@ -1964,7 +1975,18 @@
         {
           "code": "no_hearing",
           "label_ar": "فحص السمع لم يُعمل",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "age_months",
+            "when": "above"
+          },
+          "unless": {
+            "source": "panel",
+            "of": "hearing_screen",
+            "means_no": [
+              "لم يُعمل"
+            ]
+          }
         }
       ],
       "_alerts_note_ar": "التنبيهات اللي التخصص ده طلبها في الاستبيان، وكل واحد مكتوب جنبه **محتاج إيه** علشان يشتغل:\n• `overdue` — تاريخ البرنامج عارفه خلاص (ميعاد متابعة عدّى، تحليل مامتعملش من مدة).\n• `trend` — مقارنة بين زيارتين، من غير رقم مطلق.\n• `number` — محتاج رقم **العيادة** تحطه. الاستبيان نفسه بيرفض يحط رقم موحّد، والبرنامج ما بيخترعش أرقام إكلينيكية — فالتنبيه ده مايشتغلش لحد ما العيادة تكتب رقمها.\n• `cross_check` — محتاج قاعدة معرفة للأدوية والحساسية والتطعيمات لسه مش موجودة.\n• `doctor` — حاجة الطبيب هو اللي بيلاحظها (فقد مهارة، انتكاسة)، والبرنامج ما يقدرش يستنتجها.\n`live: true` معناها متنفّذ فعلاً دلوقتي. الباقي معلن ومستني، والشاشة بتقول كده بدل ما تسكت."
@@ -2175,7 +2197,18 @@
         {
           "code": "preterm_rop_due",
           "label_ar": "طفل خديج — ميعاد فحص الشبكية اقترب أو فات *",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "age_months",
+            "when": "above"
+          },
+          "unless": {
+            "source": "panel",
+            "of": "rop_screen",
+            "means_no": [
+              "لم يُعمل"
+            ]
+          }
         },
         {
           "code": "iop_high",
@@ -2199,6 +2232,14 @@
           "watches": {
             "source": "age_months",
             "when": "above"
+          },
+          "unless": {
+            "source": "panel",
+            "of": "iop,va_right,va_left,fundus",
+            "means_no": [
+              "لم تُقَس",
+              "لم يُفحص"
+            ]
           }
         }
       ],
@@ -2360,6 +2401,13 @@
           "watches": {
             "source": "age_months",
             "when": "above"
+          },
+          "unless": {
+            "source": "panel",
+            "of": "pta_right,pta_left,tympanogram",
+            "means_no": [
+              "لم يُعمل"
+            ]
           }
         },
         {
@@ -2822,7 +2870,18 @@
         {
           "code": "hip_not_screened",
           "label_ar": "فحص الورك مااتعملش في الميعاد",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "age_months",
+            "when": "above"
+          },
+          "unless": {
+            "source": "panel",
+            "of": "hip_exam",
+            "means_no": [
+              "لم يُفحص"
+            ]
+          }
         },
         {
           "code": "brace_low",
@@ -2945,7 +3004,12 @@
         {
           "code": "uveitis_overdue",
           "label_ar": "فحص العين فات ميعاده",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "panel",
+            "of": "uveitis_screen",
+            "when": "since"
+          }
         },
         {
           "code": "joints_more",
