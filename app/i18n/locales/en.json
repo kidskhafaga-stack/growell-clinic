@@ -979,7 +979,8 @@
     "patients_with_records": "Patients with measurements",
     "print": "Print A4",
     "measurements": "Recorded measurements",
-    "chart_unavailable": "Could not load the charting library — check your internet connection"
+    "chart_unavailable": "Could not load the charting library — check your internet connection",
+    "on_corrected_age": "Percentiles are against the **corrected age** for prematurity, not age since birth."
   },
   "statuses": {
     "scheduled": "Scheduled",

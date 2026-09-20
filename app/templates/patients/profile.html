@@ -1981,15 +1981,38 @@
           <i class="bi bi-graph-up-arrow"></i> {{ t('growth.open_chart') }}</a>
         {% endif %}
       </div>
-      {% set latest_growth = patient.growth_records|sort(attribute='record_date', reverse=true)|first %}
+      {# **الرقم الخام ما بيقولش حاجة عن طفل.** «١٢ كجم» على طفل سنتين
+         طبيعي وعلى طفل ست سنين مش طبيعي، والفرق بينهم هو المئوي. والمحرّك
+         بيحسبه من زمان (`growth.summarise`) وكان بيتحسب للروشتة المطبوعة
+         وللمنحنى — والملف بس هو اللي كان بيعدّي عليه ويقرا الجدول الخام.
+         ده النوع الأول من فجوات الجدول: شغل اتعمل وما بيوصلش من الملف. #}
+      {% set picture = growth_picture %}
+      {% set latest_growth = picture.record %}
       {% if latest_growth %}
-      <div class="info-grid" style="margin-top:14px;">
-        <div class="info-item"><div class="k">{{ t('growth.record_date') }}</div><div class="v">{{ latest_growth.record_date.strftime('%Y-%m-%d') }}</div></div>
-        {% if latest_growth.weight_kg %}<div class="info-item"><div class="k">{{ t('visits.weight') }}</div><div class="v">{{ latest_growth.weight_kg }} kg</div></div>{% endif %}
-        {% if latest_growth.height_cm %}<div class="info-item"><div class="k">{{ t('visits.height') }}</div><div class="v">{{ latest_growth.height_cm }} cm</div></div>{% endif %}
-        {% if latest_growth.head_circ_cm %}<div class="info-item"><div class="k">{{ t('visits.head_circ') }}</div><div class="v">{{ latest_growth.head_circ_cm }} cm</div></div>{% endif %}
-        {% if latest_growth.bmi %}<div class="info-item"><div class="k">{{ t('visits.bmi') }}</div><div class="v">{{ latest_growth.bmi }}</div></div>{% endif %}
+      <div class="info-grid" style="margin-top:14px;" data-growth-picture>
+        <div class="info-item"><div class="k">{{ t('growth.record_date') }}</div>
+          <div class="v" dir="ltr">{{ latest_growth.record_date.strftime('%Y-%m-%d') }}</div></div>
+        {% for row in picture.rows %}
+        <div class="info-item" data-growth-row="{{ row.indicator }}">
+          <div class="k">{{ t('growth.short_' ~ row.indicator) }}</div>
+          <div class="v" dir="ltr">{{ row.value }} {{ row.unit }}
+            {# القياس بيتكتب حتى لو المعيار مالوش كلام عليه (طفل عدّى سن
+               المرجع، تاريخ ميلاد ناقص) — شيل الصف كان هيخفي قياس حقيقي. #}
+            {% if row.percentile is not none %}
+            <span class="badge {{ 'badge--muted' if row.status == 'normal' else ('badge--warning' if row.status == 'caution' else 'badge--danger') }}"
+                  dir="ltr" title="{{ t('growth.status_' ~ row.status) }} · {{ t('growth.zscore') }} {{ row.z }}"
+                  data-growth-centile="{{ row.indicator }}">P{{ row.percentile }}</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
       </div>
+      {# العمر المصحَّح بيتقال بصوت عالي مع الرقم: مئوي محسوب على سن محدّش
+         شايفه هو رقم لا الأهل ولا الطبيب اللي بعده يقدر يراجعه. #}
+      {% if picture.rows and picture.rows[0].corrected %}
+      <p class="hint" style="margin-top:8px;" data-growth-corrected>
+        <i class="bi bi-info-circle"></i> {{ t('growth.on_corrected_age') }}</p>
+      {% endif %}
       {% else %}
       <p style="color:var(--muted);margin-top:14px;">{{ t('growth.no_records') }}</p>
       {% endif %}

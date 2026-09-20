@@ -184,14 +184,36 @@ def test_the_prescription_and_the_profile_measure_against_one_standard(clinic):
         patient = clinic["db"].session.get(Patient, clinic["ids"]["child"])
         assert reference_for(patient) in ("WHO", "CDC")
 
-    import inspect
+    # **The property, not one function's text.** This used to grep
+    # `_growth_concern` for the word `reference_for`, which stopped meaning
+    # anything the day that function stopped choosing a reference at all —
+    # it now derives from `summarise`, which is strictly better and would
+    # have read as a regression. So the rule is stated where it lives: the
+    # choice between the two standards is made in exactly one place, and a
+    # third screen re-deciding it is what this catches.
+    import os
+    import re
 
-    from app.blueprints.patients import routes
-
-    source = inspect.getsource(routes._growth_concern)
-    assert "reference_for" in source, (
-        "the profile picks its own reference again")
-    assert '"WHO" if' not in source, "the rule is duplicated"
+    here = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    CHOOSES = re.compile(r'"(?:WHO|CDC)"\s*(?:if|else)|'
+                         r'(?:if|else)\s*.*==\s*"(?:WHO|CDC)"')
+    deciders = []
+    for folder, _dirs, files in os.walk(os.path.join(here, "app")):
+        if "__pycache__" in folder:
+            continue
+        for name in files:
+            if not name.endswith(".py"):
+                continue
+            path = os.path.join(folder, name)
+            rel = os.path.relpath(path, here)
+            with open(path, encoding="utf-8") as fh:
+                text = fh.read()
+            text = re.sub(r"(?s)\"\"\".*?\"\"\"", "", text)
+            text = re.sub(r"(?m)^\s*#.*$", "", text)
+            if CHOOSES.search(text):
+                deciders.append(rel)
+    assert deciders == ["app/utils/growth.py"], (
+        "the standard is chosen in more than one place: " + ", ".join(deciders))
 
 
 @pytest.mark.parametrize("years,expected", [(2, "WHO"), (9, "CDC")])

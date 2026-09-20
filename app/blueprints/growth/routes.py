@@ -31,6 +31,7 @@ from app.utils.growth import (
     compute_at_age,
     compute_point,
     reference_curves,
+    reference_for,
     reference_range,
     references,
     status_for_z,
@@ -55,12 +56,6 @@ def _all_references():
     Otherwise we fall back to the bundled WHO (0–5) / CDC LMS tables."""
     pkg = rcpch.sources()
     return pkg if pkg else references()
-
-
-def _default_reference(patient):
-    """WHO for under-5s, CDC for older children (both remain switchable)."""
-    parts = patient.age_parts
-    return "WHO" if parts[0] < 5 else "CDC"
 
 
 def _records(patient):
@@ -96,7 +91,13 @@ def view(patient_id):
         patient=patient,
         references=_all_references(),
         indicators=list(INDICATORS.keys()),
-        default_ref=_default_reference(patient),
+        # `growth.reference_for`, not a second copy of the rule. This screen
+        # carried its own `"WHO" if age < 5 else "CDC"` — the same sentence,
+        # minus the fallback the shared one has — so a change to the boundary
+        # would have moved the file and the prescription and left the chart
+        # measuring against the other standard, with nothing on either page
+        # saying why they disagreed.
+        default_ref=reference_for(patient),
         has_records=bool(records),
         records=records,
         today=local_today().isoformat(),
