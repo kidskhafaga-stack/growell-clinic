@@ -206,6 +206,157 @@ def test_a_recent_eye_review_is_not_overdue(specialty):
     assert "uveitis_overdue" not in _fired(specialty, ["rheumatology"])
 
 
+# ------------------------------- تاريخ متكتوب: القيمة مش ساعة الكتابة ----
+def _date_reading(specialty, code, when, patient_id=None):
+    """خانة تاريخ، زي ما `<input type="date">` بيبعتها: نص ISO."""
+    _reading(specialty, code, text=when.isoformat(), patient_id=patient_id)
+
+
+def test_a_date_that_has_gone_by_needs_no_number_from_anybody(specialty):
+    """**الشكل الوحيد اللي بيشتغل يوم التركيب.**
+
+    مفيش حاجة تتخترع: التاريخ متكتوب، وعدّى. ودي بالحرف اللي الكتالوج
+    بيسمّيها `overdue` — *"a date the program already holds"*.
+    """
+    from app.utils.clock import local_today
+
+    _date_reading(specialty, "planned_surgery", local_today() - timedelta(days=9))
+
+    assert "surgery_overdue" in _fired(specialty, ["surgery"])
+
+
+def test_a_date_still_ahead_says_nothing(specialty):
+    from app.utils.clock import local_today
+
+    _date_reading(specialty, "planned_surgery", local_today() + timedelta(days=9))
+
+    assert "surgery_overdue" not in _fired(specialty, ["surgery"])
+
+
+def test_today_itself_is_not_late(specialty):
+    """الميعاد النهارده هو ميعاد النهارده. ودي المقارنة اللي حطّت تلات
+    ساعات من ورديّة كل ليلة على اليوم الغلط لما اتعملت بإهمال — فبتتقاس
+    بساعة العيادة، مش ساعة السيرفر."""
+    from app.utils.clock import local_today
+
+    _date_reading(specialty, "ga_planned_date", local_today())
+
+    assert "ga_overdue" not in _fired(specialty, ["dentistry"])
+
+
+def test_no_date_written_is_not_overdue(specialty):
+    assert "surgery_overdue" not in _fired(specialty, ["surgery"])
+
+
+def test_a_date_shaped_alert_is_offered_no_number_box(specialty):
+    """خانة رقم لتنبيه بيتجاهل الرقم هي نفس الوعد المكسور من الناحية
+    التانية: بتتملّى وما بتغيّرش حاجة."""
+    from app.utils import panel_alerts
+
+    offered = {a["code"] for a in panel_alerts.watchable("surgery")}
+
+    assert "surgery_overdue" not in offered
+    assert "testis_age" in offered          # ده فعلاً محتاج رقم
+
+
+def test_a_date_shaped_alert_is_not_counted_as_waiting(specialty):
+    """«مستني إيه» هو عدد الحاجات اللي حد لسه يقدر يعملها.
+
+    وتنبيه بيجاوب نفسه مش واحد منهم — عدّه كان هيخلّي الرقم ده رقم
+    ما بينزلش مهما الواحد شتغل، وهي نفس شكوى «باب مالوش نهاية».
+    """
+    from app.utils import panel_alerts
+
+    with specialty["app"].app_context():
+        counted = sum(panel_alerts.waiting(["surgery"]).values())
+        answers_itself = [a for a in panel_alerts.declared("surgery")
+                          if a.get("watches")
+                          and not panel_alerts.needs_a_number(a)]
+        still_open = [a for a in panel_alerts.declared("surgery")
+                      if not a.get("live") and panel_alerts.needs_a_number(a)
+                      or not a.get("live") and not a.get("watches")]
+
+    assert answers_itself, "مفيش تنبيه بيجاوب نفسه في الجراحة — الاختبار فاضي"
+    assert counted == len(still_open)
+
+
+def test_something_that_is_not_a_date_is_not_read_as_one(specialty):
+    """متصفّح من غير منتقي تواريخ، أو صف قديم، أو غلطة كتابة. قارئ بيخمّن
+    كان هيحطّ تنبيهات عيادة على يوم متأليف."""
+    from app.utils import panel_alerts
+
+    _reading(specialty, "planned_surgery", text="الأسبوع الجاي")
+
+    with specialty["app"].app_context():
+        assert panel_alerts._panel_date(
+            specialty["ids"]["child"], "planned_surgery") is None
+    assert "surgery_overdue" not in _fired(specialty, ["surgery"])
+
+
+# ------------------------------------ والفرق بين التاريخين هو كل الحكاية ----
+def test_the_date_written_in_the_box_wins_over_when_it_was_typed(specialty):
+    """ممرضة بتدخّل تاريخ الشهر اللي فات النهارده.
+
+    `since` كانت هتقيس من ساعة الكتابة — يعني «حقنة الصبح». والخانة اسمها
+    «تاريخ آخر حقنة»، وجوابها هو التاريخ اللي فيها.
+    """
+    from app.utils.clock import local_today
+
+    _number(specialty, "cardiology", "penicillin_late", 1)
+    # القراية اتكتبت دلوقتي، والتاريخ اللي فيها من تلات شهور
+    _date_reading(specialty, "last_penicillin",
+                  local_today() - timedelta(days=95))
+
+    assert "penicillin_late" in _fired(specialty, ["cardiology"])
+
+
+def test_a_recent_dose_is_not_late(specialty):
+    from app.utils.clock import local_today
+
+    _number(specialty, "cardiology", "penicillin_late", 1)
+    _date_reading(specialty, "last_penicillin",
+                  local_today() - timedelta(days=10))
+
+    assert "penicillin_late" not in _fired(specialty, ["cardiology"])
+
+
+def test_no_dose_ever_recorded_is_not_called_late(specialty):
+    """**الفرق عن `since`، وهو مقصود.**
+
+    `since` بتعتبر «عمره ما اتعمل» أقوى حالة من المتأخر — وده صح لتحليل
+    متابعة. وخانة «تاريخ آخر جرعة» فاضية حاجة تانية: طفل عمره ما خد
+    الجرعة **مش متأخر عن الجرعة الجاية**. دي فجوة تسجيل، و«متأخر» عليها
+    بتبعت حد يدّي جرعة.
+    """
+    _number(specialty, "oncology", "chemo_late", 1)
+
+    assert "chemo_late" not in _fired(specialty, ["oncology"])
+
+
+def test_the_interval_is_the_clinics_and_nothing_fires_without_it(specialty):
+    from app.utils.clock import local_today
+
+    _date_reading(specialty, "ivig_last", local_today() - timedelta(days=200))
+
+    assert "ivig_overdue" not in _fired(specialty, ["immunology"])
+
+    _number(specialty, "immunology", "ivig_overdue", 2)
+
+    assert "ivig_overdue" in _fired(specialty, ["immunology"])
+
+
+def test_another_childs_date_is_not_this_childs(specialty):
+    from app.utils.clock import local_today
+
+    _date_reading(specialty, "planned_surgery",
+                  local_today() - timedelta(days=9),
+                  patient_id=specialty["ids"]["other_child"])
+
+    assert "surgery_overdue" not in _fired(specialty, ["surgery"])
+    assert "surgery_overdue" in _fired(
+        specialty, ["surgery"], patient_id=specialty["ids"]["other_child"])
+
+
 # ------------------------------------------------- قواعد الكتالوج ----
 def test_every_unless_names_a_source_the_reader_knows(specialty):
     from app.utils import panel_alerts, panels
