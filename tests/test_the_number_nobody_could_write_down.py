@@ -286,9 +286,13 @@ def test_only_alerts_the_program_can_answer_get_a_box(specialty):
         declared = {a["code"] for a in panel_alerts.declared("cardiology")}
 
     assert "spo2_low" in offered
-    # Declared, real, and not answerable from what this program holds.
-    assert "penicillin_late" in declared
-    assert "penicillin_late" not in offered
+    # Declared, real, and not answerable from what this program holds. It used
+    # to be `penicillin_late`, until the panel turned out to hold «تاريخ آخر
+    # حقنة بنسلين» all along — so the example moved rather than the rule.
+    # `inr_out` is out of **range**, and a range is two numbers where the
+    # settings row holds one.
+    assert "inr_out" in declared
+    assert "inr_out" not in offered
 
 
 def test_an_alert_nobody_can_answer_cannot_be_armed_by_posting_at_it(specialty):
@@ -296,7 +300,7 @@ def test_an_alert_nobody_can_answer_cannot_be_armed_by_posting_at_it(specialty):
     ever, arming nothing and appearing on no screen."""
     from app.models import PanelAlertRule
 
-    _set_number(specialty, "cardiology", "penicillin_late", 30)
+    _set_number(specialty, "cardiology", "inr_out", 30)
     _set_number(specialty, "cardiology", "made_up_alert", 30)
 
     with specialty["app"].app_context():
@@ -346,10 +350,17 @@ def test_every_watched_alert_names_a_source_the_reader_knows(specialty):
     from app.utils import panel_alerts, panels
 
     known_sources = {"lab", "vital", "panel", "age_months", "order"}
-    known_whens = {"above", "below", "since", "pending"}
+    known_whens = {"above", "below", "since", "since_date", "past", "within",
+                   "rise", "drop", "pending"}
+    # **Every declared alert, not only the ones offered a box.** `watchable`
+    # now leaves out the shapes that need no number, and reading the rule
+    # through it would have stopped checking exactly the entries nobody sets
+    # by hand — a guard that quietly narrows with the thing it guards.
     for key in panels.all_panels():
-        for alert in panel_alerts.watchable(key):
-            watches = alert["watches"]
+        for alert in panel_alerts.declared(key):
+            watches = alert.get("watches")
+            if not watches:
+                continue
             assert watches["source"] in known_sources, alert["code"]
             assert watches["when"] in known_whens, alert["code"]
 
@@ -380,7 +391,12 @@ def test_a_watched_panel_reading_is_a_field_that_panel_actually_takes(specialty)
         for alert in panel_alerts.watchable(key):
             watches = alert["watches"]
             if watches["source"] == "panel":
-                assert watches["of"] in fields, f"{key}.{alert['code']}"
+                # Comma-separated, same as `unless`: «عتبة السمع تدهورت» is
+                # one alert about two ears, and splitting it into a left and
+                # a right alert would put two rows on the screen where a
+                # doctor needs one.
+                for code in watches["of"].split(","):
+                    assert code.strip() in fields, f"{key}.{alert['code']}"
 
 
 # ===================== the doors ===========================================

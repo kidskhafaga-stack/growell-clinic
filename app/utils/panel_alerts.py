@@ -126,6 +126,33 @@ def armed(key, code, known=None):
     return rule.threshold if rule is not None and rule.is_armed else None
 
 
+#: The comparisons that answer without anybody writing a number. Only one so
+#: far, and it is the shape the catalogue calls `overdue` in its own words.
+NEEDS_NO_NUMBER = ("past",)
+
+#: The comparisons that read the **value** of a date field rather than when
+#: somebody typed it. Named once and used by the reader, so a new date shape
+#: cannot be added to `_fires` and quietly left reading the wrong column —
+#: which is exactly what happened to `within` the first time it was written.
+DATE_SHAPES = ("past", "within", "since_date")
+
+#: The comparisons that need **two** readings rather than the latest one.
+TREND_SHAPES = ("rise", "drop")
+
+
+def needs_a_number(alert):
+    """Whether this alert waits on a figure the clinic has to write.
+
+    **A box for an alert that needs no number is the old bug wearing the other
+    face.** The screen exists because twenty-two alerts waited on a figure
+    with nowhere to write it; offering a figure to an alert that ignores it
+    would collect a number that changes nothing, which is the same broken
+    promise from the opposite side.
+    """
+    watches = (alert or {}).get("watches") or {}
+    return bool(watches) and watches.get("when") not in NEEDS_NO_NUMBER
+
+
 def watchable(key):
     """This specialty's alerts the program could answer if a number existed.
 
@@ -133,7 +160,7 @@ def watchable(key):
     the catalogue is one the program cannot answer from what it holds, and
     offering a box for it would collect a number that changes nothing.
     """
-    return [a for a in declared(key) if a.get("watches")]
+    return [a for a in declared(key) if needs_a_number(a)]
 
 
 # ------------------------------------------------------- reading a value ----
@@ -186,7 +213,12 @@ def _latest_vital(patient_id, field):
 
 
 def _latest_panel(patient_id, code):
-    """``(value, when)`` of the newest reading the panel itself took."""
+    """``(value, when)`` of the newest **numeric** reading the panel took.
+
+    Numbers only, because this feeds ``above`` and ``below`` and comparing a
+    threshold with the word «طبيعي» is not a comparison. The other question —
+    *was this done at all* — is answered by :func:`_latest_panel_reading`.
+    """
     from app.models import Measurement
 
     row = (Measurement.query
@@ -198,6 +230,158 @@ def _latest_panel(patient_id, code):
     if row is None:
         return None, None
     return row.value_num, row.recorded_at
+
+
+def _latest_panel_reading(patient_id, code):
+    """``(value, when)`` of the newest reading of **any** kind.
+
+    **The panels answer "was it done?" with a word, never a number.** Every
+    screening question in the catalogue — `rop_screen`, `hearing_screen`,
+    `hip_exam`, `uveitis_screen` — is a choice whose options start with «لم
+    يُعمل», so its answer lands in ``value_text`` and the numeric reader above
+    cannot see it at all. An alert that asked "has this been done" through
+    that reader got ``None`` for a child screened this morning, which reads as
+    *never*.
+    """
+    from app.models import Measurement
+
+    row = (Measurement.query
+           .filter(Measurement.patient_id == patient_id,
+                   Measurement.code == code)
+           .order_by(Measurement.recorded_at.desc(), Measurement.id.desc())
+           .first())
+    if row is None:
+        return None, None
+    value = row.value_num if row.value_num is not None else row.value_text
+    return value, row.recorded_at
+
+
+def _already_on_record(patient_id, unless):
+    """Whether the thing this alert is about has already happened.
+
+    **An age is not an event.** ``age_months`` can say the child is older than
+    the figure a clinic wrote; it cannot say the screening never happened, and
+    three alerts whose own label says «لم يُفحص» were wired to it alone — so
+    they fired for a child examined that same morning, and went on firing for
+    every child in the clinic over that age. An alert that cries wolf on
+    everybody is worse than no alert: the one that matters arrives in the same
+    grey row as the ninety that did not.
+
+    So an alert may name what would clear it. ``means_no`` lists the recorded
+    answers that mean *still not done* — every one of these fields offers «لم
+    يُعمل» as an option, and a record saying so is not the screening.
+    """
+    source = (unless or {}).get("source")
+    means_no = {str(v).strip() for v in (unless or {}).get("means_no") or ()}
+    codes = [c.strip() for c in ((unless or {}).get("of") or "").split(",")
+             if c.strip()]
+    for code in codes:
+        if source == "panel":
+            value, _when = _latest_panel_reading(patient_id, code)
+        elif source == "lab":
+            value, _when = _latest_lab(patient_id, code)
+        else:
+            continue
+        if value is None:
+            continue
+        if str(value).strip() in means_no:
+            continue        # written down, and what it says is "not yet"
+        return True
+    return False
+
+
+def _date_in(value):
+    """The date a panel field holds, or ``None`` when it holds no date.
+
+    A ``date`` field is drawn as ``<input type="date">`` and saved as the raw
+    form value, so it reaches the table as ISO text. Anything else — a browser
+    without a date picker, an old row, a typo — is not a date, and a reader
+    that guessed at it would put a clinic's alerts on a made-up day.
+    """
+    from datetime import date
+
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value).strip()[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+def _panel_date(patient_id, code):
+    """The date this panel field records — the **value**, not when it was
+    typed.
+
+    The distinction is the whole point. ``since`` measures from
+    ``recorded_at``, which answers *"how long since somebody wrote something
+    here"*; a field called «تاريخ آخر حقنة بنسلين» answers *"when was the
+    injection"*, and a nurse entering last month's date today would look, to
+    the first reader, like an injection given this morning.
+    """
+    value, _when = _latest_panel_reading(patient_id, code)
+    return _date_in(value)
+
+
+def _last_two(patient_id, source, code):
+    """The two newest readings of one thing, newest first.
+
+    **A trend is the one question that needs more than the latest value**, and
+    the whole `trend` class — twenty-nine alerts, the biggest block in the
+    survey — was dormant for want of a reader that looks back one step. There
+    is no new data here: every reading it compares was already in the table.
+    """
+    from app.models import Investigation, Measurement, VisitInvestigation
+
+    if source == "panel":
+        rows = (Measurement.query
+                .filter(Measurement.patient_id == patient_id,
+                        Measurement.code == code,
+                        Measurement.value_num.isnot(None))
+                .order_by(Measurement.recorded_at.desc(),
+                          Measurement.id.desc())
+                .limit(2).all())
+        return [(r.value_num, r.recorded_at) for r in rows]
+    if source == "lab":
+        rows = (VisitInvestigation.query
+                .join(Investigation,
+                      VisitInvestigation.investigation_id == Investigation.id)
+                .filter(VisitInvestigation.patient_id == patient_id,
+                        Investigation.code == code,
+                        VisitInvestigation.result_value.isnot(None))
+                .order_by(VisitInvestigation.resulted_at.desc(),
+                          VisitInvestigation.id.desc())
+                .limit(2).all())
+        return [(r.result_value, r.resulted_at or r.created_at) for r in rows]
+    return []
+
+
+def _moved(patient_id, watches, threshold):
+    """How far the newest reading moved from the one before it, if far enough.
+
+    **One reading is not a trend, and neither is a reading and a silence.** A
+    child seen once has no direction, and reporting one would invent the
+    comparison the alert is named after — so this answers nothing until there
+    are two.
+
+    The number is an **absolute difference in the reading's own unit** — five
+    degrees of Cobb angle, ten points of EF. Not a percentage: a percentage of
+    a small reading is a different alert from a percentage of a large one, and
+    the clinic writing «٥» beside «زاوية الجنف» means five degrees.
+    """
+    rule = (watches or {}).get("when")
+    for code in [c.strip() for c in ((watches or {}).get("of") or "").split(",")
+                 if c.strip()]:
+        pair = _last_two(patient_id, (watches or {}).get("source"), code)
+        if len(pair) < 2:
+            continue
+        (new, when), (old, _before) = pair
+        if new is None or old is None:
+            continue
+        moved = (new - old) if rule == "rise" else (old - new)
+        if moved > threshold:
+            return {"from": old, "to": new, "moved": round(moved, 2),
+                    "limit": threshold, "at": when, "of": code}
+    return None
 
 
 def _months_since(when, now=None):
@@ -244,6 +428,14 @@ def measure(patient_id, watches):
     if source == "vital":
         return _latest_vital(patient_id, of)
     if source == "panel":
+        # ``since`` asks *when was this last done*, and the answer to that is
+        # a choice, so it reads every kind of reading. ``above``/``below``
+        # stay numeric — see the two readers' docstrings.
+        when = (watches or {}).get("when")
+        if when in DATE_SHAPES:
+            return _panel_date(patient_id, of), None
+        if when == "since":
+            return _latest_panel_reading(patient_id, of)
         return _latest_panel(patient_id, of)
     if source == "age_months":
         from app.utils.dosing import age_months_of
@@ -254,13 +446,15 @@ def measure(patient_id, watches):
     return None, None
 
 
-def _fires(watches, value, when, threshold):
+def _fires(watches, value, when, threshold):   # noqa: C901
     """Whether this alert's condition is met. Returns the detail, or ``None``.
 
     Four comparisons and no fifth: above, below, how long since, and an order
     that never came back. A shape the catalogue cannot express is one the
     program refuses to guess at.
     """
+    from datetime import timedelta
+
     rule = (watches or {}).get("when")
     if rule == "above":
         if value is not None and value > threshold:
@@ -268,6 +462,42 @@ def _fires(watches, value, when, threshold):
     elif rule == "below":
         if value is not None and value < threshold:
             return {"value": value, "limit": threshold, "at": when}
+    elif rule == "past":
+        # **The only shape that needs no number from anybody.** A date was
+        # written down, it has gone by, and the thing it was the date of has
+        # not been marked done — which is the catalogue's own definition of
+        # `overdue`: *"a date the program already holds; nothing has to be
+        # invented"*. Read against the clinic's own today, never the server's.
+        from app.utils.clock import local_today
+
+        today = local_today()
+        if value is not None and value < today:
+            return {"date": value, "days": (today - value).days}
+    elif rule == "within":
+        # A date coming up, and close enough to act on. The mirror of `past`,
+        # and unlike it this one **does** need a number: «قربت» is a window,
+        # and how many days count as near is a clinic's own answer.
+        from app.utils.clock import local_today
+
+        today = local_today()
+        if value is not None and today <= value <= today + timedelta(
+                days=threshold):
+            return {"date": value, "days": (value - today).days,
+                    "limit": threshold}
+    elif rule == "since_date":
+        from app.utils.clock import local_today
+
+        if value is None:
+            # Never recorded. Unlike `since`, this is **not** reported as the
+            # strongest case: «تاريخ آخر جرعة» empty means nobody has written
+            # one down, and a child who has never had the drug at all is not
+            # late for their next dose. The gap is a records gap, and saying
+            # "overdue" about it would send somebody to give a dose.
+            return None
+        months = (local_today() - value).days / 30.44
+        if months > threshold:
+            return {"months": round(months, 1), "limit": threshold,
+                    "since": value}
     elif rule == "since":
         # Never done at all is not "overdue by nothing" — it is the strongest
         # case of the same thing, and reporting silence would hide the child
@@ -298,6 +528,10 @@ def evaluate(patient_id, keys):
             if alert.get("live"):
                 check = LIVE.get(code)
                 detail = check(patient_id) if check is not None else None
+            elif alert.get("watches") and not needs_a_number(alert):
+                # A date that has gone by. Nothing to set, so it works on the
+                # day the clinic installs this.
+                detail = _answer(patient_id, alert, None)
             elif alert.get("watches"):
                 # **The clinic's own number, and nothing fires without one.**
                 # A threshold alert with no row behind it is exactly as
@@ -306,6 +540,25 @@ def evaluate(patient_id, keys):
                 limit = armed(key, code, known)
                 if limit is not None:
                     detail = _answer(patient_id, alert, limit)
+
+            # **One gate for both kinds, and both polarities.** A live alert
+            # and an armed one can each be about something the record already
+            # holds, and putting the check here rather than in `_answer` means
+            # a `live` alert gaining one of these tomorrow needs no second
+            # implementation.
+            #
+            # `unless` and `given` ask the same question — *does the record
+            # hold this?* — and differ only in which answer stops the alert.
+            # Two names for one reader, because an alert that fires **only
+            # when** something happened and an alert that stops **once**
+            # something happened are the two halves of every "and then what"
+            # in this catalogue.
+            if detail and alert.get("unless") and _already_on_record(
+                    patient_id, alert["unless"]):
+                detail = None
+            if detail and alert.get("given") and not _already_on_record(
+                    patient_id, alert["given"]):
+                detail = None
 
             if detail:
                 seen.add(code)
@@ -318,6 +571,8 @@ def evaluate(patient_id, keys):
 def _answer(patient_id, alert, limit):
     """Whether this armed alert is firing for this child right now."""
     watches = alert.get("watches") or {}
+    if watches.get("when") in TREND_SHAPES:
+        return _moved(patient_id, watches, limit)
     if watches.get("when") == "pending":
         # An order that never came back. The threshold is a number of days,
         # and the reading is the wait itself rather than any measurement.
@@ -347,6 +602,8 @@ def waiting(keys):
         for alert in declared(key):
             if alert.get("live"):
                 continue
+            if alert.get("watches") and not needs_a_number(alert):
+                continue        # answers itself; waiting on nobody
             if alert.get("watches") and armed(key, alert["code"],
                                               known) is not None:
                 continue

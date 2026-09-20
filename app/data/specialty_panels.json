@@ -220,22 +220,38 @@
         {
           "code": "ef_drop",
           "label_ar": "EF هبط عن الزيارة السابقة",
-          "needs": "trend"
+          "needs": "trend",
+          "watches": {
+            "source": "panel",
+            "of": "ef_pct",
+            "when": "drop"
+          }
         },
         {
           "code": "penicillin_late",
           "label_ar": "حقنة البنسلين تأخّرت عن موعدها *",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "panel",
+            "of": "last_penicillin",
+            "when": "since_date"
+          }
         },
         {
           "code": "inr_out",
           "label_ar": "INR خارج المدى",
-          "needs": "overdue"
+          "needs": "overdue",
+          "blocked_by_ar": "خارج **مدى**، والمدى رقمين. صف الإعدادات بيشيل رقم واحد (`threshold`)، والمقارنات كلها رقم مقابل حد. ينفع يتعمل بحدّين — عمود تاني وشكل `outside` — وده تغيير في الجدول مش في الكتالوج."
         },
         {
           "code": "defect_grows",
           "label_ar": "الفتحة تكبر بدل أن تصغر",
-          "needs": "trend"
+          "needs": "trend",
+          "watches": {
+            "source": "panel",
+            "of": "defect_size_mm",
+            "when": "rise"
+          }
         }
       ],
       "_alerts_note_ar": "التنبيهات اللي التخصص ده طلبها في الاستبيان، وكل واحد مكتوب جنبه **محتاج إيه** علشان يشتغل:\n• `overdue` — تاريخ البرنامج عارفه خلاص (ميعاد متابعة عدّى، تحليل مامتعملش من مدة).\n• `trend` — مقارنة بين زيارتين، من غير رقم مطلق.\n• `number` — محتاج رقم **العيادة** تحطه. الاستبيان نفسه بيرفض يحط رقم موحّد، والبرنامج ما بيخترعش أرقام إكلينيكية — فالتنبيه ده مايشتغلش لحد ما العيادة تكتب رقمها.\n• `cross_check` — محتاج قاعدة معرفة للأدوية والحساسية والتطعيمات لسه مش موجودة.\n• `doctor` — حاجة الطبيب هو اللي بيلاحظها (فقد مهارة، انتكاسة)، والبرنامج ما يقدرش يستنتجها.\n`live: true` معناها متنفّذ فعلاً دلوقتي. الباقي معلن ومستني، والشاشة بتقول كده بدل ما تسكت."
@@ -595,7 +611,8 @@
         {
           "code": "fluoride_due",
           "label_ar": "ميعاد الفلورايد فات",
-          "needs": "overdue"
+          "needs": "overdue",
+          "blocked_by_ar": "**الداتا مش موجودة.** خانة `fluoride` بتقول مصدر الفلورايد (مياه شبكة · معبأة · معجون · لا شيء) — مش تاريخ دهان. مفيش ولا خانة في اللوحة بتسجّل إمتى اتدهن آخر مرة، والميعاد من غير نقطة بداية مش ميعاد."
         },
         {
           "code": "new_caries_despite_followup",
@@ -620,22 +637,72 @@
         {
           "code": "no_visit_since_one",
           "label_ar": "لم يزر عيادة الأسنان منذ تجاوز السنة الأولى",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "panel",
+            "of": "last_dental_visit",
+            "when": "since_date"
+          }
         },
         {
           "code": "ga_overdue",
           "label_ar": "جلسة التخدير الكلي فات ميعادها",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "panel",
+            "of": "ga_planned_date",
+            "when": "past"
+          },
+          "unless": {
+            "source": "panel",
+            "of": "surgical_procedure,post_op_check",
+            "means_no": [
+              "لا يوجد",
+              "لا ينطبق"
+            ]
+          }
         },
         {
           "code": "ga_fasting_unconfirmed",
           "label_ar": "جلسة تخدير قربت والصيام مااتأكدش",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "panel",
+            "of": "ga_planned_date",
+            "when": "within"
+          },
+          "unless": {
+            "source": "panel",
+            "of": "fasting_confirmed",
+            "means_no": [
+              "لأ",
+              "لا ينطبق"
+            ]
+          }
         },
         {
           "code": "post_op_missing",
           "label_ar": "مفيش متابعة بعد جلسة التخدير",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "panel",
+            "of": "ga_planned_date",
+            "when": "past"
+          },
+          "given": {
+            "source": "panel",
+            "of": "surgical_procedure",
+            "means_no": [
+              "لا يوجد"
+            ]
+          },
+          "unless": {
+            "source": "panel",
+            "of": "post_op_check",
+            "means_no": [
+              "لا ينطبق"
+            ]
+          }
         }
       ],
       "_alerts_note_ar": "التنبيهات اللي التخصص ده طلبها في الاستبيان، وكل واحد مكتوب جنبه **محتاج إيه** علشان يشتغل:\n• `overdue` — تاريخ البرنامج عارفه خلاص (ميعاد متابعة عدّى، تحليل مامتعملش من مدة).\n• `trend` — مقارنة بين زيارتين، من غير رقم مطلق.\n• `number` — محتاج رقم **العيادة** تحطه. الاستبيان نفسه بيرفض يحط رقم موحّد، والبرنامج ما بيخترعش أرقام إكلينيكية — فالتنبيه ده مايشتغلش لحد ما العيادة تكتب رقمها.\n• `cross_check` — محتاج قاعدة معرفة للأدوية والحساسية والتطعيمات لسه مش موجودة.\n• `doctor` — حاجة الطبيب هو اللي بيلاحظها (فقد مهارة، انتكاسة)، والبرنامج ما يقدرش يستنتجها.\n`live: true` معناها متنفّذ فعلاً دلوقتي. الباقي معلن ومستني، والشاشة بتقول كده بدل ما تسكت.",
@@ -786,7 +853,12 @@
         {
           "code": "hypo_freq",
           "label_ar": "هبوط شديد متكرر",
-          "needs": "trend"
+          "needs": "trend",
+          "watches": {
+            "source": "panel",
+            "of": "hypo_episodes",
+            "when": "rise"
+          }
         },
         {
           "code": "growth_stop",
@@ -975,7 +1047,12 @@
         {
           "code": "control_loss",
           "label_ar": "السيطرة تدهورت عن الزيارة السابقة",
-          "needs": "trend"
+          "needs": "trend",
+          "watches": {
+            "source": "panel",
+            "of": "act_score",
+            "when": "drop"
+          }
         },
         {
           "code": "high_ics",
@@ -1147,7 +1224,12 @@
         {
           "code": "seizures_inc",
           "label_ar": "النوبات زادت عن الشهر السابق",
-          "needs": "trend"
+          "needs": "trend",
+          "watches": {
+            "source": "panel",
+            "of": "seizures_per_month",
+            "when": "rise"
+          }
         },
         {
           "code": "lost_skill",
@@ -1652,7 +1734,12 @@
         {
           "code": "lft_high",
           "label_ar": "وظائف الكبد ارتفعت",
-          "needs": "trend"
+          "needs": "trend",
+          "watches": {
+            "source": "lab",
+            "of": "lft",
+            "when": "rise"
+          }
         },
         {
           "code": "ttg_high",
@@ -1791,12 +1878,18 @@
         {
           "code": "tx_late",
           "label_ar": "تأخّر عن موعد النقل",
-          "needs": "overdue"
+          "needs": "overdue",
+          "blocked_by_ar": "**الداتا موجودة بس مش في اللوحة.** اللوحة فيها `tx_interval` (كل قد إيه) ومفيهاش تاريخ آخر نقل — والتاريخ ده موجود في جدول `Transfusion`. يعني الناقص قارئ لمصدر جديد، مش معلومة ناقصة."
         },
         {
           "code": "spleen_big",
           "label_ar": "الطحال يكبر عبر الزيارات",
-          "needs": "trend"
+          "needs": "trend",
+          "watches": {
+            "source": "panel",
+            "of": "spleen_cm",
+            "when": "rise"
+          }
         },
         {
           "code": "g6pd_rx",
@@ -1949,7 +2042,18 @@
         {
           "code": "rop_due",
           "label_ar": "موعد فحص الشبكية اقترب أو فات *",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "age_months",
+            "when": "above"
+          },
+          "unless": {
+            "source": "panel",
+            "of": "rop_screen",
+            "means_no": [
+              "لم يُعمل"
+            ]
+          }
         },
         {
           "code": "wrong_vaccine",
@@ -1964,7 +2068,18 @@
         {
           "code": "no_hearing",
           "label_ar": "فحص السمع لم يُعمل",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "age_months",
+            "when": "above"
+          },
+          "unless": {
+            "source": "panel",
+            "of": "hearing_screen",
+            "means_no": [
+              "لم يُعمل"
+            ]
+          }
         }
       ],
       "_alerts_note_ar": "التنبيهات اللي التخصص ده طلبها في الاستبيان، وكل واحد مكتوب جنبه **محتاج إيه** علشان يشتغل:\n• `overdue` — تاريخ البرنامج عارفه خلاص (ميعاد متابعة عدّى، تحليل مامتعملش من مدة).\n• `trend` — مقارنة بين زيارتين، من غير رقم مطلق.\n• `number` — محتاج رقم **العيادة** تحطه. الاستبيان نفسه بيرفض يحط رقم موحّد، والبرنامج ما بيخترعش أرقام إكلينيكية — فالتنبيه ده مايشتغلش لحد ما العيادة تكتب رقمها.\n• `cross_check` — محتاج قاعدة معرفة للأدوية والحساسية والتطعيمات لسه مش موجودة.\n• `doctor` — حاجة الطبيب هو اللي بيلاحظها (فقد مهارة، انتكاسة)، والبرنامج ما يقدرش يستنتجها.\n`live: true` معناها متنفّذ فعلاً دلوقتي. الباقي معلن ومستني، والشاشة بتقول كده بدل ما تسكت."
@@ -2170,12 +2285,28 @@
         {
           "code": "refraction_fast",
           "label_ar": "المقاس يتدهور بسرعة أكبر من المتوقع",
-          "needs": "trend"
+          "needs": "trend",
+          "watches": {
+            "source": "panel",
+            "of": "refraction_sph",
+            "when": "drop"
+          }
         },
         {
           "code": "preterm_rop_due",
           "label_ar": "طفل خديج — ميعاد فحص الشبكية اقترب أو فات *",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "age_months",
+            "when": "above"
+          },
+          "unless": {
+            "source": "panel",
+            "of": "rop_screen",
+            "means_no": [
+              "لم يُعمل"
+            ]
+          }
         },
         {
           "code": "iop_high",
@@ -2199,6 +2330,14 @@
           "watches": {
             "source": "age_months",
             "when": "above"
+          },
+          "unless": {
+            "source": "panel",
+            "of": "iop,va_right,va_left,fundus",
+            "means_no": [
+              "لم تُقَس",
+              "لم يُفحص"
+            ]
           }
         }
       ],
@@ -2360,6 +2499,13 @@
           "watches": {
             "source": "age_months",
             "when": "above"
+          },
+          "unless": {
+            "source": "panel",
+            "of": "pta_right,pta_left,tympanogram",
+            "means_no": [
+              "لم يُعمل"
+            ]
           }
         },
         {
@@ -2380,7 +2526,12 @@
         {
           "code": "pta_worse",
           "label_ar": "عتبة السمع تدهورت عن الزيارة السابقة",
-          "needs": "trend"
+          "needs": "trend",
+          "watches": {
+            "source": "panel",
+            "of": "pta_right,pta_left",
+            "when": "rise"
+          }
         },
         {
           "code": "speech_with_hearing",
@@ -2539,7 +2690,8 @@
         {
           "code": "contact_untraced",
           "label_ar": "مخالطة درن ومفيش فحص",
-          "needs": "overdue"
+          "needs": "overdue",
+          "blocked_by_ar": "«مخالطة ومفيش فحص» معناها **مفيش طلب أصلاً**، و`order`/`pending` بيجاوب سؤال تاني: طلب اتعمل وما جاش عليه رد. غياب الطلب حاجة تالتة."
         },
         {
           "code": "culture_pending",
@@ -2678,7 +2830,12 @@
         {
           "code": "bsa_worse",
           "label_ar": "المساحة المصابة زادت عن الزيارة السابقة",
-          "needs": "trend"
+          "needs": "trend",
+          "watches": {
+            "source": "panel",
+            "of": "derm_bsa",
+            "when": "rise"
+          }
         },
         {
           "code": "steroid_long",
@@ -2817,12 +2974,28 @@
         {
           "code": "cobb_progress",
           "label_ar": "زاوية الجنف زادت عن الزيارة السابقة",
-          "needs": "trend"
+          "needs": "trend",
+          "watches": {
+            "source": "panel",
+            "of": "cobb_angle",
+            "when": "rise"
+          }
         },
         {
           "code": "hip_not_screened",
           "label_ar": "فحص الورك مااتعملش في الميعاد",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "age_months",
+            "when": "above"
+          },
+          "unless": {
+            "source": "panel",
+            "of": "hip_exam",
+            "means_no": [
+              "لم يُفحص"
+            ]
+          }
         },
         {
           "code": "brace_low",
@@ -2945,12 +3118,22 @@
         {
           "code": "uveitis_overdue",
           "label_ar": "فحص العين فات ميعاده",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "panel",
+            "of": "uveitis_screen",
+            "when": "since"
+          }
         },
         {
           "code": "joints_more",
           "label_ar": "المفاصل النشطة زادت عن الزيارة السابقة",
-          "needs": "trend"
+          "needs": "trend",
+          "watches": {
+            "source": "panel",
+            "of": "active_joints",
+            "when": "rise"
+          }
         },
         {
           "code": "steroid_growth",
@@ -3100,7 +3283,12 @@
         {
           "code": "chemo_late",
           "label_ar": "الدورة تأخرت عن ميعادها",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "panel",
+            "of": "last_chemo_date",
+            "when": "since_date"
+          }
         },
         {
           "code": "weight_drop_onc",
@@ -3196,7 +3384,12 @@
         {
           "code": "ivig_overdue",
           "label_ar": "جرعة الغلوبولين فات ميعادها",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "panel",
+            "of": "ivig_last",
+            "when": "since_date"
+          }
         },
         {
           "code": "live_vaccine_risk",
@@ -3211,7 +3404,12 @@
         {
           "code": "infections_more",
           "label_ar": "العدوى زادت عن السنة اللي فاتت",
-          "needs": "trend"
+          "needs": "trend",
+          "watches": {
+            "source": "panel",
+            "of": "infections_year",
+            "when": "rise"
+          }
         }
       ]
     },
@@ -3329,12 +3527,18 @@
         {
           "code": "crisis_repeat",
           "label_ar": "نوبة أيض جديدة",
-          "needs": "trend"
+          "needs": "trend",
+          "watches": {
+            "source": "panel",
+            "of": "metabolic_crises",
+            "when": "rise"
+          }
         },
         {
           "code": "newborn_screen_missing",
           "label_ar": "مسح حديثي الولادة مااتعملش",
-          "needs": "overdue"
+          "needs": "overdue",
+          "blocked_by_ar": "**الداتا مش موجودة.** لوحة الوراثة مفيهاش خانة لمسح حديثي الولادة (القرابة · الملامح · النوبات · الحمية · المصابين في العيلة)، فمفيش حاجة تتقرا. أقرب حل صح: خانة في لوحة حديثي الولادة، وساعتها بتتوصّل بنفس شكل فحص الشبكية والسمع."
         },
         {
           "code": "emergency_plan_missing",
@@ -3465,10 +3669,25 @@
         {
           "code": "surgery_overdue",
           "label_ar": "العملية المخطط لها فات ميعادها",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "panel",
+            "of": "planned_surgery",
+            "when": "past"
+          },
+          "unless": {
+            "source": "panel",
+            "of": "wound_status,post_op_day",
+            "means_no": [
+              "لا ينطبق"
+            ]
+          }
         }
       ]
     }
   },
-  "_watches_note_ar": "«watches» بيقول التنبيه ده بيبص على إيه: تحليل بكوده من كتالوج الفحوصات، أو علامة حيوية، أو قراءة من قالب التخصص نفسه، أو عمر الطفل بالشهور، أو طلب فحص لسه ماجاش عليه رد. **مفيش رقم إكلينيكي هنا** — الرقم بيتكتب من شاشة أرقام العيادة، والتنبيه ما بيشتغلش قبل ما حد يكتبه. التنبيهات اللي مالهاش «watches» البرنامج ما بيقدرش يجاوبها من اللي عنده، وبتفضل معلنة ومش شغالة — وده أصدق من إنها تبان كأنها شبكة أمان."
+  "_watches_note_ar": "«watches» بيقول التنبيه ده بيبص على إيه: تحليل بكوده من كتالوج الفحوصات، أو علامة حيوية، أو قراءة من قالب التخصص نفسه، أو عمر الطفل بالشهور، أو طلب فحص لسه ماجاش عليه رد. **مفيش رقم إكلينيكي هنا** — الرقم بيتكتب من شاشة أرقام العيادة، والتنبيه ما بيشتغلش قبل ما حد يكتبه. التنبيهات اللي مالهاش «watches» البرنامج ما بيقدرش يجاوبها من اللي عنده، وبتفضل معلنة ومش شغالة — وده أصدق من إنها تبان كأنها شبكة أمان.",
+  "_blocked_note_ar": "«blocked_by_ar» على تنبيه معناه إن البرنامج **ما يقدرش يجاوبه**، ومكتوب ليه بالظبط. تلات أسباب مختلفة وبيتخلطوا: داتا مش موجودة خالص · داتا موجودة والمحرّك مالوش شكل يعبّر بيه عنها · وداتا موجودة في مكان تاني ومفيش قارئ ليها. الفرق بينهم هو الفرق بين «مستحيل» و«لسه ما اتعملش»، وتنبيه من غير لا watches ولا live ولا السطر ده هو تنبيه محدّش قرّر فيه حاجة — واختبار بيرفضه.",
+  "_given_note_ar": "«given» و«unless» بيسألوا نفس السؤال — *السجل فيه ده ولا لأ؟* — وبيختلفوا في أنهي إجابة بتسكّت التنبيه. `unless` بيقفله لما الحاجة تكون حصلت، و`given` ما بيخلّيهوش يشتغل غير لما تكون حصلت. والاتنين مع بعض هُمّا «حصل كذا وبعدين ما حصلش كذا» — زي جلسة تخدير اتعملت ومفيش متابعة بعدها.",
+  "_trend_note_ar": "«rise» و«drop» بيقارنوا آخر قرايتين لنفس الحاجة، والرقم اللي العيادة بتكتبه هو **الفرق بوحدة القراية نفسها** — خمس درجات في زاوية الجنف، عشر نقط في EF — مش نسبة مئوية. وقراية واحدة مش اتجاه: طفل اتشاف مرة مالوش اتجاه، والتنبيه ما بيقولش حاجة لحد ما يبقى فيه اتنين."
 }
