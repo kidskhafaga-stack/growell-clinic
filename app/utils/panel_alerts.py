@@ -126,6 +126,24 @@ def armed(key, code, known=None):
     return rule.threshold if rule is not None and rule.is_armed else None
 
 
+#: The comparisons that answer without anybody writing a number. Only one so
+#: far, and it is the shape the catalogue calls `overdue` in its own words.
+NEEDS_NO_NUMBER = ("past",)
+
+
+def needs_a_number(alert):
+    """Whether this alert waits on a figure the clinic has to write.
+
+    **A box for an alert that needs no number is the old bug wearing the other
+    face.** The screen exists because twenty-two alerts waited on a figure
+    with nowhere to write it; offering a figure to an alert that ignores it
+    would collect a number that changes nothing, which is the same broken
+    promise from the opposite side.
+    """
+    watches = (alert or {}).get("watches") or {}
+    return bool(watches) and watches.get("when") not in NEEDS_NO_NUMBER
+
+
 def watchable(key):
     """This specialty's alerts the program could answer if a number existed.
 
@@ -133,7 +151,7 @@ def watchable(key):
     the catalogue is one the program cannot answer from what it holds, and
     offering a box for it would collect a number that changes nothing.
     """
-    return [a for a in declared(key) if a.get("watches")]
+    return [a for a in declared(key) if needs_a_number(a)]
 
 
 # ------------------------------------------------------- reading a value ----
@@ -263,6 +281,38 @@ def _already_on_record(patient_id, unless):
     return False
 
 
+def _date_in(value):
+    """The date a panel field holds, or ``None`` when it holds no date.
+
+    A ``date`` field is drawn as ``<input type="date">`` and saved as the raw
+    form value, so it reaches the table as ISO text. Anything else — a browser
+    without a date picker, an old row, a typo — is not a date, and a reader
+    that guessed at it would put a clinic's alerts on a made-up day.
+    """
+    from datetime import date
+
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value).strip()[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+def _panel_date(patient_id, code):
+    """The date this panel field records — the **value**, not when it was
+    typed.
+
+    The distinction is the whole point. ``since`` measures from
+    ``recorded_at``, which answers *"how long since somebody wrote something
+    here"*; a field called «تاريخ آخر حقنة بنسلين» answers *"when was the
+    injection"*, and a nurse entering last month's date today would look, to
+    the first reader, like an injection given this morning.
+    """
+    value, _when = _latest_panel_reading(patient_id, code)
+    return _date_in(value)
+
+
 def _months_since(when, now=None):
     """Whole-ish months since a moment, or ``None`` when it never happened."""
     from datetime import datetime
@@ -310,7 +360,10 @@ def measure(patient_id, watches):
         # ``since`` asks *when was this last done*, and the answer to that is
         # a choice, so it reads every kind of reading. ``above``/``below``
         # stay numeric — see the two readers' docstrings.
-        if (watches or {}).get("when") == "since":
+        when = (watches or {}).get("when")
+        if when in ("past", "since_date"):
+            return _panel_date(patient_id, of), None
+        if when == "since":
             return _latest_panel_reading(patient_id, of)
         return _latest_panel(patient_id, of)
     if source == "age_months":
@@ -336,6 +389,31 @@ def _fires(watches, value, when, threshold):
     elif rule == "below":
         if value is not None and value < threshold:
             return {"value": value, "limit": threshold, "at": when}
+    elif rule == "past":
+        # **The only shape that needs no number from anybody.** A date was
+        # written down, it has gone by, and the thing it was the date of has
+        # not been marked done — which is the catalogue's own definition of
+        # `overdue`: *"a date the program already holds; nothing has to be
+        # invented"*. Read against the clinic's own today, never the server's.
+        from app.utils.clock import local_today
+
+        today = local_today()
+        if value is not None and value < today:
+            return {"date": value, "days": (today - value).days}
+    elif rule == "since_date":
+        from app.utils.clock import local_today
+
+        if value is None:
+            # Never recorded. Unlike `since`, this is **not** reported as the
+            # strongest case: «تاريخ آخر جرعة» empty means nobody has written
+            # one down, and a child who has never had the drug at all is not
+            # late for their next dose. The gap is a records gap, and saying
+            # "overdue" about it would send somebody to give a dose.
+            return None
+        months = (local_today() - value).days / 30.44
+        if months > threshold:
+            return {"months": round(months, 1), "limit": threshold,
+                    "since": value}
     elif rule == "since":
         # Never done at all is not "overdue by nothing" — it is the strongest
         # case of the same thing, and reporting silence would hide the child
@@ -366,6 +444,10 @@ def evaluate(patient_id, keys):
             if alert.get("live"):
                 check = LIVE.get(code)
                 detail = check(patient_id) if check is not None else None
+            elif alert.get("watches") and not needs_a_number(alert):
+                # A date that has gone by. Nothing to set, so it works on the
+                # day the clinic installs this.
+                detail = _answer(patient_id, alert, None)
             elif alert.get("watches"):
                 # **The clinic's own number, and nothing fires without one.**
                 # A threshold alert with no row behind it is exactly as
@@ -423,6 +505,8 @@ def waiting(keys):
         for alert in declared(key):
             if alert.get("live"):
                 continue
+            if alert.get("watches") and not needs_a_number(alert):
+                continue        # answers itself; waiting on nobody
             if alert.get("watches") and armed(key, alert["code"],
                                               known) is not None:
                 continue

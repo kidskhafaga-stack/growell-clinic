@@ -225,7 +225,12 @@
         {
           "code": "penicillin_late",
           "label_ar": "حقنة البنسلين تأخّرت عن موعدها *",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "panel",
+            "of": "last_penicillin",
+            "when": "since_date"
+          }
         },
         {
           "code": "inr_out",
@@ -620,12 +625,22 @@
         {
           "code": "no_visit_since_one",
           "label_ar": "لم يزر عيادة الأسنان منذ تجاوز السنة الأولى",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "panel",
+            "of": "last_dental_visit",
+            "when": "since_date"
+          }
         },
         {
           "code": "ga_overdue",
           "label_ar": "جلسة التخدير الكلي فات ميعادها",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "panel",
+            "of": "ga_planned_date",
+            "when": "past"
+          }
         },
         {
           "code": "ga_fasting_unconfirmed",
@@ -3164,7 +3179,12 @@
         {
           "code": "chemo_late",
           "label_ar": "الدورة تأخرت عن ميعادها",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "panel",
+            "of": "last_chemo_date",
+            "when": "since_date"
+          }
         },
         {
           "code": "weight_drop_onc",
@@ -3260,7 +3280,12 @@
         {
           "code": "ivig_overdue",
           "label_ar": "جرعة الغلوبولين فات ميعادها",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "panel",
+            "of": "ivig_last",
+            "when": "since_date"
+          }
         },
         {
           "code": "live_vaccine_risk",
@@ -3529,7 +3554,12 @@
         {
           "code": "surgery_overdue",
           "label_ar": "العملية المخطط لها فات ميعادها",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "panel",
+            "of": "planned_surgery",
+            "when": "past"
+          }
         }
       ]
     }
