@@ -76,7 +76,7 @@ def arrive():
         db.session.rollback()
         return _back(t("emergency.not_saved"), "error")
     db.session.commit()
-    return _back(t("emergency.arrived"), "success")
+    return _back(t("emergency.arrived_msg"), "success")
 
 
 @emergency_bp.route("/triage/<int:visit_id>", methods=["POST"])

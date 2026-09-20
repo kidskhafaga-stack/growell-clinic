@@ -91,13 +91,20 @@ def _has_care(visit_id):
 
 
 def _has_diagnosis(row):
-    """البند vi — التشخيص أو الخلاصة عند انتهاء العلاج."""
+    """البند vi — التشخيص أو الخلاصة عند انتهاء العلاج.
+
+    `Diagnosis` متعلّق بالزيارة مش بالطفل، وده **صح**: التشخيص بتاع لقاء
+    معيّن، وتشخيص من زيارة الشهر اللي فات مش خلاصة حضور النهارده. فحضور
+    من غير زيارة مالوش تشخيص متسجّل — وده مش تشدّد، ده الحقيقة: لو
+    محدّش فتح زيارة يبقى محدّش كتب تقييم ولا رعاية ولا تشخيص، والتلات
+    بنود بيتقالوا ناقصين لأنهم ناقصين فعلاً.
+    """
     from app.models import Diagnosis
 
-    query = Diagnosis.query.filter(Diagnosis.patient_id == row.patient_id)
-    if row.visit_id:
-        query = query.filter(Diagnosis.visit_id == row.visit_id)
-    return query.first() is not None
+    if not row.visit_id:
+        return False
+    return (Diagnosis.query.filter(Diagnosis.visit_id == row.visit_id)
+            .first() is not None)
 
 
 def missing(row):
