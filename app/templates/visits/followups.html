@@ -39,7 +39,7 @@
       <tr data-followup-row="{{ visit.id }}">
         <td>
           <a href="{{ url_for('patients.view', patient_id=visit.patient_id) }}">
-            {{ visit.patient.full_name if visit.patient else '—' }}</a>
+            {{ visit.patient.display_name(current_lang) if visit.patient else '—' }}</a>
         </td>
         <td dir="ltr">{{ visit.visit_date or '—' }}</td>
         <td dir="ltr">{{ visit.followup_due or '—' }}</td>

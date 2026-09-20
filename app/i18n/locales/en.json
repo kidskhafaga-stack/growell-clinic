@@ -7274,6 +7274,17 @@
     "at": "When",
     "yes": "Yes",
     "no": "No",
-    "unsaid": "Nobody asked"
+    "unsaid": "Nobody asked",
+    "board_title": "Education: who needs a second go",
+    "board_sub": "Families who did not understand, and ticks with no teaching behind them.",
+    "board_again": "Not understood — somebody has to go back",
+    "board_again_hint": "Evidence (د) asks for confirmation that the family understood; a confirmation that says no is an errand, not a gap.",
+    "board_again_clear": "No teaching is recorded as not understood.",
+    "board_ticked": "Ticked as told, never taught",
+    "board_ticked_hint": "A «family told» tick on a risk assessment or a blood request, with no education row in the record.",
+    "board_ticked_clear": "Every «family told» tick has teaching recorded behind it.",
+    "board_topics": "Topics",
+    "board_open": "Open the file",
+    "when": "When"
   }
 }

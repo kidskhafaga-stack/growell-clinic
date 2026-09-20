@@ -41,6 +41,8 @@ READERS = [
     ("risks", "without_plan"),
     ("invoice_signoff", "waiting"),
     ("recall", "candidates"),
+    ("education", "needing_a_second_go"),
+    ("education", "ticked_but_never_taught"),
 ]
 
 #: Tabs on the patient file that must stay conditional. The file varies by
@@ -67,6 +69,7 @@ DOORS = [
     ("visits.followups", "app/templates/visits/list.html"),
     ("patients.care_plan_goals", "app/templates/patients/list.html"),
     ("settings.risks", "app/templates/settings/index.html"),
+    ("patients.education_board", "app/templates/patients/list.html"),
 ]
 
 

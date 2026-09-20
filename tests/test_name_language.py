@@ -174,7 +174,24 @@ def test_the_two_screens_agree_in_english(guarded):
 # Rendering a raw name column for display. `name="…"` and `value="…"` inside a
 # form are exempt: an input bound to the Arabic column must show the Arabic
 # column, or saving would overwrite it with the English one.
-_DISPLAYED = re.compile(r"\{\{\s*[\w.]+\.full_name\s*(\||\}\})")
+#
+# **This pattern had a hole, and eight screens went through it.** It used to
+# require the column to sit alone between the braces — ``{{ x.full_name }}`` —
+# so the commonest shape in the whole project, ``{{ x.full_name if x else '—'
+# }}``, was invisible to it. A guard that only catches the tidy half of a
+# habit reads as green while the habit spreads, which is exactly what it did:
+# the board, the follow-ups screen and the theatre list were all written after
+# this test existed, and all three printed the Arabic column to an English
+# reader.
+#
+# So the match is now "the column named anywhere inside an expression", and
+# the exemptions are named instead of implied:
+#   ``t('…full_name')``    a translation key that happens to be called that
+#   ``.full_name(``        a method of that name — `Generic.full_name(lang)`
+#                          is already the localised one
+#   ``full_name_en``       the English column itself, which `\b` excludes
+_DISPLAYED = re.compile(r"\{\{[^{}]*?\b[\w.]+\.full_name\b(?!\s*\()")
+_A_KEY = re.compile(r"t\(\s*['\"][^'\"]*full_name")
 
 
 def _templates():
@@ -198,6 +215,16 @@ def test_no_template_displays_a_raw_name_column():
             for number, line in enumerate(fh, start=1):
                 if 'value="' in line or "name=\"full_name\"" in line:
                     continue                     # binding, not displaying
+                if "form.full_name" in line:
+                    continue                     # the same binding, unquoted:
+                    # `form` is the submitted values on an edit page, and an
+                    # edit page must show the column it will write back.
+                if "data-search=" in line:
+                    continue                     # a haystack, not a label:
+                    # the search attribute holds **both** spellings on purpose
+                    # so typing either one finds the child. Narrowing it to the
+                    # reader's language would hide a patient from a search.
+                line = _A_KEY.sub("t('", line)   # a key, not a column
                 if _DISPLAYED.search(line):
                     offenders.append(f"{os.path.basename(path)}:{number}")
     assert not offenders, (

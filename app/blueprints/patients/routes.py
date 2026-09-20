@@ -668,6 +668,28 @@ def view(patient_id):
     )
 
 
+@patients_bp.route("/education")
+@module_required(MODULE)
+@capability_required("patient_medical")
+def education_board():
+    """Who in the whole clinic is owed a second go, and who was only ticked.
+
+    **The door the file could not be.** The tab answers PCC.07 for the child
+    in front of you, and the two things it surfaces are both errands that
+    belong to somebody who is not in the room: a family that did not
+    understand, and a tick with no teaching behind it. An errand nobody can
+    list is an errand nobody does — which is what happened to four readers in
+    this project before `test_every_door_leads_somewhere` was written.
+
+    Read-only. The work is done in the file, and every row links to it.
+    """
+    from app.utils import education
+
+    return render_template("patients/education_board.html",
+                           again=education.needing_a_second_go(),
+                           ticked=education.ticked_but_never_taught())
+
+
 @patients_bp.route("/<int:patient_id>/education", methods=["POST"])
 @module_required(MODULE)
 def education_record(patient_id):

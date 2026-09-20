@@ -111,10 +111,10 @@ class PatientEducation(db.Model):
     admission = db.relationship("Admission")
     by = db.relationship("User")
 
-    @property
-    def landed(self):
-        """Whether this teaching is finished — said **and** confirmed."""
-        return self.understood is True
-
+    # No ``landed`` boolean here on purpose. It was written, and a mutation
+    # showed nothing could tell whether it was right: no screen reads it, and
+    # no screen would — the tab draws three states, not two, and the two-state
+    # answer to "is this finished" is ``education.state(...) == DONE``, read
+    # across a topic's rows rather than one row at a time.
     def __repr__(self):
         return f"<PatientEducation {self.topic} patient={self.patient_id}>"

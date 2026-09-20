@@ -197,9 +197,58 @@ def said_told_but_never_taught(patient_id):
     return out
 
 
+def needing_a_second_go(limit=200):
+    """Every teaching in the clinic the family did **not** understand.
+
+    The file answers this for one child; nothing answered it for the place.
+    A ``False`` in that column is an errand with a name on it — somebody said
+    they would go back — and an errand nobody can list is an errand nobody
+    does. Driven off the education table itself, so the cost is the size of
+    the finding and not the size of the clinic.
+    """
+    return (PatientEducation.query
+            .filter(PatientEducation.understood.is_(False))
+            .order_by(PatientEducation.at.desc())
+            .limit(limit).all())
+
+
+def ticked_but_never_taught(limit=200):
+    """`said_told_but_never_taught`, for the whole clinic.
+
+    **Driven from the ticks, never from the patients.** The children who could
+    possibly show this finding are exactly the ones carrying a `family_told`
+    of ``True``, and that is a short list in any clinic — so the scan is over
+    the ticks, and a place with ten thousand files pays for its ticks only.
+
+    Returns ``[{"patient": Patient, "topics": [...]}, ...]``.
+    """
+    from app.models import Patient
+    from app.models.blood import BloodRequest
+    from app.models.risk_assessment import RiskAssessment
+
+    ids = []
+    for model in (RiskAssessment, BloodRequest):
+        try:
+            rows = (db.session.query(model.patient_id)
+                    .filter(model.family_told.is_(True)).distinct().all())
+        except Exception:               # noqa: BLE001 — table not ready yet
+            continue
+        for row in rows:
+            if row[0] and row[0] not in ids:
+                ids.append(row[0])
+    out = []
+    for patient_id in ids[:limit]:
+        topics = said_told_but_never_taught(patient_id)
+        if not topics:
+            continue
+        patient = db.session.get(Patient, patient_id)
+        if patient is not None:
+            out.append({"patient": patient, "topics": topics})
+    return out
+
+
 def record(patient, topic, user=None, detail=None, method=None,
-           understood=None, interpreter=False, visit=None, admission=None,
-           at=None):
+           understood=None, interpreter=False, visit=None, admission=None):
     """Write one piece of teaching. Caller commits.
 
     Raises ``ValueError`` for a topic or a method the screen cannot draw — a
@@ -227,10 +276,12 @@ def record(patient, topic, user=None, detail=None, method=None,
         interpreter=bool(interpreter),
         understood=understood,
         by_id=getattr(user, "id", None))
-    # Set only when a moment was given, so the column's own default stands
-    # otherwise. Assigning ``None`` would beat the default and leave a row
-    # with no time on it, and the column is not nullable.
-    if at is not None:
-        row.at = at
+    # ``at`` is the column's own default and takes no parameter here. It had
+    # one, guarded by three lines whose comment claimed an explicit ``None``
+    # would beat the default and leave a row with no time on it. A mutation
+    # showed the guard could not be made to fail, and the claim was simply
+    # wrong — SQLAlchemy fires the default for an attribute that is ``None``
+    # at flush time. What was left was a seam nothing passes; backdating can
+    # add it back the day something needs to backdate.
     db.session.add(row)
     return row

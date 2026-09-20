@@ -172,7 +172,7 @@
       {% for note in due_rounds %}
       <tr data-round-due>
         <td dir="ltr">{{ note.at.strftime('%Y-%m-%d') }}</td>
-        <td>{{ note.by.full_name or note.by.username }}</td>
+        <td>{{ note.by.display_name(current_lang) or note.by.username }}</td>
         <td>{{ round_service.display_name(current_lang) }}</td>
         <td dir="ltr"><b>{{ round_service.price_for(note.by) }}</b></td>
       </tr>
