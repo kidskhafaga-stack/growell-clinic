@@ -89,4 +89,88 @@
   </div>
   {% endif %}
 </div>
+
+{# **أخطر صف على الشاشة دي.** أمر التقييد خلص والطفل لسه مربوط — مش ورقة
+   ناقصة، ده تقييد بقى من غير إذن، وبيعدّي لأن مفيش حاجة بتتغيّر على أي
+   شاشة لما ساعة تعدّي. CSS.12 (ز). #}
+{% if restraints_expired %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:16px;border-inline-start:4px solid var(--danger);"
+     data-restraints-expired>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('restraint.expired') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('restraint.expired_hint') }}</span>
+  </div>
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr><th>{{ t('followup.child') }}</th><th>{{ t('restraint.title') }}</th>
+      <th>{{ t('restraint.item_limit') }}</th><th></th></tr></thead>
+    <tbody>
+      {% for row in restraints_expired %}
+      <tr data-expired-restraint="{{ row.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
+          {{ row.patient.display_name(current_lang) if row.patient else '—' }}</a></td>
+        <td>{{ t('restraint.kind_' ~ row.kind) }}{% if row.method %} · {{ row.method }}{% endif %}</td>
+        <td dir="ltr"><span class="badge badge--danger">{{ row.valid_until.strftime('%Y-%m-%d %H:%M') }}</span></td>
+        <td>{% if row.admission_id %}
+          <a class="btn btn-sm btn-outline gc-press"
+             href="{{ url_for('beds.stay', admission_id=row.admission_id) }}#restraint">
+            {{ t('education.board_open') }}</a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+{# غير اللي فوق عن قصد: ده ورقة ناقصة من ساعة ما اتكتبت، واللي فوق حاجة
+   حصلت ولازم تتصرّف فيها دلوقتي. خلطهم بيخلّي الاتنين يتأجّلوا. #}
+{% if restraints_unlimited or restraints_unwatched %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:16px;"
+     data-restraints-other>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('restraint.title') }}</strong>
+  </div>
+  <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;">
+    {% for row in restraints_unlimited %}
+    <a class="badge badge--warning" data-restraint-nolimit="{{ row.id }}"
+       href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
+      {{ t('restraint.no_limit') }}: {{ row.patient.display_name(current_lang) if row.patient else '—' }}</a>
+    {% endfor %}
+    {% for item in restraints_unwatched %}
+    <a class="badge badge--danger" data-restraint-unwatched="{{ item.restraint.id }}"
+       href="{{ url_for('patients.view', patient_id=item.restraint.patient_id) }}">
+      {{ t('restraint.unwatched') }}: {{ item.restraint.patient.display_name(current_lang) if item.restraint.patient else '—' }}</a>
+    {% endfor %}
+  </div>
+  {% if restraint_minutes is none %}
+  <p class="hint" style="margin:0;padding:0 18px 14px;" data-no-restraint-interval>
+    {{ t('restraint.unwatched_hint') }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+{# إنعاش لسه مفتوح: مش سجل ناقص، ده إنعاش محدّش قفله — والاتنين شكلهم
+   واحد على شاشة ما بتفرّقش. CSS.05 (ح). #}
+{% if resus_running or resus_unanswered %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:16px;"
+     data-resus>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('resus.title') }}</strong>
+  </div>
+  <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;">
+    {% for row in resus_running %}
+    <a class="badge badge--danger" data-resus-running="{{ row.id }}"
+       href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
+      {{ t('resus.running') }}: {{ row.patient.display_name(current_lang) if row.patient else '—' }}
+      <span dir="ltr">{{ row.minutes }}′</span></a>
+    {% endfor %}
+    {% for row in resus_unanswered %}
+    <a class="badge badge--warning" data-resus-unanswered="{{ row.id }}"
+       href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
+      {{ t('resus.unanswered') }}</a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 {% endblock %}

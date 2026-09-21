@@ -46,6 +46,11 @@ READERS = [
     ("emergency", "open_visits"),
     ("emergency", "untriaged"),
     ("emergency", "incomplete_departed"),
+    ("restraint", "expired"),
+    ("restraint", "no_limit_set"),
+    ("restraint", "unwatched"),
+    ("resuscitation", "running"),
+    ("resuscitation", "never_answered"),
 ]
 
 #: Tabs on the patient file that must stay conditional. The file varies by

@@ -26,6 +26,9 @@ chose to run it.
 
 # (table, column, column DDL type) introduced by later phases.
 ADDITIONS = [
+    # مراقبة التقييد: قراءة عادية متعلّمة بالحدث. عيادة شغّالة بتاخد العمود
+    # فاضي على كل صف موجود، وده الصح — مفيش قراية قديمة كانت أثناء تقييد.
+    ("observations", "restraint_id", "INTEGER"),
     # The second half of "a sudden weight gain over days". A clinic that has
     # already written its kilogram keeps it; the window arrives empty and the
     # alert stays exactly as dormant as it was.

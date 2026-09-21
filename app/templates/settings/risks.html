@@ -69,6 +69,22 @@
       </div>
     </div>
 
+    {# نفس القاعدة بالظبط: CSS.12 (و) بيطلب «مراقبة وإعادة تقييم أثناء
+       الاستعمال» وما بيقولش كل قد إيه — لأن الفترة بتختلف بنوع التقييد وبسن
+       الطفل. فالخانة دي بتبدأ فاضية، وطول ما هي فاضية مفيش طفل مربوط بيتقال
+       عليه إن محدّش باصص عليه. #}
+    <div class="form-row" style="border-top:1px solid var(--line);padding-top:12px;"
+         data-restraint-watch-policy>
+      <label for="restraint_watch_minutes">
+        <strong>{{ t('restraint.title') }}</strong>
+        <span class="hint" dir="ltr">CSS.12</span></label>
+      <div style="max-width:220px;">
+        <input class="input" type="number" min="0" id="restraint_watch_minutes"
+               name="restraint_watch_minutes" value="{{ restraint_watch_minutes }}">
+        <div class="hint">{{ t('restraint.watch_minutes') }}</div>
+      </div>
+    </div>
+
     <button class="btn btn-primary gc-press" type="submit" style="margin-top:14px;">
       <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
   </form>

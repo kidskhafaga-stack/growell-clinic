@@ -423,7 +423,8 @@
     "tab_care_plan": "Plan of care",
     "tab_blood": "Blood",
     "tab_education": "Education",
-    "tab_emergency": "Emergency"
+    "tab_emergency": "Emergency",
+    "tab_safety": "Restraint & resuscitation"
   },
   "import": {
     "title": "Import patient data",
@@ -7353,5 +7354,51 @@
     "board_topics": "Topics",
     "board_open": "Open the file",
     "when": "When"
+  },
+  "restraint": {
+    "title": "Restraint and seclusion",
+    "started": "Restraint order recorded.",
+    "renewed": "Order renewed — the old one is closed.",
+    "ended": "Restraint removed.",
+    "needs_reason_and_order": "Not saved — restraint needs a written reason and a physician order. Both are the standard's own words.",
+    "kind_physical": "Physical restraint",
+    "kind_chemical": "Chemical restraint",
+    "kind_seclusion": "Seclusion",
+    "expired": "Order expired, still restrained",
+    "expired_hint": "Not a missing form — this is restraint without authorisation.",
+    "no_limit": "Restrained with no time limit on the order",
+    "no_limit_hint": "A missing form since it was written — different from the above, and counted apart.",
+    "unwatched": "Restrained and not checked",
+    "unwatched_hint": "The interval comes from clinic settings — the standard gives no number.",
+    "none_now": "Nobody is restrained right now.",
+    "item_order": "Physician order",
+    "item_reason": "Reason",
+    "item_alternatives": "What was tried first",
+    "item_limit": "Time limit",
+    "item_monitoring": "Monitoring during use",
+    "item_end": "Reason for removal",
+    "watch_minutes": "How often somebody checks a restrained child (minutes)"
+  },
+  "resus": {
+    "title": "Cardiopulmonary resuscitation",
+    "started": "Arrest recorded.",
+    "marked": "Time recorded.",
+    "finished": "Resuscitation closed.",
+    "not_saved": "Not saved — that outcome is not one this screen can draw.",
+    "running": "Resuscitation still open",
+    "running_hint": "Open for an hour is not an incomplete record — it is one nobody closed.",
+    "unanswered": "No arrival time recorded for the team",
+    "late": "Team took more than five minutes",
+    "late_hint": "The number is the standard's own — CSS.05 evidence 3.",
+    "to_call": "To call",
+    "to_team": "To team",
+    "place": "Place",
+    "out_rosc": "Return of circulation",
+    "out_died": "Died",
+    "out_transferred": "Transferred",
+    "item_called": "Call time",
+    "item_team": "Team arrival time",
+    "item_management": "What was done",
+    "item_outcome": "Outcome"
   }
 }
