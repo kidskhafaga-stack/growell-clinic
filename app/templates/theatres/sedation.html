@@ -33,6 +33,41 @@
 </div>
 {% endif %}
 
+{# **فتح حلقة.** القايمة محدودة بأطفال النهاردة — عملية أو زيارة —
+   لأن اللي بيفتح الحلقة واقف جنب الطفل، وقايمة بكل طفل اتسجّل من سنين
+   مش اختيار. واللي ليه عملية بييجي معاها، علشان الحلقة تتربط بيها
+   وتقرا أوقاتها منها بدل نسخة تانية. #}
+<div class="card gc-scale-in" style="padding:14px 18px;margin-bottom:16px;"
+     data-sedation-open>
+  <form method="post" action="{{ url_for('theatres.sedation_start') }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:1 1 260px;">
+      <label for="sed_who">{{ t('sedation.open_who') }}</label>
+      <select class="input" id="sed_who" name="who" required>
+        <option value="">—</option>
+        {% for c in candidates %}
+        <option value="{{ c.patient.id }}:{{ c.operation.id if c.operation else '' }}">
+          {{ c.patient.display_name(current_lang) }}{% if c.operation %} · {{ c.operation.procedure }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="flex:0 1 200px;">
+      <label for="sed_kind">{{ t('sedation.kind') }}</label>
+      <select class="input" id="sed_kind" name="kind" required>
+        {% for k in kinds %}
+        <option value="{{ k }}">{{ t('sedation.kind_' ~ k) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-play-circle"></i> {{ t('sedation.open_btn') }}</button>
+  </form>
+  {% if not candidates %}
+  <p class="hint" style="margin:8px 0 0;">{{ t('sedation.nobody_today') }}</p>
+  {% endif %}
+</div>
+
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;" data-sedation-live>
   <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
     <strong>{{ t('sedation.live') }}</strong>
@@ -64,6 +99,67 @@
           {% for gap in gaps_of(row) %}
           <span class="badge badge--warning" data-missing="{{ gap }}">{{ t('sedation.item_' ~ gap) }}</span>
           {% endfor %}
+        </td>
+      </tr>
+      {# سطر الكتابة تحت سطر القراية، مش شاشة تانية — اللي بيكتب واقف
+         قدام الجدول وبيملا اللي ناقص وهو شايفه. #}
+      <tr data-sedation-write="{{ row.id }}">
+        <td colspan="5" style="background:var(--bg-soft);">
+          <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;"
+                action="{{ url_for('theatres.sedation_describe', record_id=row.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if row.kind == 'anaesthesia' %}
+            <input class="input" style="flex:1 1 130px;" name="technique"
+                   value="{{ row.technique or '' }}"
+                   placeholder="{{ t('sedation.item_technique') }}">
+            <input class="input" style="flex:1 1 110px;" name="blood_given"
+                   value="{{ row.blood_given or '' }}"
+                   placeholder="{{ t('sedation.item_blood') }}">
+            {% else %}
+            <input class="input" style="flex:1 1 110px;" name="score"
+                   value="{{ row.score or '' }}"
+                   placeholder="{{ t('sedation.item_score') }}">
+            {% endif %}
+            <input class="input" style="flex:2 1 200px;" name="drugs"
+                   value="{{ row.drugs or '' }}"
+                   placeholder="{{ t('sedation.item_drugs') }}">
+            <input class="input" style="flex:0 1 90px;" type="number" min="0"
+                   name="fluids_in_ml" value="{{ row.fluids_in_ml if row.fluids_in_ml is not none else '' }}"
+                   placeholder="{{ t('sedation.fluids_in') }}">
+            <input class="input" style="flex:0 1 90px;" type="number" min="0"
+                   name="fluids_out_ml" value="{{ row.fluids_out_ml if row.fluids_out_ml is not none else '' }}"
+                   placeholder="{{ t('sedation.fluids_out') }}">
+            <input class="input" style="flex:1 1 150px;" name="unusual_event"
+                   value="{{ row.unusual_event or '' }}"
+                   placeholder="{{ t('sedation.item_event') }}">
+            <button class="btn btn-sm btn-outline gc-press" type="submit">
+              <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
+          </form>
+          <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;"
+                action="{{ url_for('theatres.sedation_leave', record_id=row.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if row.in_theatre %}
+            <input class="input" style="flex:1 1 180px;" name="condition"
+                   placeholder="{{ t('sedation.item_condition') }}">
+            {% else %}
+            <input class="input" style="flex:0 1 120px;" name="score"
+                   placeholder="{{ t('sedation.item_recovery_score') }}">
+            <input class="input" style="flex:1 1 160px;" name="event"
+                   placeholder="{{ t('sedation.item_recovery_event') }}">
+            {% endif %}
+            <select class="input" style="flex:0 1 150px;" name="disposition" required>
+              <option value="">{{ t('sedation.item_disposition') }}</option>
+              {% for d in dispositions %}
+              {# ولمّا يكون في الإفاقة، «الإفاقة» مش مآل — هو فيها. #}
+              {% if row.in_theatre or d != 'recovery' %}
+              <option value="{{ d }}">{{ t('sedation.disp_' ~ d) }}</option>
+              {% endif %}
+              {% endfor %}
+            </select>
+            <button class="btn btn-sm btn-primary gc-press" type="submit">
+              <i class="bi bi-box-arrow-right"></i>
+              {{ t('sedation.leave_theatre') if row.in_theatre else t('sedation.leave_recovery') }}</button>
+          </form>
         </td>
       </tr>
       {% endfor %}

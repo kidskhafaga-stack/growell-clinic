@@ -877,3 +877,88 @@ def test_a_clinic_with_no_theatres_has_no_sedation_on_the_file(theatre):
 
     assert f'data-sedation-record="{rid}"' not in page
     assert "'sedation','tab_sedation'" not in page
+
+
+def test_the_board_can_actually_open_an_episode(theatre):
+    """**الشاشة كانت بتقرا وبس.** تلات مسارات كتابة اتكتبوا ومفيش ولا
+    فورمة بتبعتلهم — سجل محدّش يقدر يفتحه."""
+    from app.utils import sedation as sed
+
+    op_id = _case(theatre)
+    client = theatre["sign_in"]("doc")
+
+    page = client.get("/theatres/sedation").get_data(as_text=True)
+    assert "data-sedation-open" in page
+    assert f'value="{theatre["ids"]["child"]}:{op_id}"' in page
+
+    client.post("/theatres/sedation/start", follow_redirects=True, data={
+        "who": f'{theatre["ids"]["child"]}:{op_id}', "kind": "anaesthesia"})
+
+    with theatre["app"].app_context():
+        rows = sed.for_patient(theatre["ids"]["child"])
+        assert len(rows) == 1
+        assert rows[0].operation_id == op_id
+
+
+def test_an_episode_is_not_hung_on_another_childs_operation(theatre):
+    """رفض بصوت أحسن من سجل بيربط طفل بعملية طفل تاني — والأوقات بعد
+    كده كانت هتتقرا من العملية الغلط."""
+    from app.utils import sedation as sed
+
+    op_id = _case(theatre)                       # عملية الطفل الأول
+
+    theatre["sign_in"]("doc").post(
+        "/theatres/sedation/start", follow_redirects=True,
+        data={"who": f'{theatre["ids"]["other_child"]}:{op_id}',
+              "kind": "sedation"})
+
+    with theatre["app"].app_context():
+        assert sed.for_patient(theatre["ids"]["other_child"]) == []
+
+
+def test_the_board_writes_the_items_it_lists(theatre):
+    rid = _open(theatre)
+    client = theatre["sign_in"]("doc")
+
+    page = client.get("/theatres/sedation").get_data(as_text=True)
+    assert f'data-sedation-write="{rid}"' in page
+
+    client.post(f"/theatres/sedation/{rid}/describe", follow_redirects=True,
+                data={"drugs": "ميدازولام ٢ مجم", "fluids_in_ml": "120"})
+
+    with theatre["app"].app_context():
+        row = _row(theatre, rid)
+        assert row.drugs == "ميدازولام ٢ مجم"
+        assert row.fluids_in_ml == 120
+
+
+def test_the_board_can_take_the_child_out_of_the_theatre(theatre):
+    rid = _open(theatre)
+    client = theatre["sign_in"]("doc")
+
+    client.post(f"/theatres/sedation/{rid}/leave", follow_redirects=True,
+                data={"disposition": "recovery", "condition": "فايق"})
+
+    with theatre["app"].app_context():
+        row = _row(theatre, rid)
+        assert row.in_recovery
+        assert row.condition_on_leaving == "فايق"
+
+
+def test_recovery_is_not_offered_to_a_child_already_in_it(theatre):
+    """«الإفاقة» مش مآل لواحد هو فيها."""
+    from app.models import User
+    from app.utils import sedation as sed
+
+    rid = _open(theatre)
+    with theatre["app"].app_context():
+        doc = theatre["db"].session.get(User, theatre["ids"]["doctor"])
+        sed.leave_theatre(_row(theatre, rid), "recovery", user=doc)
+        theatre["db"].session.commit()
+
+    page = theatre["sign_in"]("doc").get("/theatres/sedation").get_data(
+        as_text=True)
+
+    block = page.split(f'data-sedation-write="{rid}"')[1].split("</tr>")[0]
+    assert 'value="recovery"' not in block
+    assert 'value="home"' in block

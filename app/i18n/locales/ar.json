@@ -7443,6 +7443,13 @@
     "disp_recovery": "الإفاقة",
     "disp_ward": "قسم داخلي",
     "disp_icu": "عناية مركزة",
-    "disp_home": "البيت"
+    "disp_home": "البيت",
+    "open_who": "الطفل",
+    "open_btn": "افتح حلقة",
+    "nobody_today": "مفيش أطفال النهاردة — لا عملية ولا زيارة.",
+    "fluids_in": "داخل مل",
+    "fluids_out": "خارج مل",
+    "leave_theatre": "ساب المسرح",
+    "leave_recovery": "ساب الإفاقة"
   }
 }

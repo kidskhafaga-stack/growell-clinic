@@ -7443,6 +7443,13 @@
     "disp_recovery": "Recovery",
     "disp_ward": "Ward",
     "disp_icu": "Intensive care",
-    "disp_home": "Home"
+    "disp_home": "Home",
+    "open_who": "Child",
+    "open_btn": "Open an episode",
+    "nobody_today": "Nobody today — no operation and no visit.",
+    "fluids_in": "In ml",
+    "fluids_out": "Out ml",
+    "leave_theatre": "Left theatre",
+    "leave_recovery": "Left recovery"
   }
 }

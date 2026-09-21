@@ -995,6 +995,47 @@ def recovery_room():
 
 
 # ------------------------------------- سجل التخدير والتسكين ----
+def _int(raw):
+    """رقم من الشاشة، أو ``None``."""
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _sedation_candidates(on_date=None):
+    """الأطفال اللي ينفع تتفتحلهم حلقة دلوقتي — عملية النهاردة أو زيارة.
+
+    **مش كل أطفال العيادة.** اللي بيفتح الحلقة واقف جنب الطفل، والقايمة
+    اللي فيها كل طفل اتسجّل من سنين مش اختيار — دي كومة، واللي بيدوّر
+    فيها بيدوس أقرب اسم شبه اللي هو عايزه.
+
+    والعمليات بتيجي الأول ومعاها رقمها، علشان الحلقة تتربط بالعملية —
+    وساعتها الأوقات بتتقرا منها بدل ما يبقى ليها نسخة تانية.
+    """
+    from app.models import Operation, Patient, Visit
+
+    day = on_date or local_today()
+    out, seen = [], set()
+    for op in (Operation.query
+               .filter(Operation.on_date == day,
+                       Operation.status.in_(("scheduled", "done")))
+               .order_by(Operation.id).all()):
+        if op.patient is None:
+            continue
+        out.append({"patient": op.patient, "operation": op})
+        seen.add(op.patient_id)
+    for visit in (Visit.query
+                  .filter(Visit.visit_date == day)
+                  .order_by(Visit.id).all()):
+        if visit.patient is None or visit.patient_id in seen:
+            continue
+        out.append({"patient": visit.patient, "operation": None})
+        seen.add(visit.patient_id)
+    return out
+
+
+
 @theatres_bp.route("/sedation")
 @module_required(MODULE)
 def sedation_board():
@@ -1006,10 +1047,22 @@ def sedation_board():
     """
     from app.utils import sedation as sed
 
+    from app.models import SEDATION_DISPOSITIONS, SEDATION_KINDS
+
+    running = sed.live()
     return render_template("theatres/sedation.html",
-                           live=sed.live(), short=sed.incomplete(),
+                           live=running, short=sed.incomplete(),
                            unwatched=sed.unwatched(),
                            interval=sed.interval_minutes(),
+                           # مين ينفع تتفتحله حلقة دلوقتي. **قايمة
+                           # محدودة مش كل أطفال العيادة**: اللي بيفتح
+                           # الحلقة واقف جنب الطفل، والطفل ده يا إما
+                           # ليه عملية النهاردة يا إما ليه زيارة —
+                           # وقايمة بكل طفل مسجّل من ٢٠١٩ مش اختيار،
+                           # دي كومة.
+                           candidates=_sedation_candidates(),
+                           kinds=SEDATION_KINDS,
+                           dispositions=SEDATION_DISPOSITIONS,
                            # القايمة الناقصة بتتحسب من نفس الصف اللي الصف
                            # بيترسم منه — حساب تاني كان هيقدر يخالفه.
                            gaps_of=sed.missing)
@@ -1022,11 +1075,20 @@ def sedation_start():
     from app.models import Operation, Patient
     from app.utils import sedation as sed
 
-    patient = db.session.get(Patient, request.form.get("patient_id", type=int))
-    operation = db.session.get(Operation,
-                               request.form.get("operation_id", type=int))
+    # **الطفل والعملية بييجوا مع بعض من خانة واحدة** (`12:7`)، لأنهم
+    # اختيار واحد: اللي بيدوس بيختار «الطفل ده في عمليته دي». خانتين
+    # كانوا هيخلّوا حلقة تتفتح لطفل على عملية طفل تاني.
+    patient_id, _, operation_id = (request.form.get("who") or "").partition(":")
+    patient = db.session.get(Patient, _int(patient_id))
+    operation = db.session.get(Operation, _int(operation_id))
     if patient is None and operation is not None:
         patient = operation.patient
+    if operation is not None and patient is not None \
+            and operation.patient_id != patient.id:
+        # مش عملية الطفل ده. رفض بصوت أحسن من سجل بيربط طفل بعملية
+        # طفل تاني — والأوقات بعد كده بتتقرا من العملية الغلط.
+        flash(t("sedation.not_saved"), "error")
+        return redirect(url_for("theatres.sedation_board"))
     try:
         sed.start(patient, (request.form.get("kind") or "").strip(),
                   user=current_user, operation=operation)
