@@ -59,6 +59,9 @@ READERS = [
     ("refusal", "undocumented"),
     ("refusal", "incomplete"),
     ("refusal", "unsigned"),
+    ("lines", "unlabelled_high_risk"),
+    ("lines", "still_in_after_discharge"),
+    ("lines", "unnamed_other"),
 ]
 
 #: Tabs on the patient file that must stay conditional. The file varies by
@@ -78,6 +81,7 @@ EARNED_TABS = [
     ("sedation", "app/templates/patients/profile.html"),
     ("verbal", "app/templates/patients/profile.html"),
     ("refusal", "app/templates/patients/profile.html"),
+    ("lines", "app/templates/patients/profile.html"),
 ]
 
 #: Screens whose own door must exist — ``(endpoint, template that links it)``.

@@ -524,6 +524,11 @@ def view(patient_id):
 
     _refusals = no_util.for_patient(patient.id)
     _refusal_missing = {r.id: no_util.missing(r) for r in _refusals}
+    # القساطر — `CSS.03` دليل ٤ بيقول إنها بتتسجّل **في الملف**،
+    # والخريطة بتتحسب من الصفوف مش متخزّنة.
+    from app.utils import lines as line_util
+
+    _lines = line_util.for_patient(patient.id)
     ai_patient = (current_user.can_access("ai") and ai_utils.is_ready()
                   and ai_utils.patient_context_enabled())
     # The discussion card needs both: the record still leaves the building, and
@@ -638,6 +643,7 @@ def view(patient_id):
         refusals=_refusals,
         refusal_missing=_refusal_missing,
         refusal_kinds=REFUSAL_KINDS,
+        lines=_lines,
         emergency_missing=_emergency_missing,
         growth_alert=_growth_concern(_growth_picture),
         # One reading across every visit — labs, device studies and specialty
