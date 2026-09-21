@@ -78,7 +78,7 @@
     <div class="alert-pill danger" style="display:flex;gap:8px;align-items:center;">
       <i class="bi bi-hospital-fill"></i>
       <strong>{{ t('visits.referred_badge') }}</strong>
-      {% if r.visit.referred_to %}<span>{{ r.visit.referred_to }}</span>{% endif %}
+      {% if r.visit.referral_where %}<span>{{ r.visit.referral_where }}</span>{% endif %}
     </div>
     {% endif %}
     {% if r.visit and r.visit.nurse_instructions %}

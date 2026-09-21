@@ -95,7 +95,16 @@ def test_clearing_it_removes_it(clinic):
 
 # ============================================== the referral ================
 def test_referring_records_where_and_why_and_when(clinic):
-    """The one record that has to survive the panic."""
+    """The one record that has to survive the panic.
+
+    **Asked of the reader, not of the column.** `ACT.14` moved the referral
+    into its own table — the sheet needs eight elements and a reply, which
+    three columns on `Visit` cannot hold. The old columns stay for the
+    referrals a working clinic already wrote (`utils/schema` is additive and
+    never rewrites), so `referral_where` and its two siblings answer from
+    the new row first and those columns second. What this test has always
+    been about — where, why, when — is unchanged.
+    """
     from app.models import Visit
 
     _refer(clinic)
@@ -103,9 +112,9 @@ def test_referring_records_where_and_why_and_when(clinic):
     with clinic["app"].app_context():
         visit = clinic["db"].session.get(Visit, _visit(clinic))
         assert visit.is_referred
-        assert visit.referred_to == "مستشفى الأطفال"
-        assert visit.referral_note == "تسحّب شديد"
-        assert visit.referred_at is not None
+        assert visit.referral_where == "مستشفى الأطفال"
+        assert visit.referral_why == "تسحّب شديد"
+        assert visit.referral_when is not None
 
 
 def test_the_doctors_list_shows_it(clinic):

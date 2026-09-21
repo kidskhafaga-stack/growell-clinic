@@ -1,0 +1,138 @@
+{% extends "shell.html" %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('referrals.title') }}{% endblock %}
+{% block page_heading %}{{ t('referrals.title') }}{% endblock %}
+
+{% macro gaps(row) %}
+  {% set names = missing(row) %}
+  {% if names %}
+  <div class="hint" data-gaps="{{ row.id }}" style="margin-top:4px;">
+    {{ t('referrals.missing') }}:
+    {% for name in names %}<span data-gap="{{ name }}">{{ t('referrals.el_' ~ name) }}</span>{% if not loop.last %} · {% endif %}{% endfor %}
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro complete_form(row) %}
+<form method="post" action="{{ url_for('visits.referral_describe', referral_id=row.id) }}"
+      style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;" data-complete="{{ row.id }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if not row.sent_to %}
+  <input class="input" name="sent_to" style="max-width:180px;"
+         placeholder="{{ t('referrals.el_sent_to') }}">{% endif %}
+  {% if not row.transport %}
+  <input class="input" name="transport" style="max-width:160px;"
+         placeholder="{{ t('referrals.el_transport') }}">{% endif %}
+  {% if not row.monitoring %}
+  <input class="input" name="monitoring" style="max-width:200px;"
+         placeholder="{{ t('referrals.el_monitoring') }}">{% endif %}
+  {% if not row.condition %}
+  <input class="input" name="condition" style="max-width:200px;"
+         placeholder="{{ t('referrals.el_condition') }}">{% endif %}
+  <button class="btn btn-outline btn-sm gc-press" type="submit">
+    <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
+</form>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('referrals.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('referrals.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('visits.index') }}">
+    <i class="bi bi-arrow-right"></i> {{ t('nav.visits') }}</a>
+</div>
+
+{# **الردود اللي محدّش وقّع عليها فوق، عن قصد.**
+
+   «راحت ومحدّش رد» بتبان ناقصة من بعيد — مفيش رد، خلاص. أما الصف اللي
+   رجع فيه رد ومحدّش راجعه **فبيبان مكتمل**: فيه ورقة، وفيه رد، وفيه
+   كلام مكتوب. وأي جرد بيعدّ الردود بيعدّه رد. فهو اللي محتاج يبقى فوق. #}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;" data-referrals-unsigned>
+  <div style="padding:12px 16px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('referrals.unsigned_title') }}</strong>
+    <div class="hint" style="margin-top:2px;">{{ t('referrals.unsigned_sub') }}</div>
+  </div>
+  {% if not unsigned %}
+  <p class="hint" style="margin:0;padding:18px;" data-unsigned-empty>{{ t('referrals.none_unsigned') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('referrals.child') }}</th><th>{{ t('referrals.el_sent_to') }}</th>
+      <th>{{ t('referrals.came_back') }}</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for row in unsigned %}
+      <tr data-unsigned="{{ row.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">{{ row.patient.name }}</a></td>
+        <td>{{ row.sent_to or '—' }}</td>
+        <td>{{ row.feedback }}</td>
+        <td>
+          {# اللي بيوقّع هنا هو اللي بيقرا — مش بادچ بيقول «روح شوف». #}
+          <form method="post" action="{{ url_for('visits.referral_review', referral_id=row.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-primary gc-press" type="submit" data-sign="{{ row.id }}">
+              <i class="bi bi-pen"></i> {{ t('referrals.sign') }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;" data-referrals-waiting>
+  <div style="padding:12px 16px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('referrals.waiting_title') }}</strong>
+    <div class="hint" style="margin-top:2px;">{{ t('referrals.waiting_sub') }}</div>
+  </div>
+  {% if not rows %}
+  <p class="hint" style="margin:0;padding:18px;" data-waiting-empty>{{ t('referrals.none_waiting') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('referrals.child') }}</th><th>{{ t('referrals.el_sent_to') }}</th>
+      <th>{{ t('referrals.el_reason') }}</th><th>{{ t('referrals.days') }}</th>
+      <th>{{ t('referrals.write_back') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr data-waiting="{{ row.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">{{ row.patient.name }}</a></td>
+        <td>{{ row.sent_to or '—' }}</td>
+        <td>
+          {{ row.reason }}
+          {# ناقص إيه، **بالاسم**، وخانته جنبه — اللي بيقرا هو اللي بيقفل. #}
+          {{ gaps(row) }}
+          {% if missing(row) %}{{ complete_form(row) }}{% endif %}
+        </td>
+        {# **مفيش خط أحمر.** المعيار ما سمّاش مهلة للرد — عكس `ACT.10`
+           اللي بيقول *within a predefined time frame*. فالرقم بيتقال
+           وبس، واختراع «أسبوعين» هنا زي اختراع مقياس فرز. #}
+        <td data-days="{{ row.waiting_days }}">{{ row.waiting_days }}</td>
+        <td>
+          <form method="post" action="{{ url_for('visits.referral_feedback', referral_id=row.id) }}"
+                style="display:flex;gap:6px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="input" name="feedback" style="max-width:220px;"
+                   placeholder="{{ t('referrals.feedback_ph') }}">
+            <button class="btn btn-sm btn-outline gc-press" type="submit">
+              <i class="bi bi-reply"></i> {{ t('common.save') }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+
+<p class="hint" style="margin-top:10px;" data-incomplete-count="{{ incomplete|length }}">
+  {{ t('referrals.incomplete_note') }}</p>
+{% endblock %}
