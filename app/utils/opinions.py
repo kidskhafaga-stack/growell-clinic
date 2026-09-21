@@ -141,9 +141,15 @@ def waiting(limit=200):
     """طلبات محدّش رد عليها، أقدم الأول.
 
     وأقدم الأول لأن أطول واحد مستنّي هو اللي المعيار قلقان منه.
+
+    **والشرط هنا زي `Opinion.answered` بالظبط: الوقت والنص مع بعض.**
+    كان `responded_at IS NULL` وبس — يعني صف فيه وقت ونصّه فاضي كان
+    بيختفي من القايمة وهو مش مردود عليه بحسب الخاصية. تعريفين لنفس
+    الكلمة بيفرقوا أول ما صف يتكتب من استيراد أو تصليح في الداتابيز.
     """
     return (Opinion.query
-            .filter(Opinion.responded_at.is_(None))
+            .filter(db.or_(Opinion.responded_at.is_(None),
+                           Opinion.response.is_(None)))
             .order_by(Opinion.requested_at)
             .limit(limit).all())
 
@@ -161,7 +167,8 @@ def overdue(minutes=None, now=None, limit=200):
         return []
     edge = (now or datetime.utcnow()) - timedelta(minutes=minutes)
     return (Opinion.query
-            .filter(Opinion.responded_at.is_(None),
+            .filter(db.or_(Opinion.responded_at.is_(None),
+                           Opinion.response.is_(None)),
                     Opinion.requested_at < edge)
             .order_by(Opinion.requested_at)
             .limit(limit).all())
@@ -174,7 +181,8 @@ def incomplete(limit=200):
     «لسه» بـ«ناقص» — وده بيغرق القايمة اللي المفروض تتقفل.
     """
     rows = (Opinion.query
-            .filter(Opinion.responded_at.isnot(None))
+            .filter(Opinion.responded_at.isnot(None),
+                    Opinion.response.isnot(None))
             .order_by(Opinion.requested_at.desc())
             .limit(limit).all())
     return [{"record": r, "missing": missing(r)} for r in rows if missing(r)]

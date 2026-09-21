@@ -640,3 +640,42 @@ def test_a_consultant_inside_answers_as_themselves(ward):
         assert row.responded_by_id == who.id
         assert row.recorded_by_id == who.id
         assert row.responded_by_name is None
+
+
+def test_a_time_written_straight_onto_the_row_is_still_not_an_answer(ward):
+    """**حارس من ناحية واحدة نص قاعدة.**
+
+    `answer` بترفض رد فاضي، فالخاصية عمرها ما بتشوف وقت من غير نص من
+    الشاشة. بس صف بيتكتب من استيراد أو تصليح في الداتابيز ممكن يوصلها
+    — والخاصية هي التانية لازم تمسكها.
+    """
+    from app.utils import opinions
+
+    oid = _ask(ward)
+
+    with ward["app"].app_context():
+        row = _row(ward, oid)
+        row.responded_at = datetime.utcnow()      # مش من الشاشة
+        ward["db"].session.commit()
+
+        assert not _row(ward, oid).answered
+        assert "response" in opinions.missing(_row(ward, oid))
+
+
+def test_and_such_a_row_is_still_on_the_waiting_list(ward):
+    """**تعريفين لنفس الكلمة بيفرقوا.**
+
+    القايمة كانت بتفلتر على الوقت لوحده، فصف زي ده كان بيختفي منها وهو
+    مش مردود عليه بحسب الخاصية — يعني بيقع من الشقّين.
+    """
+    from app.utils import opinions
+
+    oid = _ask(ward, at=datetime.utcnow() - timedelta(hours=3))
+
+    with ward["app"].app_context():
+        row = _row(ward, oid)
+        row.responded_at = datetime.utcnow()
+        ward["db"].session.commit()
+
+        assert [r.id for r in opinions.waiting()] == [oid]
+        assert opinions.incomplete() == []          # ولا كامل ولا مردود
