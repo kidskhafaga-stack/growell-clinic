@@ -306,6 +306,10 @@
         {% if opinions %}
         {% set ns.tabs = ns.tabs + [('opinions','tab_opinions','people')] %}
         {% endif %}
+        {# والتغذية: طفل محدّش قيّم أكله ولا كتبله نظام مالوش تبويب. #}
+        {% if food_assessments or diet_orders %}
+        {% set ns.tabs = ns.tabs + [('food','tab_food','egg-fried')] %}
+        {% endif %}
         {# Only where the clinic does dentistry. A tab labelled "teeth" on
            every paediatric file is furniture, which is why the module is off
            by default in the first place. #}
@@ -2178,6 +2182,66 @@
           {% endfor %}
         </tbody>
       </table>
+    <!-- Nutrition -->
+    <div class="gc-tab-panel" x-show="tab==='food'" x-cloak>
+      <h3 class="section-title" style="margin:0 0 4px;">
+        <i class="bi bi-egg-fried"></i> {{ t('patients.tab_food') }}</h3>
+      <p class="page-sub" style="margin:0 0 12px;">{{ t('food.sub') }}</p>
+
+      <div class="info-grid" data-food-history>
+        {% for row in food_assessments %}
+        <div class="card" style="padding:12px;grid-column:1/-1;"
+             data-food-assessment="{{ row.id }}">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <strong dir="ltr">{{ row.at.strftime('%Y-%m-%d') }}</strong>
+            {% if row.needs_special_diet %}
+            <span class="badge badge--warning">{{ t('food.needs_yes') }}</span>
+            {% elif row.needs_special_diet is sameas false %}
+            <span class="badge badge--ok">{{ t('food.needs_no') }}</span>
+            {% else %}
+            <span class="badge badge--muted">{{ t('food.needs_unknown') }}</span>
+            {% endif %}
+          </div>
+          {% if row.findings %}
+          <div style="margin-top:4px;"><span class="hint">{{ t('food.findings') }}:</span>
+            {{ row.findings }}</div>
+          {% endif %}
+          {% if row.plan %}
+          <div style="margin-top:4px;"><span class="hint">{{ t('food.plan') }}:</span>
+            {{ row.plan }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+
+        {% for row in diet_orders %}
+        <div class="card" style="padding:12px;grid-column:1/-1;"
+             data-diet-order="{{ row.id }}">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <strong dir="ltr">{{ row.ordered_at.strftime('%Y-%m-%d') }}</strong>
+            <span class="badge {{ 'badge--ok' if row.running else 'badge--muted' }}">
+              {{ row.diet_name(current_lang) }}</span>
+            {% if not row.running %}
+            <span class="hint" dir="ltr">→ {{ row.stopped_at.strftime('%Y-%m-%d') }}</span>
+            {% endif %}
+            {% if row.running and row.family_food_allowed is none %}
+            <span class="badge badge--warning" data-missing="family_food">
+              {{ t('food.family_unanswered') }}</span>
+            {% elif row.family_food_allowed is sameas false %}
+            <span class="badge badge--muted">{{ t('food.family_no') }}</span>
+            {% endif %}
+          </div>
+          {% if row.detail %}
+          <div style="margin-top:4px;">{{ row.detail }}</div>
+          {% endif %}
+          {% if row.meal_times %}
+          <div style="margin-top:4px;"><span class="hint">{{ t('food.meal_times') }}:</span>
+            {{ row.meal_times }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
     <!-- Consultation and second opinion -->
     <div class="gc-tab-panel" x-show="tab==='opinions'" x-cloak>
       <h3 class="section-title" style="margin:0 0 4px;">

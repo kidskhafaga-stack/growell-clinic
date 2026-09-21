@@ -265,6 +265,7 @@ def admission(admission_id):
     from app.models import (LINE_HIGH_RISK, LINE_KINDS, RESTRAINT_KINDS,
                             RESUS_OUTCOMES)
     from app.utils import lines as _lines
+    from app.utils import nutrition as _food
     from app.utils import restraint as _tied
     from app.utils import resuscitation as _cpr
     return render_template(
@@ -304,6 +305,11 @@ def admission(admission_id):
         # بتقراها، فمستحيل الشاشتين يقولوا حاجتين.
         # **خريطة القساطر** — `CSS.03` (د) بيطلبها كجزء من التسليم،
         # وبتتحسب من الصفوف كل مرة بدل ما تتخزّن وتفرق عنها.
+        # التغذية على شاشة الإقامة: اللي بيكتب الأكل واقف جنب الطفل،
+        # والقايمة بتاعة العيادة مش بتاعتنا.
+        diet_now=_food.current_diet(row.patient_id),
+        diet_list=_food.diet_list(),
+        food_assessment=_food.latest_assessment(row.patient_id),
         line_map=_lines.map_for(row.patient_id),
         line_kinds=LINE_KINDS,
         line_high_risk=LINE_HIGH_RISK,
@@ -751,7 +757,14 @@ def watch():
     from app.utils import refusal as no
     from app.utils import lines as _lines
     from app.utils import opinions as op
+    from app.utils import nutrition as food
     watch_minutes = tied.interval_minutes()
+    # بتتحسب هنا بأسماء كاملة بدل ما تتكسر جوّه الاستدعاء — سطر
+    # زي `food.\n    assessed_but...` بيشتغل، بس بيخفي الندا عن أي
+    # حاجة بتدوّر عليه، وده اللي الحارس مسكه.
+    _food_gaps = food.assessed_but_nothing_ordered(limit=20)
+    _food_unassessed = food.ordered_without_assessment(limit=20)
+    _food_family = food.unanswered_family_food(limit=20)
     return render_template("beds/watch.html", rows=watching,
                            emergencies=blood.emergencies_waiting(),
                            open_stays=len(stays),
@@ -798,7 +811,14 @@ def watch():
                            # سياستها لسه.
                            opinions_waiting=op.waiting(limit=20),
                            opinions_overdue=op.overdue(limit=20),
-                           opinions_short=op.incomplete(limit=20))
+                           opinions_short=op.incomplete(limit=20),
+                           # وحداشر: تقييم تغذية قال «محتاج نظام خاص»
+                           # ومحدّش كتب أكل. النية بتقول إن التقييم
+                           # **لازم** يأدّي لحاجة — والصف ده بيبان
+                           # مكتمل في أي جرد، علشان كده محتاج قراية.
+                           food_nothing_ordered=_food_gaps,
+                           food_no_assessment=_food_unassessed,
+                           food_family_unanswered=_food_family)
 
 
 def _ward_people():
@@ -812,6 +832,80 @@ def _ward_people():
 
     return (User.query.filter(User.is_active.is_(True))
             .order_by(User.full_name).all())
+
+
+# ------------------------------------------------- التغذية `ICD.13` ----
+@beds_bp.route("/stay/<int:admission_id>/nutrition", methods=["POST"])
+@module_required(MODULE)
+def nutrition_assess(admission_id):
+    """تقييم تغذية — دليل ٣ و٥."""
+    from app.utils import nutrition as food
+
+    stay = db.get_or_404(Admission, admission_id)
+    try:
+        food.assess(stay.patient, user=current_user, admission=stay,
+                    findings=request.form.get("findings"),
+                    plan=request.form.get("plan"),
+                    needs=_tri(request.form.get("needs")))
+    except ValueError:
+        db.session.rollback()
+        flash(t("food.not_saved"), "error")
+        return _stay_back(admission_id, "#food")
+    db.session.commit()
+    flash(t("food.assessed"), "success")
+    return _stay_back(admission_id, "#food")
+
+
+@beds_bp.route("/stay/<int:admission_id>/diet", methods=["POST"])
+@module_required(MODULE)
+def diet_order(admission_id):
+    """أمر أكل — (د)(٣).
+
+    والنظام لازم يكون من **قايمة العيادة**؛ المسار بيرفض غير كده علشان
+    ما يبقاش في الملف صف بيشاور على حاجة محدّش عرّفها.
+    """
+    from app.utils import nutrition as food
+
+    stay = db.get_or_404(Admission, admission_id)
+    try:
+        food.order(stay.patient, request.form.get("diet_key"),
+                   user=current_user, admission=stay,
+                   detail=request.form.get("detail"),
+                   meal_times=request.form.get("meal_times"),
+                   family_food=_tri(request.form.get("family_food")),
+                   family_note=request.form.get("family_note"))
+    except ValueError:
+        db.session.rollback()
+        flash(t("food.not_saved"), "error")
+        return _stay_back(admission_id, "#food")
+    db.session.commit()
+    flash(t("food.ordered"), "success")
+    return _stay_back(admission_id, "#food")
+
+
+@beds_bp.route("/diet/<int:order_id>/stop", methods=["POST"])
+@module_required(MODULE)
+def diet_stop(order_id):
+    """الأمر وقف — **لحظة مش مسح**."""
+    from app.models import DietOrder
+    from app.utils import nutrition as food
+
+    row = db.get_or_404(DietOrder, order_id)
+    food.stop(row, user=current_user)
+    db.session.commit()
+    flash(t("food.stopped"), "success")
+    return _stay_back(row.admission_id, "#food") if row.admission_id else \
+        redirect(url_for("patients.view", patient_id=row.patient_id) + "#food")
+
+
+def _tri(raw):
+    """ثلاثية من الشاشة: «» محدّش قال · ``yes`` · ``no``."""
+    value = (raw or "").strip()
+    if value == "yes":
+        return True
+    if value == "no":
+        return False
+    return None
 
 
 # ------------------------------------------ القساطر والأنابيب `CSS.03` ----

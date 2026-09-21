@@ -76,6 +76,8 @@ from app.models.line import (HIGH_RISK as LINE_HIGH_RISK,
 from app.models.opinion import (KINDS as OPINION_KINDS, Opinion,
                                 URGENCIES as OPINION_URGENCIES,
                                 required_for as opinion_items)
+from app.models.nutrition import (DIET_DOMAIN, DietOrder,
+                                  NutritionAssessment)
 from app.models.blood import (BloodRequest, PRODUCTS,
                               REQUEST_STATES, Transfusion,
                               URGENCIES)
@@ -360,6 +362,9 @@ __all__ = [
     "Line",
     "LINE_KINDS",
     "LINE_HIGH_RISK",
+    "DietOrder",
+    "NutritionAssessment",
+    "DIET_DOMAIN",
     "Opinion",
     "OPINION_KINDS",
     "OPINION_URGENCIES",

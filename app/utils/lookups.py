@@ -73,7 +73,13 @@ BUILT_IN_CATEGORIES = [
     ("other", "أخرى", "Other", None),
 ]
 
-DOMAINS = list(BUILT_IN) + ["item_category"]
+#: **وقايمة الأنظمة الغذائية `ICD.13` (د)(١) مالهاش `BUILT_IN`.**
+#:
+#: باقي القوايم هنا تشغيلية — «علبة» و«ثلاجة» و«مضادات حيوية» — والبرنامج
+#: يقدر يبدأها بحاجة معقولة. أسماء الأنظمة الغذائية لأ: «حمية سكري»
+#: و«قليل الملح» مفردات إكلينيكية، والمعيار بيقول بالنص إن القايمة بتاعة
+#: المستشفى. فبتبدأ فاضية والعيادة بتكتبها، زي مقياس الفرز وسلّم التسكين.
+DOMAINS = list(BUILT_IN) + ["item_category", "special_diet"]
 
 
 def ensure_seeded():
@@ -164,7 +170,17 @@ def usage_counts(domain):
             out[row.key] = StoreItem.query.filter_by(purchase_unit=name).count()
         elif domain == "warehouse_kind":
             out[row.key] = Warehouse.query.filter_by(kind=row.key).count()
+        elif domain == "special_diet":
+            from app.models import DietOrder
+
+            out[row.key] = DietOrder.query.filter_by(
+                diet_key=row.key).count()
         else:
+            # **وقايمة جديدة من غير فرع هنا كانت بتبان «مش مستعملة»
+            # دايماً** — يعني تتمسح ومعاها كل صف بيشاور عليها، وده
+            # بالظبط اللي الدوكسترينج فوق بيحذّر منه: «تقرير بيسقّط
+            # صفوف في صمت بدل خطأ حد يشوفه». الاختبار في
+            # `tests/test_a_list_nobody_can_break.py` بيمنع ده يتكرر.
             out[row.key] = 0
     return out
 
