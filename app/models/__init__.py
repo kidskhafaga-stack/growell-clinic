@@ -62,6 +62,9 @@ from app.models.patient_education import (METHODS, PatientEducation,
 from app.models.emergency_visit import (ARRIVALS, DISPOSITIONS,
                                         EmergencyVisit)
 from app.models.restraint import KINDS as RESTRAINT_KINDS, Restraint
+from app.models.sedation import (DISPOSITIONS as SEDATION_DISPOSITIONS,
+                                 KINDS as SEDATION_KINDS,
+                                 SedationRecord, required_for)
 from app.models.resuscitation import (ALS_MINUTES, OUTCOMES as RESUS_OUTCOMES,
                                         Resuscitation)
 from app.models.blood import (BloodRequest, PRODUCTS,
@@ -333,6 +336,10 @@ __all__ = [
     "EmergencyVisit",
     "Restraint",
     "RESTRAINT_KINDS",
+    "SedationRecord",
+    "SEDATION_KINDS",
+    "SEDATION_DISPOSITIONS",
+    "required_for",
     "Resuscitation",
     "RESUS_OUTCOMES",
     "ALS_MINUTES",
