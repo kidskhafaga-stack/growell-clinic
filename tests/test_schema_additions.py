@@ -97,7 +97,7 @@ def test_the_tables_the_baseline_cannot_see_are_pinned_by_name(clinic):
     from app.utils.schema import ADDITIONS
 
     listed = {(t, c) for t, c, _ in ADDITIONS}
-    for column in ("transfusion_id", "restraint_id"):
+    for column in ("transfusion_id", "restraint_id", "sedation_id"):
         assert ("observations", column) in listed, (
             f"observations.{column} is not in ADDITIONS, and the baseline "
             "cannot catch it because `observations` is not in the baseline")

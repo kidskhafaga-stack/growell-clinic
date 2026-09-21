@@ -1,0 +1,211 @@
+{% extends "shell.html" %}
+{% set active_module = 'theatres' %}
+{% block title %}{{ t('sedation.title') }}{% endblock %}
+{% block page_heading %}{{ t('sedation.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-lungs"></i> {{ t('sedation.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('sedation.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('theatres.recovery_room') }}">
+    <i class="bi bi-heart-pulse"></i> {{ t('recovery.title') }}</a>
+</div>
+
+{# محدّش أخد قراية من مدة. `SAS.17` بيقول *regularly* وما بيدّيش رقم،
+   فالعيادة بتكتبه والشاشة ساكتة لحد ما تكتبه. #}
+{% if unwatched %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;border-inline-start:4px solid var(--danger);"
+     data-sedation-unwatched>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('sedation.unwatched') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('sedation.unwatched_hint') }}</span>
+  </div>
+  <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;">
+    {% for item in unwatched %}
+    <a class="badge badge--danger" data-unwatched="{{ item.record.id }}"
+       href="{{ url_for('patients.view', patient_id=item.record.patient_id) }}">
+      {{ item.record.patient.display_name(current_lang) if item.record.patient else '—' }}
+      <span dir="ltr">{{ item.record.minutes }}′</span></a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# **فتح حلقة.** القايمة محدودة بأطفال النهاردة — عملية أو زيارة —
+   لأن اللي بيفتح الحلقة واقف جنب الطفل، وقايمة بكل طفل اتسجّل من سنين
+   مش اختيار. واللي ليه عملية بييجي معاها، علشان الحلقة تتربط بيها
+   وتقرا أوقاتها منها بدل نسخة تانية. #}
+<div class="card gc-scale-in" style="padding:14px 18px;margin-bottom:16px;"
+     data-sedation-open>
+  <form method="post" action="{{ url_for('theatres.sedation_start') }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:1 1 260px;">
+      <label for="sed_who">{{ t('sedation.open_who') }}</label>
+      <select class="input" id="sed_who" name="who" required>
+        <option value="">—</option>
+        {% for c in candidates %}
+        <option value="{{ c.patient.id }}:{{ c.operation.id if c.operation else '' }}">
+          {{ c.patient.display_name(current_lang) }}{% if c.operation %} · {{ c.operation.procedure }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="flex:0 1 200px;">
+      <label for="sed_kind">{{ t('sedation.kind') }}</label>
+      <select class="input" id="sed_kind" name="kind" required>
+        {% for k in kinds %}
+        <option value="{{ k }}">{{ t('sedation.kind_' ~ k) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-play-circle"></i> {{ t('sedation.open_btn') }}</button>
+  </form>
+  {% if not candidates %}
+  <p class="hint" style="margin:8px 0 0;">{{ t('sedation.nobody_today') }}</p>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;" data-sedation-live>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('sedation.live') }}</strong>
+  </div>
+  {% if not live %}
+  <p class="hint" style="margin:0;padding:18px;">{{ t('sedation.nobody') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('followup.child') }}</th>
+      <th>{{ t('sedation.kind') }}</th>
+      <th>{{ t('sedation.where') }}</th>
+      <th>{{ t('emergency.stay_minutes') }}</th>
+      <th>{{ t('emergency.missing_items') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for row in live %}
+      <tr data-sedation-row="{{ row.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
+          {{ row.patient.display_name(current_lang) if row.patient else '—' }}</a></td>
+        <td>{{ t('sedation.kind_' ~ row.kind) }}</td>
+        <td>
+          <span class="badge {{ 'badge--warning' if row.in_theatre else 'badge--muted' }}">
+            {{ t('sedation.in_theatre') if row.in_theatre else t('sedation.in_recovery') }}</span>
+        </td>
+        <td dir="ltr">{{ row.minutes }}′</td>
+        <td>
+          {% for gap in gaps_of(row) %}
+          <span class="badge badge--warning" data-missing="{{ gap }}">{{ t('sedation.item_' ~ gap) }}</span>
+          {% endfor %}
+        </td>
+      </tr>
+      {# سطر الكتابة تحت سطر القراية، مش شاشة تانية — اللي بيكتب واقف
+         قدام الجدول وبيملا اللي ناقص وهو شايفه. #}
+      <tr data-sedation-write="{{ row.id }}">
+        <td colspan="5" style="background:var(--bg-soft);">
+          <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;"
+                action="{{ url_for('theatres.sedation_describe', record_id=row.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if row.kind == 'anaesthesia' %}
+            <input class="input" style="flex:1 1 130px;" name="technique"
+                   value="{{ row.technique or '' }}"
+                   placeholder="{{ t('sedation.item_technique') }}">
+            <input class="input" style="flex:1 1 110px;" name="blood_given"
+                   value="{{ row.blood_given or '' }}"
+                   placeholder="{{ t('sedation.item_blood') }}">
+            {% else %}
+            <input class="input" style="flex:1 1 110px;" name="score"
+                   value="{{ row.score or '' }}"
+                   placeholder="{{ t('sedation.item_score') }}">
+            {% endif %}
+            <input class="input" style="flex:2 1 200px;" name="drugs"
+                   value="{{ row.drugs or '' }}"
+                   placeholder="{{ t('sedation.item_drugs') }}">
+            <input class="input" style="flex:0 1 90px;" type="number" min="0"
+                   name="fluids_in_ml" value="{{ row.fluids_in_ml if row.fluids_in_ml is not none else '' }}"
+                   placeholder="{{ t('sedation.fluids_in') }}">
+            <input class="input" style="flex:0 1 90px;" type="number" min="0"
+                   name="fluids_out_ml" value="{{ row.fluids_out_ml if row.fluids_out_ml is not none else '' }}"
+                   placeholder="{{ t('sedation.fluids_out') }}">
+            <input class="input" style="flex:1 1 150px;" name="unusual_event"
+                   value="{{ row.unusual_event or '' }}"
+                   placeholder="{{ t('sedation.item_event') }}">
+            <button class="btn btn-sm btn-outline gc-press" type="submit">
+              <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
+          </form>
+          <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;"
+                action="{{ url_for('theatres.sedation_leave', record_id=row.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if row.in_theatre %}
+            <input class="input" style="flex:1 1 180px;" name="condition"
+                   placeholder="{{ t('sedation.item_condition') }}">
+            {% else %}
+            <input class="input" style="flex:0 1 120px;" name="score"
+                   placeholder="{{ t('sedation.item_recovery_score') }}">
+            <input class="input" style="flex:1 1 160px;" name="event"
+                   placeholder="{{ t('sedation.item_recovery_event') }}">
+            {% endif %}
+            <select class="input" style="flex:0 1 150px;" name="disposition" required>
+              <option value="">{{ t('sedation.item_disposition') }}</option>
+              {% for d in dispositions %}
+              {# ولمّا يكون في الإفاقة، «الإفاقة» مش مآل — هو فيها. #}
+              {% if row.in_theatre or d != 'recovery' %}
+              <option value="{{ d }}">{{ t('sedation.disp_' ~ d) }}</option>
+              {% endif %}
+              {% endfor %}
+            </select>
+            <button class="btn btn-sm btn-primary gc-press" type="submit">
+              <i class="bi bi-box-arrow-right"></i>
+              {{ t('sedation.leave_theatre') if row.in_theatre else t('sedation.leave_recovery') }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+
+{# خلصت وناقصها بند. `SAS.23` دليل ٤ بيقول إن السجل لازم يكون **كامل**،
+   والبند الناقص بيتقال باسمه علشان اللي بيقرا ما يعيدش قراية كل حاجة. #}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;" data-sedation-short>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('sedation.incomplete') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('sedation.incomplete_hint') }}</span>
+  </div>
+  {% if not short %}
+  <p class="hint" style="margin:0;padding:18px;">{{ t('sedation.all_complete') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('followup.child') }}</th>
+      <th>{{ t('sedation.kind') }}</th>
+      <th>{{ t('emergency.missing_items') }}</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      {% for item in short %}
+      <tr data-short-row="{{ item.record.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=item.record.patient_id) }}">
+          {{ item.record.patient.display_name(current_lang) if item.record.patient else '—' }}</a></td>
+        <td>{{ t('sedation.kind_' ~ item.record.kind) }}</td>
+        <td>
+          {% for gap in item.missing %}
+          <span class="badge badge--warning" data-missing="{{ gap }}">{{ t('sedation.item_' ~ gap) }}</span>
+          {% endfor %}
+        </td>
+        <td><a class="btn btn-sm btn-outline gc-press"
+               href="{{ url_for('patients.view', patient_id=item.record.patient_id) }}#sedation">
+          {{ t('education.board_open') }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -85,6 +85,22 @@
       </div>
     </div>
 
+    {# وتالت مرة لنفس القاعدة: SAS.17 بيطلب «مراقبة فسيولوجية بانتظام» أثناء
+       التخدير والتسكين، و«بانتظام» مش رقم — بتختلف بنوع التخدير وبحالة
+       الطفل. فاضية يعني العيادة ما قالتش، وطول ما هي فاضية مفيش حلقة
+       بيتقال عليها إن محدّش باصص عليها. #}
+    <div class="form-row" style="border-top:1px solid var(--line);padding-top:12px;"
+         data-sedation-watch-policy>
+      <label for="sedation_watch_minutes">
+        <strong>{{ t('sedation.title') }}</strong>
+        <span class="hint" dir="ltr">SAS.17</span></label>
+      <div style="max-width:220px;">
+        <input class="input" type="number" min="0" id="sedation_watch_minutes"
+               name="sedation_watch_minutes" value="{{ sedation_watch_minutes }}">
+        <div class="hint">{{ t('sedation.watch_minutes') }}</div>
+      </div>
+    </div>
+
     <button class="btn btn-primary gc-press" type="submit" style="margin-top:14px;">
       <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
   </form>

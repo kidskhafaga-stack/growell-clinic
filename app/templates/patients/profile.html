@@ -285,6 +285,10 @@
         {% if emergency_visits %}
         {% set ns.tabs = ns.tabs + [('emergency','tab_emergency','truck-front')] %}
         {% endif %}
+        {# نفس القاعدة: طفل عمره ما اتخدّر مالوش تبويب تخدير. #}
+        {% if sedation_records %}
+        {% set ns.tabs = ns.tabs + [('sedation','tab_sedation','lungs')] %}
+        {% endif %}
         {# Only where the clinic does dentistry. A tab labelled "teeth" on
            every paediatric file is furniture, which is why the module is off
            by default in the first place. #}
@@ -1976,6 +1980,48 @@
          that happened to be nearest. #}
       <p style="color:var(--muted);margin-top:14px;">{{ t('studies.none') }}</p>
       {% endif %}
+    </div>
+
+    <!-- Anaesthesia and sedation -->
+    <div class="gc-tab-panel" x-show="tab==='sedation'" x-cloak>
+      <h3 class="section-title" style="margin:0 0 4px;">
+        <i class="bi bi-lungs"></i> {{ t('patients.tab_sedation') }}</h3>
+      <div class="info-grid" style="margin-top:14px;" data-sedation>
+        {% for row in sedation_records %}
+        <div class="card" style="padding:12px;grid-column:1/-1;"
+             data-sedation-record="{{ row.id }}">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <strong dir="ltr">{{ row.started_at.strftime('%Y-%m-%d %H:%M') }}</strong>
+            <span class="badge badge--muted">{{ t('sedation.kind_' ~ row.kind) }}</span>
+            {% if row.technique %}<span class="hint">{{ row.technique }}</span>{% endif %}
+            {% if row.score %}<span class="hint">{{ row.score }}</span>{% endif %}
+            {% if row.in_theatre %}
+            <span class="badge badge--warning">{{ t('sedation.in_theatre') }}</span>
+            {% elif row.in_recovery %}
+            <span class="badge badge--muted">{{ t('sedation.in_recovery') }}</span>
+            {% else %}
+            <span class="badge badge--muted" dir="ltr">{{ row.minutes }}′</span>
+            {% endif %}
+          </div>
+          {% if row.drugs %}
+          <div style="margin-top:6px;"><span class="hint">{{ t('sedation.item_drugs') }}:</span>
+            {{ row.drugs }}</div>
+          {% endif %}
+          {% if row.unusual_event %}
+          <div style="margin-top:4px;"><span class="hint">{{ t('sedation.item_event') }}:</span>
+            {{ row.unusual_event }}</div>
+          {% endif %}
+          {% set gaps = sedation_missing.get(row.id) or [] %}
+          {% if gaps %}
+          <div style="margin-top:8px;" data-sedation-gaps>
+            {% for gap in gaps %}
+            <span class="badge badge--warning" data-missing="{{ gap }}">{{ t('sedation.item_' ~ gap) }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
     </div>
 
     <!-- Emergency -->

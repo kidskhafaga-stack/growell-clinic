@@ -130,6 +130,14 @@ class Observation(db.Model):
     restraint_id = db.Column(db.Integer, db.ForeignKey("restraints.id"),
                              nullable=True, index=True)
 
+    # وتالت مرة لنفس الشكل — `SAS.17` دليل ٣ بيطلب إن نتايج المراقبة أثناء
+    # التخدير تتسجّل **بانتظام**، و`SAS.23` (أ) بيطلب الحالة الفسيولوجية.
+    # نفس القراءات، متعلّمة بالحلقة. تلات جداول منفصلة (دم · تقييد · تخدير)
+    # كانوا هيخلّوا شارت الطفل ناقص تلات مرات.
+    sedation_id = db.Column(db.Integer,
+                            db.ForeignKey("sedation_records.id"),
+                            nullable=True, index=True)
+
     # **Two times, and they are not the same time.** ``taken_at`` is when the
     # thermometer came out; ``recorded_at`` is when somebody typed it in. A
     # nurse writes four readings on paper at the bedside and enters them at

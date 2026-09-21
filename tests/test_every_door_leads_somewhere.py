@@ -51,6 +51,9 @@ READERS = [
     ("restraint", "unwatched"),
     ("resuscitation", "running"),
     ("resuscitation", "never_answered"),
+    ("sedation", "live"),
+    ("sedation", "unwatched"),
+    ("sedation", "incomplete"),
 ]
 
 #: Tabs on the patient file that must stay conditional. The file varies by
@@ -67,6 +70,7 @@ EARNED_TABS = [
     ("stays", "app/templates/patients/profile.html"),
     ("blood", "app/templates/patients/profile.html"),
     ("care_plan", "app/templates/patients/profile.html"),
+    ("sedation", "app/templates/patients/profile.html"),
 ]
 
 #: Screens whose own door must exist — ``(endpoint, template that links it)``.
@@ -79,6 +83,7 @@ DOORS = [
     ("settings.risks", "app/templates/settings/index.html"),
     ("patients.education_board", "app/templates/patients/list.html"),
     ("emergency.register", "app/templates/departments/board.html"),
+    ("theatres.sedation_board", "app/templates/theatres/index.html"),
 ]
 
 

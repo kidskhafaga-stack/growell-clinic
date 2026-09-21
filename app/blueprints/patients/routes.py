@@ -504,6 +504,11 @@ def view(patient_id):
     _emergency = er_util.for_patient(patient.id) if module_enabled(
         "emergency") else []
     _emergency_missing = {r.id: er_util.missing(r) for r in _emergency}
+    from app.utils import sedation as sed_util
+
+    _sedation = (sed_util.for_patient(patient.id)
+                 if module_enabled("theatres") else [])
+    _sedation_missing = {r.id: sed_util.missing(r) for r in _sedation}
     ai_patient = (current_user.can_access("ai") and ai_utils.is_ready()
                   and ai_utils.patient_context_enabled())
     # The discussion card needs both: the record still leaves the building, and
@@ -610,6 +615,8 @@ def view(patient_id):
         packages=_package_card(patient.id),
         growth_picture=_growth_picture,
         emergency_visits=_emergency,
+        sedation_records=_sedation,
+        sedation_missing=_sedation_missing,
         emergency_missing=_emergency_missing,
         growth_alert=_growth_concern(_growth_picture),
         # One reading across every visit — labs, device studies and specialty
