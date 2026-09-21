@@ -294,6 +294,10 @@
         {% if verbal_orders %}
         {% set ns.tabs = ns.tabs + [('verbal','tab_verbal','telephone')] %}
         {% endif %}
+        {# والرفض كمان: طفل عمر أهله ما رفضوا حاجة مالوش تبويب رفض. #}
+        {% if refusals %}
+        {% set ns.tabs = ns.tabs + [('refusal','tab_refusal','hand-thumbs-down')] %}
+        {% endif %}
         {# Only where the clinic does dentistry. A tab labelled "teeth" on
            every paediatric file is furniture, which is why the module is off
            by default in the first place. #}
@@ -2127,6 +2131,64 @@
             {% endif %}
             {% endif %}
           </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Informed refusal -->
+    <div class="gc-tab-panel" x-show="tab==='refusal'" x-cloak>
+      <h3 class="section-title" style="margin:0 0 4px;">
+        <i class="bi bi-hand-thumbs-down"></i> {{ t('patients.tab_refusal') }}</h3>
+      <p class="page-sub" style="margin:0 0 12px;">{{ t('refusal.sub') }}</p>
+
+      <div class="info-grid" data-refusals>
+        {% for row in refusals %}
+        <div class="card" style="padding:12px;grid-column:1/-1;"
+             data-refusal="{{ row.id }}">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <strong dir="ltr">{{ row.at.strftime('%Y-%m-%d %H:%M') }}</strong>
+            <span class="badge badge--muted">{{ t('refusal.kind_' ~ row.kind) }}</span>
+            {% if row.guardian_name %}
+            <span class="hint">{{ row.guardian_name }}</span>
+            {% endif %}
+            {% if row.informed %}
+            <span class="badge badge--ok">{{ t('refusal.informed') }}</span>
+            {% else %}
+            {# **مش «ناقصة»** — دليل ٢ بيطلب المحتوى، فالشاشة بتقول
+               أنهي بند بالاسم. #}
+            <span class="badge badge--warning">{{ t('refusal.not_informed') }}</span>
+            {% endif %}
+            {% if not row.has_signature %}
+            <span class="badge badge--warning" data-missing="signature">
+              {{ t('refusal.unsigned') }}</span>
+            {% endif %}
+          </div>
+
+          {% for name in ('condition','consequences','refused','alternatives') %}
+          {% if row[name] %}
+          <div style="margin-top:6px;">
+            <span class="hint">{{ t('refusal.item_' ~ name) }}:</span> {{ row[name] }}</div>
+          {% endif %}
+          {% endfor %}
+
+          {% set gaps = refusal_missing.get(row.id) or [] %}
+          {% if gaps %}
+          {# والخانات الناقصة بتتملّى من نفس المكان — البند اللي ناقص
+             بيبقى خانة، مش شارة بتقول «روح دوّر». #}
+          <form method="post" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:end;"
+                action="{{ url_for('patients.refusal_fill', refusal_id=row.id) }}"
+                data-refusal-gaps>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% for gap in gaps %}
+            <input class="input" style="flex:1 1 200px;" name="{{ gap }}"
+                   data-missing="{{ gap }}"
+                   placeholder="{{ t('refusal.item_' ~ gap) }}">
+            {% endfor %}
+            <button class="btn btn-sm btn-outline gc-press" type="submit">
+              <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
+          </form>
+          {% endif %}
         </div>
         {% endfor %}
       </div>

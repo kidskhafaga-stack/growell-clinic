@@ -56,6 +56,9 @@ READERS = [
     ("sedation", "incomplete"),
     ("verbal_order", "open_orders"),
     ("verbal_order", "late"),
+    ("refusal", "undocumented"),
+    ("refusal", "incomplete"),
+    ("refusal", "unsigned"),
 ]
 
 #: Tabs on the patient file that must stay conditional. The file varies by
@@ -74,6 +77,7 @@ EARNED_TABS = [
     ("care_plan", "app/templates/patients/profile.html"),
     ("sedation", "app/templates/patients/profile.html"),
     ("verbal", "app/templates/patients/profile.html"),
+    ("refusal", "app/templates/patients/profile.html"),
 ]
 
 #: Screens whose own door must exist — ``(endpoint, template that links it)``.

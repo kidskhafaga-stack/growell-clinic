@@ -205,4 +205,86 @@
   </div>
 </div>
 {% endif %}
+
+{# **خرجوا ضد النصيحة ومفيش لهم استمارة رفض** — `PCC.10`.
+
+   البرنامج كان عارف إن الطفل مشي من زمان: `self_discharge` في مآلات
+   الطوارئ ومخارج الإقامة. اللي مكانش عنده هو الطرف التاني من
+   المقارنة، فالسؤال ده مكانش ينفع يتسأل أصلاً.
+
+   والفورمة جوّه السطر مش على شاشة تانية: القراية اللي بتلاقي النقص
+   لازم تكون هي نفسها اللي بتقفله، وإلا بتفضل قايمة بتتقرا وما
+   بتتعملش. #}
+{% if refusals_missing or refusals_short or refusals_unsigned %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:16px;border-inline-start:4px solid var(--danger);"
+     data-refusal-watch>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('refusal.title') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('refusal.missing_hint') }}</span>
+  </div>
+
+  {% if refusals_missing %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('followup.child') }}</th>
+      <th>{{ t('refusal.what_happened') }}</th>
+      <th>{{ t('refusal.the_form') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for item in refusals_missing %}
+      <tr data-refusal-gap="{{ item.what }}-{{ item.row.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=item.patient.id) }}">
+          {{ item.patient.display_name(current_lang) if item.patient else '—' }}</a></td>
+        <td><span class="badge badge--warning">{{ t('refusal.left_' ~ item.what) }}</span></td>
+        <td>
+          <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;"
+                action="{{ url_for('patients.refusal_record', patient_id=item.patient.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="kind"
+                   value="{{ 'discharge' if item.what == 'discharge' else 'emergency' }}">
+            <input class="input" style="flex:1 1 150px;" name="refused"
+                   placeholder="{{ t('refusal.item_refused') }}">
+            <input class="input" style="flex:1 1 180px;" name="consequences"
+                   placeholder="{{ t('refusal.item_consequences') }}">
+            <button class="btn btn-sm btn-primary gc-press" type="submit">
+              <i class="bi bi-file-earmark-text"></i> {{ t('refusal.start_form') }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+
+  {% if refusals_short %}
+  <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;{% if refusals_missing %}border-top:1px solid var(--line);{% endif %}">
+    {% for item in refusals_short %}
+    <a class="badge badge--warning" data-refusal-short="{{ item.record.id }}"
+       href="{{ url_for('patients.view', patient_id=item.record.patient_id) }}#refusal">
+      {{ item.record.patient.display_name(current_lang) if item.record.patient else '—' }}
+      {% for gap in item.missing %}
+      <span data-missing="{{ gap }}">· {{ t('refusal.item_' ~ gap) }}</span>
+      {% endfor %}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# **وحقيقة تالتة، مش نفس التانية.** «ناقصها بند» عن المحتوى، ودي عن
+     الدليل: ورقة مكتوبة صح ومحدّش وقّع عليها دعوى مش مستند. صف واحد
+     للاتنين كان هيخلّي استمارة كاملة موقّعة واستمارة كاملة من غير
+     توقيع يبانوا واحدة. #}
+  {% if refusals_unsigned %}
+  <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);">
+    <span class="hint">{{ t('refusal.unsigned') }}:</span>
+    {% for row in refusals_unsigned %}
+    <a class="badge badge--muted" data-refusal-unsigned="{{ row.id }}"
+       href="{{ url_for('patients.view', patient_id=row.patient_id) }}#refusal">
+      {{ row.patient.display_name(current_lang) if row.patient else '—' }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
 {% endblock %}
