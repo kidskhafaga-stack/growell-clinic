@@ -1,0 +1,115 @@
+{% extends "shell.html" %}
+{% set active_module = 'theatres' %}
+{% block title %}{{ t('sedation.title') }}{% endblock %}
+{% block page_heading %}{{ t('sedation.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-lungs"></i> {{ t('sedation.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('sedation.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('theatres.recovery_room') }}">
+    <i class="bi bi-heart-pulse"></i> {{ t('recovery.title') }}</a>
+</div>
+
+{# محدّش أخد قراية من مدة. `SAS.17` بيقول *regularly* وما بيدّيش رقم،
+   فالعيادة بتكتبه والشاشة ساكتة لحد ما تكتبه. #}
+{% if unwatched %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;border-inline-start:4px solid var(--danger);"
+     data-sedation-unwatched>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('sedation.unwatched') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('sedation.unwatched_hint') }}</span>
+  </div>
+  <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;">
+    {% for item in unwatched %}
+    <a class="badge badge--danger" data-unwatched="{{ item.record.id }}"
+       href="{{ url_for('patients.view', patient_id=item.record.patient_id) }}">
+      {{ item.record.patient.display_name(current_lang) if item.record.patient else '—' }}
+      <span dir="ltr">{{ item.record.minutes }}′</span></a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;" data-sedation-live>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('sedation.live') }}</strong>
+  </div>
+  {% if not live %}
+  <p class="hint" style="margin:0;padding:18px;">{{ t('sedation.nobody') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('followup.child') }}</th>
+      <th>{{ t('sedation.kind') }}</th>
+      <th>{{ t('sedation.where') }}</th>
+      <th>{{ t('emergency.stay_minutes') }}</th>
+      <th>{{ t('emergency.missing_items') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for row in live %}
+      <tr data-sedation-row="{{ row.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
+          {{ row.patient.display_name(current_lang) if row.patient else '—' }}</a></td>
+        <td>{{ t('sedation.kind_' ~ row.kind) }}</td>
+        <td>
+          <span class="badge {{ 'badge--warning' if row.in_theatre else 'badge--muted' }}">
+            {{ t('sedation.in_theatre') if row.in_theatre else t('sedation.in_recovery') }}</span>
+        </td>
+        <td dir="ltr">{{ row.minutes }}′</td>
+        <td>
+          {% for gap in gaps_of(row) %}
+          <span class="badge badge--warning" data-missing="{{ gap }}">{{ t('sedation.item_' ~ gap) }}</span>
+          {% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+
+{# خلصت وناقصها بند. `SAS.23` دليل ٤ بيقول إن السجل لازم يكون **كامل**،
+   والبند الناقص بيتقال باسمه علشان اللي بيقرا ما يعيدش قراية كل حاجة. #}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;" data-sedation-short>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('sedation.incomplete') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('sedation.incomplete_hint') }}</span>
+  </div>
+  {% if not short %}
+  <p class="hint" style="margin:0;padding:18px;">{{ t('sedation.all_complete') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('followup.child') }}</th>
+      <th>{{ t('sedation.kind') }}</th>
+      <th>{{ t('emergency.missing_items') }}</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      {% for item in short %}
+      <tr data-short-row="{{ item.record.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=item.record.patient_id) }}">
+          {{ item.record.patient.display_name(current_lang) if item.record.patient else '—' }}</a></td>
+        <td>{{ t('sedation.kind_' ~ item.record.kind) }}</td>
+        <td>
+          {% for gap in item.missing %}
+          <span class="badge badge--warning" data-missing="{{ gap }}">{{ t('sedation.item_' ~ gap) }}</span>
+          {% endfor %}
+        </td>
+        <td><a class="btn btn-sm btn-outline gc-press"
+               href="{{ url_for('patients.view', patient_id=item.record.patient_id) }}#sedation">
+          {{ t('education.board_open') }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -79,6 +79,10 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('theatres.recovery_room') }}">
       <i class="bi bi-heart-pulse"></i> {{ t('recovery.title') }}
       {% if in_recovery %}<span class="badge badge--warn">{{ in_recovery }}</span>{% endif %}</a>
+    {# جنبها مش مكانها: شاشة الإفاقة بتقول «الطفل فين»، ودي بتقول «السجل
+       كامل ولا لأ» — و`SAS.23` دليل ٤ بيطلب إنه **يكون كامل**. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('theatres.sedation_board') }}">
+      <i class="bi bi-lungs"></i> {{ t('sedation.title') }}</a>
     {% if may_build %}
     {# «accessible to and used by staff involved in booking» (WFM.12, evidence
        4) — so it is reached from the screen the booking form is on, not

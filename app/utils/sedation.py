@@ -36,11 +36,18 @@ def interval_minutes():
 
 
 def live(limit=100):
-    """اللي لسه تحت التخدير أو في الإفاقة، الأقدم الأول."""
-    return (SedationRecord.query
+    """اللي لسه تحت التخدير أو في الإفاقة، الأقدم الأول.
+
+    **الفلترة بتخلص في بايثون مش في الاستعلام**، لأن «خلصت» مش عمود:
+    الحلقة اللي ليها عملية بتقرا وقتها من العملية، واللي راحت البيت من
+    المسرح على طول عمرها ما هيتكتبلها وقت خروج من الإفاقة. الاستعلام
+    بيجيب مجموعة أوسع مضمون إنها شاملة، والخاصية هي اللي بتقرر.
+    """
+    rows = (SedationRecord.query
             .filter(SedationRecord.recovery_left_at.is_(None))
             .order_by(SedationRecord.started_at)
-            .limit(limit).all())
+            .limit(limit * 2).all())
+    return [r for r in rows if not r.over][:limit]
 
 
 def for_patient(patient_id, limit=50):
@@ -142,16 +149,24 @@ def missing(row):
 
 
 def complete(row):
-    return row is not None and not row.in_theatre and not missing(row)
+    """خلصت وما ناقصهاش حاجة.
+
+    ``over`` مش ``not in_theatre``: طفل قاعد في الإفاقة لسه بنود بتتكتب
+    عليه، وقول إن سجله كامل وهو لسه هناك بيقفل الملف بدري.
+    """
+    return row is not None and row.over and not missing(row)
 
 
 def incomplete(limit=200):
-    """حلقات خلصت وناقصها بند — الشغل اللي حد لازم يرجعله."""
+    """حلقات خلصت وناقصها بند — الشغل اللي حد لازم يرجعله.
+
+    ونفس سبب :func:`live`: «خلصت» خاصية مش عمود.
+    """
     rows = (SedationRecord.query
-            .filter(SedationRecord.recovery_left_at.isnot(None))
-            .order_by(SedationRecord.recovery_left_at.desc())
+            .order_by(SedationRecord.started_at.desc())
             .limit(limit).all())
-    return [{"record": r, "missing": missing(r)} for r in rows if missing(r)]
+    return [{"record": r, "missing": missing(r)}
+            for r in rows if r.over and missing(r)]
 
 
 def start(patient, kind, user=None, operation=None, admission=None,
@@ -220,7 +235,9 @@ def leave_theatre(row, disposition, condition=None, user=None, at=None):
         row.left_theatre_at = moment
     if user is not None:
         row.signed_by_id = user.id
-        row.signed_at = row.left_theatre_at
+        # اللحظة نفسها، مش العمود — العمود بيفضل فاضي لما يكون فيه عملية،
+        # وساعتها السجل كان بيقول مين وقّع ومش بيقول إمتى.
+        row.signed_at = moment
     return row
 
 

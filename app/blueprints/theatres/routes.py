@@ -994,6 +994,104 @@ def recovery_room():
                            undecided=recovery.undecided())
 
 
+# ------------------------------------- سجل التخدير والتسكين ----
+@theatres_bp.route("/sedation")
+@module_required(MODULE)
+def sedation_board():
+    """الحلقات الشغّالة، واللي خلصت وناقصها بند من القايمة.
+
+    **الشاشة دي جنب شاشة الإفاقة مش مكانها.** دي بتقول «الطفل فين»، ودي
+    بتقول «السجل كامل ولا لأ» — و`SAS.23` دليل ٤ بيقول *"the procedural
+    sedation record, including all elements … **is complete**"*.
+    """
+    from app.utils import sedation as sed
+
+    return render_template("theatres/sedation.html",
+                           live=sed.live(), short=sed.incomplete(),
+                           unwatched=sed.unwatched(),
+                           interval=sed.interval_minutes(),
+                           # القايمة الناقصة بتتحسب من نفس الصف اللي الصف
+                           # بيترسم منه — حساب تاني كان هيقدر يخالفه.
+                           gaps_of=sed.missing)
+
+
+@theatres_bp.route("/sedation/start", methods=["POST"])
+@module_required(MODULE)
+def sedation_start():
+    """حلقة بدأت. العملية اختيارية — تسكين لرنين أو كرسي أسنان مالوش عملية."""
+    from app.models import Operation, Patient
+    from app.utils import sedation as sed
+
+    patient = db.session.get(Patient, request.form.get("patient_id", type=int))
+    operation = db.session.get(Operation,
+                               request.form.get("operation_id", type=int))
+    if patient is None and operation is not None:
+        patient = operation.patient
+    try:
+        sed.start(patient, (request.form.get("kind") or "").strip(),
+                  user=current_user, operation=operation)
+    except ValueError:
+        db.session.rollback()
+        flash(t("sedation.not_saved"), "error")
+        return redirect(url_for("theatres.sedation_board"))
+    db.session.commit()
+    flash(t("sedation.started"), "success")
+    return redirect(url_for("theatres.sedation_board"))
+
+
+@theatres_bp.route("/sedation/<int:record_id>/describe", methods=["POST"])
+@module_required(MODULE)
+def sedation_describe(record_id):
+    """بنود القايمة اللي بتتكتب أثناء الحلقة.
+
+    والحقل اللي ما اتبعتش ما بيتغيّرش: «الحقل مش موجود» و«الحقل اتفضّى»
+    مش نفس الحاجة.
+    """
+    from app.models import SedationRecord
+    from app.utils import sedation as sed
+
+    row = db.get_or_404(SedationRecord, record_id)
+    sed.describe(row,
+                 technique=request.form.get("technique"),
+                 score=request.form.get("score"),
+                 drugs=request.form.get("drugs"),
+                 blood_given=request.form.get("blood_given"),
+                 unusual_event=request.form.get("unusual_event"),
+                 fluids_in_ml=request.form.get("fluids_in_ml", type=int),
+                 fluids_out_ml=request.form.get("fluids_out_ml", type=int))
+    db.session.commit()
+    flash(t("sedation.saved"), "success")
+    return redirect(url_for("theatres.sedation_board"))
+
+
+@theatres_bp.route("/sedation/<int:record_id>/leave", methods=["POST"])
+@module_required(MODULE)
+def sedation_leave(record_id):
+    """ساب المسرح، أو ساب الإفاقة — حسب فين هو دلوقتي."""
+    from app.models import SedationRecord
+    from app.utils import sedation as sed
+
+    row = db.get_or_404(SedationRecord, record_id)
+    where = (request.form.get("disposition") or "").strip()
+    try:
+        if row.in_theatre:
+            sed.leave_theatre(row, where,
+                              condition=request.form.get("condition"),
+                              user=current_user)
+        else:
+            sed.leave_recovery(row, where,
+                               score=request.form.get("score"),
+                               event=request.form.get("event"),
+                               user=current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("sedation.not_saved"), "error")
+        return redirect(url_for("theatres.sedation_board"))
+    db.session.commit()
+    flash(t("sedation.saved"), "success")
+    return redirect(url_for("theatres.sedation_board"))
+
+
 @theatres_bp.route("/operation/<int:operation_id>/note", methods=["POST"])
 @module_required(MODULE)
 def note(operation_id):

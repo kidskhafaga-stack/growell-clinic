@@ -28,6 +28,7 @@ def theatre(clinic):
 
     with clinic["app"].app_context():
         Setting.set("mod_enabled:beds", "1")
+        Setting.set("mod_enabled:theatres", "1")
         other = Patient(patient_number="SD-2", full_name="طفل تاني",
                         gender="female", is_active=True,
                         date_of_birth=local_today() - timedelta(days=1500))
@@ -537,3 +538,278 @@ def test_another_childs_episode_is_not_this_ones(theatre):
     with theatre["app"].app_context():
         assert sed.for_patient(theatre["ids"]["child"]) == []
         assert len(sed.for_patient(theatre["ids"]["other_child"])) == 1
+
+
+# --------------------------------------------- الباب: الشاشة والتبويب ----
+def test_the_board_shows_a_live_episode(theatre):
+    rid = _open(theatre)
+
+    page = theatre["sign_in"]("doc").get("/theatres/sedation").get_data(
+        as_text=True)
+
+    assert f'data-sedation-row="{rid}"' in page
+
+
+def test_the_board_names_the_item_that_is_missing(theatre):
+    """مش «السجل ناقص» — البند نفسه، علشان اللي بيقرا ما يعيدش قراية كله."""
+    from app.models import User
+    from app.utils import sedation as sed
+
+    rid = _open(theatre)
+    with theatre["app"].app_context():
+        doc = theatre["db"].session.get(User, theatre["ids"]["doctor"])
+        sed.leave_theatre(_row(theatre, rid), "home", condition="فايق",
+                          user=doc)
+        theatre["db"].session.commit()
+
+    page = theatre["sign_in"]("doc").get("/theatres/sedation").get_data(
+        as_text=True)
+
+    assert f'data-short-row="{rid}"' in page
+    assert 'data-missing="drugs"' in page
+
+
+def test_a_complete_record_is_not_on_the_short_list(theatre):
+    from app.models import User
+    from app.utils import sedation as sed
+
+    rid = _open(theatre)
+    _reading(theatre, rid)
+    with theatre["app"].app_context():
+        doc = theatre["db"].session.get(User, theatre["ids"]["doctor"])
+        sed.describe(_row(theatre, rid), score="Ramsay 3", drugs="ميدازولام",
+                     fluids_in_ml=100, unusual_event="مفيش")
+        sed.leave_theatre(_row(theatre, rid), "home", condition="فايق",
+                          user=doc)
+        theatre["db"].session.commit()
+
+    page = theatre["sign_in"]("doc").get("/theatres/sedation").get_data(
+        as_text=True)
+
+    assert f'data-short-row="{rid}"' not in page
+
+
+def test_the_unwatched_block_is_silent_until_the_clinic_writes_the_interval(
+        theatre):
+    _open(theatre, at=datetime.utcnow() - timedelta(hours=3))
+
+    page = theatre["sign_in"]("doc").get("/theatres/sedation").get_data(
+        as_text=True)
+
+    assert "data-sedation-unwatched" not in page
+
+
+def test_writing_the_interval_makes_the_block_appear(theatre):
+    from app.models import Setting
+
+    rid = _open(theatre, at=datetime.utcnow() - timedelta(hours=3))
+    with theatre["app"].app_context():
+        Setting.set("sedation_watch_minutes", "30")
+        theatre["db"].session.commit()
+
+    page = theatre["sign_in"]("doc").get("/theatres/sedation").get_data(
+        as_text=True)
+
+    assert "data-sedation-unwatched" in page
+    assert f'data-unwatched="{rid}"' in page
+
+
+def test_the_theatre_screen_has_a_door_to_it(theatre):
+    page = theatre["sign_in"]("doc").get("/theatres/").get_data(as_text=True)
+
+    assert "/theatres/sedation" in page
+
+
+def test_the_interval_has_a_box_on_the_settings_screen(theatre):
+    page = theatre["sign_in"]("boss").get("/settings/risks").get_data(
+        as_text=True)
+
+    assert "data-sedation-watch-policy" in page
+    assert 'name="sedation_watch_minutes"' in page
+
+
+def test_writing_the_interval_from_the_screen_arms_it(theatre):
+    from app.utils import sedation as sed
+
+    theatre["sign_in"]("boss").post("/settings/risks", data={
+        "sedation_watch_minutes": "20"}, follow_redirects=True)
+
+    with theatre["app"].app_context():
+        assert sed.interval_minutes() == 20
+
+
+def test_a_child_who_was_never_sedated_has_no_tab(theatre):
+    """تبويب لحاجة ما حصلتش أبداً أثاث."""
+    page = theatre["sign_in"]("doc").get(
+        f"/patients/{theatre['ids']['child']}").get_data(as_text=True)
+
+    assert "'sedation','tab_sedation'" not in page
+    assert "data-sedation-record" not in page
+
+
+def test_the_file_shows_the_episode_once_there_is_one(theatre):
+    rid = _open(theatre)
+
+    page = theatre["sign_in"]("doc").get(
+        f"/patients/{theatre['ids']['child']}").get_data(as_text=True)
+
+    assert f'data-sedation-record="{rid}"' in page
+
+
+def test_the_file_shows_the_gap_by_name(theatre):
+    from app.models import User
+    from app.utils import sedation as sed
+
+    rid = _open(theatre)
+    with theatre["app"].app_context():
+        doc = theatre["db"].session.get(User, theatre["ids"]["doctor"])
+        sed.leave_theatre(_row(theatre, rid), "home", condition="فايق",
+                          user=doc)
+        theatre["db"].session.commit()
+
+    page = theatre["sign_in"]("doc").get(
+        f"/patients/{theatre['ids']['child']}").get_data(as_text=True)
+
+    assert "data-sedation-gaps" in page
+    assert 'data-missing="drugs"' in page
+
+
+def test_another_childs_episode_is_not_on_this_file(theatre):
+    rid = _open(theatre, patient_id=theatre["ids"]["other_child"])
+
+    page = theatre["sign_in"]("doc").get(
+        f"/patients/{theatre['ids']['child']}").get_data(as_text=True)
+
+    assert f'data-sedation-record="{rid}"' not in page
+
+
+def test_every_word_of_the_record_is_written_in_both_languages(theatre):
+    from app.i18n import _load_translations, _lookup
+    from app.models import SEDATION_DISPOSITIONS, SEDATION_KINDS
+    from app.models.sedation import (ONLY_ANAESTHESIA, ONLY_SEDATION,
+                                     RECOVERY_ITEMS, SHARED)
+
+    tables = _load_translations()
+    keys = [("sedation", f"kind_{k}") for k in SEDATION_KINDS]
+    keys += [("sedation", f"disp_{d}") for d in SEDATION_DISPOSITIONS]
+    keys += [("sedation", f"item_{i}")
+             for i in SHARED + ONLY_ANAESTHESIA + ONLY_SEDATION
+             + RECOVERY_ITEMS]
+    keys += [("patients", "tab_sedation")]
+    for lang in ("ar", "en"):
+        for group, key in keys:
+            value = _lookup(tables, lang, f"{group}.{key}")
+            assert value, f"{lang}: {group}.{key} is missing"
+
+
+# ------------------------- اللي راح البيت من المسرح على طول خلص خلاص ----
+def _straight_home(theatre, at=None):
+    """الطريق العادي في الطهارة وفي التسكين اللي مالوش عملية: مخدر موضعي،
+    ويخرج من المسرح للبيت من غير ما يعدّي على الإفاقة."""
+    from app.models import User
+    from app.utils import sedation as sed
+
+    rid = _open(theatre, at=at)
+    with theatre["app"].app_context():
+        doc = theatre["db"].session.get(User, theatre["ids"]["doctor"])
+        sed.leave_theatre(_row(theatre, rid), "home", condition="فايق",
+                          user=doc)
+        theatre["db"].session.commit()
+    return rid
+
+
+def test_a_child_who_went_straight_home_is_not_still_in_recovery(theatre):
+    rid = _straight_home(theatre)
+
+    with theatre["app"].app_context():
+        row = _row(theatre, rid)
+        assert not row.in_theatre
+        assert not row.in_recovery
+        assert row.over
+
+
+def test_they_come_off_the_live_board(theatre):
+    """لأنهم مش هناك. ووقت خروج من الإفاقة عمره ما هيتكتب لواحد عمره ما
+    دخلها، فالشرط القديم كان هيسيبهم شغّالين للأبد."""
+    from app.utils import sedation as sed
+
+    rid = _straight_home(theatre)
+
+    with theatre["app"].app_context():
+        assert [r.id for r in sed.live()] == []
+        assert rid not in [r.id for r in sed.live()]
+
+
+def test_and_their_gap_reaches_the_short_list(theatre):
+    from app.utils import sedation as sed
+
+    rid = _straight_home(theatre)
+
+    with theatre["app"].app_context():
+        short = sed.incomplete()
+
+    assert [i["record"].id for i in short] == [rid]
+    assert "drugs" in short[0]["missing"]
+
+
+def test_they_are_not_reported_unwatched_forever(theatre):
+    """الحلقة اللي خلصت مش محتاجة قراية — وشارة حمرا على طفل راح البيت
+    من أسبوعين بتعلّم اللي بيقرا إنه يتجاهل اللون."""
+    from app.models import Setting
+    from app.utils import sedation as sed
+
+    _straight_home(theatre, at=datetime.utcnow() - timedelta(hours=5))
+
+    with theatre["app"].app_context():
+        Setting.set("sedation_watch_minutes", "30")
+        theatre["db"].session.commit()
+
+        assert sed.unwatched() == []
+
+
+def test_a_child_still_in_recovery_is_not_called_complete(theatre):
+    """لسه بنود بتتكتب عليه."""
+    from app.models import User
+    from app.utils import sedation as sed
+
+    rid = _open(theatre)
+    _reading(theatre, rid)
+    with theatre["app"].app_context():
+        doc = theatre["db"].session.get(User, theatre["ids"]["doctor"])
+        sed.describe(_row(theatre, rid), score="Ramsay 3", drugs="ميدازولام",
+                     fluids_in_ml=100, unusual_event="مفيش")
+        sed.leave_theatre(_row(theatre, rid), "recovery", condition="فايق",
+                          user=doc)
+        sed.describe(_row(theatre, rid))
+        theatre["db"].session.commit()
+
+        row = _row(theatre, rid)
+        row.recovery_event = "مفيش"
+        theatre["db"].session.commit()
+
+        assert row.in_recovery
+        assert not sed.complete(row)
+
+
+def test_the_signature_carries_its_moment_even_with_an_operation(theatre):
+    """مين وقّع من غير إمتى نص توقيع — والعمود بيفضل فاضي لما الوقت
+    بيتقرا من العملية."""
+    from app.models import Operation, Patient, User
+    from app.utils import sedation as sed
+
+    op_id = _case(theatre)
+    with theatre["app"].app_context():
+        patient = theatre["db"].session.get(Patient, theatre["ids"]["child"])
+        doc = theatre["db"].session.get(User, theatre["ids"]["doctor"])
+        op = theatre["db"].session.get(Operation, op_id)
+        row = sed.start(patient, "anaesthesia", user=doc, operation=op)
+        theatre["db"].session.commit()
+        rid = row.id
+
+        sed.leave_theatre(_row(theatre, rid), "recovery", user=doc)
+        theatre["db"].session.commit()
+
+        row = _row(theatre, rid)
+        assert row.left_theatre_at is None       # الوقت في العملية
+        assert row.signed_by_id == doc.id
+        assert row.signed_at is not None

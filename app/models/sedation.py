@@ -163,8 +163,27 @@ class SedationRecord(db.Model):
 
     @property
     def in_recovery(self):
-        """ساب المسرح ولسه في الإفاقة."""
-        return self.theatre_out is not None and self.recovery_out is None
+        """ساب المسرح ولسه في الإفاقة — **واللي راح غيرها مش فيها**.
+
+        دي كانت ``theatre_out is not None and recovery_out is None`` وبس،
+        يعني طفل ساب المسرح ورايح البيت على طول — وده الطريق العادي في
+        الطهارة وفي التسكين اللي مالوش عملية — كان بيفضل مكتوب «في
+        الإفاقة» للأبد، لأن وقت خروج من الإفاقة عمره ما هيتكتب لواحد
+        عمره ما دخلها.
+        """
+        return (self.theatre_out is not None and self.recovery_out is None
+                and self.disposition in (None, RECOVERY))
+
+    @property
+    def over(self):
+        """الحلقة خلصت — مفيش حاجة تانية جاية.
+
+        **مش «ساب الإفاقة»**، لأن اللي ما دخلهاش ما بيسيبهاش. ولمّا ده
+        كان هو الشرط، السجل كان بيفضل شغّال على الشاشة، وما بيوصلش أبداً
+        لقايمة «خلصت وناقصها بند» مهما كان ناقص، ولو العيادة كاتبة فترة
+        المراقبة كان بيفضل أحمر على شاشة محدّش هيقدر يقفله.
+        """
+        return not self.in_theatre and not self.in_recovery
 
     @property
     def minutes(self):
