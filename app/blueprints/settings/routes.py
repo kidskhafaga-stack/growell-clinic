@@ -861,6 +861,17 @@ def risks():
             sed_minutes = 0
         Setting.set(sed_rules.INTERVAL_SETTING,
                     str(sed_minutes) if sed_minutes > 0 else "")
+        # ودي مهلة كتابة مش فترة مراقبة — `ICD.18` دليل ٤. جنبهم لأن
+        # نفس الشكل: رقم المستشفى بتقوله والبرنامج بيقيس عليه.
+        from app.utils import verbal_order as vo_rules
+
+        try:
+            vo_minutes = int((request.form.get("verbal_order_minutes")
+                              or "").strip())
+        except (TypeError, ValueError):
+            vo_minutes = 0
+        Setting.set(vo_rules.TIMEFRAME_SETTING,
+                    str(vo_minutes) if vo_minutes > 0 else "")
         ActivityLog.record("settings.risks", user_id=current_user.id,
                            entity="setting", detail="risk policy",
                            ip_address=client_ip())
@@ -880,11 +891,17 @@ def risks():
 
         return sed_rules.interval_minutes()
 
+    def _verbal_minutes():
+        from app.utils import verbal_order as vo_rules
+
+        return vo_rules.timeframe_minutes()
+
     return render_template(
         "settings/risks.html", kinds=RISK_KINDS, standards=STANDARDS,
         blood_watch_minutes=blood_rules.interval_minutes() or "",
         restraint_watch_minutes=_restraint_minutes() or "",
         sedation_watch_minutes=_sedation_minutes() or "",
+        verbal_order_minutes=_verbal_minutes() or "",
         policy={k: {"on": k in enabled,
                     "hours": risk_rules.interval_hours(k) or "",
                     "tool": risk_rules.tool_name(k)} for k in RISK_KINDS})

@@ -113,7 +113,7 @@
         <td dir="ltr"><span class="badge badge--danger">{{ row.valid_until.strftime('%Y-%m-%d %H:%M') }}</span></td>
         <td>{% if row.admission_id %}
           <a class="btn btn-sm btn-outline gc-press"
-             href="{{ url_for('beds.stay', admission_id=row.admission_id) }}#restraint">
+             href="{{ url_for('beds.admission', admission_id=row.admission_id) }}#restraint">
             {{ t('education.board_open') }}</a>{% endif %}</td>
       </tr>
       {% endfor %}
@@ -169,6 +169,38 @@
     <a class="badge badge--warning" data-resus-unanswered="{{ row.id }}"
        href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
       {{ t('resus.unanswered') }}</a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# أمر شفهي لسه ناقصه قراية بصوت عالي أو تأكيد — `ICD.18`. **ودي مش
+   ورقة ناقصة**: ده أمر علاج شغّال محدّش راجعه، والنية بتقول إن نقل
+   الكلام دي **أشهر سبب** للأحداث الضارة.
+
+   والشارة بتقول **ناقصه إيه** — التلاتة حاجات مختلفة، ولون واحد
+   لتلاتتهم كان هيخلّي اللي بيقرا يفتح كل واحد علشان يعرف. #}
+{% if verbal_open or verbal_late %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:16px;"
+     data-verbal-watch>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('verbal.title') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('verbal.open_hint') }}</span>
+  </div>
+  <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;">
+    {% for row in verbal_open %}
+    <a class="badge badge--warning" data-verbal-open="{{ row.id }}"
+       href="{{ url_for('patients.view', patient_id=row.patient_id) }}#verbal">
+      {{ row.patient.display_name(current_lang) if row.patient else '—' }}
+      {% for gap in verbal_gaps(row) %}
+      <span data-missing="{{ gap }}">· {{ t('verbal.step_' ~ gap) }}</span>
+      {% endfor %}</a>
+    {% endfor %}
+    {% for row in verbal_late %}
+    <a class="badge badge--danger" data-verbal-late="{{ row.id }}"
+       href="{{ url_for('patients.view', patient_id=row.patient_id) }}#verbal">
+      {{ t('verbal.late') }}
+      <span dir="ltr">{{ row.delay_minutes }}′</span></a>
     {% endfor %}
   </div>
 </div>

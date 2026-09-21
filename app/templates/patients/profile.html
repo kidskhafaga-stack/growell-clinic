@@ -289,6 +289,11 @@
         {% if sedation_records %}
         {% set ns.tabs = ns.tabs + [('sedation','tab_sedation','lungs')] %}
         {% endif %}
+        {# ونفسها للأوامر الشفهية — بس من غير شرط وحدة، لأن الأمر
+           الشفهي مش تبع قسم: بيحصل على التليفون بالليل في أي مكان. #}
+        {% if verbal_orders %}
+        {% set ns.tabs = ns.tabs + [('verbal','tab_verbal','telephone')] %}
+        {% endif %}
         {# Only where the clinic does dentistry. A tab labelled "teeth" on
            every paediatric file is furniture, which is why the module is off
            by default in the first place. #}
@@ -2019,6 +2024,109 @@
             {% endfor %}
           </div>
           {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Verbal and telephone orders -->
+    <div class="gc-tab-panel" x-show="tab==='verbal'" x-cloak>
+      <h3 class="section-title" style="margin:0 0 4px;">
+        <i class="bi bi-telephone"></i> {{ t('patients.tab_verbal') }}</h3>
+      <p class="page-sub" style="margin:0 0 12px;">{{ t('verbal.sub') }}</p>
+
+      {# **فورمة الكتابة على الملف نفسه.** (ب) بتقول *documented by the
+         receiver* — اللي سمع الأمر هو اللي يكتبه، وهو واقف على ملف
+         الطفل ساعتها. صفحة تانية معناها إنه هيكتبه على ورقة الأول. #}
+      <form method="post" class="card" style="padding:12px;margin-bottom:14px;"
+            action="{{ url_for('patients.verbal_order_record', patient_id=patient.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+          <div style="flex:3 1 280px;">
+            <label for="vo_text">{{ t('verbal.text') }}</label>
+            <input class="input" id="vo_text" name="text" required
+                   placeholder="{{ t('verbal.text_hint') }}">
+          </div>
+          <div style="flex:0 1 150px;">
+            <label for="vo_channel">{{ t('verbal.channel') }}</label>
+            <select class="input" id="vo_channel" name="channel">
+              {% for c in verbal_channels %}
+              <option value="{{ c }}">{{ t('verbal.channel_' ~ c) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div style="flex:1 1 170px;">
+            <label for="vo_who">{{ t('verbal.ordered_by') }}</label>
+            <input class="input" id="vo_who" name="ordered_by_name"
+                   placeholder="{{ t('verbal.ordered_by_hint') }}">
+          </div>
+          <div style="flex:1 1 180px;">
+            <label for="vo_at">{{ t('verbal.spoken_at') }}</label>
+            <input class="input" id="vo_at" type="datetime-local" name="spoken_at">
+          </div>
+          <button class="btn btn-primary gc-press" type="submit">
+            <i class="bi bi-pencil"></i> {{ t('verbal.write_down') }}</button>
+        </div>
+      </form>
+
+      <div class="info-grid" data-verbal>
+        {% for row in verbal_orders %}
+        <div class="card" style="padding:12px;grid-column:1/-1;"
+             data-verbal-order="{{ row.id }}">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <strong dir="ltr">{{ row.spoken_at.strftime('%Y-%m-%d %H:%M') }}</strong>
+            <span class="badge badge--muted">{{ t('verbal.channel_' ~ row.channel) }}</span>
+            {% if row.ordering_name(current_lang) %}
+            <span class="hint">{{ t('verbal.ordered_by') }}: {{ row.ordering_name(current_lang) }}</span>
+            {% endif %}
+            {% if row.closed %}
+            <span class="badge badge--ok">{{ t('verbal.closed') }}</span>
+            {% endif %}
+          </div>
+          <div style="margin-top:6px;">{{ row.text }}</div>
+
+          {# **التلاتة كل واحدة لوحدها، وكل واحدة بتقول حصلت ولا لأ.**
+             زرار واحد اسمه «اتحقّق منه» كان هيخلّي التلاتة واحدة، وده
+             بالظبط اللي المعيار موجود علشانه. #}
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"
+               data-verbal-steps>
+            <span class="badge badge--ok" data-step="written">
+              <i class="bi bi-check2"></i> {{ t('verbal.step_written') }}</span>
+
+            {% if row.read_back %}
+            <span class="badge badge--ok" data-step="read_back">
+              <i class="bi bi-check2"></i> {{ t('verbal.step_read_back') }}</span>
+            {% else %}
+            <form method="post" style="display:inline;"
+                  action="{{ url_for('patients.verbal_order_read_back', order_id=row.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm btn-outline gc-press" type="submit"
+                      data-missing="read_back">
+                <i class="bi bi-megaphone"></i> {{ t('verbal.do_read_back') }}</button>
+            </form>
+            {% endif %}
+
+            {% if row.confirmed %}
+            <span class="badge badge--ok" data-step="confirm">
+              <i class="bi bi-check2"></i> {{ t('verbal.step_confirm') }}</span>
+            {% else %}
+            {# والزرار بيبان بس للي مش هو اللي كتب — واللي استلم الأمر
+               بيأكّد كتابته هو نفسه مش تأكيد. والسجل بيرفضها كمان،
+               والحتّتين مقصودين: الشاشة بتوفّر الضغطة، والسجل بيمنع
+               اللي يوصل من أي طريق تاني. #}
+            {% if row.received_by_id != current_user.id %}
+            <form method="post" style="display:inline;"
+                  action="{{ url_for('patients.verbal_order_confirm', order_id=row.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm btn-primary gc-press" type="submit"
+                      data-missing="confirm">
+                <i class="bi bi-patch-check"></i> {{ t('verbal.do_confirm') }}</button>
+            </form>
+            {% else %}
+            <span class="hint" data-missing="confirm">{{ t('verbal.waiting_for_other') }}</span>
+            {% endif %}
+            {% endif %}
+          </div>
         </div>
         {% endfor %}
       </div>

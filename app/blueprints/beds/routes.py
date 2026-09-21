@@ -262,6 +262,9 @@ def admission(admission_id):
     # list, so they cannot end up saying different things about one stay.
     risk_rows = risks.panel(row)
     blood_rows = blood.panel(row)
+    from app.models import RESTRAINT_KINDS, RESUS_OUTCOMES
+    from app.utils import restraint as _tied
+    from app.utils import resuscitation as _cpr
     return render_template(
         "beds/admission.html", admission=row,
         free=ward.free_beds(), outcomes=OUTCOMES, trends=ROUND_TRENDS,
@@ -294,6 +297,14 @@ def admission(admission_id):
         blood_products=BLOOD_PRODUCTS,
         blood_urgencies=BLOOD_URGENCIES,
         ward_people=_ward_people(),
+        # التقييد والإنعاش على نفس الشاشة: الفعل بيتعمل جنب الطفل،
+        # واللوحة بتقول اللي غلط. والقرايتين من نفس الدوال اللي اللوحة
+        # بتقراها، فمستحيل الشاشتين يقولوا حاجتين.
+        tied_now=[r for r in _tied.for_patient(row.patient_id)
+                  if r.ended_at is None],
+        restraint_kinds=RESTRAINT_KINDS,
+        arrests=_cpr.for_patient(row.patient_id, limit=10),
+        resus_outcomes=RESUS_OUTCOMES,
         risk_panel=risk_rows,
         risk_unassessed=risks.unassessed(risk_rows),
         risk_bare=risks.without_plan(risk_rows),
@@ -729,6 +740,7 @@ def watch():
     # تعدّي.
     from app.utils import restraint as tied
     from app.utils import resuscitation as cpr
+    from app.utils import verbal_order as vo
     watch_minutes = tied.interval_minutes()
     return render_template("beds/watch.html", rows=watching,
                            emergencies=blood.emergencies_waiting(),
@@ -738,7 +750,14 @@ def watch():
                            restraints_unwatched=tied.unwatched(),
                            restraint_minutes=watch_minutes,
                            resus_running=cpr.running(),
-                           resus_unanswered=cpr.never_answered(limit=20))
+                           resus_unanswered=cpr.never_answered(limit=20),
+                           # وسابعة من نفس الشكل: أمر شفهي لسه ناقصه
+                           # قراية بصوت عالي أو تأكيد من اللي قاله.
+                           # ودي مش ورقة ناقصة كمان — ده أمر علاج
+                           # شغّال محدّش راجعه.
+                           verbal_open=vo.open_orders(limit=20),
+                           verbal_late=vo.late(limit=20),
+                           verbal_gaps=vo.missing)
 
 
 def _ward_people():
@@ -756,7 +775,14 @@ def _ward_people():
 
 # ------------------------------------------------- التقييد والإنعاش ----
 def _stay_back(admission_id, anchor):
-    return redirect(url_for("beds.stay", admission_id=admission_id) + anchor)
+    """رجوع لشاشة الإقامة.
+
+    **اسم المسار `beds.admission` مش `beds.stay`.** الستّ مسارات اللي
+    تحت كانوا كلهم بيرجّعوا على اسم مش موجود، والاختبارات كانت بتعدّي
+    لأنها بتنده الدوال على طول — أول ضغطة من شاشة كانت هتقع.
+    """
+    return redirect(url_for("beds.admission", admission_id=admission_id)
+                    + anchor)
 
 
 @beds_bp.route("/stay/<int:admission_id>/restraint", methods=["POST"])
