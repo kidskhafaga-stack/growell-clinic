@@ -1765,8 +1765,16 @@ def refer(visit_id):
     Reversible, because a referral written on the wrong child is a thing that
     happens in exactly the minutes this button is pressed in.
     """
+    from app.models.referral import KINDS as REFERRAL_KINDS, REFERRAL
+    from app.utils import referrals as refs
+
     visit = db.get_or_404(Visit, visit_id)
     if request.form.get("undo"):
+        # **إلغاء مش مسح** على الجدول الجديد؛ والأعمدة القديمة بتتفضّى
+        # زي ما كانت، علشان إحالة قديمة اتلغت تختفي زي الأول بالظبط.
+        row = refs.latest_for_visit(visit.id)
+        if row is not None:
+            refs.cancel(row)
         visit.referred_at = None
         visit.referred_to = None
         visit.referral_note = None
@@ -1774,15 +1782,114 @@ def refer(visit_id):
         flash(t("visits.referral_undone"), "info")
         return redirect(request.referrer or url_for("visits.record", visit_id=visit.id))
 
-    visit.referred_at = datetime.utcnow()
-    visit.referred_to = (request.form.get("referred_to") or "").strip() or None
-    visit.referral_note = (request.form.get("referral_note") or "").strip() or None
+    # **خانتين بس عند الزرار، والباقي بعدين.**
+    #
+    # دليل ٤ بيطلب تمن بنود على الورقة — بس مش كلهم لازم يتكتبوا في
+    # اللحظة اللي بيتبعت فيها طفل لطوارئ. اللي لازم دلوقتي: راح فين
+    # وليه. والباقي (النقل · المراقبة · الحالة) بيتكتب من نفس الصف بعد
+    # دقيقة، واللي بيقرا بيشوف ناقص إيه بالاسم.
+    kind = (request.form.get("kind") or REFERRAL).strip()
+    if kind not in REFERRAL_KINDS:
+        kind = REFERRAL
+    reason = (request.form.get("referral_note") or "").strip()
+    sent_to = (request.form.get("referred_to") or "").strip() or None
+    if not reason:
+        flash(t("referrals.reason_required"), "error")
+        return redirect(request.referrer or url_for("visits.record", visit_id=visit.id))
+
+    refs.refer(visit.patient, reason, kind=kind, user=current_user,
+               visit=visit, sent_to=sent_to)
     ActivityLog.record("visit.refer", user_id=current_user.id, entity="visit",
-                       entity_id=visit.id, detail=visit.referred_to or "",
+                       entity_id=visit.id, detail=sent_to or "",
                        ip_address=client_ip())
     db.session.commit()
     flash(t("visits.referred_ok"), "warning")
     return redirect(request.referrer or url_for("visits.record", visit_id=visit.id))
+
+
+@visits_bp.route("/referrals/<int:referral_id>/describe", methods=["POST"])
+@module_required(MODULE)
+def referral_describe(referral_id):
+    """البنود اللي فضلت من التمانية — بتتكتب من نفس الصف اللي بيقول ناقصة."""
+    from app.models import Referral
+    from app.utils import referrals as refs
+
+    row = db.get_or_404(Referral, referral_id)
+    refs.describe(row,
+                  sent_to=request.form.get("sent_to"),
+                  transport=request.form.get("transport"),
+                  monitoring=request.form.get("monitoring"),
+                  condition=request.form.get("condition"))
+    ActivityLog.record("referral.describe", user_id=current_user.id,
+                       entity="referral", entity_id=row.id,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("common.saved"), "success")
+    return redirect(request.referrer or url_for("visits.referrals"))
+
+
+@visits_bp.route("/referrals/<int:referral_id>/feedback", methods=["POST"])
+@module_required(MODULE)
+def referral_feedback(referral_id):
+    """دليل ٥ — الرد اتسجّل. **وده لسه مش توقيع.**"""
+    from app.models import Referral
+    from app.utils import referrals as refs
+
+    row = db.get_or_404(Referral, referral_id)
+    try:
+        refs.answer(row, request.form.get("feedback"), user=current_user)
+    except ValueError:
+        flash(t("referrals.feedback_required"), "error")
+        return redirect(request.referrer or url_for("visits.referrals"))
+    ActivityLog.record("referral.feedback", user_id=current_user.id,
+                       entity="referral", entity_id=row.id,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("referrals.feedback_saved"), "success")
+    return redirect(request.referrer or url_for("visits.referrals"))
+
+
+@visits_bp.route("/referrals/<int:referral_id>/review", methods=["POST"])
+@module_required(MODULE)
+def referral_review(referral_id):
+    """وده التوقيع — *reviewed, **signed***.
+
+    زرار لوحده لأن اللي بيضغطه غير اللي سجّل الورقة: الاستقبال بيحطّها،
+    والطبيب بيقراها.
+    """
+    from app.models import Referral
+    from app.utils import referrals as refs
+
+    row = db.get_or_404(Referral, referral_id)
+    try:
+        refs.review(row, user=current_user)
+    except ValueError:
+        flash(t("referrals.nothing_to_review"), "error")
+        return redirect(request.referrer or url_for("visits.referrals"))
+    ActivityLog.record("referral.review", user_id=current_user.id,
+                       entity="referral", entity_id=row.id,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("referrals.signed_ok"), "success")
+    return redirect(request.referrer or url_for("visits.referrals"))
+
+
+@visits_bp.route("/referrals")
+@module_required(MODULE)
+def referrals():
+    """`ACT.14` — الورق اللي راح، واللي رجع ومحدّش وقّع عليه.
+
+    **والتنين على شاشة واحدة عن قصد.** «راحت ومحدّش رد» بيبان ناقص من
+    بعيد؛ **«رجع رد ومحدّش راجعه» بيبان مكتمل** — وده اللي محتاج حد
+    يحطّه قدام عينه.
+    """
+    from app.utils import referrals as refs
+
+    rows = refs.waiting()
+    return render_template("visits/referrals.html", rows=rows,
+                           unsigned=refs.unsigned(),
+                           incomplete=refs.incomplete(),
+                           missing=refs.missing)
 
 
 # ------------------------------------------------------------ complete -----

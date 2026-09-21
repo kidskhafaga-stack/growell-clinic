@@ -769,20 +769,30 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label><i class="bi bi-hospital"></i> {{ t('visits.refer_title') }}</label>
         {% if visit.is_referred %}
-        <div class="alert-pill danger" style="display:block;">
+        <div class="alert-pill danger" style="display:block;" data-referred>
           <i class="bi bi-hospital-fill"></i>
           <strong>{{ t('visits.referred_badge') }}</strong>
-          {% if visit.referred_to %} — {{ visit.referred_to }}{% endif %}
-          <span dir="ltr">{{ visit.referred_at.strftime('%Y-%m-%d %H:%M') }}</span>
-          {% if visit.referral_note %}<div>{{ visit.referral_note }}</div>{% endif %}
+          {% if visit.referral_where %} — {{ visit.referral_where }}{% endif %}
+          {% if visit.referral_when %}
+          <span dir="ltr">{{ visit.referral_when.strftime('%Y-%m-%d %H:%M') }}</span>
+          {% endif %}
+          {% if visit.referral_why %}<div>{{ visit.referral_why }}</div>{% endif %}
         </div>
         <button class="btn btn-outline btn-sm gc-press" type="submit" name="undo" value="1"
                 style="margin-top:6px;align-self:start;">
           <i class="bi bi-arrow-counterclockwise"></i> {{ t('visits.referral_undo') }}</button>
         {% else %}
-        <input class="input" name="referred_to" placeholder="{{ t('visits.refer_where') }}">
-        <input class="input" name="referral_note" placeholder="{{ t('visits.refer_why') }}"
+        {# **خانتين بس.** دليل ٤ عايز تمن بنود على الورقة، بس مش كلهم في
+           اللحظة اللي بيتبعت فيها طفل لطوارئ. الباقي بيتكتب من صف
+           الورقة نفسه في شاشة الإحالات. #}
+        <select class="input" name="kind" style="max-width:180px;">
+          <option value="referral">{{ t('referrals.kind_referral') }}</option>
+          <option value="transfer">{{ t('referrals.kind_transfer') }}</option>
+        </select>
+        <input class="input" name="referred_to" placeholder="{{ t('visits.refer_where') }}"
                style="margin-top:6px;">
+        <input class="input" name="referral_note" placeholder="{{ t('visits.refer_why') }}"
+               style="margin-top:6px;" required>
         <button class="btn btn-danger btn-sm gc-press" type="submit" style="margin-top:6px;align-self:start;">
           <i class="bi bi-hospital"></i> {{ t('visits.refer_now') }}</button>
         {% endif %}

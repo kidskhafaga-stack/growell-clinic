@@ -79,6 +79,16 @@ class Visit(db.Model):
     # re-labelled underneath it. See app/utils/panels.py.
     specialty_panel = db.Column(db.String(40))
 
+    # **الأعمدة التلاتة دي سجل قديم، مش اللي بيتكتب دلوقتي.**
+    #
+    # `ACT.14` بيطلب ورقة بتمن بنود وتغذية راجعة، فالإحالة بقى ليها
+    # جدول: `Referral`. وهنا مكانش ينفع نحوّلهم — `utils/schema` **مش
+    # بيرحّل داتا** (مكتوب في دوكسترينجه: additive only, never rewrites)،
+    # وعيادة شغّالة عندها إحالات مكتوبة في الأعمدة دي.
+    #
+    # فالحل: بطّلنا نكتب فيهم، والقرايات تحت بتسأل الجدول الجديد الأول
+    # والعمود القديم بعده. الشاشات القديمة ما اتغيّرتش، والإحالة القديمة
+    # لسه بتبان — ومفيش إجابتين لنفس السؤال، لأن **فيه قارئ واحد**.
     referred_at = db.Column(db.DateTime)
     referred_to = db.Column(db.String(120))
     referral_note = db.Column(db.Text)
@@ -103,8 +113,29 @@ class Visit(db.Model):
     followup_instructions = db.Column(db.Text)
 
     @property
+    def referral(self):
+        """ورقة `ACT.14` الحيّة بتاعة الزيارة دي، لو فيه."""
+        rows = [row for row in (self.referrals or []) if row.live]
+        return max(rows, key=lambda r: (r.decided_at, r.id)) if rows else None
+
+    @property
     def is_referred(self):
-        return self.referred_at is not None
+        return self.referral is not None or self.referred_at is not None
+
+    @property
+    def referral_where(self):
+        row = self.referral
+        return row.sent_to if row is not None else self.referred_to
+
+    @property
+    def referral_when(self):
+        row = self.referral
+        return row.decided_at if row is not None else self.referred_at
+
+    @property
+    def referral_why(self):
+        row = self.referral
+        return row.reason if row is not None else self.referral_note
 
     patient = db.relationship("Patient", backref="visits")
     doctor = db.relationship("User", backref="visits")

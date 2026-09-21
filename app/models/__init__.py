@@ -81,6 +81,10 @@ from app.models.nutrition import (DIET_DOMAIN, DietOrder,
 from app.models.abbreviation import (Abbreviation,
                                      CONTEXTS as ABBREV_CONTEXTS,
                                      KINDS as ABBREV_KINDS)
+from app.models.referral import (Referral,
+                                 KINDS as REFERRAL_KINDS,
+                                 REFERRAL as REFERRAL_KIND,
+                                 TRANSFER as TRANSFER_KIND)
 from app.models.blood import (BloodRequest, PRODUCTS,
                               REQUEST_STATES, Transfusion,
                               URGENCIES)
@@ -368,6 +372,10 @@ __all__ = [
     "Abbreviation",
     "ABBREV_KINDS",
     "ABBREV_CONTEXTS",
+    "Referral",
+    "REFERRAL_KINDS",
+    "REFERRAL_KIND",
+    "TRANSFER_KIND",
     "DietOrder",
     "NutritionAssessment",
     "DIET_DOMAIN",

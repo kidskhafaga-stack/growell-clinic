@@ -70,6 +70,9 @@ READERS = [
     ("nutrition", "unanswered_family_food"),
     ("nutrition", "current_diet"),
     ("abbreviations", "violations"),
+    ("referrals", "waiting"),
+    ("referrals", "unsigned"),
+    ("referrals", "incomplete"),
 ]
 
 #: Tabs on the patient file that must stay conditional. The file varies by
@@ -106,6 +109,7 @@ DOORS = [
     ("emergency.register", "app/templates/departments/board.html"),
     ("settings.abbreviations", "app/templates/settings/index.html"),
     ("theatres.sedation_board", "app/templates/theatres/index.html"),
+    ("visits.referrals", "app/templates/visits/list.html"),
 ]
 
 
