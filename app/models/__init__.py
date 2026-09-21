@@ -78,6 +78,9 @@ from app.models.opinion import (KINDS as OPINION_KINDS, Opinion,
                                 required_for as opinion_items)
 from app.models.nutrition import (DIET_DOMAIN, DietOrder,
                                   NutritionAssessment)
+from app.models.abbreviation import (Abbreviation,
+                                     CONTEXTS as ABBREV_CONTEXTS,
+                                     KINDS as ABBREV_KINDS)
 from app.models.blood import (BloodRequest, PRODUCTS,
                               REQUEST_STATES, Transfusion,
                               URGENCIES)
@@ -362,6 +365,9 @@ __all__ = [
     "Line",
     "LINE_KINDS",
     "LINE_HIGH_RISK",
+    "Abbreviation",
+    "ABBREV_KINDS",
+    "ABBREV_CONTEXTS",
     "DietOrder",
     "NutritionAssessment",
     "DIET_DOMAIN",

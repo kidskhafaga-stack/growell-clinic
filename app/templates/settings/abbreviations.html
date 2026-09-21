@@ -1,0 +1,129 @@
+{% extends "shell.html" %}
+{% block title %}{{ t('abbrev.title') }}{% endblock %}
+{% block page_heading %}{{ t('abbrev.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="margin-bottom:16px;">
+  <h1 class="page-title"><i class="bi bi-type"></i> {{ t('abbrev.title') }}
+    <span class="hint" dir="ltr">IMT.04</span></h1>
+  <p class="page-sub" style="margin:0;">{{ t('abbrev.sub') }}</p>
+</div>
+
+{# **المخالفات فوق القايمة عن قصد.** دليل ٤ بيطلب إن المخالفات تترصد،
+   والقايمة اللي بتتكتب في مكان والمخالفات اللي بتتقرا في مكان تاني
+   بتخلّي اللي بيكتب القايمة ما يشوفش أثرها. #}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;{% if violations %}border-inline-start:4px solid var(--danger);{% endif %}"
+     data-abbrev-violations>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('abbrev.violations') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('abbrev.violations_hint') }}</span>
+  </div>
+  {% if not rows %}
+  <p class="hint" style="margin:0;padding:18px;" data-abbrev-empty>
+    {{ t('abbrev.no_list') }}</p>
+  {% elif not violations %}
+  <p class="hint" style="margin:0;padding:18px;">{{ t('abbrev.none_found') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('abbrev.where') }}</th><th>{{ t('abbrev.field') }}</th>
+      <th>{{ t('abbrev.found') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for item in violations %}
+      <tr data-violation="{{ item.model }}-{{ item.row.id }}-{{ item.field }}">
+        <td>{{ t('abbrev.m_' ~ item.model) }}
+          {# سياق الأهل بقاعدة أصرم — (د) — والشاشة بتقول ليه. #}
+          {% if item.context == 'family' %}
+          <span class="badge badge--danger" data-context="family">{{ t('abbrev.family_rule') }}</span>
+          {% endif %}</td>
+        <td class="hint" dir="ltr">{{ item.field }}</td>
+        <td>
+          {% for hit in item.found %}
+          <span class="badge {{ 'badge--danger' if hit.kind == 'banned' else 'badge--warning' }}"
+                data-hit="{{ hit.text }}">{{ hit.text }}
+            {%- if hit.means %} → {{ hit.means }}{% endif %}</span>
+          {% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="padding:14px 18px;margin-bottom:16px;">
+  <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="add">
+    <div style="flex:0 1 130px;">
+      <label for="ab_text">{{ t('abbrev.text') }}</label>
+      <input class="input" id="ab_text" name="text" required maxlength="40">
+    </div>
+    <div style="flex:0 1 150px;">
+      <label for="ab_kind">{{ t('abbrev.kind') }}</label>
+      <select class="select" id="ab_kind" name="kind">
+        {% for k in kinds %}
+        <option value="{{ k }}">{{ t('abbrev.kind_' ~ k) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="flex:1 1 180px;">
+      <label for="ab_means">{{ t('abbrev.means') }}</label>
+      <input class="input" id="ab_means" name="means" maxlength="120"
+             placeholder="{{ t('abbrev.means_hint') }}">
+    </div>
+    <div style="flex:1 1 180px;">
+      <label for="ab_note">{{ t('abbrev.note') }}</label>
+      <input class="input" id="ab_note" name="note" maxlength="200">
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;" data-abbrev-list>
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('abbrev.text') }}</th><th>{{ t('abbrev.kind') }}</th>
+      <th>{{ t('abbrev.means') }}</th><th>{{ t('abbrev.note') }}</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr data-abbrev="{{ row.id }}"{% if not row.is_active %} class="is-muted"{% endif %}>
+        <td dir="ltr"><strong>{{ row.text }}</strong></td>
+        <td><span class="badge {{ 'badge--danger' if row.banned else 'badge--ok' }}">
+          {{ t('abbrev.kind_' ~ row.kind) }}</span></td>
+        <td>{{ row.means or '—' }}</td>
+        <td class="hint">{{ row.note or '' }}</td>
+        <td>
+          {# إيقاف مش مسح: التاريخ يفضل مقروء، والمخالفات القديمة
+             تفضل مفهومة. #}
+          <form method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="toggle">
+            <input type="hidden" name="id" value="{{ row.id }}">
+            <button class="btn btn-sm btn-outline gc-press" type="submit">
+              {{ t('abbrev.off') if row.is_active else t('abbrev.on') }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      {% if not rows %}
+      <tr><td colspan="5" class="hint" style="padding:18px;">
+        {{ t('abbrev.no_list') }}</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+  </div>
+  <div style="padding:14px 18px;border-top:1px solid var(--line);">
+    <span class="hint">{{ t('abbrev.scanned_here') }}:</span>
+    {% for name, pair in scanned.items() %}
+    <span class="badge badge--muted">{{ t('abbrev.m_' ~ name) }}</span>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

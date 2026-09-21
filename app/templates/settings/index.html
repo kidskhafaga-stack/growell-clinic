@@ -74,6 +74,8 @@
        never open — and a settings page that leads nowhere is the dead switch
        this program keeps taking out. #}
     {% if module_enabled('beds') %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('settings.abbreviations') }}">
+      <i class="bi bi-type"></i> {{ t('abbrev.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('settings.risks') }}">
       <i class="bi bi-shield-exclamation"></i> {{ t('risks.policy_title') }}</a>
     {% endif %}

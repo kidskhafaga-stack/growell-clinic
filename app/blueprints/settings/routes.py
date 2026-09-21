@@ -800,6 +800,61 @@ def visit_types():
                            colors=VISIT_TYPE_COLORS)
 
 
+@settings_bp.route("/abbreviations", methods=["GET", "POST"])
+@admin_required
+def abbreviations():
+    """قايمتي الاختصارات، والمخالفات اللي اتلاقت — `IMT.04`.
+
+    **والتلاتة على شاشة واحدة عن قصد.** دليل ٤ بيطلب إن المخالفات
+    **تترصد**، والقايمة اللي بتتكتب في مكان والمخالفات اللي بتتقرا في
+    مكان تاني بتخلّي اللي بيكتب القايمة ما يشوفش أثرها.
+    """
+    from app.models import ABBREV_KINDS, Abbreviation
+    from app.utils import abbreviations as ab
+
+    if request.method == "POST":
+        action = (request.form.get("action") or "").strip()
+        if action == "add":
+            text = (request.form.get("text") or "").strip()[:40]
+            kind = (request.form.get("kind") or "").strip()
+            if not text or kind not in ABBREV_KINDS:
+                flash(t("abbrev.not_saved"), "error")
+            elif Abbreviation.query.filter_by(text=text).first():
+                # نفس الرمز مرتين معناه حُكمين متضاربين على حاجة واحدة.
+                flash(t("abbrev.already_there"), "error")
+            else:
+                db.session.add(Abbreviation(
+                    text=text, kind=kind,
+                    means=(request.form.get("means") or "").strip()[:120]
+                    or None,
+                    note=(request.form.get("note") or "").strip()[:200]
+                    or None))
+                db.session.commit()
+                flash(t("abbrev.saved"), "success")
+        elif action == "toggle":
+            row = db.session.get(Abbreviation,
+                                 request.form.get("id", type=int))
+            if row is not None:
+                # **إيقاف مش مسح**: التاريخ يفضل مقروء، والمخالفات
+                # القديمة تفضل مفهومة.
+                row.is_active = not row.is_active
+                db.session.commit()
+                flash(t("abbrev.saved"), "success")
+        ActivityLog.record("settings.abbreviations", user_id=current_user.id,
+                           entity="abbreviation", detail=action,
+                           ip_address=client_ip())
+        db.session.commit()
+        return redirect(url_for("settings.abbreviations"))
+
+    return render_template(
+        "settings/abbreviations.html",
+        kinds=ABBREV_KINDS,
+        rows=Abbreviation.query.order_by(Abbreviation.kind,
+                                         Abbreviation.text).all(),
+        violations=ab.violations(limit=50),
+        scanned=ab.SCANNED)
+
+
 @settings_bp.route("/risks", methods=["GET", "POST"])
 @admin_required
 def risks():
