@@ -786,6 +786,110 @@
    find, so the list is built from the risks the clinic looks for and the
    assessments are hung onto it — which is the only way «ما اتقيّمش» can
    appear at all. #}
+{# ================= خريطة القساطر — CSS.03 =========================
+   (د) بيطلب **catheter map** كجزء من تسليم الورديات، فمكانها هنا: على
+   الشاشة اللي الممرضة بتفتحها وهي بتسلّم.
+
+   والخريطة **بتتحسب من الصفوف كل مرة** مش متخزّنة — خريطة متخزّنة
+   بتفرق عن الصفوف أول مرة حد ينسى يحدّثها، وساعتها التسليم بيتقرا من
+   الحاجة الغلط. #}
+{% if admission.is_open or line_map %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="lines"
+     data-line-map>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-diagram-3"></i> {{ t('lines.title') }}
+    <span class="hint" dir="ltr">CSS.03</span></h2>
+
+  {% if not line_map %}
+  <p class="hint" style="margin:0;">{{ t('lines.none') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('lines.kind') }}</th><th>{{ t('lines.site') }}</th>
+      <th>{{ t('lines.label') }}</th><th>{{ t('lines.days') }}</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for row in line_map %}
+      <tr data-line="{{ row.id }}">
+        <td>
+          {{ t('lines.kind_' ~ row.kind) }}
+          {%- if row.kind_note %} · {{ row.kind_note }}{% endif %}
+          {# عالية الخطورة بتتحسب من النوع — مفيش علامة حد يقدر يشيلها. #}
+          {% if row.high_risk %}
+          <span class="badge badge--danger" data-high-risk>{{ t('lines.high_risk') }}</span>
+          {% endif %}
+        </td>
+        <td>{{ row.site or '—' }}{% if row.size %} · {{ row.size }}{% endif %}</td>
+        <td>
+          {% if row.labelled %}{{ row.label }}
+          {% else %}
+          <form method="post" style="display:flex;gap:6px;align-items:end;"
+                action="{{ url_for('beds.line_label', line_id=row.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="input" name="label" style="max-width:150px;"
+                   data-missing="label"
+                   placeholder="{{ t('lines.label') }}">
+            <button class="btn btn-sm btn-outline gc-press" type="submit">
+              <i class="bi bi-tag"></i></button>
+          </form>
+          {% endif %}
+        </td>
+        <td dir="ltr">{{ row.days_in }}</td>
+        <td>
+          <form method="post" style="display:flex;gap:6px;align-items:end;"
+                action="{{ url_for('beds.line_remove', line_id=row.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="input" name="reason" style="max-width:130px;"
+                   placeholder="{{ t('lines.why_out') }}">
+            <button class="btn btn-sm btn-primary gc-press" type="submit">
+              <i class="bi bi-x-lg"></i> {{ t('lines.remove') }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+
+  {% if admission.is_open %}
+  <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px;"
+        action="{{ url_for('beds.line_insert', admission_id=admission.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:0 1 170px;">
+      <label for="ln_kind">{{ t('lines.kind') }}</label>
+      <select class="select" id="ln_kind" name="kind">
+        {% for k in line_kinds %}
+        <option value="{{ k }}">{{ t('lines.kind_' ~ k) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="flex:1 1 160px;">
+      <label for="ln_site">{{ t('lines.site') }}</label>
+      <input class="input" id="ln_site" name="site"
+             placeholder="{{ t('lines.site_hint') }}">
+    </div>
+    <div style="flex:0 1 100px;">
+      <label for="ln_size">{{ t('lines.size') }}</label>
+      <input class="input" id="ln_size" name="size">
+    </div>
+    <div style="flex:1 1 160px;">
+      <label for="ln_label">{{ t('lines.label') }}</label>
+      <input class="input" id="ln_label" name="label">
+    </div>
+    <div style="flex:1 1 150px;">
+      <label for="ln_note">{{ t('lines.kind_note') }}</label>
+      <input class="input" id="ln_note" name="kind_note"
+             placeholder="{{ t('lines.kind_note_hint') }}">
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-plus-lg"></i> {{ t('lines.add') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
 {# ======================= التقييد والإنعاش — CSS.12 و CSS.05 =======
    **الفورمتين دول كانوا ناقصين.** المسارات الستّة اتسلّمت ومحدّش يقدر
    يوصلها: الشاشة كانت بتقول «فيه طفل مربوط بأمر خلص» ومفيش في البرنامج

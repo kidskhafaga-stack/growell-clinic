@@ -71,6 +71,8 @@ from app.models.verbal_order import (CHANNELS as VERBAL_CHANNELS,
                                      VerbalOrder)
 from app.models.refusal import (ELEMENTS as REFUSAL_ELEMENTS,
                                 KINDS as REFUSAL_KINDS, Refusal)
+from app.models.line import (HIGH_RISK as LINE_HIGH_RISK,
+                             KINDS as LINE_KINDS, Line)
 from app.models.blood import (BloodRequest, PRODUCTS,
                               REQUEST_STATES, Transfusion,
                               URGENCIES)
@@ -352,6 +354,9 @@ __all__ = [
     "Refusal",
     "REFUSAL_KINDS",
     "REFUSAL_ELEMENTS",
+    "Line",
+    "LINE_KINDS",
+    "LINE_HIGH_RISK",
     "ARRIVALS",
     "DISPOSITIONS",
     "TOPICS",

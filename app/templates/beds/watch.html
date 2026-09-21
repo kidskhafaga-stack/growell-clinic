@@ -287,4 +287,40 @@
   {% endif %}
 </div>
 {% endif %}
+
+{# **قسطرة عالية الخطورة من غير ملصق** — `CSS.03` (ب).
+
+   النية بتقول العاقبة بالنص: دخول المادة الغلط من **الطريق الغلط**،
+   والملصق هو اللي بيمنعه. وقايمة زي دي مكانش ينفع تتعمل من غير ما
+   القساطر نفسها تبقى متسجّلة. #}
+{% if lines_unlabelled or lines_left_in or lines_unnamed %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:16px;border-inline-start:4px solid var(--danger);"
+     data-lines-watch>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('lines.title') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('lines.watch_hint') }}</span>
+  </div>
+  <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;">
+    {% for row in lines_unlabelled %}
+    <a class="badge badge--danger" data-line-unlabelled="{{ row.id }}"
+       href="{{ url_for('patients.view', patient_id=row.patient_id) }}#lines">
+      {{ t('lines.kind_' ~ row.kind) }} —
+      {{ row.patient.display_name(current_lang) if row.patient else '—' }}
+      · {{ t('lines.no_label') }}</a>
+    {% endfor %}
+    {% for item in lines_left_in %}
+    <a class="badge badge--warning" data-line-left-in="{{ item.line.id }}"
+       href="{{ url_for('beds.admission', admission_id=item.stay.id) }}#lines">
+      {{ item.line.patient.display_name(current_lang) if item.line.patient else '—' }}
+      · {{ t('lines.left_in') }}</a>
+    {% endfor %}
+    {% for row in lines_unnamed %}
+    <a class="badge badge--muted" data-line-unnamed="{{ row.id }}"
+       href="{{ url_for('patients.view', patient_id=row.patient_id) }}#lines">
+      {{ row.patient.display_name(current_lang) if row.patient else '—' }}
+      · {{ t('lines.unnamed') }}</a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 {% endblock %}

@@ -262,7 +262,9 @@ def admission(admission_id):
     # list, so they cannot end up saying different things about one stay.
     risk_rows = risks.panel(row)
     blood_rows = blood.panel(row)
-    from app.models import RESTRAINT_KINDS, RESUS_OUTCOMES
+    from app.models import (LINE_HIGH_RISK, LINE_KINDS, RESTRAINT_KINDS,
+                            RESUS_OUTCOMES)
+    from app.utils import lines as _lines
     from app.utils import restraint as _tied
     from app.utils import resuscitation as _cpr
     return render_template(
@@ -300,6 +302,11 @@ def admission(admission_id):
         # التقييد والإنعاش على نفس الشاشة: الفعل بيتعمل جنب الطفل،
         # واللوحة بتقول اللي غلط. والقرايتين من نفس الدوال اللي اللوحة
         # بتقراها، فمستحيل الشاشتين يقولوا حاجتين.
+        # **خريطة القساطر** — `CSS.03` (د) بيطلبها كجزء من التسليم،
+        # وبتتحسب من الصفوف كل مرة بدل ما تتخزّن وتفرق عنها.
+        line_map=_lines.map_for(row.patient_id),
+        line_kinds=LINE_KINDS,
+        line_high_risk=LINE_HIGH_RISK,
         tied_now=[r for r in _tied.for_patient(row.patient_id)
                   if r.ended_at is None],
         restraint_kinds=RESTRAINT_KINDS,
@@ -742,6 +749,7 @@ def watch():
     from app.utils import resuscitation as cpr
     from app.utils import verbal_order as vo
     from app.utils import refusal as no
+    from app.utils import lines as _lines
     watch_minutes = tied.interval_minutes()
     return render_template("beds/watch.html", rows=watching,
                            emergencies=blood.emergencies_waiting(),
@@ -770,7 +778,15 @@ def watch():
                            # حاجة والدليل إن اللي رفض شافها حاجة تانية.
                            # ورقة مكتوبة صح ومحدّش وقّع عليها دعوى مش
                            # مستند — نفس قاعدة `Consent` بالظبط.
-                           refusals_unsigned=no.unsigned(limit=20))
+                           refusals_unsigned=no.unsigned(limit=20),
+                           # وتاسعة: قسطرة عالية الخطورة من غير ملصق.
+                           # النية بتقول العاقبة بالنص — المادة الغلط من
+                           # **الطريق الغلط** — والملصق هو اللي بيمنعها.
+                           lines_unlabelled=_lines.unlabelled_high_risk(
+                               limit=20),
+                           lines_left_in=_lines.still_in_after_discharge(
+                               limit=20),
+                           lines_unnamed=_lines.unnamed_other(limit=20))
 
 
 def _ward_people():
@@ -784,6 +800,66 @@ def _ward_people():
 
     return (User.query.filter(User.is_active.is_(True))
             .order_by(User.full_name).all())
+
+
+# ------------------------------------------ القساطر والأنابيب `CSS.03` ----
+@beds_bp.route("/stay/<int:admission_id>/line", methods=["POST"])
+@module_required(MODULE)
+def line_insert(admission_id):
+    """قسطرة أو أنبوبة اتركّبت.
+
+    **ومفيش صلاحية زيادة عن القسم**، لأن اللي بيركّب كانيولا أو أنبوبة
+    معدة تمريض في أغلب الوقت — ونفس اللي بيركّبها هو اللي المفروض
+    يسجّلها، وإلا بتتسجّل بعدين من الذاكرة أو ما بتتسجّلش.
+    """
+    from app.utils import lines as _lines
+
+    stay = db.get_or_404(Admission, admission_id)
+    try:
+        _lines.insert(stay.patient, (request.form.get("kind") or "").strip(),
+                      user=current_user, admission=stay,
+                      site=request.form.get("site"),
+                      size=request.form.get("size"),
+                      label=request.form.get("label"),
+                      kind_note=request.form.get("kind_note"))
+    except ValueError:
+        db.session.rollback()
+        flash(t("lines.not_saved"), "error")
+        return _stay_back(admission_id, "#lines")
+    db.session.commit()
+    flash(t("lines.inserted"), "success")
+    return _stay_back(admission_id, "#lines")
+
+
+@beds_bp.route("/line/<int:line_id>/label", methods=["POST"])
+@module_required(MODULE)
+def line_label(line_id):
+    """(ب) الملصق — والقايمة اللي بتلاقي الناقص هي اللي بتقفله."""
+    from app.models import Line
+    from app.utils import lines as _lines
+
+    row = db.get_or_404(Line, line_id)
+    _lines.label(row, request.form.get("label"))
+    db.session.commit()
+    flash(t("lines.labelled"), "success")
+    return _stay_back(row.admission_id, "#lines") if row.admission_id else \
+        redirect(url_for("patients.view", patient_id=row.patient_id) + "#lines")
+
+
+@beds_bp.route("/line/<int:line_id>/remove", methods=["POST"])
+@module_required(MODULE)
+def line_remove(line_id):
+    """اتشالت — **لحظة مش مسح**."""
+    from app.models import Line
+    from app.utils import lines as _lines
+
+    row = db.get_or_404(Line, line_id)
+    _lines.remove(row, user=current_user,
+                  reason=request.form.get("reason"))
+    db.session.commit()
+    flash(t("lines.removed"), "success")
+    return _stay_back(row.admission_id, "#lines") if row.admission_id else \
+        redirect(url_for("patients.view", patient_id=row.patient_id) + "#lines")
 
 
 # ------------------------------------------------- التقييد والإنعاش ----

@@ -298,6 +298,10 @@
         {% if refusals %}
         {% set ns.tabs = ns.tabs + [('refusal','tab_refusal','hand-thumbs-down')] %}
         {% endif %}
+        {# ونفسها للقساطر: طفل عمره ما اتركّبله حاجة مالوش تبويب. #}
+        {% if lines %}
+        {% set ns.tabs = ns.tabs + [('lines','tab_lines','diagram-3')] %}
+        {% endif %}
         {# Only where the clinic does dentistry. A tab labelled "teeth" on
            every paediatric file is furniture, which is why the module is off
            by default in the first place. #}
@@ -2133,6 +2137,43 @@
           </div>
         </div>
         {% endfor %}
+      </div>
+    </div>
+
+    <!-- Catheters and tubes -->
+    <div class="gc-tab-panel" x-show="tab==='lines'" x-cloak>
+      <h3 class="section-title" style="margin:0 0 12px;">
+        <i class="bi bi-diagram-3"></i> {{ t('patients.tab_lines') }}</h3>
+      <div style="overflow-x:auto;" data-lines>
+      <table class="table">
+        <thead><tr>
+          <th>{{ t('lines.kind') }}</th><th>{{ t('lines.site') }}</th>
+          <th>{{ t('lines.label') }}</th><th>{{ t('lines.days') }}</th>
+        </tr></thead>
+        <tbody>
+          {% for row in lines %}
+          <tr data-line="{{ row.id }}"
+              {% if not row.in_place %}class="is-muted"{% endif %}>
+            <td>
+              {{ t('lines.kind_' ~ row.kind) }}
+              {%- if row.kind_note %} · {{ row.kind_note }}{% endif %}
+              {% if row.high_risk %}
+              <span class="badge badge--danger" data-high-risk>{{ t('lines.high_risk') }}</span>
+              {% endif %}
+              {% if row.high_risk and row.in_place and not row.labelled %}
+              <span class="badge badge--warning" data-missing="label">{{ t('lines.no_label') }}</span>
+              {% endif %}
+            </td>
+            <td>{{ row.site or '—' }}{% if row.size %} · {{ row.size }}{% endif %}</td>
+            <td>{{ row.label or '—' }}</td>
+            <td dir="ltr">{{ row.days_in }}
+              {% if not row.in_place %}
+              <span class="hint">· {{ row.removal_reason or t('lines.remove') }}</span>
+              {% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
       </div>
     </div>
 
