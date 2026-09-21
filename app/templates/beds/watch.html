@@ -363,4 +363,39 @@
   </div>
 </div>
 {% endif %}
+
+{# **تقييم تغذية قال «محتاج» ومحدّش كتب أكل** — `ICD.13`.
+
+   النية بتقول إن التقييم *leads to a plan of care, or intervention*.
+   والصف ده **بيبان مكتمل في أي جرد** — مفيش خانة فاضية فيه — علشان كده
+   محتاج قراية بتشوفه. #}
+{% if food_nothing_ordered or food_no_assessment or food_family_unanswered %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:16px;border-inline-start:4px solid var(--danger);"
+     data-food-watch>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('food.title') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('food.watch_hint') }}</span>
+  </div>
+  <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;">
+    {% for row in food_nothing_ordered %}
+    <a class="badge badge--danger" data-food-nothing="{{ row.id }}"
+       href="{{ url_for('patients.view', patient_id=row.patient_id) }}#food">
+      {{ row.patient.display_name(current_lang) if row.patient else '—' }}
+      · {{ t('food.nothing_ordered') }}</a>
+    {% endfor %}
+    {% for row in food_no_assessment %}
+    <a class="badge badge--warning" data-food-unassessed="{{ row.id }}"
+       href="{{ url_for('patients.view', patient_id=row.patient_id) }}#food">
+      {{ row.patient.display_name(current_lang) if row.patient else '—' }}
+      · {{ t('food.never_assessed') }}</a>
+    {% endfor %}
+    {% for row in food_family_unanswered %}
+    <a class="badge badge--muted" data-food-family="{{ row.id }}"
+       href="{{ url_for('patients.view', patient_id=row.patient_id) }}#food">
+      {{ row.patient.display_name(current_lang) if row.patient else '—' }}
+      · {{ t('food.family_unanswered') }}</a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 {% endblock %}

@@ -65,6 +65,10 @@ READERS = [
     ("opinions", "overdue"),
     ("opinions", "incomplete"),
     ("opinions", "waiting"),
+    ("nutrition", "assessed_but_nothing_ordered"),
+    ("nutrition", "ordered_without_assessment"),
+    ("nutrition", "unanswered_family_food"),
+    ("nutrition", "current_diet"),
 ]
 
 #: Tabs on the patient file that must stay conditional. The file varies by
@@ -86,6 +90,7 @@ EARNED_TABS = [
     ("refusal", "app/templates/patients/profile.html"),
     ("lines", "app/templates/patients/profile.html"),
     ("opinions", "app/templates/patients/profile.html"),
+    ("food", "app/templates/patients/profile.html"),
 ]
 
 #: Screens whose own door must exist — ``(endpoint, template that links it)``.

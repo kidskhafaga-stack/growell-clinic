@@ -786,6 +786,147 @@
    find, so the list is built from the risks the clinic looks for and the
    assessments are hung onto it — which is the only way «ما اتقيّمش» can
    appear at all. #}
+{# ===================== التغذية — ICD.13 ==========================
+   النية بتقول إن التقييم **بيأدّي** لخطة — فالاتنين على شاشة واحدة،
+   والتقييم اللي قال «محتاج» وتحته مفيش أمر بيبان على طول.
+
+   **والقايمة بتاعة العيادة.** (د)(١) بيقول *a list of all special diets
+   is available* — فلو ما كتبوهاش، الشاشة بتقولهم يكتبوها بدل ما تعرض
+   عليهم أسماء من عندنا. #}
+{% if admission.is_open or diet_now or food_assessment %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="food"
+     data-food>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-egg-fried"></i> {{ t('food.title') }}
+    <span class="hint" dir="ltr">ICD.13</span></h2>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+    {% if food_assessment %}
+    <span class="badge badge--muted" data-food-assessed>
+      {{ t('food.assessed_on') }}
+      <span dir="ltr">{{ food_assessment.at.strftime('%Y-%m-%d') }}</span></span>
+    {% if food_assessment.needs_special_diet %}
+    <span class="badge badge--warning" data-needs>{{ t('food.needs_yes') }}</span>
+    {% elif food_assessment.needs_special_diet is sameas false %}
+    <span class="badge badge--ok">{{ t('food.needs_no') }}</span>
+    {% else %}
+    <span class="badge badge--muted">{{ t('food.needs_unknown') }}</span>
+    {% endif %}
+    {% else %}
+    <span class="badge badge--warning" data-food-unassessed>
+      {{ t('food.never_assessed') }}</span>
+    {% endif %}
+
+    {% if diet_now %}
+    <span class="badge badge--ok" data-diet="{{ diet_now.id }}">
+      {{ diet_now.diet_name(current_lang) }}</span>
+    {% if diet_now.family_food_allowed is none %}
+    <span class="badge badge--warning" data-missing="family_food">
+      {{ t('food.family_unanswered') }}</span>
+    {% endif %}
+    {% elif food_assessment and food_assessment.needs_special_diet %}
+    {# التقييم اللي ما أدّاش لحاجة — بيبان هنا قبل ما يوصل للوحة. #}
+    <span class="badge badge--danger" data-food-gap>{{ t('food.nothing_ordered') }}</span>
+    {% endif %}
+  </div>
+
+  {% if food_assessment and food_assessment.findings %}
+  <div><span class="hint">{{ t('food.findings') }}:</span>
+    {{ food_assessment.findings }}</div>
+  {% endif %}
+  {% if food_assessment and food_assessment.plan %}
+  <div style="margin-top:4px;"><span class="hint">{{ t('food.plan') }}:</span>
+    {{ food_assessment.plan }}</div>
+  {% endif %}
+  {% if diet_now %}
+  {% if diet_now.detail %}
+  <div style="margin-top:4px;"><span class="hint">{{ t('food.detail') }}:</span>
+    {{ diet_now.detail }}</div>
+  {% endif %}
+  {% if diet_now.meal_times %}
+  <div style="margin-top:4px;"><span class="hint">{{ t('food.meal_times') }}:</span>
+    {{ diet_now.meal_times }}</div>
+  {% endif %}
+  {% endif %}
+
+  {% if admission.is_open %}
+  <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px;border-top:1px solid var(--line);padding-top:12px;"
+        action="{{ url_for('beds.nutrition_assess', admission_id=admission.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:2 1 220px;">
+      <label for="nu_find">{{ t('food.findings') }}</label>
+      <input class="input" id="nu_find" name="findings">
+    </div>
+    <div style="flex:0 1 190px;">
+      <label for="nu_needs">{{ t('food.needs') }}</label>
+      <select class="select" id="nu_needs" name="needs">
+        <option value="">{{ t('food.needs_unknown') }}</option>
+        <option value="yes">{{ t('food.needs_yes') }}</option>
+        <option value="no">{{ t('food.needs_no') }}</option>
+      </select>
+    </div>
+    <div style="flex:2 1 200px;">
+      <label for="nu_plan">{{ t('food.plan') }}</label>
+      <input class="input" id="nu_plan" name="plan">
+    </div>
+    <button class="btn btn-outline gc-press" type="submit">
+      <i class="bi bi-clipboard-check"></i> {{ t('food.assess') }}</button>
+  </form>
+
+  {% if not diet_list %}
+  {# **القايمة فاضية.** ما بنعرضش أسماء من عندنا — بنقول للعيادة تكتبها. #}
+  <p class="hint" style="margin:12px 0 0;" data-no-diet-list>
+    {{ t('food.no_list') }}
+    {% if current_user.can('inventory') %}
+    <a href="{{ url_for('inventory.lookups', domain='special_diet') }}">{{ t('food.write_list') }}</a>
+    {% endif %}
+  </p>
+  {% else %}
+  <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;"
+        action="{{ url_for('beds.diet_order', admission_id=admission.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:0 1 180px;">
+      <label for="dt_key">{{ t('food.diet') }}</label>
+      <select class="select" id="dt_key" name="diet_key" required>
+        {% for d in diet_list %}
+        <option value="{{ d.key }}">{{ d.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="flex:1 1 160px;">
+      <label for="dt_detail">{{ t('food.detail') }}</label>
+      <input class="input" id="dt_detail" name="detail">
+    </div>
+    <div style="flex:1 1 170px;">
+      <label for="dt_times">{{ t('food.meal_times') }}</label>
+      <input class="input" id="dt_times" name="meal_times"
+             placeholder="{{ t('food.meal_times_hint') }}">
+    </div>
+    <div style="flex:0 1 170px;">
+      <label for="dt_family">{{ t('food.family_food') }}</label>
+      <select class="select" id="dt_family" name="family_food">
+        <option value="">{{ t('food.family_unknown') }}</option>
+        <option value="yes">{{ t('food.family_yes') }}</option>
+        <option value="no">{{ t('food.family_no') }}</option>
+      </select>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-egg-fried"></i> {{ t('food.order') }}</button>
+  </form>
+  {% endif %}
+
+  {% if diet_now %}
+  <form method="post" style="margin-top:10px;"
+        action="{{ url_for('beds.diet_stop', order_id=diet_now.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">
+      <i class="bi bi-x-lg"></i> {{ t('food.stop') }}</button>
+  </form>
+  {% endif %}
+  {% endif %}
+</div>
+{% endif %}
+
 {# ================= خريطة القساطر — CSS.03 =========================
    (د) بيطلب **catheter map** كجزء من تسليم الورديات، فمكانها هنا: على
    الشاشة اللي الممرضة بتفتحها وهي بتسلّم.

@@ -537,6 +537,11 @@ def view(patient_id):
 
     _opinions = op_util.for_patient(patient.id)
     _opinion_missing = {r.id: op_util.missing(r) for r in _opinions}
+    # التغذية — دليل ٥: التقييم والإدارة بيتسجّلوا **في الملف**.
+    from app.utils import nutrition as food_util
+
+    _food_assessments = food_util.assessments_for(patient.id)
+    _diet_orders = food_util.orders_for(patient.id)
     ai_patient = (current_user.can_access("ai") and ai_utils.is_ready()
                   and ai_utils.patient_context_enabled())
     # The discussion card needs both: the record still leaves the building, and
@@ -652,6 +657,8 @@ def view(patient_id):
         refusal_missing=_refusal_missing,
         refusal_kinds=REFUSAL_KINDS,
         lines=_lines,
+        food_assessments=_food_assessments,
+        diet_orders=_diet_orders,
         opinions=_opinions,
         opinion_missing=_opinion_missing,
         opinion_kinds=OPINION_KINDS,
