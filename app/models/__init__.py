@@ -69,6 +69,8 @@ from app.models.resuscitation import (ALS_MINUTES, OUTCOMES as RESUS_OUTCOMES,
                                         Resuscitation)
 from app.models.verbal_order import (CHANNELS as VERBAL_CHANNELS,
                                      VerbalOrder)
+from app.models.refusal import (ELEMENTS as REFUSAL_ELEMENTS,
+                                KINDS as REFUSAL_KINDS, Refusal)
 from app.models.blood import (BloodRequest, PRODUCTS,
                               REQUEST_STATES, Transfusion,
                               URGENCIES)
@@ -347,6 +349,9 @@ __all__ = [
     "ALS_MINUTES",
     "VerbalOrder",
     "VERBAL_CHANNELS",
+    "Refusal",
+    "REFUSAL_KINDS",
+    "REFUSAL_ELEMENTS",
     "ARRIVALS",
     "DISPOSITIONS",
     "TOPICS",

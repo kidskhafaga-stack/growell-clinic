@@ -414,6 +414,7 @@
     "tab_overview": "نظرة عامة",
     "tab_phase_notice": "هذا القسم سيتوفر في مرحلة لاحقة من تطوير النظام",
     "tab_prescriptions": "الروشتات",
+    "tab_refusal": "الرفض المستنير",
     "tab_safety": "التقييد والإنعاش",
     "tab_sedation": "التخدير",
     "tab_stays": "الإقامات",
@@ -7491,5 +7492,28 @@
     "title": "الأوامر الشفهية والتليفونية",
     "waiting_for_other": "التأكيد من اللي قال الأمر — مش من اللي كتبه.",
     "write_down": "اكتبه"
+  },
+  "refusal": {
+    "guardian": "اللي رفض",
+    "informed": "الأربعة مكتوبين",
+    "item_alternatives": "البدايل اللي اتعرضت",
+    "item_condition": "حالته دلوقتي زي ما اتقالت لهم",
+    "item_consequences": "إيه اللي ممكن يحصل",
+    "item_refused": "بيرفضوا إيه بالظبط",
+    "kind_discharge": "خروج ضد النصيحة",
+    "kind_emergency": "سيبان الطوارئ",
+    "kind_step": "رفض خطوة",
+    "left_discharge": "خرج من الإقامة بنفسه",
+    "left_emergency": "مشي من الطوارئ",
+    "missing_hint": "خرجوا ضد النصيحة ومفيش لهم استمارة — PCC.10 دليل ٣.",
+    "not_informed": "ناقصها بند",
+    "not_saved": "ما اتسجّلتش.",
+    "saved": "اتسجّلت.",
+    "start_form": "ابدأ الاستمارة",
+    "sub": "رفض من غير ما حد يقول العواقب مش رفض مستنير — ده خروج.",
+    "the_form": "الاستمارة",
+    "title": "الرفض المستنير",
+    "unsigned": "من غير توقيع",
+    "what_happened": "اللي حصل"
   }
 }

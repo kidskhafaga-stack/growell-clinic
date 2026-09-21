@@ -741,6 +741,7 @@ def watch():
     from app.utils import restraint as tied
     from app.utils import resuscitation as cpr
     from app.utils import verbal_order as vo
+    from app.utils import refusal as no
     watch_minutes = tied.interval_minutes()
     return render_template("beds/watch.html", rows=watching,
                            emergencies=blood.emergencies_waiting(),
@@ -757,7 +758,19 @@ def watch():
                            # شغّال محدّش راجعه.
                            verbal_open=vo.open_orders(limit=20),
                            verbal_late=vo.late(limit=20),
-                           verbal_gaps=vo.missing)
+                           verbal_gaps=vo.missing,
+                           # وتامنة: خرجوا ضد النصيحة ومفيش لهم
+                           # استمارة رفض. **ودي القراية اللي مكانش ينفع
+                           # تتسأل قبل ما الاستمارة تبقى موجودة** —
+                           # البرنامج كان عارف إن الطفل مشي، وما كانش
+                           # عنده الطرف التاني من المقارنة.
+                           refusals_missing=no.undocumented(limit=20),
+                           refusals_short=no.incomplete(limit=20),
+                           # ودي حقيقة تانية غير «ناقصها بند»: المحتوى
+                           # حاجة والدليل إن اللي رفض شافها حاجة تانية.
+                           # ورقة مكتوبة صح ومحدّش وقّع عليها دعوى مش
+                           # مستند — نفس قاعدة `Consent` بالظبط.
+                           refusals_unsigned=no.unsigned(limit=20))
 
 
 def _ward_people():

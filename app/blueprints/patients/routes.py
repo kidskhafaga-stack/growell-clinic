@@ -40,6 +40,7 @@ from app.models import (
     Patient,
     PatientAttachment,
     PatientProblem,
+    REFUSAL_KINDS,
     VERBAL_CHANNELS,
 )
 from app.utils import patient_basics as _basics
@@ -517,6 +518,12 @@ def view(patient_id):
 
     _verbal = vo_util.for_patient(patient.id)
     _verbal_missing = {r.id: vo_util.missing(r) for r in _verbal}
+    # ونفس الحكاية: الرفض مش تبع وحدة — بيحصل في العيادة وفي الداخلي
+    # وفي الطوارئ، والمعيار بيقول الاستمارة تبقى **في الملف**.
+    from app.utils import refusal as no_util
+
+    _refusals = no_util.for_patient(patient.id)
+    _refusal_missing = {r.id: no_util.missing(r) for r in _refusals}
     ai_patient = (current_user.can_access("ai") and ai_utils.is_ready()
                   and ai_utils.patient_context_enabled())
     # The discussion card needs both: the record still leaves the building, and
@@ -628,6 +635,9 @@ def view(patient_id):
         verbal_orders=_verbal,
         verbal_missing=_verbal_missing,
         verbal_channels=VERBAL_CHANNELS,
+        refusals=_refusals,
+        refusal_missing=_refusal_missing,
+        refusal_kinds=REFUSAL_KINDS,
         emergency_missing=_emergency_missing,
         growth_alert=_growth_concern(_growth_picture),
         # One reading across every visit — labs, device studies and specialty
@@ -850,6 +860,58 @@ def verbal_order_confirm(order_id):
     flash(t("verbal.confirmed_done"), "success")
     return redirect(url_for("patients.view", patient_id=row.patient_id)
                     + "#verbal")
+
+
+# ------------------------------------------ الرفض المستنير `PCC.10` ----
+@patients_bp.route("/<int:patient_id>/refusal", methods=["POST"])
+@module_required(MODULE)
+def refusal_record(patient_id):
+    """استمارة رفض مستنير — الأربعة (أ)–(د).
+
+    **مش بترفض لو ناقصة.** اللي واقف قدام أهل ماشيين مش هيملا أربع خانات
+    الأول، ورفض اتسجّل ناقص أحسن من رفض ما اتسجّلش — والشاشة بتقول
+    ناقص إيه باسمه بعد كده.
+    """
+    from app.utils import refusal as no
+
+    patient = db.get_or_404(Patient, patient_id)
+    try:
+        no.record(patient, (request.form.get("kind") or "step").strip(),
+                  user=current_user, explained_by=current_user,
+                  condition=request.form.get("condition"),
+                  consequences=request.form.get("consequences"),
+                  refused=request.form.get("refused"),
+                  alternatives=request.form.get("alternatives"),
+                  guardian_name=request.form.get("guardian_name"),
+                  guardian_relation=request.form.get("guardian_relation"))
+    except ValueError:
+        db.session.rollback()
+        flash(t("refusal.not_saved"), "error")
+        return redirect(url_for("patients.view", patient_id=patient.id)
+                        + "#refusal")
+    db.session.commit()
+    flash(t("refusal.saved"), "success")
+    return redirect(url_for("patients.view", patient_id=patient.id)
+                    + "#refusal")
+
+
+@patients_bp.route("/refusal/<int:refusal_id>/fill", methods=["POST"])
+@module_required(MODULE)
+def refusal_fill(refusal_id):
+    """البند اللي كان ناقص. الحقل اللي ما اتبعتش ما بيتغيّرش."""
+    from app.models import Refusal
+    from app.utils import refusal as no
+
+    row = db.get_or_404(Refusal, refusal_id)
+    no.describe(row,
+                condition=request.form.get("condition"),
+                consequences=request.form.get("consequences"),
+                refused=request.form.get("refused"),
+                alternatives=request.form.get("alternatives"))
+    db.session.commit()
+    flash(t("refusal.saved"), "success")
+    return redirect(url_for("patients.view", patient_id=row.patient_id)
+                    + "#refusal")
 
 
 def _clinic_has_a_device():

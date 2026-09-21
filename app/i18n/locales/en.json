@@ -414,6 +414,7 @@
     "tab_overview": "Overview",
     "tab_phase_notice": "This section will be available in a later development phase",
     "tab_prescriptions": "Prescriptions",
+    "tab_refusal": "Informed refusal",
     "tab_safety": "Restraint & resuscitation",
     "tab_sedation": "Anaesthesia",
     "tab_stays": "Stays",
@@ -7491,5 +7492,28 @@
     "title": "Verbal and telephone orders",
     "waiting_for_other": "The confirmation comes from whoever gave the order, not whoever wrote it.",
     "write_down": "Write it down"
+  },
+  "refusal": {
+    "guardian": "Who refused",
+    "informed": "All four written",
+    "item_alternatives": "Alternatives offered",
+    "item_condition": "Their condition as explained",
+    "item_consequences": "What could happen",
+    "item_refused": "Exactly what is refused",
+    "kind_discharge": "Left admission against advice",
+    "kind_emergency": "Left the emergency room",
+    "kind_step": "Refused a step",
+    "left_discharge": "Left the ward themselves",
+    "left_emergency": "Left the emergency room",
+    "missing_hint": "Left against advice with no form on file — PCC.10, evidence 3.",
+    "not_informed": "An element is missing",
+    "not_saved": "Not recorded.",
+    "saved": "Recorded.",
+    "start_form": "Start the form",
+    "sub": "A refusal nobody explained the consequences of is not an informed refusal — it is a departure.",
+    "the_form": "The form",
+    "title": "Informed refusal",
+    "unsigned": "Unsigned",
+    "what_happened": "What happened"
   }
 }
