@@ -534,3 +534,184 @@ def test_every_word_of_the_screen_is_written_in_both_languages(clinic):
     assert set(ar["referrals"]) == set(en["referrals"])
     assert all((ar["referrals"][k] or "").strip() for k in ar["referrals"])
     assert all((en["referrals"][k] or "").strip() for k in en["referrals"])
+
+
+# ============ اللي كنس الطفرات مسكه ============
+def test_a_box_with_only_spaces_is_still_empty(clinic):
+    """مسافة مش إجابة.
+
+    **والبابين بيقفلوا ده أصلاً**: `refer` و`describe` الاتنين بيعملوا
+    `.strip() or None`، فمسافة مكتوبة على الشاشة بتوصل `None`. اللي
+    بيفضل هو الصف اللي مجاش من الشاشة — استيراد، أو تعديل مباشر على
+    القاعدة — و`missing` هي آخر حارس قبل ما ورقة فيها مسافة تبان كاملة.
+
+    وده هو نفس السبب اللي خلّى الاختبار ده يتكتب بكتابة على العمود
+    مباشرة: كنس الطفرات مسك إن الحارس مش متغطّي من الناحية دي.
+    """
+    from app.models import Referral
+    from app.utils import referrals as refs
+
+    rid = _sent(clinic, sent_to="مستشفى أ", condition="مستقر")
+
+    with clinic["app"].app_context():
+        row = Referral.query.get(rid)
+        # لا `refer` ولا `describe` بيقدروا يكتبوا ده — وصف من بره يقدر.
+        row.transport = "   "
+        row.monitoring = ""
+        clinic["db"].session.commit()
+
+        assert set(refs.missing(row)) == {"transport", "monitoring"}
+
+
+def test_a_sheet_that_does_not_say_where_is_incomplete(clinic):
+    """(vii) الجهة بند من التمانية زيّها زي غيره.
+
+    والاختبارات اللي فوق كلها بتبعت `sent_to`، فمحدّش كان بيسأل عنه —
+    وورقة من غير جهة هي ورقة الطفل بيوصل بيها فين؟
+    """
+    from app.models import Referral
+    from app.utils import referrals as refs
+
+    rid = _sent(clinic, transport="إسعاف", monitoring="مونيتور",
+                condition="مستقر")
+
+    with clinic["app"].app_context():
+        assert refs.missing(Referral.query.get(rid)) == ["sent_to"]
+
+
+def test_the_long_boxes_are_not_wiped_either(clinic):
+    """**حارس من ناحية واحدة نص قاعدة.**
+
+    `describe` بتمشي على مجموعتين: النصوص القصيرة (بتتقص على ١٢٠) والطويلة.
+    والاختبار اللي فوق كان بيحرس المجموعة الأولى بس — والتانية كانت
+    بتتمسح لما الشاشة تبعت خانة منها بس.
+    """
+    from app.models import Referral
+    from app.utils import referrals as refs
+
+    rid = _sent(clinic, monitoring="أكسچين", condition="واعي")
+
+    with clinic["app"].app_context():
+        row = Referral.query.get(rid)
+        refs.describe(row, sent_to="مستشفى الأطفال")
+        clinic["db"].session.commit()
+
+        assert row.monitoring == "أكسچين"
+        assert row.condition == "واعي"
+
+
+def test_correcting_the_words_does_not_move_the_day_it_came_back(clinic):
+    """رجعت يوم الخميس وحد صحّح صياغتها الاتنين — رجعت الخميس برضه.
+
+    والتاريخ ده هو اللي `waiting_days` بتقيس عليه، فتحريكه بيخلّي ورقة
+    استنّت شهر تبان رجعت في يومها.
+    """
+    from app.models import Referral
+    from app.utils import referrals as refs
+
+    came_back = datetime.utcnow() - timedelta(days=12)
+    rid = _sent(clinic, at=datetime.utcnow() - timedelta(days=20))
+
+    with clinic["app"].app_context():
+        row = Referral.query.get(rid)
+        refs.answer(row, "رنين سليم", user=_user(clinic), at=came_back)
+        clinic["db"].session.commit()
+        first = row.feedback_at
+
+        refs.answer(row, "رنين سليم — والتقرير مرفق", user=_user(clinic))
+        clinic["db"].session.commit()
+
+        assert row.feedback_at == first
+        assert row.feedback.endswith("مرفق")
+
+
+def test_the_sheet_carries_this_visits_medicines_only(clinic):
+    """الطفل عنده روشتات قديمة، والورقة بتاعة الحضور ده.
+
+    ورقة بتحمل كل دوا الطفل من أول يوم هي ورقة اللي بيستقبله بيقرا فيها
+    حاجات اتوقفت من سنة.
+    """
+    from app.models import Prescription, PrescriptionItem, Referral, Visit
+    from app.utils import referrals as refs
+    from app.utils.clock import local_today
+
+    with clinic["app"].app_context():
+        kid = clinic["ids"]["child"]
+        old = Visit(patient_id=kid, visit_date=local_today(),
+                    doctor_id=clinic["ids"]["doctor"])
+        now = Visit(patient_id=kid, visit_date=local_today(),
+                    doctor_id=clinic["ids"]["doctor"])
+        clinic["db"].session.add_all([old, now])
+        clinic["db"].session.flush()
+        for visit, drug in ((old, "دوا قديم"), (now, "كيبرا")):
+            rx = Prescription(patient_id=kid, visit_id=visit.id,
+                              doctor_id=clinic["ids"]["doctor"])
+            clinic["db"].session.add(rx)
+            clinic["db"].session.flush()
+            clinic["db"].session.add(PrescriptionItem(
+                prescription_id=rx.id, drug_name=drug))
+        row = refs.refer(_patient(clinic), "تشنّج", user=_user(clinic),
+                         visit=now)
+        clinic["db"].session.commit()
+        rid = row.id
+
+    with clinic["app"].app_context():
+        sheet = refs.sheet(Referral.query.get(rid))
+        assert [m["name"] for m in sheet["medicines"]] == ["كيبرا"]
+
+
+def test_a_time_with_no_words_is_not_an_answer(clinic):
+    """`answer` بترفض النص الفاضي، فالصف ده ما بيتكتبش من الشاشة — بس
+    بيتكتب من استيراد أو تصحيح مباشر، **والخاصية هي الحارس**.
+
+    ونفس شكل `Opinion.answered` بالظبط.
+    """
+    from app.models import Referral
+
+    rid = _sent(clinic)
+
+    with clinic["app"].app_context():
+        row = Referral.query.get(rid)
+        row.feedback_at = datetime.utcnow()
+        row.feedback = "   "
+        clinic["db"].session.commit()
+
+        assert row.answered is False
+        assert row.closed is False
+
+
+def test_a_signature_with_nobody_behind_it_is_not_a_signature(clinic):
+    """*signed* بيقول مين. وقت لوحده مش توقيع."""
+    from app.models import Referral
+    from app.utils import referrals as refs
+
+    rid = _sent(clinic)
+
+    with clinic["app"].app_context():
+        row = Referral.query.get(rid)
+        refs.answer(row, "رد", user=_user(clinic))
+        row.reviewed_at = datetime.utcnow()
+        row.reviewed_by_id = None
+        clinic["db"].session.commit()
+
+        assert row.signed is False
+        assert [r.id for r in refs.unsigned()] == []  # الوقت اتحطّ فعلاً
+
+
+def test_a_sheet_with_no_stated_kind_is_the_one_that_gets_chased(clinic):
+    """**الافتراض الآمن هو اللي بيتسأل عنه.**
+
+    صف اتكتب من غير نوع لو بقى «تحويل» بيختفي من قايمة الانتظار للأبد —
+    والورقة اللي محدّش قال نوعها هي بالظبط اللي محتاجة حد يسأل عليها.
+    """
+    from app.models import Referral
+
+    with clinic["app"].app_context():
+        row = Referral(patient_id=clinic["ids"]["child"], reason="سبب")
+        clinic["db"].session.add(row)
+        clinic["db"].session.commit()
+
+        assert row.kind == "referral"
+
+        from app.utils import referrals as refs
+        assert [r.id for r in refs.waiting()] == [row.id]
