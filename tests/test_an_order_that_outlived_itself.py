@@ -554,13 +554,17 @@ def test_the_watch_board_opens_for_an_admitted_restrained_child(ward):
 
 
 def test_the_board_offers_a_way_into_the_stay(ward):
+    """**والرابط جوّه سطر التقييد نفسه.**
+
+    أول نسخة من الاختبار ده كانت بتدوّر على العنوان في الصفحة كلها —
+    والصفحة فيها روابط تانية لنفس الإقامة، فشيل الزرار كان بيعدّي.
+    """
     rid, stay = _tie_admitted(ward, hours=-1)
 
     body = ward["sign_in"]("doc").get("/beds/watch").get_data(as_text=True)
+    row = body.split(f'data-expired-restraint="{rid}"')[1].split("</tr>")[0]
 
-    assert f"/beds/admission/{stay}" in body
-    assert "beds.stay" not in body
-    assert rid
+    assert f"/beds/admission/{stay}" in row
 
 
 # ------------------------------------------- والفورمة اللي بتشغّلهم ----
@@ -574,9 +578,14 @@ def test_the_stay_screen_can_actually_tie_a_child(ward):
     page = client.get(f"/beds/admission/{stay}").get_data(as_text=True)
     assert 'name="kind"' in page and "restraint" in page
 
-    client.post(f"/beds/stay/{stay}/restraint", data={
+    landed = client.post(f"/beds/stay/{stay}/restraint", data={
         "kind": "physical", "reason": "خطر على نفسه",
-        "method": "حزام صدر"}, follow_redirects=True)
+        "method": "حزام صدر"})
+
+    # **وبيرجّع على الإقامة نفسها.** الستّة كانوا بيرجّعوا على اسم مسار
+    # مش موجود، واللي بيدوس المفروض يشوف اللي عمله على طول — رجوع
+    # لقايمة الأسرّة معناه إنه يدوّر على الطفل تاني.
+    assert f"/beds/admission/{stay}" in landed.headers["Location"]
 
     with ward["app"].app_context():
         rows = tied.for_patient(ward["ids"]["child"])
@@ -590,8 +599,9 @@ def test_the_stay_screen_can_open_a_resuscitation(ward):
     stay = _admit(ward)
     client = ward["sign_in"]("doc")
 
-    client.post(f"/beds/stay/{stay}/arrest", data={"place": "السرير"},
-                follow_redirects=True)
+    landed = client.post(f"/beds/stay/{stay}/arrest", data={"place": "السرير"})
+
+    assert f"/beds/admission/{stay}" in landed.headers["Location"]
 
     with ward["app"].app_context():
         running = cpr.running()
@@ -615,8 +625,8 @@ def test_the_two_moments_have_their_own_buttons(ward):
     page = client.get(f"/beds/admission/{stay}").get_data(as_text=True)
     assert f"/beds/arrest/{rid}/mark" in page
 
-    client.post(f"/beds/arrest/{rid}/mark", data={"what": "called"},
-                follow_redirects=True)
+    landed = client.post(f"/beds/arrest/{rid}/mark", data={"what": "called"})
+    assert f"/beds/admission/{stay}" in landed.headers["Location"]
     client.post(f"/beds/arrest/{rid}/mark", data={"what": "team"},
                 follow_redirects=True)
 

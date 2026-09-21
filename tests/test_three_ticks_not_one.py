@@ -569,3 +569,22 @@ def test_every_word_of_the_record_is_written_in_both_languages(ward):
         for group, key in keys:
             assert _lookup(tables, lang, f"{group}.{key}"), \
                 f"{lang}: {group}.{key} is missing"
+
+
+def test_a_timeframe_of_zero_is_not_a_timeframe(ward):
+    """صفر مش «فوراً» — صفر يعني **كل** أمر اتأخر.
+
+    والخانة على الشاشة بتحفظ فاضي لما تتكتب صفر، بس اللي بيكتب في
+    الإعدادات على طول بيعدّي منها — والتاني هو اللي بيحصل لما حد
+    بيصلّح داتابيز بايده.
+    """
+    from app.models import Setting
+    from app.utils import verbal_order as vo
+
+    _order(ward)
+    with ward["app"].app_context():
+        Setting.set(vo.TIMEFRAME_SETTING, "0")
+        ward["db"].session.commit()
+
+        assert vo.timeframe_minutes() is None
+        assert vo.late() == []
