@@ -394,3 +394,148 @@ def test_every_word_of_the_screen_is_written_in_both_languages(clinic):
         for group, key in keys:
             assert _lookup(tables, lang, f"{group}.{key}"), \
                 f"{lang}: {group}.{key} is missing"
+
+
+# ============ الحدود من الناحيتين ============
+# **حارس من ناحية واحدة نص قاعدة.** الاختبارات اللي فوق («BUN»,
+# «QUADRANT») بتعدّي حتى لو حد الشمال اتشال خالص، لأن حد اليمين لوحده
+# بيكفي فيها — الاتنين حروف بعد الرمز. فكنس الطفرات مسك الناحيتين
+# مفتوحين، والحالة اللي بتفرّق هي **الرمز في طرف الكلمة**.
+def test_an_abbreviation_at_the_end_of_a_word_is_not_it(clinic_with_rules):
+    """«MENU» بتنتهي بـ«U»، و«برنامج» بتنتهي بـ«مج».
+
+    لو حد الشمال اتشال، الاتنين يبقوا مخالفات — والقايمة تمتلي بكلام
+    مفيهوش اختصار خالص.
+    """
+    from app.utils import abbreviations as ab
+
+    with clinic_with_rules["app"].app_context():
+        assert ab.find("MENU على الحيطة") == []
+        # «مج» مسموح، فالسياق الأصرم هو اللي بيكشف الحد لو اتكسر.
+        assert ab.find("برنامج المتابعة", context="family") == []
+
+
+def test_an_abbreviation_at_the_start_of_a_word_is_not_it(clinic_with_rules):
+    """و«USG» بتبدأ بـ«U»، و«مجموعة» بتبدأ بـ«مج» — الناحية التانية."""
+    from app.utils import abbreviations as ab
+
+    with clinic_with_rules["app"].app_context():
+        assert ab.find("USG مطلوب") == []
+        assert ab.find("مجموعة تحاليل", context="family") == []
+
+
+def test_the_shortcut_reader_asks_with_the_same_context(clinic_with_rules):
+    """`clean` اختصار لـ`find`، فلازم يشوف نفس اللي هي شايفاه.
+
+    لو بلّعت السياق وسألت بالافتراضي، الورق اللي بيروح للأهل يعدّي
+    نضيف وفيه اختصار — وده بالظبط اللي (د) موجود علشانه.
+    """
+    from app.utils import abbreviations as ab
+
+    with clinic_with_rules["app"].app_context():
+        assert ab.clean("أدي الجرعة IV", context="note")
+        assert not ab.clean("أدي الجرعة IV", context="family")
+
+
+# ============ الرصد: مين بيتقرا، وكام ============
+def test_the_newest_records_are_the_ones_read(clinic_with_rules):
+    """**السقف بيقرا من الآخر.**
+
+    اللي بيفتح اللوحة عايز اللي اتكتب دلوقتي، والملف القديم اتقرا خلاص.
+    وسقف بيبدأ من الأول معناه إن عيادة شغالة من سنة عمرها ما هتشوف
+    مخالفة جديدة.
+    """
+    from app.utils import abbreviations as ab
+
+    _visit_with(clinic_with_rules, plan="أدي 10 U وريد")
+    newer = _visit_with(clinic_with_rules, plan="وبعدين QD")
+
+    with clinic_with_rules["app"].app_context():
+        found = ab.violations(per_model=1)
+        assert [f["row"].id for f in found] == [newer]
+
+
+def test_the_two_caps_are_not_the_same_cap(clinic_with_rules):
+    """`per_model` بيحكم كام صف يتقرا من كل جدول، و`limit` بيحكم كام
+    مخالفة ترجع. واحد منهم مكان التاني بيخلّي جدول واحد ياكل اللوحة."""
+    from app.utils import abbreviations as ab
+
+    _visit_with(clinic_with_rules, plan="أدي 10 U وريد")
+    _visit_with(clinic_with_rules, plan="وبعدين QD")
+
+    with clinic_with_rules["app"].app_context():
+        assert len(ab.violations(per_model=1)) == 1
+        assert len(ab.violations(per_model=2)) == 2
+
+
+def test_asking_for_one_gives_one(clinic_with_rules):
+    from app.utils import abbreviations as ab
+
+    _visit_with(clinic_with_rules, plan="أدي 10 U وريد")
+    _visit_with(clinic_with_rules, plan="وبعدين QD")
+
+    with clinic_with_rules["app"].app_context():
+        assert len(ab.violations(limit=1)) == 1
+        assert len(ab.violations(limit=2)) == 2
+
+
+def test_a_discharge_summary_is_family_paper_too(clinic_with_rules):
+    """**مش الموافقة بس.** (د) بيقول *any record that patients and
+    families receive* — وملخص الخروج هو الورقة اللي بتمشي مع الطفل."""
+    from app.models import Admission, DischargeSummary
+    from app.utils import abbreviations as ab
+    from app.utils.clock import local_today
+
+    with clinic_with_rules["app"].app_context():
+        stay = Admission(patient_id=clinic_with_rules["ids"]["child"],
+                         admitted_at=local_today())
+        clinic_with_rules["db"].session.add(stay)
+        clinic_with_rules["db"].session.flush()
+        clinic_with_rules["db"].session.add(DischargeSummary(
+            admission_id=stay.id,
+            patient_id=clinic_with_rules["ids"]["child"],
+            medicines="الدوا IV مرتين"))
+        clinic_with_rules["db"].session.commit()
+
+        found = ab.violations()
+        assert [f["model"] for f in found] == ["DischargeSummary"]
+        assert found[0]["context"] == "family"
+        assert found[0]["field"] == "medicines"
+
+
+# ============ نوع الصف ============
+def test_a_rule_written_with_no_ruling_is_the_strict_one(clinic):
+    """صف اتكتب من غير ما حد يقول نوعه يبقى **ممنوع**.
+
+    الافتراض الآمن هو الأصرم: رمز محدّش حكم عليه ما ينفعش يعدّي كأنه
+    معتمد.
+    """
+    from app.models import Abbreviation
+
+    with clinic["app"].app_context():
+        row = Abbreviation(text="@")
+        clinic["db"].session.add(row)
+        clinic["db"].session.commit()
+
+        assert row.kind == "banned"
+        assert row.banned is True
+
+
+def test_the_screen_colours_the_two_lists_apart(clinic_with_rules):
+    """والقايمتين على شاشة واحدة، فاللون هو اللي بيفرّق — وحارس من
+    ناحية الخاصية بس ما بيقولش إن الشاشة بتستعملها صح."""
+    from app.models import Abbreviation
+
+    with clinic_with_rules["app"].app_context():
+        assert Abbreviation.query.filter_by(text="U").one().banned is True
+        assert Abbreviation.query.filter_by(text="IV").one().banned is False
+
+    html = clinic_with_rules["sign_in"]("boss").get(
+        "/settings/abbreviations").get_data(as_text=True)
+
+    import re as _re
+    for text, badge in (("U", "badge--danger"), ("IV", "badge--ok")):
+        with clinic_with_rules["app"].app_context():
+            rid = Abbreviation.query.filter_by(text=text).one().id
+        block = _re.search(rf'data-abbrev="{rid}"(.*?)</tr>', html, _re.S)
+        assert block and badge in block.group(1), text
