@@ -813,3 +813,67 @@ def test_the_signature_carries_its_moment_even_with_an_operation(theatre):
         assert row.left_theatre_at is None       # الوقت في العملية
         assert row.signed_by_id == doc.id
         assert row.signed_at is not None
+
+
+def test_a_child_still_under_is_not_on_the_finished_short_list(theatre):
+    """«خلصت وناقصها بند» — واللي لسه على الترابيزة ما خلصتش.
+
+    من غير الشرط ده القايمة بتمتلي بأطفال ناقصهم أدوية لسه ما اتدّتش،
+    ودي مش نواقص — دي حاجات لسه ما جاش وقتها. وقايمة الشغل اللي فيها
+    الشغل اللي لسه بيتعمل هي قايمة محدّش هيفتحها.
+    """
+    from app.models import User
+    from app.utils import sedation as sed
+
+    on_the_table = _open(theatre)
+    in_the_room = _open(theatre, patient_id=theatre["ids"]["other_child"])
+    with theatre["app"].app_context():
+        doc = theatre["db"].session.get(User, theatre["ids"]["doctor"])
+        sed.leave_theatre(_row(theatre, in_the_room), "recovery", user=doc)
+        theatre["db"].session.commit()
+
+        assert sed.missing(_row(theatre, on_the_table))     # فيه نواقص
+        assert sed.missing(_row(theatre, in_the_room))
+        assert sed.incomplete() == []                       # ومش على القايمة
+
+
+def test_the_live_board_names_the_gap_too(theatre):
+    """الشاشة بتقول الناقص وهو لسه شغّال، مش لما يخلص وبس.
+
+    القايمتين على الشاشة بيحسبوا الناقص بطريقتين مختلفين — الشغّال من
+    دالة بتتنده وهو بيترسم، واللي خلص من اللي `incomplete` رجّعه. فاللي
+    بيمسك واحدة ما بيمسكش التانية.
+    """
+    from app.utils import sedation as sed
+
+    rid = _open(theatre, kind="anaesthesia")
+
+    page = theatre["sign_in"]("doc").get("/theatres/sedation").get_data(
+        as_text=True)
+
+    with theatre["app"].app_context():
+        assert "drugs" in sed.missing(_row(theatre, rid))
+    assert f'data-sedation-row="{rid}"' in page
+    assert 'data-missing="drugs"' in page
+    assert 'data-missing="technique"' in page      # وده بند التخدير لوحده
+
+
+def test_a_clinic_with_no_theatres_has_no_sedation_on_the_file(theatre):
+    """الوحدة مقفولة يعني الملف ما بيسألش عنها أصلاً.
+
+    وده مش تجميل: `for_patient` بيسأل الداتابيز كل مرة الملف بيتفتح،
+    والعيادة اللي ما بتخدّرش ما بتدفعش تمن السؤال ده ولا بتشوف تبويب
+    لحاجة عمرها ما هتحصل عندها.
+    """
+    from app.models import Setting
+
+    rid = _open(theatre)
+    with theatre["app"].app_context():
+        Setting.set("mod_enabled:theatres", "0")
+        theatre["db"].session.commit()
+
+    page = theatre["sign_in"]("doc").get(
+        f"/patients/{theatre['ids']['child']}").get_data(as_text=True)
+
+    assert f'data-sedation-record="{rid}"' not in page
+    assert "'sedation','tab_sedation'" not in page

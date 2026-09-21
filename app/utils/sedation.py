@@ -230,6 +230,10 @@ def leave_theatre(row, disposition, condition=None, user=None, at=None):
     if row.operation is not None:
         from app.utils import recovery as room
 
+        # وده بيحطّه على شاشة الإفاقة حتى لو مآله البيت — **وده صح**،
+        # لأن السؤالين مختلفين: السجل بيقول الحلقة خلصت، والعملية لسه
+        # محتاجة تصريف بقرار المتابعة اللي `recovery.discharge` بيرفض
+        # من غيره. الطفل خرج من التخدير، والورقة لسه مفتوحة.
         room.to_recovery(row.operation, user=user, at=moment)
     else:
         row.left_theatre_at = moment
