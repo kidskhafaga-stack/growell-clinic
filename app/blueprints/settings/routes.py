@@ -872,6 +872,16 @@ def risks():
             vo_minutes = 0
         Setting.set(vo_rules.TIMEFRAME_SETTING,
                     str(vo_minutes) if vo_minutes > 0 else "")
+        # وخامسة: مهلة الرد على الاستشارة — `ACT.10` (د).
+        from app.utils import opinions as op_rules
+
+        try:
+            op_minutes = int((request.form.get("consultation_minutes")
+                              or "").strip())
+        except (TypeError, ValueError):
+            op_minutes = 0
+        Setting.set(op_rules.TIMEFRAME_SETTING,
+                    str(op_minutes) if op_minutes > 0 else "")
         ActivityLog.record("settings.risks", user_id=current_user.id,
                            entity="setting", detail="risk policy",
                            ip_address=client_ip())
@@ -896,12 +906,18 @@ def risks():
 
         return vo_rules.timeframe_minutes()
 
+    def _consultation_minutes():
+        from app.utils import opinions as op_rules
+
+        return op_rules.timeframe_minutes()
+
     return render_template(
         "settings/risks.html", kinds=RISK_KINDS, standards=STANDARDS,
         blood_watch_minutes=blood_rules.interval_minutes() or "",
         restraint_watch_minutes=_restraint_minutes() or "",
         sedation_watch_minutes=_sedation_minutes() or "",
         verbal_order_minutes=_verbal_minutes() or "",
+        consultation_minutes=_consultation_minutes() or "",
         policy={k: {"on": k in enabled,
                     "hours": risk_rules.interval_hours(k) or "",
                     "tool": risk_rules.tool_name(k)} for k in RISK_KINDS})

@@ -62,6 +62,9 @@ READERS = [
     ("lines", "unlabelled_high_risk"),
     ("lines", "still_in_after_discharge"),
     ("lines", "unnamed_other"),
+    ("opinions", "overdue"),
+    ("opinions", "incomplete"),
+    ("opinions", "waiting"),
 ]
 
 #: Tabs on the patient file that must stay conditional. The file varies by
@@ -82,6 +85,7 @@ EARNED_TABS = [
     ("verbal", "app/templates/patients/profile.html"),
     ("refusal", "app/templates/patients/profile.html"),
     ("lines", "app/templates/patients/profile.html"),
+    ("opinions", "app/templates/patients/profile.html"),
 ]
 
 #: Screens whose own door must exist — ``(endpoint, template that links it)``.
@@ -121,8 +125,20 @@ def test_a_clinic_wide_reader_is_drawn_on_a_screen(module, func):
     pattern = re.compile(r"\b(?:%s|\w+)\.%s\s*\(" % (re.escape(module),
                                                      re.escape(func)))
     bare = re.compile(r"\b%s\s*\(" % re.escape(func))
+    # **والملف لازم يكون جايب الوحدة دي بنفسه.**
+    #
+    # `\w+\.func(` لوحده بيتخدع بأي وحدة تانية عندها دالة بنفس الاسم:
+    # `opinions.waiting` عدّى الحارس وهو مندوهش من حتة، لأن
+    # `review.waiting(` و`panel_alerts.waiting(` موجودين في ملفات
+    # تانية خالص. فالملف اللي بيتحسب لازم يكون مستورد الوحدة نفسها.
+    imported = re.compile(
+        r"(?:^|\n)\s*(?:from\s+[\w.]+\s+import\s+[^\n]*\b%s\b"
+        r"|import\s+[\w.]*\b%s\b)" % (re.escape(module),
+                                        re.escape(module)))
     reached = []
     for path, text in _blueprint_and_template_text():
+        if not (imported.search(text) or path.endswith(".html")):
+            continue
         if pattern.search(text) or (
                 f"import {func}" in text and bare.search(text)):
             reached.append(path)

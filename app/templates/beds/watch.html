@@ -319,6 +319,41 @@
        href="{{ url_for('patients.view', patient_id=row.patient_id) }}#lines">
       {{ row.patient.display_name(current_lang) if row.patient else '—' }}
       · {{ t('lines.unnamed') }}</a>
+{# **طلب استشارة عدّى المهلة ولسه من غير رد** — `ACT.10`.
+
+   النية بتسمّي ده بالنص كشكل فشل: *there is a **late response** to the
+   consultation request*. والمهلة إعداد العيادة، فالصف ده ساكت لحد ما
+   تتكتب. #}
+{% if opinions_waiting or opinions_short %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:16px;"
+     data-opinions-watch>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('opinions.title') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('opinions.overdue_hint') }}</span>
+  </div>
+  <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;">
+    {# اللي عدّى المهلة بيتحسب مرة واحدة هنا، علشان السطر واللون
+       يطلعوا من نفس القراية — حساب تاني كان يقدر يخالفه. #}
+    {% set late_ids = opinions_overdue | map(attribute='id') | list %}
+    {% for row in opinions_waiting %}
+    {% set is_late = row.id in late_ids %}
+    <a class="badge {{ 'badge--danger' if is_late and row.urgency == 'urgent'
+                       else ('badge--warning' if is_late else 'badge--muted') }}"
+       {% if is_late %}data-opinion-overdue="{{ row.id }}"{% endif %}
+       data-opinion-waiting="{{ row.id }}"
+       href="{{ url_for('patients.view', patient_id=row.patient_id) }}#opinions">
+      {{ row.patient.display_name(current_lang) if row.patient else '—' }}
+      {%- if row.asked_of %} · {{ row.asked_of }}{% endif %}
+      {%- if row.urgency == 'urgent' %} · {{ t('opinions.urgency_urgent') }}{% endif %}
+      <span dir="ltr">{{ row.waiting_minutes }}′</span></a>
+    {% endfor %}
+    {% for item in opinions_short %}
+    <a class="badge badge--muted" data-opinion-short="{{ item.record.id }}"
+       href="{{ url_for('patients.view', patient_id=item.record.patient_id) }}#opinions">
+      {{ item.record.patient.display_name(current_lang) if item.record.patient else '—' }}
+      {% for gap in item.missing %}
+      <span data-missing="{{ gap }}">· {{ t('opinions.' ~ gap) }}</span>
+      {% endfor %}</a>
     {% endfor %}
   </div>
 </div>
