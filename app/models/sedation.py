@@ -106,6 +106,11 @@ class SedationRecord(db.Model):
     # **عمود واحد للحظة واحدة.** ده «وقت النقل» في قايمة التخدير و«وقت
     # استلام المريض» في قايمة ما بعد التسكين — عمودين كانوا هيقدروا
     # يختلفوا، وساعتها الملف بيقول إن الطفل ساب المسرح بعد ما وصل الإفاقة.
+    #
+    # **وبيتكتب هنا لما تكون الحلقة مالهاش عملية بس** — تسكين لأشعة رنين
+    # أو كرسي أسنان. ولما يكون فيه عملية، `Operation.recovery_at` بيقول
+    # نفس الحاجة وموجود من قبل السجل ده، والقراية بتاخد بتاعه: مصدرين
+    # للحقيقة الواحدة هُمّا بالظبط اللي البرنامج ده بيشيله كل مرة.
     left_theatre_at = db.Column(db.DateTime, index=True)
     # (ك)/(ي) التوقيع.
     signed_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
@@ -117,6 +122,7 @@ class SedationRecord(db.Model):
     # المستشفى، زي كل مقياس تاني في البرنامج.
     recovery_score = db.Column(db.String(60))
     recovery_disposition = db.Column(db.String(16))
+    # ونفس الحكاية: `Operation.discharged_at` لما يكون فيه عملية.
     recovery_left_at = db.Column(db.DateTime, index=True)
     recovery_signed_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
 
@@ -124,32 +130,55 @@ class SedationRecord(db.Model):
                            nullable=False)
 
     patient = db.relationship("Patient", backref="sedation_records")
+    operation = db.relationship("Operation")
     signed_by = db.relationship("User", foreign_keys=[signed_by_id])
     recovery_signed_by = db.relationship(
         "User", foreign_keys=[recovery_signed_by_id])
 
     @property
+    def theatre_out(self):
+        """ساب المسرح إمتى — **من العملية لو فيه عملية**.
+
+        `Operation.recovery_at` كان موجود قبل السجل ده وبيقول نفس الحاجة.
+        فالقراية بتاخده، وعمود السجل بيشتغل للحلقات اللي مالهاش عملية
+        (رنين · كرسي أسنان). مصدرين لنفس اللحظة كانوا هيقدروا يختلفوا،
+        وساعتها شاشة الإفاقة وسجل التخدير بيقولوا وقتين مختلفين للخروجة
+        الواحدة.
+        """
+        if self.operation is not None:
+            return self.operation.recovery_at
+        return self.left_theatre_at
+
+    @property
+    def recovery_out(self):
+        """ساب الإفاقة إمتى — من العملية لو فيه عملية، لنفس السبب."""
+        if self.operation is not None:
+            return self.operation.discharged_at
+        return self.recovery_left_at
+
+    @property
     def in_theatre(self):
         """لسه في المسرح."""
-        return self.left_theatre_at is None
+        return self.theatre_out is None
 
     @property
     def in_recovery(self):
         """ساب المسرح ولسه في الإفاقة."""
-        return self.left_theatre_at is not None and self.recovery_left_at is None
+        return self.theatre_out is not None and self.recovery_out is None
 
     @property
     def minutes(self):
-        end = self.recovery_left_at or self.left_theatre_at or datetime.utcnow()
+        end = self.recovery_out or self.theatre_out or datetime.utcnow()
         return int((end - self.started_at).total_seconds() // 60)
 
     @property
     def recovery_minutes(self):
         """قد إيه قعد في الإفاقة، أو ``None`` لو ما وصلهاش."""
-        if self.left_theatre_at is None:
+        out = self.theatre_out
+        if out is None:
             return None
-        end = self.recovery_left_at or datetime.utcnow()
-        return int((end - self.left_theatre_at).total_seconds() // 60)
+        return int(((self.recovery_out or datetime.utcnow())
+                    - out).total_seconds() // 60)
 
     def __repr__(self):
         return f"<SedationRecord {self.kind} patient={self.patient_id}>"

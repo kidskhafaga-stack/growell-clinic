@@ -104,11 +104,17 @@ def missing(row):
         "event": _filled(row.unusual_event),
         "condition": _filled(row.condition_on_leaving),
         "disposition": _filled(row.disposition),
-        "transfer": row.left_theatre_at is not None,
+        "transfer": row.theatre_out is not None,
         "signature": row.signed_by_id is not None,
     }
     # وهو لسه في المسرح، البنود اللي بتتكتب وهو بيخرج مش ناقصة — دي
     # حاجات لسه ما جاش وقتها.
+    #
+    # **و«وقت النقل» في القايمتين ما بيبانش ناقص أبداً، وده مقصود.** الوقت
+    # هو اللي بيقفل المرحلة: طول ما هو فاضي الطفل لسه جوّه فالبند ما جاش
+    # وقته، وأول ما يتكتب البند اتعمل. يعني البند مضمون **بالبناء** مش
+    # بالفحص — وده أقوى من فاحص، بس مكتوب هنا علشان اللي بيقرا ما يدوّرش
+    # على حالة الفاحص ده بيمسكها.
     at_the_door = ("condition", "disposition", "transfer", "signature")
     gaps = [item for item in required_for(row.kind)
             if not have.get(item)
@@ -123,7 +129,7 @@ def missing(row):
         "recovery_event": _filled(row.recovery_event),
         "recovery_score": _filled(row.recovery_score),
         "recovery_disposition": _filled(row.recovery_disposition),
-        "recovery_transfer": row.recovery_left_at is not None,
+        "recovery_transfer": row.recovery_out is not None,
         "recovery_signature": row.recovery_signed_by_id is not None,
     }
     if row.in_recovery:
@@ -201,7 +207,17 @@ def leave_theatre(row, disposition, condition=None, user=None, at=None):
     # تانية ليها كانت هتخلّيها البند اللي بيفضل فاضي في كل ملف.
     if condition is not None:
         row.condition_on_leaving = (condition or "").strip()[:200] or None
-    row.left_theatre_at = at or datetime.utcnow()
+    moment = at or datetime.utcnow()
+    # **اللحظة بتتكتب في مكان واحد.** لو الحلقة ليها عملية، `Operation`
+    # عنده `recovery_at` من قبل السجل ده وشاشة الإفاقة بتقراه — فالكتابة
+    # بتروحله، والسجل بيقراه. كتابتها في الاتنين كانت هتخلّيهم يختلفوا،
+    # والشاشتين يقولوا وقتين مختلفين لنفس الخروجة.
+    if row.operation is not None:
+        from app.utils import recovery as room
+
+        room.to_recovery(row.operation, user=user, at=moment)
+    else:
+        row.left_theatre_at = moment
     if user is not None:
         row.signed_by_id = user.id
         row.signed_at = row.left_theatre_at
@@ -215,7 +231,7 @@ def leave_recovery(row, disposition, score=None, event=None, user=None,
         raise ValueError("no record")
     if disposition not in DISPOSITIONS:
         raise ValueError("unknown disposition")
-    if row.left_theatre_at is None:
+    if row.theatre_out is None:
         # ما وصلش الإفاقة أصلاً. رفض بصوت أحسن من صف بيقول إنه ساب مكان
         # عمره ما دخله.
         raise ValueError("never reached recovery")
@@ -224,7 +240,14 @@ def leave_recovery(row, disposition, score=None, event=None, user=None,
         row.recovery_score = (score or "").strip()[:60] or None
     if event is not None:
         row.recovery_event = (event or "").strip() or None
-    row.recovery_left_at = at or datetime.utcnow()
+    # **والخروجة من الإفاقة مش بتتاخد من هنا لما يكون فيه عملية.**
+    # `recovery.discharge` بيرفض من غير قرار المتابعة عن قصد — علشان «مش
+    # محتاج متابعة» و«محدّش سأل» ما يبقوش نفس الحاجة — وده قرار تاني خالص
+    # غير بنود `SAS.24`. فالسجل بيكتب بنوده، والوقت بيقراه من العملية لما
+    # الشاشة بتاعتها تصرف الطفل بقرارها. ولحد ما ده يحصل، `missing` بيقول
+    # إن «وقت النقل» ناقص — وهو ناقص فعلاً.
+    if row.operation is None:
+        row.recovery_left_at = at or datetime.utcnow()
     if user is not None:
         row.recovery_signed_by_id = user.id
     return row

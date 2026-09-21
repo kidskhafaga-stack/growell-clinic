@@ -263,6 +263,141 @@ def test_the_recovery_stay_is_read_from_the_two_times(theatre):
         assert _row(theatre, rid).recovery_minutes is not None
 
 
+# ------------------- لحظة واحدة، ومصدر واحد لما يكون فيه عملية ----
+def _case(theatre):
+    """عملية خلصت — علشان `Operation.recovery_at` يبقى ليه معنى."""
+    from app.models import Operation, Theatre
+    from app.utils.clock import local_today
+
+    with theatre["app"].app_context():
+        room = Theatre(name="مسرح ١")
+        theatre["db"].session.add(room)
+        theatre["db"].session.flush()
+        op = Operation(patient_id=theatre["ids"]["child"],
+                       theatre_id=room.id, on_date=local_today(),
+                       status="done", procedure="ختان")
+        theatre["db"].session.add(op)
+        theatre["db"].session.commit()
+        return op.id
+
+
+def test_a_linked_record_reads_the_operations_own_times(theatre):
+    """**مصدرين لنفس اللحظة كانوا هيقدروا يختلفوا.**
+
+    `Operation.recovery_at` موجود من قبل السجل ده، وشاشة الإفاقة بتقراه.
+    فلو السجل خزّن نسخته، الشاشتين كانوا هيقولوا وقتين مختلفين لنفس
+    الخروجة — وده اللي البرنامج ده بيشيله كل مرة.
+    """
+    from app.models import Operation, SedationRecord, User
+    from app.utils import sedation as sed
+
+    op_id = _case(theatre)
+    with theatre["app"].app_context():
+        from app.models import Patient
+
+        patient = theatre["db"].session.get(Patient, theatre["ids"]["child"])
+        doc = theatre["db"].session.get(User, theatre["ids"]["doctor"])
+        op = theatre["db"].session.get(Operation, op_id)
+        row = sed.start(patient, "anaesthesia", user=doc, operation=op)
+        theatre["db"].session.commit()
+        rid = row.id
+
+        sed.leave_theatre(_row(theatre, rid), "recovery", user=doc)
+        theatre["db"].session.commit()
+
+        row = theatre["db"].session.get(SedationRecord, rid)
+        op = theatre["db"].session.get(Operation, op_id)
+
+        # الوقت اتكتب على العملية، والسجل بيقراه — ومفيش نسخة تانية.
+        assert op.recovery_at is not None
+        assert row.theatre_out == op.recovery_at
+        assert row.left_theatre_at is None
+
+
+def test_the_record_does_not_send_the_child_home_on_somebodys_behalf(theatre):
+    """**السجل بيكتب بنوده، وما بياخدش قرار غيره.**
+
+    `recovery.discharge` بيرفض من غير قرار المتابعة عن قصد — علشان «مش
+    محتاج متابعة» و«محدّش سأل» ما يبقوش نفس الحاجة. وده قرار تاني خالص غير
+    بنود `SAS.24`، فتسجيل الإفاقة ما بيصرفش الطفل: بيكتب الدرجة والحدث
+    والتوقيع، و«وقت النقل» بيفضل ناقص لحد ما شاشة الإفاقة تصرفه بقرارها —
+    **وهو ناقص فعلاً**.
+    """
+    from app.models import Operation, Patient, SedationRecord, User
+    from app.utils import recovery as room
+    from app.utils import sedation as sed
+
+    op_id = _case(theatre)
+    with theatre["app"].app_context():
+        patient = theatre["db"].session.get(Patient, theatre["ids"]["child"])
+        doc = theatre["db"].session.get(User, theatre["ids"]["doctor"])
+        op = theatre["db"].session.get(Operation, op_id)
+        row = sed.start(patient, "anaesthesia", user=doc, operation=op)
+        theatre["db"].session.commit()
+        rid = row.id
+        sed.leave_theatre(_row(theatre, rid), "recovery", user=doc)
+        sed.leave_recovery(_row(theatre, rid), "home", score="Aldrete 10",
+                           user=doc)
+        theatre["db"].session.commit()
+
+        row = theatre["db"].session.get(SedationRecord, rid)
+        op = theatre["db"].session.get(Operation, op_id)
+
+        # بنود SAS.24 اتكتبت، والطفل لسه ما اتصرفش.
+        assert row.recovery_score == "Aldrete 10"
+        assert op.discharged_at is None
+        assert row.in_recovery
+
+        # ولما شاشة الإفاقة تصرفه بقرارها، السجل بيقرا وقتها.
+        room.discharge(op, user=doc, followup=False)
+        theatre["db"].session.commit()
+        row = theatre["db"].session.get(SedationRecord, rid)
+
+        assert row.recovery_out == op.discharged_at
+        assert row.recovery_left_at is None
+        assert not row.in_recovery
+
+
+def test_the_transfer_times_are_guaranteed_by_construction(theatre):
+    """**«وقت النقل» ما بيبانش ناقص أبداً، وده مقصود.**
+
+    الوقت هو اللي بيقفل المرحلة: طول ما هو فاضي الطفل لسه جوّه فالبند ما
+    جاش وقته، وأول ما يتكتب البند اتعمل. يعني البند مضمون بالبناء مش
+    بالفحص — وده أقوى من فاحص، والاختبار ده بيثبت الضمانة بدل ما يسيب
+    حالة فاحص عمرها ما بتيجي.
+    """
+    from app.models import User
+    from app.utils import sedation as sed
+
+    rid = _open(theatre)
+    with theatre["app"].app_context():
+        doc = theatre["db"].session.get(User, theatre["ids"]["doctor"])
+        assert "transfer" not in sed.missing(_row(theatre, rid))
+
+        sed.leave_theatre(_row(theatre, rid), "recovery", user=doc)
+        theatre["db"].session.commit()
+        row = _row(theatre, rid)
+
+        assert row.theatre_out is not None
+        assert "transfer" not in sed.missing(row)
+
+
+def test_a_record_with_no_operation_keeps_its_own_times(theatre):
+    """تسكين لرنين أو كرسي أسنان — مفيش عملية، فالسجل بيشيل وقته."""
+    from app.models import User
+    from app.utils import sedation as sed
+
+    rid = _open(theatre)
+    with theatre["app"].app_context():
+        doc = theatre["db"].session.get(User, theatre["ids"]["doctor"])
+        sed.leave_theatre(_row(theatre, rid), "recovery", user=doc)
+        theatre["db"].session.commit()
+        row = _row(theatre, rid)
+
+        assert row.left_theatre_at is not None
+        assert row.theatre_out == row.left_theatre_at
+
+
 # ------------------------------------------------- المراقبة ----
 def test_the_physiological_status_is_the_childs_own_readings_tagged(theatre):
     """تالت استعمال لنفس الشكل بعد الدم والتقييد. تلات جداول منفصلة كانوا
