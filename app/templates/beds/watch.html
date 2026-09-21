@@ -319,6 +319,11 @@
        href="{{ url_for('patients.view', patient_id=row.patient_id) }}#lines">
       {{ row.patient.display_name(current_lang) if row.patient else '—' }}
       · {{ t('lines.unnamed') }}</a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 {# **طلب استشارة عدّى المهلة ولسه من غير رد** — `ACT.10`.
 
    النية بتسمّي ده بالنص كشكل فشل: *there is a **late response** to the
