@@ -509,3 +509,55 @@ def test_every_word_of_the_map_is_written_in_both_languages(ward):
         for group, key in keys:
             assert _lookup(tables, lang, f"{group}.{key}"), \
                 f"{lang}: {group}.{key} is missing"
+
+
+def test_the_days_of_a_removed_line_stop_when_it_came_out(ward):
+    """**والاختبار اللي قبله ما كانش بيفرّق.**
+
+    قسطرة اتركّبت من تسع أيام واتشالت دلوقتي بتدّي نفس الرقم سواء
+    الحساب بيقف عند الشيل ولا بيمشي لدلوقتي. فلازم واحدة اتشالت
+    **زمان**: اتركّبت من عشرة واتشالت من تلاتة يعني قعدت سبعة — والمدة
+    دي هي اللي بتقول كان فيه خطر عدوى قد إيه.
+    """
+    from app.utils import lines
+
+    lid = _line(ward, "central", at=datetime.utcnow() - timedelta(days=10))
+    with ward["app"].app_context():
+        lines.remove(_row(ward, lid),
+                     at=datetime.utcnow() - timedelta(days=3))
+        ward["db"].session.commit()
+
+        assert _row(ward, lid).days_in == 7
+
+
+def test_a_blank_label_written_straight_onto_the_row_is_still_no_label(ward):
+    """**حارس من ناحية واحدة نص قاعدة.**
+
+    `insert` و`label` الاتنين بينضّفوا الفراغات، فالخاصية عمرها ما
+    بتشوف «   » من الشاشة. بس صف بيتكتب من استيراد أو تصليح في
+    الداتابيز ممكن يوصلها — والخاصية هي التانية لازم تمسكها.
+    """
+    from app.models import Line
+
+    lid = _line(ward, "epidural")
+
+    with ward["app"].app_context():
+        row = _row(ward, lid)
+        # مش من الشاشة — كتابة على العمود على طول.
+        row.label = "   "
+        ward["db"].session.commit()
+
+        assert ward["db"].session.get(Line, lid).labelled is False
+
+
+def test_and_the_two_doors_normalise_it_before_it_gets_there(ward):
+    """والطبقة التانية: الدالتين بيحوّلوا الفراغ لـ``None``."""
+    from app.utils import lines
+
+    lid = _line(ward, "arterial", label="   ")
+    with ward["app"].app_context():
+        assert _row(ward, lid).label is None
+
+        lines.label(_row(ward, lid), "  \n ")
+        ward["db"].session.commit()
+        assert _row(ward, lid).label is None
