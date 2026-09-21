@@ -750,6 +750,7 @@ def watch():
     from app.utils import verbal_order as vo
     from app.utils import refusal as no
     from app.utils import lines as _lines
+    from app.utils import opinions as op
     watch_minutes = tied.interval_minutes()
     return render_template("beds/watch.html", rows=watching,
                            emergencies=blood.emergencies_waiting(),
@@ -786,7 +787,18 @@ def watch():
                                limit=20),
                            lines_left_in=_lines.still_in_after_discharge(
                                limit=20),
-                           lines_unnamed=_lines.unnamed_other(limit=20))
+                           lines_unnamed=_lines.unnamed_other(limit=20),
+                           # وعاشرة: طلب استشارة عدّى مهلة العيادة ولسه
+                           # من غير رد. نية `ACT.10` بتسمّي «الرد
+                           # المتأخّر» كشكل فشل بالنص.
+                           # **واللي مستنّي بيبان حتى لو المهلة
+                           # مش مكتوبة.** `overdue` ساكتة من غير رقم
+                           # العيادة — وطلب استشارة محدّش رد عليه
+                           # مايبقاش مخفي علشان المستشفى ما كتبتش
+                           # سياستها لسه.
+                           opinions_waiting=op.waiting(limit=20),
+                           opinions_overdue=op.overdue(limit=20),
+                           opinions_short=op.incomplete(limit=20))
 
 
 def _ward_people():

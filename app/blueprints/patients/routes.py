@@ -39,6 +39,8 @@ from app.models import (
     Parent,
     Patient,
     PatientAttachment,
+    OPINION_KINDS,
+    OPINION_URGENCIES,
     PatientProblem,
     REFUSAL_KINDS,
     VERBAL_CHANNELS,
@@ -529,6 +531,12 @@ def view(patient_id):
     from app.utils import lines as line_util
 
     _lines = line_util.for_patient(patient.id)
+    # الاستشارة والرأي التاني — دليل ٥ في `ACT.10` بيقول إن التبادل
+    # بيتسجّل **في الملف**، فمكانه هنا.
+    from app.utils import opinions as op_util
+
+    _opinions = op_util.for_patient(patient.id)
+    _opinion_missing = {r.id: op_util.missing(r) for r in _opinions}
     ai_patient = (current_user.can_access("ai") and ai_utils.is_ready()
                   and ai_utils.patient_context_enabled())
     # The discussion card needs both: the record still leaves the building, and
@@ -644,6 +652,10 @@ def view(patient_id):
         refusal_missing=_refusal_missing,
         refusal_kinds=REFUSAL_KINDS,
         lines=_lines,
+        opinions=_opinions,
+        opinion_missing=_opinion_missing,
+        opinion_kinds=OPINION_KINDS,
+        opinion_urgencies=OPINION_URGENCIES,
         emergency_missing=_emergency_missing,
         growth_alert=_growth_concern(_growth_picture),
         # One reading across every visit — labs, device studies and specialty
@@ -918,6 +930,85 @@ def refusal_fill(refusal_id):
     flash(t("refusal.saved"), "success")
     return redirect(url_for("patients.view", patient_id=row.patient_id)
                     + "#refusal")
+
+
+# ------------------------- الاستشارة والرأي التاني `ACT.10`/`ACT.09` ----
+@patients_bp.route("/<int:patient_id>/opinion", methods=["POST"])
+@module_required(MODULE)
+def opinion_ask(patient_id):
+    """طلب استشارة أو رأي تاني.
+
+    **والسبب مطلوب** — النية بتسمّي «السبب مش مكتوب بوضوح» كشكل فشل
+    بالنص، وطلب من غير سبب بيحطّ المستشار في نفس المكان اللي المعيار
+    موجود علشان يطلّعه منه.
+    """
+    from app.utils import opinions
+
+    patient = db.get_or_404(Patient, patient_id)
+    try:
+        opinions.ask(patient, (request.form.get("kind") or "").strip(),
+                     request.form.get("reason"), user=current_user,
+                     asked_of=request.form.get("asked_of"),
+                     background=request.form.get("background"),
+                     urgency=(request.form.get("urgency") or "").strip()
+                     or None)
+    except ValueError:
+        db.session.rollback()
+        flash(t("opinions.not_saved"), "error")
+        return redirect(url_for("patients.view", patient_id=patient.id)
+                        + "#opinions")
+    db.session.commit()
+    flash(t("opinions.asked"), "success")
+    return redirect(url_for("patients.view", patient_id=patient.id)
+                    + "#opinions")
+
+
+@patients_bp.route("/opinion/<int:opinion_id>/answer", methods=["POST"])
+@module_required(MODULE)
+def opinion_answer(opinion_id):
+    """(هـ) الرد — **نص مطلوب**، لأن دليل ٥ بيطلب تبادل شامل."""
+    from app.models import Opinion
+    from app.utils import opinions
+
+    row = db.get_or_404(Opinion, opinion_id)
+    try:
+        opinions.answer(row, request.form.get("response"), user=current_user,
+                        name=request.form.get("responded_by_name"))
+    except ValueError:
+        db.session.rollback()
+        flash(t("opinions.needs_words"), "error")
+        return redirect(url_for("patients.view", patient_id=row.patient_id)
+                        + "#opinions")
+    db.session.commit()
+    flash(t("opinions.answered"), "success")
+    return redirect(url_for("patients.view", patient_id=row.patient_id)
+                    + "#opinions")
+
+
+@patients_bp.route("/opinion/<int:opinion_id>/fill", methods=["POST"])
+@module_required(MODULE)
+def opinion_fill(opinion_id):
+    """البند اللي كان ناقص. الحقل اللي ما اتبعتش ما بيتغيّرش."""
+    from app.models import Opinion
+    from app.utils import opinions
+
+    row = db.get_or_404(Opinion, opinion_id)
+    try:
+        opinions.describe(row,
+                          background=request.form.get("background"),
+                          asked_of=request.form.get("asked_of"),
+                          alternative=request.form.get("alternative"),
+                          urgency=(request.form.get("urgency") or "").strip()
+                          or None)
+    except ValueError:
+        db.session.rollback()
+        flash(t("opinions.not_saved"), "error")
+        return redirect(url_for("patients.view", patient_id=row.patient_id)
+                        + "#opinions")
+    db.session.commit()
+    flash(t("opinions.saved"), "success")
+    return redirect(url_for("patients.view", patient_id=row.patient_id)
+                    + "#opinions")
 
 
 def _clinic_has_a_device():

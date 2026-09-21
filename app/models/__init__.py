@@ -73,6 +73,9 @@ from app.models.refusal import (ELEMENTS as REFUSAL_ELEMENTS,
                                 KINDS as REFUSAL_KINDS, Refusal)
 from app.models.line import (HIGH_RISK as LINE_HIGH_RISK,
                              KINDS as LINE_KINDS, Line)
+from app.models.opinion import (KINDS as OPINION_KINDS, Opinion,
+                                URGENCIES as OPINION_URGENCIES,
+                                required_for as opinion_items)
 from app.models.blood import (BloodRequest, PRODUCTS,
                               REQUEST_STATES, Transfusion,
                               URGENCIES)
@@ -357,6 +360,10 @@ __all__ = [
     "Line",
     "LINE_KINDS",
     "LINE_HIGH_RISK",
+    "Opinion",
+    "OPINION_KINDS",
+    "OPINION_URGENCIES",
+    "opinion_items",
     "ARRIVALS",
     "DISPOSITIONS",
     "TOPICS",

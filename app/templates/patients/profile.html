@@ -302,6 +302,10 @@
         {% if lines %}
         {% set ns.tabs = ns.tabs + [('lines','tab_lines','diagram-3')] %}
         {% endif %}
+        {# والاستشارات: طفل عمره ما اتطلبله رأي مالوش تبويب. #}
+        {% if opinions %}
+        {% set ns.tabs = ns.tabs + [('opinions','tab_opinions','people')] %}
+        {% endif %}
         {# Only where the clinic does dentistry. A tab labelled "teeth" on
            every paediatric file is furniture, which is why the module is off
            by default in the first place. #}
@@ -2174,6 +2178,138 @@
           {% endfor %}
         </tbody>
       </table>
+    <!-- Consultation and second opinion -->
+    <div class="gc-tab-panel" x-show="tab==='opinions'" x-cloak>
+      <h3 class="section-title" style="margin:0 0 4px;">
+        <i class="bi bi-people"></i> {{ t('patients.tab_opinions') }}</h3>
+      <p class="page-sub" style="margin:0 0 12px;">{{ t('opinions.sub') }}</p>
+
+      {# **السبب مطلوب في الفورمة زي ما هو مطلوب في السجل.** النية
+         بتسمّي غيابه كشكل فشل، فالشاشة ما بتخلّيهوش اختياري. #}
+      <form method="post" class="card" style="padding:12px;margin-bottom:14px;"
+            action="{{ url_for('patients.opinion_ask', patient_id=patient.id) }}"
+            x-data="{ kind: 'consultation' }">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+          <div style="flex:0 1 160px;">
+            <label for="op_kind">{{ t('opinions.kind') }}</label>
+            <select class="select" id="op_kind" name="kind" x-model="kind">
+              {% for k in opinion_kinds %}
+              <option value="{{ k }}">{{ t('opinions.kind_' ~ k) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div style="flex:2 1 240px;">
+            <label for="op_reason">{{ t('opinions.reason') }}</label>
+            <input class="input" id="op_reason" name="reason" required
+                   placeholder="{{ t('opinions.reason_hint') }}">
+          </div>
+          <div style="flex:1 1 160px;">
+            <label for="op_who">{{ t('opinions.asked_of') }}</label>
+            <input class="input" id="op_who" name="asked_of"
+                   placeholder="{{ t('opinions.asked_of_hint') }}">
+          </div>
+          {# والعجلة بند الاستشارة لوحدها — فما بتبانش على الرأي التاني،
+             لأن خانة معناها «مش منطبق» بتتملّى غلط. #}
+          <div style="flex:0 1 150px;" x-show="kind === 'consultation'" x-cloak>
+            <label for="op_urgency">{{ t('opinions.urgency') }}</label>
+            <select class="select" id="op_urgency" name="urgency">
+              <option value="">—</option>
+              {% for u in opinion_urgencies %}
+              <option value="{{ u }}">{{ t('opinions.urgency_' ~ u) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div style="flex:2 1 240px;">
+            <label for="op_bg">{{ t('opinions.background') }}</label>
+            <input class="input" id="op_bg" name="background"
+                   placeholder="{{ t('opinions.background_hint') }}">
+          </div>
+          <button class="btn btn-primary gc-press" type="submit">
+            <i class="bi bi-send"></i> {{ t('opinions.ask') }}</button>
+        </div>
+      </form>
+
+      <div class="info-grid" data-opinions>
+        {% for row in opinions %}
+        <div class="card" style="padding:12px;grid-column:1/-1;"
+             data-opinion="{{ row.id }}">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <strong dir="ltr">{{ row.requested_at.strftime('%Y-%m-%d %H:%M') }}</strong>
+            <span class="badge badge--muted">{{ t('opinions.kind_' ~ row.kind) }}</span>
+            {% if row.urgency %}
+            <span class="badge {{ 'badge--danger' if row.urgency == 'urgent' else 'badge--muted' }}"
+                  data-urgency="{{ row.urgency }}">{{ t('opinions.urgency_' ~ row.urgency) }}</span>
+            {% endif %}
+            {% if row.asked_of %}<span class="hint">{{ row.asked_of }}</span>{% endif %}
+            {% if row.answered %}
+            <span class="badge badge--ok">{{ t('opinions.answered_badge') }}</span>
+            {% else %}
+            <span class="badge badge--warning" data-waiting dir="ltr">
+              {{ t('opinions.waiting') }} {{ row.waiting_minutes }}′</span>
+            {% endif %}
+          </div>
+
+          <div style="margin-top:6px;">
+            <span class="hint">{{ t('opinions.reason') }}:</span> {{ row.reason }}</div>
+          {% if row.background %}
+          <div style="margin-top:4px;">
+            <span class="hint">{{ t('opinions.background') }}:</span> {{ row.background }}</div>
+          {% endif %}
+          {% if row.response %}
+          <div style="margin-top:6px;">
+            <span class="hint">{{ t('opinions.response') }}:</span> {{ row.response }}
+            {% if row.responder_name(current_lang) %}
+            <span class="hint">— {{ row.responder_name(current_lang) }}</span>
+            {% endif %}</div>
+          {% endif %}
+          {% if row.alternative %}
+          <div style="margin-top:4px;">
+            <span class="hint">{{ t('opinions.alternative') }}:</span> {{ row.alternative }}</div>
+          {% endif %}
+
+          {% if not row.answered %}
+          <form method="post" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:end;"
+                action="{{ url_for('patients.opinion_answer', opinion_id=row.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="input" style="flex:2 1 240px;" name="response" required
+                   data-missing="response"
+                   placeholder="{{ t('opinions.response_hint') }}">
+            <input class="input" style="flex:1 1 150px;" name="responded_by_name"
+                   placeholder="{{ t('opinions.responder_hint') }}">
+            <button class="btn btn-sm btn-primary gc-press" type="submit">
+              <i class="bi bi-reply"></i> {{ t('opinions.answer') }}</button>
+          </form>
+          {% endif %}
+
+          {% set gaps = opinion_missing.get(row.id) or [] %}
+          {% set boxes = gaps | reject('equalto', 'response') | list %}
+          {% if boxes %}
+          <form method="post" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:end;"
+                action="{{ url_for('patients.opinion_fill', opinion_id=row.id) }}"
+                data-opinion-gaps>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% for gap in boxes %}
+            {% if gap == 'urgency' %}
+            <select class="select" name="urgency" data-missing="urgency"
+                    style="flex:0 1 150px;">
+              <option value="">{{ t('opinions.urgency') }}</option>
+              {% for u in opinion_urgencies %}
+              <option value="{{ u }}">{{ t('opinions.urgency_' ~ u) }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <input class="input" style="flex:1 1 180px;" name="{{ gap }}"
+                   data-missing="{{ gap }}"
+                   placeholder="{{ t('opinions.' ~ gap) }}">
+            {% endif %}
+            {% endfor %}
+            <button class="btn btn-sm btn-outline gc-press" type="submit">
+              <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
+          </form>
+          {% endif %}
+        </div>
+        {% endfor %}
       </div>
     </div>
 
