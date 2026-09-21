@@ -67,6 +67,8 @@ from app.models.sedation import (DISPOSITIONS as SEDATION_DISPOSITIONS,
                                  SedationRecord, required_for)
 from app.models.resuscitation import (ALS_MINUTES, OUTCOMES as RESUS_OUTCOMES,
                                         Resuscitation)
+from app.models.verbal_order import (CHANNELS as VERBAL_CHANNELS,
+                                     VerbalOrder)
 from app.models.blood import (BloodRequest, PRODUCTS,
                               REQUEST_STATES, Transfusion,
                               URGENCIES)
@@ -343,6 +345,8 @@ __all__ = [
     "Resuscitation",
     "RESUS_OUTCOMES",
     "ALS_MINUTES",
+    "VerbalOrder",
+    "VERBAL_CHANNELS",
     "ARRIVALS",
     "DISPOSITIONS",
     "TOPICS",

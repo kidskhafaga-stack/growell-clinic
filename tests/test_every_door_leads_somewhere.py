@@ -54,6 +54,8 @@ READERS = [
     ("sedation", "live"),
     ("sedation", "unwatched"),
     ("sedation", "incomplete"),
+    ("verbal_order", "open_orders"),
+    ("verbal_order", "late"),
 ]
 
 #: Tabs on the patient file that must stay conditional. The file varies by
@@ -71,6 +73,7 @@ EARNED_TABS = [
     ("blood", "app/templates/patients/profile.html"),
     ("care_plan", "app/templates/patients/profile.html"),
     ("sedation", "app/templates/patients/profile.html"),
+    ("verbal", "app/templates/patients/profile.html"),
 ]
 
 #: Screens whose own door must exist — ``(endpoint, template that links it)``.
@@ -206,3 +209,122 @@ def test_every_door_endpoint_is_a_real_route(clinic):
         known = {r.endpoint for r in clinic["app"].url_map.iter_rules()}
     for endpoint, _template in DOORS:
         assert endpoint in known, f"{endpoint} is not a route in this app"
+
+
+# ==================================================================
+# ونفس الحكاية من الناحية التانية: **الفعل اللي مفيش فورمة بتعمله**
+# ==================================================================
+#
+# الملف ده اتكتب علشان «قاري مفيش شاشة بتنده عليه». وبعد ٦ أدوار من
+# الشغل طلع إن الشكل التاني بيعدّي كله: **مسار POST مكتوب ومختبَر
+# ومحدّش يقدر يبعتله حاجة**، لأن مفيش فورمة `action` بتشاور عليه.
+#
+# وده أسوأ من القاري اليتيم، لأن القاري على الأقل بيبان فاضي على شاشة.
+# الفعل اليتيم بيبان **شغّال** — ليه اختبارات بتنده الدالة على طول،
+# وبتعدّي كلها، والمستخدم عمره ما هيقدر يوصله.
+#
+# واللي كشفه إن التقييد والإنعاش (`CSS.12`/`CSS.05`) اتسلّموا بقرايات
+# على لوحة المتابعة، **وستّ مسارات كتابة مالهاش ولا فورمة** — يعني
+# الشاشة بتقول «فيه طفل مربوط بأمر خلص» ومفيش طريقة في البرنامج كله
+# تربط طفل.
+
+
+def _post_only_endpoints():
+    """كل مسار بياخد POST وبس، باسم `blueprint.function`."""
+    out = []
+    for dirpath, _dirs, files in os.walk("app/blueprints"):
+        if "routes.py" not in files:
+            continue
+        blueprint = os.path.basename(dirpath)
+        tree = ast.parse(open(os.path.join(dirpath, "routes.py"),
+                              errors="ignore").read())
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef):
+                continue
+            for dec in node.decorator_list:
+                if not isinstance(dec, ast.Call):
+                    continue
+                for kw in dec.keywords:
+                    if kw.arg != "methods":
+                        continue
+                    try:
+                        methods = ast.literal_eval(kw.value)
+                    except (ValueError, SyntaxError):
+                        continue
+                    if "POST" in methods and "GET" not in methods:
+                        out.append(f"{blueprint}.{node.name}")
+    return sorted(set(out))
+
+
+#: مسارات POST بتتندَه من غير فورمة، **وكل واحد بسبب مكتوب**.
+#:
+#: دي مش قايمة استثناءات بتكبر: الاختبار تحت بيتأكّد إن كل اسم فيها
+#: **لسه فعلاً من غير فورمة** — فأول ما حد يعمل فورمة لواحد منهم،
+#: الاختبار بيفشل لحد ما اسمه يتشال من هنا. قايمة بتصغّر بس.
+REACHED_WITHOUT_A_FORM = {
+    # بابين بيستقبلوا من بره خالص — واتساب بيبعتلهم، مش شاشة.
+    "webhooks.meta_receive": "external webhook",
+    "webhooks.wapilot_receive": "external webhook",
+}
+
+#: **مسارات كتابة يتيمة معروفة** — اتكتبت ومحدّش يقدر يوصلها.
+#:
+#: دي قايمة شغل مش قايمة استثناءات، ونفس القاعدة عليها: الاختبار
+#: بيتأكّد إنهم **لسه** يتامى، فأول ما واحد منهم ياخد فورمة اسمه لازم
+#: يتشال — علشان القايمة ما تتحوّلش لسطر بيعدّي عليه الناس.
+KNOWN_ORPHAN_WRITERS = {
+    "appointments.delete",
+    "appointments.waitlist_add",
+    "appointments.walk_in",
+    "emergency.arrive",
+    "finance.expense_edit",
+    "growth.api_calculate",
+    "patients.flag_raise",
+    "vaccinations.delete_dose",
+}
+
+
+def _endpoints_named_in_templates():
+    text = "\n".join(body for _path, body in _blueprint_and_template_text()
+                     if _path.startswith("app/templates"))
+    return text
+
+
+def test_no_new_write_route_is_built_without_a_way_to_reach_it():
+    """مسار POST لازم يبقى فيه فورمة بتشاور عليه.
+
+    والقايمتين فوق هما كل اللي مسموح يعدّي: واحدة لأبواب بره البرنامج،
+    وواحدة قايمة شغل معروفة. أي اسم جديد معناه إن حد كتب فعل محدّش
+    يقدر يعمله.
+    """
+    text = _endpoints_named_in_templates()
+    orphans = [ep for ep in _post_only_endpoints()
+               if f"'{ep}'" not in text and f'"{ep}"' not in text]
+    unexpected = sorted(set(orphans) - set(REACHED_WITHOUT_A_FORM)
+                        - KNOWN_ORPHAN_WRITERS)
+    assert not unexpected, (
+        "مسارات POST مكتوبة ومحدّش يقدر يبعتلها حاجة — فعل من غير زرار: "
+        + ", ".join(unexpected))
+
+
+def test_the_orphan_list_only_ever_shrinks():
+    """اللي اتعمله فورمة لازم يتشال من القايمة.
+
+    من غير ده القايمة بتبقى سطر بيعدّي عليه الناس، والاختبار بيعدّي
+    للأبد وهو مش بيقيس حاجة.
+    """
+    text = _endpoints_named_in_templates()
+    fixed = [ep for ep in KNOWN_ORPHAN_WRITERS
+             if f"'{ep}'" in text or f'"{ep}"' in text]
+    assert not fixed, (
+        "دول بقى ليهم فورمة — شيل أسمائهم من KNOWN_ORPHAN_WRITERS: "
+        + ", ".join(sorted(fixed)))
+
+
+def test_every_name_on_both_lists_is_still_a_route(clinic):
+    """ونفس قاعدة القرايات: قايمة بأسماء اتغيّرت هي قايمة ما بتقيسش."""
+    known = set(_post_only_endpoints())
+    for name in set(REACHED_WITHOUT_A_FORM) | KNOWN_ORPHAN_WRITERS:
+        assert name in known, (
+            f"{name} مش مسار POST في البرنامج — اتغيّر اسمه أو اتشال، "
+            f"وسطره هنا بقى بيحمي حاجة مش موجودة")

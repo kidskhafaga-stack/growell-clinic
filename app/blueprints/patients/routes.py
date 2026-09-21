@@ -40,6 +40,7 @@ from app.models import (
     Patient,
     PatientAttachment,
     PatientProblem,
+    VERBAL_CHANNELS,
 )
 from app.utils import patient_basics as _basics
 from app.utils.clock import local_today
@@ -509,6 +510,13 @@ def view(patient_id):
     _sedation = (sed_util.for_patient(patient.id)
                  if module_enabled("theatres") else [])
     _sedation_missing = {r.id: sed_util.missing(r) for r in _sedation}
+    # **ومفيش وحدة تتقفل.** الأمر الشفهي مش تبع قسم: بيحصل في العيادة
+    # وفي الداخلي وفي الطوارئ وعلى التليفون بالليل، ووحدة تشيله كانت
+    # هتخلّي نص الأوامر بره السجل.
+    from app.utils import verbal_order as vo_util
+
+    _verbal = vo_util.for_patient(patient.id)
+    _verbal_missing = {r.id: vo_util.missing(r) for r in _verbal}
     ai_patient = (current_user.can_access("ai") and ai_utils.is_ready()
                   and ai_utils.patient_context_enabled())
     # The discussion card needs both: the record still leaves the building, and
@@ -617,6 +625,9 @@ def view(patient_id):
         emergency_visits=_emergency,
         sedation_records=_sedation,
         sedation_missing=_sedation_missing,
+        verbal_orders=_verbal,
+        verbal_missing=_verbal_missing,
+        verbal_channels=VERBAL_CHANNELS,
         emergency_missing=_emergency_missing,
         growth_alert=_growth_concern(_growth_picture),
         # One reading across every visit — labs, device studies and specialty
@@ -744,6 +755,101 @@ def education_record(patient_id):
     flash(t("education.saved"), "success")
     return redirect(url_for("patients.view", patient_id=patient.id)
                     + "#education")
+
+
+def _moment(raw):
+    """وقت من الشاشة، أو ``None`` لو ما اتكتبش.
+
+    **واللي بييجي وقت محلي**، لأن اللي بيكتب بيبص في الساعة على الحيطة —
+    ومقارنة وقت محلي بوقت مخزّن بـUTC هي الغلطة اللي البرنامج ده دفع
+    تمنها أربع مرات في تقارير الفلوس.
+
+    و``None`` مش «دلوقتي»: «ما قالش إمتى اتقال» حاجة، و«اتقال دلوقتي»
+    حاجة تانية — واللي بيقرر الفرق ده هو السجل مش الشاشة.
+    """
+    from app.utils.clock import to_utc
+
+    text = (raw or "").strip()
+    if not text:
+        return None
+    for shape in ("%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M"):
+        try:
+            return to_utc(datetime.strptime(text, shape))
+        except ValueError:
+            continue
+    return None
+
+
+# ------------------------------------------ الأوامر الشفهية `ICD.18` ----
+@patients_bp.route("/<int:patient_id>/verbal-order", methods=["POST"])
+@module_required(MODULE)
+def verbal_order_record(patient_id):
+    """أمر شفهي أو تليفوني اتقال واتكتب — (ب).
+
+    **ومفيش صلاحية زيادة على صلاحية الملف.** اللي بيستلم الأمر الشفهي
+    غالباً تمريض، والمعيار بيقول *documented by the **receiver*** — يعني
+    اللي سمعه هو اللي يكتبه. صلاحية للطبيب بس كانت هتخلّي التمريض تقول
+    لطبيب يكتبه، ودي حلقة تانية من نفس مشكلة نقل الكلام.
+    """
+    from app.utils import verbal_order as vo
+
+    patient = db.get_or_404(Patient, patient_id)
+    spoken = _moment(request.form.get("spoken_at"))
+    try:
+        vo.record(patient, request.form.get("text"),
+                  received_by=current_user,
+                  channel=(request.form.get("channel") or "spoken").strip(),
+                  ordered_by_name=request.form.get("ordered_by_name"),
+                  spoken_at=spoken)
+    except ValueError:
+        db.session.rollback()
+        flash(t("verbal.not_saved"), "error")
+        return redirect(url_for("patients.view", patient_id=patient.id)
+                        + "#verbal")
+    db.session.commit()
+    flash(t("verbal.saved"), "success")
+    return redirect(url_for("patients.view", patient_id=patient.id)
+                    + "#verbal")
+
+
+@patients_bp.route("/verbal-order/<int:order_id>/read-back", methods=["POST"])
+@module_required(MODULE)
+def verbal_order_read_back(order_id):
+    """(ج) اتقرا بصوت عالي واللي قاله سمعه."""
+    from app.models import VerbalOrder
+    from app.utils import verbal_order as vo
+
+    row = db.get_or_404(VerbalOrder, order_id)
+    vo.read_back(row, user=current_user)
+    db.session.commit()
+    flash(t("verbal.read_back_done"), "success")
+    return redirect(url_for("patients.view", patient_id=row.patient_id)
+                    + "#verbal")
+
+
+@patients_bp.route("/verbal-order/<int:order_id>/confirm", methods=["POST"])
+@module_required(MODULE)
+def verbal_order_confirm(order_id):
+    """(د) اللي قال الأمر أكّده — **ولازم يكون غير اللي كتبه**.
+
+    السجل بيرفض، والشاشة بتقول السبب بدل ما تبلع الضغطة: اللي بيدوس
+    لازم يعرف إن التأكيد ما اتكتبش.
+    """
+    from app.models import VerbalOrder
+    from app.utils import verbal_order as vo
+
+    row = db.get_or_404(VerbalOrder, order_id)
+    try:
+        vo.confirm(row, current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("verbal.receiver_cannot_confirm"), "error")
+        return redirect(url_for("patients.view", patient_id=row.patient_id)
+                        + "#verbal")
+    db.session.commit()
+    flash(t("verbal.confirmed_done"), "success")
+    return redirect(url_for("patients.view", patient_id=row.patient_id)
+                    + "#verbal")
 
 
 def _clinic_has_a_device():

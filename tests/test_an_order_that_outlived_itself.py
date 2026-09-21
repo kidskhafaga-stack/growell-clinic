@@ -477,3 +477,150 @@ def test_every_word_of_both_records_is_written_in_both_languages(ward):
     for section, key in keys:
         for lang in ("ar", "en"):
             assert _lookup(tables, lang, f"{section}.{key}"), f"{lang}:{key}"
+
+
+# ==================================================================
+# الباب اللي مكانش موجود — واللي كان بيقع لما يبقى موجود
+# ==================================================================
+#
+# ستّ مسارات كتابة اتسلّموا مع المعيارين دول: افتح تقييد · جدّده · فكّه ·
+# افتح إنعاش · علّم لحظة · اقفله. **ومفيش فورمة واحدة فيهم.** يعني
+# الشاشة بتقول «فيه طفل مربوط بأمر خلص» ومفيش في البرنامج كله طريقة
+# تربط طفل — والقرايات بتعدّي في الاختبارات لأن الاختبارات بتنده الدالة
+# على طول.
+#
+# **وأوحش من كده**: كلهم كانوا بيرجّعوا على `beds.stay`، ومفيش مسار
+# بالاسم ده — اسمه `beds.admission`. ونفس الغلطة كانت في زرار على لوحة
+# المتابعة، جوّه `{% if row.admission_id %}` — يعني الشاشة كانت بتقع
+# بالظبط في الحالة اللي اتعملت علشانها: طفل **داخل** ومربوط بأمر خلص.
+# والاختبارات كانت بتعدّي لأن التقييد فيها كان من غير إقامة.
+
+
+def _admit(ward, patient_id=None):
+    """سرير واحد وإقامة عليه — الفيكستشر بتاعة الملف ده مالهاش أسرّة."""
+    from app.models import Patient
+    from app.models.place import Bed, Space, Unit
+    from app.utils import beds as place
+
+    with ward["app"].app_context():
+        unit = Unit(name="الداخلي", kind="ward")
+        ward["db"].session.add(unit)
+        ward["db"].session.flush()
+        space = Space(unit_id=unit.id, name="الصالة", kind="bay")
+        ward["db"].session.add(space)
+        ward["db"].session.flush()
+        bed = Bed(space_id=space.id, name="سرير ١", kind="bed")
+        ward["db"].session.add(bed)
+        ward["db"].session.flush()
+        row = place.admit(
+            ward["db"].session.get(Patient,
+                                   patient_id or ward["ids"]["child"]),
+            bed)
+        ward["db"].session.commit()
+        return row.id
+
+
+def _tie_admitted(ward, hours=2):
+    from app.models import Admission, Patient, User
+    from app.utils import restraint as tied
+
+    stay_id = _admit(ward)
+    with ward["app"].app_context():
+        stay = ward["db"].session.get(Admission, stay_id)
+        patient = ward["db"].session.get(Patient, ward["ids"]["child"])
+        doc = ward["db"].session.get(User, ward["ids"]["doctor"])
+        row = tied.start(patient, "physical", "خطر على نفسه", doc,
+                         method="حزام صدر", alternatives="تهدئة لفظية",
+                         valid_until=datetime.utcnow() + timedelta(hours=hours),
+                         admission=stay)
+        ward["db"].session.commit()
+        return row.id, stay_id
+
+
+def test_the_watch_board_opens_for_an_admitted_restrained_child(ward):
+    """**الحالة اللي الشاشة اتعملت علشانها بالظبط.**
+
+    الزرار اللي بيودّي على الإقامة كان بيبان بس لما يكون فيه إقامة،
+    وكان بينده مسار مش موجود — فالشاشة كانت بتقع في الحالة الوحيدة
+    اللي الزرار بيبان فيها، وبتعدّي في كل حالة تانية.
+    """
+    rid, _stay = _tie_admitted(ward, hours=-1)
+
+    page = ward["sign_in"]("doc").get("/beds/watch")
+
+    assert page.status_code == 200
+    body = page.get_data(as_text=True)
+    assert f'data-expired-restraint="{rid}"' in body
+
+
+def test_the_board_offers_a_way_into_the_stay(ward):
+    rid, stay = _tie_admitted(ward, hours=-1)
+
+    body = ward["sign_in"]("doc").get("/beds/watch").get_data(as_text=True)
+
+    assert f"/beds/admission/{stay}" in body
+    assert "beds.stay" not in body
+    assert rid
+
+
+# ------------------------------------------- والفورمة اللي بتشغّلهم ----
+def test_the_stay_screen_can_actually_tie_a_child(ward):
+    """قبل كده: مسار موجود، ومفيش في البرنامج حاجة بتبعتله."""
+    from app.utils import restraint as tied
+
+    stay = _admit(ward)
+    client = ward["sign_in"]("doc")
+
+    page = client.get(f"/beds/admission/{stay}").get_data(as_text=True)
+    assert 'name="kind"' in page and "restraint" in page
+
+    client.post(f"/beds/stay/{stay}/restraint", data={
+        "kind": "physical", "reason": "خطر على نفسه",
+        "method": "حزام صدر"}, follow_redirects=True)
+
+    with ward["app"].app_context():
+        rows = tied.for_patient(ward["ids"]["child"])
+        assert len(rows) == 1
+        assert rows[0].reason == "خطر على نفسه"
+
+
+def test_the_stay_screen_can_open_a_resuscitation(ward):
+    from app.utils import resuscitation as cpr
+
+    stay = _admit(ward)
+    client = ward["sign_in"]("doc")
+
+    client.post(f"/beds/stay/{stay}/arrest", data={"place": "السرير"},
+                follow_redirects=True)
+
+    with ward["app"].app_context():
+        running = cpr.running()
+        assert len(running) == 1
+        assert running[0].place == "السرير"
+
+
+def test_the_two_moments_have_their_own_buttons(ward):
+    """زرار واحد لكل لحظة، مش فورمة بتتملّى بعدين — الأوقات دي هي بالظبط
+    اللي الذاكرة بتضيّعها."""
+    from app.models import Resuscitation
+    from app.utils import resuscitation as cpr
+
+    stay = _admit(ward)
+    client = ward["sign_in"]("doc")
+    client.post(f"/beds/stay/{stay}/arrest", data={}, follow_redirects=True)
+
+    with ward["app"].app_context():
+        rid = cpr.running()[0].id
+
+    page = client.get(f"/beds/admission/{stay}").get_data(as_text=True)
+    assert f"/beds/arrest/{rid}/mark" in page
+
+    client.post(f"/beds/arrest/{rid}/mark", data={"what": "called"},
+                follow_redirects=True)
+    client.post(f"/beds/arrest/{rid}/mark", data={"what": "team"},
+                follow_redirects=True)
+
+    with ward["app"].app_context():
+        row = ward["db"].session.get(Resuscitation, rid)
+        assert row.called_at is not None
+        assert row.team_at is not None

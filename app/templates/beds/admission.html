@@ -786,6 +786,179 @@
    find, so the list is built from the risks the clinic looks for and the
    assessments are hung onto it — which is the only way «ما اتقيّمش» can
    appear at all. #}
+{# ======================= التقييد والإنعاش — CSS.12 و CSS.05 =======
+   **الفورمتين دول كانوا ناقصين.** المسارات الستّة اتسلّمت ومحدّش يقدر
+   يوصلها: الشاشة كانت بتقول «فيه طفل مربوط بأمر خلص» ومفيش في البرنامج
+   كله طريقة تربط طفل.
+
+   ومكانهم هنا مش على لوحة المتابعة، لأن اللوحة بتقول **اللي غلط**
+   والفعل بيتعمل جنب الطفل. #}
+{% if admission.is_open %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="restraint"
+     data-restraint-form>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-lock"></i> {{ t('restraint.title') }}
+    <span class="hint" dir="ltr">CSS.12</span></h2>
+
+  {% if tied_now %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+    {% for row in tied_now %}
+    <div class="card" style="padding:10px;flex:1 1 280px;"
+         data-restraint="{{ row.id }}">
+      <div><strong>{{ t('restraint.kind_' ~ row.kind) }}</strong>
+        {% if row.method %} · {{ row.method }}{% endif %}</div>
+      <div class="hint">{{ row.reason }}</div>
+      <div style="margin-top:6px;">
+        {% if row.valid_until %}
+        <span class="badge {{ 'badge--danger' if row.expired else 'badge--muted' }}"
+              dir="ltr">{{ row.valid_until.strftime('%Y-%m-%d %H:%M') }}</span>
+        {% else %}
+        <span class="badge badge--warning">{{ t('restraint.no_limit') }}</span>
+        {% endif %}
+      </div>
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+        {# التجديد صف جديد مش تعديل رقم — (ز) بيقول *based on continuing
+           needs*، والقرار الجديد لازم يبان إنه قرار جديد. #}
+        <form method="post" style="display:flex;gap:6px;align-items:end;"
+              action="{{ url_for('beds.restraint_renew', restraint_id=row.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="input" type="datetime-local" name="valid_until"
+                 style="max-width:190px;">
+          <button class="btn btn-sm btn-outline gc-press" type="submit">
+            <i class="bi bi-arrow-repeat"></i> {{ t('restraint.renew') }}</button>
+        </form>
+        <form method="post" style="display:flex;gap:6px;align-items:end;"
+              action="{{ url_for('beds.restraint_end', restraint_id=row.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="input" name="reason" style="max-width:170px;"
+                 placeholder="{{ t('restraint.end_reason') }}">
+          <button class="btn btn-sm btn-primary gc-press" type="submit">
+            <i class="bi bi-unlock"></i> {{ t('restraint.end') }}</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if current_user.can('patient_medical') %}
+  <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;"
+        action="{{ url_for('beds.restraint_start', admission_id=admission.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:0 1 150px;">
+      <label for="rs_kind">{{ t('restraint.kind') }}</label>
+      <select class="select" id="rs_kind" name="kind">
+        {% for k in restraint_kinds %}
+        <option value="{{ k }}">{{ t('restraint.kind_' ~ k) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="flex:2 1 220px;">
+      <label for="rs_reason">{{ t('restraint.item_reason') }}</label>
+      <input class="input" id="rs_reason" name="reason" required>
+    </div>
+    <div style="flex:1 1 150px;">
+      <label for="rs_method">{{ t('restraint.item_method') }}</label>
+      <input class="input" id="rs_method" name="method">
+    </div>
+    <div style="flex:1 1 170px;">
+      <label for="rs_alt">{{ t('restraint.item_alternatives') }}</label>
+      <input class="input" id="rs_alt" name="alternatives">
+    </div>
+    <div style="flex:1 1 190px;">
+      <label for="rs_until">{{ t('restraint.item_limit') }}</label>
+      <input class="input" id="rs_until" type="datetime-local" name="valid_until">
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-lock"></i> {{ t('restraint.start') }}</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="arrest"
+     data-arrest-form>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-heart-pulse"></i> {{ t('resus.title') }}
+    <span class="hint" dir="ltr">CSS.05</span></h2>
+
+  {% if arrests %}
+  {% for row in arrests %}
+  <div class="card" style="padding:10px;margin-bottom:10px;"
+       data-arrest="{{ row.id }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <strong dir="ltr">{{ row.recognised_at.strftime('%H:%M') }}</strong>
+      {% if row.place %}<span class="hint">{{ row.place }}</span>{% endif %}
+      {# التلات أوقات، وكل فرق بيقول حاجة تانية — والخمس دقايق رقم من
+         المعيار نفسه، مش من عندنا. #}
+      {% if row.to_call is not none %}
+      <span class="badge badge--muted" data-gap="call" dir="ltr">
+        {{ t('resus.to_call') }} {{ row.to_call }}′</span>
+      {% endif %}
+      {% if row.to_team is not none %}
+      <span class="badge {{ 'badge--danger' if row.late_team else 'badge--ok' }}"
+            data-gap="team" dir="ltr">{{ t('resus.to_team') }} {{ row.to_team }}′</span>
+      {% endif %}
+    </div>
+    {% if row.is_running %}
+    <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+      {% if row.called_at is none %}
+      <form method="post" style="display:inline;"
+            action="{{ url_for('beds.resus_mark', resus_id=row.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="what" value="called">
+        <button class="btn btn-sm btn-outline gc-press" type="submit">
+          <i class="bi bi-megaphone"></i> {{ t('resus.mark_called') }}</button>
+      </form>
+      {% endif %}
+      {% if row.team_at is none %}
+      <form method="post" style="display:inline;"
+            action="{{ url_for('beds.resus_mark', resus_id=row.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="what" value="team">
+        <button class="btn btn-sm btn-outline gc-press" type="submit">
+          <i class="bi bi-people"></i> {{ t('resus.mark_team') }}</button>
+      </form>
+      {% endif %}
+      <form method="post" style="display:flex;gap:6px;align-items:end;"
+            action="{{ url_for('beds.resus_finish', resus_id=row.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <select class="select" name="outcome" style="max-width:150px;" required>
+          <option value="">{{ t('resus.item_outcome') }}</option>
+          {% for o in resus_outcomes %}
+          <option value="{{ o }}">{{ t('resus.out_' ~ o) }}</option>
+          {% endfor %}
+        </select>
+        <input class="input" name="management" style="max-width:220px;"
+               placeholder="{{ t('resus.item_management') }}">
+        <button class="btn btn-sm btn-primary gc-press" type="submit">
+          <i class="bi bi-check2"></i> {{ t('resus.finish') }}</button>
+      </form>
+    </div>
+    {% else %}
+    <div class="hint" style="margin-top:6px;">
+      {{ t('resus.out_' ~ row.outcome) if row.outcome else t('resus.unanswered') }}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {# **من غير صلاحية زيادة عن القسم.** اللي بيشوف الطفل واقف هو اللي
+     بيفتح السجل، ومش هيبقى دايماً طبيب — ودليل ٣ بيقول إن الإنعاش
+     الأساسي بيبدأ **فوراً**. #}
+  <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;"
+        action="{{ url_for('beds.resus_start', admission_id=admission.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:1 1 200px;">
+      <label for="ar_place">{{ t('resus.place') }}</label>
+      <input class="input" id="ar_place" name="place"
+             placeholder="{{ t('resus.place_hint') }}">
+    </div>
+    <button class="btn btn-danger gc-press" type="submit">
+      <i class="bi bi-heart-pulse"></i> {{ t('resus.start') }}</button>
+  </form>
+</div>
+{% endif %}
+
 {% if risk_panel %}
 <div class="card gc-scale-in" style="margin-bottom:16px;" data-risks>
   <h2 class="section-title" style="margin-top:0;">

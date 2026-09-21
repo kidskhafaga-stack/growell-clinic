@@ -101,6 +101,22 @@
       </div>
     </div>
 
+    {# ورابع واحدة، وهي مش فترة مراقبة — دي مهلة كتابة. `ICD.18` دليل ٤
+       بيقول *within a **predefined** timeframe*، يعني المستشفى هي اللي
+       بتعرّفها. حطّيتها هنا لأنها نفس شكل الإجابة: رقم المستشفى بتقوله
+       والبرنامج بيقيس عليه، وفاضية يعني ما قالتش. #}
+    <div class="form-row" style="border-top:1px solid var(--line);padding-top:12px;"
+         data-verbal-timeframe-policy>
+      <label for="verbal_order_minutes">
+        <strong>{{ t('verbal.title') }}</strong>
+        <span class="hint" dir="ltr">ICD.18</span></label>
+      <div style="max-width:220px;">
+        <input class="input" type="number" min="0" id="verbal_order_minutes"
+               name="verbal_order_minutes" value="{{ verbal_order_minutes }}">
+        <div class="hint">{{ t('verbal.timeframe') }}</div>
+      </div>
+    </div>
+
     <button class="btn btn-primary gc-press" type="submit" style="margin-top:14px;">
       <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
   </form>
