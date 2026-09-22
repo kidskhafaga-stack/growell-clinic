@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
 {% set active_module = 'beds' %}
 {% block title %}{{ t('beds.stay') }} — {{ admission.patient.display_name(current_lang) }}{% endblock %}
 {% block page_heading %}{{ t('beds.stay') }}{% endblock %}
@@ -66,11 +67,8 @@
         action="{{ url_for('beds.assign_responsible', admission_id=admission.id) }}"
         style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <select class="select" name="doctor_id" style="max-width:240px;">
-      {% for person in doctors %}
-      <option value="{{ person.id }}">{{ person.display_name(current_lang) }}</option>
-      {% endfor %}
-    </select>
+    {{ pickers.doctor_picker('doctor_id', None, None, doctors=doctors,
+                             autosubmit=False) }}
     <button class="btn btn-primary btn-sm gc-press" type="submit">
       <i class="bi bi-person-check"></i> {{ t('mrp.assign') }}</button>
   </form>
@@ -83,13 +81,11 @@
     <p style="flex:1 1 100%;margin:0 0 6px;" data-mrp-pending>
       <b>{{ t('mrp.pending') }}:</b> {{ live.pending }}</p>
     {% endif %}
-    <select class="select" name="doctor_id" style="max-width:240px;">
-      {% for person in doctors %}{% if person.id != live.doctor_id %}
-      <option value="{{ person.id }}"
-        {% if live.handed_to_id == person.id %}selected{% endif %}>
-        {{ person.display_name(current_lang) }}</option>
-      {% endif %}{% endfor %}
-    </select>
+    {# اللي اتعرضت عليه جاهز في الخانة، **والباب هو اللي بيرفض اللي
+       سلّم** — مش إخفاؤه من القايمة. الرفض لازم يكون في الراوت علشان
+       يمسك الحالة اللي جاية من بره الشاشة كمان. #}
+    {{ pickers.doctor_picker('doctor_id', live.handed_to_id, None,
+                             doctors=doctors, autosubmit=False) }}
     <button class="btn btn-primary btn-sm gc-press" type="submit">
       <i class="bi bi-hand-thumbs-up"></i> {{ t('mrp.accept') }}</button>
   </form>
@@ -98,11 +94,8 @@
         action="{{ url_for('beds.hand_over_responsible', admission_id=admission.id) }}"
         style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <select class="select" name="doctor_id" style="max-width:220px;">
-      {% for person in doctors %}{% if person.id != live.doctor_id %}
-      <option value="{{ person.id }}">{{ person.display_name(current_lang) }}</option>
-      {% endif %}{% endfor %}
-    </select>
+    {{ pickers.doctor_picker('doctor_id', None, None, doctors=doctors,
+                             autosubmit=False) }}
     {# (ج) — **الخطوات المعلّقة هي الحاجة الوحيدة اللي مفيش جدول تاني
        بيعرفها.** التقييم والخطة في `CarePlan` وقايمة المشاكل، ونسخهم
        هنا نفس غلطة نسخ الدوا على ورقة الإحالة. #}
