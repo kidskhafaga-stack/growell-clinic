@@ -141,7 +141,7 @@ def _edges(tables):
     return out
 
 
-def cycle_breakers(tables=None):
+def cycle_breakers(tables=None, wanted=None):
     """الأعمدة اللي لازم تتفضّى قبل المسح — **لأن فيه دواير**.
 
     `visits.based_on_id` بتشاور على `visit_investigations`، و
@@ -158,7 +158,7 @@ def cycle_breakers(tables=None):
     لحد ما يقف، واللي فاضل هو الدواير بالظبط — إجابة واحدة كل مرة.
     """
     tables = tables if tables is not None else _tables()
-    wanted = wiped_tables()
+    wanted = set(wanted) if wanted is not None else wiped_tables()
     edges = [(child, parent, column)
              for child, parent, column in _edges(tables)
              if child in wanted and parent in wanted]
@@ -195,7 +195,7 @@ def cycle_breakers(tables=None):
         cut.add(id(spare[2]))
 
 
-def delete_order():
+def delete_order(wanted=None):
     """الابن قبل الأب — **محسوب من المفاتيح مش مكتوب بالإيد**.
 
     ترتيب غلط مش بيسيب يتيم وبس، ده بيفشّل المسح نفسه بخطأ مفتاح
@@ -204,10 +204,14 @@ def delete_order():
 
     والدواير بتتقطع في :func:`cycle_breakers` قبل ما الترتيب ده يتحسب،
     فاللي فاضل شجرة.
+
+    **والمجموعة معامل مش ثابت.** «امسح البيانات التجريبية بس» بيمسح
+    جداول المسح العادي بيسيبها — تخطيط المستشفى — فمحتاج نفس الحساب ده
+    على مجموعة أوسع. الترتيب واحد، اللي بيتغيّر هو نطاقه.
     """
     tables = _tables()
-    wanted = wiped_tables()
-    broken = {id(col) for col in cycle_breakers(tables)}
+    wanted = set(wanted) if wanted is not None else wiped_tables()
+    broken = {id(col) for col in cycle_breakers(tables, wanted)}
 
     children = defaultdict(set)
     for child, parent, column in _edges(tables):

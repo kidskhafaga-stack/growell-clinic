@@ -46,9 +46,14 @@ def reset_all():
     يومي، وبيعيش الكتالوج والإعداد **وتخطيط المستشفى**. والترتيب متحسب
     من المفاتيح الأجنبية، الابن قبل الأب.
     """
-    from app.utils.wipe import wipe
+    from app.utils import demo_trace
+    from app.utils.wipe import wipe, wiped_tables
 
     counts = wipe()
+    # **والكشف التجريبي بيتشال معاه — للجداول اللي اتفضّت بس.** الأرقام
+    # بتترد بعد المسح، ومريض حقيقي جديد ممكن ياخد رقم مريض تجريبي قديم.
+    # العنبر بيعيش المسح، فبيفضل في الكشف وينفع يتشال لوحده بعدين.
+    demo_trace.forget(wiped_tables())
     Setting.set("demo_seeded", "0")
     db.session.commit()
     return counts
@@ -92,6 +97,11 @@ def seed_demo():
     rnd = random.Random(42)
     doc = _doctor()
     today = datetime.utcnow().date()
+
+    # **صورة قبل الزرع.** «امسح التجريبية بس» محتاج يعرف الزرع عمل إيه
+    # بالظبط — والصف التجريبي شكله زي الحقيقي، فالفرق هو اللي بيفرّق.
+    from app.utils import demo_trace
+    before = demo_trace.snapshot()
 
     # --- Services -------------------------------------------------------
     # Demo cases hang off the clinic's *real* catalogue (seeded by
@@ -492,7 +502,65 @@ def seed_demo():
                 status="scheduled", appt_type="vaccination",
                 vaccine_brand_id=vbrand.id, vaccine_dose=1, reason="تطعيم"))
 
+    # والأقسام: مستشفى صغيّرة بأسرّة وطفلين داخلين — علشان شاشات
+    # الإقامة والعنابر تبان مليانة زي باقي البرنامج.
+    ward = seed_ward(patients)
+
     Setting.set("demo_seeded", "1")
+    db.session.flush()
+    made_rows = demo_trace.record(before)
     db.session.commit()
     return {"patients": len(patients), "services": len(services),
-            "invoices": made, "skipped": False}
+            "invoices": made, "ward": ward,
+            "tables": len(made_rows), "skipped": False}
+
+
+def seed_ward(patients=None):
+    """مستشفى صغيّرة: طوارئ وعناية وحضّانات وداخلي، وطفلين داخلين.
+
+    **بتتعمل بنفس الويزارد اللي العيادة بتستعمله** — مش بكود تاني.
+    فلو الويزارد باظ يوم، البيانات التجريبية بتبوظ معاه ويتمسك؛ وطريقتين
+    لبناء عنبر كانوا هيفترقوا بصمت.
+    """
+    from app.models import Admission, Patient
+    from app.utils import beds as ward_utils
+    from app.utils import ward_plan
+
+    if ward_plan.Unit.query.first() is not None:
+        return {"skipped": True}
+
+    def name(key, number=None):
+        # **`t()` مش بتنفع هنا**: بتقرا اللغة من الطلب، والزرع بيتنده من
+        # التيرمنال كمان (`flask seed-demo`) — ووقتها مفيش طلب أصلاً.
+        # فالقراية من ملف اللغة مباشرةً، بنفس المفاتيح اللي الويزارد
+        # بيستعملها، علشان العنبر التجريبي يطلع بنفس أسامي العنبر
+        # الحقيقي بالظبط.
+        from app.i18n import _load_translations, _lookup
+
+        key = f"ward_wizard.name_{key.replace('.', '_')}"
+        label = _lookup(_load_translations(), "ar", key) or key
+        return f"{label} {number}" if number else label
+
+    caps = ["emergency_care", "icu", "nicu", "ward"]
+    made = ward_plan.build(caps, {
+        ward_plan.field("emergency_care", "partitions"): "3",
+        ward_plan.field("icu", "beds"): "4",
+        ward_plan.field("icu", "isolation"): "1",
+        ward_plan.field("nicu", "incubators"): "3",
+        ward_plan.field("nicu", "cots"): "2",
+        ward_plan.field("ward", "rooms"): "4",
+        ward_plan.field("ward", "beds_per_room"): "2",
+    }, name)
+    db.session.flush()
+
+    # وطفلين داخلين، علشان اللوحة ما تبقاش فاضية وهي بتتعرض.
+    kids = list(patients or Patient.query.limit(2).all())[:2]
+    free = ward_utils.free_beds()
+    for kid, bed in zip(kids, free):
+        try:
+            ward_utils.admit(kid, bed, user=_doctor())
+        except ward_utils.BedTaken:
+            continue
+    db.session.flush()
+    made["admitted"] = Admission.query.count()
+    return made
