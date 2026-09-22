@@ -19,6 +19,42 @@
   </div>
 </div>
 
+{# ---- الترويسة اللي بتطلع على الورق ------------------------------------
+
+   **الورقة كانت بتخرج من غير عنوان.** `no-print` كانت على الترويسة
+   كلها — اتحطّت علشان تخفي زراري «سجل الورديات» و«طباعة»، فخدت معاها
+   **اسم التقرير ورقم الوردية واسم الكاشير والفترة**.
+
+   يعني اللي بيخرج من الطابعة أرقام وجداول من غير ما يقول ده تقرير إيه
+   ولا لمين ولا امتى — ورقة محدّش يقدر يحفظها ولا يراجعها.
+
+   والشاشة عندها ترويستها (العنوان والقايمة الجانبية)، والورق مالوش —
+   فدي بتظهر على الورق بس. #}
+<div class="print-only" style="margin-bottom:14px;padding-bottom:10px;
+     border-bottom:2px solid var(--primary);">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+    <div style="font-weight:800;font-size:1.15rem;">{{ clinic_name }}</div>
+    <div style="text-align:end;font-size:.85rem;">
+      {{ t('shifts.printed_at') }}
+      <span dir="ltr">{{ now_text }}</span>
+    </div>
+  </div>
+  <h1 style="font-size:1.05rem;margin:10px 0 2px;text-align:center;">
+    {{ t('shifts.report') }}
+    <span dir="ltr">{{ shift.shift_number or '#' ~ shift.id }}</span>
+    {% if shift.label %} — {{ shift.label }}{% endif %}
+  </h1>
+  <div style="text-align:center;font-size:.85rem;">
+    {{ shift.opener.display_name(current_lang) if shift.opener else '' }}
+    ·
+    <span dir="ltr">{{ shift.opened_at.strftime('%Y-%m-%d %H:%M') }}</span>
+    {% if shift.closed_at %}
+    → <span dir="ltr">{{ shift.closed_at.strftime('%Y-%m-%d %H:%M') }}</span>
+    ({{ shift.duration_minutes }} {{ t('shifts.minutes') }})
+    {% else %} — {{ t('shifts.still_open') }}{% endif %}
+  </div>
+</div>
+
 <div class="stat-grid gc-stagger print-area" style="margin-bottom:16px;">
   <div class="stat-card edge-blue gc-lift"><i class="bi bi-wallet2 ico"></i>
     <div class="value">{{ shift.opening_float }}</div><div class="label">{{ t('cashier.opening_float') }}</div></div>

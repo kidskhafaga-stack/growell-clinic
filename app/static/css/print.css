@@ -22,6 +22,10 @@
 }
 
 @media print {
+  .print-only {
+    display: block !important;
+  }
+
   /* The program around the document. `.no-print` is the marker the screens
      already used; the rest is the shell they all share. */
   .sidebar,
@@ -136,4 +140,17 @@
   a {
     text-decoration: none !important;
   }
+}
+
+
+/* Shown only on paper. A screen has its own heading — the page title, the
+   breadcrumb, the sidebar telling you where you are. Paper has none of that,
+   so a printed report needs a heading of its own, and it must not appear
+   twice on the screen.
+
+   Written **after** the print block on purpose: the guard above reads this
+   file by slicing at the first `display: none`, and a rule before that block
+   moved the slice. `!important` inside the media query wins either way. */
+.print-only {
+  display: none;
 }
