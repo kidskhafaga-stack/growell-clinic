@@ -2180,7 +2180,13 @@ def shift_report(shift_id):
     """One shift's X/Z report: float, money by method, expected vs counted."""
     shift = db.get_or_404(CashierShift, shift_id)
     pays = sorted(shift.payments, key=lambda p: p.paid_at)
+    # **ساعة الطبع نفسها، مش ساعة الوردية.** ورقة اتطبعت مرتين في يومين
+    # مختلفين لازم تقول ده — والفرق ده هو اللي بيخلّي حد يعرف أنهي نسخة
+    # في إيده.
+    from app.utils.clock import local_now
+
     return render_template("finance/shift_report.html", shift=shift, pays=pays,
+                           now_text=local_now().strftime("%Y-%m-%d %H:%M"),
                            payment_methods=PAYMENT_METHODS)
 
 

@@ -79,8 +79,17 @@ def setup():
         abort(403, description=t("auth.no_permission"))
     from app.models.service import Service
 
+    from app.utils import facility
+    from app.utils import ward_plan
+
     return render_template("beds/setup.html",
                            bases=bed_billing.BASES,
+                           # الأسئلة بتيجي من اللي المنشأة علّمته — قسم
+                           # عمره ما هيتعمل مش بياخد خانة على الشاشة.
+                           plans=ward_plan.plans_for(facility.capabilities()),
+                           deletable=ward_plan.deletable,
+                           space_deletable=ward_plan.space_deletable,
+                           bed_used=ward_plan.bed_used,
                            units=ward.board(),
                            unit_kinds=UNIT_KINDS, space_kinds=SPACE_KINDS,
                            bed_kinds=BED_KINDS,
@@ -1621,3 +1630,91 @@ def nursing_describe(assessment_id):
     flash(t("common.saved"), "success")
     return redirect(request.referrer or url_for("beds.admission",
                                                 admission_id=row.admission_id))
+
+
+# ------------------------------------ بناء الأقسام بضغطة -----------------
+def _ward_names():
+    """أسامي الأقسام والحيّزات والأسرّة بلغة العيادة.
+
+    **البرنامج ما بيخترعش أسامي عربية في الكود** — كلها مفاتيح ترجمة،
+    زي أي كلمة تانية على الشاشة.
+    """
+    def name(key, number=None):
+        label = t(f"ward_wizard.name_{key.replace('.', '_')}")
+        return f"{label} {number}" if number else label
+    return name
+
+
+@beds_bp.route("/setup/build", methods=["POST"])
+@module_required(MODULE)
+def build_ward():
+    """الأسئلة اللي المنشأة اتسألتها، بتتحوّل لصفوف."""
+    from app.utils import facility
+    from app.utils import ward_plan
+
+    _admin_only()
+    answers = {key: request.form.get(key) for key in request.form}
+    caps = facility.capabilities()
+    made = ward_plan.build(caps, answers, _ward_names())
+    if not any(made.values()):
+        flash(t("ward_wizard.nothing_to_build"), "warning")
+        return redirect(url_for("beds.setup"))
+    db.session.commit()
+    flash(t("ward_wizard.built") % made, "success")
+    return redirect(url_for("beds.setup"))
+
+
+@beds_bp.route("/unit/<int:unit_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def delete_unit(unit_id):
+    from app.utils import ward_plan
+
+    _admin_only()
+    unit = Unit.query.get_or_404(unit_id)
+    try:
+        ward_plan.delete_unit(unit)
+    except ward_plan.InUse as why:
+        db.session.rollback()
+        flash(t(f"ward_wizard.refused_{why}"), "error")
+        return redirect(url_for("beds.setup"))
+    db.session.commit()
+    flash(t("ward_wizard.deleted"), "success")
+    return redirect(url_for("beds.setup"))
+
+
+@beds_bp.route("/space/<int:space_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def delete_space(space_id):
+    from app.utils import ward_plan
+
+    _admin_only()
+    space = Space.query.get_or_404(space_id)
+    try:
+        ward_plan.delete_space(space)
+    except ward_plan.InUse as why:
+        db.session.rollback()
+        flash(t(f"ward_wizard.refused_{why}"), "error")
+        return redirect(url_for("beds.setup"))
+    db.session.commit()
+    flash(t("ward_wizard.deleted"), "success")
+    return redirect(url_for("beds.setup"))
+
+
+@beds_bp.route("/bed/<int:bed_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def delete_bed(bed_id):
+    from app.utils import ward_plan
+
+    _admin_only()
+    bed = Bed.query.get_or_404(bed_id)
+    try:
+        ward_plan.delete_bed(bed)
+    except ward_plan.InUse as why:
+        db.session.rollback()
+        # **والرفض بيقول السبب**: «نام فيه طفل قبل كده» بتودّي اللي
+        # قدام الشاشة لـ«أخرجه من الخدمة»؛ «مش ينفع» بتوديه لحد يسأله.
+        flash(t(f"ward_wizard.refused_{why}"), "error")
+        return redirect(url_for("beds.setup"))
+    db.session.commit()
+    flash(t("ward_wizard.deleted"), "success")
+    return redirect(url_for("beds.setup"))

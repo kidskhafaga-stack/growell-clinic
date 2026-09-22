@@ -178,6 +178,15 @@ TEMPLATES = {
     "medical_center":     {"icon": "buildings", "type": "medical_center",
                            "caps": ["general_consultation", "followup",
                                     "laboratory", "ultrasound", "xray", "pharmacy"]},
+    # **والمستشفى كانت نوع من غير قالب.** `FACILITY_TYPES["hospital"]`
+    # موجود من زمان، إنما الطريق السريع — «ابدأ من قالب جاهز» — كان
+    # خمسة كلهم عيادات ومراكز. فمستشفى كانت بتبدأ من صفر وتعلّم تسع
+    # قدرات بإيدها، وهي أكتر منشأة محتاجة الطريق السريع.
+    "hospital":           {"icon": "hospital", "type": "hospital",
+                           "caps": ["general_consultation", "followup",
+                                    "laboratory", "ultrasound", "xray",
+                                    "pharmacy", "emergency_care", "ward",
+                                    "nicu", "icu", "surgery"]},
 }
 
 

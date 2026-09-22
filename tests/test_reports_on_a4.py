@@ -63,12 +63,16 @@ def test_the_program_around_the_document_is_not_printed():
     # itself had been deleted — caught by removing it and watching the test
     # stay green.
     css = re.sub(r"/\*.*?\*/", "", _css(), flags=re.S)
-    block = css[css.index("display: none"):]
-    selectors = css[:css.index("display: none")]
+    # **`display: none !important` بالظبط**, مش أول `display: none` في
+    # الملف: أول قاعدة تتكتب فوقها بتحرّك القطع وتخلّي الحارس يقرا
+    # حتة تانية خالص — حصل فعلاً أول ما `.print-only` اتضافت.
+    cut = css.index("display: none !important")
+    block = css[cut:]
+    selectors = css[:cut]
     selectors = selectors[selectors.rindex("}") + 1:]
     for part in (".sidebar", ".topbar", ".no-print", ".flashes"):
         assert part in selectors, f"{part} is not in the display:none rule"
-    assert "!important" in block[:40]
+    assert block.startswith("display: none !important")
 
 
 def test_it_is_loaded_for_every_screen_not_per_report():
@@ -175,3 +179,82 @@ def test_no_report_prints_its_own_filter_toolbar(clinic, report):
     # path while reporting itself green.
     assert page.status_code == 200, f"/reports/{report} returned {page.status_code}"
     assert _forms_without_a_no_print_ancestor(page.get_data(as_text=True)) == 0
+
+
+# --- and the screens outside `templates/reports/` ---------------------------
+#
+# **الحارس ده كان بيبصّ على مجلد واحد.** الاختبارات اللي فوق بتمشي على
+# `/reports/…`، وتقرير الوردية في `finance/` — فعدّى من غير ما حد يشوفه،
+# وطلع من الطابعة **من غير عنوان**: `no-print` كانت على الترويسة كلها،
+# اللي فيها اسم التقرير ورقم الوردية والكاشير والفترة.
+#
+# والدوكسترينج فوق بيقول اللي بيحصل بالظبط لما شاشة تبقى بره الفحص:
+# *"four out of fifteen"*. فالقايمة اتوسّعت، **والفحص بقى أعمق**: مش
+# كفاية إن الفلاتر ما تتطبعش، لازم يبقى فيه عنوان على الورق كمان.
+
+def _shift(clinic):
+    from datetime import datetime
+
+    from app.models import CashierShift
+
+    with clinic["app"].app_context():
+        row = CashierShift(opened_by=clinic["ids"]["admin"],
+                           opened_at=datetime.utcnow(),
+                           shift_number="SH-PRINT-1")
+        clinic["db"].session.add(row)
+        clinic["db"].session.commit()
+        return row.id
+
+
+def test_the_shift_report_does_not_print_its_buttons(clinic):
+    page = clinic["sign_in"]("boss").get(
+        f"/finance/shift/{_shift(clinic)}")
+    assert page.status_code == 200
+    assert _forms_without_a_no_print_ancestor(page.get_data(as_text=True)) == 0
+
+
+def test_the_shift_report_carries_a_heading_onto_the_paper(clinic):
+    """**واللي وقع.** الشاشة عندها ترويستها — العنوان والقايمة الجانبية
+    وإنت عارف إنت فين. الورق مالوش، فورقة من غير عنوان هي أرقام محدّش
+    يقدر يحفظها ولا يراجعها.
+    """
+    import json
+
+    page = clinic["sign_in"]("boss").get(
+        f"/finance/shift/{_shift(clinic)}").get_data(as_text=True)
+
+    assert "print-only" in page
+    head = page[page.index("print-only"):]
+    head = head[:head.index("print-area")]
+
+    ar = json.load(open(os.path.join(ROOT, "app", "i18n", "locales",
+                                     "ar.json"), encoding="utf-8"))
+    # اسم المنشأة، واسم التقرير، ورقم الوردية، ووقت الطبع.
+    assert ar["shifts"]["report"] in head
+    assert "SH-PRINT-1" in head
+    assert ar["shifts"]["printed_at"] in head
+
+
+def test_a_print_only_block_is_hidden_on_the_screen_and_shown_on_paper():
+    """ولازم الاتنين: تظهر مرتين على الشاشة بتبقى تكرار، وتختفي على الورق
+    بتبقى نفس المشكلة من الأول."""
+    css = re.sub(r"/\*.*?\*/", "", _css(), flags=re.S)
+
+    # حدود بلوك الطباعة بالأقواس، مش بالترتيب في الملف: القاعدة ممكن
+    # تتكتب فوقه أو تحته، واللي بيفرق هو **جوّه ولا بره**.
+    start = css.index("@media print")
+    depth, end = 0, None
+    for i in range(css.index("{", start), len(css)):
+        if css[i] == "{":
+            depth += 1
+        elif css[i] == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    assert end is not None
+    paper, screen = css[start:end], css[:start] + css[end:]
+
+    assert re.search(r"\.print-only\s*\{[^}]*display:\s*none", screen)
+    assert re.search(r"\.print-only\s*\{[^}]*display:\s*block\s*!important",
+                     paper)
