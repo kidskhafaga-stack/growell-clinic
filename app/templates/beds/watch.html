@@ -491,4 +491,45 @@
   {% endif %}
 </div>
 {% endif %}
+
+{# ---- تقييم التمريض — `ICD.07` ------------------------------------------ #}
+
+{# دليل ٣ بيقول *upon admission within the timeframe*، ودليل ٤ *at the
+   frequency* — رقمين مختلفين. و«محدّش عمله» بتبان من غير رقم، و«اتأخر»
+   لأ: المستشفى اللي ما كتبتش مهلتها لسه ما حدّش بيتقال عليه إنه تأخّر. #}
+{% if nursing_missing or nursing_overdue %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:16px;border-inline-start:4px solid var(--warning);"
+     data-nursing-watch>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('nursing.title') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('nursing.watch_hint') }}</span>
+  </div>
+  <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;">
+    {% for stay in nursing_late %}
+    <a class="badge badge--danger" data-nursing-late="{{ stay.id }}"
+       href="{{ url_for('beds.admission', admission_id=stay.id) }}#nursing">
+      {{ stay.patient.display_name(current_lang) if stay.patient else '—' }}
+      · {{ t('nursing.late') }}</a>
+    {% endfor %}
+    {% for stay in nursing_overdue %}
+    <a class="badge badge--danger" data-nursing-overdue="{{ stay.id }}"
+       href="{{ url_for('beds.admission', admission_id=stay.id) }}#nursing">
+      {{ stay.patient.display_name(current_lang) if stay.patient else '—' }}
+      · {{ t('nursing.overdue') }}</a>
+    {% endfor %}
+    {% for stay in nursing_missing %}
+    {% if stay not in nursing_late %}
+    <a class="badge badge--warning" data-nursing-missing="{{ stay.id }}"
+       href="{{ url_for('beds.admission', admission_id=stay.id) }}#nursing">
+      {{ stay.patient.display_name(current_lang) if stay.patient else '—' }}
+      · {{ t('nursing.no_initial') }}</a>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% if not nursing_hours %}
+  <p class="hint" style="margin:0;padding:0 18px 14px;" data-nursing-no-window>
+    {{ t('nursing.no_window') }}</p>
+  {% endif %}
+</div>
+{% endif %}
 {% endblock %}

@@ -131,6 +131,81 @@
   {% endif %}
 </div>
 
+{# ---- تقييم التمريض — `ICD.07` ------------------------------------------ #}
+
+{# **الكارت ده قارئ أكتر منه كاتب.** تلاتة من ستة بنود المعيار مكتوبين
+   في الملف من قبل ما التقييم ده يتعمل، فبيتجمّعوا من مصدرهم؛ والممرضة
+   بتكتب اللي مفيش حاجة تانية في البرنامج بتعرفه. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="nursing" data-nursing>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-clipboard-heart"></i> {{ t('nursing.title') }}</h2>
+
+  {# (أ) و(ب) و(ج) — واللي ناقص منهم بيتقال باسمه، لأن ورقة ساكتة عن
+     تقييم السقوط بتتقرا «مفيش خطر» وهي «محدّش قاس». #}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"
+       data-nursing-known>
+    {% for name, row in nursing_known.items() %}
+    <span class="badge {{ 'badge--ok' if row else 'badge--muted' }}"
+          data-nursing-known-{{ name }}="{{ 1 if row else 0 }}">
+      {{ t('nursing.known_' ~ name) }}
+      {% if not row %}— {{ t('nursing.not_recorded') }}{% endif %}</span>
+    {% endfor %}
+  </div>
+
+  {% if nursing_initial %}
+  {% set gaps = nursing_gaps(nursing_initial) %}
+  <p style="margin:0 0 6px;" data-nursing-initial="{{ nursing_initial.id }}">
+    <span class="badge badge--ok">{{ t('nursing.initial_done') }}</span>
+    <span class="hint" dir="ltr">{{ nursing_initial.at.strftime('%Y-%m-%d %H:%M') }}</span>
+    {% if gaps %}<span class="hint" data-nursing-gaps>— {{ t('nursing.missing') }}:
+      {% for name in gaps %}<span data-nursing-gap="{{ name }}">{{ t('nursing.el_' ~ name) }}</span>{% if not loop.last %} · {% endif %}{% endfor %}
+    </span>{% endif %}
+  </p>
+  {% if gaps %}
+  <form method="post" data-nursing-complete="{{ nursing_initial.id }}"
+        action="{{ url_for('beds.nursing_describe', assessment_id=nursing_initial.id) }}"
+        style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for name in gaps %}
+    <input class="input" name="{{ name }}" style="max-width:150px;"
+           placeholder="{{ t('nursing.el_' ~ name) }}">
+    {% endfor %}
+    <button class="btn btn-outline btn-sm gc-press" type="submit">
+      <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
+  </form>
+  {% endif %}
+  {% else %}
+  <p class="alert-pill warn" style="display:block;margin:0 0 10px;"
+     data-nursing-none>
+    <i class="bi bi-exclamation-triangle"></i> {{ t('nursing.no_initial') }}
+  </p>
+  {% endif %}
+
+  {% if admission.is_open %}
+  <form method="post" data-nursing-form
+        action="{{ url_for('beds.nursing_record', admission_id=admission.id) }}"
+        style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="kind"
+           value="{{ 'reassessment' if nursing_initial else 'initial' }}">
+    {# (د) الستة — كل واحد ملاحظة لوحده: «الجلد سليم» مش بيقول حاجة
+       عن الترطيب. #}
+    {% for name in ('airway', 'breathing', 'circulation', 'disability', 'skin', 'hydration') %}
+    <input class="input" name="{{ name }}" style="max-width:135px;"
+           placeholder="{{ t('nursing.el_' ~ name) }}">
+    {% endfor %}
+    {# (هـ) «لما تلزم» — فمش بيتعدّ ناقص. #}
+    <input class="input" name="outputs" style="max-width:150px;"
+           placeholder="{{ t('nursing.el_outputs') }}">
+    <input class="input" name="focus" style="max-width:220px;"
+           placeholder="{{ t('nursing.el_focus') }}">
+    <button class="btn btn-primary btn-sm gc-press" type="submit">
+      <i class="bi bi-clipboard-check"></i>
+      {{ t('nursing.reassess') if nursing_initial else t('nursing.do_initial') }}</button>
+  </form>
+  {% endif %}
+</div>
+
 {# ---- الألم — `ICD.09` --------------------------------------------------- #}
 <div class="card gc-scale-in" style="margin-bottom:16px;" id="pain" data-pain>
   <h2 class="section-title" style="margin-top:0;">
