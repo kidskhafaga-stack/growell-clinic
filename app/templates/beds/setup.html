@@ -13,6 +13,58 @@
     <i class="bi bi-hospital"></i> {{ t('beds.board') }}</a>
 </div>
 
+{# ---- ابنِ القسم بضغطة -------------------------------------------------
+
+   **الشاشة دي كانت بتسأل السؤال الغلط.** «أضف قسم» وبعدين «أضف حيّز»
+   وبعدين «أضف سرير» — تلات دورات لكل سرير في المستشفى. والسؤال اللي
+   المستشفى بتجاوبه بسهولة هو «الطوارئ فيها كام بارتشن؟».
+
+   **والخانات اللي بتبان هي بتاعة اللي المنشأة علّمته بس** — منشأة
+   ماعلّمتش عناية ما تتسألش عن بارتشنات العناية. #}
+{% if plans %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--primary);"
+     data-ward-wizard>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-magic"></i> {{ t('ward_wizard.title') }}</h2>
+  <p class="hint" style="margin:0 0 12px;">{{ t('ward_wizard.sub') }}</p>
+
+  <form method="post" action="{{ url_for('beds.build_ward') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for plan in plans %}
+    <div style="margin-bottom:12px;" data-ward-plan="{{ plan.cap }}">
+      <strong>{{ t('beds.unit_' ~ plan.unit_kind) }}</strong>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
+        {% for question in plan.questions %}
+        <div class="form-row" style="margin-bottom:0;max-width:170px;">
+          <label for="q_{{ plan.cap }}_{{ question.key }}">
+            {{ t('ward_wizard.q_' ~ plan.cap ~ '_' ~ question.key) }}</label>
+          {# الاسم مسمّى بالقسم: «كام سرير» سؤال في تلات أقسام. #}
+          <input class="input" type="number" min="0" max="200" value="0"
+                 id="q_{{ plan.cap }}_{{ question.key }}"
+                 name="{{ plan.cap }}__{{ question.key }}"
+                 data-ward-q="{{ plan.cap }}-{{ question.key }}">
+        </div>
+        {% if question.beds_each_key %}
+        <div class="form-row" style="margin-bottom:0;max-width:170px;">
+          <label for="q_{{ plan.cap }}_{{ question.beds_each_key }}">
+            {{ t('ward_wizard.q_' ~ plan.cap ~ '_' ~ question.beds_each_key) }}</label>
+          <input class="input" type="number" min="0" max="200" value="0"
+                 id="q_{{ plan.cap }}_{{ question.beds_each_key }}"
+                 name="{{ plan.cap }}__{{ question.beds_each_key }}"
+                 data-ward-q="{{ plan.cap }}-{{ question.beds_each_key }}">
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+    <button class="btn btn-primary gc-press" type="submit" data-ward-build>
+      <i class="bi bi-lightning-charge"></i> {{ t('ward_wizard.build') }}</button>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('ward_wizard.adds_note') }}</span>
+  </form>
+</div>
+{% endif %}
+
 {# A department. Its *kind* is the only thing that makes emergency different
    from a ward here — the shape underneath is identical, which is the whole
    argument of ٤-ب in the plan. #}
@@ -43,7 +95,19 @@
 <div class="card gc-scale-in" style="margin-bottom:14px;">
   <h2 class="section-title" style="margin-top:0;">
     {{ row.unit.name }}
-    <span class="badge badge--muted">{{ t('beds.unit_' ~ row.unit.kind) }}</span></h2>
+    <span class="badge badge--muted">{{ t('beds.unit_' ~ row.unit.kind) }}</span>
+    {# **زرار بيرفض كل مرة أسوأ من زرار مش موجود** — بيعلّم اللي قدام
+       الشاشة إن الأزرار بتكدب. فالسؤال بيتسأل قبل الرسم. #}
+    {% if deletable(row.unit) %}
+    <form method="post" style="display:inline;margin-inline-start:8px;"
+          action="{{ url_for('beds.delete_unit', unit_id=row.unit.id) }}"
+          onsubmit="return confirm('{{ t('ward_wizard.confirm_unit') }}');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit"
+              data-delete-unit="{{ row.unit.id }}" style="color:var(--danger);">
+        <i class="bi bi-trash3"></i> {{ t('ward_wizard.delete') }}</button>
+    </form>
+    {% endif %}</h2>
 
   {# What a stay in this department costs, and whether it is sold by the
      night or by the hour. Emergency is by the hour: a child on a trolley for
@@ -90,6 +154,17 @@
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
       <b>{{ block.space.name }}</b>
       <span class="badge badge--muted">{{ t('beds.space_' ~ block.space.kind) }}</span>
+      {% if space_deletable(block.space) %}
+      <form method="post" style="display:inline;"
+            action="{{ url_for('beds.delete_space', space_id=block.space.id) }}"
+            onsubmit="return confirm('{{ t('ward_wizard.confirm_space') }}');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-outline gc-press" type="submit"
+                data-delete-space="{{ block.space.id }}"
+                style="color:var(--danger);">
+          <i class="bi bi-trash3"></i></button>
+      </form>
+      {% endif %}
       {% if block.space.is_isolation %}
       <span class="alert-pill warn"><i class="bi bi-shield-exclamation"></i>
         {{ t('beds.isolation') }}</span>
@@ -156,9 +231,14 @@
           </form>
         </td>
         <td style="text-align:end;">
-          {# A bed is never deleted — its stays are last month's occupancy,
-             which a hospital reports on. It goes out of service and comes
-             back. #}
+          {# **A bed that a child has slept in is never deleted** — its stays
+             are last month's occupancy, which a hospital reports on. It goes
+             out of service and comes back.
+
+             A bed nobody ever used has no occupancy to report, and is
+             usually one somebody typed twice. That one is deleted, because
+             leaving it is how a setup screen fills with rows nobody dares
+             touch — which is the mess this screen was rebuilt for. #}
           <form method="post"
                 action="{{ url_for('beds.bed_service', bed_id=cell.bed.id) }}"
                 style="display:flex;gap:6px;justify-content:flex-end;">
@@ -172,6 +252,17 @@
               {{ t('beds.back_in_service') if not cell.bed.is_active
                  else t('beds.take_out') }}</button>
           </form>
+          {% if not bed_used(cell.bed) %}
+          <form method="post" style="display:inline;"
+                action="{{ url_for('beds.delete_bed', bed_id=cell.bed.id) }}"
+                onsubmit="return confirm('{{ t('ward_wizard.confirm_bed') }}');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline gc-press" type="submit"
+                    data-delete-bed="{{ cell.bed.id }}"
+                    style="color:var(--danger);">
+              <i class="bi bi-trash3"></i></button>
+          </form>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}
