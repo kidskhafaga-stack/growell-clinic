@@ -131,6 +131,98 @@
   {% endif %}
 </div>
 
+{# ---- الألم — `ICD.09` --------------------------------------------------- #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="pain" data-pain>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-emoji-frown"></i> {{ t('pain.title') }}</h2>
+
+  {% if not pain_tools %}
+  {# **القايمة بتاعة المستشفى مش بتاعتنا.** FLACC وFACES وNIPS مقاييس
+     منشورة، واختيار أنهي واحدة تنفع لأنهي سن قرار المستشفى. #}
+  <p class="hint" style="margin:0;" data-pain-no-tools>{{ t('pain.no_tools') }}</p>
+  {% else %}
+
+  {% if pain_latest %}
+  <p style="margin:0 0 10px;" data-pain-last="{{ pain_latest.id }}">
+    {% if pain_latest.has_pain %}
+    <span class="alert-pill danger"><i class="bi bi-exclamation-triangle"></i>
+      {{ t('pain.has_pain') }}</span>
+    {% else %}
+    <span class="badge badge--ok">{{ t('pain.no_pain') }}</span>
+    {% endif %}
+    {% if pain_latest.score is not none %}
+    <span dir="ltr">{{ pain_latest.score }}</span>{% endif %}
+    <span class="hint" dir="ltr">{{ pain_latest.at.strftime('%Y-%m-%d %H:%M') }}</span>
+  </p>
+
+  {% if pain_latest.has_pain and not pain_latest.assessment %}
+  {# **الصف اللي بيبان مكتمل.** فيه أداة ورقم ووقت واسم — وناقصه
+     التقييم اللي دليل ٤ بيطلبه. والخانات هنا، مش في شاشة تانية. #}
+  <form method="post" data-pain-assess="{{ pain_latest.id }}"
+        action="{{ url_for('beds.pain_assess', screen_id=pain_latest.id) }}"
+        style="display:flex;gap:6px;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for element in ('intensity', 'character', 'location', 'frequency', 'duration') %}
+    <input class="input" name="{{ element }}" style="max-width:150px;"
+           placeholder="{{ t('pain.el_' ~ element) }}">
+    {% endfor %}
+    <input class="input" name="plan" style="max-width:220px;"
+           placeholder="{{ t('pain.el_plan') }}">
+    <button class="btn btn-danger btn-sm gc-press" type="submit">
+      <i class="bi bi-clipboard-pulse"></i> {{ t('pain.assess') }}</button>
+  </form>
+  {% elif pain_latest.assessment %}
+  {% set assessment = pain_latest.assessment %}
+  {% set gaps = pain_gaps(assessment) %}
+  <p class="hint" style="margin:0 0 6px;" data-pain-assessed="{{ assessment.id }}">
+    {{ assessment.plan or t('pain.no_plan') }}
+    {% if gaps %}<span data-pain-gaps>— {{ t('pain.missing') }}:
+      {% for name in gaps %}<span data-pain-gap="{{ name }}">{{ t('pain.el_' ~ name) }}</span>{% if not loop.last %} · {% endif %}{% endfor %}
+    </span>{% endif %}
+  </p>
+  {% if gaps %}
+  {# **اللي بيقرا الناقص هو اللي بيكمّله** — خانات الناقص بس، هنا. #}
+  <form method="post" data-pain-complete="{{ assessment.id }}"
+        action="{{ url_for('beds.pain_describe', assessment_id=assessment.id) }}"
+        style="display:flex;gap:6px;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for name in gaps %}
+    <input class="input" name="{{ name }}"
+           style="max-width:{{ '220px' if name == 'plan' else '150px' }};"
+           placeholder="{{ t('pain.el_' ~ name) }}">
+    {% endfor %}
+    <button class="btn btn-outline btn-sm gc-press" type="submit">
+      <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
+  </form>
+  {% endif %}
+  {% endif %}
+  {% endif %}
+
+  {% if admission.is_open %}
+  <form method="post" data-pain-screen
+        action="{{ url_for('beds.pain_screen', admission_id=admission.id) }}"
+        style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select class="select" name="tool_key" style="max-width:200px;">
+      {% for tool in pain_tools %}
+      <option value="{{ tool.key }}">{{ tool.display_name(current_lang) }}</option>
+      {% endfor %}
+    </select>
+    <input class="input" type="number" name="score" min="0" style="max-width:90px;"
+           placeholder="{{ t('pain.score') }}">
+    {# **الإجابة بتتكتب، مش بتتستنتج.** حدّ زي «٤ فأكتر يبقى ألم» رقم
+       إكلينيكي، واللي ماسك الأداة هو اللي بيقراها. #}
+    <select class="select" name="has_pain" style="max-width:160px;">
+      <option value="no">{{ t('pain.no_pain') }}</option>
+      <option value="yes">{{ t('pain.has_pain') }}</option>
+    </select>
+    <button class="btn btn-outline btn-sm gc-press" type="submit">
+      <i class="bi bi-check2"></i> {{ t('pain.screen') }}</button>
+  </form>
+  {% endif %}
+  {% endif %}
+</div>
+
 {# ---- where the child is now -------------------------------------------- #}
 <div class="card gc-scale-in" style="margin-bottom:16px;">
   <h2 class="section-title" style="margin-top:0;">

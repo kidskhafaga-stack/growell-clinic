@@ -75,6 +75,10 @@ READERS = [
     ("referrals", "incomplete"),
     ("responsibility", "without_mrp"),
     ("responsibility", "in_limbo"),
+    ("pain", "positive_without_assessment"),
+    ("pain", "unscreened_stays"),
+    ("pain", "awaiting_reassessment"),
+    ("pain", "overdue_reassessment"),
 ]
 
 #: Tabs on the patient file that must stay conditional. The file varies by

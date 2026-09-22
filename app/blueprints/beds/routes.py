@@ -39,6 +39,7 @@ from app.models.place import BED_KINDS, SPACE_KINDS, UNIT_KINDS, Bed, Space, Uni
 from app.models.prescription import Drug
 from app.models.round_note import ROUND_TRENDS
 from app.utils import beds as ward
+from app.utils import pain as _pain_utils
 from app.utils import bed_billing
 from app.utils import blood
 from app.utils import drug_round
@@ -272,6 +273,10 @@ def admission(admission_id):
         "beds/admission.html", admission=row,
         # `ACT.07` — مين ينفع يبقى مسؤول، من اللي العيادة مشغّلاهم.
         doctors=_doctors(),
+        # `ICD.09` — أدوات العيادة (فاضية لحد ما تكتبها)، وآخر فرز.
+        pain_tools=_pain_utils.tool_list(),
+        pain_latest=_pain_utils.latest_screen(row.patient_id),
+        pain_gaps=_pain_utils.missing,
         free=ward.free_beds(), outcomes=OUTCOMES, trends=ROUND_TRENDS,
         rounds=sorted(row.round_notes, key=lambda n: (n.at, n.id),
                       reverse=True),
@@ -761,6 +766,7 @@ def watch():
     from app.utils import opinions as op
     from app.utils import nutrition as food
     from app.utils import responsibility as _who
+    from app.utils import pain as _pain
     watch_minutes = tied.interval_minutes()
     # بتتحسب هنا بأسماء كاملة بدل ما تتكسر جوّه الاستدعاء — سطر
     # زي `food.\n    assessed_but...` بيشتغل، بس بيخفي الندا عن أي
@@ -828,7 +834,18 @@ def watch():
                            # بيبان إنه اتسلّم، والأول ماشي وهو فاكر
                            # إنها مشيت.
                            mrp_missing=_who.without_mrp(limit=20),
-                           mrp_limbo=_who.in_limbo(limit=20))
+                           mrp_limbo=_who.in_limbo(limit=20),
+                           # وتلتاشر: **الألم** — `ICD.09`. اتفرز وطلع
+                           # فيه ألم ومحدّش قيّمه؛ وإقامة محدّش فرزها
+                           # خالص؛ وتقييم محدّش رجع له. والأولانية هي
+                           # اللي بتبان مكتملة: أداة ورقم ووقت واسم.
+                           pain_unassessed=_pain.positive_without_assessment(
+                               limit=20),
+                           pain_unscreened=_pain.unscreened_stays(limit=20),
+                           pain_awaiting=_pain.awaiting_reassessment(limit=20),
+                           pain_overdue=_pain.overdue_reassessment(limit=20),
+                           pain_hours=_pain.reassess_hours(),
+                           pain_gaps=_pain.missing)
 
 
 def _ward_people():
@@ -1475,3 +1492,73 @@ def accept_responsible(admission_id):
     flash(t("mrp.accepted"), "success")
     return redirect(request.referrer or url_for("beds.admission",
                                                 admission_id=stay.id))
+
+
+# ------------------------------------------------- الألم `ICD.09` -------
+@beds_bp.route("/stay/<int:admission_id>/pain-screen", methods=["POST"])
+@module_required(MODULE)
+def pain_screen(admission_id):
+    """دليل ٣ — الفرز. **والإجابة بتتكتب صراحةً، مش بتتستنتج من الرقم.**"""
+    from app.utils import pain
+
+    stay = db.get_or_404(Admission, admission_id)
+    answer = (request.form.get("has_pain") or "").strip()
+    try:
+        pain.screen(stay.patient, answer == "yes",
+                    tool_key=request.form.get("tool_key"),
+                    score=request.form.get("score", type=int),
+                    user=current_user, admission=stay)
+    except ValueError:
+        flash(t("pain.not_screened"), "error")
+        return redirect(request.referrer or url_for("beds.admission",
+                                                    admission_id=stay.id))
+    db.session.commit()
+    flash(t("pain.screened"), "success")
+    return redirect(request.referrer or url_for("beds.admission",
+                                                admission_id=stay.id))
+
+
+@beds_bp.route("/pain/<int:screen_id>/assess", methods=["POST"])
+@module_required(MODULE)
+def pain_assess(screen_id):
+    """(ب) و(د) — التقييم الكامل والخطة، من نفس الصف اللي بيقول ناقص."""
+    from app.models import PainScreen
+    from app.utils import pain
+
+    row = db.get_or_404(PainScreen, screen_id)
+    try:
+        pain.assess(row, user=current_user,
+                    intensity=request.form.get("intensity"),
+                    character=request.form.get("character"),
+                    location=request.form.get("location"),
+                    frequency=request.form.get("frequency"),
+                    duration=request.form.get("duration"),
+                    plan=request.form.get("plan"))
+    except ValueError:
+        flash(t("pain.not_assessed"), "error")
+        return redirect(request.referrer or url_for("beds.admission",
+                                                    admission_id=row.admission_id))
+    db.session.commit()
+    flash(t("pain.assessed"), "success")
+    return redirect(request.referrer or url_for("beds.admission",
+                                                admission_id=row.admission_id))
+
+
+@beds_bp.route("/pain-assessment/<int:assessment_id>", methods=["POST"])
+@module_required(MODULE)
+def pain_describe(assessment_id):
+    """البنود اللي فضلت من الخمسة، والخطة."""
+    from app.models import PainAssessment
+    from app.utils import pain
+
+    row = db.get_or_404(PainAssessment, assessment_id)
+    pain.describe(row,
+                  intensity=request.form.get("intensity"),
+                  character=request.form.get("character"),
+                  location=request.form.get("location"),
+                  frequency=request.form.get("frequency"),
+                  duration=request.form.get("duration"),
+                  plan=request.form.get("plan"))
+    db.session.commit()
+    flash(t("common.saved"), "success")
+    return redirect(request.referrer or url_for("beds.watch"))

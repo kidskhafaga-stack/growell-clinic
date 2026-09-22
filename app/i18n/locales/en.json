@@ -7700,5 +7700,32 @@
     "title": "Responsible physician",
     "to": "Until",
     "watch_hint": "Misunderstandings about who is responsible harm the child — the standard says so outright."
+  },
+  "pain": {
+    "assess": "Assess",
+    "assessed": "Assessment recorded.",
+    "awaiting": "Not reassessed",
+    "el_character": "Character",
+    "el_duration": "Duration",
+    "el_frequency": "Frequency",
+    "el_intensity": "Intensity",
+    "el_location": "Location",
+    "el_plan": "Plan",
+    "has_pain": "Pain present",
+    "missing": "Missing",
+    "never_screened": "Never screened",
+    "no_pain": "No pain",
+    "no_plan": "No plan written",
+    "no_tools": "The clinic has not written its pain tools yet. Add them under Settings — Lists.",
+    "no_window": "The clinic has not set how often to reassess, so nothing is called late.",
+    "not_assessed": "Not recorded. An assessment follows a screening that found pain, once.",
+    "not_assessed_yet": "Pain found, not assessed",
+    "not_screened": "Not recorded. A tool from the clinic's list is required.",
+    "overdue": "Reassessment overdue",
+    "score": "Score",
+    "screen": "Record screening",
+    "screened": "Screening recorded.",
+    "title": "Pain",
+    "watch_hint": "Screen every child, assess whenever pain is found, plan — and come back."
   }
 }

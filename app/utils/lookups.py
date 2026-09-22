@@ -79,7 +79,18 @@ BUILT_IN_CATEGORIES = [
 #: يقدر يبدأها بحاجة معقولة. أسماء الأنظمة الغذائية لأ: «حمية سكري»
 #: و«قليل الملح» مفردات إكلينيكية، والمعيار بيقول بالنص إن القايمة بتاعة
 #: المستشفى. فبتبدأ فاضية والعيادة بتكتبها، زي مقياس الفرز وسلّم التسكين.
-DOMAINS = list(BUILT_IN) + ["item_category", "special_diet"]
+#: **وأدوات الألم `ICD.09` (أ) مالهاش `BUILT_IN` كمان — ونفس السبب.**
+#:
+#: (أ) بيقول *tools suitable for different patient populations … **adults,
+#: pediatrics, neonates, and cognitively impaired***، ودليل ٣ بيطلب أداة
+#: *valid and approved*. يعني الأداة بتتعتمد بره الكتاب: FLACC وFACES
+#: وNIPS أسامي مقاييس إكلينيكية منشورة، واختراع واحدة — أو حتى اختيار
+#: أنهي وحدة تنفع لأنهي سن — قرار المستشفى مش قرارنا.
+#:
+#: **وعمود `Observation.pain_score` مكتوب جنبه `0–10, the faces/numeric
+#: scale`** — يعني البرنامج كان مفترض المقياس من نفسه. القايمة دي هي
+#: اللي بتخلّي الرقم يبقى ليه أداة.
+DOMAINS = list(BUILT_IN) + ["item_category", "special_diet", "pain_tool"]
 
 
 def ensure_seeded():
@@ -175,6 +186,11 @@ def usage_counts(domain):
 
             out[row.key] = DietOrder.query.filter_by(
                 diet_key=row.key).count()
+        elif domain == "pain_tool":
+            from app.models import PainScreen
+
+            out[row.key] = PainScreen.query.filter_by(
+                tool_key=row.key).count()
         else:
             # **وقايمة جديدة من غير فرع هنا كانت بتبان «مش مستعملة»
             # دايماً** — يعني تتمسح ومعاها كل صف بيشاور عليها، وده
