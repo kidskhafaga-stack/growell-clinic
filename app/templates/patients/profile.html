@@ -1840,8 +1840,8 @@
             {{ bed_stay.bed.space.name }} · {{ bed_stay.bed.name }}</span>
           {% endif %}
           {% endfor %}
-          {% if stay.doctor %}
-          <span>{{ t('beds.doctor') }}: {{ stay.doctor.display_name(current_lang) }}</span>
+          {% if stay.responsible_doctor %}
+          <span>{{ t('beds.doctor') }}: {{ stay.responsible_doctor.display_name(current_lang) }}</span>
           {% endif %}
         </div>
 

@@ -7679,5 +7679,26 @@
     "waiting_sub": "Referrals the child returns from — oldest first.",
     "waiting_title": "Sent out, nothing back",
     "write_back": "Record what came back"
+  },
+  "mrp": {
+    "accept": "Accept responsibility",
+    "accepted": "Handed over and accepted.",
+    "assign": "Assign",
+    "assigned": "Responsible physician assigned.",
+    "doctor": "Physician",
+    "from": "From",
+    "hand_over": "Hand over",
+    "handed": "Handed over — waiting for the other physician to accept.",
+    "history": "Who was responsible before",
+    "in_limbo": "Handed over, nobody accepted",
+    "nobody": "Nobody is responsible",
+    "not_accepted": "Not accepted. The outgoing physician cannot accept from themselves.",
+    "not_assigned": "Not assigned — there is already one, or the physician is not valid.",
+    "not_handed": "Not handed over. There must be a current physician, and a different one to hand to.",
+    "pending": "Pending steps",
+    "pending_ph": "What is still open? (waiting on the chest film…)",
+    "title": "Responsible physician",
+    "to": "Until",
+    "watch_hint": "Misunderstandings about who is responsible harm the child — the standard says so outright."
   }
 }

@@ -398,4 +398,38 @@
   </div>
 </div>
 {% endif %}
+
+{# ---- مين مسؤول — `ACT.07` ---------------------------------------------- #}
+
+{# النية بتسمّي العاقبة بالنص: *Misunderstandings about who is responsible
+   … may compromise that care*. فدول حالتين مختلفتين:
+
+   * **محدّش مسؤول** — بتبان ناقصة من بعيد.
+   * **سلّم ومحدّش استلم** — **وبتبان مكتملة**: فيه وقت تسليم، وفيه
+     خطوات معلّقة مكتوبة، وفيه اسم اللي سلّم. اللي ناقصها إن التاني قال
+     «خدتها» — والأول ماشي وهو فاكر إنها مشيت. #}
+{% if mrp_missing or mrp_limbo %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:16px;border-inline-start:4px solid var(--danger);"
+     data-mrp-watch>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('mrp.title') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('mrp.watch_hint') }}</span>
+  </div>
+  <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;">
+    {% for row in mrp_limbo %}
+    <a class="badge badge--danger" data-mrp-limbo-row="{{ row.id }}"
+       href="{{ url_for('beds.admission', admission_id=row.admission_id) }}">
+      {{ row.admission.patient.display_name(current_lang) if row.admission.patient else '—' }}
+      · {{ t('mrp.in_limbo') }}
+      {% if row.handed_to %} → {{ row.handed_to.display_name(current_lang) }}{% endif %}</a>
+    {% endfor %}
+    {% for stay in mrp_missing %}
+    <a class="badge badge--warning" data-mrp-missing="{{ stay.id }}"
+       href="{{ url_for('beds.admission', admission_id=stay.id) }}">
+      {{ stay.patient.display_name(current_lang) if stay.patient else '—' }}
+      · {{ t('mrp.nobody') }}</a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 {% endblock %}

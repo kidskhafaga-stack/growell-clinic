@@ -56,6 +56,15 @@ class Admission(db.Model):
     # fictional consultation in the child's file.
     visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=True,
                          index=True)
+    # **سجل قديم، مش اللي بيتكتب دلوقتي.** `ACT.07` بيقول إن المسؤول
+    # بيتحدّد *at a specific point in time*، وعمود واحد بيتكتب فوقه أول
+    # ما المسؤولية تتنقل — فسؤال «مين كان مسؤول يوم التلات» ما بقاش ليه
+    # إجابة، وهو السؤال اللي بيتسأل بعدين. فبقت `CareResponsibility`
+    # فترات، زي `BedStay` بالظبط وبنفس الحُجّة.
+    #
+    # والعمود فضل لأن `utils/schema` مش بيرحّل داتا، وعيادة شغّالة عندها
+    # إقامات مكتوب فيها. `responsible_doctor` تحت بتسأل الجدول الأول
+    # والعمود بعده — قارئ واحد.
     doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True,
                           index=True)
 
@@ -79,6 +88,18 @@ class Admission(db.Model):
     discharger = db.relationship("User", foreign_keys=[discharged_by])
     stays = db.relationship("BedStay", back_populates="admission",
                             order_by="BedStay.since, BedStay.id")
+
+    @property
+    def responsibility(self):
+        """فترة المسؤولية الشغّالة دلوقتي، لو فيه."""
+        rows = [r for r in (self.responsibilities or []) if r.live]
+        return max(rows, key=lambda r: (r.since, r.id)) if rows else None
+
+    @property
+    def responsible_doctor(self):
+        """`ACT.07` دليل ٣ — مين مسؤول عن الطفل ده دلوقتي."""
+        row = self.responsibility
+        return row.doctor if row is not None else self.doctor
 
     @property
     def is_open(self):

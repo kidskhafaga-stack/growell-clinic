@@ -85,6 +85,7 @@ from app.models.referral import (Referral,
                                  KINDS as REFERRAL_KINDS,
                                  REFERRAL as REFERRAL_KIND,
                                  TRANSFER as TRANSFER_KIND)
+from app.models.responsibility import CareResponsibility
 from app.models.blood import (BloodRequest, PRODUCTS,
                               REQUEST_STATES, Transfusion,
                               URGENCIES)
@@ -376,6 +377,7 @@ __all__ = [
     "REFERRAL_KINDS",
     "REFERRAL_KIND",
     "TRANSFER_KIND",
+    "CareResponsibility",
     "DietOrder",
     "NutritionAssessment",
     "DIET_DOMAIN",

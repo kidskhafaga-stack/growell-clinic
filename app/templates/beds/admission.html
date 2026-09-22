@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
 {% set active_module = 'beds' %}
 {% block title %}{{ t('beds.stay') }} — {{ admission.patient.display_name(current_lang) }}{% endblock %}
 {% block page_heading %}{{ t('beds.stay') }}{% endblock %}
@@ -29,6 +30,105 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.index') }}">
       <i class="bi bi-grid-3x3"></i> {{ t('beds.board') }}</a>
   </div>
+</div>
+
+{# ---- مين مسؤول — `ACT.07` ---------------------------------------------- #}
+
+{# **فوق كل حاجة تانية عن قصد.** النية بتقول العاقبة بالنص: سوء الفهم في
+   مين مسؤول بيأذي الطفل. واللي بيفتح ورقة الإقامة بيسأل ده الأول. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" data-mrp>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-person-badge"></i> {{ t('mrp.title') }}</h2>
+
+  {% set live = admission.responsibility %}
+  {% if live %}
+  <p style="margin:0 0 10px;" data-mrp-now="{{ live.doctor_id }}">
+    <b>{{ live.doctor.display_name(current_lang) }}</b>
+    <span class="hint" dir="ltr">{{ live.since.strftime('%Y-%m-%d %H:%M') }}</span>
+    {% if live.in_limbo %}
+    {# **سلّم ومحدّش استلم.** الصف ده بيبان إنه اتسلّم: فيه وقت، وفيه
+       خطوات معلّقة، وفيه اسم اللي سلّم. اللي ناقصه إن التاني قال خدتها. #}
+    <span class="alert-pill danger" data-mrp-limbo>
+      <i class="bi bi-hourglass-split"></i> {{ t('mrp.in_limbo') }}
+      {% if live.handed_to %} — {{ live.handed_to.display_name(current_lang) }}{% endif %}
+    </span>
+    {% endif %}
+  </p>
+  {% else %}
+  <p class="alert-pill danger" style="display:block;margin:0 0 10px;" data-mrp-none>
+    <i class="bi bi-exclamation-triangle"></i> {{ t('mrp.nobody') }}
+  </p>
+  {% endif %}
+
+  {% if admission.is_open %}
+  {% if not live %}
+  {# اللي بيقرا الفراغ هو اللي بيقفله. #}
+  <form method="post" data-mrp-assign
+        action="{{ url_for('beds.assign_responsible', admission_id=admission.id) }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {{ pickers.doctor_picker('doctor_id', None, None, doctors=doctors,
+                             autosubmit=False) }}
+    <button class="btn btn-primary btn-sm gc-press" type="submit">
+      <i class="bi bi-person-check"></i> {{ t('mrp.assign') }}</button>
+  </form>
+  {% elif live.in_limbo %}
+  <form method="post" data-mrp-accept
+        action="{{ url_for('beds.accept_responsible', admission_id=admission.id) }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if live.pending %}
+    <p style="flex:1 1 100%;margin:0 0 6px;" data-mrp-pending>
+      <b>{{ t('mrp.pending') }}:</b> {{ live.pending }}</p>
+    {% endif %}
+    {# اللي اتعرضت عليه جاهز في الخانة، **والباب هو اللي بيرفض اللي
+       سلّم** — مش إخفاؤه من القايمة. الرفض لازم يكون في الراوت علشان
+       يمسك الحالة اللي جاية من بره الشاشة كمان. #}
+    {{ pickers.doctor_picker('doctor_id', live.handed_to_id, None,
+                             doctors=doctors, autosubmit=False) }}
+    <button class="btn btn-primary btn-sm gc-press" type="submit">
+      <i class="bi bi-hand-thumbs-up"></i> {{ t('mrp.accept') }}</button>
+  </form>
+  {% else %}
+  <form method="post" data-mrp-hand
+        action="{{ url_for('beds.hand_over_responsible', admission_id=admission.id) }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {{ pickers.doctor_picker('doctor_id', None, None, doctors=doctors,
+                             autosubmit=False) }}
+    {# (ج) — **الخطوات المعلّقة هي الحاجة الوحيدة اللي مفيش جدول تاني
+       بيعرفها.** التقييم والخطة في `CarePlan` وقايمة المشاكل، ونسخهم
+       هنا نفس غلطة نسخ الدوا على ورقة الإحالة. #}
+    <input class="input" name="pending" style="max-width:280px;"
+           placeholder="{{ t('mrp.pending_ph') }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit">
+      <i class="bi bi-arrow-left-right"></i> {{ t('mrp.hand_over') }}</button>
+  </form>
+  {% endif %}
+  {% endif %}
+
+  {# **السجل، مش العمود.** «مين كان مسؤول يوم التلات» هو السؤال اللي
+     بيتسأل بعدين، وعمود بيتكتب فوقه عمره ما هيجاوبه. #}
+  {% set past = admission.responsibilities|selectattr('until')|list %}
+  {% if past %}
+  <details style="margin-top:10px;" data-mrp-history>
+    <summary class="hint">{{ t('mrp.history') }} ({{ past|length }})</summary>
+    <table class="table" style="margin-top:6px;">
+      <thead><tr><th>{{ t('mrp.doctor') }}</th><th>{{ t('mrp.from') }}</th>
+        <th>{{ t('mrp.to') }}</th><th>{{ t('mrp.pending') }}</th></tr></thead>
+      <tbody>
+        {% for row in past|sort(attribute='since') %}
+        <tr data-mrp-period="{{ row.id }}">
+          <td>{{ row.doctor.display_name(current_lang) }}</td>
+          <td dir="ltr">{{ row.since.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td dir="ltr">{{ row.until.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>{{ row.pending or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+  {% endif %}
 </div>
 
 {# ---- where the child is now -------------------------------------------- #}

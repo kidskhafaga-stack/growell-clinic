@@ -270,6 +270,8 @@ def admission(admission_id):
     from app.utils import resuscitation as _cpr
     return render_template(
         "beds/admission.html", admission=row,
+        # `ACT.07` — مين ينفع يبقى مسؤول، من اللي العيادة مشغّلاهم.
+        doctors=_doctors(),
         free=ward.free_beds(), outcomes=OUTCOMES, trends=ROUND_TRENDS,
         rounds=sorted(row.round_notes, key=lambda n: (n.at, n.id),
                       reverse=True),
@@ -758,6 +760,7 @@ def watch():
     from app.utils import lines as _lines
     from app.utils import opinions as op
     from app.utils import nutrition as food
+    from app.utils import responsibility as _who
     watch_minutes = tied.interval_minutes()
     # بتتحسب هنا بأسماء كاملة بدل ما تتكسر جوّه الاستدعاء — سطر
     # زي `food.\n    assessed_but...` بيشتغل، بس بيخفي الندا عن أي
@@ -818,7 +821,14 @@ def watch():
                            # مكتمل في أي جرد، علشان كده محتاج قراية.
                            food_nothing_ordered=_food_gaps,
                            food_no_assessment=_food_unassessed,
-                           food_family_unanswered=_food_family)
+                           food_family_unanswered=_food_family,
+                           # واتناشر: **مين مسؤول** — `ACT.07`. إقامة
+                           # مفتوحة ومحدّش مسؤول عنها، وطبيب سلّم
+                           # ومحدّش استلم. والتانية هي الخطر: الصف
+                           # بيبان إنه اتسلّم، والأول ماشي وهو فاكر
+                           # إنها مشيت.
+                           mrp_missing=_who.without_mrp(limit=20),
+                           mrp_limbo=_who.in_limbo(limit=20))
 
 
 def _ward_people():
@@ -1380,3 +1390,88 @@ def _back_from_dose(order_row):
         return redirect(here if here.startswith(request.host_url) else board)
     return redirect(url_for("beds.admission",
                             admission_id=order_row.admission_id))
+
+
+# ------------------------------------------ المسؤولية `ACT.07` ----------
+def _doctors():
+    """مين ينفع يبقى مسؤول.
+
+    من اللي العيادة مشغّلاهم فعلاً، مش خانة نص: `ACT.07` بيطلب إن السجل
+    **يحدّد** الطبيب، واسم مكتوب بإيد مش تحديد — ولا ينفع تسأله بعدين
+    عن الخطوات المعلّقة.
+    """
+    from app.models import User
+
+    return (User.query
+            .filter(User.is_active.is_(True),
+                    db.or_(User.role == "doctor", User.is_practitioner.is_(True)))
+            .order_by(User.full_name).all())
+
+
+@beds_bp.route("/stay/<int:admission_id>/responsible", methods=["POST"])
+@module_required(MODULE)
+def assign_responsible(admission_id):
+    """دليل ٣ — إقامة محدّش مسؤول عنها بتلاقي مسؤول.
+
+    **واللي بيقرا الفراغ هو اللي بيقفله**: الفورم دي جوّه نفس الصف اللي
+    بيقول «مفيش مسؤول»، مش بادچ بيقول روح شوف.
+    """
+    from app.models import User
+    from app.utils import responsibility as who
+
+    stay = db.get_or_404(Admission, admission_id)
+    doctor = db.session.get(User, request.form.get("doctor_id", type=int))
+    try:
+        who.assign(stay, doctor, user=current_user)
+    except ValueError:
+        flash(t("mrp.not_assigned"), "error")
+        return redirect(request.referrer or url_for("beds.admission",
+                                                    admission_id=stay.id))
+    db.session.commit()
+    flash(t("mrp.assigned"), "success")
+    return redirect(request.referrer or url_for("beds.admission",
+                                                admission_id=stay.id))
+
+
+@beds_bp.route("/stay/<int:admission_id>/handover", methods=["POST"])
+@module_required(MODULE)
+def hand_over_responsible(admission_id):
+    """(ج) التسليم — **والخطوات المعلّقة معاه**."""
+    from app.models import User
+    from app.utils import responsibility as who
+
+    stay = db.get_or_404(Admission, admission_id)
+    doctor = db.session.get(User, request.form.get("doctor_id", type=int))
+    try:
+        who.hand_over(stay, doctor, pending=request.form.get("pending"),
+                      user=current_user)
+    except ValueError:
+        flash(t("mrp.not_handed"), "error")
+        return redirect(request.referrer or url_for("beds.admission",
+                                                    admission_id=stay.id))
+    db.session.commit()
+    flash(t("mrp.handed"), "warning")
+    return redirect(request.referrer or url_for("beds.admission",
+                                                admission_id=stay.id))
+
+
+@beds_bp.route("/stay/<int:admission_id>/accept", methods=["POST"])
+@module_required(MODULE)
+def accept_responsible(admission_id):
+    """(د) الطرف التاني بيستلم — **واللي سلّم ما يقدرش يوقّع لنفسه**."""
+    from app.models import User
+    from app.utils import responsibility as who
+
+    stay = db.get_or_404(Admission, admission_id)
+    doctor = (db.session.get(User, request.form.get("doctor_id", type=int))
+              or current_user)
+    try:
+        who.accept(stay, doctor, user=current_user)
+    except ValueError:
+        flash(t("mrp.not_accepted"), "error")
+        return redirect(request.referrer or url_for("beds.admission",
+                                                    admission_id=stay.id))
+    db.session.commit()
+    flash(t("mrp.accepted"), "success")
+    return redirect(request.referrer or url_for("beds.admission",
+                                                admission_id=stay.id))
