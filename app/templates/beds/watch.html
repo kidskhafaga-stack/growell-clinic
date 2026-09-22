@@ -432,4 +432,63 @@
   </div>
 </div>
 {% endif %}
+
+{# ---- الألم — `ICD.09` --------------------------------------------------- #}
+
+{# النية بتبدأ بجملة مش إجرائية: *Each patient has the **right to a
+   pain-free life***. وتلات صفوف مختلفة:
+
+   * **اتفرز وطلع فيه ألم ومحدّش قيّمه** — وده بيبان مكتمل: فيه أداة،
+     وفيه رقم، وفيه وقت، وفيه اسم.
+   * **محدّش فرزه خالص** — دليل ٣ بيقول *all inpatients*.
+   * **اتقيّم ومحدّش رجع له** — (ج)، والمهلة بتاعة العيادة. #}
+{% if pain_unassessed or pain_unscreened or pain_awaiting %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:16px;border-inline-start:4px solid var(--danger);"
+     data-pain-watch>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('pain.title') }}</strong>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('pain.watch_hint') }}</span>
+  </div>
+  <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;">
+    {% for row in pain_unassessed %}
+    <a class="badge badge--danger" data-pain-unassessed="{{ row.id }}"
+       href="{{ url_for('beds.admission', admission_id=row.admission_id) ~ '#pain'
+                if row.admission_id
+                else url_for('patients.view', patient_id=row.patient_id) }}">
+      {{ row.patient.display_name(current_lang) if row.patient else '—' }}
+      · {{ t('pain.not_assessed_yet') }}</a>
+    {% endfor %}
+    {% for row in pain_overdue %}
+    <a class="badge badge--danger" data-pain-overdue="{{ row.id }}"
+       href="{{ url_for('beds.admission', admission_id=row.screen.admission_id) ~ '#pain'
+                if row.screen and row.screen.admission_id
+                else url_for('patients.view', patient_id=row.patient_id) }}">
+      {{ row.patient.display_name(current_lang) if row.patient else '—' }}
+      · {{ t('pain.overdue') }}</a>
+    {% endfor %}
+    {% for stay in pain_unscreened %}
+    <a class="badge badge--warning" data-pain-unscreened="{{ stay.id }}"
+       href="{{ url_for('beds.admission', admission_id=stay.id) }}#pain">
+      {{ stay.patient.display_name(current_lang) if stay.patient else '—' }}
+      · {{ t('pain.never_screened') }}</a>
+    {% endfor %}
+    {% for row in pain_awaiting %}
+    {% if row not in pain_overdue %}
+    <a class="badge badge--muted" data-pain-awaiting="{{ row.id }}"
+       href="{{ url_for('beds.admission', admission_id=row.screen.admission_id) ~ '#pain'
+                if row.screen and row.screen.admission_id
+                else url_for('patients.view', patient_id=row.patient_id) }}">
+      {{ row.patient.display_name(current_lang) if row.patient else '—' }}
+      · {{ t('pain.awaiting') }}</a>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {# **والمهلة رقم العيادة.** من غيرها الشاشة بتقول «محدّش رجع له»
+     وبس، وما بتقولش على حد إنه اتأخر — نفس `ACT.10` بالظبط. #}
+  {% if not pain_hours %}
+  <p class="hint" style="margin:0;padding:0 18px 14px;" data-pain-no-window>
+    {{ t('pain.no_window') }}</p>
+  {% endif %}
+</div>
+{% endif %}
 {% endblock %}
