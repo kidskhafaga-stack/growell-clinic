@@ -52,7 +52,7 @@ by a healthcare professional* — ومعناه: لو فتحت ملف الطفل�
 |---|---|---|---|
 | `IMT.08`-٣ | معرّف فريد لكل مريض اتقيّم أو اتعالج | `Patient.patient_number` — `unique · nullable=False · index` | ✅ |
 | `ACT.03`-٤ | *The patient's identifiers are recorded in the patient's medical record* | نفس العمود + `Operation.identity_with/_checked_by` في المسرح | ✅ |
-| `ACT.07`-٣ | *The medical record **identifies the physician responsible** for care* | `Visit.doctor_id` (`nullable=False`) للزيارة · `Admission.doctor_id` (`nullable=True`) للإقامة — يعني إقامة ممكن تفضل من غير طبيب مسؤول | 🟡 |
+| `ACT.07`-٣/٤ | *The medical record **identifies the physician responsible** for care* · والتسليم | `CareResponsibility` — **فترات مش عمود**، زي `BedStay` وبنفس الحُجّة، علشان «مين كان مسؤول يوم التلات» يفضل ليه إجابة. والتسليم **بتوقيعين**: اللي سلّم ما يقدرش يستلم لنفسه، و«سلّم ومحدّش استلم» قراية لوحدها | ✅ |
 
 ### التقييم وإعادة التقييم
 

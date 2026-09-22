@@ -73,6 +73,8 @@ READERS = [
     ("referrals", "waiting"),
     ("referrals", "unsigned"),
     ("referrals", "incomplete"),
+    ("responsibility", "without_mrp"),
+    ("responsibility", "in_limbo"),
 ]
 
 #: Tabs on the patient file that must stay conditional. The file varies by

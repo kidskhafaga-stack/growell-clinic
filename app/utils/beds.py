@@ -192,6 +192,16 @@ def admit(patient, bed, user=None, visit=None, doctor_id=None, reason=None,
     db.session.flush()
     db.session.add(BedStay(admission_id=admission.id, bed_id=bed.id,
                            since=now, moved_by=getattr(user, "id", None)))
+    # `ACT.07` دليل ٣ — المسؤولية بتبدأ مع الإقامة لما يكون فيه طبيب.
+    # ولما ما يكونش (ممرضة بتدخّل طفل)، **الصف ما بيتكتبش**: صف مسؤولية
+    # من غير طبيب هو نفس الفراغ، وبيخلّي `without_mrp` تسكت عن الحالة
+    # اللي هي موجودة علشانها.
+    if doctor_id is not None:
+        from app.models import CareResponsibility
+
+        db.session.add(CareResponsibility(
+            admission_id=admission.id, doctor_id=doctor_id, since=now,
+            assigned_by_id=getattr(user, "id", None)))
     return admission
 
 
