@@ -553,3 +553,116 @@ def test_every_word_of_the_screen_is_written_in_both_languages(clinic):
     assert set(ar["pain"]) == set(en["pain"])
     assert all((ar["pain"][k] or "").strip() for k in ar["pain"])
     assert all((en["pain"][k] or "").strip() for k in en["pain"])
+
+
+# ============ اللي كنس الطفرات مسكه ============
+def test_a_screening_with_no_tool_is_refused_once_the_list_exists(
+        clinic_with_tools):
+    """الاختبار اللي فوق بيسأل الدالة على طول؛ ده بيسأل **الشاشة**.
+
+    والفرق مش شكلي: الشاشة بتبعت `tool_key` فاضي لو حد مسح الاختيار،
+    والباب لازم يرفض — مش يسجّل فرز من غير أداة.
+    """
+    from app.models import Admission, PainScreen
+
+    with clinic_with_tools["app"].app_context():
+        stay = Admission(patient_id=clinic_with_tools["ids"]["child"])
+        clinic_with_tools["db"].session.add(stay)
+        clinic_with_tools["db"].session.commit()
+        sid = stay.id
+
+    client = clinic_with_tools["sign_in"]("boss")
+    client.post(f"/beds/stay/{sid}/pain-screen", follow_redirects=True,
+                data={"tool_key": "", "has_pain": "yes"})
+
+    with clinic_with_tools["app"].app_context():
+        assert PainScreen.query.count() == 0
+
+
+def test_a_box_with_only_spaces_is_still_empty(clinic_with_tools):
+    """مسافة مش إجابة.
+
+    الأبواب بتعمل `.strip() or None` فمسافة من الشاشة بتوصل `None`؛
+    اللي بيفضل هو الصف اللي جاي من استيراد أو تعديل مباشر، و`missing`
+    هي آخر حارس قبل ما تقييم فيه مسافات يبان كامل.
+    """
+    from app.models import PainScreen
+    from app.utils import pain
+
+    sid = _screened(clinic_with_tools)
+
+    with clinic_with_tools["app"].app_context():
+        row = pain.assess(PainScreen.query.get(sid), intensity="٧",
+                          character="واخز", location="بطن",
+                          frequency="مستمر", duration="ساعتين", plan="خطة")
+        clinic_with_tools["db"].session.commit()
+        row.location = "   "
+        row.duration = ""
+        clinic_with_tools["db"].session.commit()
+
+        assert set(pain.missing(row)) == {"location", "duration"}
+
+
+def test_a_plan_of_only_spaces_is_no_plan(clinic_with_tools):
+    """ونفس الحاجة للخطة — *managed accordingly* مش خانة فيها مسافة."""
+    from app.models import PainScreen
+    from app.utils import pain
+
+    sid = _screened(clinic_with_tools)
+
+    with clinic_with_tools["app"].app_context():
+        row = pain.assess(PainScreen.query.get(sid), intensity="٧",
+                          character="واخز", location="بطن",
+                          frequency="مستمر", duration="ساعتين", plan="خطة")
+        clinic_with_tools["db"].session.commit()
+        row.plan = "   "
+        clinic_with_tools["db"].session.commit()
+
+        assert row.managed is False
+        assert pain.missing(row) == ["plan"]
+
+
+def test_the_first_screening_after_it_is_the_reassessment(clinic_with_tools):
+    """**أول فرز بعده، مش آخر واحد.**
+
+    الفرق بيبان لما يكون فيه أكتر من فرز بعد التقييم: اللي بيقفل
+    الانتظار هو **أول** رجوع، وأخد آخر واحد بيخلّي الرجوع الأول كأنه
+    ما حصلش لو حصل رجوع تاني بعديه.
+    """
+    from app.models import PainScreen
+    from app.utils import pain
+
+    sid = _screened(clinic_with_tools,
+                    at=datetime.utcnow() - timedelta(hours=10))
+
+    with clinic_with_tools["app"].app_context():
+        row = pain.assess(PainScreen.query.get(sid), plan="خطة",
+                          at=datetime.utcnow() - timedelta(hours=10))
+        clinic_with_tools["db"].session.commit()
+        aid = row.id
+
+    first = _screened(clinic_with_tools, has_pain=False,
+                      at=datetime.utcnow() - timedelta(hours=6))
+    _screened(clinic_with_tools, has_pain=False,
+              at=datetime.utcnow() - timedelta(hours=2))
+
+    with clinic_with_tools["app"].app_context():
+        from app.models import PainAssessment
+        assert pain._later_screen(PainAssessment.query.get(aid)).id == first
+
+
+def test_a_screening_written_with_no_answer_is_the_safe_one(clinic_with_tools):
+    """**الافتراض الآمن «مفيش ألم».**
+
+    صف اتكتب من غير إجابة لو بقى «فيه ألم» بيدخل قايمة «محدّش قيّمه»
+    ويصرخ على طفل محدّش قال إنه بيوجعه — والقايمة اللي بتصرخ غلط
+    بتتعلّم إنها تتجاهل.
+    """
+    from app.models import PainScreen
+
+    with clinic_with_tools["app"].app_context():
+        row = PainScreen(patient_id=clinic_with_tools["ids"]["child"])
+        clinic_with_tools["db"].session.add(row)
+        clinic_with_tools["db"].session.commit()
+
+        assert row.has_pain is False
