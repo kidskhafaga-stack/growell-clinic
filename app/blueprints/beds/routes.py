@@ -40,6 +40,7 @@ from app.models.prescription import Drug
 from app.models.round_note import ROUND_TRENDS
 from app.utils import beds as ward
 from app.utils import pain as _pain_utils
+from app.utils import nursing as _nursing_utils
 from app.utils import bed_billing
 from app.utils import blood
 from app.utils import drug_round
@@ -277,6 +278,11 @@ def admission(admission_id):
         pain_tools=_pain_utils.tool_list(),
         pain_latest=_pain_utils.latest_screen(row.patient_id),
         pain_gaps=_pain_utils.missing,
+        # `ICD.07` — التقييم الأول، وآخر واحد، واللي الملف بيعرفه أصلاً.
+        nursing_initial=_nursing_utils.initial_for(row.id),
+        nursing_latest=_nursing_utils.latest_for(row.id),
+        nursing_known=_nursing_utils.assembled(row),
+        nursing_gaps=_nursing_utils.missing,
         free=ward.free_beds(), outcomes=OUTCOMES, trends=ROUND_TRENDS,
         rounds=sorted(row.round_notes, key=lambda n: (n.at, n.id),
                       reverse=True),
@@ -767,6 +773,7 @@ def watch():
     from app.utils import nutrition as food
     from app.utils import responsibility as _who
     from app.utils import pain as _pain
+    from app.utils import nursing as _nursing
     watch_minutes = tied.interval_minutes()
     # بتتحسب هنا بأسماء كاملة بدل ما تتكسر جوّه الاستدعاء — سطر
     # زي `food.\n    assessed_but...` بيشتغل، بس بيخفي الندا عن أي
@@ -845,7 +852,17 @@ def watch():
                            pain_awaiting=_pain.awaiting_reassessment(limit=20),
                            pain_overdue=_pain.overdue_reassessment(limit=20),
                            pain_hours=_pain.reassess_hours(),
-                           pain_gaps=_pain.missing)
+                           pain_gaps=_pain.missing,
+                           # وأربعتاشر: **تقييم التمريض** — `ICD.07`.
+                           # إقامة محدّش عمل لها تقييم أول، واللي عدّت
+                           # عليهم مهلة العيادة، واللي عدّى وقت إعادتهم.
+                           # والتلاتة بتشتغل من غير رقم للأولى وبرقم
+                           # للتانية والتالتة — نفس شكل الألم.
+                           nursing_missing=_nursing.without_initial(limit=20),
+                           nursing_late=_nursing.late_initial(limit=20),
+                           nursing_overdue=_nursing.overdue_reassessment(
+                               limit=20),
+                           nursing_hours=_nursing.initial_hours())
 
 
 def _ward_people():
@@ -1562,3 +1579,45 @@ def pain_describe(assessment_id):
     db.session.commit()
     flash(t("common.saved"), "success")
     return redirect(request.referrer or url_for("beds.watch"))
+
+
+# --------------------------------------- تقييم التمريض `ICD.07` ---------
+@beds_bp.route("/stay/<int:admission_id>/nursing", methods=["POST"])
+@module_required(MODULE)
+def nursing_record(admission_id):
+    """دليل ٣ و٤ — التقييم الأول أو إعادته."""
+    from app.utils import nursing
+
+    stay = db.get_or_404(Admission, admission_id)
+    fields = {name: request.form.get(name)
+              for name in ("airway", "breathing", "circulation", "disability",
+                           "skin", "hydration", "outputs", "focus")}
+    try:
+        nursing.record(stay, kind=(request.form.get("kind") or "initial"),
+                       user=current_user, **fields)
+    except ValueError:
+        flash(t("nursing.not_saved"), "error")
+        return redirect(request.referrer or url_for("beds.admission",
+                                                    admission_id=stay.id))
+    db.session.commit()
+    flash(t("nursing.saved"), "success")
+    return redirect(request.referrer or url_for("beds.admission",
+                                                admission_id=stay.id))
+
+
+@beds_bp.route("/nursing/<int:assessment_id>", methods=["POST"])
+@module_required(MODULE)
+def nursing_describe(assessment_id):
+    """البنود اللي فضلت — من نفس الصف اللي بيقول ناقص."""
+    from app.models import NursingAssessment
+    from app.utils import nursing
+
+    row = db.get_or_404(NursingAssessment, assessment_id)
+    nursing.describe(row, **{
+        name: request.form.get(name)
+        for name in ("airway", "breathing", "circulation", "disability",
+                     "skin", "hydration", "outputs", "focus")})
+    db.session.commit()
+    flash(t("common.saved"), "success")
+    return redirect(request.referrer or url_for("beds.admission",
+                                                admission_id=row.admission_id))

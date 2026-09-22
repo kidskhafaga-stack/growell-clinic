@@ -88,6 +88,8 @@ from app.models.referral import (Referral,
 from app.models.responsibility import CareResponsibility
 from app.models.pain import (ELEMENTS as PAIN_ELEMENTS, PainAssessment,
                              PainScreen, TOOL_DOMAIN as PAIN_TOOL_DOMAIN)
+from app.models.nursing import (ABCDE as NURSING_ABCDE,
+                                KINDS as NURSING_KINDS, NursingAssessment)
 from app.models.blood import (BloodRequest, PRODUCTS,
                               REQUEST_STATES, Transfusion,
                               URGENCIES)
@@ -384,6 +386,9 @@ __all__ = [
     "PainAssessment",
     "PAIN_ELEMENTS",
     "PAIN_TOOL_DOMAIN",
+    "NursingAssessment",
+    "NURSING_KINDS",
+    "NURSING_ABCDE",
     "DietOrder",
     "NutritionAssessment",
     "DIET_DOMAIN",

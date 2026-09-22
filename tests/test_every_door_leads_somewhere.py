@@ -79,6 +79,10 @@ READERS = [
     ("pain", "unscreened_stays"),
     ("pain", "awaiting_reassessment"),
     ("pain", "overdue_reassessment"),
+    ("nursing", "without_initial"),
+    ("nursing", "late_initial"),
+    ("nursing", "overdue_reassessment"),
+    ("nursing", "assembled"),
 ]
 
 #: Tabs on the patient file that must stay conditional. The file varies by
