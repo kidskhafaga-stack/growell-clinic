@@ -7,14 +7,11 @@ financial record so the clinic can start clean, keeping only the system
 configuration (users, roles, settings) and the vaccine reference catalogue.
 """
 import random
-from datetime import date, datetime, time, timedelta
+from datetime import datetime, time, timedelta
 
 from app.extensions import db
 from app.models import (
     Appointment,
-    Diagnosis,
-    DoctorSchedule,
-    EInvoiceDocument,
     Family,
     GrowthRecord,
     Invoice,
@@ -23,58 +20,35 @@ from app.models import (
     Parent,
     Patient,
     PatientCoverage,
-    PatientVaccine,
     PayerEntity,
     PayerServiceRate,
     Payment,
     Service,
-    ServiceBundleItem,
     Setting,
     Supplier,
     User,
     VaccineInventory,
-    VitalSigns,
 )
 from app.models.service import DoctorServiceCommission
 from app.utils.finance import generate_invoice_number
 from app.utils.patients import generate_patient_number
 
+
 def reset_all():
-    """Delete the operational data; keep users, roles, settings and every
-    catalogue (services, store items, payers, templates, the drug reference).
+    """يفضّي البيانات التشغيلية والإكلينيكية، ويسيب الإعدادات والكتالوجات.
 
-    Child tables are deleted before their parents so no orphan rows survive
-    (orphans would later crash page loads after a reset)."""
-    from app.models import (
-        CashDrawerDay, Expense, PatientAttachment, Prescription,
-        PrescriptionInvestigation, PrescriptionItem, PurchaseOrder,
-        PurchaseOrderItem, ScheduleException, StockMovement, Visit,
-        VisitInvestigation, VisitService, VisitMedication, WaitlistEntry,
-    )
+    **والقايمة اتشالت.** كانت مكتوبة بالإيد من أول البرنامج وما
+    اتزوّدتش، فـ٥٤ جدول بيتكلم عن طفل كان بره المسح — والنتيجة اتقاست
+    بالتشغيل: مريض بيتمسح وإقامته بتفضل بتشاور عليه، وهو بالظبط اللي
+    الدوكسترينج القديم كان بيحذّر منه.
 
-    # Operational data only. The catalogues (services, store items, payers,
-    # message templates, the drug reference) are the clinic's own reference
-    # data and survive a reset — clearing sample cases must never delete a
-    # real price list.
-    order = [
-        MessageLog,
-        CashDrawerDay,
-        EInvoiceDocument, Payment, InvoiceItem, Invoice,
-        PrescriptionInvestigation, PrescriptionItem, Prescription,
-        PurchaseOrderItem, PurchaseOrder,
-        StockMovement, Expense,
-        PatientCoverage,
-        # Visit/patient children first, then the parents.
-        PatientAttachment, VisitInvestigation, VisitService, VisitMedication,
-        PatientVaccine,
-        GrowthRecord, VitalSigns, Diagnosis, Visit,
-        WaitlistEntry, Appointment, ScheduleException, DoctorSchedule,
-        VaccineInventory, Supplier,
-        Parent, Patient, Family,
-    ]
-    counts = {}
-    for model in order:
-        counts[model.__tablename__] = model.query.delete(synchronize_session=False)
+    دلوقتي `utils/wipe` بيحسبها: بيتمسح كل صف بيتكلم عن طفل وكل شغل
+    يومي، وبيعيش الكتالوج والإعداد **وتخطيط المستشفى**. والترتيب متحسب
+    من المفاتيح الأجنبية، الابن قبل الأب.
+    """
+    from app.utils.wipe import wipe
+
+    counts = wipe()
     Setting.set("demo_seeded", "0")
     db.session.commit()
     return counts
