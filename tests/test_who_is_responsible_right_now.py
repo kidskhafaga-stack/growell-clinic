@@ -419,3 +419,241 @@ def test_every_word_of_the_screen_is_written_in_both_languages(clinic):
     assert set(ar["mrp"]) == set(en["mrp"])
     assert all((ar["mrp"][k] or "").strip() for k in ar["mrp"])
     assert all((en["mrp"][k] or "").strip() for k in en["mrp"])
+
+
+# ============ اللي كنس الطفرات مسكه ============
+def test_accepting_when_nobody_handed_anything_over_is_refused(stay):
+    """فيه مسؤول، بس محدّش سلّم — فمفيش حاجة تتستلم.
+
+    والاختبار اللي فوق بيغطّي الحالة اللي مفيش فيها مسؤول خالص؛ دي
+    الحالة التانية، واللي من غيرها طبيب يقدر ياخد مسؤولية طفل من إيد
+    واحد تاني من غير ما الأول يقول حاجة.
+    """
+    from app.utils import responsibility as who
+
+    with stay["app"].app_context():
+        who.assign(_stay(stay), _doc(stay))
+        stay["db"].session.commit()
+
+        with pytest.raises(ValueError):
+            who.accept(_stay(stay), _doc(stay, "doc2"))
+
+
+def test_a_period_that_ended_is_not_the_current_one(stay):
+    """**الفترة المقفولة مش إجابة «مين مسؤول دلوقتي».**
+
+    الأبواب بتقفل وتفتح مع بعض، فالحالة دي ما بتتكتبش من الشاشة —
+    بتيجي من استيراد أو تعديل مباشر. ولو `current` ردّت بيها، إقامة
+    مسؤوليتها خلصت هتبان مغطّاة و`without_mrp` هتسكت عنها.
+    """
+    from app.utils import responsibility as who
+
+    with stay["app"].app_context():
+        row = who.assign(_stay(stay), _doc(stay))
+        stay["db"].session.commit()
+        row.until = datetime.utcnow()
+        stay["db"].session.commit()
+
+        assert who.current(stay["stay"]) is None
+        assert [s.id for s in who.without_mrp()] == [stay["stay"]]
+
+
+def test_the_stay_page_reads_the_same_way(stay):
+    """**حارس من ناحية واحدة نص قاعدة.** `current` و`Admission.
+    responsibility` بيجاوبوا نفس السؤال من مكانين، فالاتنين بيتسألوا."""
+    from app.utils import responsibility as who
+
+    with stay["app"].app_context():
+        row = who.assign(_stay(stay), _doc(stay))
+        stay["db"].session.commit()
+        row.until = datetime.utcnow()
+        stay["db"].session.commit()
+
+        assert _stay(stay).responsibility is None
+        assert _stay(stay).responsible_doctor is None
+
+
+def test_the_latest_open_period_wins(stay):
+    """ولو اتلاقى صفّين مفتوحين، الأحدث هو المسؤول — مش الأقدم."""
+    from app.models import CareResponsibility
+    from app.utils import responsibility as who
+
+    with stay["app"].app_context():
+        older = datetime.utcnow() - timedelta(days=3)
+        stay["db"].session.add_all([
+            CareResponsibility(admission_id=stay["stay"],
+                               doctor_id=stay["ids"]["doctor"], since=older),
+            CareResponsibility(admission_id=stay["stay"],
+                               doctor_id=stay["doc2"],
+                               since=datetime.utcnow()),
+        ])
+        stay["db"].session.commit()
+
+        assert who.current(stay["stay"]).doctor_id == stay["doc2"]
+
+
+def test_the_moment_of_the_handover_belongs_to_the_new_doctor(stay):
+    """اللحظة نفسها مش بتاعة الاتنين.
+
+    الفترة القديمة بتنتهي عندها والجديدة بتبدأ منها — ولو الحد مفتوح
+    من الناحيتين، السؤال «مين كان مسؤول الساعة كذا» بيرجّع الاتنين،
+    وأول واحد في السجل بيكسب: **اللي مشي**.
+    """
+    from app.utils import responsibility as who
+
+    swap = datetime.utcnow() - timedelta(hours=2)
+
+    with stay["app"].app_context():
+        who.assign(_stay(stay), _doc(stay),
+                   at=datetime.utcnow() - timedelta(days=1))
+        stay["db"].session.commit()
+        who.hand_over(_stay(stay), _doc(stay, "doc2"))
+        who.accept(_stay(stay), _doc(stay, "doc2"), at=swap)
+        stay["db"].session.commit()
+
+        assert who.responsible_at(stay["stay"], swap).doctor_id == stay["doc2"]
+
+
+def test_a_finished_period_is_not_in_limbo(stay):
+    """الصف اللي اتقفل خلاص خرج من الحكاية — حتى لو كان فيه تسليم."""
+    from app.utils import responsibility as who
+
+    with stay["app"].app_context():
+        who.assign(_stay(stay), _doc(stay))
+        stay["db"].session.commit()
+        who.hand_over(_stay(stay), _doc(stay, "doc2"))
+        stay["db"].session.commit()
+        # اتقفل من غير قبول — حالة بتيجي من استيراد، مش من الشاشة.
+        closed = who.history(stay["stay"])[0]
+        closed.until = datetime.utcnow()
+        stay["db"].session.commit()
+
+        assert who.in_limbo() == []
+
+
+def test_the_oldest_handover_nobody_accepted_is_on_top(stay):
+    """أقدم واحد فوق، زي كل قايمة انتظار في البرنامج."""
+    from app.models import Admission, Patient
+    from app.utils import responsibility as who
+
+    with stay["app"].app_context():
+        from datetime import date
+        other = Patient(full_name="طفل تالت", patient_number="P-MRP2",
+                        gender="female", date_of_birth=date(2024, 1, 1))
+        stay["db"].session.add(other)
+        stay["db"].session.flush()
+        second = Admission(patient_id=other.id)
+        stay["db"].session.add(second)
+        stay["db"].session.commit()
+
+        who.assign(_stay(stay), _doc(stay))
+        who.assign(second, _doc(stay))
+        stay["db"].session.commit()
+        who.hand_over(second, _doc(stay, "doc2"),
+                      at=datetime.utcnow() - timedelta(days=5))
+        who.hand_over(_stay(stay), _doc(stay, "doc2"),
+                      at=datetime.utcnow() - timedelta(days=1))
+        stay["db"].session.commit()
+
+        assert [r.admission_id for r in who.in_limbo()] == [second.id,
+                                                            stay["stay"]]
+
+
+def test_a_signature_with_nobody_behind_it_is_not_a_handover(stay):
+    """*signed* بيقول مين. وقت لوحده مش توقيع — نفس قاعدة `Referral`."""
+    from app.utils import responsibility as who
+
+    with stay["app"].app_context():
+        who.assign(_stay(stay), _doc(stay))
+        stay["db"].session.commit()
+        who.hand_over(_stay(stay), _doc(stay, "doc2"))
+        stay["db"].session.commit()
+
+        row = who.current(stay["stay"])
+        row.accepted_at = datetime.utcnow()
+        row.accepted_by_id = None
+        stay["db"].session.commit()
+
+        assert row.handed_over is False
+        assert row.in_limbo is True
+
+
+def test_the_new_table_wins_over_the_old_column(stay):
+    """قارئ واحد، وترتيبه مقفول: الجدول الأول والعمود بعده.
+
+    إقامة عندها الاتنين — عمود قديم وفترة شغّالة — لازم تقول اللي في
+    الفترة، وإلا تسليم اتعمل في البرنامج ما بيبانش على الشاشة.
+    """
+    from app.utils import responsibility as who
+
+    with stay["app"].app_context():
+        row = _stay(stay)
+        row.doctor_id = stay["ids"]["doctor"]
+        stay["db"].session.commit()
+
+        who.assign(row, _doc(stay, "doc2"))
+        stay["db"].session.commit()
+
+        assert _stay(stay).responsible_doctor.id == stay["doc2"]
+
+
+# ============ الإقامة نفسها بتفتح الفترة ============
+@pytest.fixture()
+def ward(clinic):
+    """سرير واحد يكفي: اللي بيتقاس هنا مين بيدخّل، مش شكل القسم."""
+    from app.models import Bed, Setting, Space, Unit
+
+    with clinic["app"].app_context():
+        Setting.set(f"mod_enabled:{MODULE}", "1")
+        unit = Unit(name="الداخلي", kind="ward")
+        clinic["db"].session.add(unit)
+        clinic["db"].session.flush()
+        space = Space(unit_id=unit.id, name="غرفة ١", kind="room")
+        clinic["db"].session.add(space)
+        clinic["db"].session.flush()
+        bed = Bed(space_id=space.id, name="سرير ١", kind="bed")
+        clinic["db"].session.add(bed)
+        clinic["db"].session.commit()
+        clinic["bed"] = bed.id
+    return clinic
+
+
+def _put_in_bed(clinic, doctor_id=None):
+    from app.models import Bed, Patient
+    from app.utils import beds as ward_utils
+
+    with clinic["app"].app_context():
+        row = ward_utils.admit(Patient.query.get(clinic["ids"]["child"]),
+                               Bed.query.get(clinic["bed"]),
+                               doctor_id=doctor_id)
+        clinic["db"].session.commit()
+        return row.id
+
+
+def test_a_doctor_admitting_becomes_responsible_from_that_minute(ward):
+    """دليل ٣ — المسؤولية بتبدأ مع الإقامة، مش بخطوة تانية حد يفتكرها."""
+    from app.utils import responsibility as who
+
+    admission_id = _put_in_bed(ward, doctor_id=ward["ids"]["doctor"])
+
+    with ward["app"].app_context():
+        live = who.current(admission_id)
+        assert live is not None
+        assert live.doctor_id == ward["ids"]["doctor"]
+        assert who.without_mrp() == []
+
+
+def test_a_nurse_admitting_leaves_the_gap_visible(ward):
+    """**ومفيش صف بيتكتب بطبيب فاضي.**
+
+    صف مسؤولية من غير طبيب هو نفس الفراغ، وكان هيخلّي `without_mrp`
+    تسكت عن الحالة اللي هي موجودة علشانها بالظبط.
+    """
+    from app.models import CareResponsibility
+    from app.utils import responsibility as who
+
+    admission_id = _put_in_bed(ward, doctor_id=None)
+
+    with ward["app"].app_context():
+        assert CareResponsibility.query.count() == 0
+        assert [s.id for s in who.without_mrp()] == [admission_id]
