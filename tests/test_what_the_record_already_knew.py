@@ -450,3 +450,108 @@ def test_every_word_of_the_screen_is_written_in_both_languages(clinic):
     assert set(ar["nursing"]) == set(en["nursing"])
     assert all((ar["nursing"][k] or "").strip() for k in ar["nursing"])
     assert all((en["nursing"][k] or "").strip() for k in en["nursing"])
+
+
+# ============ اللي كنس الطفرات مسكه ============
+def test_a_stay_with_only_a_reassessment_still_has_no_initial(stay):
+    """**إعادة تقييم مش تقييم أول.**
+
+    و`record` بتسمح بإعادة من غير أول — ممرضة بتسجّل جولتها في إقامة
+    محدّش عمل لها تقييم دخول. ولو `initial_for` ما بتسألش عن النوع،
+    الإعادة دي بتتقرا «الأول اتعمل» ويسكت الإنذار.
+    """
+    from app.utils import nursing
+
+    with stay["app"].app_context():
+        nursing.record(_stay(stay), kind="reassessment", user=_user(stay))
+        stay["db"].session.commit()
+
+        assert nursing.initial_for(stay["stay"]) is None
+        assert [s.id for s in nursing.without_initial()] == [stay["stay"]]
+
+
+def test_the_first_initial_is_the_one_the_clock_is_measured_from(stay):
+    """سؤال «اتعمل في وقته؟» بيتقاس من **أول** تقييم، مش آخر واحد.
+
+    والباب بيمنع التاني، فالصف ده بييجي من استيراد — و`initial_for`
+    لازم ترجّع الأقدم علشان «اتأخر» تفضل صح.
+    """
+    from app.models import NursingAssessment
+    from app.utils import nursing
+
+    early = datetime.utcnow() - timedelta(hours=1)
+
+    with stay["app"].app_context():
+        stay["db"].session.add_all([
+            NursingAssessment(patient_id=stay["ids"]["child"],
+                              admission_id=stay["stay"], kind="initial",
+                              at=datetime.utcnow()),
+            NursingAssessment(patient_id=stay["ids"]["child"],
+                              admission_id=stay["stay"], kind="initial",
+                              at=early),
+        ])
+        stay["db"].session.commit()
+
+        assert nursing.initial_for(stay["stay"]).at == early
+
+
+def test_the_newest_reading_is_the_one_assembled(stay):
+    """التقييم بيوصف الطفل **دلوقتي** — وقراءة الصبح مش حالته."""
+    from app.models import Observation
+    from app.utils import nursing
+
+    with stay["app"].app_context():
+        stay["db"].session.add_all([
+            Observation(patient_id=stay["ids"]["child"], temperature_c=38.5,
+                        taken_at=datetime.utcnow() - timedelta(hours=1)),
+            Observation(patient_id=stay["ids"]["child"], temperature_c=37.1,
+                        taken_at=datetime.utcnow()),
+        ])
+        stay["db"].session.commit()
+
+        assert nursing.assembled(_stay(stay))["vitals"].temperature_c == 37.1
+
+
+def test_a_risk_from_another_stay_is_not_this_assessment(stay):
+    """**تقييم سقوط من إقامة الشهر اللي فات مش تقييم الدخول ده.**
+
+    ودي نفس الحُجّة اللي مكتوبة في `utils/risks` بالحرف: قراءة من إقامة
+    تانية بتخلّي ورقة النهارده تبان مكتملة وهي فاضية.
+    """
+    from app.models import Admission, RiskAssessment
+    from app.utils import nursing
+
+    with stay["app"].app_context():
+        older = Admission(patient_id=stay["ids"]["child"],
+                          admitted_at=datetime.utcnow() - timedelta(days=60),
+                          discharged_at=datetime.utcnow() - timedelta(days=55))
+        stay["db"].session.add(older)
+        stay["db"].session.flush()
+        stay["db"].session.add(RiskAssessment(
+            patient_id=stay["ids"]["child"], admission_id=older.id,
+            kind="fall"))
+        stay["db"].session.commit()
+
+        assert nursing.assembled(_stay(stay))["fall"] is None
+        assert "fall" in nursing.assembled_gaps(_stay(stay))
+
+
+def test_a_row_with_no_kind_cannot_silence_the_alarm(stay):
+    """**الافتراض الآمن هو اللي بيفضل بيسأل.**
+
+    كتبت الافتراض «أول» أول مرة، وكنس الطفرات وقفني عليه: صف من غير
+    نوع لو بقى «أول» بيسكّت إنذار «مفيش تقييم أول» على إقامة محدّش
+    قيّمها. فبقى «إعادة».
+    """
+    from app.models import NursingAssessment
+    from app.utils import nursing
+
+    with stay["app"].app_context():
+        row = NursingAssessment(patient_id=stay["ids"]["child"],
+                                admission_id=stay["stay"])
+        stay["db"].session.add(row)
+        stay["db"].session.commit()
+
+        assert row.kind == "reassessment"
+        assert row.is_initial is False
+        assert [s.id for s in nursing.without_initial()] == [stay["stay"]]
