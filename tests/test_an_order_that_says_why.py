@@ -114,6 +114,20 @@ def test_only_a_practitioner_confirms(clinic):
             order_check.confirm(row, desk)
 
 
+def test_the_one_who_entered_it_is_named_not_the_visit_s_doctor(clinic):
+    """**الزيارة بتاعة دكتور، والطلب ممكن حد تاني دخّله.** والطلب بيقول
+    اللي دخّله — مش صاحب الزيارة. من غير ده، (أ) كان بيقول «د. أحمد
+    طلب» عن طلب هو ما شافهوش."""
+    from app.models import User
+    from app.utils import order_check
+
+    inv_id = _request(clinic, "boss")
+    with clinic["app"].app_context():
+        who, source = order_check.orderer(_row(clinic, inv_id))
+        assert who.id == User.query.filter_by(username="boss").one().id
+        assert source == "entered"
+
+
 def test_an_old_request_nobody_recorded_is_not_called_incomplete(clinic):
     """**`None` = محدّش سجّل**، مش «ناقص». الصف ده من قبل ما السؤال يتسأل،
     وعدّه ناقص كان هيملّي القايمة بكل تاريخ العيادة."""
@@ -206,6 +220,19 @@ def test_no_side_is_an_answer_not_a_gap(clinic):
                       laterality="none")
     with clinic["app"].app_context():
         assert "side" not in order_check.missing(_row(clinic, inv_id))
+
+
+def test_a_side_that_is_not_on_the_list_is_still_missing(clinic):
+    """الشاشتين بيتحقّقوا من القايمة — بس العمود نص، وقيمة جاية من استيراد
+    («L» مثلاً) مش إجابة. **الفراغ مش بس `None`**: أي حاجة بره القايمة."""
+    from app.utils import order_check
+
+    inv_id = _request(clinic, "doc", kind="imaging", name="X-ray knee")
+    with clinic["app"].app_context():
+        row = _row(clinic, inv_id)
+        row.laterality = "L"
+        clinic["db"].session.commit()
+        assert "side" in order_check.missing(row)
 
 
 def test_a_lab_never_asks_for_a_side(clinic):
