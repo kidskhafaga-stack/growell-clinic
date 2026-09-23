@@ -91,6 +91,43 @@ AUDIT_ACTIONS = ["login", "login_failed", "login_disabled", "logout",
                  "appointment.booking_toggle"]
 
 
+@users_bp.route("/access")
+@admin_required
+def record_access():
+    """`IMT.05` دليل ٣ و٥ — مين يقدر يقرا ملف الطفل، ووقّع إقرار السرّية.
+
+    **محسوبة من نفس أسئلة الطرق** (`utils/record_access`)، مش مكتوبة —
+    فما تقدرش تقول غير اللي البرنامج بيعمله فعلاً. وبتتطبع: المراجِع
+    بيطلب الورقة.
+    """
+    from app.utils import record_access as access
+    from app.utils.clock import local_now
+
+    return render_template("users/access.html", rows=access.rows(),
+                           areas=[key for key, _m, _c in access.AREAS],
+                           unsigned=access.unsigned(),
+                           now_text=local_now().strftime("%Y-%m-%d %H:%M"))
+
+
+@users_bp.route("/<int:user_id>/confidentiality", methods=["POST"])
+@admin_required
+def confidentiality_signed(user_id):
+    """الإقرار اتوقّع — **بتاريخ الورقة**، على نفس السطر اللي بيقول إنه ناقص."""
+    from app.utils import record_access as access
+    from app.utils.export import parse_date
+
+    user = db.get_or_404(User, user_id)
+    try:
+        access.record_signature(user, on=parse_date(request.form.get("on")),
+                                recorder=current_user)
+    except ValueError:
+        flash(t("access.future_date"), "error")
+        return redirect(url_for("users.record_access"))
+    db.session.commit()
+    flash(t("access.signed_saved"), "success")
+    return redirect(url_for("users.record_access"))
+
+
 @users_bp.route("/audit")
 @admin_required
 def audit():

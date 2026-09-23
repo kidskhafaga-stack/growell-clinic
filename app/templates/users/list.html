@@ -32,6 +32,9 @@
       <i class="bi bi-shield-lock"></i> {{ t('roles_mgmt.manage') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('users.audit') }}">
       <i class="bi bi-clock-history"></i> {{ t('audit.title') }}</a>
+    {# `IMT.05` — مين يقدر يقرا ملف الطفل، ووقّع إقرار السرّية. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('users.record_access') }}">
+      <i class="bi bi-person-lock"></i> {{ t('access.title') }}</a>
     <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('users.create') }}">
       <i class="bi bi-person-plus"></i> {{ t('users.add_user') }}</a>
   </div>

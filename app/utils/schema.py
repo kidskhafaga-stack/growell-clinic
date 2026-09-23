@@ -215,6 +215,10 @@ ADDITIONS = [
     ("visit_investigations", "collected_by", "INTEGER"),
     ("visit_investigations", "resulted_by", "INTEGER"),
     ("visit_investigations", "invoice_item_id", "INTEGER"),
+    # `IMT.05` دليل ٥ — إقرار السرّية اتوقّع امتى ومين سجّل. فاضي في كل
+    # مستخدم موجود، وده الصح: محدّش سجّل لسه.
+    ("users", "confidentiality_signed_on", "DATE"),
+    ("users", "confidentiality_recorded_by", "INTEGER"),
     # The two dates a payer agreement is argued about: by when the claim must
     # be sent, and by when the money must come. Nullable, and that nullability
     # is the feature's switch — a clinic that types no term is warned about
