@@ -1,0 +1,179 @@
+{% extends "shell.html" %}
+{% set active_module = 'users' %}
+{% block title %}{{ t('retention.title') }}{% endblock %}
+{% block page_heading %}{{ t('retention.title') }}{% endblock %}
+
+{% block content %}
+{# `IMT.07` — *"the list of retention time for different types of
+   information"* و*"the record/logbook of document destruction"*: الاتنين
+   اللي المراجِع بيطلبهم بالاسم، على ورقة واحدة بتتطبع.
+
+   **والمدد أرقام العيادة.** نوع ما اتحدّدش بيقول «ما اتحدّدتش» — مش رقم
+   البرنامج حطّه. والشاشة ما فيهاش زرار يمسح سجل: بتعدّ بس. #}
+<div class="print-only" style="margin-bottom:14px;padding-bottom:10px;
+     border-bottom:2px solid var(--primary);">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+    <div style="font-weight:800;font-size:1.15rem;">{{ clinic_name }}</div>
+    <div style="text-align:end;font-size:.85rem;">
+      {{ t('access.printed_at') }} <span dir="ltr">{{ now_text }}</span></div>
+  </div>
+  <h1 style="font-size:1.05rem;margin:10px 0 2px;text-align:center;">{{ t('retention.title') }}</h1>
+</div>
+
+<div class="gc-animate no-print" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-hourglass-bottom"></i> {{ t('retention.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('retention.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('users.index') }}">
+      <i class="bi bi-arrow-right"></i> {{ t('users.title') }}</a>
+    <button class="btn btn-outline gc-press" type="button" onclick="window.print()">
+      <i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+  </div>
+</div>
+
+<p class="info-note" style="margin-bottom:12px;" data-never-deletes>
+  <i class="bi bi-shield-check"></i> {{ t('retention.never_deletes') }}</p>
+
+{% if unset %}
+<p class="alert-pill warn" style="margin-bottom:12px;" data-retention-unset>
+  <i class="bi bi-exclamation-circle"></i> {{ t('retention.n_unset', n=unset|length) }}</p>
+{% endif %}
+
+{# (أ) مدة الحفظ لكل نوع مستند #}
+<div class="card" style="padding:0;overflow:hidden;margin-bottom:16px;">
+  <h2 style="margin:14px 16px 0;font-size:1.05rem;">{{ t('retention.periods') }}</h2>
+  <div style="overflow-x:auto;">
+  <table class="table" data-retention-list>
+    <thead><tr>
+      <th>{{ t('retention.doc_type') }}</th>
+      <th>{{ t('retention.period') }}</th>
+      <th>{{ t('retention.basis') }}</th>
+      <th style="text-align:end;">{{ t('retention.on_file') }}</th>
+      <th>{{ t('retention.oldest') }}</th>
+      <th style="text-align:end;">{{ t('retention.past') }}</th>
+    </tr></thead>
+    <tbody>
+    {% for row in rows %}
+    <tr data-retention-type="{{ row.key }}">
+      <td><b>{{ t('retention.type_' ~ row.key) }}</b>
+        <div class="hint">{{ t('retention.from_' ~ row.key) }}</div></td>
+      <td>
+        {% if row.years %}
+          <span data-years>{{ t('retention.n_years', n=row.years) }}</span>
+        {% else %}
+          <span class="badge badge--warn" data-years-unset>{{ t('retention.unset') }}</span>
+        {% endif %}
+        <form method="post" class="no-print" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"
+              action="{{ url_for('users.retention_rule', doc_type=row.key) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="input" type="number" name="years" min="{{ years_min }}" max="{{ years_max }}"
+                 value="{{ row.years or '' }}" placeholder="{{ t('retention.years_ph') }}" style="width:90px;">
+          <input class="input" name="basis" maxlength="255" value="{{ row.rule.basis if row.rule and row.rule.basis else '' }}"
+                 placeholder="{{ t('retention.basis_ph') }}" style="min-width:160px;flex:1;">
+          <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+        </form>
+      </td>
+      <td dir="auto">{{ row.rule.basis if row.rule and row.rule.basis else '—' }}
+        {% if row.rule and row.rule.set_at %}
+        <div class="hint">{{ row.rule.setter.display_name(current_lang) if row.rule.setter else '' }}
+          · <span dir="ltr">{{ row.rule.set_at.strftime('%Y-%m-%d') }}</span></div>
+        {% endif %}</td>
+      <td style="text-align:end;font-variant-numeric:tabular-nums;">{{ row.total }}</td>
+      <td dir="ltr">{{ row.oldest or '—' }}</td>
+      <td style="text-align:end;font-variant-numeric:tabular-nums;" data-past="{{ row.past if row.past is not none else '' }}">
+        {% if row.past is none %}<span style="color:var(--muted);">—</span>
+        {% elif row.past %}<span class="badge badge--warn">{{ row.past }}</span>
+        {% else %}0{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="hint" style="margin:0 16px 14px;">{{ t('retention.past_hint') }}</p>
+</div>
+
+{# (ب) و(ج) — إيه اللي بيحمي السجل وهو محفوظ: من الإعدادات الموجودة
+   فعلاً، وكل سطر بيودّي للشاشة اللي بتغيّره. #}
+<div class="card" style="margin-bottom:16px;" data-safeguards>
+  <h2 style="margin-top:0;font-size:1.05rem;">{{ t('retention.while_kept') }}</h2>
+  <div class="info-grid">
+    <div class="info-item">
+      <div class="k">{{ t('retention.confidentiality') }}</div>
+      <div class="v">
+        {% if guard.unsigned %}<span class="badge badge--warn">{{ t('access.n_unsigned', n=guard.unsigned) }}</span>
+        {% else %}<span class="badge badge--green">{{ t('retention.all_signed') }}</span>{% endif %}
+        <a class="no-print" href="{{ url_for('users.record_access') }}">{{ t('access.title') }}</a></div>
+    </div>
+    <div class="info-item">
+      <div class="k">{{ t('retention.archiving') }}</div>
+      <div class="v">
+        {{ t('retention.archive_years', n=guard.archive_years) }}
+        {% if guard.archive_age %} · {{ t('retention.archive_age', n=guard.archive_age) }}{% endif %}
+        {% if guard.archive_chronic %} · {{ t('archive.spare_chronic') }}{% endif %}
+        · {{ t('retention.auto_on') if guard.archive_auto else t('retention.auto_off') }}
+        <a class="no-print" href="{{ url_for('patients.archive') }}">{{ t('archive.title') }}</a></div>
+    </div>
+    <div class="info-item">
+      <div class="k">{{ t('retention.backups') }}</div>
+      <div class="v">
+        {{ t('retention.backups_kept', db=guard.backup_keep, full=guard.backup_full_keep) }}
+        · {% if guard.backup_encrypted %}<span class="badge badge--green">{{ t('retention.encrypted') }}</span>
+          {% else %}<span class="badge badge--warn">{{ t('retention.not_encrypted') }}</span>{% endif %}
+        <a class="no-print" href="{{ url_for('settings.data_tools') }}">{{ t('retention.backup_settings') }}</a></div>
+    </div>
+  </div>
+</div>
+
+{# (د) دفتر الإتلاف — بيتضاف عليه بس. #}
+<div class="card" id="destroyed" style="padding:0;overflow:hidden;">
+  <h2 style="margin:14px 16px 0;font-size:1.05rem;">{{ t('retention.log_title') }}</h2>
+  <p class="hint" style="margin:4px 16px 0;">{{ t('retention.log_hint') }}</p>
+
+  <form method="post" class="no-print" action="{{ url_for('users.retention_destroyed') }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin:12px 16px;" data-destroy-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label>{{ t('retention.done_on') }}</label>
+      <input class="input" type="date" name="done_on" required style="max-width:160px;"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('retention.doc_type') }}</label>
+      <select class="input" name="doc_type">
+        {% for k in kinds %}<option value="{{ k }}">{{ t('retention.type_' ~ k) }}</option>{% endfor %}
+        <option value="{{ other }}">{{ t('retention.type_other') }}</option>
+      </select></div>
+    <div class="form-row" style="margin:0;flex:2;min-width:200px;"><label>{{ t('retention.what') }}</label>
+      <input class="input" name="what" required maxlength="255" placeholder="{{ t('retention.what_ph') }}"></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:140px;"><label>{{ t('retention.method') }}</label>
+      <input class="input" name="method" required maxlength="120" placeholder="{{ t('retention.method_ph') }}"></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:140px;"><label>{{ t('retention.witness') }}</label>
+      <input class="input" name="witness" maxlength="120"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-journal-plus"></i> {{ t('retention.log_add') }}</button>
+  </form>
+
+  {% if log %}
+  <div style="overflow-x:auto;">
+  <table class="table" data-destroy-log>
+    <thead><tr>
+      <th>{{ t('retention.done_on') }}</th><th>{{ t('retention.doc_type') }}</th>
+      <th>{{ t('retention.what') }}</th><th>{{ t('retention.method') }}</th>
+      <th>{{ t('retention.witness') }}</th><th>{{ t('retention.recorded_by') }}</th>
+    </tr></thead>
+    <tbody>
+    {% for row in log %}
+    <tr data-destroyed="{{ row.id }}">
+      <td dir="ltr">{{ row.done_on }}</td>
+      <td>{{ t('retention.type_' ~ row.doc_type) }}</td>
+      <td dir="auto">{{ row.what }}</td>
+      <td dir="auto">{{ row.method }}</td>
+      <td dir="auto">{{ row.witness or '—' }}</td>
+      <td>{{ row.recorder.display_name(current_lang) if row.recorder else '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="placeholder-soft" style="margin:0 16px 14px;">{{ t('retention.log_empty') }}</p>
+  {% endif %}
+</div>
+{% endblock %}

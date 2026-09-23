@@ -39,6 +39,7 @@ from app.models.place import (BED_KINDS, SPACE_KINDS, UNIT_KINDS,
 from app.models.admission import OUTCOMES, Admission, BedStay
 from app.models.closure import Closure
 from app.models.patient_need import PatientNeed
+from app.models.retention import RecordDestruction, RetentionRule
 from app.models.round_note import ROUND_TRENDS, RoundNote
 from app.models.medication import (DOSE_OUTCOMES, ROUTES, MedicationDose,
                                   MedicationOrder)
@@ -432,6 +433,7 @@ __all__ = [
     "DOSE_OUTCOMES",
     "ROUND_TRENDS",
     "BedStay", "Closure", "PatientNeed",
+    "RecordDestruction", "RetentionRule",
     "OUTCOMES",
     "ObservationOrder",
     "INTERVALS",

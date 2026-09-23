@@ -30,7 +30,7 @@
 | **IMT.09** | *The hospital establishes the patient's medical record review process* | ٤٨٨ |
 | **IMT.05** | *The hospital maintains data and information confidentiality and security* | ٤٨٣ |
 | **IMT.06** | *Patient's medical record and information are protected from loss, destruction, tampering…* | ٤٨٤ |
-| **IMT.07** | *Retention time of records, data, and information…* | ٤٨٦ |
+| **IMT.07** | *Retention time **for each type of document*** + إجراءات الإتلاف | `users/retention` (`utils/retention.py`): (أ) مدة لكل نوع من تسعة (زيارات · روشتات · طلبات · موافقات · مرفقات · إقامات · فواتير · رسائل · سجل النشاط)، كل نوع محسوب من عمود تاريخه — **وبتبدأ فاضية**، لأن المدة رقم القانون اللي العيادة بتسأل عنه. جنبها كام سجل عدّى المدة: **عدّ بس، البرنامج ما بيمسحش**. (ب) و(ج) من الإعدادات الموجودة: الإقرارات (`IMT.05`)، قواعد الأرشفة (`archiving.py`)، النسخ الاحتياطية ومتشفّرة ولا لأ. (د) دفتر إتلاف بيتضاف عليه بس — امتى، إيه، الطريقة، الشاهد، ومين سجّل. وبتتطبع للمراجِع. | ✅ |
 | **IMT.04** · GSR.29 | *The hospital defines standardized symbols and abbreviations* | ٤٨١ |
 | **ACT.04** | *…process guiding the hospitalization of patients* | ٨٩ |
 | **ACT.15** | *Discharge summaries are complete* | ١٠٥ |
@@ -312,7 +312,7 @@ discharge_note = db.Column(db.Text)          # نص حر
 |---|---|
 | `IMT.04` · GSR.29 — الاختصارات | ❌ مفيش قايمة معتمدة ولا ممنوعة |
 | `IMT.05` دليل ٥ — إقرار سرّية في ملف كل موظف | ✅ `users/access` |
-| `IMT.07` — مدة حفظ لكل نوع مستند + الإتلاف | 🟡 الأرشفة بمدة مختارة موجودة (`archiving.py`)؛ الناقص التفصيل لكل نوع والإتلاف |
+| `IMT.07` — مدة حفظ لكل نوع مستند + الإتلاف | ✅ `users/retention` |
 
 ---
 
