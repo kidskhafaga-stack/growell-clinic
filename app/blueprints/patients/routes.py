@@ -240,18 +240,21 @@ def archive():
     """Archiving hub: policy, the inactivity candidate list, active/inactive
     analytics and the archived files (with restore)."""
     from app.utils.archiving import (
-        archive_stats, auto_enabled, inactive_candidates, inactive_years,
+        age_limit, archive_stats, auto_enabled, inactive_years, review,
+        spare_chronic,
     )
 
     years = inactive_years()
-    candidates = inactive_candidates(years)
+    lists = review(years)
     archived = (Patient.query.filter_by(is_active=False)
                 .order_by(Patient.archived_at.desc())
                 .limit(200).all())
     return render_template(
         "patients/archive.html",
         stats=archive_stats(years), years=years, auto_enabled=auto_enabled(),
-        candidates=candidates, archived=archived, today=local_today(),
+        age_limit=age_limit(), spare_chronic=spare_chronic(),
+        candidates=lists["due"], kept=lists["kept"],
+        archived=archived, today=local_today(),
     )
 
 
@@ -263,6 +266,14 @@ def archive_settings():
     years = request.form.get("years", type=int) or 3
     Setting.set("archive_inactive_years", str(min(max(years, 1), 20)))
     Setting.set("archive_auto_enabled", "1" if request.form.get("auto_enabled") else "0")
+    # The age is the clinic's number or nothing. Blank turns the rule off —
+    # a default here would be the program deciding when a child is done.
+    from app.utils.archiving import AGE_MAX, AGE_MIN
+    age = request.form.get("age_years", type=int)
+    Setting.set("archive_age_years",
+                str(min(age, AGE_MAX)) if age and age >= AGE_MIN else "")
+    Setting.set("archive_spare_chronic",
+                "1" if request.form.get("spare_chronic") else "0")
     db.session.commit()
     flash(t("archive.settings_saved"), "success")
     return redirect(url_for("patients.archive"))
@@ -453,17 +464,39 @@ def archive_one(patient_id):
     return redirect(request.referrer or url_for("patients.view", patient_id=patient.id))
 
 
+@patients_bp.route("/<int:patient_id>/archive-exempt", methods=["POST"])
+@module_required(MODULE)
+def archive_exempt(patient_id):
+    """«ما يتأرشفش» on or off, for one file. Logged, because a file that
+    silently never leaves the roster is a decision somebody should own."""
+    from app.utils.archiving import exempt
+    patient = db.get_or_404(Patient, patient_id)
+    on = request.form.get("on") == "1"
+    exempt(patient, user=current_user, on=on)
+    ActivityLog.record("patient.archive_exempt" if on
+                       else "patient.archive_exempt_lifted",
+                       user_id=current_user.id, entity="patient",
+                       entity_id=patient.id, detail=patient.patient_number,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("archive.exempted" if on else "archive.exempt_lifted",
+            name=patient.display_name(g.get("lang", "ar"))), "info")
+    return redirect(request.referrer or url_for("patients.view", patient_id=patient.id))
+
+
 @patients_bp.route("/<int:patient_id>/restore", methods=["POST"])
 @module_required(MODULE)
 def restore_one(patient_id):
     from app.utils.archiving import restore_patient
     patient = db.get_or_404(Patient, patient_id)
-    if restore_patient(patient):
+    done = restore_patient(patient, user=current_user)
+    if done:
         ActivityLog.record("patient.restore", user_id=current_user.id,
                            entity="patient", entity_id=patient.id,
                            detail=patient.patient_number, ip_address=client_ip())
         db.session.commit()
-        flash(t("archive.restored_one", name=patient.display_name(g.get("lang", "ar"))),
+        flash(t("archive.restored_kept" if done == "kept" else "archive.restored_one",
+                name=patient.display_name(g.get("lang", "ar"))),
               "success")
     return redirect(request.referrer or url_for("patients.view", patient_id=patient.id))
 

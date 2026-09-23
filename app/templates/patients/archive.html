@@ -31,12 +31,24 @@
       <label>{{ t('archive.years_label') }}</label>
       <input class="input" type="number" name="years" min="1" max="20" value="{{ years }}" style="width:120px;">
     </div>
+    <div class="form-row" style="margin:0;">
+      <label>{{ t('archive.age_label') }}</label>
+      <input class="input" type="number" name="age_years" min="1" max="120"
+             value="{{ age_limit or '' }}" placeholder="{{ t('archive.age_ph') }}"
+             title="{{ t('archive.age_hint') }}" style="width:140px;">
+    </div>
+    <label class="checkbox" style="font-weight:400;margin-bottom:10px;"
+           title="{{ t('archive.spare_chronic_hint') }}">
+      <input type="checkbox" name="spare_chronic" value="1" {{ 'checked' if spare_chronic else '' }}>
+      {{ t('archive.spare_chronic') }}</label>
     <label class="checkbox" style="font-weight:400;margin-bottom:10px;">
       <input type="checkbox" name="auto_enabled" value="1" {{ 'checked' if auto_enabled else '' }}>
       {{ t('archive.auto_enable') }}</label>
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
   <p class="info-note" style="margin-top:12px;"><i class="bi bi-info-circle"></i> {{ t('archive.policy_hint', years=years) }}</p>
+  <p class="hint" style="margin:6px 0 0;">{{ t('archive.age_hint') }}</p>
+  <p class="hint" style="margin:4px 0 0;">{{ t('archive.spare_chronic_hint') }}</p>
 </div>
 
 <!-- Candidates (due for archiving) -->
@@ -56,15 +68,24 @@
   <table class="table" style="margin-top:12px;">
     <thead><tr>
       <th>{{ t('patients.file_no') }}</th><th>{{ t('patients.name') }}</th>
+      <th>{{ t('archive.why') }}</th><th>{{ t('archive.age_col') }}</th>
       <th>{{ t('archive.last_activity') }}</th><th></th>
     </tr></thead>
     <tbody>
-      {% for p, last in candidates %}
-      <tr>
+      {% for row in candidates %}
+      {% set p, last = row.patient, row.last %}
+      <tr data-archive-due="{{ p.id }}">
         <td>{{ p.patient_number }}</td>
         <td><a href="{{ url_for('patients.view', patient_id=p.id) }}">{{ p.display_name(current_lang) }}</a></td>
-        <td dir="ltr">{{ last }} <span style="color:var(--muted);">· {{ (today - last).days // 365 }}{{ t('common.year_short') }}</span></td>
-        <td style="text-align:end;">
+        <td><span class="badge badge--{{ 'muted' if row.why == 'inactive' else 'role' }}">{{ t('archive.why_' ~ row.why) }}</span></td>
+        <td>{{ row.age if row.age is not none else '—' }}</td>
+        <td dir="ltr">{% if last %}{{ last }} <span style="color:var(--muted);">· {{ (today - last).days // 365 }}{{ t('common.year_short') }}</span>{% else %}—{% endif %}</td>
+        <td style="text-align:end;white-space:nowrap;">
+          <form method="post" action="{{ url_for('patients.archive_exempt', patient_id=p.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="on" value="1">
+            <button class="btn btn-outline btn-sm gc-press" type="submit" title="{{ t('archive.exempt_hint') }}"><i class="bi bi-pin-angle"></i> {{ t('archive.exempt_btn') }}</button>
+          </form>
           <form method="post" action="{{ url_for('patients.archive_one', patient_id=p.id) }}" style="display:inline;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-archive"></i> {{ t('archive.archive_btn') }}</button>
@@ -78,6 +99,41 @@
   <p class="placeholder-soft" style="margin:10px 0 0;">{{ t('archive.no_candidates') }}</p>
   {% endif %}
 </div>
+
+<!-- Kept: met a condition and stayed on the roster, with why -->
+{% if kept %}
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 style="margin:0;font-size:1.05rem;"><i class="bi bi-pin-angle"></i> {{ t('archive.kept_title') }}
+    <span class="badge badge--muted">{{ kept|length }}</span></h2>
+  <p class="hint" style="margin:4px 0 0;">{{ t('archive.kept_hint') }}</p>
+  <table class="table" style="margin-top:12px;">
+    <thead><tr>
+      <th>{{ t('patients.file_no') }}</th><th>{{ t('patients.name') }}</th>
+      <th>{{ t('archive.why') }}</th><th>{{ t('archive.reason') }}</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for row in kept %}
+      {% set p = row.patient %}
+      <tr data-archive-kept="{{ p.id }}">
+        <td>{{ p.patient_number }}</td>
+        <td><a href="{{ url_for('patients.view', patient_id=p.id) }}">{{ p.display_name(current_lang) }}</a></td>
+        <td><span class="badge badge--muted">{{ t('archive.why_' ~ row.why) }}</span></td>
+        <td><span class="badge badge--green">{{ t('archive.kept_' ~ row.kept) }}</span></td>
+        <td style="text-align:end;">
+          {% if row.kept == 'exempt' %}
+          <form method="post" action="{{ url_for('patients.archive_exempt', patient_id=p.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="on" value="0">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-x-lg"></i> {{ t('archive.lift_btn') }}</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 
 <!-- Archived files (restore) -->
 <div class="card gc-scale-in">

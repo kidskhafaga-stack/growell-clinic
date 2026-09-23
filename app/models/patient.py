@@ -120,6 +120,13 @@ class Patient(db.Model):
     # ("auto" = the inactivity sweep, "manual" = a user archived it deliberately).
     archived_at = db.Column(db.DateTime)
     archive_reason = db.Column(db.String(20))
+    # «ما يتأرشفش». A file someone decided stays on the roster whatever the
+    # sweep thinks of it — a child followed for years between visits, a
+    # family the clinic knows. Nullable: every file before this column has
+    # nobody's answer, and that is not the same as "no".
+    archive_exempt = db.Column(db.Boolean)
+    archive_exempt_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    archive_exempt_at = db.Column(db.DateTime)
     # Guardian has opted out of WhatsApp messages — CRM sends skip this patient.
     wa_opt_out = db.Column(db.Boolean, default=False, nullable=False)
     # Opaque token for public vaccination-certificate QR verification.

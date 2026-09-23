@@ -671,6 +671,11 @@ ADDITIONS = [
     ("invoices", "review_by", "INTEGER"),
     ("invoices", "review_at", "DATETIME"),
     ("invoices", "review_note", "VARCHAR(255)"),
+    # «ما يتأرشفش» — استثناء ملف بعينه من الأرشفة. فاضي على كل ملف قديم،
+    # وده الصح: محدّش قال عنه حاجة.
+    ("patients", "archive_exempt", "BOOLEAN"),
+    ("patients", "archive_exempt_by", "INTEGER"),
+    ("patients", "archive_exempt_at", "DATETIME"),
 ]
 
 def apply_schema(report=None):
