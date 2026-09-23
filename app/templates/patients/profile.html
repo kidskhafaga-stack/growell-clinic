@@ -26,7 +26,8 @@
    rather than a blank file. #}
 <div x-data="{
         inside: { meds: 'prescriptions', consent: 'overview',
-                  problems: 'overview', coverage: 'family' },
+                  problems: 'overview', coverage: 'family',
+                  needs: 'overview' },
         known: [],
         tab: 'overview',
         showParent: false,
@@ -738,6 +739,9 @@
                      maxlength="200" value="{{ care_plan.guideline or '' }}">
             </div>
             <div class="form-row" style="margin-bottom:0;flex:1;min-width:180px;">
+              {# `PCC.12` دليل ٣ — *plans of care consider emotional, religious,
+                 and spiritual needs*. الخطة ما تتكتبش والاحتياجات مش قدامها. #}
+              {% with p = patient %}{% include "_needs_line.html" %}{% endwith %}
               <label for="cp_preferences">{{ t('care_plan.preferences') }}</label>
               <input class="input" id="cp_preferences" name="preferences"
                      maxlength="500" value="{{ care_plan.preferences or '' }}">
@@ -871,6 +875,70 @@
       {% else %}
         <p style="color:var(--muted);">{{ t('patients.no_alerts') }}</p>
       {% endif %}
+
+      {# `PCC.12` — احتياجات الطفل والأسرة وتفضيلاتهم: نفسية، ودينية،
+         وروحية، وغيرها — أنواع المعيار نفسه، وكلام الأسرة.
+
+         **وتلات حالات مش اتنين**: «محدّش سأل» هي اللي المعيار بيدوّر عليها،
+         وهي غير «سألنا ومفيش». فالكارت بيقول الفرق، وزرار «سألنا — مفيش»
+         بيختم الملف. والاحتياج بيتقفل مش بيتمسح، زي الأدوية اللي في البيت. #}
+      {% set _need_state = needs_state(patient) %}
+      <h3 class="section-title" id="needs" style="margin-top:24px;scroll-margin-top:80px;">
+        <i class="bi bi-heart"></i> {{ t('needs.title') }}</h3>
+      <div data-needs-card data-needs-state="{{ _need_state }}">
+        {% if _need_state == 'unasked' %}
+        <p class="alert-pill warn" style="display:inline-flex;gap:6px;" data-needs-unasked>
+          <i class="bi bi-question-circle"></i> {{ t('needs.unasked') }}</p>
+        {% elif _need_state == 'none' %}
+        <p class="hint">{{ t('needs.asked_none') }}
+          {% if patient.needs_asked_at %}· <span dir="ltr">{{ patient.needs_asked_at|clinic_stamp }}</span>{% endif %}</p>
+        {% endif %}
+        {% for n in patient.needs %}
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:9px;padding:8px 12px;margin-bottom:6px;"
+             data-need-row="{{ n.id }}" {% if not n.is_current %}class="is-muted"{% endif %}>
+          <span class="badge badge--muted">{{ t('needs.kind_' ~ n.kind) }}</span>
+          <span style="flex:1;">{{ n.text }}</span>
+          <span class="hint">{{ n.recorder.display_name(current_lang) if n.recorder else '' }}
+            · <span dir="ltr">{{ n.created_at|clinic_stamp }}</span></span>
+          {% if n.is_current %}
+          <form method="post" action="{{ url_for('patients.need_end', need_id=n.id) }}"
+                style="display:flex;gap:6px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="input" name="reason" maxlength="200" style="max-width:150px;"
+                   placeholder="{{ t('needs.end_reason') }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('needs.end') }}</button>
+          </form>
+          {% else %}
+          <span class="hint">{{ t('needs.ended_on') }} <span dir="ltr">{{ n.ended_at|clinic_stamp }}</span>{% if n.end_reason %} · {{ n.end_reason }}{% endif %}</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+        <form method="post" action="{{ url_for('patients.need_add', patient_id=patient.id) }}"
+              style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:8px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="form-row" style="margin:0;">
+            <label>{{ t('needs.kind') }}</label>
+            <select class="select" name="kind">
+              {% for kind in need_kinds %}
+              <option value="{{ kind }}">{{ t('needs.kind_' ~ kind) }}</option>
+              {% endfor %}
+            </select></div>
+          <div class="form-row" style="margin:0;flex:1;min-width:220px;">
+            <label>{{ t('needs.text') }}</label>
+            <input class="input" name="text" maxlength="300" required
+                   placeholder="{{ t('needs.text_ph') }}"></div>
+          <button class="btn btn-primary btn-sm gc-press" type="submit">
+            <i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+        </form>
+        {% if _need_state == 'unasked' %}
+        <form method="post" action="{{ url_for('patients.need_none', patient_id=patient.id) }}"
+              style="margin-top:6px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline btn-sm gc-press" type="submit" data-needs-none>
+            <i class="bi bi-check2"></i> {{ t('needs.mark_none') }}</button>
+        </form>
+        {% endif %}
+      </div>
 
       {# Operations. **The file is where an operation history lives**, and
          without this it did not: a day case has no stay to hang off, so the
@@ -2629,12 +2697,24 @@
               <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px;">
                 {% for d in card.doses %}
                   <div class="hint" style="display:flex;justify-content:space-between;gap:8px;">
-                    <span><i class="bi bi-check-circle" style="color:var(--green);"></i>
-                      {{ t('vaccinations.dose') }} {{ d.dose_number }}
+                    {# The product leads the line, not the word "dose". A
+                       doctor reading the file wants "1 Synflorix, 2
+                       Synflorix, 3 Synflorix, 4 Prevenar" at a glance — the
+                       word repeated four times said nothing, and the name
+                       that did was a small grey badge after it. A dose with
+                       no product on file keeps the word: the line says what
+                       the record says and no more. #}
+                    <span data-dose-line><i class="bi bi-check-circle" style="color:var(--green);"></i>
                       {% if d.brand_name %}
-                        <span class="badge badge--muted">{{ d.brand_name }}</span>
+                        <span style="font-variant-numeric:tabular-nums;">{{ d.dose_number }}</span>
+                        <strong dir="auto" style="color:var(--ink);">{{ d.brand_name }}</strong>
+                      {% else %}
+                        {{ t('vaccinations.dose') }} {{ d.dose_number }}
+                      {% endif %}
+                      {% if d.booster %}
+                        <span class="badge badge--muted">{{ t('vaccinations.booster') }}</span>
                       {% endif %}</span>
-                    <span>{{ d.given_date }}</span>
+                    <span dir="ltr">{{ d.given_date }}</span>
                   </div>
                 {% endfor %}
               </div>

@@ -1,0 +1,17 @@
+{# `PCC.12` — احتياجات الطفل وتفضيلاته، **في المكان اللي الرعاية بتحصل
+   فيه**: الزيارة وخطة الرعاية. متسجّلة في الملف مرة، وبتتشاف هنا كل مرة
+   — احتياج مكتوب في ركن محدّش بيفتحه هو احتياج محدّش هيراعيه.
+
+   بياخد `p` (الطفل). وما بيترسمش خالص لو مفيش حاجة يقولها غير «محدّش
+   سأل» — ودي بتتقال في الملف، مش في كل شاشة. #}
+{% set _needs = p.needs | selectattr('is_current') | list %}
+{% if _needs and current_user.can('patient_medical') %}
+<div class="alert-pill ok no-print" data-needs-line
+     style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+  <i class="bi bi-heart"></i>
+  <strong>{{ t('needs.title_short') }}:</strong>
+  {% for n in _needs %}
+  <span data-need="{{ n.id }}"><span class="badge badge--muted">{{ t('needs.kind_' ~ n.kind) }}</span> {{ n.text }}</span>{% if not loop.last %} ·{% endif %}
+  {% endfor %}
+</div>
+{% endif %}

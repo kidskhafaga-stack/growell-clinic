@@ -222,6 +222,10 @@ ADDITIONS = [
     ("visit_investigations", "confirmed_at", "DATETIME"),
     ("visit_investigations", "laterality", "VARCHAR(8)"),
     ("prescription_investigations", "laterality", "VARCHAR(8)"),
+    # `PCC.12` — «اتسأل عن احتياجاته ولا لأ». فاضي في كل ملف موجود، وده
+    # الصح: محدّش سأل لسه.
+    ("patients", "needs_asked_at", "DATETIME"),
+    ("patients", "needs_asked_by", "INTEGER"),
     # `IMT.05` دليل ٥ — إقرار السرّية اتوقّع امتى ومين سجّل. فاضي في كل
     # مستخدم موجود، وده الصح: محدّش سجّل لسه.
     ("users", "confidentiality_signed_on", "DATE"),
