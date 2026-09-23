@@ -7909,5 +7909,27 @@
     "end_reason": "Why (optional)",
     "ended": "Ended ✓",
     "ended_on": "Ended"
+  },
+  "access": {
+    "title": "Who can read a child's file",
+    "sub": "Worked out from the permissions themselves, not typed. And each person's confidentiality agreement.",
+    "printed_at": "Printed",
+    "person": "Name",
+    "role": "Role",
+    "area_file": "File",
+    "area_clinical": "Clinical",
+    "area_visits": "Visits",
+    "area_prescriptions": "Prescriptions",
+    "area_labs": "Lab",
+    "area_stays": "Stays",
+    "agreement": "Confidentiality agreement",
+    "not_signed": "Not recorded",
+    "record_signed": "Signed",
+    "signed_saved": "Agreement recorded ✓",
+    "future_date": "An agreement cannot be recorded with a date that has not come yet.",
+    "n_unsigned": "{n} people read the file with no confidentiality agreement recorded.",
+    "own_only": "Sees own visits only",
+    "yes": "Yes",
+    "derived_note": "This table asks each user the same question a screen asks when it opens — so it changes on its own when a role or permission changes. The agreement itself is paper in the staff file; this records when it was signed."
   }
 }

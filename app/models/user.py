@@ -46,6 +46,15 @@ class User(UserMixin, db.Model):
     # every admin showing up as a doctor.
     is_practitioner = db.Column(db.Boolean, default=False, nullable=False)
 
+    # `IMT.05` دليل ٥ — *a signed confidentiality agreement in each staff
+    # member's personal file*. **الورقة نفسها ورق** وبتتحفظ في ملف الموظف؛
+    # اللي هنا إنها اتوقّعت امتى، ومين سجّل. من غير ده، سؤال المراجِع
+    # «مين من اللي بيقروا الملف ما وقّعش؟» مالوش إجابة غير إنك تفتح
+    # الملفات ورقة ورقة. فاضي = **ما اتسجّلش**، مش «ما وقّعش».
+    confidentiality_signed_on = db.Column(db.Date)
+    confidentiality_recorded_by = db.Column(db.Integer,
+                                            db.ForeignKey("users.id"))
+
     @staticmethod
     def sees_patients(role, is_practitioner):
         """Whether somebody with this role and flag consults.

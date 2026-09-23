@@ -1,0 +1,83 @@
+{% extends "shell.html" %}
+{% set active_module = 'users' %}
+{% block title %}{{ t('access.title') }}{% endblock %}
+{% block page_heading %}{{ t('access.title') }}{% endblock %}
+
+{% block content %}
+{# `IMT.05` دليل ٣ — *a list of authorized individuals with access to the
+   patient's medical record* — ودليل ٥، إقرار السرّية.
+
+   **محسوبة من نفس أسئلة الطرق**، مش مكتوبة: الصلاحية اللي بتقول «يقدر»
+   هنا هي نفسها اللي الطريق بيسألها وهو بيفتح. وبتتطبع، لأن المراجِع بيطلب
+   الورقة — والورقة لازم تقول هي إيه، ولمين، وامتى. #}
+<div class="print-only" style="margin-bottom:14px;padding-bottom:10px;
+     border-bottom:2px solid var(--primary);">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+    <div style="font-weight:800;font-size:1.15rem;">{{ clinic_name }}</div>
+    <div style="text-align:end;font-size:.85rem;">
+      {{ t('access.printed_at') }} <span dir="ltr">{{ now_text }}</span></div>
+  </div>
+  <h1 style="font-size:1.05rem;margin:10px 0 2px;text-align:center;">{{ t('access.title') }}</h1>
+</div>
+
+<div class="gc-animate no-print" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-person-lock"></i> {{ t('access.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('access.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('users.index') }}">
+      <i class="bi bi-arrow-right"></i> {{ t('users.title') }}</a>
+    <button class="btn btn-outline gc-press" type="button" onclick="window.print()">
+      <i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+  </div>
+</div>
+
+{% if unsigned %}
+<p class="alert-pill warn" style="margin-bottom:12px;" data-access-unsigned>
+  <i class="bi bi-pen"></i> {{ t('access.n_unsigned', n=unsigned|length) }}</p>
+{% endif %}
+
+<div class="card" style="padding:0;overflow:hidden;">
+  <div style="overflow-x:auto;">
+  <table class="table" data-access-list>
+    <thead><tr>
+      <th>{{ t('access.person') }}</th><th>{{ t('access.role') }}</th>
+      {% for area in areas %}<th style="text-align:center;">{{ t('access.area_' ~ area) }}</th>{% endfor %}
+      <th>{{ t('access.agreement') }}</th>
+    </tr></thead>
+    <tbody>
+    {% for row in rows %}
+    <tr data-access-user="{{ row.user.id }}" {% if not row.reads_record %}class="is-muted"{% endif %}>
+      <td><b>{{ row.user.display_name(current_lang) }}</b>
+        {% if row.own_only %}<div class="hint" data-own-only>{{ t('access.own_only') }}</div>{% endif %}</td>
+      <td><span class="badge badge--role">{{ row.user.role_label(current_lang) }}</span></td>
+      {% for area in areas %}
+      <td style="text-align:center;" data-area="{{ area }}" data-can="{{ 'yes' if row.areas[area] else 'no' }}">
+        {% if row.areas[area] %}<i class="bi bi-check-lg" style="color:var(--green-800);" aria-label="{{ t('access.yes') }}"></i>{% else %}<span style="color:var(--muted);">—</span>{% endif %}</td>
+      {% endfor %}
+      <td>
+        {% if row.signed_on %}
+        <span data-signed dir="ltr">{{ row.signed_on.strftime('%Y-%m-%d') }}</span>
+        {% elif row.reads_record %}
+        <span class="badge badge--warn" data-not-signed>{{ t('access.not_signed') }}</span>
+        {# الإقرار اتوقّع — **بتاريخ الورقة**، على نفس السطر اللي بيقول إنه
+           ناقص. ممكن يكون اتوقّع يوم التعيين من سنتين. #}
+        <form method="post" class="no-print" style="display:inline-flex;gap:6px;margin-top:4px;"
+              action="{{ url_for('users.confidentiality_signed', user_id=row.user.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="input" type="date" name="on" style="max-width:150px;">
+          <button class="btn btn-outline btn-sm gc-press" type="submit" data-record-signed>
+            {{ t('access.record_signed') }}</button>
+        </form>
+        {% else %}
+        <span style="color:var(--muted);">—</span>
+        {% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+<p class="hint" style="margin-top:10px;">{{ t('access.derived_note') }}</p>
+{% endblock %}
