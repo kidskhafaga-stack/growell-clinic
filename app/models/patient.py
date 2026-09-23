@@ -107,6 +107,13 @@ class Patient(db.Model):
     chronic_diseases = db.Column(db.Text)
     notes = db.Column(db.Text)
 
+    # `PCC.12` دليل ١ — **اتسأل ولا لأ**، وده غير «عنده احتياجات ولا لأ».
+    # قايمة احتياجات فاضية بتقول حاجتين مختلفتين: «سألنا ومفيش» و«محدّش
+    # سأل»، والتانية هي اللي المعيار بيدوّر عليها. فاللي سأل ولقى مفيش
+    # بيسيب ختم هنا. شوف `utils/needs`.
+    needs_asked_at = db.Column(db.DateTime)
+    needs_asked_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     # Archiving: an inactive file is kept (never deleted) but set is_active=False.
     # ``archived_at`` stamps when, and ``archive_reason`` records how it happened

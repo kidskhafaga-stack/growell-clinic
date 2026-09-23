@@ -49,6 +49,8 @@ from app.utils import patient_basics as _basics
 from app.utils.clock import local_today
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
 from app.utils.decorators import capability_required, client_ip, module_required
+from app.models.patient_need import KINDS as _NEED_KINDS
+from app.utils.needs import state as _needs_state
 from app.utils.paging import paginate
 from app.utils.imports import (
     allowed_import_file,
@@ -316,6 +318,64 @@ def medication_stop(med_id):
     meds.stop(row, user=current_user, reason=request.form.get("stop_reason"))
     flash(t("meds.stopped"), "info")
     return redirect(url_for("patients.view", patient_id=row.patient_id) + "#meds")
+
+
+# ------------------------------------------------ needs & preferences ------
+# `PCC.12` — ورا الصلاحية الإكلينيكية زي اللوحات الطبية في الملف: دين الأسرة
+# ومخاوف الطفل مش معلومات للاستقبال. شوف `utils/needs`.
+def _needs_back(patient_id):
+    return redirect(url_for("patients.view", patient_id=patient_id) + "#needs")
+
+
+@patients_bp.route("/<int:patient_id>/needs", methods=["POST"])
+@module_required(MODULE)
+@capability_required("patient_medical")
+def need_add(patient_id):
+    from app.utils import needs
+
+    patient = db.get_or_404(Patient, patient_id)
+    try:
+        needs.add(patient, request.form.get("kind"), request.form.get("text"),
+                  user=current_user)
+    except ValueError:
+        flash(t("needs.need_words"), "error")
+        return _needs_back(patient.id)
+    db.session.commit()
+    flash(t("needs.added"), "success")
+    return _needs_back(patient.id)
+
+
+@patients_bp.route("/<int:patient_id>/needs/none", methods=["POST"])
+@module_required(MODULE)
+@capability_required("patient_medical")
+def need_none(patient_id):
+    """«سألنا — مفيش». بيختم إن السؤال اتسأل؛ مش بيمسح حاجة."""
+    from app.utils import needs
+
+    patient = db.get_or_404(Patient, patient_id)
+    try:
+        needs.asked_none(patient, user=current_user)
+    except ValueError:
+        flash(t("needs.has_some"), "warning")
+        return _needs_back(patient.id)
+    db.session.commit()
+    flash(t("needs.asked_saved"), "success")
+    return _needs_back(patient.id)
+
+
+@patients_bp.route("/needs/<int:need_id>/end", methods=["POST"])
+@module_required(MODULE)
+@capability_required("patient_medical")
+def need_end(need_id):
+    """الاحتياج خلص — بيتقفل بسببه، مش بيتمسح."""
+    from app.models import PatientNeed
+    from app.utils import needs
+
+    row = db.get_or_404(PatientNeed, need_id)
+    needs.end(row, user=current_user, reason=request.form.get("reason"))
+    db.session.commit()
+    flash(t("needs.ended"), "info")
+    return _needs_back(row.patient_id)
 
 
 @patients_bp.route("/<int:patient_id>/flag", methods=["POST"])
@@ -686,6 +746,8 @@ def view(patient_id):
         # and a screen that offers to admit somebody into a hospital that does
         # not exist is worse than no screen.
         **_ward_context(patient.id),
+        # `PCC.12` — «اتسأل ولا لأ» تلات حالات، والأنواع أنواع المعيار.
+        needs_state=_needs_state, need_kinds=_NEED_KINDS,
         # And what they have been operated on for. Asked here because a day
         # case has no stay to hang off: without this the only place it ever
         # appeared was one date's theatre list, which nobody opens again six

@@ -65,6 +65,7 @@
 
   <!-- Clinical safety: allergies / chronic diseases, up front -->
   {% with p = visit.patient %}{% include "_safety_banner.html" %}{% endwith %}
+  {% with p = visit.patient %}{% include "_needs_line.html" %}{% endwith %}
 
   {# The age-banded reading of this child's own vitals. The nurse's station has
      shown this since it was written; the doctor's screen showed the numbers and
