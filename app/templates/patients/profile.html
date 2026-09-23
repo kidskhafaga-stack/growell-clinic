@@ -2629,12 +2629,24 @@
               <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px;">
                 {% for d in card.doses %}
                   <div class="hint" style="display:flex;justify-content:space-between;gap:8px;">
-                    <span><i class="bi bi-check-circle" style="color:var(--green);"></i>
-                      {{ t('vaccinations.dose') }} {{ d.dose_number }}
+                    {# The product leads the line, not the word "dose". A
+                       doctor reading the file wants "1 Synflorix, 2
+                       Synflorix, 3 Synflorix, 4 Prevenar" at a glance — the
+                       word repeated four times said nothing, and the name
+                       that did was a small grey badge after it. A dose with
+                       no product on file keeps the word: the line says what
+                       the record says and no more. #}
+                    <span data-dose-line><i class="bi bi-check-circle" style="color:var(--green);"></i>
                       {% if d.brand_name %}
-                        <span class="badge badge--muted">{{ d.brand_name }}</span>
+                        <span style="font-variant-numeric:tabular-nums;">{{ d.dose_number }}</span>
+                        <strong dir="auto" style="color:var(--ink);">{{ d.brand_name }}</strong>
+                      {% else %}
+                        {{ t('vaccinations.dose') }} {{ d.dose_number }}
+                      {% endif %}
+                      {% if d.booster %}
+                        <span class="badge badge--muted">{{ t('vaccinations.booster') }}</span>
                       {% endif %}</span>
-                    <span>{{ d.given_date }}</span>
+                    <span dir="ltr">{{ d.given_date }}</span>
                   </div>
                 {% endfor %}
               </div>

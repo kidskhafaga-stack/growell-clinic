@@ -180,3 +180,63 @@ def test_the_certificate_prints_a_mixed_course_without_breaking(clinic, mixed):
     page = reply.get_data(as_text=True)
     assert "Synflorix" in page
     assert "Prevenar 13" in page
+
+
+# ------------------------------------------- the product leads the line ----
+def _dose_lines(page):
+    """The text of every dose line in the file's vaccination cards."""
+    import re
+
+    lines = re.findall(r"<span data-dose-line>(.*?)</span>\s*<span dir=\"ltr\">",
+                       page, flags=re.S)
+    return [" ".join(re.sub(r"<[^>]+>", " ", line).split()) for line in lines]
+
+
+def test_the_line_reads_number_then_product(clinic, mixed):
+    """Asked for from the clinic: *"مكان الصح 1 بريفينار والتاريخ"* — the
+    product in place of the word, so the course reads "1 Synflorix … 4
+    Prevenar 13" from the file without opening the vaccinations screen."""
+    boss = clinic["sign_in"]("boss")
+    page = boss.get(
+        f"/patients/{clinic['ids']['child']}").get_data(as_text=True)
+    lines = _dose_lines(page)
+    assert [line.split(" ")[0] for line in lines] == ["1", "2", "3", "4"]
+    assert lines[0].startswith("1 Synflorix")
+    assert lines[3].startswith("4 Prevenar 13")
+
+
+def test_a_named_dose_drops_the_word(clinic, single):
+    """The word said nothing four times over; the product is the label."""
+    from app.i18n import t
+
+    boss = clinic["sign_in"]("boss")
+    page = boss.get(
+        f"/patients/{clinic['ids']['child']}").get_data(as_text=True)
+    with clinic["app"].test_request_context():
+        words = {t("vaccinations.dose")}
+    for line in _dose_lines(page):
+        assert not any(word in line for word in words), line
+
+
+def test_a_government_dose_says_so(clinic):
+    """A dose from the ministry's stock is on file under the product
+    «حكومي», and that is what its line leads with — the same place a trade
+    name goes, so the doctor reads "1 حكومي" beside "4 Prevenar 13"."""
+    from app.models import Vaccine, VaccineBrand
+
+    with clinic["app"].app_context():
+        db = clinic["db"]
+        vaccine = Vaccine(code="GOV", name_ar="شلل الأطفال", name_en="Polio",
+                          is_mandatory=True)
+        db.session.add(vaccine)
+        db.session.flush()
+        brand = VaccineBrand(vaccine_id=vaccine.id, name="حكومي", price=0,
+                             doses_per_vial=1, is_default=True)
+        db.session.add(brand)
+        db.session.commit()
+        vaccine_id, brand_id = vaccine.id, brand.id
+    _give(clinic, vaccine_id, brand_id, 1, date(2024, 3, 1))
+    boss = clinic["sign_in"]("boss")
+    page = boss.get(
+        f"/patients/{clinic['ids']['child']}").get_data(as_text=True)
+    assert "1 حكومي" in _dose_lines(page)
