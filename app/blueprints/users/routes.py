@@ -88,7 +88,8 @@ AUDIT_ACTIONS = ["login", "login_failed", "login_disabled", "logout",
                  "role.create", "role.update", "role.delete",
                  "user.capability_grant", "user.capability_revoke",
                  "patient.archive", "patient.restore", "patient.delete",
-                 "appointment.booking_toggle"]
+                 "appointment.booking_toggle",
+                 "retention.rule", "retention.destroyed"]
 
 
 @users_bp.route("/access")
@@ -126,6 +127,70 @@ def confidentiality_signed(user_id):
     db.session.commit()
     flash(t("access.signed_saved"), "success")
     return redirect(url_for("users.record_access"))
+
+
+@users_bp.route("/retention")
+@admin_required
+def retention():
+    """`IMT.07` — مدة الحفظ لكل نوع مستند، وإيه اللي عدّاها، ودفتر الإتلاف.
+
+    **البرنامج ما بيمسحش حاجة من هنا.** الشاشة بتعدّ، والإتلاف بيتسجّل
+    بإيد اللي عمله. وبتتطبع — المراجِع بيطلب «قايمة مدد الحفظ» ويشوف الدفتر.
+    """
+    from app.utils import retention as keep
+    from app.utils.clock import local_now
+
+    return render_template(
+        "users/retention.html", rows=keep.overview(), unset=keep.unset(),
+        log=keep.destructions(), guard=keep.safeguards(),
+        kinds=keep.DOC_TYPES, other=keep.OTHER,
+        years_min=keep.YEARS_MIN, years_max=keep.YEARS_MAX,
+        now_text=local_now().strftime("%Y-%m-%d %H:%M"))
+
+
+@users_bp.route("/retention/rule/<doc_type>", methods=["POST"])
+@admin_required
+def retention_rule(doc_type):
+    from app.utils import retention as keep
+
+    try:
+        keep.set_rule(doc_type, (request.form.get("years") or "").strip(),
+                      basis=request.form.get("basis"), user=current_user)
+    except ValueError:
+        flash(t("retention.bad_years", lo=keep.YEARS_MIN, hi=keep.YEARS_MAX),
+              "error")
+        return redirect(url_for("users.retention"))
+    ActivityLog.record("retention.rule", user_id=current_user.id,
+                       entity="retention", detail=doc_type,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("retention.saved"), "success")
+    return redirect(url_for("users.retention"))
+
+
+@users_bp.route("/retention/destroyed", methods=["POST"])
+@admin_required
+def retention_destroyed():
+    """سطر في دفتر الإتلاف — **بيتضاف بس**. ما فيش طريق يمسح سطر."""
+    from app.utils import retention as keep
+    from app.utils.export import parse_date
+
+    try:
+        keep.record_destruction(
+            parse_date(request.form.get("done_on")),
+            request.form.get("doc_type"), request.form.get("what"),
+            request.form.get("method"), witness=request.form.get("witness"),
+            user=current_user)
+    except ValueError as err:
+        flash(t("retention.future" if str(err) == "future"
+                else "retention.missing"), "error")
+        return redirect(url_for("users.retention") + "#destroyed")
+    ActivityLog.record("retention.destroyed", user_id=current_user.id,
+                       entity="retention", detail=request.form.get("doc_type"),
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("retention.logged"), "success")
+    return redirect(url_for("users.retention") + "#destroyed")
 
 
 @users_bp.route("/audit")

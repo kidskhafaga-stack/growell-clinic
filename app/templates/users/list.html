@@ -35,6 +35,9 @@
     {# `IMT.05` — مين يقدر يقرا ملف الطفل، ووقّع إقرار السرّية. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('users.record_access') }}">
       <i class="bi bi-person-lock"></i> {{ t('access.title') }}</a>
+    {# `IMT.07` — مدة الحفظ لكل نوع مستند، ودفتر الإتلاف. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('users.retention') }}">
+      <i class="bi bi-hourglass-bottom"></i> {{ t('retention.title') }}</a>
     <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('users.create') }}">
       <i class="bi bi-person-plus"></i> {{ t('users.add_user') }}</a>
   </div>
