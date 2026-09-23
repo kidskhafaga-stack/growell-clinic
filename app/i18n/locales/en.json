@@ -7831,5 +7831,32 @@
     "stuck": "It cannot be reopened on its own: the place above it is still closed.",
     "not_found": "No such place",
     "reopened_at": "Reopened"
+  },
+  "orders": {
+    "side": "Side",
+    "pick_side": "Pick a side",
+    "side_right": "Right",
+    "side_left": "Left",
+    "side_both": "Both",
+    "side_none": "No side",
+    "ordered_by": "Ordered by",
+    "from_visit": "Visit doctor",
+    "when": "When",
+    "confirmed_by": "Confirmed by",
+    "confirm": "Confirm order",
+    "confirmed": "Order confirmed ✓",
+    "cannot_confirm": "An order is confirmed by a doctor other than the one who entered it.",
+    "side_saved": "Side saved ✓",
+    "bad_side": "A side is for imaging only, and from the list.",
+    "missing": "Missing",
+    "missing_orderer": "Who ordered it",
+    "missing_when": "When",
+    "missing_patient": "Child's age or sex",
+    "missing_reason": "Reason",
+    "missing_side": "Side",
+    "missing_authenticated": "Awaiting doctor's confirmation",
+    "incomplete_title": "Incomplete requests",
+    "incomplete_sub": "Labs and imaging from the last 30 days missing something a request must state.",
+    "none_incomplete": "Every request is complete."
   }
 }
