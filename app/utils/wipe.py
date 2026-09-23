@@ -60,6 +60,10 @@ KEEP = {
     "rx_print_templates", "abbreviations", "investigations",
     "medical_devices", "accounts", "accounting_periods", "cash_accounts",
     "import_batches",
+    # `IMT.07` — مدد الحفظ سياسة العيادة، ودفتر الإتلاف بيحكي عن ورق
+    # اتعدم فعلاً برّه البرنامج. «امسح البيانات» بيبدأ الشغل من جديد، ما
+    # بيمحيش إن الورق ده اتعدم.
+    "retention_rules", "record_destructions",
 }
 
 #: شغل تشغيلي مالوش `patient_id` ولا بيوصل لمريض — بس مش كتالوج.
