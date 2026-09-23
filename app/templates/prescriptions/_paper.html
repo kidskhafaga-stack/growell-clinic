@@ -341,7 +341,9 @@
       <div style="font-weight:700;color:var(--green-800);border-bottom:1px solid var(--green-200,var(--line));padding-bottom:0.2em;margin-bottom:0.45em;">
         <i class="bi bi-radioactive"></i> {{ t('rx.imaging_requested') }}</div>
       <ol style="margin:0;padding-inline-start:22px;">
-        {% for x in rx.imaging() %}<li>{{ x.display_name(current_lang) }}{% if x.done_outside %} <span style="color:var(--muted);">({{ t('rx.inv_outside_short') }})</span>{% endif %}{% if x.notes %} <span style="color:var(--muted);">— {{ x.notes }}</span>{% endif %}</li>{% endfor %}
+        {# `ICD.17` (هـ) — الناحية **على الورقة نفسها**: دي اللي بتروح مركز
+           الأشعة، ومفيش حد هناك يسأل «أنهي ساعد». #}
+        {% for x in rx.imaging() %}<li>{{ x.display_name(current_lang) }}{% if x.laterality %} — <b data-paper-side>{{ t('orders.side_' ~ x.laterality) }}</b>{% endif %}{% if x.done_outside %} <span style="color:var(--muted);">({{ t('rx.inv_outside_short') }})</span>{% endif %}{% if x.notes %} <span style="color:var(--muted);">— {{ x.notes }}</span>{% endif %}</li>{% endfor %}
       </ol>
     </div>
     {% endif %}

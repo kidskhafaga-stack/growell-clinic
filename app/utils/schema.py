@@ -215,6 +215,13 @@ ADDITIONS = [
     ("visit_investigations", "collected_by", "INTEGER"),
     ("visit_investigations", "resulted_by", "INTEGER"),
     ("visit_investigations", "invoice_item_id", "INTEGER"),
+    # `ICD.17` — مين طلب، ومين أكّد لو غيره، وأنهي ناحية للأشعة. الصفوف
+    # القديمة بتاخدهم فاضيين، والفراغ معناه «محدّش سجّل» — مش «ناقص».
+    ("visit_investigations", "ordered_by", "INTEGER"),
+    ("visit_investigations", "confirmed_by", "INTEGER"),
+    ("visit_investigations", "confirmed_at", "DATETIME"),
+    ("visit_investigations", "laterality", "VARCHAR(8)"),
+    ("prescription_investigations", "laterality", "VARCHAR(8)"),
     # `IMT.05` دليل ٥ — إقرار السرّية اتوقّع امتى ومين سجّل. فاضي في كل
     # مستخدم موجود، وده الصح: محدّش سجّل لسه.
     ("users", "confidentiality_signed_on", "DATE"),
