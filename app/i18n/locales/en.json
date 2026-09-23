@@ -8043,6 +8043,18 @@
     "saved": "Post-operative plan saved.",
     "saved_short": "Plan saved — {n} item(s) missing."
   },
+  "stay": {
+    "no_bed": "No bed",
+    "closed": "Discharged",
+    "length": "{d} d · {h} h",
+    "arrest": "Resuscitation",
+    "attention": "Needs attention",
+    "tab_overview": "Stay",
+    "tab_care": "Nursing & assessment",
+    "tab_treatment": "Treatment",
+    "tab_safety": "Restraint & resuscitation",
+    "tab_discharge": "Discharge"
+  },
   "specimen": {
     "title": "Specimens & pathology",
     "hint": "GAHAR SAS.10: every removed tissue takes one of two paths: sent to pathology with a label, or exempted under a line of the hospital's list.",

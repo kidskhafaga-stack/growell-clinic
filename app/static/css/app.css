@@ -374,3 +374,88 @@
   background: color-mix(in srgb, var(--danger) 10%, var(--card));
 }
 .gc-ai-cmp.v-unreadable { border-inline-start-color: var(--line); }
+
+/* ── The stay screen (beds/admission) ──────────────────────────────────────
+   Twenty cards stacked became five tabs under a header that answers the four
+   questions anybody opening the sheet asks first: who, where, how long, and
+   whose patient. Every colour is a token, so the clinic's accent and the dark
+   theme carry through, and every movement stops under reduced motion. */
+.stay-hero {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 14px; padding: 18px 20px;
+  background: linear-gradient(135deg, var(--green-050), var(--card) 70%);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.stay-hero__who { display: flex; gap: 14px; align-items: flex-start; min-width: 0; flex: 1 1 320px; }
+.stay-hero__icon {
+  flex: none; width: 48px; height: 48px; border-radius: 14px;
+  display: grid; place-items: center; font-size: 1.35rem;
+  background: var(--green-100); color: var(--green-800);
+  animation: gc-pop 0.5s ease both;
+}
+.stay-hero__facts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.stay-hero__actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.stay-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+  border-radius: 999px; font-size: 0.82rem; font-weight: 600;
+  background: var(--card); color: var(--ink); border: 1px solid var(--line);
+  animation: gc-fade-up 0.4s ease both;
+}
+.stay-chip:nth-child(2) { animation-delay: 0.06s; }
+.stay-chip:nth-child(3) { animation-delay: 0.12s; }
+.stay-chip i { color: var(--green-700); }
+.stay-chip--warn { border-color: var(--warning); }
+.stay-chip--warn i { color: var(--warning); }
+.stay-chip--danger { border-color: var(--danger); color: var(--danger); }
+.stay-chip--danger i { color: var(--danger); }
+.stay-chip--muted { color: var(--muted); }
+
+.stay-attention {
+  margin-bottom: 14px; padding: 12px 16px; border-radius: var(--radius);
+  background: var(--card); border: 1px solid var(--line);
+  border-inline-start: 4px solid var(--warning);
+  animation: gc-fade-up 0.35s ease both;
+}
+.stay-attention__head { display: flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 8px; }
+.stay-attention__items { display: flex; gap: 6px; flex-wrap: wrap; }
+.stay-flag {
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--ink);
+  border-radius: 999px; padding: 5px 12px; font-size: 0.82rem; cursor: pointer;
+  font-family: inherit; animation: gc-fade-up 0.35s ease both;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.stay-flag::before { content: "●"; margin-inline-end: 6px; font-size: 0.7em; vertical-align: middle; }
+.stay-flag--danger::before { color: var(--danger); }
+.stay-flag--warn::before { color: var(--warning); }
+.stay-flag:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+.stay-flag:focus-visible { outline: 2px solid var(--green-600); outline-offset: 2px; }
+
+.stay-count {
+  display: inline-grid; place-items: center; min-width: 20px; height: 20px;
+  padding: 0 6px; border-radius: 999px; font-size: 0.72rem; font-weight: 700;
+  background: var(--warning); color: #fff; margin-inline-start: 4px;
+}
+/* The tab bar stays in reach while a long tab scrolls — the nurse halfway
+   down the drug chart should not have to scroll back up to reach the risks. */
+.stay-tabs {
+  position: sticky; top: 64px; z-index: 5; background: var(--bg);
+  padding-top: 6px; margin-bottom: 4px;
+}
+.stay-tabs .gc-tab { display: inline-flex; align-items: center; gap: 6px; }
+.stay-panel > .card { scroll-margin-top: 130px; transition: box-shadow 0.2s ease, transform 0.2s ease; }
+.stay-panel > .card:hover { box-shadow: var(--shadow); }
+.stay-panel > .card:nth-of-type(2) { animation-delay: 0.05s; }
+.stay-panel > .card:nth-of-type(3) { animation-delay: 0.10s; }
+.stay-panel > .card:nth-of-type(4) { animation-delay: 0.15s; }
+.stay-panel > .card:nth-of-type(n+5) { animation-delay: 0.20s; }
+
+@media (max-width: 640px) {
+  .stay-hero { padding: 14px; }
+  .stay-tabs { overflow-x: auto; flex-wrap: nowrap; }
+  .stay-tabs .gc-tab { white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stay-hero__icon, .stay-chip, .stay-attention, .stay-flag { animation: none; }
+  .stay-flag, .stay-panel > .card { transition: none; }
+}
