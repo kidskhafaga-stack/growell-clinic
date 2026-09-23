@@ -37,6 +37,7 @@ from app.models.measurement import Measurement
 from app.models.place import (BED_KINDS, SPACE_KINDS, UNIT_KINDS,
                              Bed, Space, Unit)
 from app.models.admission import OUTCOMES, Admission, BedStay
+from app.models.closure import Closure
 from app.models.round_note import ROUND_TRENDS, RoundNote
 from app.models.medication import (DOSE_OUTCOMES, ROUTES, MedicationDose,
                                   MedicationOrder)
@@ -429,7 +430,7 @@ __all__ = [
     "SafetyCheck",
     "DOSE_OUTCOMES",
     "ROUND_TRENDS",
-    "BedStay",
+    "BedStay", "Closure",
     "OUTCOMES",
     "ObservationOrder",
     "INTERVALS",

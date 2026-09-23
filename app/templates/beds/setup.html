@@ -3,6 +3,63 @@
 {% block title %}{{ t('beds.setup') }}{% endblock %}
 {% block page_heading %}{{ t('beds.setup') }}{% endblock %}
 
+{# **الإغلاق للصيانة — نفس الأداة للقسم والحيّز والسرير.**
+
+   فترة بسبب، مش مفتاح: السبب إجباري لأن إغلاق من غير سبب هو الصف اللي
+   حد هيبصّ عليه بعد شهر ومش هيعرف يفتحه، والميعاد اختياري لأن «مش
+   عارفين هيخلص امتى» إجابة حقيقية. شوف `utils/closures`.
+
+   مطوية تحت `<details>`: الشاشة دي فيها سطر لكل سرير، وفورم مفتوح في كل
+   سطر كان هيخلّيها فورمز مش شاشة. #}
+{% macro closure_control(level, place) %}
+{% set live = closing(place) %}
+{% if live %}
+<span class="badge badge--warning" data-closed-{{ level }}="{{ place.id }}">
+  <i class="bi bi-cone-striped"></i> {{ t('closures.closed_badge') }}
+  · {{ reason_label(live.reason) }}
+  · {{ t('closures.since') }} <span dir="ltr">{{ live.closed_at|clinic_stamp }}</span>
+  {% if live.until %}· {{ t('closures.until') }} <span dir="ltr">{{ live.until.strftime('%Y-%m-%d') }}</span>
+  {% else %}· {{ t('closures.no_end') }}{% endif %}
+  {% if live.overdue %}<b>· {{ t('closures.overdue_badge') }}</b>{% endif %}
+</span>
+<form method="post" action="{{ url_for('beds.reopen_place') }}" style="display:inline;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="level" value="{{ level }}">
+  <input type="hidden" name="target_id" value="{{ place.id }}">
+  <button class="btn btn-sm btn-outline gc-press" type="submit"
+          data-reopen-{{ level }}="{{ place.id }}">
+    <i class="bi bi-unlock"></i> {{ t('closures.reopen_btn') }}</button>
+</form>
+{% elif place.is_active %}
+<details style="display:inline-block;" data-close-{{ level }}="{{ place.id }}">
+  <summary class="btn btn-sm btn-outline gc-press" style="list-style:none;">
+    <i class="bi bi-cone-striped"></i> {{ t('closures.close_btn') }}</summary>
+  <form method="post" action="{{ url_for('beds.close_place') }}"
+        style="display:flex;gap:6px;align-items:end;flex-wrap:wrap;margin-top:6px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="level" value="{{ level }}">
+    <input type="hidden" name="target_id" value="{{ place.id }}">
+    <div class="form-row" style="margin:0;">
+      <label>{{ t('closures.reason') }}</label>
+      <select class="select" name="reason" required>
+        <option value="">{{ t('closures.pick_reason') }}</option>
+        {% for r in reasons %}
+        <option value="{{ r.key }}">{{ r.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select></div>
+    <div class="form-row" style="margin:0;max-width:160px;">
+      <label>{{ t('closures.until') }}</label>
+      <input class="input" type="date" name="until"></div>
+    <div class="form-row" style="margin:0;max-width:200px;">
+      <label>{{ t('closures.note') }}</label>
+      <input class="input" name="note" maxlength="200"></div>
+    <button class="btn btn-sm btn-primary gc-press" type="submit">
+      {{ t('closures.close_btn') }}</button>
+  </form>
+</details>
+{% endif %}
+{% endmacro %}
+
 {% block content %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
@@ -91,6 +148,45 @@
   </form>
 </div>
 
+{# **القفل ما بيرفضش لو فيه طفل جوّه القسم — وبيقول.** الصيانة بتتحدّد
+   وإحنا لسه بننقل الأطفال، فالاسم لازم يبان هنا علشان حد ينقله. #}
+{% if stranded %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-color:var(--danger);"
+     data-stranded>
+  <h2 class="section-title" style="margin-top:0;color:var(--danger);">
+    <i class="bi bi-exclamation-octagon"></i> {{ t('closures.stranded_title') }}</h2>
+  <p class="hint" style="margin:0 0 8px;">{{ t('closures.stranded_hint') }}</p>
+  <ul style="margin:0;padding-inline-start:18px;">
+    {% for closure, stays in stranded %}
+    {% for stay in stays %}
+    <li><a href="{{ url_for('beds.admission', admission_id=stay.admission_id) }}">
+      {{ stay.admission.patient.display_name(current_lang) }}</a>
+      · {{ stay.bed.name if stay.bed else '' }}
+      · {{ reason_label(closure.reason) }}</li>
+    {% endfor %}
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{# «هيخلص الخميس» وإحنا بقالنا أسبوع — السؤال اللي محدّش بيفتكر يسأله.
+   واللي مالوش ميعاد مش هنا: ده قرار اتاخد صح مش تأخير. #}
+{% if overdue %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-color:var(--warning, #d97706);"
+     data-overdue>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-hourglass-bottom"></i> {{ t('closures.overdue_title') }}</h2>
+  <p class="hint" style="margin:0 0 8px;">{{ t('closures.overdue_hint') }}</p>
+  <ul style="margin:0;padding-inline-start:18px;">
+    {% for row in overdue %}
+    <li>{{ (row.unit or row.space or row.bed).name }}
+      · {{ reason_label(row.reason) }}
+      · {{ t('closures.until') }} <span dir="ltr">{{ row.until.strftime('%Y-%m-%d') }}</span></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
 {% for row in units %}
 <div class="card gc-scale-in" style="margin-bottom:14px;">
   <h2 class="section-title" style="margin-top:0;">
@@ -108,6 +204,7 @@
         <i class="bi bi-trash3"></i> {{ t('ward_wizard.delete') }}</button>
     </form>
     {% endif %}</h2>
+  <div style="margin:-4px 0 10px;">{{ closure_control('unit', row.unit) }}</div>
 
   {# What a stay in this department costs, and whether it is sold by the
      night or by the hour. Emergency is by the hour: a child on a trolley for
@@ -169,6 +266,7 @@
       <span class="alert-pill warn"><i class="bi bi-shield-exclamation"></i>
         {{ t('beds.isolation') }}</span>
       {% endif %}
+      {% if row.unit.is_active %}{{ closure_control('space', block.space) }}{% endif %}
 
       {# The level most hospitals actually price at: a single room and a
          double are two prices for the same bed, and what differs is the
@@ -199,9 +297,9 @@
         <td>{{ cell.bed.name }}</td>
         <td>{{ t('beds.bed_' ~ cell.bed.kind) }}</td>
         <td>
-          {% if cell.stay %}
+          {% if cell.state == 'taken' %}
           <span class="badge badge--green">{{ t('beds.occupied') }}</span>
-          {% elif not cell.bed.is_active %}
+          {% elif cell.state == 'off' %}
           <span class="badge badge--muted">{{ t('beds.out_of_service') }}
             {% if cell.bed.out_of_service_note %}
             · {{ cell.bed.out_of_service_note }}{% endif %}</span>
@@ -239,19 +337,11 @@
              usually one somebody typed twice. That one is deleted, because
              leaving it is how a setup screen fills with rows nobody dares
              touch — which is the mess this screen was rebuilt for. #}
-          <form method="post"
-                action="{{ url_for('beds.bed_service', bed_id=cell.bed.id) }}"
-                style="display:flex;gap:6px;justify-content:flex-end;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            {% if cell.bed.is_active %}
-            <input class="input" name="note" maxlength="120"
-                   style="max-width:180px;"
-                   placeholder="{{ t('beds.service_note') }}">
-            {% endif %}
-            <button class="btn btn-sm btn-outline gc-press" type="submit">
-              {{ t('beds.back_in_service') if not cell.bed.is_active
-                 else t('beds.take_out') }}</button>
-          </form>
+          {# الإغلاق على السرير نفسه — وبس لو اللي فوقه شغّال: سرير في
+             عنبر مقفول مقفول أصلاً، وزرار فتحه لوحده كان هيرفض كل مرة. #}
+          {% if row.unit.is_active and block.space.is_active %}
+          {{ closure_control('bed', cell.bed) }}
+          {% endif %}
           {% if not bed_used(cell.bed) %}
           <form method="post" style="display:inline;"
                 action="{{ url_for('beds.delete_bed', bed_id=cell.bed.id) }}"

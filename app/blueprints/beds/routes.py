@@ -20,6 +20,7 @@ adding a unit, a room, a bed — is the owner's, because it is configuration and
 not care.
 """
 from datetime import datetime
+from functools import partial
 
 from flask import (abort, flash, g, redirect, render_template, request,
                    url_for)
@@ -82,14 +83,41 @@ def setup():
     from app.utils import facility
     from app.utils import ward_plan
 
+    from app.models.closure import REASON_DOMAIN
+    from app.utils import closures, lookups
+
+    # الأسباب بتتحط أول مرة الشاشة دي تتفتح — نفس ما قوايم المخزن
+    # بتتحط أول ما شاشتها تتفتح. ومفيش حاجة بتتكتب فوق تعديل العيادة.
+    # **وقبل ما القايمة تتقري**، وإلا أول فتحة بتلاقيها فاضية.
+    if closures.ensure_reasons():
+        db.session.commit()
+
+    used = ward_plan.used_bed_ids()
+    lang = g.get("lang", "ar")
+    reasons = lookups.options(REASON_DOMAIN)
+    labels = {row.key: row.display_name(lang) for row in reasons}
+
     return render_template("beds/setup.html",
+                           # استعلام واحد للشاشة كلها، مش واحد لكل سرير.
+                           closing=lambda place, _open=closures.open_by_place(): (
+                               _open.get((closures.level(place), place.id))),
+                           reasons=reasons,
+                           # من القايمة اللي اتحمّلت فعلاً؛ والسؤال بيتسأل
+                           # بس لسبب اتشال من القايمة بعد ما اتستعمل.
+                           reason_label=lambda key: labels.get(key) or (
+                               lookups.label(REASON_DOMAIN, key, lang)),
+                           stranded=closures.stranded(),
+                           overdue=closures.overdue(),
                            bases=bed_billing.BASES,
                            # الأسئلة بتيجي من اللي المنشأة علّمته — قسم
                            # عمره ما هيتعمل مش بياخد خانة على الشاشة.
                            plans=ward_plan.plans_for(facility.capabilities()),
-                           deletable=ward_plan.deletable,
-                           space_deletable=ward_plan.space_deletable,
-                           bed_used=ward_plan.bed_used,
+                           # «نام فيه طفل؟» مرة واحدة للشاشة، مش مرة لكل
+                           # سرير — والمسح نفسه بيسأل من جديد.
+                           deletable=partial(ward_plan.deletable, used=used),
+                           space_deletable=partial(ward_plan.space_deletable,
+                                                   used=used),
+                           bed_used=partial(ward_plan.bed_used, used=used),
                            units=ward.board(),
                            unit_kinds=UNIT_KINDS, space_kinds=SPACE_KINDS,
                            bed_kinds=BED_KINDS,
@@ -203,26 +231,71 @@ def set_rate():
     return redirect(url_for("beds.setup"))
 
 
-@beds_bp.route("/bed/<int:bed_id>/service", methods=["POST"])
-@module_required(MODULE)
-def bed_service(bed_id):
-    """Take a bed out of service, or bring it back.
+# ------------------------------------------------- closing for maintenance --
+#: القسم والحيّز والسرير — نفس الفورم للتلاتة، والمستوى جاي مع الطلب.
+_LEVELS = {"unit": Unit, "space": Space, "bed": Bed}
 
-    Never deleted. A deleted bed takes its stays with it, and last month's
-    occupancy is a number a hospital reports on. A bed with a child in it
-    cannot be taken out of service — the child is the reason it is not
-    available, and hiding the bed would hide them with it.
+
+def _place():
+    model = _LEVELS.get((request.form.get("level") or "").strip())
+    target_id = request.form.get("target_id", type=int)
+    return db.session.get(model, target_id) if model and target_id else None
+
+
+@beds_bp.route("/close", methods=["POST"])
+@module_required(MODULE)
+def close_place():
+    """يقفل قسم أو حيّز أو سرير للصيانة — **فترة بسبب، مش مفتاح**.
+
+    والسبب إجباري: إغلاق من غير سبب هو الصف اللي حد هيبصّ عليه بعد شهر
+    ومش هيعرف يفتحه. والميعاد اختياري، لأن «مش عارفين هيخلص امتى» إجابة
+    حقيقية. شوف ``utils/closures``.
     """
+    from app.utils import closures
+    from app.utils.export import parse_date
+
     _admin_only()
-    bed = Bed.query.get_or_404(bed_id)
-    if bed.is_active and bed.id in ward.occupied_bed_ids():
+    place = _place()
+    if place is None:
+        flash(t("closures.not_found"), "error")
+        return redirect(url_for("beds.setup"))
+    try:
+        closures.close(place, request.form.get("reason"),
+                       until=parse_date(request.form.get("until")),
+                       note=(request.form.get("note") or "")[:200],
+                       user=current_user)
+    except closures.Occupied:
+        # القاعدة القديمة زي ما هي: سرير فيه طفل مش متاح أصلاً، وإخراجه
+        # من الخدمة بيخفيه هو والطفل اللي فيه.
         flash(t("beds.occupied_bed"), "error")
         return redirect(url_for("beds.setup"))
-    bed.is_active = not bed.is_active
-    bed.out_of_service_note = (
-        (request.form.get("note") or "").strip()[:120] or None
-        if not bed.is_active else None)
+    except ValueError:
+        flash(t("closures.need_reason"), "error")
+        return redirect(url_for("beds.setup"))
     db.session.commit()
+    flash(t("closures.closed_done"), "success")
+    return redirect(url_for("beds.setup"))
+
+
+@beds_bp.route("/reopen", methods=["POST"])
+@module_required(MODULE)
+def reopen_place():
+    """يفتح اللي اتقفل — **وبيرفض لو اللي فوقه لسه مقفول**، لأن سرير
+    بيبان فاضي في عنبر داخل صيانة زرار بيكدب."""
+    from app.utils import closures
+
+    _admin_only()
+    place = _place()
+    if place is None:
+        flash(t("closures.not_found"), "error")
+        return redirect(url_for("beds.setup"))
+    try:
+        closures.reopen(place, user=current_user)
+    except closures.Stuck:
+        flash(t("closures.stuck"), "error")
+        return redirect(url_for("beds.setup"))
+    db.session.commit()
+    flash(t("closures.reopened_done"), "success")
     return redirect(url_for("beds.setup"))
 
 
