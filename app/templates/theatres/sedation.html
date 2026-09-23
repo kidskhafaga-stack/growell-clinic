@@ -13,6 +13,19 @@
     <i class="bi bi-heart-pulse"></i> {{ t('recovery.title') }}</a>
 </div>
 
+{# `SAS.20` (ح): حالته قبل ما يخرج من الإفاقة «حسب معايير محدّدة». المعايير
+   بتاعة المستشفى، ومن غيرها الشاشة بتقول كده مرة واحدة هنا — مش على كل صف،
+   لأن دي فجوة العيادة مش فجوة الطفل. #}
+{% if criteria %}
+<p class="info-note" style="margin-bottom:12px;" data-recovery-criteria>
+  <i class="bi bi-clipboard2-check"></i> <strong>{{ t('sedation.criteria_title') }}:</strong>
+  <span dir="auto">{{ criteria }}</span></p>
+{% else %}
+<p class="alert-pill warn" style="margin-bottom:12px;" data-recovery-criteria-unset>
+  <i class="bi bi-exclamation-circle"></i> {{ t('sedation.criteria_unset') }}
+  {% if current_user.is_admin %}<a href="{{ url_for('settings.risks') }}">{{ t('sedation.criteria_set') }}</a>{% endif %}</p>
+{% endif %}
+
 {# محدّش أخد قراية من مدة. `SAS.17` بيقول *regularly* وما بيدّيش رقم،
    فالعيادة بتكتبه والشاشة ساكتة لحد ما تكتبه. #}
 {% if unwatched %}
@@ -132,6 +145,28 @@
             <input class="input" style="flex:1 1 150px;" name="unusual_event"
                    value="{{ row.unusual_event or '' }}"
                    placeholder="{{ t('sedation.item_event') }}">
+            {% if row.kind == 'anaesthesia' and not row.in_theatre %}
+            {# `SAS.20` (د)–(و): اللي اتدّى **في الإفاقة** — سطر لوحده، لأن
+               مسكّن الإفاقة لو اتكتب في خانة المسرح بيتقري إنه اتدّى تحت البنج. #}
+            <div style="flex-basis:100%;display:flex;gap:8px;flex-wrap:wrap;align-items:end;"
+                 data-recovery-given="{{ row.id }}">
+              <span class="hint" style="flex-basis:100%;margin:0;">{{ t('sedation.in_recovery_given') }}</span>
+              <input class="input" style="flex:2 1 200px;" name="recovery_drugs"
+                     value="{{ row.recovery_drugs or '' }}"
+                     placeholder="{{ t('sedation.item_recovery_drugs') }}">
+              <input class="input" style="flex:0 1 90px;" type="number" min="0"
+                     name="recovery_fluids_in_ml"
+                     value="{{ row.recovery_fluids_in_ml if row.recovery_fluids_in_ml is not none else '' }}"
+                     placeholder="{{ t('sedation.fluids_in') }}">
+              <input class="input" style="flex:0 1 90px;" type="number" min="0"
+                     name="recovery_fluids_out_ml"
+                     value="{{ row.recovery_fluids_out_ml if row.recovery_fluids_out_ml is not none else '' }}"
+                     placeholder="{{ t('sedation.fluids_out') }}">
+              <input class="input" style="flex:1 1 110px;" name="recovery_blood"
+                     value="{{ row.recovery_blood or '' }}"
+                     placeholder="{{ t('sedation.item_recovery_blood') }}">
+            </div>
+            {% endif %}
             <button class="btn btn-sm btn-outline gc-press" type="submit">
               <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
           </form>
@@ -146,6 +181,16 @@
                    placeholder="{{ t('sedation.item_recovery_score') }}">
             <input class="input" style="flex:1 1 160px;" name="event"
                    placeholder="{{ t('sedation.item_recovery_event') }}">
+            {% if criteria %}
+            {# (ح) — اتحقّقت ولا لأ. «لأ» إجابة حقيقية (طفل اتنقل للرعاية
+               المركزة)، و«محدّش قال» حاجة تالتة. #}
+            <select class="input" style="flex:0 1 170px;" name="criteria_met"
+                    data-criteria-met="{{ row.id }}">
+              <option value="">{{ t('sedation.item_recovery_criteria') }}</option>
+              <option value="yes">{{ t('sedation.criteria_met') }}</option>
+              <option value="no">{{ t('sedation.criteria_not_met') }}</option>
+            </select>
+            {% endif %}
             {% endif %}
             <select class="input" style="flex:0 1 150px;" name="disposition" required>
               <option value="">{{ t('sedation.item_disposition') }}</option>

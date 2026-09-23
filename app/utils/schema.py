@@ -680,6 +680,14 @@ ADDITIONS = [
     ("patients", "archive_exempt", "BOOLEAN"),
     ("patients", "archive_exempt_by", "INTEGER"),
     ("patients", "archive_exempt_at", "DATETIME"),
+    # `SAS.20` — الإفاقة بعد تخدير: الأدوية والسوايل والدم **اللي اتدّوا في
+    # الإفاقة**، والمعايير اتحقّقت ولا لأ. فاضيين على كل سجل قديم، وده
+    # الصح: محدّش سأل السؤال ده لسه.
+    ("sedation_records", "recovery_drugs", "TEXT"),
+    ("sedation_records", "recovery_fluids_in_ml", "INTEGER"),
+    ("sedation_records", "recovery_fluids_out_ml", "INTEGER"),
+    ("sedation_records", "recovery_blood", "VARCHAR(200)"),
+    ("sedation_records", "recovery_criteria_met", "BOOLEAN"),
 ]
 
 def apply_schema(report=None):

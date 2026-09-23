@@ -131,6 +131,20 @@
       </div>
     </div>
 
+    {# وسادسة، مش رقم: `SAS.20` (ح) — حالة الطفل قبل ما يخرج من الإفاقة
+       *"according to defined criteria"*. المعايير بتاعة المستشفى (مقياس
+       وحدّه)، والبرنامج ما بيختارش مقياس. فاضية = شاشة الإفاقة بتقول إنها
+       ما اتكتبتش. #}
+    <div class="form-row" style="border-top:1px solid var(--line);padding-top:12px;"
+         data-recovery-criteria-policy>
+      <label for="recovery_criteria">
+        <strong>{{ t('sedation.criteria_title') }}</strong>
+        <span class="hint" dir="ltr">SAS.20</span></label>
+      <textarea class="input" id="recovery_criteria" name="recovery_criteria"
+                rows="2" maxlength="500" style="max-width:520px;">{{ recovery_criteria }}</textarea>
+      <div class="hint">{{ t('sedation.criteria_hint') }}</div>
+    </div>
+
     <button class="btn btn-primary gc-press" type="submit" style="margin-top:14px;">
       <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
   </form>
