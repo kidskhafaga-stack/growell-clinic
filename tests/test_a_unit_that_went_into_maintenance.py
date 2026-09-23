@@ -596,7 +596,7 @@ def test_the_reasons_are_there_the_first_time_the_screen_opens(clinic):
     assert 'value="maintenance"' in form
 
 
-def test_the_screen_asks_once_not_once_per_bed(clinic):
+def test_the_screen_asks_once_not_once_per_bed(clinic, bell_held_warm):
     """**استعلام واحد للشاشة كلها.** نفس المستشفى بسريرين أو بعشرين لازم
     تكلّف نفس عدد الاستعلامات — وإلا ستين سرير يبقوا ستين سؤال."""
     from sqlalchemy import event
@@ -604,6 +604,11 @@ def test_the_screen_asks_once_not_once_per_bed(clinic):
     from app.models import Bed
 
     def count_queries():
+        # زي `test_one_place_for_medication_orders`: context مفتوح من fixture
+        # بيخلّي الطلبات تتشارك جلسة، والرقم ساعتها بيقيس ده مش الصفحة.
+        from flask import has_app_context
+        assert not has_app_context(), (
+            "an app context is held open around this measurement")
         seen = []
         with clinic["app"].app_context():
             engine = clinic["db"].engine

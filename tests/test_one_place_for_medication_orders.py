@@ -38,7 +38,12 @@ def ward(clinic):
         beds = [Bed(space_id=room.id, name=f"سرير {i}") for i in (1, 2)]
         db.session.add_all(beds)
         db.session.commit()
-        yield {"beds": [b.id for b in beds]}
+        bed_ids = [b.id for b in beds]
+    # **بره الـcontext، مش جوّاه.** `yield` جوّه `with app_context()` بيسيب
+    # الـcontext مفتوح طول الاختبار، وكل طلب صفحة بيستعمله هو وجلسة قاعدة
+    # البيانات بتاعته — فعدّ الاستعلامات بيعتمد على امتى آخر commit حصل،
+    # مش على الصفحة. ده اللي وقّع الاختبار على CI بـ(74, 85).
+    yield {"beds": bed_ids}
 
 
 def _admit(clinic, bed_id, patient_id=None):
@@ -231,7 +236,7 @@ def test_the_front_desk_does_not_read_a_child_s_drugs(clinic, ward):
     assert "Phenytoin" not in page
 
 
-def test_the_file_asks_once_not_once_per_order(clinic, ward):
+def test_the_file_asks_once_not_once_per_order(clinic, ward, bell_held_warm):
     """**استعلام واحد للأوامر، والكاتب معاهم.** طفل عليه عشرين أمر لازم
     الملف يكلّف نفس اللي بيكلّفه طفل عليه أمر واحد."""
     from sqlalchemy import event
@@ -244,6 +249,13 @@ def test_the_file_asks_once_not_once_per_order(clinic, ward):
         stay_id = stay.id
 
     def count():
+        # كل طلب لازم ياخد context وجلسة بتوعه، زي على جهاز العيادة. لو فيه
+        # context مفتوح من fixture، الطلبات بتتشارك جلسة والرقم بيكدب —
+        # فالاختبار بيقول كده بدل ما يطلّع رقم محدّش فاهمه.
+        from flask import has_app_context
+        assert not has_app_context(), (
+            "an app context is held open around this measurement, so every "
+            "request shares one session — the count would measure that")
         seen = []
         hook = lambda *a, **k: seen.append(1)  # noqa: E731
         event.listen(engine, "before_cursor_execute", hook)
