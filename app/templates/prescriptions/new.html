@@ -440,6 +440,17 @@
             </div>
           </div>
           <div class="form-row"><label>{{ t('rx.inv_notes') }}</label><input class="input" name="inv_notes" x-model="inv.notes"></div>
+          {# `ICD.17` (هـ) — **الورقة دي هي اللي بتروح مركز الأشعة.** بتتبعت
+             دايماً (`x-show` مش `x-if`) علشان القوايم المتوازية تفضل على
+             نفس الصف: خانة ناقصة في النص بتزحّق كل اللي بعدها. #}
+          <div class="form-row" x-show="inv.kind === 'imaging'" x-cloak data-rx-inv-side>
+            <label>{{ t('orders.side') }}</label>
+            <select class="select" name="inv_side" x-model="inv.side">
+              <option value="">{{ t('orders.pick_side') }}</option>
+              {% for side in sides %}
+              <option value="{{ side }}">{{ t('orders.side_' ~ side) }}</option>
+              {% endfor %}
+            </select></div>
           {# Where it is being done. Prints on the paper the family walks out
              with, and the reason the clinic's own bench never sees it. #}
           <div class="form-row">
@@ -592,7 +603,7 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
     },
     invs: (prefillInvs || []).map(function(x){
       return {id: x.id || '', kind: x.kind || 'lab', name: x.name || '',
-              notes: x.notes || '', outside: !!x.outside};
+              notes: x.notes || '', outside: !!x.outside, side: x.side || ''};
     }),
     weight: prefillWeight || '',
     dx: prefillDx || '', dxCode: prefillDxCode || '',
@@ -733,7 +744,7 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
       });
       return v;
     },
-    addInv(kind){ this.invs.push(this.withInvPicker({id:'',kind:kind,name:'',notes:'',outside:false})); },
+    addInv(kind){ this.invs.push(this.withInvPicker({id:'',kind:kind,name:'',notes:'',outside:false,side:''})); },
     askInv(v){ v.picker.q = v.name; v.picker.search(); },
     applyInv(v, s){
       v.id=s.id; v.name=s.name; v.kind=s.kind;

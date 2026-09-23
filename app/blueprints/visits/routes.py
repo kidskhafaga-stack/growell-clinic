@@ -33,6 +33,7 @@ from app.models import (
     PatientAttachment,
     Service,
     Setting,
+    User,
     Visit,
     VisitInvestigation,
     VisitMedication,
@@ -47,6 +48,8 @@ from app.utils.icd import available_versions
 from app.utils import phrases
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
 from app.utils.clock import local_today
+from app.utils import order_check as _order_check
+from app.models.visit import SIDES as _SIDES
 
 MODULE = "visits"
 
@@ -401,6 +404,13 @@ def record(visit_id):
 
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
+        # `ICD.17` — كل طلب بيقول هو مين وليه، واللي ناقص بيتقفل على سطره.
+        order_missing=_order_check.missing,
+        order_orderer=_order_check.orderer,
+        order_needs_confirm=_order_check.needs_confirmation,
+        sides=_SIDES,
+        can_confirm_orders=User.sees_patients(current_user.role,
+                                              current_user.is_practitioner),
         panel_key=panel_key, panel=panel_meta,
         panel_choices=_panels.choices(getattr(g, "lang", "ar")),
         panel_readings=_panels.all_readings(visit),
@@ -1018,6 +1028,12 @@ def add_investigation(visit_id):
     outside = _labs.goes_outside(catalogue,
                                  asked=(asked == "1") if asked is not None
                                  else None)
+    # `ICD.17` (هـ) — الناحية للأشعة بس، ومن القايمة بس. اللي جاي فاضي
+    # بيتساب فاضي ويتقال ناقص على سطر الطلب — مش بيترفض: الطلب الساعة
+    # تلاتة الفجر بيتكتب، والبرنامج اللي بيرفضه بيتلفّ حواليه بالورق.
+    from app.models.visit import SIDES
+
+    side = (request.form.get("laterality") or "").strip()
     db.session.add(VisitInvestigation(
         visit_id=visit.id, patient_id=visit.patient_id,
         investigation_id=inv_id, kind=kind, name=name, name_en=name_en or None,
@@ -1025,6 +1041,9 @@ def add_investigation(visit_id):
         done_outside=outside,
         outside_place=((request.form.get("outside_place") or "").strip()[:160]
                        or None) if outside else None,
+        # (أ) و(و) — **من اللوج، مش من فورم**: صفر كتابة، وما بيتزوّرش.
+        ordered_by=current_user.id,
+        laterality=side if (kind == "imaging" and side in SIDES) else None,
     ))
     db.session.commit()
     flash(t("visits.inv_added"), "success")
@@ -1552,6 +1571,72 @@ def move_investigation(inv_id):
     db.session.commit()
     flash(t("visits.inv_where_saved"), "success")
     return redirect(url_for("visits.record", visit_id=inv.visit_id) + "#inv")
+
+
+@visits_bp.route("/investigations/<int:inv_id>/side", methods=["POST"])
+@module_required(MODULE)
+def investigation_side(inv_id):
+    """`ICD.17` (هـ) — الناحية على طلب اتكتب من غيرها.
+
+    **على نفس السطر اللي بيقول إنها ناقصة**: اللي شاف الفجوة هو اللي
+    بيقفلها، مش بيتبعت لشاشة تانية يدوّر فيها على الطلب.
+    """
+    from app.utils import order_check
+
+    inv = db.get_or_404(VisitInvestigation, inv_id)
+    try:
+        order_check.set_side(inv, request.form.get("laterality"))
+    except ValueError:
+        flash(t("orders.bad_side"), "error")
+        return redirect(url_for("visits.record", visit_id=inv.visit_id) + "#inv")
+    db.session.commit()
+    flash(t("orders.side_saved"), "success")
+    return redirect(url_for("visits.record", visit_id=inv.visit_id) + "#inv")
+
+
+@visits_bp.route("/investigations/<int:inv_id>/confirm", methods=["POST"])
+@module_required(MODULE)
+def confirm_investigation(inv_id):
+    """`ICD.17` (و) — الطبيب بيأكّد طلب حد تاني دخّله.
+
+    واللي دخّله ما يأكّدوش، والمأكّد لازم يكون بيشوف مرضى — الاتنين في
+    ``order_check.confirm``، والرفض بيقول السبب.
+    """
+    from app.utils import order_check
+
+    inv = db.get_or_404(VisitInvestigation, inv_id)
+    try:
+        order_check.confirm(inv, current_user)
+    except PermissionError:
+        flash(t("orders.cannot_confirm"), "error")
+        return redirect(url_for("visits.record", visit_id=inv.visit_id) + "#inv")
+    db.session.commit()
+    flash(t("orders.confirmed"), "success")
+    return redirect(url_for("visits.record", visit_id=inv.visit_id) + "#inv")
+
+
+@visits_bp.route("/requests/incomplete")
+@module_required(MODULE)
+def incomplete_requests():
+    """`ICD.17` دليل ٣ — *a process to evaluate the completeness of orders*.
+
+    الطلبات الناقصة في آخر ٣٠ يوم، ولكل واحد إيه اللي ناقص ولينك لزيارته
+    — اللي بيراجع بيفتح الزيارة ويقفل الفجوة من هناك.
+
+    **وقفل الخصوصية فوقها**: طبيب مقفول على زياراته بيشوف طلباته بس، زي
+    قايمة الزيارات بالظبط.
+    """
+    from app.utils import order_check
+    from app.utils.privacy import doctor_locked_id
+
+    rows = order_check.incomplete(days=30)
+    locked = doctor_locked_id()
+    if locked:
+        rows = [(row, gaps) for row, gaps in rows
+                if row.visit is not None
+                and row.visit.doctor_id in (None, locked)]
+    return render_template("visits/incomplete_requests.html", rows=rows,
+                           orderer=order_check.orderer)
 
 
 @visits_bp.route("/investigations/<int:inv_id>/delete", methods=["POST"])

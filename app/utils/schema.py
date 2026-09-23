@@ -215,6 +215,13 @@ ADDITIONS = [
     ("visit_investigations", "collected_by", "INTEGER"),
     ("visit_investigations", "resulted_by", "INTEGER"),
     ("visit_investigations", "invoice_item_id", "INTEGER"),
+    # `ICD.17` — مين طلب، ومين أكّد لو غيره، وأنهي ناحية للأشعة. الصفوف
+    # القديمة بتاخدهم فاضيين، والفراغ معناه «محدّش سجّل» — مش «ناقص».
+    ("visit_investigations", "ordered_by", "INTEGER"),
+    ("visit_investigations", "confirmed_by", "INTEGER"),
+    ("visit_investigations", "confirmed_at", "DATETIME"),
+    ("visit_investigations", "laterality", "VARCHAR(8)"),
+    ("prescription_investigations", "laterality", "VARCHAR(8)"),
     # `PCC.12` — «اتسأل عن احتياجاته ولا لأ». فاضي في كل ملف موجود، وده
     # الصح: محدّش سأل لسه.
     ("patients", "needs_asked_at", "DATETIME"),

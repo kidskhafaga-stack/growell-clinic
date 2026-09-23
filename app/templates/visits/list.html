@@ -25,6 +25,10 @@
     {# نفس الرفّ بالظبط: ورقة راحت لمستشفى تانية ومحدّش قفل الدايرة. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('visits.referrals') }}">
       <i class="bi bi-hospital"></i> {{ t('referrals.title') }}</a>
+    {# `ICD.17` — طلب تحليل أو أشعة ناقصه اسم اللي طلبه، أو سببه، أو ناحيته.
+       نفس الرفّ: حاجة اتبدأت في كشف ومحدّش قفلها. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('visits.incomplete_requests') }}">
+      <i class="bi bi-clipboard2-x"></i> {{ t('orders.incomplete_title') }}</a>
   </div>
 </div>
 

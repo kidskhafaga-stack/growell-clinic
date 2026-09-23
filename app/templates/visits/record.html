@@ -1037,8 +1037,10 @@
       {% for x in visit.investigations %}
       <div style="border:1px solid var(--line);border-radius:10px;padding:12px;">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <span class="badge {{ 'badge--role' if x.kind=='lab' else 'badge--muted' }}">{{ t('rx.inv_lab') if x.kind=='lab' else t('rx.inv_imaging') }}</span>
-          <strong style="flex:1;">{{ x.display_name(current_lang) }}{% if x.request_notes %} <span style="color:var(--muted);font-weight:400;">— {{ x.request_notes }}</span>{% endif %}</strong>
+          {# The kind as the catalogue names it. This read «lab, else
+             imaging», so an ECG — the third kind — was labelled an X-ray. #}
+          <span class="badge {{ 'badge--role' if x.kind=='lab' else 'badge--muted' }}">{{ t('rx.inv_' ~ x.kind) }}</span>
+          <strong style="flex:1;">{{ x.display_name(current_lang) }}{% if x.laterality %} · <span data-inv-side-shown>{{ t('orders.side_' ~ x.laterality) }}</span>{% endif %}{% if x.request_notes %} <span style="color:var(--muted);font-weight:400;">— {{ x.request_notes }}</span>{% endif %}</strong>
           {{ inv_files.state_badge(x) }}
           {# Where it is being done, and the one press that changes it. The
              family decides this after the order is written as often as
@@ -1062,6 +1064,41 @@
           <form method="post" action="{{ url_for('visits.delete_investigation', inv_id=x.id) }}" style="display:inline;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
+        </div>
+        {# `ICD.17` — مين طلب، وإيه اللي ناقص، **والقفل على نفس السطر**:
+           اللي شاف الفجوة هو اللي بيقفلها. #}
+        {% set who, who_from = order_orderer(x) %}
+        {% set gaps = order_missing(x) %}
+        <div class="hint" style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"
+             data-inv-order="{{ x.id }}">
+          <span>{{ t('orders.ordered_by') }}:
+            {{ who.display_name(current_lang) if who else '—' }}{% if who_from == 'visit' %} <span class="badge badge--muted">{{ t('orders.from_visit') }}</span>{% endif %}</span>
+          <span dir="ltr">{{ x.created_at|clinic_stamp }}</span>
+          {% if x.confirmed_at %}<span class="badge badge--green" data-inv-confirmed>{{ t('orders.confirmed_by') }} {{ x.confirmer.display_name(current_lang) if x.confirmer else '' }}</span>{% endif %}
+          {% for gap in gaps %}
+          <span class="badge badge--warn" data-inv-missing="{{ gap }}">{{ t('orders.missing_' ~ gap) }}</span>
+          {% endfor %}
+          {% if 'side' in gaps %}
+          <form method="post" style="display:inline-flex;gap:6px;align-items:center;"
+                action="{{ url_for('visits.investigation_side', inv_id=x.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <select class="select" name="laterality" required style="max-width:150px;">
+              <option value="">{{ t('orders.pick_side') }}</option>
+              {% for side in sides %}
+              <option value="{{ side }}">{{ t('orders.side_' ~ side) }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-outline btn-sm gc-press" type="submit" data-inv-set-side>{{ t('common.save') }}</button>
+          </form>
+          {% endif %}
+          {% if order_needs_confirm(x) and can_confirm_orders and x.ordered_by != current_user.id %}
+          <form method="post" style="display:inline;"
+                action="{{ url_for('visits.confirm_investigation', inv_id=x.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-primary btn-sm gc-press" type="submit" data-inv-confirm>
+              <i class="bi bi-check2"></i> {{ t('orders.confirm') }}</button>
+          </form>
+          {% endif %}
         </div>
         {{ inv_files.files_block(x, linkable_files) }}
         <details style="margin-top:8px;" {{ 'open' if x.has_result else '' }}>
@@ -1115,6 +1152,18 @@
                ECG at all: the kind exists and the box that writes
                it does not offer it. #}
             <option value="diagnostic">{{ t('rx.inv_diagnostic') }}</option>
+          </select></div>
+        {# `ICD.17` (هـ) — **الناحية للأشعة بس.** «أشعة ساعد» من غير يمين
+           ولا شمال بتتنفّذ على الناحية الغلط. ومن الاختيارات «مالهاش ناحية»،
+           علشان أشعة صدر تتقفل من غير ما تتقري ناقصة. `x-show` مش `x-if`:
+           الخانة بتتبعت دايماً، والسيرفر بيسيبها لو الطلب مش أشعة. #}
+        <div class="form-row" x-show="kind === 'imaging'" x-cloak data-inv-side>
+          <label>{{ t('orders.side') }}</label>
+          <select class="select" name="laterality">
+            <option value="">{{ t('orders.pick_side') }}</option>
+            {% for side in sides %}
+            <option value="{{ side }}">{{ t('orders.side_' ~ side) }}</option>
+            {% endfor %}
           </select></div>
         {# Always submitted, never a bare checkbox: nothing is sent for an
            unticked box, and the route has to tell «قال لأ» from «محدش سأل» —
