@@ -943,7 +943,9 @@
     "icd_loaded": "Searching {v}. Anything not listed: type the code and name yourself and pick the version.",
     "proc_on_a_plan": "Careful: \"{what}\" is already on an accepted treatment plan for this child, and the plan has been billed for it. If this is extra work outside the plan, carry on.",
     "inv_where_saved": "Where it is done was recorded",
-    "inv_where_too_late": "This order already has a result — where it was done is part of what happened, not a plan to revise."
+    "inv_where_too_late": "This order already has a result — where it was done is part of what happened, not a plan to revise.",
+    "search_ph": "Child's name, file number or phone",
+    "no_match": "No visits match these filters"
   },
   "diagnosis_types": {
     "working": "Working",

@@ -1,6 +1,7 @@
 {% extends "shell.html" %}
 {% from "patients/_macros.html" import patient_avatar with context %}
 {% from "_pagination.html" import render_pagination with context %}
+{% import "_pickers.html" as pickers with context %}
 {% set active_module = 'visits' %}
 {% block title %}{{ t('visits.title') }}{% endblock %}
 {% block page_heading %}{{ t('visits.title') }}{% endblock %}
@@ -25,6 +26,35 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('visits.referrals') }}">
       <i class="bi bi-hospital"></i> {{ t('referrals.title') }}</a>
   </div>
+</div>
+
+{# **التلاتة اللي حد فاكرهم فعلاً**: الطفل، والطبيب، والفترة. القايمة
+   كانت صفحات بالترتيب وبس — ومستشفى فيها آلاف الزيارات كانت بتدوّر
+   بالتقليب. والشريط تحت بيشيل الفلاتر معاه من صفحة للتانية. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <form method="get" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;"
+        data-visit-filters>
+    <div class="form-row" style="margin:0;flex:1;min-width:200px;">
+      <label>{{ t('appointments.patient') }}</label>
+      <input class="input" type="search" name="q" value="{{ f_q }}"
+             placeholder="{{ t('visits.search_ph') }}"></div>
+    <div class="form-row" style="margin:0;max-width:220px;">
+      <label>{{ t('visits.by_doctor') }}</label>
+      {{ pickers.doctor_picker('doctor_id', f_doctor, None, doctors=doctors,
+                               allow_all=True, autosubmit=False) }}</div>
+    <div class="form-row" style="margin:0;max-width:160px;">
+      <label>{{ t('data_export.from') }}</label>
+      <input class="input" type="date" name="from" value="{{ f_from }}"></div>
+    <div class="form-row" style="margin:0;max-width:160px;">
+      <label>{{ t('data_export.to') }}</label>
+      <input class="input" type="date" name="to" value="{{ f_to }}"></div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-search"></i> {{ t('common.search') }}</button>
+    {% if filtered %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('visits.index') }}">
+      {{ t('common.reset') }}</a>
+    {% endif %}
+  </form>
 </div>
 
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.1s;">
@@ -59,7 +89,10 @@
     </tbody>
   </table>
   {% else %}
-  <div class="empty-state"><i class="bi bi-clipboard2-pulse"></i>{{ t('visits.no_visits') }}</div>
+  {# «مفيش زيارات» على بحث ماطلعش حاجة كدب: الزيارات موجودة، الفلتر هو
+     اللي ضيّق. #}
+  <div class="empty-state"><i class="bi bi-clipboard2-pulse"></i>
+    {{ t('visits.no_match') if filtered else t('visits.no_visits') }}</div>
   {% endif %}
   {{ render_pagination(pagination) }}
 </div>

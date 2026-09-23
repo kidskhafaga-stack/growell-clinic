@@ -83,9 +83,23 @@ def _int(name):
 
 
 # --------------------------------------------------------------- index -----
-@visits_bp.route("/")
-@module_required(MODULE)
-def index():
+def _filtered_visits():
+    """الزيارات اللي فلاتر الشاشة بتوصفها.
+
+    *"فى مستشفى بيجلها الاف الزيارات مش طبيعي ان الناس تقعد تدور على
+    زيارة."* القايمة كانت صفحات بالترتيب وبس — يعني زيارة من أسبوعين
+    لدكتورة معيّنة كانت بتتلاقى بالتقليب.
+
+    فالفلاتر هي التلاتة اللي حد فاكرهم فعلاً: **الطفل** (بالاسم أو رقم
+    الملف أو التليفون — نفس البحث اللي في كل شاشة مرضى، مش نسخة تانية
+    منه)، **والطبيب**، **والفترة**.
+
+    **وقفل الخصوصية بيفضل فوق الفلاتر، مش جنبها.** طبيب مقفول على
+    زياراته بس (`doctor_locked_id`) ما يقدرش يوسّع اللي بيشوفه باختيار
+    طبيب تاني من الفلتر: الشرطين بيتجمعوا بـ«و»، و«و» ما بتوسّعش أبداً.
+    """
+    from app.utils.export import parse_date
+    from app.utils.patients import apply_patient_search
     from app.utils.privacy import doctor_locked_id
 
     query = Visit.query
@@ -93,15 +107,50 @@ def index():
     if locked:
         query = query.filter(or_(Visit.doctor_id == locked,
                                  Visit.doctor_id.is_(None)))
+
+    doctor_id = request.args.get("doctor_id", type=int)
+    if doctor_id:
+        query = query.filter(Visit.doctor_id == doctor_id)
+
+    start = parse_date(request.args.get("from"))
+    end = parse_date(request.args.get("to"))
+    # «من ١٥ لـ١» غلطة كتابة مش طلب فاضي — قايمة فاضية هنا شكلها زي
+    # «مفيش زيارات»، وده كدب.
+    if start and end and start > end:
+        start, end = end, start
+    if start:
+        query = query.filter(Visit.visit_date >= start)
+    if end:
+        query = query.filter(Visit.visit_date <= end)
+
+    needle = (request.args.get("q") or "").strip()
+    if needle:
+        query = apply_patient_search(
+            query.join(Patient, Visit.patient_id == Patient.id), needle)
+    return query
+
+
+@visits_bp.route("/")
+@module_required(MODULE)
+def index():
     # The list prints each visit's patient and its diagnoses.
     from sqlalchemy.orm import selectinload
 
+    from app.utils.appointments import list_doctors
+
     pagination = paginate(
-        query.options(selectinload(Visit.patient),
-                      selectinload(Visit.diagnoses))
+        _filtered_visits()
+        .options(selectinload(Visit.patient),
+                 selectinload(Visit.diagnoses))
         .order_by(Visit.created_at.desc()))
     return render_template(
-        "visits/list.html", visits=pagination.items, pagination=pagination
+        "visits/list.html", visits=pagination.items, pagination=pagination,
+        doctors=list_doctors(),
+        f_q=(request.args.get("q") or "").strip(),
+        f_from=request.args.get("from", ""), f_to=request.args.get("to", ""),
+        f_doctor=request.args.get("doctor_id", type=int),
+        filtered=any(request.args.get(k)
+                     for k in ("q", "from", "to", "doctor_id")),
     )
 
 
