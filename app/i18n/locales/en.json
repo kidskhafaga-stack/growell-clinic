@@ -7867,5 +7867,27 @@
     "running": "Running",
     "stopped": "Stopped",
     "open_stay": "The stay"
+  },
+  "needs": {
+    "title": "The child's and family's needs and preferences",
+    "title_short": "Needs & preferences",
+    "kind": "Kind",
+    "kind_emotional": "Emotional",
+    "kind_religious": "Religious",
+    "kind_spiritual": "Spiritual",
+    "kind_other": "Other preference",
+    "text": "In the family's words",
+    "text_ph": "e.g. afraid of needles — mother prefers a female doctor — no porcine gelatin",
+    "unasked": "Nobody has asked the family about their needs yet.",
+    "asked_none": "The family was asked and has no special needs.",
+    "mark_none": "Asked — none",
+    "asked_saved": "Recorded that the family was asked ✓",
+    "has_some": "There are needs on file — end them first if they no longer apply.",
+    "added": "Recorded ✓",
+    "need_words": "Write the need in the family's words.",
+    "end": "No longer applies",
+    "end_reason": "Why (optional)",
+    "ended": "Ended ✓",
+    "ended_on": "Ended"
   }
 }

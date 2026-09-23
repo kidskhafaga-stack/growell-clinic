@@ -222,6 +222,10 @@ ADDITIONS = [
     ("visit_investigations", "confirmed_at", "DATETIME"),
     ("visit_investigations", "laterality", "VARCHAR(8)"),
     ("prescription_investigations", "laterality", "VARCHAR(8)"),
+    # `PCC.12` — «اتسأل عن احتياجاته ولا لأ». فاضي في كل ملف موجود، وده
+    # الصح: محدّش سأل لسه.
+    ("patients", "needs_asked_at", "DATETIME"),
+    ("patients", "needs_asked_by", "INTEGER"),
     # The two dates a payer agreement is argued about: by when the claim must
     # be sent, and by when the money must come. Nullable, and that nullability
     # is the feature's switch — a clinic that types no term is warned about
