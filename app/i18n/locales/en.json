@@ -7831,5 +7831,14 @@
     "stuck": "It cannot be reopened on its own: the place above it is still closed.",
     "not_found": "No such place",
     "reopened_at": "Reopened"
+  },
+  "med_orders": {
+    "write_for_stay": "Order for this stay",
+    "inpatient_title": "Medication orders during stays",
+    "how_often": "How often",
+    "ordered_by": "Ordered by",
+    "running": "Running",
+    "stopped": "Stopped",
+    "open_stay": "The stay"
   }
 }

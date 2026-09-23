@@ -7831,5 +7831,14 @@
     "stuck": "مش ينفع يتفتح لوحده: اللي فوقه لسه مقفول.",
     "not_found": "المكان ده مش موجود",
     "reopened_at": "اتفتح"
+  },
+  "med_orders": {
+    "write_for_stay": "أمر دوا للإقامة",
+    "inpatient_title": "أوامر الدوا أثناء الإقامة",
+    "how_often": "كل قد إيه",
+    "ordered_by": "كتبه",
+    "running": "شغّال",
+    "stopped": "اتوقف",
+    "open_stay": "الإقامة"
   }
 }

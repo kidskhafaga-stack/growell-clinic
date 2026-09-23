@@ -1162,7 +1162,8 @@ def _ward_context(patient_id):
 
         return {"open_admission": None, "stays": [], "free_beds": [],
                 "has_beds": False, "summary_state": _summary.state,
-                "summary_missing": _summary.missing}
+                "summary_missing": _summary.missing,
+                "inpatient_orders": []}
     from app.models import Bed
 
     from app.utils import beds as ward
@@ -1186,7 +1187,34 @@ def _ward_context(patient_id):
             "summary_state": _summary.state,
             "summary_missing": _summary.missing,
             "free_beds": [] if admission else ward.free_beds(),
-            "has_beds": Bed.query.filter_by(is_active=True).first() is not None}
+            "has_beds": Bed.query.filter_by(is_active=True).first() is not None,
+            # `MMS.11` (ب) — **مكان واحد في الملف لأوامر الدوا.** الروشتات
+            # والأدوية اللي في البيت كانوا في تبويب واحد، وأوامر الإقامة كانت
+            # على شاشة الإقامة بس: دكتور بيشوف الطفل في العيادة بعد أسبوع من
+            # خروجه ما كانش يعرف من الملف اتدّاله إيه جوّه. فالتبويب بقى
+            # المكان الواحد اللي بيتقري منه — **والكتابة لسه في مكانها**:
+            # الأمر الداخلي على الإقامة، لأن الممرضة بتدّي منه.
+            "inpatient_orders": _inpatient_orders(patient_id)}
+
+
+def _inpatient_orders(patient_id):
+    """كل أمر دوا اتكتب للطفل ده وهو داخل — الشغّال الأول، بعدين الأحدث.
+
+    **استعلام واحد**، والكاتب بيتحمّل معاه: الشاشة بتكتب اسمه جنب كل أمر،
+    و`MMS.11` (هـ)(١١) بيطلب *physician's identification* على كل واحد.
+    """
+    from sqlalchemy.orm import selectinload
+
+    from app.models import MedicationOrder
+
+    rows = (MedicationOrder.query
+            .options(selectinload(MedicationOrder.orderer))
+            .filter(MedicationOrder.patient_id == patient_id)
+            .order_by(MedicationOrder.started_at.desc(),
+                      MedicationOrder.id.desc())
+            .all())
+    # الشغّال فوق: ده اللي حد بيدوّر عليه وهو فاتح الملف.
+    return sorted(rows, key=lambda row: row.stopped_at is not None)
 
 
 @patients_bp.route("/<int:patient_id>/report")
