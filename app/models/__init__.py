@@ -57,6 +57,7 @@ from app.models.record_review import (RecordReview, RecordReviewFinding,
 from app.models.surgical_count import (SurgicalCount,
                                       SurgicalCountItem)
 from app.models.operative_report import OperativeReport
+from app.models.specimen import Specimen
 from app.models.risk_assessment import RISK_KINDS, RiskAssessment
 from app.models.care_plan import (GOAL_PROGRESS, CarePlan,
                                   CarePlanGoal)
@@ -353,6 +354,7 @@ __all__ = [
     "SurgicalCount",
     "SurgicalCountItem",
     "OperativeReport",
+    "Specimen",
     "RiskAssessment",
     "RISK_KINDS",
     "CarePlan",

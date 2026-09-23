@@ -684,6 +684,114 @@
   </div>
 </div>
 
+{# ------------------------------------------- what came out of the child - #}
+{# GAHAR SAS.10. كل نسيج اتشال ليه طريق من اتنين بس: **مُعفى** بسطر من قايمة
+   المستشفى، أو **ليبل ← اتبعت ← النتيجة رجعت للملف**. واللي لا ده ولا ده
+   بيفضل ظاهر هنا وعلى لوحة الباثولوجي لحد ما يبقى واحد منهم.
+
+   والقايمة والمهلة بتوع المستشفى: قايمة فاضية يعني مفيش إعفاء — كله
+   بيتبعت — ومهلة فاضية يعني محدّش متأخر. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;" id="specimens" data-specimens>
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-eyedropper"></i> {{ t('specimen.title') }}
+    {% if report and report.specimen is sameas true and not specimens %}
+    {# تقرير العملية (ز) قال اتشال نسيج، ومفيش عيّنة متسجّلة — نسيج مالوش طريق. #}
+    <span class="alert-pill danger" data-specimen-untracked>
+      <i class="bi bi-exclamation-triangle"></i> {{ t('specimen.untracked') }}</span>
+    {% endif %}
+  </h2>
+  <p class="hint" style="margin:0 0 10px;">{{ t('specimen.hint') }}</p>
+
+  {% for sp in specimens %}
+  {% set st = specimen_state(sp) %}
+  <div class="card" style="padding:12px;margin-bottom:10px;" data-specimen="{{ sp.id }}" data-specimen-state="{{ st }}">
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;">
+      <div><b dir="auto">{{ sp.tissue }}</b>
+        <span class="hint" dir="ltr">{{ sp.taken_at|clinic_stamp }}</span></div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <span class="badge badge--{{ {'to_send': 'warn', 'sent': 'role', 'late': 'danger', 'resulted': 'green', 'exempt': 'muted'}[st] }}">
+          {{ t('specimen.state_' ~ st) }}</span>
+        {% if st != 'exempt' %}
+        <a class="btn btn-outline btn-sm gc-press" target="_blank" rel="noopener"
+           href="{{ url_for('theatres.specimen_label', specimen_id=sp.id) }}" data-specimen-label>
+          <i class="bi bi-upc"></i> {{ t('specimen.print_label') }}</a>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if st == 'exempt' %}
+    <p class="hint" style="margin:6px 0 0;" data-specimen-exempt-under>
+      {{ t('specimen.exempt_under') }}: <b>{{ exempt_label(sp.exempt_key) }}</b>
+      {% if sp.exempt_note %} · <span dir="auto">{{ sp.exempt_note }}</span>{% endif %}</p>
+
+    {% elif st == 'to_send' %}
+    <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;"
+          action="{{ url_for('theatres.send_specimen', specimen_id=sp.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="lab" maxlength="120" style="flex:1 1 180px;"
+             placeholder="{{ t('specimen.lab_ph') }}">
+      <label class="checkbox" style="font-weight:400;">
+        <input type="checkbox" name="labelled" value="1" required>
+        {{ t('specimen.labelled') }}</label>
+      <button class="btn btn-primary btn-sm gc-press" type="submit">
+        <i class="bi bi-send"></i> {{ t('specimen.send') }}</button>
+    </form>
+    {% if exempt_lines %}
+    {# الإعفاء من قايمة المستشفى بس — «unless requested by the physician»
+       معناها إن الطبيب يقدر دايماً يبعت، فالإرسال فوق والإعفاء اختيار تاني. #}
+    <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:6px;"
+          action="{{ url_for('theatres.exempt_specimen', specimen_id=sp.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <select class="select" name="key" required style="flex:0 1 220px;">
+        <option value="">{{ t('specimen.exempt_pick') }}</option>
+        {% for line in exempt_lines %}<option value="{{ line.key }}">{{ line.name_ar }}</option>{% endfor %}
+      </select>
+      <input class="input" name="note" maxlength="200" style="flex:1 1 160px;"
+             placeholder="{{ t('specimen.exempt_note_ph') }}">
+      <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('specimen.exempt') }}</button>
+    </form>
+    {% endif %}
+
+    {% elif st in ('sent', 'late') %}
+    {% set due = specimen_due(sp) %}
+    <p class="hint" style="margin:6px 0 0;">
+      {{ t('specimen.sent_to') }} {{ sp.lab or '—' }} ·
+      <span dir="ltr">{{ sp.sent_at|clinic_stamp }}</span>
+      {% if due %} · {{ t('specimen.due') }} <span dir="ltr">{{ due|clinic_stamp('%Y-%m-%d') }}</span>{% endif %}</p>
+    <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;"
+          action="{{ url_for('theatres.specimen_result', specimen_id=sp.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <textarea class="input" name="result" rows="2" required style="flex:2 1 260px;"
+                placeholder="{{ t('specimen.result_ph') }}"></textarea>
+      <div class="form-row" style="margin:0;"><label>{{ t('specimen.result_on') }}</label>
+        <input class="input" type="datetime-local" name="result_on" dir="ltr"></div>
+      <button class="btn btn-primary btn-sm gc-press" type="submit">
+        <i class="bi bi-clipboard2-check"></i> {{ t('specimen.save_result') }}</button>
+    </form>
+
+    {% else %}
+    <p style="margin:8px 0 0;white-space:pre-wrap;" dir="auto" data-specimen-result>{{ sp.result_text }}</p>
+    <p class="hint" style="margin:4px 0 0;">{{ t('specimen.result_on') }}
+      <span dir="ltr">{{ sp.result_on|clinic_stamp }}</span>
+      {% if sp.lab %} · {{ sp.lab }}{% endif %}</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  {% if operation.status != 'cancelled' %}
+  <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;"
+        action="{{ url_for('theatres.add_specimen', operation_id=operation.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;flex:1 1 240px;">
+      <label for="sp_tissue">{{ t('specimen.tissue') }}</label>
+      <input class="input" id="sp_tissue" name="tissue" maxlength="160" required
+             placeholder="{{ t('specimen.tissue_ph') }}"></div>
+    <button class="btn btn-outline gc-press" type="submit">
+      <i class="bi bi-plus-lg"></i> {{ t('specimen.add') }}</button>
+  </form>
+  {% endif %}
+</div>
+
 {# --------------------------------------- what is left inside the child -- #}
 {# SAS.06 (ز) asks one half — is the implant here before the patient is called
    for — and SAS.11 the other: what went in, **with its batch number**, so a

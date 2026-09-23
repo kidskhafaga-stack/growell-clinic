@@ -83,6 +83,9 @@
        كامل ولا لأ» — و`SAS.23` دليل ٤ بيطلب إنه **يكون كامل**. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('theatres.sedation_board') }}">
       <i class="bi bi-lungs"></i> {{ t('sedation.title') }}</a>
+    {# SAS.10 — كل نسيج اتشال لسه في طريقه، والمتأخر الأول. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('theatres.pathology') }}">
+      <i class="bi bi-eyedropper"></i> {{ t('specimen.board_title') }}</a>
     {% if may_build %}
     {# «accessible to and used by staff involved in booking» (WFM.12, evidence
        4) — so it is reached from the screen the booking form is on, not

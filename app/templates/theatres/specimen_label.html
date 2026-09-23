@@ -1,0 +1,38 @@
+<!doctype html>
+<html dir="{{ direction }}" lang="{{ current_lang }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ t('specimen.label_title') }} — {{ specimen.tissue }}</title>
+  {# GAHAR SAS.10: *"labeled with the date and time, patient identification,
+     and tissue type"*. The three things, in that order of how a lab reads
+     them — and **two** identifiers for the child (name and file number),
+     because a name alone is exactly what two children in one ward share.
+     Sized for a small sticker and printed straight away. #}
+  <style>
+    @page { size: 70mm 40mm; margin: 2mm; }
+    * { box-sizing: border-box; }
+    body { width: 66mm; margin: 0 auto; color: #000;
+      font-family: "Tahoma", "Arial", sans-serif; font-size: 11px; line-height: 1.35; }
+    .name { font-weight: 700; font-size: 13px; }
+    .row { display: flex; justify-content: space-between; gap: 6px; }
+    .tissue { font-weight: 700; font-size: 12px; border-top: 1px solid #000;
+      margin-top: 3px; padding-top: 2px; }
+    .muted { font-size: 9.5px; }
+    @media screen { body { box-shadow: 0 0 0 1px #ccc; padding: 3mm; margin: 22px auto; } }
+  </style>
+</head>
+<body onload="setTimeout(function(){ window.print(); }, 200);" data-specimen-label-page>
+  {% set child = specimen.patient %}
+  <div class="name" data-label-name>{{ child.display_name(current_lang) }}</div>
+  <div class="row">
+    <span data-label-file>{{ t('patients.file_no') }} <b dir="ltr">{{ child.patient_number }}</b></span>
+    <span dir="ltr" data-label-dob>{{ child.date_of_birth }}</span>
+  </div>
+  <div class="row">
+    <span>{{ t('specimen.taken') }}</span>
+    <span dir="ltr" data-label-taken>{{ specimen.taken_at|clinic_stamp }}</span>
+  </div>
+  <div class="tissue" dir="auto" data-label-tissue>{{ specimen.tissue }}</div>
+  <div class="muted" dir="auto">{{ specimen.operation.procedure }}</div>
+</body>
+</html>
