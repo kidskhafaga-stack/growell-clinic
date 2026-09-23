@@ -8042,5 +8042,17 @@
     "not_saved": "The plan was not saved.",
     "saved": "Post-operative plan saved.",
     "saved_short": "Plan saved — {n} item(s) missing."
+  },
+  "stay": {
+    "no_bed": "No bed",
+    "closed": "Discharged",
+    "length": "{d} d · {h} h",
+    "arrest": "Resuscitation",
+    "attention": "Needs attention",
+    "tab_overview": "Stay",
+    "tab_care": "Nursing & assessment",
+    "tab_treatment": "Treatment",
+    "tab_safety": "Restraint & resuscitation",
+    "tab_discharge": "Discharge"
   }
 }

@@ -5,16 +5,139 @@
 {% block page_heading %}{{ t('beds.stay') }}{% endblock %}
 
 {% block content %}
-<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
-  <div>
-    <h1 class="page-title"><i class="bi bi-hospital"></i>
-      {{ admission.patient.display_name(current_lang) }}</h1>
-    <p class="page-sub" style="margin:0;">
-      {{ t('beds.admitted_at') }}
-      <span dir="ltr">{{ admission.admitted_at|clinic_stamp }}</span>
-      {% if admission.reason %} · {{ admission.reason }}{% endif %}</p>
+{# ======================================================================
+   ورقة الإقامة — مترتّبة في خمس تبويبات بدل عشرين كارت تحت بعض.
+
+   *"الحته دي حلوه بس محتاجه شوية انيماشن وتبقى منظمة اكثر واكثر احترافية
+   وتبقى تجربة مستخدم سهلة"*. الكروت نفسها ما اتغيّرتش من جوّه — اللي
+   اتغيّر ترتيبها وطريق الوصول ليها:
+
+   * **رأس بيقول الأساسي في سطر**: مين الطفل، فين، بقاله كام، ومين مسؤول —
+     ودي الأسئلة اللي أي حد فاتح الورقة بيسألها الأول.
+   * **«محتاج انتباه»** بيتجمّع **من الصفحة نفسها** — أي كارت فيه تنبيه
+     أحمر أو أصفر بيظهر هنا بزرار بيودّي له. مش قايمة مكتوبة بالإيد جنب
+     الكروت، علشان ما تقعش من التزامن معاها زي ما حصل في الملف.
+   * **خمس تبويبات** بعدد اللي محتاج انتباه في كل واحدة.
+   * **العنوان بيفتح التبويب الصح.** `#pain` و`#medicines` و`#arrest`
+     وغيرهم أقسام جوّه تبويبات — وأي اسم مش معروف بيرجع للأولى بدل ما
+     يخبّي الصفحة كلها (`tests/test_a_stay_you_can_find_your_way_in.py`).
+   * **وبعد الحفظ بيرجع لنفس التبويب.** معظم الفورمز بترجع من غير
+     عنوان، فالتبويب بيتفتكر لحظة الحفظ ويتقري مرة واحدة.
+   ====================================================================== #}
+{% set mrp_now = admission.responsibility %}
+{% set here_bed = admission.bed if admission.is_open else none %}
+<div class="stay" x-data="{
+        inside: { nursing: 'care', pain: 'care', food: 'care', risks: 'care',
+                  medicines: 'treatment', lines: 'treatment',
+                  blood: 'treatment', theatre: 'treatment',
+                  restraint: 'safety', arrest: 'safety',
+                  'discharge-summary': 'discharge', mrp: 'overview',
+                  rounds: 'overview' },
+        known: [],
+        tab: 'overview',
+        attention: [],
+        counts: {},
+        key: 'stay-tab:{{ admission.id }}',
+        pick(hash) {
+          const asked = decodeURIComponent((hash || '').substring(1));
+          const wanted = this.inside[asked] || asked || 'overview';
+          return this.known.includes(wanted) ? wanted : 'overview';
+        },
+        open(name, section) {
+          this.tab = name;
+          history.replaceState(null, '', '#' + (section || name));
+          this.$nextTick(() => {
+            const el = section && document.getElementById(section);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+        },
+        go(item) {
+          this.tab = item.tab;
+          this.$nextTick(() => item.el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        },
+        remember() {
+          try { sessionStorage.setItem(this.key, this.tab); } catch (e) {}
+        },
+        scan() {
+          const found = []; const counts = {};
+          this.$el.querySelectorAll('[data-stay-panel]').forEach(panel => {
+            const name = panel.dataset.stayPanel; counts[name] = 0;
+            panel.querySelectorAll(':scope > .card').forEach(card => {
+              const alarm = card.querySelector('.alert-pill.danger');
+              const worry = alarm || card.querySelector('.alert-pill.warn');
+              if (!worry) return;
+              const head = card.querySelector('.section-title, .card-title, h2');
+              found.push({ tab: name, el: card, level: alarm ? 'danger' : 'warn',
+                           title: head ? head.textContent.trim().split('\n')[0].trim() : '' });
+              counts[name] += 1;
+            });
+          });
+          this.attention = found; this.counts = counts;
+        },
+        init() {
+          this.known = Array.from(this.$el.querySelectorAll('[data-tab]'))
+                            .map(b => b.dataset.tab);
+          let hash = window.location.hash;
+          if (!hash) {
+            try {
+              const last = sessionStorage.getItem(this.key);
+              sessionStorage.removeItem(this.key);
+              if (last) hash = '#' + last;
+            } catch (e) {}
+          }
+          this.tab = this.pick(hash);
+          const asked = decodeURIComponent((hash || '').substring(1));
+          if (asked && this.inside[asked]) {
+            this.$nextTick(() => {
+              const el = document.getElementById(asked);
+              if (el) el.scrollIntoView({ block: 'start' });
+            });
+          }
+          window.addEventListener('hashchange',
+            () => this.tab = this.pick(window.location.hash));
+          this.scan();
+        }
+     }" x-on:submit.capture="remember()">
+
+<section class="stay-hero gc-animate" data-stay-hero>
+  <div class="stay-hero__who">
+    <span class="stay-hero__icon" aria-hidden="true"><i class="bi bi-hospital"></i></span>
+    <div style="min-width:0;">
+      <h1 class="page-title" style="margin:0;">{{ admission.patient.display_name(current_lang) }}</h1>
+      <div class="stay-hero__facts">
+        {% if admission.is_open %}
+          {% if here_bed %}
+          <span class="stay-chip" data-stay-bed><i class="bi bi-geo-alt"></i>
+            {{ here_bed.unit.name }} · {{ here_bed.space.name }} · {{ here_bed.name }}</span>
+          {% else %}
+          <span class="stay-chip stay-chip--warn"><i class="bi bi-geo-alt"></i> {{ t('stay.no_bed') }}</span>
+          {% endif %}
+        {% else %}
+          <span class="stay-chip stay-chip--muted" data-stay-closed><i class="bi bi-box-arrow-right"></i>
+            {{ t('stay.closed') }} <span dir="ltr">{{ admission.discharged_at|clinic_stamp }}</span></span>
+        {% endif %}
+        {% if stay_days is not none %}
+        <span class="stay-chip" data-stay-length><i class="bi bi-hourglass-split"></i>
+          {{ t('stay.length', d=stay_days, h=stay_hours) }}</span>
+        {% endif %}
+        <span class="stay-chip {{ '' if mrp_now else 'stay-chip--danger' }}" data-stay-mrp>
+          <i class="bi bi-person-badge"></i>
+          {{ mrp_now.doctor.display_name(current_lang) if mrp_now else t('mrp.nobody') }}</span>
+      </div>
+      <p class="page-sub" style="margin:6px 0 0;">
+        {{ t('beds.admitted_at') }}
+        <span dir="ltr">{{ admission.admitted_at|clinic_stamp }}</span>
+        {% if admission.reason %} · {{ admission.reason }}{% endif %}</p>
+    </div>
   </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+  <div class="stay-hero__actions">
+    {% if admission.is_open %}
+    {# الإنعاش على بُعد ضغطة من أي مكان في الورقة — مش جوّه تبويب حد
+       لازم يفتكر اسمه وهو واقف قدام طفل وقف قلبه. #}
+    <button type="button" class="btn btn-danger gc-press" data-stay-arrest
+            x-on:click="open('safety', 'arrest')">
+      <i class="bi bi-heart-pulse"></i> {{ t('stay.arrest') }}</button>
+    {% endif %}
     <a class="btn btn-outline gc-press"
        href="{{ url_for('patients.view', patient_id=admission.patient_id) }}">
       <i class="bi bi-person"></i> {{ t('beds.patient_file') }}</a>
@@ -30,13 +153,45 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.index') }}">
       <i class="bi bi-grid-3x3"></i> {{ t('beds.board') }}</a>
   </div>
+</section>
+
+{# «محتاج انتباه» — متجمّع من التنبيهات اللي في الكروت نفسها. #}
+<div class="stay-attention" x-show="attention.length" x-cloak data-stay-attention>
+  <div class="stay-attention__head">
+    <i class="bi bi-bell"></i> {{ t('stay.attention') }}
+    <span class="stay-count" x-text="attention.length"></span>
+  </div>
+  <div class="stay-attention__items">
+    <template x-for="(item, i) in attention" :key="i">
+      <button type="button" class="stay-flag" :class="'stay-flag--' + item.level"
+              x-on:click="go(item)" x-text="item.title"
+              :style="'animation-delay:' + (i * 40) + 'ms'"></button>
+    </template>
+  </div>
 </div>
 
+<nav class="gc-tabs stay-tabs" role="tablist" data-stay-tabs>
+  {% set stay_tabs = [('overview', 'bi-clipboard2-pulse'), ('care', 'bi-heart'),
+                      ('treatment', 'bi-capsule')] %}
+  {% if admission.is_open %}{% set stay_tabs = stay_tabs + [('safety', 'bi-shield-exclamation')] %}{% endif %}
+  {% set stay_tabs = stay_tabs + [('discharge', 'bi-box-arrow-right')] %}
+  {% for key, icon in stay_tabs %}
+  <button type="button" class="gc-tab" role="tab" data-tab="{{ key }}"
+          :class="tab==='{{ key }}' && 'active'" :aria-selected="tab==='{{ key }}'"
+          x-on:click="open('{{ key }}')">
+    <i class="bi {{ icon }}"></i> {{ t('stay.tab_' ~ key) }}
+    <span class="stay-count" x-show="counts['{{ key }}']" x-cloak
+          x-text="counts['{{ key }}']"></span>
+  </button>
+  {% endfor %}
+</nav>
+
+<div class="gc-tab-panel stay-panel" data-stay-panel="overview" x-show="tab==='overview'" x-cloak>
 {# ---- مين مسؤول — `ACT.07` ---------------------------------------------- #}
 
 {# **فوق كل حاجة تانية عن قصد.** النية بتقول العاقبة بالنص: سوء الفهم في
    مين مسؤول بيأذي الطفل. واللي بيفتح ورقة الإقامة بيسأل ده الأول. #}
-<div class="card gc-scale-in" style="margin-bottom:16px;" data-mrp>
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="mrp" data-mrp>
   <h2 class="section-title" style="margin-top:0;">
     <i class="bi bi-person-badge"></i> {{ t('mrp.title') }}</h2>
 
@@ -130,174 +285,6 @@
   </details>
   {% endif %}
 </div>
-
-{# ---- تقييم التمريض — `ICD.07` ------------------------------------------ #}
-
-{# **الكارت ده قارئ أكتر منه كاتب.** تلاتة من ستة بنود المعيار مكتوبين
-   في الملف من قبل ما التقييم ده يتعمل، فبيتجمّعوا من مصدرهم؛ والممرضة
-   بتكتب اللي مفيش حاجة تانية في البرنامج بتعرفه. #}
-<div class="card gc-scale-in" style="margin-bottom:16px;" id="nursing" data-nursing>
-  <h2 class="section-title" style="margin-top:0;">
-    <i class="bi bi-clipboard-heart"></i> {{ t('nursing.title') }}</h2>
-
-  {# (أ) و(ب) و(ج) — واللي ناقص منهم بيتقال باسمه، لأن ورقة ساكتة عن
-     تقييم السقوط بتتقرا «مفيش خطر» وهي «محدّش قاس». #}
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"
-       data-nursing-known>
-    {% for name, row in nursing_known.items() %}
-    <span class="badge {{ 'badge--ok' if row else 'badge--muted' }}"
-          data-nursing-known-{{ name }}="{{ 1 if row else 0 }}">
-      {{ t('nursing.known_' ~ name) }}
-      {% if not row %}— {{ t('nursing.not_recorded') }}{% endif %}</span>
-    {% endfor %}
-  </div>
-
-  {% if nursing_initial %}
-  {% set gaps = nursing_gaps(nursing_initial) %}
-  <p style="margin:0 0 6px;" data-nursing-initial="{{ nursing_initial.id }}">
-    <span class="badge badge--ok">{{ t('nursing.initial_done') }}</span>
-    <span class="hint" dir="ltr">{{ nursing_initial.at.strftime('%Y-%m-%d %H:%M') }}</span>
-    {% if gaps %}<span class="hint" data-nursing-gaps>— {{ t('nursing.missing') }}:
-      {% for name in gaps %}<span data-nursing-gap="{{ name }}">{{ t('nursing.el_' ~ name) }}</span>{% if not loop.last %} · {% endif %}{% endfor %}
-    </span>{% endif %}
-  </p>
-  {% if gaps %}
-  <form method="post" data-nursing-complete="{{ nursing_initial.id }}"
-        action="{{ url_for('beds.nursing_describe', assessment_id=nursing_initial.id) }}"
-        style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    {% for name in gaps %}
-    <input class="input" name="{{ name }}" style="max-width:150px;"
-           placeholder="{{ t('nursing.el_' ~ name) }}">
-    {% endfor %}
-    <button class="btn btn-outline btn-sm gc-press" type="submit">
-      <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
-  </form>
-  {% endif %}
-  {% else %}
-  <p class="alert-pill warn" style="display:block;margin:0 0 10px;"
-     data-nursing-none>
-    <i class="bi bi-exclamation-triangle"></i> {{ t('nursing.no_initial') }}
-  </p>
-  {% endif %}
-
-  {% if admission.is_open %}
-  <form method="post" data-nursing-form
-        action="{{ url_for('beds.nursing_record', admission_id=admission.id) }}"
-        style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="kind"
-           value="{{ 'reassessment' if nursing_initial else 'initial' }}">
-    {# (د) الستة — كل واحد ملاحظة لوحده: «الجلد سليم» مش بيقول حاجة
-       عن الترطيب. #}
-    {% for name in ('airway', 'breathing', 'circulation', 'disability', 'skin', 'hydration') %}
-    <input class="input" name="{{ name }}" style="max-width:135px;"
-           placeholder="{{ t('nursing.el_' ~ name) }}">
-    {% endfor %}
-    {# (هـ) «لما تلزم» — فمش بيتعدّ ناقص. #}
-    <input class="input" name="outputs" style="max-width:150px;"
-           placeholder="{{ t('nursing.el_outputs') }}">
-    <input class="input" name="focus" style="max-width:220px;"
-           placeholder="{{ t('nursing.el_focus') }}">
-    <button class="btn btn-primary btn-sm gc-press" type="submit">
-      <i class="bi bi-clipboard-check"></i>
-      {{ t('nursing.reassess') if nursing_initial else t('nursing.do_initial') }}</button>
-  </form>
-  {% endif %}
-</div>
-
-{# ---- الألم — `ICD.09` --------------------------------------------------- #}
-<div class="card gc-scale-in" style="margin-bottom:16px;" id="pain" data-pain>
-  <h2 class="section-title" style="margin-top:0;">
-    <i class="bi bi-emoji-frown"></i> {{ t('pain.title') }}</h2>
-
-  {% if not pain_tools %}
-  {# **القايمة بتاعة المستشفى مش بتاعتنا.** FLACC وFACES وNIPS مقاييس
-     منشورة، واختيار أنهي واحدة تنفع لأنهي سن قرار المستشفى. #}
-  <p class="hint" style="margin:0;" data-pain-no-tools>{{ t('pain.no_tools') }}</p>
-  {% else %}
-
-  {% if pain_latest %}
-  <p style="margin:0 0 10px;" data-pain-last="{{ pain_latest.id }}">
-    {% if pain_latest.has_pain %}
-    <span class="alert-pill danger"><i class="bi bi-exclamation-triangle"></i>
-      {{ t('pain.has_pain') }}</span>
-    {% else %}
-    <span class="badge badge--ok">{{ t('pain.no_pain') }}</span>
-    {% endif %}
-    {% if pain_latest.score is not none %}
-    <span dir="ltr">{{ pain_latest.score }}</span>{% endif %}
-    <span class="hint" dir="ltr">{{ pain_latest.at.strftime('%Y-%m-%d %H:%M') }}</span>
-  </p>
-
-  {% if pain_latest.has_pain and not pain_latest.assessment %}
-  {# **الصف اللي بيبان مكتمل.** فيه أداة ورقم ووقت واسم — وناقصه
-     التقييم اللي دليل ٤ بيطلبه. والخانات هنا، مش في شاشة تانية. #}
-  <form method="post" data-pain-assess="{{ pain_latest.id }}"
-        action="{{ url_for('beds.pain_assess', screen_id=pain_latest.id) }}"
-        style="display:flex;gap:6px;flex-wrap:wrap;">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    {% for element in ('intensity', 'character', 'location', 'frequency', 'duration') %}
-    <input class="input" name="{{ element }}" style="max-width:150px;"
-           placeholder="{{ t('pain.el_' ~ element) }}">
-    {% endfor %}
-    <input class="input" name="plan" style="max-width:220px;"
-           placeholder="{{ t('pain.el_plan') }}">
-    <button class="btn btn-danger btn-sm gc-press" type="submit">
-      <i class="bi bi-clipboard-pulse"></i> {{ t('pain.assess') }}</button>
-  </form>
-  {% elif pain_latest.assessment %}
-  {% set assessment = pain_latest.assessment %}
-  {% set gaps = pain_gaps(assessment) %}
-  <p class="hint" style="margin:0 0 6px;" data-pain-assessed="{{ assessment.id }}">
-    {{ assessment.plan or t('pain.no_plan') }}
-    {% if gaps %}<span data-pain-gaps>— {{ t('pain.missing') }}:
-      {% for name in gaps %}<span data-pain-gap="{{ name }}">{{ t('pain.el_' ~ name) }}</span>{% if not loop.last %} · {% endif %}{% endfor %}
-    </span>{% endif %}
-  </p>
-  {% if gaps %}
-  {# **اللي بيقرا الناقص هو اللي بيكمّله** — خانات الناقص بس، هنا. #}
-  <form method="post" data-pain-complete="{{ assessment.id }}"
-        action="{{ url_for('beds.pain_describe', assessment_id=assessment.id) }}"
-        style="display:flex;gap:6px;flex-wrap:wrap;">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    {% for name in gaps %}
-    <input class="input" name="{{ name }}"
-           style="max-width:{{ '220px' if name == 'plan' else '150px' }};"
-           placeholder="{{ t('pain.el_' ~ name) }}">
-    {% endfor %}
-    <button class="btn btn-outline btn-sm gc-press" type="submit">
-      <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
-  </form>
-  {% endif %}
-  {% endif %}
-  {% endif %}
-
-  {% if admission.is_open %}
-  <form method="post" data-pain-screen
-        action="{{ url_for('beds.pain_screen', admission_id=admission.id) }}"
-        style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-top:8px;">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <select class="select" name="tool_key" style="max-width:200px;">
-      {% for tool in pain_tools %}
-      <option value="{{ tool.key }}">{{ tool.display_name(current_lang) }}</option>
-      {% endfor %}
-    </select>
-    <input class="input" type="number" name="score" min="0" style="max-width:90px;"
-           placeholder="{{ t('pain.score') }}">
-    {# **الإجابة بتتكتب، مش بتتستنتج.** حدّ زي «٤ فأكتر يبقى ألم» رقم
-       إكلينيكي، واللي ماسك الأداة هو اللي بيقراها. #}
-    <select class="select" name="has_pain" style="max-width:160px;">
-      <option value="no">{{ t('pain.no_pain') }}</option>
-      <option value="yes">{{ t('pain.has_pain') }}</option>
-    </select>
-    <button class="btn btn-outline btn-sm gc-press" type="submit">
-      <i class="bi bi-check2"></i> {{ t('pain.screen') }}</button>
-  </form>
-  {% endif %}
-  {% endif %}
-</div>
-
 {# ---- where the child is now -------------------------------------------- #}
 <div class="card gc-scale-in" style="margin-bottom:16px;">
   <h2 class="section-title" style="margin-top:0;">
@@ -350,7 +337,6 @@
   </p>
   {% endif %}
 </div>
-
 {# ---- every bed this stay has passed through ---------------------------- #}
 <div class="card gc-scale-in" style="margin-bottom:16px;">
   <h2 class="section-title" style="margin-top:0;">
@@ -376,7 +362,82 @@
   </table>
   </div>
 </div>
+{# The stay's own thread. The board answers "has anybody been round today"
+   across a whole department; this is the other half of the same fact — what
+   was actually decided, day by day, for one child. A doctor coming on shift
+   reads this and not fourteen sets of numbers. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="rounds">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-clipboard2-check"></i> {{ t('rounds.history') }}</h2>
 
+  {% if admission.is_open %}
+  <form method="post" style="margin-bottom:14px;"
+        action="{{ url_for('beds.round_note', admission_id=admission.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+      <span class="hint">{{ t('rounds.today_q') }}</span>
+      {% for trend in trends %}
+      <button class="btn btn-sm btn-outline gc-press" type="submit"
+              name="trend" value="{{ trend }}" data-trend="{{ trend }}">
+        <i class="bi bi-{{ {'improving':'arrow-up-right',
+                            'stable':'dash-lg',
+                            'worse':'arrow-down-right'}[trend] }}"></i>
+        {{ t('rounds.trend_' ~ trend) }}</button>
+      {% endfor %}
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+        <label for="assessment">{{ t('rounds.assessment') }}</label>
+        <input class="input" id="assessment" name="assessment" maxlength="500">
+      </div>
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+        <label for="plan">{{ t('rounds.plan') }}</label>
+        <input class="input" id="plan" name="plan" maxlength="500">
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:160px;">
+        <label for="expected_discharge">{{ t('rounds.expected_discharge') }}</label>
+        <input class="input" type="date" id="expected_discharge"
+               name="expected_discharge"
+               value="{{ rounds[0].expected_discharge if rounds and rounds[0].expected_discharge else '' }}">
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:180px;">
+        <label for="at">{{ t('rounds.at') }}</label>
+        <input class="input" type="datetime-local" id="at" name="at">
+      </div>
+    </div>
+  </form>
+  {% endif %}
+
+  {% if not rounds %}
+  <p class="hint" style="margin:0;">{{ t('rounds.none_yet') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('rounds.at') }}</th>
+      <th>{{ t('rounds.today_q') }}</th>
+      <th>{{ t('rounds.assessment') }}</th>
+      <th>{{ t('rounds.plan') }}</th>
+      <th>{{ t('rounds.expected_discharge') }}</th>
+      <th>{{ t('rounds.by') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for note in rounds %}
+      <tr data-round-row>
+        <td dir="ltr">{{ note.at|clinic_stamp }}</td>
+        <td><span class="badge badge--muted" data-trend="{{ note.trend }}">
+          {{ t('rounds.trend_' ~ note.trend) }}</span></td>
+        <td>{{ note.assessment or '—' }}</td>
+        <td>{{ note.plan or '—' }}</td>
+        <td dir="ltr">{{ note.expected_discharge or '—' }}</td>
+        <td>{{ note.by.display_name(current_lang) if note.by else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
 {# ---- the nights -------------------------------------------------------- #}
 {# Shown, and posted by somebody pressing. There is no timer writing money
    onto a family's account overnight — and a clinic that has set no nightly
@@ -475,7 +536,473 @@
   {% endif %}
 </div>
 {% endif %}
+</div>
 
+<div class="gc-tab-panel stay-panel" data-stay-panel="care" x-show="tab==='care'" x-cloak>
+{# ---- تقييم التمريض — `ICD.07` ------------------------------------------ #}
+
+{# **الكارت ده قارئ أكتر منه كاتب.** تلاتة من ستة بنود المعيار مكتوبين
+   في الملف من قبل ما التقييم ده يتعمل، فبيتجمّعوا من مصدرهم؛ والممرضة
+   بتكتب اللي مفيش حاجة تانية في البرنامج بتعرفه. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="nursing" data-nursing>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-clipboard-heart"></i> {{ t('nursing.title') }}</h2>
+
+  {# (أ) و(ب) و(ج) — واللي ناقص منهم بيتقال باسمه، لأن ورقة ساكتة عن
+     تقييم السقوط بتتقرا «مفيش خطر» وهي «محدّش قاس». #}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"
+       data-nursing-known>
+    {% for name, row in nursing_known.items() %}
+    <span class="badge {{ 'badge--ok' if row else 'badge--muted' }}"
+          data-nursing-known-{{ name }}="{{ 1 if row else 0 }}">
+      {{ t('nursing.known_' ~ name) }}
+      {% if not row %}— {{ t('nursing.not_recorded') }}{% endif %}</span>
+    {% endfor %}
+  </div>
+
+  {% if nursing_initial %}
+  {% set gaps = nursing_gaps(nursing_initial) %}
+  <p style="margin:0 0 6px;" data-nursing-initial="{{ nursing_initial.id }}">
+    <span class="badge badge--ok">{{ t('nursing.initial_done') }}</span>
+    <span class="hint" dir="ltr">{{ nursing_initial.at.strftime('%Y-%m-%d %H:%M') }}</span>
+    {% if gaps %}<span class="hint" data-nursing-gaps>— {{ t('nursing.missing') }}:
+      {% for name in gaps %}<span data-nursing-gap="{{ name }}">{{ t('nursing.el_' ~ name) }}</span>{% if not loop.last %} · {% endif %}{% endfor %}
+    </span>{% endif %}
+  </p>
+  {% if gaps %}
+  <form method="post" data-nursing-complete="{{ nursing_initial.id }}"
+        action="{{ url_for('beds.nursing_describe', assessment_id=nursing_initial.id) }}"
+        style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for name in gaps %}
+    <input class="input" name="{{ name }}" style="max-width:150px;"
+           placeholder="{{ t('nursing.el_' ~ name) }}">
+    {% endfor %}
+    <button class="btn btn-outline btn-sm gc-press" type="submit">
+      <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
+  </form>
+  {% endif %}
+  {% else %}
+  <p class="alert-pill warn" style="display:block;margin:0 0 10px;"
+     data-nursing-none>
+    <i class="bi bi-exclamation-triangle"></i> {{ t('nursing.no_initial') }}
+  </p>
+  {% endif %}
+
+  {% if admission.is_open %}
+  <form method="post" data-nursing-form
+        action="{{ url_for('beds.nursing_record', admission_id=admission.id) }}"
+        style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="kind"
+           value="{{ 'reassessment' if nursing_initial else 'initial' }}">
+    {# (د) الستة — كل واحد ملاحظة لوحده: «الجلد سليم» مش بيقول حاجة
+       عن الترطيب. #}
+    {% for name in ('airway', 'breathing', 'circulation', 'disability', 'skin', 'hydration') %}
+    <input class="input" name="{{ name }}" style="max-width:135px;"
+           placeholder="{{ t('nursing.el_' ~ name) }}">
+    {% endfor %}
+    {# (هـ) «لما تلزم» — فمش بيتعدّ ناقص. #}
+    <input class="input" name="outputs" style="max-width:150px;"
+           placeholder="{{ t('nursing.el_outputs') }}">
+    <input class="input" name="focus" style="max-width:220px;"
+           placeholder="{{ t('nursing.el_focus') }}">
+    <button class="btn btn-primary btn-sm gc-press" type="submit">
+      <i class="bi bi-clipboard-check"></i>
+      {{ t('nursing.reassess') if nursing_initial else t('nursing.do_initial') }}</button>
+  </form>
+  {% endif %}
+</div>
+{# ---- الألم — `ICD.09` --------------------------------------------------- #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="pain" data-pain>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-emoji-frown"></i> {{ t('pain.title') }}</h2>
+
+  {% if not pain_tools %}
+  {# **القايمة بتاعة المستشفى مش بتاعتنا.** FLACC وFACES وNIPS مقاييس
+     منشورة، واختيار أنهي واحدة تنفع لأنهي سن قرار المستشفى. #}
+  <p class="hint" style="margin:0;" data-pain-no-tools>{{ t('pain.no_tools') }}</p>
+  {% else %}
+
+  {% if pain_latest %}
+  <p style="margin:0 0 10px;" data-pain-last="{{ pain_latest.id }}">
+    {% if pain_latest.has_pain %}
+    <span class="alert-pill danger"><i class="bi bi-exclamation-triangle"></i>
+      {{ t('pain.has_pain') }}</span>
+    {% else %}
+    <span class="badge badge--ok">{{ t('pain.no_pain') }}</span>
+    {% endif %}
+    {% if pain_latest.score is not none %}
+    <span dir="ltr">{{ pain_latest.score }}</span>{% endif %}
+    <span class="hint" dir="ltr">{{ pain_latest.at.strftime('%Y-%m-%d %H:%M') }}</span>
+  </p>
+
+  {% if pain_latest.has_pain and not pain_latest.assessment %}
+  {# **الصف اللي بيبان مكتمل.** فيه أداة ورقم ووقت واسم — وناقصه
+     التقييم اللي دليل ٤ بيطلبه. والخانات هنا، مش في شاشة تانية. #}
+  <form method="post" data-pain-assess="{{ pain_latest.id }}"
+        action="{{ url_for('beds.pain_assess', screen_id=pain_latest.id) }}"
+        style="display:flex;gap:6px;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for element in ('intensity', 'character', 'location', 'frequency', 'duration') %}
+    <input class="input" name="{{ element }}" style="max-width:150px;"
+           placeholder="{{ t('pain.el_' ~ element) }}">
+    {% endfor %}
+    <input class="input" name="plan" style="max-width:220px;"
+           placeholder="{{ t('pain.el_plan') }}">
+    <button class="btn btn-danger btn-sm gc-press" type="submit">
+      <i class="bi bi-clipboard-pulse"></i> {{ t('pain.assess') }}</button>
+  </form>
+  {% elif pain_latest.assessment %}
+  {% set assessment = pain_latest.assessment %}
+  {% set gaps = pain_gaps(assessment) %}
+  <p class="hint" style="margin:0 0 6px;" data-pain-assessed="{{ assessment.id }}">
+    {{ assessment.plan or t('pain.no_plan') }}
+    {% if gaps %}<span data-pain-gaps>— {{ t('pain.missing') }}:
+      {% for name in gaps %}<span data-pain-gap="{{ name }}">{{ t('pain.el_' ~ name) }}</span>{% if not loop.last %} · {% endif %}{% endfor %}
+    </span>{% endif %}
+  </p>
+  {% if gaps %}
+  {# **اللي بيقرا الناقص هو اللي بيكمّله** — خانات الناقص بس، هنا. #}
+  <form method="post" data-pain-complete="{{ assessment.id }}"
+        action="{{ url_for('beds.pain_describe', assessment_id=assessment.id) }}"
+        style="display:flex;gap:6px;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for name in gaps %}
+    <input class="input" name="{{ name }}"
+           style="max-width:{{ '220px' if name == 'plan' else '150px' }};"
+           placeholder="{{ t('pain.el_' ~ name) }}">
+    {% endfor %}
+    <button class="btn btn-outline btn-sm gc-press" type="submit">
+      <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
+  </form>
+  {% endif %}
+  {% endif %}
+  {% endif %}
+
+  {% if admission.is_open %}
+  <form method="post" data-pain-screen
+        action="{{ url_for('beds.pain_screen', admission_id=admission.id) }}"
+        style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select class="select" name="tool_key" style="max-width:200px;">
+      {% for tool in pain_tools %}
+      <option value="{{ tool.key }}">{{ tool.display_name(current_lang) }}</option>
+      {% endfor %}
+    </select>
+    <input class="input" type="number" name="score" min="0" style="max-width:90px;"
+           placeholder="{{ t('pain.score') }}">
+    {# **الإجابة بتتكتب، مش بتتستنتج.** حدّ زي «٤ فأكتر يبقى ألم» رقم
+       إكلينيكي، واللي ماسك الأداة هو اللي بيقراها. #}
+    <select class="select" name="has_pain" style="max-width:160px;">
+      <option value="no">{{ t('pain.no_pain') }}</option>
+      <option value="yes">{{ t('pain.has_pain') }}</option>
+    </select>
+    <button class="btn btn-outline btn-sm gc-press" type="submit">
+      <i class="bi bi-check2"></i> {{ t('pain.screen') }}</button>
+  </form>
+  {% endif %}
+  {% endif %}
+</div>
+{# ---- the three risks a hospital has to look for ------------------------ #}
+{# GAHAR ICD.10 falls, ICD.11 pressure ulcers, ICD.12 venous thromboembolism.
+   Three standards with one shape — assess with a tool, reassess on a
+   timeframe, general measures, **a tailored care plan**, and all of it
+   «recorded in the patient's medical record», which is the sentence this card
+   answers.
+
+   **No score is computed here and none is shown.** The tool and what it said
+   are the hospital's own two words; the one thing the program reads is «معرّض
+   ولا لأ», because «متوسط» is above the line in one hospital's policy and
+   below it in another's. See `utils/risks`.
+
+   **A row per risk, not a row per assessment.** An absence leaves nothing to
+   find, so the list is built from the risks the clinic looks for and the
+   assessments are hung onto it — which is the only way «ما اتقيّمش» can
+   appear at all. #}
+{% if risk_panel %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="risks" data-risks>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-shield-exclamation"></i> {{ t('risks.title') }}
+    {# The plan-less ones first and in red: «somebody looked, somebody said
+       yes, and the element the standard ends on is blank» is a finding, where
+       an unassessed risk is only a gap. Both counts are worked out in
+       `utils/risks` off the same list the rows below are drawn from. #}
+    {% if risk_bare %}
+    <span class="alert-pill danger" data-risk-summary="bare">
+      <i class="bi bi-exclamation-triangle"></i>
+      {{ t('risks.n_bare', n=risk_bare|length) }}</span>
+    {% endif %}
+    {% if risk_unassessed %}
+    <span class="alert-pill warn" data-risk-summary="none">
+      {{ t('risks.n_unassessed', n=risk_unassessed|length) }}</span>
+    {% endif %}
+    {% if not risk_bare and not risk_unassessed %}
+    <span class="alert-pill" data-risk-summary="done">
+      <i class="bi bi-check2"></i> {{ t('risks.all_done') }}</span>
+    {% endif %}
+  </h2>
+
+  {% for item in risk_panel %}
+  {% set last = item.assessment %}
+  <div class="form-row" style="margin-bottom:10px;" data-risk="{{ item.kind }}">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <strong>{{ t('risks.kind_' ~ item.kind) }}</strong>
+      <span class="badge {{ {'none':'badge--warn', 'unsaid':'badge--warn',
+                             'clear':'badge--green', 'bare':'badge--danger',
+                             'planned':'badge--green'}[item.state] }}"
+            data-risk-state="{{ item.state }}">
+        {{ t('risks.state_' ~ item.state) }}</span>
+      {% if item.due == 'due' %}
+      <span class="badge badge--warn" data-risk-due="due">
+        <i class="bi bi-clock-history"></i> {{ t('risks.overdue') }}</span>
+      {% endif %}
+      {% if last %}
+      <span class="hint" dir="ltr">{{ last.at|clinic_stamp }}</span>
+      <span class="hint">{{ last.by.display_name(current_lang) if last.by else '—' }}</span>
+      {% endif %}
+      {% if item.hours %}
+      <span class="hint">{{ t('risks.every_n', n=item.hours) }}</span>
+      {% endif %}
+    </div>
+
+    {% if last %}
+    <div class="hint" style="margin-top:4px;">
+      {% if last.tool %}{{ t('risks.tool') }}: {{ last.tool }} · {% endif %}
+      {% if last.level %}{{ t('risks.level') }}: {{ last.level }} · {% endif %}
+      {{ t('risks.plan') }}: {{ last.plan or '—' }}
+      {% if last.general_measures %}
+      · {{ t('risks.general_measures') }}: {{ last.general_measures }}{% endif %}
+      {# Three states printed as three words. A family that was never asked
+         about and a family that said no are not the same line in a record. #}
+      · {{ t('risks.family_told') }}:
+      {{ t('risks.yes') if last.family_told
+         else (t('risks.unsaid') if last.family_told is none else t('risks.no')) }}
+    </div>
+    {% endif %}
+
+    {% if admission.is_open %}
+    {# Open only while the child is here. A risk assessment written onto a
+       closed stay would be a bedside observation of a child who went home. #}
+    <details style="margin-top:6px;">
+      <summary class="hint" style="cursor:pointer;">
+        {{ t('risks.record') }}</summary>
+      <form method="post" style="margin-top:8px;"
+            action="{{ url_for('beds.risk_assessment', admission_id=admission.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="kind" value="{{ item.kind }}">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <div class="form-row" style="margin-bottom:0;flex:1;min-width:170px;">
+            {# Prefilled from the hospital's policy so nobody types the name of
+               their own tool twice — and still stored as whatever the person
+               leaves in the box, because what goes in the record is what they
+               wrote and not what a setting said. #}
+            <label for="rk_tool_{{ item.kind }}">{{ t('risks.tool') }}</label>
+            <input class="input" id="rk_tool_{{ item.kind }}" name="tool"
+                   maxlength="120" value="{{ last.tool if last else item.tool }}">
+          </div>
+          <div class="form-row" style="margin-bottom:0;flex:1;min-width:140px;">
+            <label for="rk_level_{{ item.kind }}">{{ t('risks.level') }}</label>
+            <input class="input" id="rk_level_{{ item.kind }}" name="level"
+                   maxlength="60" placeholder="{{ t('risks.level_hint') }}">
+          </div>
+          <div class="form-row" style="margin-bottom:0;min-width:150px;">
+            <label for="rk_at_risk_{{ item.kind }}">{{ t('risks.at_risk') }}</label>
+            <select class="input" id="rk_at_risk_{{ item.kind }}" name="at_risk">
+              <option value="">{{ t('risks.unsaid') }}</option>
+              <option value="yes">{{ t('risks.yes') }}</option>
+              <option value="no">{{ t('risks.no') }}</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin-bottom:0;min-width:150px;">
+            <label for="rk_family_{{ item.kind }}">{{ t('risks.family_told') }}</label>
+            <select class="input" id="rk_family_{{ item.kind }}" name="family_told">
+              <option value="">{{ t('risks.unsaid') }}</option>
+              <option value="yes">{{ t('risks.yes') }}</option>
+              <option value="no">{{ t('risks.no') }}</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin-bottom:0;min-width:180px;">
+            <label for="rk_at_{{ item.kind }}">{{ t('risks.at') }}</label>
+            <input class="input" type="datetime-local" id="rk_at_{{ item.kind }}"
+                   name="at">
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+          <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+            {# Carried forward, where the plan below deliberately is not. The
+               general measures are the ward's standing ones — rails, a call
+               bell, a pressure-relieving mattress — and they do not change
+               between two assessments of the same child. The tailored plan is
+               the one element all three standards end on, and a copy of last
+               week's typed in by default is exactly the false green tick this
+               screen exists to remove. #}
+            <label for="rk_gm_{{ item.kind }}">{{ t('risks.general_measures') }}</label>
+            <input class="input" id="rk_gm_{{ item.kind }}" name="general_measures"
+                   maxlength="500"
+                   value="{{ last.general_measures if last and last.general_measures else '' }}">
+          </div>
+          <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+            {# The element all three standards end on, and the reason this card
+               distinguishes «معرّض» from «معرّض من غير خطة». #}
+            <label for="rk_plan_{{ item.kind }}">{{ t('risks.plan') }}</label>
+            <input class="input" id="rk_plan_{{ item.kind }}" name="plan"
+                   maxlength="500">
+          </div>
+        </div>
+        <button class="btn btn-sm btn-primary gc-press" type="submit"
+                style="margin-top:8px;" data-risk-save="{{ item.kind }}">
+          <i class="bi bi-check2"></i> {{ t('risks.record') }}</button>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{# ===================== التغذية — ICD.13 ==========================
+   النية بتقول إن التقييم **بيأدّي** لخطة — فالاتنين على شاشة واحدة،
+   والتقييم اللي قال «محتاج» وتحته مفيش أمر بيبان على طول.
+
+   **والقايمة بتاعة العيادة.** (د)(١) بيقول *a list of all special diets
+   is available* — فلو ما كتبوهاش، الشاشة بتقولهم يكتبوها بدل ما تعرض
+   عليهم أسماء من عندنا. #}
+{% if admission.is_open or diet_now or food_assessment %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="food"
+     data-food>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-egg-fried"></i> {{ t('food.title') }}
+    <span class="hint" dir="ltr">ICD.13</span></h2>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+    {% if food_assessment %}
+    <span class="badge badge--muted" data-food-assessed>
+      {{ t('food.assessed_on') }}
+      <span dir="ltr">{{ food_assessment.at.strftime('%Y-%m-%d') }}</span></span>
+    {% if food_assessment.needs_special_diet %}
+    <span class="badge badge--warning" data-needs>{{ t('food.needs_yes') }}</span>
+    {% elif food_assessment.needs_special_diet is sameas false %}
+    <span class="badge badge--ok">{{ t('food.needs_no') }}</span>
+    {% else %}
+    <span class="badge badge--muted">{{ t('food.needs_unknown') }}</span>
+    {% endif %}
+    {% else %}
+    <span class="badge badge--warning" data-food-unassessed>
+      {{ t('food.never_assessed') }}</span>
+    {% endif %}
+
+    {% if diet_now %}
+    <span class="badge badge--ok" data-diet="{{ diet_now.id }}">
+      {{ diet_now.diet_name(current_lang) }}</span>
+    {% if diet_now.family_food_allowed is none %}
+    <span class="badge badge--warning" data-missing="family_food">
+      {{ t('food.family_unanswered') }}</span>
+    {% endif %}
+    {% elif food_assessment and food_assessment.needs_special_diet %}
+    {# التقييم اللي ما أدّاش لحاجة — بيبان هنا قبل ما يوصل للوحة. #}
+    <span class="badge badge--danger" data-food-gap>{{ t('food.nothing_ordered') }}</span>
+    {% endif %}
+  </div>
+
+  {% if food_assessment and food_assessment.findings %}
+  <div><span class="hint">{{ t('food.findings') }}:</span>
+    {{ food_assessment.findings }}</div>
+  {% endif %}
+  {% if food_assessment and food_assessment.plan %}
+  <div style="margin-top:4px;"><span class="hint">{{ t('food.plan') }}:</span>
+    {{ food_assessment.plan }}</div>
+  {% endif %}
+  {% if diet_now %}
+  {% if diet_now.detail %}
+  <div style="margin-top:4px;"><span class="hint">{{ t('food.detail') }}:</span>
+    {{ diet_now.detail }}</div>
+  {% endif %}
+  {% if diet_now.meal_times %}
+  <div style="margin-top:4px;"><span class="hint">{{ t('food.meal_times') }}:</span>
+    {{ diet_now.meal_times }}</div>
+  {% endif %}
+  {% endif %}
+
+  {% if admission.is_open %}
+  <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px;border-top:1px solid var(--line);padding-top:12px;"
+        action="{{ url_for('beds.nutrition_assess', admission_id=admission.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:2 1 220px;">
+      <label for="nu_find">{{ t('food.findings') }}</label>
+      <input class="input" id="nu_find" name="findings">
+    </div>
+    <div style="flex:0 1 190px;">
+      <label for="nu_needs">{{ t('food.needs') }}</label>
+      <select class="select" id="nu_needs" name="needs">
+        <option value="">{{ t('food.needs_unknown') }}</option>
+        <option value="yes">{{ t('food.needs_yes') }}</option>
+        <option value="no">{{ t('food.needs_no') }}</option>
+      </select>
+    </div>
+    <div style="flex:2 1 200px;">
+      <label for="nu_plan">{{ t('food.plan') }}</label>
+      <input class="input" id="nu_plan" name="plan">
+    </div>
+    <button class="btn btn-outline gc-press" type="submit">
+      <i class="bi bi-clipboard-check"></i> {{ t('food.assess') }}</button>
+  </form>
+
+  {% if not diet_list %}
+  {# **القايمة فاضية.** ما بنعرضش أسماء من عندنا — بنقول للعيادة تكتبها. #}
+  <p class="hint" style="margin:12px 0 0;" data-no-diet-list>
+    {{ t('food.no_list') }}
+    {% if current_user.can('inventory') %}
+    <a href="{{ url_for('inventory.lookups', domain='special_diet') }}">{{ t('food.write_list') }}</a>
+    {% endif %}
+  </p>
+  {% else %}
+  <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;"
+        action="{{ url_for('beds.diet_order', admission_id=admission.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:0 1 180px;">
+      <label for="dt_key">{{ t('food.diet') }}</label>
+      <select class="select" id="dt_key" name="diet_key" required>
+        {% for d in diet_list %}
+        <option value="{{ d.key }}">{{ d.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="flex:1 1 160px;">
+      <label for="dt_detail">{{ t('food.detail') }}</label>
+      <input class="input" id="dt_detail" name="detail">
+    </div>
+    <div style="flex:1 1 170px;">
+      <label for="dt_times">{{ t('food.meal_times') }}</label>
+      <input class="input" id="dt_times" name="meal_times"
+             placeholder="{{ t('food.meal_times_hint') }}">
+    </div>
+    <div style="flex:0 1 170px;">
+      <label for="dt_family">{{ t('food.family_food') }}</label>
+      <select class="select" id="dt_family" name="family_food">
+        <option value="">{{ t('food.family_unknown') }}</option>
+        <option value="yes">{{ t('food.family_yes') }}</option>
+        <option value="no">{{ t('food.family_no') }}</option>
+      </select>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-egg-fried"></i> {{ t('food.order') }}</button>
+  </form>
+  {% endif %}
+
+  {% if diet_now %}
+  <form method="post" style="margin-top:10px;"
+        action="{{ url_for('beds.diet_stop', order_id=diet_now.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">
+      <i class="bi bi-x-lg"></i> {{ t('food.stop') }}</button>
+  </form>
+  {% endif %}
+  {% endif %}
+</div>
+{% endif %}
+</div>
+
+<div class="gc-tab-panel stay-panel" data-stay-panel="treatment" x-show="tab==='treatment'" x-cloak>
 {# ---- the chart --------------------------------------------------------- #}
 {# What this child is on, and what the clinic's own safety check makes of it.
    Not a second check: `rx_safety` is the one the prescription screen uses,
@@ -711,63 +1238,6 @@
   </form>
   {% endif %}
 </div>
-
-{# ---- the theatre ------------------------------------------------------- #}
-{# The second door. A day case is booked from the theatre list; a child who is
-   already in a bed is booked from here, because this is where whoever is
-   looking after them is standing. Absent entirely when the module is off —
-   not a disabled button, not an empty box. #}
-{% if theatre_rooms and current_user.can_access('theatres') %}
-<div class="card gc-scale-in" style="margin-bottom:16px;" data-theatre>
-  <h2 class="section-title" style="margin-top:0;">
-    <i class="bi bi-scissors"></i> {{ t('nav.theatres') }}</h2>
-
-  {% if admission.operations %}
-  <ul style="margin:0 0 12px;padding-inline-start:18px;">
-    {% for op in admission.operations|sort(attribute='on_date') %}
-    <li data-operation="{{ op.id }}">
-      <a href="{{ url_for('theatres.operation', operation_id=op.id) }}">{{ op.procedure }}</a>
-      <span class="hint" dir="ltr">{{ op.on_date }}</span>
-      <span class="badge badge--muted">{{ t('theatre.status_' ~ op.status) }}</span>
-      {% if op.invoice_item_id %}
-      <span class="alert-pill ok"><i class="bi bi-cash-coin"></i> {{ t('theatre.on_the_bill') }}</span>
-      {% endif %}
-    </li>
-    {% endfor %}
-  </ul>
-  {% endif %}
-
-  {% if admission.is_open %}
-  <form method="post" action="{{ url_for('theatres.book') }}"
-        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="patient_id" value="{{ admission.patient_id }}">
-    {# The stay comes with it, so the operation lands on this admission's one
-       bill rather than raising a second account for the same piece of care. #}
-    <input type="hidden" name="admission_id" value="{{ admission.id }}">
-    <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
-      <label for="op_procedure">{{ t('theatre.procedure') }}</label>
-      <input class="input" id="op_procedure" name="procedure" maxlength="200">
-    </div>
-    <div class="form-row" style="margin-bottom:0;min-width:160px;">
-      <label for="op_room">{{ t('theatre.room') }}</label>
-      <select class="select" id="op_room" name="theatre_id">
-        {% for room in theatre_rooms %}
-        <option value="{{ room.id }}">{{ room.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="form-row" style="margin-bottom:0;min-width:150px;">
-      <label for="op_date">{{ t('theatre.the_day') }}</label>
-      <input class="input" type="date" id="op_date" name="date" dir="ltr">
-    </div>
-    <button class="btn btn-outline gc-press" type="submit">
-      <i class="bi bi-calendar-plus"></i> {{ t('theatre.book') }}</button>
-  </form>
-  {% endif %}
-</div>
-{% endif %}
-
 {# ---- the round --------------------------------------------------------- #}
 {# ---- the blood, and who was watching it ------------------------------- #}
 {# GAHAR ICD.20 (الطلب) و ICD.21 (النقل). المعياران بيطلبوا أربع حاجات في
@@ -782,7 +1252,7 @@
    برنامج بيرفض هنا هو برنامج الناس بتلفّ حواليه بورق، وساعتها مفيش حاجة
    بتتسجّل خالص. #}
 {% if blood_panel or admission.is_open %}
-<div class="card gc-scale-in" style="margin-bottom:16px;" data-blood>
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="blood" data-blood>
   <h2 class="section-title" style="margin-top:0;">
     <i class="bi bi-droplet-fill"></i> {{ t('blood.title') }}
     {# The count comes from `blood.unwatched` and not from a loop here. It was
@@ -1036,164 +1506,6 @@
   {% endif %}
 </div>
 {% endif %}
-
-{# ---- the three risks a hospital has to look for ------------------------ #}
-{# GAHAR ICD.10 falls, ICD.11 pressure ulcers, ICD.12 venous thromboembolism.
-   Three standards with one shape — assess with a tool, reassess on a
-   timeframe, general measures, **a tailored care plan**, and all of it
-   «recorded in the patient's medical record», which is the sentence this card
-   answers.
-
-   **No score is computed here and none is shown.** The tool and what it said
-   are the hospital's own two words; the one thing the program reads is «معرّض
-   ولا لأ», because «متوسط» is above the line in one hospital's policy and
-   below it in another's. See `utils/risks`.
-
-   **A row per risk, not a row per assessment.** An absence leaves nothing to
-   find, so the list is built from the risks the clinic looks for and the
-   assessments are hung onto it — which is the only way «ما اتقيّمش» can
-   appear at all. #}
-{# ===================== التغذية — ICD.13 ==========================
-   النية بتقول إن التقييم **بيأدّي** لخطة — فالاتنين على شاشة واحدة،
-   والتقييم اللي قال «محتاج» وتحته مفيش أمر بيبان على طول.
-
-   **والقايمة بتاعة العيادة.** (د)(١) بيقول *a list of all special diets
-   is available* — فلو ما كتبوهاش، الشاشة بتقولهم يكتبوها بدل ما تعرض
-   عليهم أسماء من عندنا. #}
-{% if admission.is_open or diet_now or food_assessment %}
-<div class="card gc-scale-in" style="margin-bottom:16px;" id="food"
-     data-food>
-  <h2 class="section-title" style="margin-top:0;">
-    <i class="bi bi-egg-fried"></i> {{ t('food.title') }}
-    <span class="hint" dir="ltr">ICD.13</span></h2>
-
-  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
-    {% if food_assessment %}
-    <span class="badge badge--muted" data-food-assessed>
-      {{ t('food.assessed_on') }}
-      <span dir="ltr">{{ food_assessment.at.strftime('%Y-%m-%d') }}</span></span>
-    {% if food_assessment.needs_special_diet %}
-    <span class="badge badge--warning" data-needs>{{ t('food.needs_yes') }}</span>
-    {% elif food_assessment.needs_special_diet is sameas false %}
-    <span class="badge badge--ok">{{ t('food.needs_no') }}</span>
-    {% else %}
-    <span class="badge badge--muted">{{ t('food.needs_unknown') }}</span>
-    {% endif %}
-    {% else %}
-    <span class="badge badge--warning" data-food-unassessed>
-      {{ t('food.never_assessed') }}</span>
-    {% endif %}
-
-    {% if diet_now %}
-    <span class="badge badge--ok" data-diet="{{ diet_now.id }}">
-      {{ diet_now.diet_name(current_lang) }}</span>
-    {% if diet_now.family_food_allowed is none %}
-    <span class="badge badge--warning" data-missing="family_food">
-      {{ t('food.family_unanswered') }}</span>
-    {% endif %}
-    {% elif food_assessment and food_assessment.needs_special_diet %}
-    {# التقييم اللي ما أدّاش لحاجة — بيبان هنا قبل ما يوصل للوحة. #}
-    <span class="badge badge--danger" data-food-gap>{{ t('food.nothing_ordered') }}</span>
-    {% endif %}
-  </div>
-
-  {% if food_assessment and food_assessment.findings %}
-  <div><span class="hint">{{ t('food.findings') }}:</span>
-    {{ food_assessment.findings }}</div>
-  {% endif %}
-  {% if food_assessment and food_assessment.plan %}
-  <div style="margin-top:4px;"><span class="hint">{{ t('food.plan') }}:</span>
-    {{ food_assessment.plan }}</div>
-  {% endif %}
-  {% if diet_now %}
-  {% if diet_now.detail %}
-  <div style="margin-top:4px;"><span class="hint">{{ t('food.detail') }}:</span>
-    {{ diet_now.detail }}</div>
-  {% endif %}
-  {% if diet_now.meal_times %}
-  <div style="margin-top:4px;"><span class="hint">{{ t('food.meal_times') }}:</span>
-    {{ diet_now.meal_times }}</div>
-  {% endif %}
-  {% endif %}
-
-  {% if admission.is_open %}
-  <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px;border-top:1px solid var(--line);padding-top:12px;"
-        action="{{ url_for('beds.nutrition_assess', admission_id=admission.id) }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div style="flex:2 1 220px;">
-      <label for="nu_find">{{ t('food.findings') }}</label>
-      <input class="input" id="nu_find" name="findings">
-    </div>
-    <div style="flex:0 1 190px;">
-      <label for="nu_needs">{{ t('food.needs') }}</label>
-      <select class="select" id="nu_needs" name="needs">
-        <option value="">{{ t('food.needs_unknown') }}</option>
-        <option value="yes">{{ t('food.needs_yes') }}</option>
-        <option value="no">{{ t('food.needs_no') }}</option>
-      </select>
-    </div>
-    <div style="flex:2 1 200px;">
-      <label for="nu_plan">{{ t('food.plan') }}</label>
-      <input class="input" id="nu_plan" name="plan">
-    </div>
-    <button class="btn btn-outline gc-press" type="submit">
-      <i class="bi bi-clipboard-check"></i> {{ t('food.assess') }}</button>
-  </form>
-
-  {% if not diet_list %}
-  {# **القايمة فاضية.** ما بنعرضش أسماء من عندنا — بنقول للعيادة تكتبها. #}
-  <p class="hint" style="margin:12px 0 0;" data-no-diet-list>
-    {{ t('food.no_list') }}
-    {% if current_user.can('inventory') %}
-    <a href="{{ url_for('inventory.lookups', domain='special_diet') }}">{{ t('food.write_list') }}</a>
-    {% endif %}
-  </p>
-  {% else %}
-  <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;"
-        action="{{ url_for('beds.diet_order', admission_id=admission.id) }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div style="flex:0 1 180px;">
-      <label for="dt_key">{{ t('food.diet') }}</label>
-      <select class="select" id="dt_key" name="diet_key" required>
-        {% for d in diet_list %}
-        <option value="{{ d.key }}">{{ d.display_name(current_lang) }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div style="flex:1 1 160px;">
-      <label for="dt_detail">{{ t('food.detail') }}</label>
-      <input class="input" id="dt_detail" name="detail">
-    </div>
-    <div style="flex:1 1 170px;">
-      <label for="dt_times">{{ t('food.meal_times') }}</label>
-      <input class="input" id="dt_times" name="meal_times"
-             placeholder="{{ t('food.meal_times_hint') }}">
-    </div>
-    <div style="flex:0 1 170px;">
-      <label for="dt_family">{{ t('food.family_food') }}</label>
-      <select class="select" id="dt_family" name="family_food">
-        <option value="">{{ t('food.family_unknown') }}</option>
-        <option value="yes">{{ t('food.family_yes') }}</option>
-        <option value="no">{{ t('food.family_no') }}</option>
-      </select>
-    </div>
-    <button class="btn btn-primary gc-press" type="submit">
-      <i class="bi bi-egg-fried"></i> {{ t('food.order') }}</button>
-  </form>
-  {% endif %}
-
-  {% if diet_now %}
-  <form method="post" style="margin-top:10px;"
-        action="{{ url_for('beds.diet_stop', order_id=diet_now.id) }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="btn btn-sm btn-outline gc-press" type="submit">
-      <i class="bi bi-x-lg"></i> {{ t('food.stop') }}</button>
-  </form>
-  {% endif %}
-  {% endif %}
-</div>
-{% endif %}
-
 {# ================= خريطة القساطر — CSS.03 =========================
    (د) بيطلب **catheter map** كجزء من تسليم الورديات، فمكانها هنا: على
    الشاشة اللي الممرضة بتفتحها وهي بتسلّم.
@@ -1297,6 +1609,62 @@
   {% endif %}
 </div>
 {% endif %}
+{# ---- the theatre ------------------------------------------------------- #}
+{# The second door. A day case is booked from the theatre list; a child who is
+   already in a bed is booked from here, because this is where whoever is
+   looking after them is standing. Absent entirely when the module is off —
+   not a disabled button, not an empty box. #}
+{% if theatre_rooms and current_user.can_access('theatres') %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="theatre" data-theatre>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-scissors"></i> {{ t('nav.theatres') }}</h2>
+
+  {% if admission.operations %}
+  <ul style="margin:0 0 12px;padding-inline-start:18px;">
+    {% for op in admission.operations|sort(attribute='on_date') %}
+    <li data-operation="{{ op.id }}">
+      <a href="{{ url_for('theatres.operation', operation_id=op.id) }}">{{ op.procedure }}</a>
+      <span class="hint" dir="ltr">{{ op.on_date }}</span>
+      <span class="badge badge--muted">{{ t('theatre.status_' ~ op.status) }}</span>
+      {% if op.invoice_item_id %}
+      <span class="alert-pill ok"><i class="bi bi-cash-coin"></i> {{ t('theatre.on_the_bill') }}</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if admission.is_open %}
+  <form method="post" action="{{ url_for('theatres.book') }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="patient_id" value="{{ admission.patient_id }}">
+    {# The stay comes with it, so the operation lands on this admission's one
+       bill rather than raising a second account for the same piece of care. #}
+    <input type="hidden" name="admission_id" value="{{ admission.id }}">
+    <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+      <label for="op_procedure">{{ t('theatre.procedure') }}</label>
+      <input class="input" id="op_procedure" name="procedure" maxlength="200">
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:160px;">
+      <label for="op_room">{{ t('theatre.room') }}</label>
+      <select class="select" id="op_room" name="theatre_id">
+        {% for room in theatre_rooms %}
+        <option value="{{ room.id }}">{{ room.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:150px;">
+      <label for="op_date">{{ t('theatre.the_day') }}</label>
+      <input class="input" type="date" id="op_date" name="date" dir="ltr">
+    </div>
+    <button class="btn btn-outline gc-press" type="submit">
+      <i class="bi bi-calendar-plus"></i> {{ t('theatre.book') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+</div>
 
 {# ======================= التقييد والإنعاش — CSS.12 و CSS.05 =======
    **الفورمتين دول كانوا ناقصين.** المسارات الستّة اتسلّمت ومحدّش يقدر
@@ -1306,6 +1674,7 @@
    ومكانهم هنا مش على لوحة المتابعة، لأن اللوحة بتقول **اللي غلط**
    والفعل بيتعمل جنب الطفل. #}
 {% if admission.is_open %}
+<div class="gc-tab-panel stay-panel" data-stay-panel="safety" x-show="tab==='safety'" x-cloak>
 <div class="card gc-scale-in" style="margin-bottom:16px;" id="restraint"
      data-restraint-form>
   <h2 class="section-title" style="margin-top:0;">
@@ -1469,226 +1838,9 @@
       <i class="bi bi-heart-pulse"></i> {{ t('resus.start') }}</button>
   </form>
 </div>
-{% endif %}
-
-{% if risk_panel %}
-<div class="card gc-scale-in" style="margin-bottom:16px;" data-risks>
-  <h2 class="section-title" style="margin-top:0;">
-    <i class="bi bi-shield-exclamation"></i> {{ t('risks.title') }}
-    {# The plan-less ones first and in red: «somebody looked, somebody said
-       yes, and the element the standard ends on is blank» is a finding, where
-       an unassessed risk is only a gap. Both counts are worked out in
-       `utils/risks` off the same list the rows below are drawn from. #}
-    {% if risk_bare %}
-    <span class="alert-pill danger" data-risk-summary="bare">
-      <i class="bi bi-exclamation-triangle"></i>
-      {{ t('risks.n_bare', n=risk_bare|length) }}</span>
-    {% endif %}
-    {% if risk_unassessed %}
-    <span class="alert-pill warn" data-risk-summary="none">
-      {{ t('risks.n_unassessed', n=risk_unassessed|length) }}</span>
-    {% endif %}
-    {% if not risk_bare and not risk_unassessed %}
-    <span class="alert-pill" data-risk-summary="done">
-      <i class="bi bi-check2"></i> {{ t('risks.all_done') }}</span>
-    {% endif %}
-  </h2>
-
-  {% for item in risk_panel %}
-  {% set last = item.assessment %}
-  <div class="form-row" style="margin-bottom:10px;" data-risk="{{ item.kind }}">
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-      <strong>{{ t('risks.kind_' ~ item.kind) }}</strong>
-      <span class="badge {{ {'none':'badge--warn', 'unsaid':'badge--warn',
-                             'clear':'badge--green', 'bare':'badge--danger',
-                             'planned':'badge--green'}[item.state] }}"
-            data-risk-state="{{ item.state }}">
-        {{ t('risks.state_' ~ item.state) }}</span>
-      {% if item.due == 'due' %}
-      <span class="badge badge--warn" data-risk-due="due">
-        <i class="bi bi-clock-history"></i> {{ t('risks.overdue') }}</span>
-      {% endif %}
-      {% if last %}
-      <span class="hint" dir="ltr">{{ last.at|clinic_stamp }}</span>
-      <span class="hint">{{ last.by.display_name(current_lang) if last.by else '—' }}</span>
-      {% endif %}
-      {% if item.hours %}
-      <span class="hint">{{ t('risks.every_n', n=item.hours) }}</span>
-      {% endif %}
-    </div>
-
-    {% if last %}
-    <div class="hint" style="margin-top:4px;">
-      {% if last.tool %}{{ t('risks.tool') }}: {{ last.tool }} · {% endif %}
-      {% if last.level %}{{ t('risks.level') }}: {{ last.level }} · {% endif %}
-      {{ t('risks.plan') }}: {{ last.plan or '—' }}
-      {% if last.general_measures %}
-      · {{ t('risks.general_measures') }}: {{ last.general_measures }}{% endif %}
-      {# Three states printed as three words. A family that was never asked
-         about and a family that said no are not the same line in a record. #}
-      · {{ t('risks.family_told') }}:
-      {{ t('risks.yes') if last.family_told
-         else (t('risks.unsaid') if last.family_told is none else t('risks.no')) }}
-    </div>
-    {% endif %}
-
-    {% if admission.is_open %}
-    {# Open only while the child is here. A risk assessment written onto a
-       closed stay would be a bedside observation of a child who went home. #}
-    <details style="margin-top:6px;">
-      <summary class="hint" style="cursor:pointer;">
-        {{ t('risks.record') }}</summary>
-      <form method="post" style="margin-top:8px;"
-            action="{{ url_for('beds.risk_assessment', admission_id=admission.id) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="kind" value="{{ item.kind }}">
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <div class="form-row" style="margin-bottom:0;flex:1;min-width:170px;">
-            {# Prefilled from the hospital's policy so nobody types the name of
-               their own tool twice — and still stored as whatever the person
-               leaves in the box, because what goes in the record is what they
-               wrote and not what a setting said. #}
-            <label for="rk_tool_{{ item.kind }}">{{ t('risks.tool') }}</label>
-            <input class="input" id="rk_tool_{{ item.kind }}" name="tool"
-                   maxlength="120" value="{{ last.tool if last else item.tool }}">
-          </div>
-          <div class="form-row" style="margin-bottom:0;flex:1;min-width:140px;">
-            <label for="rk_level_{{ item.kind }}">{{ t('risks.level') }}</label>
-            <input class="input" id="rk_level_{{ item.kind }}" name="level"
-                   maxlength="60" placeholder="{{ t('risks.level_hint') }}">
-          </div>
-          <div class="form-row" style="margin-bottom:0;min-width:150px;">
-            <label for="rk_at_risk_{{ item.kind }}">{{ t('risks.at_risk') }}</label>
-            <select class="input" id="rk_at_risk_{{ item.kind }}" name="at_risk">
-              <option value="">{{ t('risks.unsaid') }}</option>
-              <option value="yes">{{ t('risks.yes') }}</option>
-              <option value="no">{{ t('risks.no') }}</option>
-            </select>
-          </div>
-          <div class="form-row" style="margin-bottom:0;min-width:150px;">
-            <label for="rk_family_{{ item.kind }}">{{ t('risks.family_told') }}</label>
-            <select class="input" id="rk_family_{{ item.kind }}" name="family_told">
-              <option value="">{{ t('risks.unsaid') }}</option>
-              <option value="yes">{{ t('risks.yes') }}</option>
-              <option value="no">{{ t('risks.no') }}</option>
-            </select>
-          </div>
-          <div class="form-row" style="margin-bottom:0;min-width:180px;">
-            <label for="rk_at_{{ item.kind }}">{{ t('risks.at') }}</label>
-            <input class="input" type="datetime-local" id="rk_at_{{ item.kind }}"
-                   name="at">
-          </div>
-        </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
-          <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
-            {# Carried forward, where the plan below deliberately is not. The
-               general measures are the ward's standing ones — rails, a call
-               bell, a pressure-relieving mattress — and they do not change
-               between two assessments of the same child. The tailored plan is
-               the one element all three standards end on, and a copy of last
-               week's typed in by default is exactly the false green tick this
-               screen exists to remove. #}
-            <label for="rk_gm_{{ item.kind }}">{{ t('risks.general_measures') }}</label>
-            <input class="input" id="rk_gm_{{ item.kind }}" name="general_measures"
-                   maxlength="500"
-                   value="{{ last.general_measures if last and last.general_measures else '' }}">
-          </div>
-          <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
-            {# The element all three standards end on, and the reason this card
-               distinguishes «معرّض» from «معرّض من غير خطة». #}
-            <label for="rk_plan_{{ item.kind }}">{{ t('risks.plan') }}</label>
-            <input class="input" id="rk_plan_{{ item.kind }}" name="plan"
-                   maxlength="500">
-          </div>
-        </div>
-        <button class="btn btn-sm btn-primary gc-press" type="submit"
-                style="margin-top:8px;" data-risk-save="{{ item.kind }}">
-          <i class="bi bi-check2"></i> {{ t('risks.record') }}</button>
-      </form>
-    </details>
-    {% endif %}
-  </div>
-  {% endfor %}
 </div>
 {% endif %}
-
-{# The stay's own thread. The board answers "has anybody been round today"
-   across a whole department; this is the other half of the same fact — what
-   was actually decided, day by day, for one child. A doctor coming on shift
-   reads this and not fourteen sets of numbers. #}
-<div class="card gc-scale-in" style="margin-bottom:16px;">
-  <h2 class="section-title" style="margin-top:0;">
-    <i class="bi bi-clipboard2-check"></i> {{ t('rounds.history') }}</h2>
-
-  {% if admission.is_open %}
-  <form method="post" style="margin-bottom:14px;"
-        action="{{ url_for('beds.round_note', admission_id=admission.id) }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-      <span class="hint">{{ t('rounds.today_q') }}</span>
-      {% for trend in trends %}
-      <button class="btn btn-sm btn-outline gc-press" type="submit"
-              name="trend" value="{{ trend }}" data-trend="{{ trend }}">
-        <i class="bi bi-{{ {'improving':'arrow-up-right',
-                            'stable':'dash-lg',
-                            'worse':'arrow-down-right'}[trend] }}"></i>
-        {{ t('rounds.trend_' ~ trend) }}</button>
-      {% endfor %}
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
-      <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
-        <label for="assessment">{{ t('rounds.assessment') }}</label>
-        <input class="input" id="assessment" name="assessment" maxlength="500">
-      </div>
-      <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
-        <label for="plan">{{ t('rounds.plan') }}</label>
-        <input class="input" id="plan" name="plan" maxlength="500">
-      </div>
-      <div class="form-row" style="margin-bottom:0;min-width:160px;">
-        <label for="expected_discharge">{{ t('rounds.expected_discharge') }}</label>
-        <input class="input" type="date" id="expected_discharge"
-               name="expected_discharge"
-               value="{{ rounds[0].expected_discharge if rounds and rounds[0].expected_discharge else '' }}">
-      </div>
-      <div class="form-row" style="margin-bottom:0;min-width:180px;">
-        <label for="at">{{ t('rounds.at') }}</label>
-        <input class="input" type="datetime-local" id="at" name="at">
-      </div>
-    </div>
-  </form>
-  {% endif %}
-
-  {% if not rounds %}
-  <p class="hint" style="margin:0;">{{ t('rounds.none_yet') }}</p>
-  {% else %}
-  <div style="overflow-x:auto;">
-  <table class="table">
-    <thead><tr>
-      <th>{{ t('rounds.at') }}</th>
-      <th>{{ t('rounds.today_q') }}</th>
-      <th>{{ t('rounds.assessment') }}</th>
-      <th>{{ t('rounds.plan') }}</th>
-      <th>{{ t('rounds.expected_discharge') }}</th>
-      <th>{{ t('rounds.by') }}</th>
-    </tr></thead>
-    <tbody>
-      {% for note in rounds %}
-      <tr data-round-row>
-        <td dir="ltr">{{ note.at|clinic_stamp }}</td>
-        <td><span class="badge badge--muted" data-trend="{{ note.trend }}">
-          {{ t('rounds.trend_' ~ note.trend) }}</span></td>
-        <td>{{ note.assessment or '—' }}</td>
-        <td>{{ note.plan or '—' }}</td>
-        <td dir="ltr">{{ note.expected_discharge or '—' }}</td>
-        <td>{{ note.by.display_name(current_lang) if note.by else '—' }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  </div>
-  {% endif %}
-</div>
-
+<div class="gc-tab-panel stay-panel" data-stay-panel="discharge" x-show="tab==='discharge'" x-cloak>
 {# ---- the document the stay ends with ----------------------------------- #}
 {# GAHAR ACT.15: a discharge summary is «a clinical report prepared… at the
    conclusion of a hospital stay», and the standard calls it **a legal
@@ -1811,7 +1963,6 @@
   </div>
   {% endif %}
 </div>
-
 {# ---- ending it --------------------------------------------------------- #}
 {% if admission.is_open %}
 <div class="card gc-scale-in">
@@ -1841,4 +1992,7 @@
   </form>
 </div>
 {% endif %}
+</div>
+
+</div>
 {% endblock %}
