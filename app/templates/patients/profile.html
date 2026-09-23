@@ -2753,9 +2753,19 @@
     <div class="gc-tab-panel" x-show="tab==='prescriptions'" x-cloak>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
         <h3 class="section-title" style="margin:0;"><i class="bi bi-capsule"></i> {{ t('patients.tab_prescriptions') }}</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        {# `MMS.11` (ب) — **من هنا بيتكتب كل أمر**، بس مش هنا بيتخزّن: طفل
+           داخل أمره بيتكتب على الإقامة، لأن الممرضة بتدّي منه والجرعات
+           بتتسجّل عليه. زرار واحد لكل مكان، والمكان بيتحدّد بحال الطفل. #}
+        {% if open_admission and current_user.can_access('beds') %}
+        <a class="btn btn-primary btn-sm gc-press" data-order-for-stay
+           href="{{ url_for('beds.admission', admission_id=open_admission.id) }}#medicines">
+          <i class="bi bi-plus-lg"></i> {{ t('med_orders.write_for_stay') }}</a>
+        {% endif %}
         {% if current_user.can_access('prescriptions') %}
         <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.new', patient_id=patient.id) }}"><i class="bi bi-plus-lg"></i> {{ t('rx.new') }}</a>
         {% endif %}
+        </div>
       </div>
 
       {# Moved here from the top of the page, where it sat **above the
@@ -2843,6 +2853,57 @@
         </form>
       </div>
       {% endif %}
+
+      {# **أوامر الإقامة** — كانت على شاشة الإقامة بس، فدكتور بيشوف الطفل في
+         العيادة بعد خروجه ما كانش يعرف من الملف اتدّاله إيه جوّه. الشغّال
+         فوق، والموقوف بسببه ومين وقفه، واللي كتب كل أمر باسمه — `MMS.11`
+         (د) إيقاف الأمر و(هـ)(١١) هوية الطبيب. ومش بتترسم في عيادة من غير
+         إقامات: قسم فاضي في كل ملف أطفال أثاث مش معلومة. #}
+      {% if inpatient_orders %}
+      <div class="card gc-scale-in" style="margin-top:12px;" data-inpatient-orders>
+        <h2 class="section-title" style="margin-top:0;">
+          <i class="bi bi-hospital"></i> {{ t('med_orders.inpatient_title') }}</h2>
+        <div style="overflow-x:auto;">
+        <table class="table">
+          <thead><tr>
+            <th>{{ t('meds.drug') }}</th><th>{{ t('meds.dose') }}</th>
+            <th>{{ t('med_orders.how_often') }}</th><th>{{ t('meds.since') }}</th>
+            <th>{{ t('med_orders.ordered_by') }}</th><th>{{ t('common.status') }}</th>
+            <th></th>
+          </tr></thead>
+          <tbody>
+          {% for o in inpatient_orders %}
+          <tr data-inpatient-order="{{ o.id }}" {% if o.stopped_at %}class="is-muted"{% endif %}>
+            <td><b>{{ o.drug_name }}</b>
+              <span class="badge badge--muted">{{ t('meds.route_' ~ o.route) }}</span></td>
+            <td>{{ o.dose or '—' }}</td>
+            <td dir="ltr">
+              {%- if o.is_prn %}{{ t('meds.prn') }}
+              {%- if o.min_gap_hours %} · ≥{{ o.min_gap_hours }}h{% endif %}
+              {%- elif o.every_hours %}q{{ o.every_hours }}h{% else %}—{% endif %}</td>
+            <td dir="ltr">{{ o.started_at|clinic_stamp }}</td>
+            <td>{{ o.orderer.display_name(current_lang) if o.orderer else '—' }}</td>
+            <td>
+              {% if o.stopped_at %}
+              <span class="badge badge--muted">{{ t('med_orders.stopped') }}</span>
+              <span class="hint">{{ o.stopped_at|clinic_stamp }}{% if o.stop_reason %} · {{ o.stop_reason }}{% endif %}</span>
+              {% else %}
+              <span class="badge badge--green">{{ t('med_orders.running') }}</span>
+              {% endif %}</td>
+            <td style="text-align:end;">
+              {% if current_user.can_access('beds') %}
+              <a class="btn btn-outline btn-sm gc-press"
+                 href="{{ url_for('beds.admission', admission_id=o.admission_id) }}#medicines">
+                <i class="bi bi-box-arrow-up-right"></i> {{ t('med_orders.open_stay') }}</a>
+              {% endif %}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      </div>
+      {% endif %}
+
       {% if prescriptions %}
       <table class="table">
         <thead><tr><th>{{ t('rx.date') }}</th><th>{{ t('rx.diagnosis') }}</th><th>{{ t('rx.items') }}</th><th>{{ t('rx.investigations') }}</th><th style="text-align:end;"></th></tr></thead>

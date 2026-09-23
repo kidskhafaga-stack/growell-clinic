@@ -152,3 +152,30 @@ def clinic():
         return client
 
     yield {"app": app, "db": db, "ids": ids, "sign_in": sign_in}
+
+
+@pytest.fixture()
+def bell_held_warm(clinic, monkeypatch):
+    """الجرس دافي طول الاختبار — لأي اختبار بيعدّ استعلامات صفحة.
+
+    الإشعارات بتتحسب حيّة وبتتخزّن **على مستوى البروسيس** تسعين ثانية.
+    فتكلفة أي صفحة بتعتمد على امتى حد تاني سأل: لو التسعين ثانية خلصت
+    جوّه الطلب اللي بنقيسه، الصفحة بتدفع حوالي ١٥ استعلام زيادة — والفرق
+    ساعتها الساعة مش الكود. `test_performance` اكتشف ده الأول ووقف عنده؛
+    والاختبارات اللي اتكتبت بعده بتعدّ «٢ سرير زي ٢٢ سرير» و«أمر زي عشرين
+    أمر» كانت بتقع على CI بس، لأن CI بيشغّل ملفات كتير في نفس البروسيس —
+    والكاش جاي من اختبار تاني، على قاعدة بيانات مبقتش موجودة.
+
+    فالكاش بيتفضّى، ويتحسب مرة على الداتا بتاعة الاختبار ده، ويتثبّت؛
+    وبعد الاختبار بيتفضّى تاني علشان محدّش يورثه.
+    """
+    from app.utils import notifications
+
+    monkeypatch.setattr(notifications, "_TTL", 10 ** 6)
+    notifications.invalidate()
+    with clinic["app"].app_context():
+        notifications._all()
+    try:
+        yield
+    finally:
+        notifications.invalidate()

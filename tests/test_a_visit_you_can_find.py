@@ -46,9 +46,12 @@ def ward(clinic):
                        visit_date=today - timedelta(days=2))
         db.session.add_all([old, recent])
         db.session.commit()
-        yield {"doc": doc.id, "other": other.id, "kid": kid.id,
+        ids = {"doc": doc.id, "other": other.id, "kid": kid.id,
                "old": old.id, "recent": recent.id,
                "fixture_visit": clinic["ids"]["visit"], "today": today}
+    # بره الـcontext: `yield` جوّاه بيخلّي كل طلبات الاختبار تتشارك جلسة
+    # واحدة — وده مش اللي بيحصل على جهاز العيادة.
+    yield ids
 
 
 def _ids(clinic, query_string, user="boss"):

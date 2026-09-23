@@ -7858,5 +7858,14 @@
     "incomplete_title": "Incomplete requests",
     "incomplete_sub": "Labs and imaging from the last 30 days missing something a request must state.",
     "none_incomplete": "Every request is complete."
+  },
+  "med_orders": {
+    "write_for_stay": "Order for this stay",
+    "inpatient_title": "Medication orders during stays",
+    "how_often": "How often",
+    "ordered_by": "Ordered by",
+    "running": "Running",
+    "stopped": "Stopped",
+    "open_stay": "The stay"
   }
 }

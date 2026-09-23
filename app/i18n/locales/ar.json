@@ -7858,5 +7858,14 @@
     "incomplete_title": "طلبات ناقصة",
     "incomplete_sub": "تحاليل وأشعة آخر ٣٠ يوم ناقصها حاجة من اللي الطلب لازم يقوله.",
     "none_incomplete": "كل الطلبات كاملة."
+  },
+  "med_orders": {
+    "write_for_stay": "أمر دوا للإقامة",
+    "inpatient_title": "أوامر الدوا أثناء الإقامة",
+    "how_often": "كل قد إيه",
+    "ordered_by": "كتبه",
+    "running": "شغّال",
+    "stopped": "اتوقف",
+    "open_stay": "الإقامة"
   }
 }
