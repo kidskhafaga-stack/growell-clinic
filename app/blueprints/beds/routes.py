@@ -352,8 +352,15 @@ def admission(admission_id):
     from app.utils import nutrition as _food
     from app.utils import restraint as _tied
     from app.utils import resuscitation as _cpr
+    # كام يوم في المستشفى — للرأس بس. من الختمين اللي متسجّلين، والإقامة
+    # المفتوحة بتتعدّ لحد دلوقتي.
+    end = row.discharged_at or datetime.utcnow()
+    span_hours = max(int((end - row.admitted_at).total_seconds() // 3600), 0) \
+        if row.admitted_at else None
     return render_template(
         "beds/admission.html", admission=row,
+        stay_days=(span_hours // 24) if span_hours is not None else None,
+        stay_hours=(span_hours % 24) if span_hours is not None else None,
         # `ACT.07` — مين ينفع يبقى مسؤول، من اللي العيادة مشغّلاهم.
         doctors=_doctors(),
         # `ICD.09` — أدوات العيادة (فاضية لحد ما تكتبها)، وآخر فرز.

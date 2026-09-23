@@ -7997,5 +7997,17 @@
     "logged": "Recorded in the destruction log.",
     "missing": "Date, document type, what was destroyed and method are required.",
     "future": "The destruction date cannot be after today."
+  },
+  "stay": {
+    "no_bed": "No bed",
+    "closed": "Discharged",
+    "length": "{d} d · {h} h",
+    "arrest": "Resuscitation",
+    "attention": "Needs attention",
+    "tab_overview": "Stay",
+    "tab_care": "Nursing & assessment",
+    "tab_treatment": "Treatment",
+    "tab_safety": "Restraint & resuscitation",
+    "tab_discharge": "Discharge"
   }
 }
