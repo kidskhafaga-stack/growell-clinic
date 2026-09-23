@@ -194,6 +194,11 @@ class Visit(db.Model):
         return f"<Visit {self.id} p={self.patient_id} {self.visit_date}>"
 
 
+#: (هـ) الاختيارات بترتيبها على الشاشة. `none` إجابة، مش فراغ: أشعة صدر
+#: مالهاش ناحية، وده مختلف عن «محدّش سأل».
+SIDES = ("right", "left", "both", "none")
+
+
 class VisitInvestigation(db.Model):
     """A lab test / imaging study ordered during a visit, with its result.
 
@@ -211,6 +216,33 @@ class VisitInvestigation(db.Model):
     name = db.Column(db.String(200), nullable=False)     # Arabic / primary snapshot
     name_en = db.Column(db.String(200))                  # English snapshot (bilingual)
     request_notes = db.Column(db.String(255))
+
+    # ---- `ICD.17` — مين طلب، وليه، وأنهي ناحية ------------------------
+    #
+    # > Information includes at least: a) Name of the ordering medical staff
+    # > member … e) Site and laterality for medical imaging studies.
+    # > f) Prompt authentication by the ordering medical staff members.
+    #
+    # **مين دخّل الطلب**، من اللوج إن مش من فورم — صفر كتابة. قبل كده
+    # الطلب كان بيقول «الزيارة بتاعة د. فلان» بس، والزيارة بتاعة دكتور
+    # والطلب ممكن تكون ممرضة كتبته بالنيابة عنه. والفرق ده هو (و) بالظبط:
+    # طلب اتكتب بلوج الطبيب **متوثّق ساعة ما اتكتب**؛ واللي كتبه غيره
+    # مستني توقيعه.
+    #
+    # فاضي في الصفوف القديمة، **والفراغ ده معناه «محدّش سجّل»** مش «ممرضة
+    # كتبته» — فما بيتحسبش ناقص (و). شوف `utils/order_check`.
+    ordered_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    #: الطبيب اللي أكّد طلب **مش هو اللي دخّله**. عمودين مش واحد لنفس سبب
+    #: `VerbalOrder`: اللي كتب غير اللي وقّع، والسجل لازم يقول الاتنين.
+    confirmed_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    confirmed_at = db.Column(db.DateTime)
+
+    #: (هـ) **الناحية — للأشعة.** «أشعة ساعد» من غير «يمين ولا شمال» طلب
+    #: بيتنفّذ على الناحية الغلط، وأكتر مكان بيحصل فيه ده إن الورقة
+    #: بتروح مركز أشعة بره ومفيش حد يسأله. ومن اختياراتها «مالهاش ناحية»:
+    #: أشعة صدر ما لهاش يمين وشمال، والفرق بين «مالهاش» و«محدّش قال» هو
+    #: اللي بيخلّي الفراغ يتقري ناقص. **`None` = محدّش قال.**
+    laterality = db.Column(db.String(8))
 
     status = db.Column(db.String(12), default="requested", nullable=False)
 
@@ -346,6 +378,8 @@ class VisitInvestigation(db.Model):
     invoice_item = db.relationship("InvoiceItem")
     patient = db.relationship("Patient")
     investigation = db.relationship("Investigation")
+    orderer = db.relationship("User", foreign_keys=[ordered_by])
+    confirmer = db.relationship("User", foreign_keys=[confirmed_by])
     operation = db.relationship("Operation", backref="investigations",
                                 foreign_keys=[operation_id])
 

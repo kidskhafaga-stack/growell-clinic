@@ -31,8 +31,19 @@ from app.models import (
 from app.utils.decorators import admin_required, client_ip, module_required
 from app.utils.paging import paginate
 from app.utils.rx_shorthand import FREQUENCIES, expand_line
+from app.models.visit import SIDES as _SIDES
 
 MODULE = "prescriptions"
+
+
+def _side_for(kind, side):
+    """`ICD.17` (هـ) — ناحية للأشعة بس، ومن القايمة بس؛ غير كده ``None``.
+
+    ``None`` معناها «محدّش قال» — والطلب بيتقري ناقص في الزيارة، مش
+    بيترفض هنا: روشتة بتترفض علشان خانة هي روشتة بتتكتب على ورقة.
+    """
+    side = (side or "").strip()
+    return side if (kind == "imaging" and side in _SIDES) else None
 
 
 def interaction_warnings(drug_ids):
@@ -935,6 +946,7 @@ def new():
         inv_kinds = request.form.getlist("inv_kind")
         inv_names = request.form.getlist("inv_name")
         inv_notes = request.form.getlist("inv_notes")
+        inv_sides = request.form.getlist("inv_side")
         inv_outside = request.form.getlist("inv_outside")
         inv_count = 0
         for i in range(len(inv_names)):
@@ -959,6 +971,8 @@ def new():
                 name_en=(inv_obj.name_en if inv_obj else None),
                 notes=(inv_notes[i].strip() if i < len(inv_notes) else "") or None,
                 done_outside=outside,
+                laterality=_side_for(kind, inv_sides[i] if i < len(inv_sides)
+                                     else None),
             ))
             inv_count += 1
 
@@ -1002,6 +1016,9 @@ def new():
                 "kind": vi.kind or "lab",
                 "name": vi.display_name(lang),
                 "notes": vi.request_notes or "",
+                # `ICD.17` (هـ) — الناحية اللي اتقالت في الزيارة بتتنقل
+                # للورقة، علشان مركز الأشعة يقراها من غير ما يسأل.
+                "side": vi.laterality or "",
                 # Carried so the paper says where it is going. The family
                 # walks out holding this sheet, and «بره العيادة» beside a
                 # line is the difference between a request they take
@@ -1046,6 +1063,7 @@ def new():
     return render_template(
         "prescriptions/new.html", patient=patient, prefill=prefill,
         prefill_invs=prefill_invs, prefill_meds=prefill_meds,
+        sides=_SIDES,
         visit_rx=visit_rx, recent_meds=recent_meds,
         presets=visible_presets(), frequencies=FREQUENCIES,
         # The doctor the field starts on: the one the visit carried over,

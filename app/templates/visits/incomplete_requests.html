@@ -1,0 +1,50 @@
+{% extends "shell.html" %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('orders.incomplete_title') }}{% endblock %}
+{% block page_heading %}{{ t('orders.incomplete_title') }}{% endblock %}
+
+{% block content %}
+{# `ICD.17` دليل ٣ — *a process to evaluate the completeness and accuracy of
+   orders and requests*. القايمة هي الأداة: كل طلب ناقص، وناقصه إيه، ولينك
+   لزيارته علشان يتقفل من هناك — على نفس السطر اللي بيقول إنه ناقص. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title">{{ t('orders.incomplete_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('orders.incomplete_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('visits.index') }}">
+    <i class="bi bi-arrow-right"></i> {{ t('visits.title') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if rows %}
+  <div style="overflow-x:auto;">
+  <table class="table" data-incomplete-requests>
+    <thead><tr>
+      <th>{{ t('appointments.patient') }}</th><th>{{ t('rx.inv_name') }}</th>
+      <th>{{ t('orders.ordered_by') }}</th><th>{{ t('orders.when') }}</th>
+      <th>{{ t('orders.missing') }}</th><th></th>
+    </tr></thead>
+    <tbody>
+    {% for row, gaps in rows %}
+    {% set who, who_from = orderer(row) %}
+    <tr data-incomplete="{{ row.id }}">
+      <td>{{ row.patient.display_name(current_lang) if row.patient else '—' }}</td>
+      <td>{{ t('rx.inv_' ~ row.kind) }} · {{ row.display_name(current_lang) }}</td>
+      <td>{{ who.display_name(current_lang) if who else '—' }}</td>
+      <td dir="ltr">{{ row.created_at|clinic_stamp }}</td>
+      <td>{% for gap in gaps %}<span class="badge badge--warn">{{ t('orders.missing_' ~ gap) }}</span> {% endfor %}</td>
+      <td style="text-align:end;">
+        <a class="btn btn-outline btn-sm gc-press"
+           href="{{ url_for('visits.record', visit_id=row.visit_id) }}#inv">
+          {{ t('common.view') }}</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-check2-circle"></i>{{ t('orders.none_incomplete') }}</div>
+  {% endif %}
+</div>
+{% endblock %}

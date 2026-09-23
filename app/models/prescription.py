@@ -613,6 +613,10 @@ class PrescriptionInvestigation(db.Model):
     # sheet, and «(بره العيادة)» beside a line is the difference between a
     # request they take somewhere and one they bring back here.
     done_outside = db.Column(db.Boolean, default=False, nullable=False)
+    #: `ICD.17` (هـ) — **الورقة دي هي اللي بتروح مركز الأشعة.** الناحية لو
+    #: اتكتبت على الطلب في الزيارة بس، الورقة اللي في إيد الأهل بتقول «أشعة
+    #: ساعد» ومفيش حد هناك يسأل أنهي واحد.
+    laterality = db.Column(db.String(8))
 
     prescription = db.relationship("Prescription", back_populates="investigations")
     investigation = db.relationship("Investigation")
