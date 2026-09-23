@@ -937,6 +937,9 @@ def risks():
             op_minutes = 0
         Setting.set(op_rules.TIMEFRAME_SETTING,
                     str(op_minutes) if op_minutes > 0 else "")
+        # وسادسة، نص مش رقم: معايير الخروج من الإفاقة — `SAS.20` (ح).
+        Setting.set(sed_rules.CRITERIA_SETTING,
+                    (request.form.get("recovery_criteria") or "").strip()[:500])
         ActivityLog.record("settings.risks", user_id=current_user.id,
                            entity="setting", detail="risk policy",
                            ip_address=client_ip())
@@ -966,6 +969,11 @@ def risks():
 
         return op_rules.timeframe_minutes()
 
+    def _recovery_criteria():
+        from app.utils import sedation as sed_rules
+
+        return sed_rules.criteria()
+
     return render_template(
         "settings/risks.html", kinds=RISK_KINDS, standards=STANDARDS,
         blood_watch_minutes=blood_rules.interval_minutes() or "",
@@ -973,6 +981,7 @@ def risks():
         sedation_watch_minutes=_sedation_minutes() or "",
         verbal_order_minutes=_verbal_minutes() or "",
         consultation_minutes=_consultation_minutes() or "",
+        recovery_criteria=_recovery_criteria() or "",
         policy={k: {"on": k in enabled,
                     "hours": risk_rules.interval_hours(k) or "",
                     "tool": risk_rules.tool_name(k)} for k in RISK_KINDS})
