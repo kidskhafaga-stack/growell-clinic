@@ -138,6 +138,35 @@ def test_a_datetime_column_counts_the_same_way(clinic):
     assert row["oldest"] == _years_ago(6)
 
 
+def test_the_edge_is_the_clinic_s_midnight_not_utc_s(clinic):
+    """``created_at`` is stored in UTC; the period is counted in the clinic's
+    days. Half past midnight in Cairo on the edge day is 22:30 the evening
+    before in UTC — inside the period, and it must not be counted past it.
+    Half past midnight the day before is past it — and the oldest record is
+    named by that day, the clinic's, not by the UTC evening before it."""
+    from datetime import time
+
+    from app.models import ActivityLog, Setting
+    from app.utils.archiving import cutoff_date
+    from app.utils.clock import to_utc
+
+    with clinic["app"].app_context():
+        db = clinic["db"]
+        Setting.set("clinic_timezone", "Africa/Cairo")
+        edge = cutoff_date(5, local_today())
+        inside = to_utc(datetime.combine(edge, time(0, 30)))
+        outside = to_utc(datetime.combine(edge - timedelta(days=1),
+                                          time(0, 30)))
+        assert inside.date() < edge, "the case this test is about"
+        db.session.add(ActivityLog(action="inside", created_at=inside))
+        db.session.add(ActivityLog(action="outside", created_at=outside))
+        db.session.commit()
+    _rule(clinic, "activity", 5)
+    row = _overview(clinic)["activity"]
+    assert row["past"] == 1
+    assert row["oldest"] == edge - timedelta(days=1)
+
+
 def test_an_open_stay_never_passes_its_period(clinic):
     """A stay is counted from its discharge. One still open has not started
     its clock — however long ago the child came in."""

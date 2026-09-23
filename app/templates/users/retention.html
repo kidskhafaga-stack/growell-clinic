@@ -78,7 +78,7 @@
       <td dir="auto">{{ row.rule.basis if row.rule and row.rule.basis else '—' }}
         {% if row.rule and row.rule.set_at %}
         <div class="hint">{{ row.rule.setter.display_name(current_lang) if row.rule.setter else '' }}
-          · <span dir="ltr">{{ row.rule.set_at.strftime('%Y-%m-%d') }}</span></div>
+          · <span dir="ltr">{{ row.rule.set_at|clinic_stamp('%Y-%m-%d') }}</span></div>
         {% endif %}</td>
       <td style="text-align:end;font-variant-numeric:tabular-nums;">{{ row.total }}</td>
       <td dir="ltr">{{ row.oldest or '—' }}</td>

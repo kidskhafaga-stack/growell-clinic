@@ -16,7 +16,7 @@ from sqlalchemy import case, func, null
 
 from app.extensions import db
 from app.models import RecordDestruction, RetentionRule
-from app.utils.clock import local_today
+from app.utils.clock import local_today, to_local, to_utc
 
 #: الأنواع، بترتيب الشاشة.
 DOC_TYPES = ("visits", "prescriptions", "investigations", "consents",
@@ -60,7 +60,10 @@ def _cutoff(column, years, today):
 
     day = cutoff_date(years, today)
     if isinstance(column.type, db.DateTime):
-        return datetime.combine(day, time.min)
+        # **العمود ده UTC واليوم ده يوم العيادة.** نص الليل عند العيادة
+        # بيبقى الساعة ١٠ بالليل اليوم اللي قبله في UTC، فمن غير التحويل
+        # سجل اتعمل الساعة ١٢:٣٠ بالليل كان هيتعدّ «عدّى المدة» وهو جوّاها.
+        return to_utc(datetime.combine(day, time.min))
     return day
 
 
@@ -70,8 +73,9 @@ def rules():
 
 
 def _as_date(value):
+    """أقدم سجل **بيوم العيادة** — عمود الوقت متخزّن UTC."""
     if isinstance(value, datetime):
-        return value.date()
+        return (to_local(value) or value).date()
     return value
 
 
