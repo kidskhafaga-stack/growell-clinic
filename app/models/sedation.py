@@ -55,6 +55,11 @@ ONLY_SEDATION = ("score",)
 RECOVERY_ITEMS = ("recovery_status", "recovery_event", "recovery_score",
                   "recovery_disposition", "recovery_transfer",
                   "recovery_signature")
+#: والإفاقة **بعد تخدير** — `SAS.20` (د) و(هـ) و(و) — بتطلب زيادة عليهم
+#: الأدوية والسوايل والدم **اللي اتدّوا في الإفاقة نفسها**. التسكين
+#: (`SAS.24`) ما بيطلبهمش، فالقايمة بتتغيّر بالنوع زي ما قايمة المسرح
+#: بتتغيّر.
+RECOVERY_ANAESTHESIA = ("recovery_drugs", "recovery_fluids", "recovery_blood")
 
 
 def required_for(kind):
@@ -125,6 +130,21 @@ class SedationRecord(db.Model):
     # ونفس الحكاية: `Operation.discharged_at` لما يكون فيه عملية.
     recovery_left_at = db.Column(db.DateTime, index=True)
     recovery_signed_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+
+    # --- `SAS.20`: الإفاقة **بعد تخدير** بتطلب تلات حاجات زيادة ---
+    # (د) الأدوية **في الإفاقة** بجرعتها وطريقها ووقتها، (هـ) السوايل داخل
+    # وخارج، (و) الدم. أعمدة الأوضة فوق بتقول اللي اتدّى **جوّه**، والمسكّن
+    # اللي اتدّى في الإفاقة الساعة تلاتة مالوش مكان فيهم — كتابته هناك
+    # كانت هتخلّيه يتقري كأنه اتدّى تحت البنج.
+    recovery_drugs = db.Column(db.Text)
+    recovery_fluids_in_ml = db.Column(db.Integer)
+    recovery_fluids_out_ml = db.Column(db.Integer)
+    recovery_blood = db.Column(db.String(200))
+    # (ح) «حالته قبل ما يخرج **حسب معايير محدّدة**» — المعايير بتاعة
+    # المستشفى (`sedation.CRITERIA_SETTING`)، والسؤال هنا: اتحقّقت ولا لأ.
+    # **Nullable بتلات حالات**: «لأ» إجابة حقيقية — طفل ما حقّقش المعايير
+    # واتنقل للرعاية المركزة — و«محدّش قال» حاجة تانية.
+    recovery_criteria_met = db.Column(db.Boolean)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow,
                            nullable=False)

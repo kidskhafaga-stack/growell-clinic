@@ -28,6 +28,7 @@ from app.extensions import db
 from app.i18n import t
 from app.models import ActivityLog, Patient
 from app.models.admission import Admission
+from app.models.postop_plan import LEVELS as POSTOP_LEVELS, PostOpPlan
 from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
                                 ANAESTHESIA_TYPES, IDENTITY_WITH, PRECAUTIONS,
                                 SITE_SIDES,
@@ -36,6 +37,7 @@ from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
 from app.utils import privileges as _privileges
 from app.utils import surgical_counts as _counts
 from app.utils import operative_report as _report
+from app.utils import postop_plan as _postop
 from app.utils import pathology as _pathology
 from app.utils import recovery as _recovery
 from app.utils import theatres as theatre
@@ -307,6 +309,17 @@ def operation(operation_id):
                            report_late=_report.late(row),
                            report_staff=_report.staff(row),
                            report_implants=_report.implants(row),
+                           # The plan after the operation (SAS.12): eight
+                           # elements, written before the child leaves the
+                           # room, and every update kept as a version.
+                           postop_state=_postop.state(row),
+                           postop_plan=_postop.current(row),
+                           postop_missing=_postop.missing(row),
+                           postop_late=_postop.late(row),
+                           postop_by_surgeon=_postop.by_surgeon(row),
+                           postop_start=_postop.starting_point(row),
+                           postop_history=_postop.history(row),
+                           postop_levels=POSTOP_LEVELS,
                            # What came out of the child and where it went
                            # (SAS.10) — against the report's own (g).
                            specimens=_pathology.for_operation(row),
@@ -995,9 +1008,14 @@ def recovery_room():
     from app.utils import recovery
 
     on_date = _a_date(request.args.get("date")) or local_today()
+    here = recovery.in_recovery()
+    waiting = recovery.awaiting_discharge()
     return render_template("theatres/recovery.html", on_date=on_date,
-                           here=recovery.in_recovery(),
-                           waiting=recovery.awaiting_discharge(),
+                           here=here, waiting=waiting,
+                           # SAS.12: which of these has a post-op plan —
+                           # one query for the whole board.
+                           postop=_postop.planned_ids(
+                               [op.id for op in here + waiting]),
                            expecting=recovery.expecting(),
                            undecided=recovery.undecided())
 
@@ -1071,6 +1089,8 @@ def sedation_board():
                            candidates=_sedation_candidates(),
                            kinds=SEDATION_KINDS,
                            dispositions=SEDATION_DISPOSITIONS,
+                           # `SAS.20` (ح) — معايير المستشفى، أو ``None``.
+                           criteria=sed.criteria(),
                            # القايمة الناقصة بتتحسب من نفس الصف اللي الصف
                            # بيترسم منه — حساب تاني كان هيقدر يخالفه.
                            gaps_of=sed.missing)
@@ -1128,7 +1148,14 @@ def sedation_describe(record_id):
                  blood_given=request.form.get("blood_given"),
                  unusual_event=request.form.get("unusual_event"),
                  fluids_in_ml=request.form.get("fluids_in_ml", type=int),
-                 fluids_out_ml=request.form.get("fluids_out_ml", type=int))
+                 fluids_out_ml=request.form.get("fluids_out_ml", type=int),
+                 # `SAS.20` (د)–(و): اللي اتدّى **في الإفاقة** بعد تخدير.
+                 recovery_drugs=request.form.get("recovery_drugs"),
+                 recovery_blood=request.form.get("recovery_blood"),
+                 recovery_fluids_in_ml=request.form.get(
+                     "recovery_fluids_in_ml", type=int),
+                 recovery_fluids_out_ml=request.form.get(
+                     "recovery_fluids_out_ml", type=int))
     db.session.commit()
     flash(t("sedation.saved"), "success")
     return redirect(url_for("theatres.sedation_board"))
@@ -1149,10 +1176,13 @@ def sedation_leave(record_id):
                               condition=request.form.get("condition"),
                               user=current_user)
         else:
+            met = (request.form.get("criteria_met") or "").strip()
             sed.leave_recovery(row, where,
                                score=request.form.get("score"),
                                event=request.form.get("event"),
-                               user=current_user)
+                               user=current_user,
+                               criteria_met=(True if met == "yes" else
+                                             False if met == "no" else None))
     except ValueError:
         db.session.rollback()
         flash(t("sedation.not_saved"), "error")
@@ -1234,6 +1264,25 @@ def write_report(operation_id):
     return redirect(url_for("theatres.operation", operation_id=row.id))
 
 
+@theatres_bp.route("/operation/<int:operation_id>/postop", methods=["POST"])
+@module_required(MODULE)
+def write_postop(operation_id):
+    """The post-operative plan — SAS.12. Each save is a version."""
+    row = Operation.query.get_or_404(operation_id)
+    fields = {name: request.form.get(name) for name in PostOpPlan.ELEMENTS}
+    try:
+        _postop.write(row, user=current_user, **fields)
+    except ValueError:
+        db.session.rollback()
+        flash(t("postop.not_saved"), "error")
+        return redirect(url_for("theatres.operation", operation_id=row.id)
+                        + "#postop")
+    db.session.commit()
+    short = _postop.missing(row)
+    flash(t("postop.saved_short", n=len(short)) if short
+          else t("postop.saved"), "warning" if short else "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id)
+                    + "#postop")
 # ------------------------------------------------ the tissue — SAS.10 ----
 def _specimen_back(row, anchor="#specimens"):
     """Back where the specimen was worked on — the board or the case.

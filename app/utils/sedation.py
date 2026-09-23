@@ -12,13 +12,31 @@ from datetime import datetime, timedelta
 
 from app.extensions import db
 from app.models.sedation import (ANAESTHESIA, DISPOSITIONS, KINDS,
-                                 RECOVERY_ITEMS, SedationRecord,
-                                 required_for)
+                                 RECOVERY_ANAESTHESIA, RECOVERY_ITEMS,
+                                 SedationRecord, required_for)
 
 #: نفس إعداد الدم والتقييد: كل قد إيه المفروض تتاخد قراية أثناء الحلقة.
 #: `SAS.17` بيقول *"regularly according to the approved guidelines"* وما
 #: بيدّيش رقم — فالعيادة هي اللي بتكتبه، والشاشة ساكتة لحد ما تكتبه.
 INTERVAL_SETTING = "sedation_watch_minutes"
+
+
+#: `SAS.20` (ح): حالته قبل ما يخرج من الإفاقة **"according to defined
+#: criteria"**. المعايير بتاعة المستشفى — مقياس ألدريت بحدّه، أو غيره —
+#: والبرنامج ما بيختارش مقياس ولا بيحط حدّ. فاضية = الشاشة بتقول إن
+#: المعايير ما اتكتبتش، مش بتسكت.
+CRITERIA_SETTING = "recovery_criteria"
+
+
+def criteria():
+    """معايير الخروج من الإفاقة زي ما العيادة كتبتها، أو ``None``."""
+    from app.models import Setting
+
+    try:
+        text = (Setting.get(CRITERIA_SETTING) or "").strip()
+    except Exception:                   # noqa: BLE001 — الإعدادات لسه
+        return None
+    return text or None
 
 
 def interval_minutes():
@@ -138,14 +156,29 @@ def missing(row):
         "recovery_disposition": _filled(row.recovery_disposition),
         "recovery_transfer": row.recovery_out is not None,
         "recovery_signature": row.recovery_signed_by_id is not None,
+        # `SAS.20` (د)–(و) — بعد التخدير بس.
+        "recovery_drugs": _filled(row.recovery_drugs),
+        "recovery_fluids": (row.recovery_fluids_in_ml is not None
+                            or row.recovery_fluids_out_ml is not None),
+        "recovery_blood": _filled(row.recovery_blood),
+        "recovery_criteria": row.recovery_criteria_met is not None,
     }
+    wanted = list(RECOVERY_ITEMS)
+    if row.kind == ANAESTHESIA:
+        wanted += list(RECOVERY_ANAESTHESIA)
+    # (ح) «حسب معايير محدّدة» بيتسأل **لما تكون فيه معايير**. من غيرها
+    # السؤال مالوش معنى على الصف — والفجوة بتاعة العيادة مش بتاعة الطفل،
+    # والشاشة بتقولها فوق مرة واحدة.
+    if criteria():
+        wanted.append("recovery_criteria")
     if row.in_recovery:
         # لسه في الإفاقة: اللي بيتكتب وهو بيخرج منها لسه ما جاش وقته.
         leaving = ("recovery_score", "recovery_disposition",
-                   "recovery_transfer", "recovery_signature")
-        return gaps + [i for i in RECOVERY_ITEMS
+                   "recovery_transfer", "recovery_signature",
+                   "recovery_criteria")
+        return gaps + [i for i in wanted
                        if not recovery[i] and i not in leaving]
-    return gaps + [i for i in RECOVERY_ITEMS if not recovery[i]]
+    return gaps + [i for i in wanted if not recovery[i]]
 
 
 def complete(row):
@@ -201,9 +234,18 @@ def describe(row, **fields):
         if name in fields and fields[name] is not None:
             value = (fields[name] or "").strip() or None
             setattr(row, name, value)
+    for name in ("recovery_drugs", "recovery_blood"):
+        if name in fields and fields[name] is not None:
+            setattr(row, name, (fields[name] or "").strip() or None)
     for name in ("fluids_in_ml", "fluids_out_ml"):
         if name in fields and fields[name] is not None:
             setattr(row, name, fields[name])
+    # **الناقص مش رقم.** «-٥٠ مل» غلطة كتابة، وتخزينها كان هيقلب ميزان
+    # السوايل — فبتتساب زي ما هي.
+    for name in ("recovery_fluids_in_ml", "recovery_fluids_out_ml"):
+        value = fields.get(name)
+        if value is not None and value >= 0:
+            setattr(row, name, value)
     return row
 
 
@@ -246,8 +288,12 @@ def leave_theatre(row, disposition, condition=None, user=None, at=None):
 
 
 def leave_recovery(row, disposition, score=None, event=None, user=None,
-                   at=None):
-    """ساب الإفاقة — `SAS.24` (د)–(ز)."""
+                   at=None, criteria_met=None):
+    """ساب الإفاقة — `SAS.24` (د)–(ز)، و`SAS.20` (ح)–(ك) بعد التخدير.
+
+    ``criteria_met`` بتلات حالات: ``True``، ``False`` — وده إجابة حقيقية،
+    طفل ما حقّقش المعايير واتنقل للرعاية المركزة — أو ``None`` محدّش قال.
+    """
     if row is None:
         raise ValueError("no record")
     if disposition not in DISPOSITIONS:
@@ -261,6 +307,8 @@ def leave_recovery(row, disposition, score=None, event=None, user=None,
         row.recovery_score = (score or "").strip()[:60] or None
     if event is not None:
         row.recovery_event = (event or "").strip() or None
+    if criteria_met is not None:
+        row.recovery_criteria_met = bool(criteria_met)
     # **والخروجة من الإفاقة مش بتتاخد من هنا لما يكون فيه عملية.**
     # `recovery.discharge` بيرفض من غير قرار المتابعة عن قصد — علشان «مش
     # محتاج متابعة» و«محدّش سأل» ما يبقوش نفس الحاجة — وده قرار تاني خالص
