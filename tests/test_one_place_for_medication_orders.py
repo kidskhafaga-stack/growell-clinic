@@ -117,21 +117,30 @@ def test_a_stopped_order_says_when_and_why(clinic, ward):
 
 
 def test_running_orders_come_first(clinic, ward):
-    """الشغّال فوق: ده اللي حد بيدوّر عليه وهو فاتح الملف."""
+    """الشغّال فوق: ده اللي حد بيدوّر عليه وهو فاتح الملف — **وبعدين
+    الأحدث**.
+
+    تلات أوامر علشان الترتيب ما ينجحش بالصدفة: الشغّال في النص بالتاريخ،
+    فلا «الأحدث الأول» ولا «الأقدم الأول» بيحطّه فوق. من غير كده، اختبار
+    بأمرين كان بينجح والقايمة مقلوبة خالص."""
+    from datetime import datetime, timedelta
+
     from app.utils import drug_round
 
     with clinic["app"].app_context():
         stay, doc = _admit(clinic, ward["beds"][0])
-        running = _order(stay, doc, "Paracetamol")
-        clinic["db"].session.flush()
-        stopped = _order(stay, doc, "Ibuprofen")
-        drug_round.stop(stopped, user=doc, reason="حرارة نزلت")
+        now = datetime.utcnow()
+        oldest = _order(stay, doc, "Oldest", when=now - timedelta(hours=3))
+        drug_round.stop(oldest, user=doc, reason="x")
+        running = _order(stay, doc, "Running", when=now - timedelta(hours=2))
+        newest = _order(stay, doc, "Newest", when=now - timedelta(hours=1))
+        drug_round.stop(newest, user=doc, reason="y")
         clinic["db"].session.commit()
-        first, second = running.id, stopped.id
+        ids = [running.id, newest.id, oldest.id]
 
     _html, tab = _file(clinic)
-    assert tab.index(f'data-inpatient-order="{first}"') < \
-        tab.index(f'data-inpatient-order="{second}"')
+    at = [tab.index(f'data-inpatient-order="{i}"') for i in ids]
+    assert at == sorted(at), ids
 
 
 def test_a_prn_order_says_so(clinic, ward):
@@ -232,7 +241,7 @@ def test_the_file_asks_once_not_once_per_order(clinic, ward):
         _order(stay, doc, "Drug 0")
         clinic["db"].session.commit()
         engine = clinic["db"].engine
-        stay_id, doc_id = stay.id, doc.id
+        stay_id = stay.id
 
     def count():
         seen = []
@@ -250,9 +259,15 @@ def test_the_file_asks_once_not_once_per_order(clinic, ward):
         from app.models import Admission, User
 
         stay = clinic["db"].session.get(Admission, stay_id)
-        doc = clinic["db"].session.get(User, doc_id)
+        # **كل أمر بدكتور مختلف.** بنفس الدكتور، اسمه بيتحمّل مرة ويتاخد
+        # من الذاكرة الباقي — واستعلام لكل أمر كان بيعدّي من غير ما يبان.
         for i in range(1, 20):
-            _order(stay, doc, f"Drug {i}")
+            writer = User(username=f"doc{i}", full_name=f"د. {i}",
+                          role="doctor", is_active=True)
+            writer.set_password("secret")
+            clinic["db"].session.add(writer)
+            clinic["db"].session.flush()
+            _order(stay, writer, f"Drug {i}")
         clinic["db"].session.commit()
     big = count()
     assert big == small, (small, big)
