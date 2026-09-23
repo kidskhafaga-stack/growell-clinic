@@ -27,7 +27,14 @@
         {% for op in here %}
         <tr>
           <td>{{ op.patient.display_name(current_lang) if op.patient else '—' }}</td>
-          <td>{{ op.procedure }}</td>
+          <td>{{ op.procedure }}
+            {# SAS.12 — خطة ما بعد العملية. الطفل هنا يبقى خرج من الأوضة، فخطة
+               ناقصة هنا متأخرة فعلاً. #}
+            {% set plan_state = postop.get(op.id) %}
+            {% if not plan_state %}<a class="badge badge--danger" data-postop-missing="{{ op.id }}"
+               href="{{ url_for('theatres.operation', operation_id=op.id) }}#postop">{{ t('postop.none') }}</a>
+            {% elif plan_state == 'short' %}<a class="badge badge--warn" data-postop-short="{{ op.id }}"
+               href="{{ url_for('theatres.operation', operation_id=op.id) }}#postop">{{ t('postop.short_badge') }}</a>{% endif %}</td>
           <td dir="ltr">{{ op.recovery_at|clinic_stamp if op.recovery_at else '—' }}</td>
           <td style="text-align:end;">
             <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('theatres.operation', operation_id=op.id) }}">
@@ -55,7 +62,14 @@
         {% for op in waiting %}
         <tr>
           <td>{{ op.patient.display_name(current_lang) if op.patient else '—' }}</td>
-          <td>{{ op.procedure }}</td>
+          <td>{{ op.procedure }}
+            {# SAS.12 — خطة ما بعد العملية. الطفل هنا يبقى خرج من الأوضة، فخطة
+               ناقصة هنا متأخرة فعلاً. #}
+            {% set plan_state = postop.get(op.id) %}
+            {% if not plan_state %}<a class="badge badge--danger" data-postop-missing="{{ op.id }}"
+               href="{{ url_for('theatres.operation', operation_id=op.id) }}#postop">{{ t('postop.none') }}</a>
+            {% elif plan_state == 'short' %}<a class="badge badge--warn" data-postop-short="{{ op.id }}"
+               href="{{ url_for('theatres.operation', operation_id=op.id) }}#postop">{{ t('postop.short_badge') }}</a>{% endif %}</td>
           <td dir="ltr">{{ op.on_date }}</td>
           <td style="text-align:end;">
             <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('theatres.operation', operation_id=op.id) }}">
