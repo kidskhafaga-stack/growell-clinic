@@ -230,6 +230,33 @@ def test_the_front_desk_neither_sees_nor_writes_them(clinic):
     assert page.status_code == 403
 
 
+def test_a_role_that_opens_visits_without_the_clinical_right_sees_none(clinic):
+    """**الاستقبال ما بيوصلش للزيارة أصلاً** — فاختبار الاستقبال لوحده كان
+    بيعدّي والسطر في الزيارة من غير حارس. بس العيادة بتعمل أدوار: دور
+    بيفتح الزيارات ومالوش الصلاحية الإكلينيكية (كاتب يسجّل العلامات مثلاً)
+    لازم ما يشوفش دين الأسرة."""
+    from app.models import User
+    from app.models.role import Role
+    from app.utils import needs
+
+    with clinic["app"].app_context():
+        clinic["db"].session.add(Role(name="scribe", label_ar="كاتب",
+                                      modules="visits,patients",
+                                      capabilities=""))
+        scribe = User(username="scribe", full_name="كاتب", role="scribe",
+                      is_active=True)
+        scribe.set_password("secret")
+        clinic["db"].session.add(scribe)
+        needs.add(_kid(clinic), "religious", "صايمين رمضان", user=_doc(clinic))
+        clinic["db"].session.commit()
+        assert scribe.can_access("visits") and not scribe.can("patient_medical")
+
+    page = clinic["sign_in"]("scribe").get(
+        f"/visits/{clinic['ids']['visit']}/record")
+    assert page.status_code == 200
+    assert "صايمين رمضان" not in page.get_data(as_text=True)
+
+
 def test_every_word_is_written_in_both_languages():
     import json
 
