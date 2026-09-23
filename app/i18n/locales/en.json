@@ -2453,7 +2453,13 @@
     "status_seeded": "Demo data loaded",
     "status_clean": "Clean",
     "import_title": "Bringing data in",
-    "import_hint": "A clinic that ran on another program: import the patients first, then their service and vaccination history."
+    "import_hint": "A clinic that ran on another program: import the patients first, then their service and vaccination history.",
+    "remove_demo_btn": "Remove the demo data only",
+    "remove_demo_hint": "Removes exactly what the seeder created — it never touches a real row.",
+    "remove_demo_warn": "Remove the demo data? Real data stays.",
+    "demo_removed": "%(rows)s demo rows removed.",
+    "demo_kept": "%(rows)s were kept: real work is built on them.",
+    "no_demo": "No demo data is recorded."
   },
   "guide": {
     "nav": "User guide",

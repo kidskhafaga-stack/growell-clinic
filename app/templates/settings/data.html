@@ -347,6 +347,25 @@
     <button class="btn btn-primary gc-press gc-ripple" type="submit" {{ 'disabled' if stats.seeded else '' }}>
       <i class="bi bi-download"></i> {{ t('data_tools.seed_btn') }}</button>
   </form>
+
+  {# **امسح التجريبية بس.**
+
+     الزرع بيسجّل اللي عمله، فالمسح ده بيشيل **بالظبط** اللي جه منه —
+     مش بيخمّن بالاسم ولا بيلمس صف حقيقي. والزرار مش بيبان غير لما
+     يكون فيه كشف، لأن زرار مش هيعمل حاجة بيعلّم اللي قدام الشاشة إن
+     الأزرار بتكدب. #}
+  {% if stats.demo_rows %}
+  <form method="post" action="{{ url_for('settings.remove_demo_data') }}"
+        style="margin-top:10px;" data-remove-demo
+        onsubmit="return confirm('{{ t('data_tools.remove_demo_warn') }}');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline gc-press" type="submit"
+            style="color:var(--danger);">
+      <i class="bi bi-eraser"></i> {{ t('data_tools.remove_demo_btn') }}</button>
+    <span class="hint" style="margin-inline-start:8px;">
+      {{ t('data_tools.remove_demo_hint') }}</span>
+  </form>
+  {% endif %}
 </div>
 
 <!-- Danger zone (owner only) -->

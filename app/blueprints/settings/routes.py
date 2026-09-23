@@ -1134,10 +1134,15 @@ def data_tools():
     from app.models import Invoice, Patient
     from app.utils.backups import list_backups
 
+    from app.utils import demo_trace
+
+    plan = demo_trace.manifest()
     stats = {
         "patients": Patient.query.count(),
         "invoices": Invoice.query.count(),
         "seeded": Setting.get("demo_seeded") == "1",
+        # كام صف تجريبي لسه موجود — والزرار بيبان بيهم.
+        "demo_rows": sum(len(ids) for ids in plan.values()),
     }
     bset = {
         "enabled": Setting.get("backup_auto_enabled", "1") != "0",
@@ -1435,6 +1440,32 @@ def seed_demo_data():
                            entity="system", ip_address=client_ip())
         db.session.commit()
         flash(t("data_tools.seeded"), "success")
+    return redirect(url_for("settings.data_tools"))
+
+
+@settings_bp.route("/data/remove-demo", methods=["POST"])
+@owner_required
+def remove_demo_data():
+    """يشيل اللي الزرع عمله — **وبس**.
+
+    مش `reset_all`: ده بيمسح كل حاجة تشغيلية. ده بيمسح الصفوف اللي
+    الكشف بيقول إن الزرع عملها، وبيسيب أي صف تجريبي بقى تحت شغل حقيقي
+    — **وبيقول إنه ساب**.
+    """
+    from app.utils import demo_trace
+
+    removed, kept = demo_trace.remove()
+    db.session.commit()
+    if not removed and not kept:
+        flash(t("data_tools.no_demo"), "warning")
+    else:
+        flash(t("data_tools.demo_removed") % {
+            "rows": sum(removed.values())}, "success")
+        if kept:
+            # **مش فشل** — ده صف تجريبي بقى تحت شغل حقيقي، ومسحه كان
+            # هيكسر الشغل ده. واللي قدام الشاشة لازم يعرف.
+            flash(t("data_tools.demo_kept") % {
+                "rows": sum(kept.values())}, "info")
     return redirect(url_for("settings.data_tools"))
 
 
