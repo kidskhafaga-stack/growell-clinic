@@ -233,6 +233,46 @@ def test_children_go_before_parents(clinic):
                     assert all(v in live for v in rows), (name, column.name)
 
 
+def test_a_demo_row_that_points_at_its_own_child_still_goes(clinic):
+    """**اللفّة الواحدة مش كفاية، واتقاس.**
+
+    `visits.based_on_id` بتشاور على `visit_investigations`، و
+    `visit_investigations.visit_id` بتشاور على `visits` — والتعليق في
+    الموديل بيقول ليه: *"the answer, the decision and the question it
+    came from are one chain rather than three loose rows"*.
+
+    فأي ترتيب بيسيب طرف بيشاور على التاني وقت ما نعدّي عليه، والطرف ده
+    بيتحسب «حد بنى عليه شغل حقيقي» ويتساب بالغلط. واللفّة اللي بعدها
+    بتلاقيه فاضي.
+
+    من غير التكرار، القياس كان: أربع جداول اتسابت — الزيارة، والتحليل،
+    والمريض ورا الاتنين، وعيلته.
+    """
+    from app.models import Visit, VisitInvestigation
+    from app.utils import demo_trace
+    from app.utils.demo import seed_demo
+
+    with clinic["app"].app_context():
+        seed_demo()
+        plan = demo_trace.manifest()
+
+        probe = VisitInvestigation.query.filter(
+            VisitInvestigation.id.in_(plan["visit_investigations"])).first()
+        follow_up = Visit.query.filter(
+            Visit.id.in_(plan["visits"]),
+            Visit.id != probe.visit_id).first()
+        follow_up.based_on_id = probe.id
+        clinic["db"].session.commit()
+
+        removed, kept = demo_trace.remove()
+        clinic["db"].session.commit()
+
+        assert kept == {}
+        assert removed["visits"] == len(plan["visits"])
+        assert removed["visit_investigations"] == len(
+            plan["visit_investigations"])
+
+
 def test_a_full_wipe_drops_the_manifest_rows_it_emptied(clinic):
     """**الأرقام بتترد.** «امسح البيانات» بيفضّي المرضى، وSQLite بيدّي
     المريض الحقيقي الجديد أول رقم فاضي — يعني رقم كان لمريض تجريبي. لو

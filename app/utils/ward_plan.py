@@ -261,8 +261,29 @@ class InUse(Exception):
     """السبب اللي منع الحذف — بيتحوّل لرسالة على الشاشة."""
 
 
-def bed_used(bed):
-    """السرير ده نام فيه طفل قبل كده — **ولو مرة واحدة من سنة**."""
+def used_bed_ids():
+    """كل سرير نام فيه طفل قبل كده — **استعلام واحد للمستشفى كلها**.
+
+    شاشة التجهيز بتسأل «يتمسح؟» عن كل سرير وحيّز وقسم قبل ما ترسم زرار
+    المسح. سؤال لكل سرير كان بيخلّي الشاشة تكبر مع المستشفى: عشرين سرير
+    زيادة كانوا تلاتين استعلام زيادة. فالشاشة بتاخد الإجابة مرة، والمسح
+    نفسه (:func:`delete_bed`) بيسأل من جديد — لأنه الفعل، والشاشة
+    اترسمت من ثواني.
+    """
+    from app.models import BedStay
+
+    return {row[0] for row in
+            db.session.query(BedStay.bed_id).distinct().all()}
+
+
+def bed_used(bed, used=None):
+    """السرير ده نام فيه طفل قبل كده — **ولو مرة واحدة من سنة**.
+
+    ``used`` هو :func:`used_bed_ids` لو الشاشة جابته مرة؛ من غيره السؤال
+    بيتسأل على السرير ده بس.
+    """
+    if used is not None:
+        return bed.id in used
     from app.models import BedStay
 
     return db.session.query(
@@ -308,14 +329,14 @@ def delete_unit(unit):
     db.session.delete(unit)
 
 
-def space_deletable(space):
+def space_deletable(space, used=None):
     """نفس قاعدة القسم، مستوى تحت."""
     if space is None:
         return False
-    return not any(bed_used(bed) for bed in space.beds)
+    return not any(bed_used(bed, used) for bed in space.beds)
 
 
-def deletable(unit):
+def deletable(unit, used=None):
     """يتمسح ولا لأ — **والشاشة بتسأل ده قبل ما ترسم الزرار**.
 
     زرار بيرفض كل مرة تضغطه أسوأ من زرار مش موجود: بيعلّم اللي قدام
@@ -323,5 +344,5 @@ def deletable(unit):
     """
     if unit is None:
         return False
-    return not any(bed_used(bed) for space in unit.spaces
+    return not any(bed_used(bed, used) for space in unit.spaces
                    for bed in space.beds)

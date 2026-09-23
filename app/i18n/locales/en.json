@@ -7805,5 +7805,29 @@
     "refused_unit_has_used_beds": "A bed in this department has been slept in, so it is not deleted.",
     "sub": "Answer with the numbers you have and the program creates the departments, spaces and beds. Only what this facility ticked is asked about.",
     "title": "Build the departments in one press"
+  },
+  "closures": {
+    "title": "Closures & maintenance",
+    "close_btn": "Close for maintenance",
+    "reopen_btn": "Reopen",
+    "reason": "Reason",
+    "pick_reason": "Pick a reason",
+    "until": "Expected to reopen",
+    "note": "Note",
+    "closed_badge": "Closed",
+    "since": "since",
+    "no_end": "no end date",
+    "overdue_badge": "Past its date",
+    "overdue_title": "Closures past their date",
+    "overdue_hint": "It said it would be done, and it is still closed. Ones with no date are not listed.",
+    "stranded_title": "Children are still in closed places",
+    "stranded_hint": "Closing is not refused — maintenance happens while a child is there — but somebody has to move them.",
+    "history": "Closure history",
+    "closed_done": "Closed ✓",
+    "reopened_done": "Reopened ✓",
+    "need_reason": "A closure needs a reason",
+    "stuck": "It cannot be reopened on its own: the place above it is still closed.",
+    "not_found": "No such place",
+    "reopened_at": "Reopened"
   }
 }

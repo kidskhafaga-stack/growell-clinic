@@ -61,12 +61,25 @@ def board(unit_id=None):
     Four queries whatever the size of the hospital: the units, their spaces,
     their beds, and the open stays. A ward with sixty beds costs the same as
     one with four.
+
+    **A closed unit is drawn, not skipped.** This used to leave out any unit
+    or space that was not active — harmless while nothing could make one
+    inactive. Closing for maintenance (``utils/closures``) does exactly that,
+    and a closed unit can still have a child in it while they are being
+    moved. Skipping it would hide the child with it — the same reason a bed
+    with a child in it cannot be taken out of service. So it is drawn,
+    marked ``closed``, and none of its beds count as free.
+
+    Each cell carries one ``state`` — ``taken``, ``off`` or ``free`` — worked
+    out here once, so the board and the setup screen cannot disagree about
+    what a bed is. **A child wins**: a bed with somebody in it is ``taken``
+    even inside a closed unit, because that is the fact somebody has to act
+    on.
     """
     from sqlalchemy.orm import selectinload
 
     units = (Unit.query
              .options(selectinload(Unit.spaces).selectinload(Space.beds))
-             .filter(Unit.is_active.is_(True))
              .order_by(Unit.sort_order, Unit.id))
     if unit_id:
         units = units.filter(Unit.id == unit_id)
@@ -78,20 +91,26 @@ def board(unit_id=None):
         spaces = []
         free = taken = 0
         for space in unit.spaces:
-            if not space.is_active:
-                continue
+            open_here = unit.is_active and space.is_active
             beds = []
             for bed in space.beds:
                 stay = stays.get(bed.id)
-                if bed.is_active:
-                    taken += 1 if stay else 0
-                    free += 0 if stay else 1
-                beds.append({"bed": bed, "stay": stay,
+                if stay:
+                    state = "taken"
+                    taken += 1
+                elif open_here and bed.is_active:
+                    state = "free"
+                    free += 1
+                else:
+                    state = "off"
+                beds.append({"bed": bed, "stay": stay, "state": state,
                              "patient": (stay.admission.patient
                                          if stay else None)})
-            spaces.append({"space": space, "beds": beds})
+            spaces.append({"space": space, "beds": beds,
+                           "closed": not space.is_active})
         out.append({"unit": unit, "spaces": spaces,
-                    "free": free, "taken": taken})
+                    "free": free, "taken": taken,
+                    "closed": not unit.is_active})
     return out
 
 
@@ -157,6 +176,25 @@ def stays_for(patient_id):
             .all())
 
 
+def in_service(bed):
+    """السرير ده ينفع يتحط فيه طفل — **هو والحيّز والقسم اللي هو فيهم**.
+
+    كان السؤال على السرير بس، وده كان صح طول ما مفيش شاشة بتقفل قسم أو
+    حيّز. أول ما الصيانة بقت بتقفلهم (`utils/closures`)، سرير في عنبر
+    مقفول بقى `is_active` بتاعه `True` — لأن القسم هو اللي اتقفل مش هو.
+    فالدخول كان هيعدّي على قسم داخل صيانة.
+
+    و`free_beds` كانت بتسأل التلاتة من الأول؛ ده نفس السؤال **للفعل
+    نفسه**، مش للقايمة بس. حارس على القايمة لوحدها نص قاعدة.
+    """
+    if bed is None or not bed.is_active:
+        return False
+    space = bed.space
+    if space is None or not space.is_active:
+        return False
+    return space.unit is not None and bool(space.unit.is_active)
+
+
 def admit(patient, bed, user=None, visit=None, doctor_id=None, reason=None,
           when=None):
     """Put a child in a bed and open their stay.
@@ -173,7 +211,7 @@ def admit(patient, bed, user=None, visit=None, doctor_id=None, reason=None,
     """
     if bed is None:
         raise BedTaken("no bed")
-    if not bed.is_active:
+    if not in_service(bed):
         raise BedTaken("out of service")
     if bed.id in occupied_bed_ids():
         raise BedTaken("occupied")
@@ -215,7 +253,7 @@ def move(admission, bed, user=None, note=None, when=None):
     """
     if admission is None or not admission.is_open:
         raise BedTaken("not admitted")
-    if bed is None or not bed.is_active:
+    if not in_service(bed):
         raise BedTaken("out of service")
     current = admission.current_stay
     if current is not None and current.bed_id == bed.id:
@@ -261,9 +299,15 @@ def counts():
     For the dashboard line and nothing else. Derived from the same two facts
     as everything above, so it cannot disagree with the board.
     """
-    total = (Bed.query.join(Space, Bed.space_id == Space.id)
-             .join(Unit, Space.unit_id == Unit.id)
-             .filter(Bed.is_active.is_(True), Space.is_active.is_(True),
-                     Unit.is_active.is_(True)).count())
-    taken = len(occupied_bed_ids())
-    return {"free": max(0, total - taken), "taken": taken, "total": total}
+    in_service_ids = {row[0] for row in (
+        db.session.query(Bed.id).join(Space, Bed.space_id == Space.id)
+        .join(Unit, Space.unit_id == Unit.id)
+        .filter(Bed.is_active.is_(True), Space.is_active.is_(True),
+                Unit.is_active.is_(True)).all())}
+    occupied = occupied_bed_ids()
+    # **Free is the in-service beds nobody is in** — not "in service minus
+    # everybody". A child still in a unit that was closed for maintenance
+    # is in a bed that is not in service, and subtracting them from the
+    # ones that are made the ward look one bed fuller than it is.
+    return {"free": len(in_service_ids - occupied), "taken": len(occupied),
+            "total": len(in_service_ids)}

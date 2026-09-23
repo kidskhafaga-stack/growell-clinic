@@ -90,7 +90,11 @@ BUILT_IN_CATEGORIES = [
 #: **وعمود `Observation.pain_score` مكتوب جنبه `0–10, the faces/numeric
 #: scale`** — يعني البرنامج كان مفترض المقياس من نفسه. القايمة دي هي
 #: اللي بتخلّي الرقم يبقى ليه أداة.
-DOMAINS = list(BUILT_IN) + ["item_category", "special_diet", "pain_tool"]
+#: **وأسباب إغلاق الأقسام للصيانة ليها بدايتها في `utils/closures`** مش
+#: هنا — «صيانة» و«تعقيم» تشغيلية زي «علبة» و«ثلاجة»، بس بتتحط مع
+#: الموديول اللي بيستعملها علشان مستشفى من غير أقسام ما تشوفهاش.
+DOMAINS = list(BUILT_IN) + ["item_category", "special_diet", "pain_tool",
+                            "closure_reason"]
 
 
 def ensure_seeded():
@@ -191,6 +195,10 @@ def usage_counts(domain):
 
             out[row.key] = PainScreen.query.filter_by(
                 tool_key=row.key).count()
+        elif domain == "closure_reason":
+            from app.models import Closure
+
+            out[row.key] = Closure.query.filter_by(reason=row.key).count()
         else:
             # **وقايمة جديدة من غير فرع هنا كانت بتبان «مش مستعملة»
             # دايماً** — يعني تتمسح ومعاها كل صف بيشاور عليها، وده
