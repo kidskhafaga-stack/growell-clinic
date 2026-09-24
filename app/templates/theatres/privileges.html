@@ -43,6 +43,9 @@
         <select class="select" id="pv_scope" name="scope" x-model="scope">
           <option value="type">{{ t('privileges.scope_type') }}</option>
           <option value="service">{{ t('privileges.scope_service') }}</option>
+          {# SAS.16, evidence 3 — the anaesthetist is privileged for a kind of
+             anaesthetic, not for a procedure. #}
+          <option value="anaesthesia">{{ t('privileges.scope_anaesthesia') }}</option>
         </select>
       </div>
       <div class="form-row" style="margin:0;min-width:180px;" x-show="scope === 'type'">
@@ -58,6 +61,14 @@
         <select class="select" id="pv_service" name="service_id">
           {% for service in services %}
           <option value="{{ service.id }}">{{ service.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin:0;min-width:180px;" x-show="scope === 'anaesthesia'" x-cloak>
+        <label for="pv_gas">{{ t('privileges.anaesthesia_kind') }}</label>
+        <select class="select" id="pv_gas" name="anaesthesia_kind">
+          {% for k in gas_kinds %}
+          <option value="{{ k }}">{{ t('theatre.anaes_' ~ k) }}</option>
           {% endfor %}
         </select>
       </div>
@@ -126,6 +137,9 @@
         {% for row in rows %}
         <tr>
           <td>{% if row.service %}{{ row.service.display_name(current_lang) }}
+              {% elif row.anaesthesia_kind %}<b data-gas-scope="{{ row.anaesthesia_kind }}">
+                <i class="bi bi-lungs"></i> {{ t('privileges.anaesthesia_label') }}:
+                {{ t('theatre.anaes_' ~ row.anaesthesia_kind) }}</b>
               {% else %}<b>{{ t('service_types.' ~ row.service_type) }}</b>
               <span class="hint">({{ t('privileges.whole_type') }})</span>{% endif %}
             {% if row.note %}<div class="hint">{{ row.note }}</div>{% endif %}</td>

@@ -688,6 +688,16 @@ ADDITIONS = [
     ("sedation_records", "recovery_fluids_out_ml", "INTEGER"),
     ("sedation_records", "recovery_blood", "VARCHAR(200)"),
     ("sedation_records", "recovery_criteria_met", "BOOLEAN"),
+    # The anaesthetist's privilege (SAS.16, evidence 3): a privilege scoped
+    # to a kind of anaesthetic rather than to a procedure. NULL on every row
+    # already written, which is what those rows are — a surgeon's scope.
+    ("clinical_privileges", "anaesthesia_kind", "VARCHAR(12)"),
+    # Who accepted an anaesthetic given outside the anaesthetist's
+    # privileges, and why. The check itself is derived and needs no column,
+    # exactly as the surgeon's is.
+    ("operations", "anaesthesia_ack_by", "INTEGER"),
+    ("operations", "anaesthesia_ack_at", "DATETIME"),
+    ("operations", "anaesthesia_ack_reason", "VARCHAR(200)"),
 ]
 
 def apply_schema(report=None):

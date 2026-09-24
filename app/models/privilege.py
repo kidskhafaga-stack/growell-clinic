@@ -77,10 +77,18 @@ class ClinicalPrivilege(db.Model):
     doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"),
                           nullable=False, index=True)
 
-    #: Exactly one of these two. ``service_type`` is a key from the clinic's
+    #: Exactly one of these three. ``service_type`` is a key from the clinic's
     #: own catalogue; ``service_id`` is one named procedure.
     service_type = db.Column(db.String(20), index=True)
     service_id = db.Column(db.Integer, db.ForeignKey("services.id"), index=True)
+    #: **The anaesthetist's scope** (SAS.16, evidence 3): *"Anesthesia and
+    #: sedation are administered by qualified physicians **according to their
+    #: approved clinical privileges**"*. An anaesthetist is privileged for a
+    #: kind of anaesthetic — general, regional, sedation — not for a hernia,
+    #: so the scope is one of :data:`app.models.theatre.ANAESTHESIA_TYPES`.
+    #: A procedure scope could not say it: the same child's hernia is a
+    #: general anaesthetic in one room and a caudal in the next.
+    anaesthesia_kind = db.Column(db.String(12), index=True)
 
     kind = db.Column(db.String(12), default="standard", nullable=False)
     #: WFM.12 (g): the accountable supervisor, the mode and the frequency.

@@ -80,7 +80,9 @@ def day(on_date=None, who=None):
     # of the list — and they are looking at this screen, not at the case.
     rooms = [{"theatre": room,
               "operations": [{"operation": op, "safety": safety(op),
-                              "needs_gas": anaesthetist_missing(op)}
+                              "needs_gas": anaesthetist_missing(op),
+                              "gas_privilege":
+                                  anaesthesia_privilege_state(op)}
                              for op in by_theatre.get(room.id, [])]}
              for room in theatres]
     # Empty rooms are part of the day — a theatre with nothing in it is a
@@ -449,6 +451,65 @@ def acknowledge_privilege(operation, reason, user=None, at=None):
     operation.privilege_ack_by = getattr(user, "id", None)
     operation.privilege_ack_at = at or datetime.utcnow()
     return operation
+
+
+def anaesthesia_privilege_state(operation):
+    """Where this case stands against the anaesthetist's privileges
+    (SAS.16, evidence 3).
+
+    ``not_needed`` · ``unknown`` · ``ok`` · ``supervised`` · ``outside`` ·
+    ``acknowledged``.
+
+    ``not_needed`` for a local case, and for one nobody has chosen the
+    anaesthetic for — an unanswered question is not a gap, the rule
+    :func:`anaesthetist_missing` already keeps. ``unknown`` while the case
+    needs an anaesthetist and has none named: that gap is the missing
+    person, which the list already flags, not a privilege.
+
+    Judged against the day of the operation, as the surgeon's is, and
+    ``acknowledged`` never reads as ``ok`` — the gap stays visible.
+    """
+    if operation is None:
+        return "not_needed"
+    kind = (getattr(operation, "anaesthesia_kind", None) or "").strip()
+    if kind not in NEEDS_ANAESTHETIST:
+        return "not_needed"
+    if not operation.anaesthetist_id:
+        return "unknown"
+    from app.utils import privileges
+
+    answer = privileges.anaesthesia_state(operation.anaesthetist_id, kind,
+                                          operation.on_date)
+    if answer == "outside" and operation.anaesthesia_ack_at:
+        return "acknowledged"
+    return answer
+
+
+def acknowledge_anaesthesia(operation, reason, user=None, at=None):
+    """Record who accepted an anaesthetic outside the anaesthetist's
+    privileges, and why. Refused without a reason — as the surgeon's is."""
+    if operation is None:
+        return None
+    text = (reason or "").strip()[:200]
+    if not text:
+        return None
+    operation.anaesthesia_ack_reason = text
+    operation.anaesthesia_ack_by = getattr(user, "id", None)
+    operation.anaesthesia_ack_at = at or datetime.utcnow()
+    return operation
+
+
+def forget_anaesthesia_ack(operation):
+    """Clear an acceptance that no longer describes the case.
+
+    An acceptance is of *this* anaesthetist giving *this* kind of
+    anaesthetic. Once either changes, the sentence somebody wrote is about
+    a case that no longer exists, and leaving it would let a second gap
+    pass under the first one's reason.
+    """
+    operation.anaesthesia_ack_reason = None
+    operation.anaesthesia_ack_by = None
+    operation.anaesthesia_ack_at = None
 
 
 def implants_for(operation):

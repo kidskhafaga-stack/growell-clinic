@@ -60,6 +60,7 @@ def index():
     who = request.args.get("who", type=int)
     if request.args.get("mine") and current_user.is_authenticated:
         who = current_user.id
+    surgeons = _surgeons()
     return render_template("theatres/index.html",
                            # What kinds of case this clinic prices
                            # differently, for the booking form.
@@ -95,7 +96,7 @@ def index():
                                       .order_by(Theatre.sort_order, Theatre.id)
                                       .all()),
                            stops=CHECK_STOPS,
-                           surgeons=_surgeons(),
+                           surgeons=surgeons,
                            # Whether this case needs an anaesthetist at all is
                            # the question that decides whether the booking
                            # form asks for one — so the four words are on the
@@ -106,6 +107,12 @@ def index():
                            # so the box that appears and the record that is
                            # judged cannot drift apart.
                            needs_anaesthetist=theatre.NEEDS_ANAESTHETIST,
+                           # Where each doctor stands on each of those kinds
+                           # on this day (SAS.16, evidence 3) — so the form
+                           # warns the moment an anaesthetist is chosen.
+                           gas_privileges=_privileges.anaesthesia_map(
+                               [d.id for d in surgeons],
+                               theatre.NEEDS_ANAESTHETIST, on_date),
                            services=_procedures(),
                            may_build=current_user.is_admin)
 
@@ -367,6 +374,13 @@ def operation(operation_id):
                            privilege_state=theatre.privilege_state(row),
                            privilege_rows=_privileges.matching(
                                row.surgeon_id, row.service, row.on_date),
+                           # And the anaesthetist's (SAS.16, evidence 3):
+                           # the same check, scoped to the kind of
+                           # anaesthetic rather than the procedure.
+                           gas_state=theatre.anaesthesia_privilege_state(row),
+                           gas_rows=_privileges.anaesthesia_matching(
+                               row.anaesthetist_id, row.anaesthesia_kind,
+                               row.on_date),
                            # The clock the unit runs on (SAS.02 هـ): from the
                            # call to the room being cleaned, with the gaps.
                            timeline=theatre.timeline(row),
@@ -545,7 +559,12 @@ def edit(operation_id):
     # to be able to end up with none.
     row.service_id = request.form.get("service_id", type=int)
     row.surgeon_id = request.form.get("surgeon_id", type=int)
-    row.anaesthetist_id = request.form.get("anaesthetist_id", type=int)
+    gas = request.form.get("anaesthetist_id", type=int)
+    if gas != row.anaesthetist_id:
+        # An acceptance was of the anaesthetist who was named. Somebody else
+        # is somebody else's gap — see `forget_anaesthesia_ack`.
+        theatre.forget_anaesthesia_ack(row)
+    row.anaesthetist_id = gas
     # Cleared the same way, and for the same reason: a case booked as private
     # by mistake has to be able to end up as a case nobody classified, which
     # is a real state and not "private with the label removed".
@@ -698,6 +717,26 @@ def implants(operation_id):
     return redirect(url_for("theatres.operation", operation_id=row.id))
 
 
+@theatres_bp.route("/operation/<int:operation_id>/anaesthesia-privilege",
+                   methods=["POST"])
+@module_required(MODULE)
+def acknowledge_anaesthesia(operation_id):
+    """Accept an anaesthetic outside the anaesthetist's privileges — with a
+    reason, exactly as the surgeon's gap is accepted."""
+    row = Operation.query.get_or_404(operation_id)
+    if theatre.anaesthesia_privilege_state(row) != "outside":
+        # Nothing to accept: a second click, or a case that changed while
+        # the page was open. The reason already written stays as it was.
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    if theatre.acknowledge_anaesthesia(row, request.form.get("reason"),
+                                       user=current_user) is None:
+        flash(t("theatre.privilege_needs_reason"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    db.session.commit()
+    flash(t("theatre.privilege_acknowledged_ok"), "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
 @theatres_bp.route("/privileges", methods=["GET", "POST"])
 @module_required(MODULE)
 @admin_required
@@ -737,6 +776,8 @@ def privileges_screen():
                             if scope == "service" else None),
                 service_type=(request.form.get("service_type")
                               if scope == "type" else None),
+                anaesthesia_kind=(request.form.get("anaesthesia_kind")
+                                  if scope == "anaesthesia" else None),
                 kind=(request.form.get("kind") or "standard").strip(),
                 supervisor_id=request.form.get("supervisor_id", type=int),
                 supervision=request.form.get("supervision"),
@@ -755,6 +796,8 @@ def privileges_screen():
     return render_template(
         "theatres/privileges.html", doctors=doctors, who=who,
         rows=priv.all_for(who), kinds=PRIVILEGE_KINDS,
+        # The anaesthetist's scope: only the kinds that need one.
+        gas_kinds=theatre.NEEDS_ANAESTHETIST,
         today=local_today(),
         # Only what a theatre actually books against.
         services=(Service.query.filter(Service.is_active.is_(True))

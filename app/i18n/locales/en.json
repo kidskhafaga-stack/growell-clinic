@@ -6282,7 +6282,10 @@
     "already_withdrawn": "That privilege was already withdrawn — the original moment was not changed.",
     "why": "Reason",
     "granted": "The privilege is recorded",
-    "needs_one_scope": "Choose exactly one scope: a whole service type or one named procedure — not both, and not neither."
+    "needs_one_scope": "Choose exactly one scope: a whole service type, one named procedure, or a kind of anaesthetic — one, not several, and not none.",
+    "scope_anaesthesia": "A kind of anaesthetic (for an anaesthetist)",
+    "anaesthesia_kind": "Anaesthetic",
+    "anaesthesia_label": "Anaesthesia"
   },
   "theatre": {
     "add_room": "Add a room",
@@ -6605,7 +6608,11 @@
     "privilege_unknown": "No procedure chosen yet",
     "privilege_warn_supervised": "Privileged under supervision — this case needs a named accountable supervisor.",
     "privilege_warn_outside": "Outside this surgeon's recorded privileges. The booking goes through, and the operation screen asks for the reason in writing.",
-    "no_anaesthetist_yet": "Needs an anaesthetist"
+    "no_anaesthetist_yet": "Needs an anaesthetist",
+    "gas_privilege": "The anaesthetist's privilege",
+    "gas_privilege_outside_short": "Anaesthetic outside the doctor's privileges",
+    "gas_privilege_warn_supervised": "This anaesthetist holds this kind under supervision — the operation screen names the accountable supervisor.",
+    "gas_privilege_warn_outside": "This kind of anaesthetic is outside the anaesthetist's recorded privileges. The booking goes through, and the operation screen asks for the reason in writing."
   },
   "lab": {
     "sub": "The rack: what was asked for and has no answer yet",

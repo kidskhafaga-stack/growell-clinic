@@ -325,6 +325,13 @@ class Operation(db.Model):
     privilege_ack_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     privilege_ack_at = db.Column(db.DateTime)
     privilege_ack_reason = db.Column(db.String(200))
+    # The same exception for the other doctor in the room (SAS.16, evidence
+    # 3): an anaesthetic given outside the anaesthetist's privileges, accepted
+    # by somebody who wrote why. Kept apart from the surgeon's three because
+    # the two gaps are separate decisions, usually by separate people.
+    anaesthesia_ack_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    anaesthesia_ack_at = db.Column(db.DateTime)
+    anaesthesia_ack_reason = db.Column(db.String(200))
 
     # ------------------------------------------- what is left inside a child --
     #
@@ -507,6 +514,8 @@ class Operation(db.Model):
     equipment_checker = db.relationship("User",
                                         foreign_keys=[equipment_checked_by])
     privilege_acker = db.relationship("User", foreign_keys=[privilege_ack_by])
+    anaesthesia_acker = db.relationship("User",
+                                        foreign_keys=[anaesthesia_ack_by])
     counts_signer = db.relationship("User",
                                     foreign_keys=[counts_signed_by])
     caller = db.relationship("User", foreign_keys=[called_by])
