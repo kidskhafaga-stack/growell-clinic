@@ -10,8 +10,17 @@
       <h1 class="page-title"><i class="bi bi-heart-pulse"></i> {{ t('recovery.title') }}</h1>
       <p class="hint" style="margin:4px 0 0;">{{ t('recovery.hint') }}</p>
     </div>
-    <a class="btn btn-outline gc-press" href="{{ url_for('theatres.index') }}">
-      <i class="bi bi-calendar3"></i> {{ t('theatre.the_day') }}</a>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      {# SAS.19 — the room itself: its beds against the theatres, and its
+         list checked. #}
+      <a class="btn btn-outline gc-press" href="{{ url_for('theatres.recovery_equipment') }}"
+         data-pacu-ready="{{ 'yes' if pacu and pacu_capacity.enough is not sameas false and pacu|selectattr('ready')|list|length == pacu|length else 'no' }}">
+        <i class="bi bi-clipboard2-pulse"></i> {{ t('pacu.title') }}
+        {% if not pacu or pacu_capacity.enough is sameas false or pacu|rejectattr('ready')|list %}
+        <i class="bi bi-exclamation-circle" style="color:var(--warn,#b45309);"></i>{% endif %}</a>
+      <a class="btn btn-outline gc-press" href="{{ url_for('theatres.index') }}">
+        <i class="bi bi-calendar3"></i> {{ t('theatre.the_day') }}</a>
+    </div>
   </div>
 
   {# **In the room now.** Longest wait first: the child who has been here two
