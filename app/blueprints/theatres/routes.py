@@ -38,6 +38,7 @@ from app.utils import privileges as _privileges
 from app.utils import surgical_counts as _counts
 from app.utils import operative_report as _report
 from app.utils import postop_plan as _postop
+from app.utils import pathology as _pathology
 from app.utils import recovery as _recovery
 from app.utils import theatres as theatre
 from app.utils.clock import local_today, to_utc
@@ -319,6 +320,13 @@ def operation(operation_id):
                            postop_start=_postop.starting_point(row),
                            postop_history=_postop.history(row),
                            postop_levels=POSTOP_LEVELS,
+                           # What came out of the child and where it went
+                           # (SAS.10) — against the report's own (g).
+                           specimens=_pathology.for_operation(row),
+                           specimen_state=_pathology.state,
+                           specimen_due=_pathology.due_by,
+                           exempt_lines=_pathology.exempt_list(),
+                           exempt_label=_pathology.exempt_label,
                            # The sponges, needles and instruments (SAS.09).
                            # Three moments, two people, and the numbers — and
                            # the checklist box now reads off these rather than
@@ -1275,6 +1283,188 @@ def write_postop(operation_id):
           else t("postop.saved"), "warning" if short else "success")
     return redirect(url_for("theatres.operation", operation_id=row.id)
                     + "#postop")
+# ------------------------------------------------ the tissue — SAS.10 ----
+def _specimen_back(row, anchor="#specimens"):
+    """Back where the specimen was worked on — the board or the case.
+
+    Matched against our own address rather than followed, like every other
+    referrer here: a redirect that trusts a request header is an open one.
+    """
+    board = url_for("theatres.pathology")
+    if board in (request.referrer or ""):
+        return redirect(board)
+    return redirect(url_for("theatres.operation", operation_id=row.operation_id)
+                    + anchor)
+
+
+def _local_moment(name):
+    """A ``datetime-local`` box in the clinic's clock, as stored UTC."""
+    raw = (request.form.get(name) or "").strip()
+    for shape in ("%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M"):
+        try:
+            return to_utc(datetime.strptime(raw, shape))
+        except ValueError:
+            continue
+    return None
+
+
+@theatres_bp.route("/operation/<int:operation_id>/specimen", methods=["POST"])
+@module_required(MODULE)
+def add_specimen(operation_id):
+    """A tissue came out of this child — the start of its pathway."""
+    from app.utils import pathology
+
+    row = Operation.query.get_or_404(operation_id)
+    try:
+        pathology.record(row, request.form.get("tissue"), user=current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("specimen.need_tissue"), "error")
+        return redirect(url_for("theatres.operation", operation_id=row.id)
+                        + "#specimens")
+    db.session.commit()
+    flash(t("specimen.recorded"), "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id)
+                    + "#specimens")
+
+
+@theatres_bp.route("/specimen/<int:specimen_id>/send", methods=["POST"])
+@module_required(MODULE)
+def send_specimen(specimen_id):
+    from app.models import Specimen
+    from app.utils import pathology
+
+    row = db.get_or_404(Specimen, specimen_id)
+    try:
+        pathology.send(row, request.form.get("lab"),
+                       labelled=bool(request.form.get("labelled")),
+                       user=current_user)
+    except ValueError as err:
+        db.session.rollback()
+        flash(t("specimen.need_label" if str(err) == "not labelled"
+                else "specimen.not_saved"), "error")
+        return _specimen_back(row)
+    db.session.commit()
+    flash(t("specimen.sent"), "success")
+    return _specimen_back(row)
+
+
+@theatres_bp.route("/specimen/<int:specimen_id>/exempt", methods=["POST"])
+@module_required(MODULE)
+def exempt_specimen(specimen_id):
+    from app.models import Specimen
+    from app.utils import pathology
+
+    row = db.get_or_404(Specimen, specimen_id)
+    try:
+        pathology.exempt(row, (request.form.get("key") or "").strip(),
+                         note=request.form.get("note"), user=current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("specimen.not_exempt"), "error")
+        return _specimen_back(row)
+    db.session.commit()
+    flash(t("specimen.exempted"), "success")
+    return _specimen_back(row)
+
+
+@theatres_bp.route("/specimen/<int:specimen_id>/result", methods=["POST"])
+@module_required(MODULE)
+def specimen_result(specimen_id):
+    from app.models import Specimen
+    from app.utils import pathology
+
+    row = db.get_or_404(Specimen, specimen_id)
+    try:
+        pathology.record_result(row, request.form.get("result"),
+                                on=_local_moment("result_on"),
+                                user=current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("specimen.bad_result"), "error")
+        return _specimen_back(row)
+    db.session.commit()
+    flash(t("specimen.result_saved"), "success")
+    return _specimen_back(row)
+
+
+@theatres_bp.route("/specimen/<int:specimen_id>/label")
+@module_required(MODULE)
+def specimen_label(specimen_id):
+    """The label for the container — EOC 3's three things: date and time,
+    the child's identity, the tissue. Printed, not typed."""
+    from app.models import Specimen
+
+    row = db.get_or_404(Specimen, specimen_id)
+    return render_template("theatres/specimen_label.html", specimen=row)
+
+
+@theatres_bp.route("/pathology")
+@module_required(MODULE)
+def pathology():
+    """Every specimen still on its way, the late ones first, and the cases
+    whose report says a tissue came out with none recorded."""
+    from app.utils import pathology as path
+
+    return render_template("theatres/pathology.html", board=path.board(),
+                           exempt=path.exempt_list(),
+                           may_edit=current_user.is_admin)
+
+
+@theatres_bp.route("/pathology/exempt", methods=["POST"])
+@module_required(MODULE)
+def pathology_exempt_add():
+    """A line on the hospital's exempt list — EOC 2. The hospital's policy,
+    so an administrator's to write."""
+    from app.utils import pathology as path
+
+    _admin_only()
+    try:
+        path.add_exempt(request.form.get("name"))
+    except ValueError:
+        flash(t("specimen.need_name"), "error")
+        return redirect(url_for("theatres.pathology") + "#exempt")
+    ActivityLog.record("pathology.exempt_add", user_id=current_user.id,
+                       entity="lookup", detail=request.form.get("name"),
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("specimen.list_saved"), "success")
+    return redirect(url_for("theatres.pathology") + "#exempt")
+
+
+@theatres_bp.route("/pathology/exempt/<int:row_id>/retire", methods=["POST"])
+@module_required(MODULE)
+def pathology_exempt_retire(row_id):
+    from app.models import Lookup
+    from app.utils import pathology as path
+
+    _admin_only()
+    row = db.get_or_404(Lookup, row_id)
+    try:
+        path.retire_exempt(row)
+    except ValueError:
+        abort(404)
+    ActivityLog.record("pathology.exempt_retire", user_id=current_user.id,
+                       entity="lookup", entity_id=row.id, detail=row.name_ar,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("specimen.list_saved"), "success")
+    return redirect(url_for("theatres.pathology") + "#exempt")
+
+
+@theatres_bp.route("/pathology/days", methods=["POST"])
+@module_required(MODULE)
+def pathology_days():
+    """The time frame for a result — EOC 4's *"defined"*, the hospital's."""
+    from app.models import Setting
+    from app.utils import pathology as path
+
+    _admin_only()
+    days = request.form.get("days", type=int)
+    Setting.set(path.DAYS_SETTING, str(days) if days and days > 0 else "")
+    db.session.commit()
+    flash(t("specimen.list_saved"), "success")
+    return redirect(url_for("theatres.pathology") + "#exempt")
 
 
 @theatres_bp.route("/operation/<int:operation_id>/report/sign", methods=["POST"])

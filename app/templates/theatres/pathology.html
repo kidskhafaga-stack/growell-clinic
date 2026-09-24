@@ -1,0 +1,135 @@
+{% extends "shell.html" %}
+{% set active_module = 'theatres' %}
+{% block title %}{{ t('specimen.board_title') }}{% endblock %}
+{% block page_heading %}{{ t('specimen.board_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR SAS.10 — every tissue still on its way, in one place. The late ones
+   first, because a result that has not come back is the one a child's
+   treatment may be waiting on; and the cases whose report says a tissue came
+   out with nothing recorded, because those have no pathway at all. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-eyedropper"></i> {{ t('specimen.board_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('specimen.board_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('theatres.index') }}">
+    <i class="bi bi-arrow-right"></i> {{ t('nav.theatres') }}</a>
+</div>
+
+{% set late = board.waiting|selectattr('state', 'equalto', 'late')|list %}
+<div class="grid grid--cards gc-stagger" style="margin-bottom:16px;">
+  <div class="stat-card"><div class="value">{{ board.untracked|length }}</div><div class="label">{{ t('specimen.n_untracked') }}</div></div>
+  <div class="stat-card"><div class="value">{{ board.to_send|length }}</div><div class="label">{{ t('specimen.n_to_send') }}</div></div>
+  <div class="stat-card"><div class="value">{{ board.waiting|length }}</div><div class="label">{{ t('specimen.n_waiting') }}</div></div>
+  <div class="stat-card"><div class="value" style="color:var(--danger);">{{ late|length }}</div><div class="label">{{ t('specimen.n_late') }}</div></div>
+</div>
+
+{% if not board.days %}
+<p class="alert-pill warn" style="margin-bottom:12px;" data-days-unset>
+  <i class="bi bi-exclamation-circle"></i> {{ t('specimen.days_unset') }}</p>
+{% endif %}
+
+{% if board.untracked %}
+<div class="card gc-scale-in" style="margin-bottom:16px;border-inline-start:4px solid var(--danger);" data-board-untracked>
+  <h2 class="section-title" style="margin-top:0;">{{ t('specimen.untracked_title') }}</h2>
+  <p class="hint" style="margin:0 0 8px;">{{ t('specimen.untracked_hint') }}</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    {% for op in board.untracked %}
+    <a class="badge badge--danger" data-untracked="{{ op.id }}"
+       href="{{ url_for('theatres.operation', operation_id=op.id) }}#specimens">
+      {{ op.patient.display_name(current_lang) if op.patient else '—' }} · {{ op.procedure }}
+      <span dir="ltr">{{ op.on_date }}</span></a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;" data-board-to-send>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);"><strong>{{ t('specimen.to_send_title') }}</strong></div>
+  {% if board.to_send %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr><th>{{ t('followup.child') }}</th><th>{{ t('specimen.tissue') }}</th><th>{{ t('specimen.taken') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for sp in board.to_send %}
+    <tr data-to-send="{{ sp.id }}">
+      <td>{{ sp.patient.display_name(current_lang) if sp.patient else '—' }}</td>
+      <td dir="auto">{{ sp.tissue }}</td>
+      <td dir="ltr">{{ sp.taken_at|clinic_stamp }}</td>
+      <td style="text-align:end;"><a class="btn btn-outline btn-sm gc-press"
+          href="{{ url_for('theatres.operation', operation_id=sp.operation_id) }}#specimens">{{ t('education.board_open') }}</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;padding:18px;">{{ t('specimen.none_to_send') }}</p>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;" data-board-waiting>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);"><strong>{{ t('specimen.waiting_title') }}</strong></div>
+  {% if board.waiting %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr><th>{{ t('followup.child') }}</th><th>{{ t('specimen.tissue') }}</th><th>{{ t('specimen.sent_to') }}</th><th>{{ t('specimen.due') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for item in board.waiting %}
+    {% set sp = item.specimen %}
+    <tr data-waiting="{{ sp.id }}" data-waiting-state="{{ item.state }}">
+      <td>{{ sp.patient.display_name(current_lang) if sp.patient else '—' }}</td>
+      <td dir="auto">{{ sp.tissue }}</td>
+      <td>{{ sp.lab or '—' }} · <span dir="ltr">{{ sp.sent_at|clinic_stamp('%Y-%m-%d') }}</span></td>
+      <td>{% if item.due %}<span dir="ltr">{{ item.due|clinic_stamp('%Y-%m-%d') }}</span>{% else %}—{% endif %}
+        {% if item.state == 'late' %}<span class="badge badge--danger">{{ t('specimen.state_late') }}</span>{% endif %}</td>
+      <td style="text-align:end;"><a class="btn btn-outline btn-sm gc-press"
+          href="{{ url_for('theatres.operation', operation_id=sp.operation_id) }}#specimens">{{ t('specimen.save_result') }}</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;padding:18px;">{{ t('specimen.none_waiting') }}</p>
+  {% endif %}
+</div>
+
+{# EOC 2 والمهلة — سياسة المستشفى. بتتقري لكل الناس، وبيكتبها المدير. #}
+<div class="card gc-scale-in" id="exempt" data-exempt-list>
+  <h2 class="section-title" style="margin-top:0;">{{ t('specimen.exempt_title') }}</h2>
+  <p class="hint" style="margin:0 0 10px;">{{ t('specimen.exempt_hint') }}</p>
+  {% if exempt %}
+  <ul style="margin:0 0 12px;padding-inline-start:18px;">
+    {% for line in exempt %}
+    <li data-exempt-line="{{ line.id }}">{{ line.name_ar }}
+      {% if may_edit %}
+      <form method="post" style="display:inline;" action="{{ url_for('theatres.pathology_exempt_retire', row_id=line.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-outline gc-press" type="submit" title="{{ t('specimen.retire') }}"><i class="bi bi-x-lg"></i></button>
+      </form>
+      {% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="alert-pill warn" style="margin-bottom:12px;" data-exempt-empty>{{ t('specimen.exempt_empty') }}</p>
+  {% endif %}
+  {% if may_edit %}
+  <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:end;">
+    <form method="post" style="display:flex;gap:8px;align-items:end;" action="{{ url_for('theatres.pathology_exempt_add') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;"><label for="ex_name">{{ t('specimen.exempt_add') }}</label>
+        <input class="input" id="ex_name" name="name" maxlength="80" required></div>
+      <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i></button>
+    </form>
+    <form method="post" style="display:flex;gap:8px;align-items:end;" action="{{ url_for('theatres.pathology_days') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;"><label for="ex_days">{{ t('specimen.days_label') }}</label>
+        <input class="input" type="number" min="0" id="ex_days" name="days" value="{{ board.days or '' }}" style="width:110px;"></div>
+      <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
