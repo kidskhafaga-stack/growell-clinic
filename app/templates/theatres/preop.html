@@ -48,6 +48,15 @@
           {{ op.patient.display_name(current_lang) if op.patient else '—' }}</a></div>
       <div class="hint">{{ op.procedure }}
         {% if op.surgeon %} · {{ op.surgeon.display_name(current_lang) }}{% endif %}</div>
+      {# SAS.03 — الحكم من غير التقييم اللي تحته آخر تقييم ناقص. #}
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">
+        {% for ak in ('medical', 'nursing') %}
+        {% set st = assess_state(op, ak) %}
+        <a class="badge badge--{{ 'green' if st == 'complete' else 'warn' }}" data-assess-state="{{ ak }}:{{ st }}"
+           href="{{ url_for('theatres.operation', operation_id=op.id) }}#assessment">
+          {{ t('preop_assess.' ~ ak) }}: {{ t('preop_assess.state_' ~ st) }}</a>
+        {% endfor %}
+      </div>
     </div>
     <div class="pre-asks">
       {% for k in kinds if not kind or k == kind %}
@@ -78,5 +87,34 @@
   {% else %}
   <p class="hint" style="padding:18px 0;text-align:center;">{{ t('theatre.preop_none') }}</p>
   {% endfor %}
+</div>
+
+{# تصنيف الخطورة بتاع المستشفى — SAS.03. البرنامج ما بيختارش مقياس، زي ما
+   ما اختارش أداة ألم. بيتقري لكل الناس، وبيكتبه المدير. #}
+<div class="card gc-scale-in" style="margin-top:16px;" id="risk-classes" data-risk-classes>
+  <h2 class="section-title" style="margin-top:0;">{{ t('preop_assess.classes_title') }}</h2>
+  <p class="hint" style="margin:0 0 10px;">{{ t('preop_assess.classes_hint') }}</p>
+  {% if risk_classes %}
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+    {% for rc in risk_classes %}
+    <span class="badge badge--muted" data-risk-class="{{ rc.id }}">{{ rc.name_ar }}
+      {% if may_edit %}
+      <form method="post" style="display:inline;" action="{{ url_for('theatres.retire_risk_class', row_id=rc.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-sm" style="padding:0 4px;background:none;border:0;" title="{{ t('specimen.retire') }}"><i class="bi bi-x"></i></button>
+      </form>{% endif %}</span>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="alert-pill warn" style="margin-bottom:10px;" data-risk-classes-empty>{{ t('preop_assess.classes_unset') }}</p>
+  {% endif %}
+  {% if may_edit %}
+  <form method="post" style="display:flex;gap:8px;align-items:end;" action="{{ url_for('theatres.add_risk_class') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="rc_name">{{ t('preop_assess.classes_add') }}</label>
+      <input class="input" id="rc_name" name="name" maxlength="80" required></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i></button>
+  </form>
+  {% endif %}
 </div>
 {% endblock %}

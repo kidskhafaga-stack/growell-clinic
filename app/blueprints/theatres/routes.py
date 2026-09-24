@@ -39,6 +39,7 @@ from app.utils import surgical_counts as _counts
 from app.utils import operative_report as _report
 from app.utils import postop_plan as _postop
 from app.utils import pathology as _pathology
+from app.utils import preop_assessment as _assess
 from app.utils import recovery as _recovery
 from app.utils import theatres as theatre
 from app.utils.clock import local_today, to_utc
@@ -322,6 +323,25 @@ def operation(operation_id):
                            postop_levels=POSTOP_LEVELS,
                            # What came out of the child and where it went
                            # (SAS.10) — against the report's own (g).
+                           # The assessment before the knife (SAS.03): the
+                           # five evidence items, both assessments, the risks
+                           # and what was done about each.
+                           evidence=_assess.evidence(row),
+                           assess_medical=_assess.starting_point(row, "medical"),
+                           assess_nursing=_assess.starting_point(row, "nursing"),
+                           assess_missing={k: _assess.missing(row, k)
+                                           for k in ("medical", "nursing")},
+                           assess_late={k: _assess.late(row, k)
+                                        for k in ("medical", "nursing")},
+                           preop_risks=_assess.risks(row),
+                           risk_classes=_assess.risk_classes(),
+                           risk_class_label=_assess.risk_class_label,
+                           current_meds=[m for m in (row.patient.medications
+                                                     if row.patient else [])
+                                         if m.is_current],
+                           active_problems=[p for p in (row.patient.problems
+                                                        if row.patient else [])
+                                            if p.is_active],
                            specimens=_pathology.for_operation(row),
                            specimen_state=_pathology.state,
                            specimen_due=_pathology.due_by,
@@ -411,7 +431,11 @@ def preop():
         rows=theatre.unreviewed(kind=kind),
         reviews_of=theatre.reviews,
         kind=kind, kinds=REVIEW_KINDS, verdicts=REVIEW_VERDICTS,
-        today=local_today())
+        today=local_today(),
+        # SAS.03 — each case's assessment state, and the hospital's risk
+        # classification (written here by an administrator).
+        assess_state=_assess.state,
+        risk_classes=_assess.risk_classes(), may_edit=current_user.is_admin)
 
 
 @theatres_bp.route("/operation/<int:operation_id>/review", methods=["POST"])
@@ -1306,6 +1330,135 @@ def _local_moment(name):
         except ValueError:
             continue
     return None
+
+
+# ------------------------------------------- before the knife — SAS.03 ----
+def _form_tri(name):
+    """``yes`` · ``no`` · nothing said. A checkbox cannot carry three."""
+    raw = (request.form.get(name) or "").strip()
+    return True if raw == "yes" else (False if raw == "no" else None)
+
+
+@theatres_bp.route("/operation/<int:operation_id>/assessment/<kind>",
+                   methods=["POST"])
+@module_required(MODULE)
+def save_assessment(operation_id, kind):
+    """The medical or nursing assessment before the procedure."""
+    from app.utils import preop_assessment as pa
+
+    row = Operation.query.get_or_404(operation_id)
+    if kind not in pa.KINDS:
+        abort(404)
+    fields = {}
+    if kind == pa.MEDICAL:
+        fields = {name: request.form.get(name)
+                  for name in ("indication", "history", "examination",
+                               "risk_class")}
+        fields["risks_none"] = True if request.form.get("risks_none") else None
+    else:
+        weight = (request.form.get("weight_kg") or "").strip()
+        try:
+            fields["weight_kg"] = float(weight) if weight else None
+        except ValueError:
+            fields["weight_kg"] = -1.0          # refused below, loudly
+        fields.update(
+            fasting_food_at=_local_moment("fasting_food_at"),
+            fasting_fluid_at=_local_moment("fasting_fluid_at"),
+            vitals=request.form.get("vitals"),
+            allergies_checked=_form_tri("allergies_checked"),
+            general=request.form.get("general"))
+    try:
+        pa.save(row, kind, user=current_user, **fields)
+    except ValueError:
+        db.session.rollback()
+        flash(t("preop_assess.not_saved"), "error")
+        return redirect(url_for("theatres.operation", operation_id=row.id)
+                        + "#assessment")
+    db.session.commit()
+    short = pa.missing(row, kind)
+    flash(t("preop_assess.saved_short", n=len(short)) if short
+          else t("preop_assess.saved"), "warning" if short else "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id)
+                    + "#assessment")
+
+
+@theatres_bp.route("/operation/<int:operation_id>/risk", methods=["POST"])
+@module_required(MODULE)
+def add_preop_risk(operation_id):
+    """An identified risk — EOC 4 — with its action when it is known."""
+    from app.utils import preop_assessment as pa
+
+    row = Operation.query.get_or_404(operation_id)
+    try:
+        pa.add_risk(row, request.form.get("risk"),
+                    action=request.form.get("action"), user=current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("preop_assess.need_risk"), "error")
+        return redirect(url_for("theatres.operation", operation_id=row.id)
+                        + "#assessment")
+    db.session.commit()
+    flash(t("preop_assess.risk_saved"), "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id)
+                    + "#assessment")
+
+
+@theatres_bp.route("/risk/<int:risk_id>/act", methods=["POST"])
+@module_required(MODULE)
+def act_on_risk(risk_id):
+    """What was done about a risk — EOC 5."""
+    from app.models import PreOpRisk
+    from app.utils import preop_assessment as pa
+
+    risk = db.get_or_404(PreOpRisk, risk_id)
+    try:
+        pa.act(risk, request.form.get("action"), user=current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("preop_assess.need_action"), "error")
+        return redirect(url_for("theatres.operation",
+                                operation_id=risk.operation_id) + "#assessment")
+    db.session.commit()
+    flash(t("preop_assess.risk_saved"), "success")
+    return redirect(url_for("theatres.operation", operation_id=risk.operation_id)
+                    + "#assessment")
+
+
+@theatres_bp.route("/preop/risk-class", methods=["POST"])
+@module_required(MODULE)
+def add_risk_class():
+    """A line on the hospital's risk classification. Policy, so an
+    administrator's to write — and the program writes none of it."""
+    from app.utils import preop_assessment as pa
+
+    _admin_only()
+    try:
+        pa.add_risk_class(request.form.get("name"))
+    except ValueError:
+        flash(t("specimen.need_name"), "error")
+        return redirect(url_for("theatres.preop") + "#risk-classes")
+    ActivityLog.record("preop.risk_class_add", user_id=current_user.id,
+                       entity="lookup", detail=request.form.get("name"),
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("specimen.list_saved"), "success")
+    return redirect(url_for("theatres.preop") + "#risk-classes")
+
+
+@theatres_bp.route("/preop/risk-class/<int:row_id>/retire", methods=["POST"])
+@module_required(MODULE)
+def retire_risk_class(row_id):
+    from app.models import Lookup
+    from app.models.preop_assessment import RISK_CLASS_DOMAIN
+
+    _admin_only()
+    row = db.get_or_404(Lookup, row_id)
+    if row.domain != RISK_CLASS_DOMAIN:
+        abort(404)
+    row.is_active = False
+    db.session.commit()
+    flash(t("specimen.list_saved"), "success")
+    return redirect(url_for("theatres.preop") + "#risk-classes")
 
 
 @theatres_bp.route("/operation/<int:operation_id>/specimen", methods=["POST"])
