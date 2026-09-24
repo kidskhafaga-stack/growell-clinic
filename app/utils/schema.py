@@ -688,6 +688,11 @@ ADDITIONS = [
     ("sedation_records", "recovery_fluids_out_ml", "INTEGER"),
     ("sedation_records", "recovery_blood", "VARCHAR(200)"),
     ("sedation_records", "recovery_criteria_met", "BOOLEAN"),
+    # `SAS.05` — مين كان مع الطفل وهو بيتعلّم، والعلامة الموحّدة، والإجراءات
+    # المعفاة. فاضيين على كل عملية وخدمة قديمة: محدّش سأل لسه.
+    ("operations", "site_with", "VARCHAR(20)"),
+    ("operations", "site_unified", "BOOLEAN"),
+    ("services", "site_mark_exempt", "BOOLEAN"),
     # The anaesthetist's privilege (SAS.16, evidence 3): a privilege scoped
     # to a kind of anaesthetic rather than to a procedure. NULL on every row
     # already written, which is what those rows are — a surgeon's scope.
