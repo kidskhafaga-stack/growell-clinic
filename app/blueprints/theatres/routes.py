@@ -36,6 +36,7 @@ from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
                                 Theatre)
 from app.utils import privileges as _privileges
 from app.utils import implants as _implants
+from app.utils import recovery_room as _room
 from app.utils import surgical_counts as _counts
 from app.utils import operative_report as _report
 from app.utils import postop_plan as _postop
@@ -1356,7 +1357,95 @@ def recovery_room():
                            postop=_postop.planned_ids(
                                [op.id for op in here + waiting]),
                            expecting=recovery.expecting(),
-                           undecided=recovery.undecided())
+                           undecided=recovery.undecided(),
+                           # SAS.19 — is the room itself ready: enough beds
+                           # for the theatres, and its list checked.
+                           pacu_capacity=_room.capacity(),
+                           pacu=[{"unit": u, "ready": _room.ready(u)}
+                                 for u in _room.units()])
+
+
+@theatres_bp.route("/recovery/equipment", methods=["GET", "POST"])
+@module_required(MODULE)
+def recovery_equipment():
+    """What each recovery room must hold, and what the last check found
+    (SAS.19).
+
+    Everybody in the module reads it and records a check — the nurse
+    walking the room at the start of the list is who does it. Writing the
+    list and how often it is checked is an administrator's: it is the
+    hospital's clinical decision about its own room.
+    """
+    from app.models import Unit
+    from app.models.recovery_equipment import CATEGORIES, FINDINGS
+
+    if request.method == "POST":
+        _admin_only()
+        action = (request.form.get("action") or "").strip()
+        try:
+            if action == "add":
+                unit = Unit.query.get_or_404(
+                    request.form.get("unit_id", type=int))
+                _room.add_item(unit, (request.form.get("category") or "").strip(),
+                               request.form.get("name"),
+                               quantity=request.form.get("quantity"),
+                               note=request.form.get("note"),
+                               user=current_user)
+                back = unit.id
+            elif action == "retire":
+                from app.models import RecoveryItem
+                item = RecoveryItem.query.get_or_404(
+                    request.form.get("item_id", type=int))
+                _room.retire_item(item)
+                back = item.unit_id
+            elif action == "hours":
+                _room.set_check_hours(request.form.get("hours"))
+                back = request.form.get("unit_id", type=int)
+            else:
+                raise ValueError("unknown action")
+        except ValueError:
+            db.session.rollback()
+            flash(t("pacu.refused"), "warning")
+            back = request.form.get("unit_id", type=int)
+        else:
+            db.session.commit()
+            flash(t("common.saved"), "success")
+        return redirect(url_for("theatres.recovery_equipment", unit=back))
+
+    rooms = _room.units()
+    chosen = request.args.get("unit", type=int)
+    unit = next((u for u in rooms if u.id == chosen),
+                rooms[0] if rooms else None)
+    return render_template(
+        "theatres/recovery_equipment.html", rooms=rooms, unit=unit,
+        capacity=_room.capacity(), hours=_room.check_hours(),
+        state=_room.state(unit) if unit else None,
+        items=_room.items(unit), last=_room.last_findings(unit),
+        history=_room.checks(unit, limit=10),
+        categories=CATEGORIES, findings=FINDINGS)
+
+
+@theatres_bp.route("/recovery/equipment/<int:unit_id>/check", methods=["POST"])
+@module_required(MODULE)
+def check_recovery_room(unit_id):
+    """One walk round the room with the list in hand."""
+    from app.models import Unit
+
+    unit = Unit.query.get_or_404(unit_id)
+    findings = {item.id: ((request.form.get(f"found_{item.id}") or "").strip(),
+                          request.form.get(f"note_{item.id}"))
+                for item in _room.items(unit)}
+    try:
+        _room.record_check(unit, findings, user=current_user,
+                           note=request.form.get("note"))
+    except ValueError:
+        db.session.rollback()
+        # Named: a check that skipped an item is not a check of the room.
+        flash(t("pacu.check_incomplete"), "warning")
+    else:
+        db.session.commit()
+        flash(t("pacu.checked"), "success")
+    return redirect(url_for("theatres.recovery_equipment", unit=unit.id))
 
 
 # ------------------------------------- سجل التخدير والتسكين ----

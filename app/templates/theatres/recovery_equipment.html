@@ -1,0 +1,193 @@
+{% extends "shell.html" %}
+{% set active_module = 'theatres' %}
+{% block title %}{{ t('pacu.title') }}{% endblock %}
+{% block page_heading %}{{ t('pacu.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR SAS.19 — «the post-anesthesia care unit is equipped …». Three
+   questions a surveyor walking the room asks: is there one and is it big
+   enough, is what it must hold written down, and was it checked. The list
+   is the hospital's; the five headings are the standard's own words. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-clipboard2-pulse"></i> {{ t('pacu.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('pacu.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('theatres.recovery_room') }}">
+    <i class="bi bi-heart-pulse"></i> {{ t('recovery.title') }}</a>
+</div>
+
+{# ------------------------------------------------ EOC 1: is it enough -- #}
+<div class="grid grid--cards gc-stagger" style="margin-bottom:16px;" data-capacity="{{ 'short' if capacity.enough is sameas false else 'ok' }}">
+  <div class="stat-card"><div class="value">{{ capacity.rooms }}</div><div class="label">{{ t('pacu.n_rooms') }}</div></div>
+  <div class="stat-card"><div class="value" style="{{ 'color:var(--danger);' if capacity.enough is sameas false else '' }}">{{ capacity.beds }}</div><div class="label">{{ t('pacu.n_beds') }}</div></div>
+  <div class="stat-card"><div class="value">{{ capacity.units }}</div><div class="label">{{ t('pacu.n_units') }}</div></div>
+</div>
+{% if capacity.enough is sameas false %}
+<p class="alert-pill warn" style="margin-bottom:12px;" data-beds-short>
+  <i class="bi bi-exclamation-circle"></i> {{ t('pacu.beds_short', rooms=capacity.rooms, beds=capacity.beds) }}</p>
+{% endif %}
+
+{% if not rooms %}
+<div class="card gc-scale-in" data-no-recovery-room>
+  <p class="alert-pill warn"><i class="bi bi-exclamation-circle"></i> {{ t('pacu.no_room') }}</p>
+  {% if current_user.is_admin and module_enabled('beds') %}
+  <p class="hint"><a href="{{ url_for('beds.setup') }}"><i class="bi bi-diagram-3"></i> {{ t('pacu.go_setup') }}</a></p>
+  {% endif %}
+</div>
+{% else %}
+
+{% if rooms|length > 1 %}
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+  {% for r in rooms %}
+  <a class="btn {{ 'btn-primary' if r.id == unit.id else 'btn-outline' }} gc-press"
+     href="{{ url_for('theatres.recovery_equipment', unit=r.id) }}">{{ r.name }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ------------------------------------------- where this room stands -- #}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-room="{{ unit.id }}">
+  <h2 class="section-title" style="margin:0 0 8px;font-size:1rem;">
+    <i class="bi bi-hospital"></i> {{ unit.name }}
+    <span class="badge badge--muted">{{ t('pacu.beds_here', n=state.beds) }}</span></h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    {% for c in state.empty %}
+    <span class="alert-pill warn" data-empty-heading="{{ c }}">
+      <i class="bi bi-dash-circle"></i> {{ t('pacu.nothing_under', heading=t('pacu.cat_' ~ c)) }}</span>
+    {% endfor %}
+    {% if state.problems %}
+    <span class="alert-pill danger" data-open-problems="{{ state.problems|length }}">
+      <i class="bi bi-exclamation-octagon"></i> {{ t('pacu.n_problems', n=state.problems|length) }}</span>
+    {% endif %}
+    {% if state.unchecked %}
+    <span class="alert-pill warn" data-never-checked="{{ state.unchecked|length }}">{{ t('pacu.n_unchecked', n=state.unchecked|length) }}</span>
+    {% endif %}
+    {% if state.due %}
+    <span class="alert-pill warn" data-check-due><i class="bi bi-clock-history"></i> {{ t('pacu.due') }}</span>
+    {% endif %}
+    {% if state.last %}
+    <span class="hint">{{ t('pacu.last_check') }}: <span dir="ltr">{{ state.last.at|clinic_stamp }}</span>
+      {% if state.last.by %} · {{ state.last.by.display_name(current_lang) }}{% endif %}</span>
+    {% else %}
+    <span class="hint" data-no-check>{{ t('pacu.never') }}</span>
+    {% endif %}
+  </div>
+  {% if hours %}
+  <p class="hint" style="margin:8px 0 0;" data-check-hours="{{ hours }}">{{ t('pacu.hours_are', n=hours) }}</p>
+  {% else %}
+  <p class="hint" style="margin:8px 0 0;color:var(--warn,#b45309);" data-check-hours-unset>{{ t('pacu.hours_unset') }}</p>
+  {% endif %}
+  {% if current_user.is_admin %}
+  <form method="post" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="hours">
+    <input type="hidden" name="unit_id" value="{{ unit.id }}">
+    <div class="form-row" style="margin:0;width:170px;">
+      <label for="pc_hours">{{ t('pacu.hours') }}</label>
+      <input class="input" type="number" min="1" step="1" id="pc_hours" name="hours" value="{{ hours or '' }}" dir="ltr"></div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+  {% endif %}
+</div>
+
+{# ------------------------------------------- EOC 3: the walk round -- #}
+{# Every item must be answered. A check that skipped the defibrillator is not
+   a check of the room, and a date on it would say the room was looked at
+   when part of it was not. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin:0 0 8px;font-size:1rem;">
+    <i class="bi bi-list-check"></i> {{ t('pacu.list') }}</h2>
+  {% if not items %}
+  <p class="hint" data-list-empty>{{ t('pacu.list_empty') }}</p>
+  {% else %}
+  <form method="post" action="{{ url_for('theatres.check_recovery_room', unit_id=unit.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for item in items %}
+    {% if loop.first or item.category != loop.previtem.category %}
+    <h3 class="hint" style="margin:12px 0 4px;font-weight:700;">{{ t('pacu.cat_' ~ item.category) }}</h3>
+    {% endif %}
+    {% set prior = last.get(item.id) %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;padding:6px 0;border-top:1px solid var(--line);" data-item="{{ item.id }}">
+      <span style="flex:1;min-width:170px;">{{ item.name }}
+        {% if item.quantity %}<span class="hint">· {{ item.quantity }}</span>{% endif %}
+        {% if prior %}<span class="alert-pill {{ 'ok' if prior.finding == 'ok' else 'danger' }}" style="font-size:.72rem;"
+              data-last-finding="{{ prior.finding }}">{{ t('pacu.found_' ~ prior.finding) }}</span>
+        {% else %}<span class="badge badge--muted" style="font-size:.72rem;">{{ t('pacu.not_yet') }}</span>{% endif %}
+        {% if item.note %}<div class="hint">{{ item.note }}</div>{% endif %}</span>
+      <div class="form-row" style="margin:0;">
+        <select class="select" id="found_{{ item.id }}" name="found_{{ item.id }}" required
+                aria-label="{{ t('pacu.finding') }}: {{ item.name }}">
+          <option value="">—</option>
+          {% for f in findings %}<option value="{{ f }}">{{ t('pacu.found_' ~ f) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row" style="margin:0;width:170px;">
+        <input class="input" id="note_{{ item.id }}" name="note_{{ item.id }}" maxlength="200"
+               placeholder="{{ t('pacu.note') }}" aria-label="{{ t('pacu.note') }}: {{ item.name }}"></div>
+    </div>
+    {% endfor %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+      <div class="form-row" style="margin:0;flex:1;min-width:200px;">
+        <label for="pc_note">{{ t('pacu.note') }}</label>
+        <input class="input" id="pc_note" name="note" maxlength="255"></div>
+      <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2-all"></i> {{ t('pacu.record_check') }}</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+
+{# ------------------------------------------ EOC 2: what it must hold -- #}
+{% if current_user.is_admin %}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin:0 0 8px;font-size:1rem;">
+    <i class="bi bi-pencil-square"></i> {{ t('pacu.edit_list') }}</h2>
+  {% for item in items %}
+  <form method="post" style="display:flex;gap:8px;align-items:center;padding:4px 0;border-top:1px solid var(--line);">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="retire">
+    <input type="hidden" name="item_id" value="{{ item.id }}">
+    <input type="hidden" name="unit_id" value="{{ unit.id }}">
+    <span style="flex:1;"><span class="hint">{{ t('pacu.cat_' ~ item.category) }} ·</span> {{ item.name }}</span>
+    <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('pacu.retire') }}</button>
+  </form>
+  {% endfor %}
+  <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="add">
+    <input type="hidden" name="unit_id" value="{{ unit.id }}">
+    <div class="form-row" style="margin:0;">
+      <label for="pc_cat">{{ t('pacu.heading') }}</label>
+      <select class="select" id="pc_cat" name="category">
+        {% for c in categories %}<option value="{{ c }}">{{ t('pacu.cat_' ~ c) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:170px;">
+      <label for="pc_name">{{ t('pacu.item') }}</label>
+      <input class="input" id="pc_name" name="name" maxlength="160" required></div>
+    <div class="form-row" style="margin:0;width:120px;">
+      <label for="pc_qty">{{ t('pacu.quantity') }}</label>
+      <input class="input" id="pc_qty" name="quantity" maxlength="40"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('pacu.add') }}</button>
+  </form>
+</div>
+{% endif %}
+
+{# ------------------------------------------------------------ history -- #}
+{% if history %}
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin:0 0 8px;font-size:1rem;">
+    <i class="bi bi-clock-history"></i> {{ t('pacu.history') }}</h2>
+  {% for check in history %}
+  <div style="padding:6px 0;border-top:1px solid var(--line);" data-check="{{ check.id }}">
+    <span dir="ltr">{{ check.at|clinic_stamp }}</span>
+    {% if check.by %} · {{ check.by.display_name(current_lang) }}{% endif %}
+    {% set bad = check.lines|rejectattr('finding', 'equalto', 'ok')|list %}
+    · {% if bad %}<span class="alert-pill danger">{{ t('pacu.n_problems', n=bad|length) }}</span>
+      {% for line in bad %}<span class="hint">{{ line.item.name }} ({{ t('pacu.found_' ~ line.finding) }})</span>{% endfor %}
+    {% else %}<span class="alert-pill ok">{{ t('pacu.all_ok') }}</span>{% endif %}
+    {% if check.note %}<div class="hint">{{ check.note }}</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
