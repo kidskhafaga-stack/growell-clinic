@@ -400,6 +400,63 @@
 </div>
 {% endif %}
 
+{# ------------------------------------- the anaesthetist's privilege ---- #}
+{# SAS.16, evidence 3: «Anesthesia and sedation are administered by qualified
+   physicians **according to their approved clinical privileges**». The same
+   check as the surgeon's above, scoped to the kind of anaesthetic — and the
+   same rule: it warns, it does not refuse, and going ahead records who
+   accepted it and why.
+
+   Silent for a local case, for one nobody has chosen the anaesthetic for,
+   and while no anaesthetist is named — that last gap is the missing person,
+   which the list already flags. #}
+{% if gas_state not in ('not_needed', 'unknown') %}
+<div class="card gc-scale-in" data-gas-privilege="{{ gas_state }}"
+     style="margin-bottom:14px;{{ 'border-inline-start:3px solid var(--warn,#b45309);' if gas_state in ('outside', 'acknowledged') else '' }}">
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-lungs"></i> {{ t('theatre.gas_privilege') }}
+    <span class="alert-pill {{ 'ok' if gas_state in ('ok', 'supervised') else 'warn' }}">
+      {{ t('theatre.privilege_' ~ gas_state) }}</span>
+  </h2>
+  <p class="hint">{{ operation.anaesthetist.display_name(current_lang) }} ·
+    {{ t('theatre.anaes_' ~ operation.anaesthesia_kind) }}</p>
+
+  {% if gas_state == 'supervised' %}
+  <p class="hint">
+    {% for row in gas_rows if row.is_supervised %}
+      {{ t('privileges.supervisor') }}: {{ row.supervisor.display_name(current_lang) }}
+      {% if row.supervision %}· {{ row.supervision }}{% endif %}
+    {% endfor %}</p>
+  {% endif %}
+
+  {% if gas_state == 'acknowledged' %}
+  <p class="hint">{{ operation.anaesthesia_ack_reason }} ·
+    <span dir="ltr">{{ operation.anaesthesia_ack_at|clinic_stamp }}</span>
+    {% if operation.anaesthesia_acker %} ·
+      {{ operation.anaesthesia_acker.display_name(current_lang) }}{% endif %}</p>
+  {% endif %}
+
+  {% if gas_state == 'outside' %}
+  <form method="post"
+        action="{{ url_for('theatres.acknowledge_anaesthesia', operation_id=operation.id) }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;flex:1;min-width:200px;">
+      <label for="gas_ack">{{ t('theatre.privilege_why') }}</label>
+      <input class="input" id="gas_ack" name="reason" maxlength="200" required>
+    </div>
+    <button class="btn btn-outline gc-press" type="submit">
+      {{ t('theatre.privilege_accept') }}</button>
+  </form>
+  {% if current_user.is_admin %}
+  <p class="hint" style="margin-top:6px;">
+    <a href="{{ url_for('theatres.privileges_screen', doctor=operation.anaesthetist_id) }}">
+      <i class="bi bi-person-badge"></i> {{ t('privileges.title') }}</a></p>
+  {% endif %}
+  {% endif %}
+</div>
+{% endif %}
+
 {# ---------------------------------------- what happened in the room ----- #}
 {# GAHAR SAS.08: تفاصيل الإجراء تتسجّل **فوراً بعده**، و«before the patient
    leaves the procedural unit». تسع بنود، **خمسة منهم في السجل أصلاً** —
