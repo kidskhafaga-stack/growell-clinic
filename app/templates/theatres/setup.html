@@ -79,4 +79,35 @@
   </table>
 </div>
 {% endif %}
+
+{# GAHAR SAS.05 · GSR.14 — (أ) العلامة الموحّدة و(هـ) الإجراءات المعفاة من
+   التعليم. سياسة المستشفى، بتتكتب هنا جنب الأوض — مش في إصدار. #}
+<div class="card gc-scale-in" style="margin-top:14px;" id="site-marking" data-site-policy>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-crosshair"></i> {{ t('site_mark.policy_title') }}</h2>
+  <p class="hint" style="margin:0 0 10px;">{{ t('site_mark.policy_hint') }}</p>
+  <form method="post" action="{{ url_for('theatres.site_marking_policy') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <label for="sm_style">{{ t('site_mark.style_label') }}</label>
+      <input class="input" id="sm_style" name="style" maxlength="300" dir="auto"
+             value="{{ mark_style or '' }}" placeholder="{{ t('site_mark.style_ph') }}">
+    </div>
+    <div class="form-row">
+      <label>{{ t('site_mark.exempt_label') }}</label>
+      {% if marked_procedures %}
+      <div style="display:flex;gap:6px 16px;flex-wrap:wrap;">
+        {% for svc in marked_procedures %}
+        <label class="checkbox" style="font-weight:400;" data-exempt-procedure="{{ svc.id }}">
+          <input type="checkbox" name="exempt" value="{{ svc.id }}" {{ 'checked' if svc.site_mark_exempt else '' }}>
+          {{ svc.name }}</label>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="hint" style="margin:0;">{{ t('site_mark.no_procedures') }}</p>
+      {% endif %}
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+</div>
 {% endblock %}

@@ -86,6 +86,9 @@
     {# SAS.10 — كل نسيج اتشال لسه في طريقه، والمتأخر الأول. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('theatres.pathology') }}">
       <i class="bi bi-eyedropper"></i> {{ t('specimen.board_title') }}</a>
+    {# SAS.05 دليل ٥ — متابعة التعليم على فترة. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('theatres.site_marking_report') }}">
+      <i class="bi bi-crosshair"></i> {{ t('site_mark.report_title') }}</a>
     {% if may_build %}
     {# «accessible to and used by staff involved in booking» (WFM.12, evidence
        4) — so it is reached from the screen the booking form is on, not

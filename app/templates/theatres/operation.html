@@ -168,7 +168,22 @@
   {% if site_state == 'marked' %}
   <p class="hint">{% if operation.site_note %}{{ operation.site_note }} · {% endif %}
     <span dir="ltr">{{ operation.site_marked_at|clinic_stamp }}</span>
-    {% if operation.marker %} · {{ operation.marker.display_name(current_lang) }}{% endif %}</p>
+    {% if operation.marker %} · {{ operation.marker.display_name(current_lang) }}{% endif %}
+    {% if operation.site_with %} · {{ t('site_mark.with') }}: {{ t('theatre.identity_role_' ~ operation.site_with) }}{% endif %}</p>
+  {% endif %}
+
+  {# GAHAR SAS.05 · GSR.14 — سياسة التعليم بسبع بنود، والشاشة بتقول أنهي
+     واحد ناقص على الحالة دي بالاسم. ما بترفضش: المقيم اللي علّم بكلام
+     الجرّاح، أو طفل جه من غير أهل، بيتسجّل زي ما حصل ويبان كملاحظة. #}
+  {% if site_exempt %}
+  <p class="info-note" style="margin:0 0 10px;" data-site-exempt>
+    <i class="bi bi-info-circle"></i> {{ t('site_mark.exempt_case') }}</p>
+  {% elif site_problems %}
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px;" data-site-problems>
+    {% for p in site_problems %}
+    <span class="badge badge--warn" data-site-problem="{{ p }}">{{ t('site_mark.problem_' ~ p) }}</span>
+    {% endfor %}
+  </div>
   {% endif %}
 
   <form method="post" action="{{ url_for('theatres.mark_site', operation_id=operation.id) }}"
@@ -192,6 +207,21 @@
       <input class="input" id="op_sitenote" name="site_note" maxlength="160"
              value="{{ operation.site_note or '' }}">
     </div>
+    {# (د) — مين كان مع الطفل وهو بيتعلّم، بنفس كلمات تأكيد الهوية. #}
+    <div class="form-row" style="margin:0;min-width:160px;">
+      <label for="op_sitewith">{{ t('site_mark.with') }}</label>
+      <select class="select" id="op_sitewith" name="site_with">
+        <option value="">—</option>
+        {% for k in identity_with %}
+        <option value="{{ k }}" {{ 'selected' if operation.site_with == k else '' }}>{{ t('theatre.identity_role_' ~ k) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {# (أ) — العلامة الموحّدة بتاعة المستشفى، بكلامها. #}
+    <label class="checkbox" style="font-weight:400;margin-bottom:10px;" data-site-unified
+           title="{{ mark_style or t('site_mark.style_unset') }}">
+      <input type="checkbox" name="unified" value="1" {{ 'checked' if operation.site_unified else '' }}>
+      {{ t('site_mark.unified') }}{% if mark_style %}: <span dir="auto">{{ mark_style }}</span>{% endif %}</label>
     <button class="btn btn-outline gc-press" type="submit">
       <i class="bi bi-pen"></i> {{ t('theatre.site_mark') }}</button>
   </form>

@@ -40,6 +40,7 @@ from app.utils import operative_report as _report
 from app.utils import postop_plan as _postop
 from app.utils import pathology as _pathology
 from app.utils import preop_assessment as _assess
+from app.utils import site_marking as _marking
 from app.utils import recovery as _recovery
 from app.utils import theatres as theatre
 from app.utils.clock import local_today, to_utc
@@ -114,11 +115,76 @@ def index():
 @module_required(MODULE)
 def setup():
     """Where the rooms are added — from the screen, never from a release."""
+    from app.utils import site_marking
+
     _admin_only()
     return render_template("theatres/setup.html",
                            rooms=(Theatre.query
                                   .order_by(Theatre.sort_order, Theatre.id)
-                                  .all()))
+                                  .all()),
+                           # SAS.05 (أ) and (هـ) — the hospital's mark and
+                           # the procedures it exempts from marking.
+                           mark_style=site_marking.mark_style(),
+                           marked_procedures=_marking_procedures())
+
+
+def _marking_procedures():
+    """The procedures the exempt list is chosen from: the clinic's own
+    procedure services, and anything ever booked on the theatre list."""
+    from app.models.service import Service
+
+    booked = db.session.query(Operation.service_id).filter(
+        Operation.service_id.isnot(None)).distinct()
+    return (Service.query
+            .filter(Service.is_active.is_(True),
+                    db.or_(Service.category == "procedure",
+                           Service.id.in_(booked)))
+            .order_by(Service.name).all())
+
+
+@theatres_bp.route("/setup/site-marking", methods=["POST"])
+@module_required(MODULE)
+def site_marking_policy():
+    """SAS.05 (أ) the unified mark, and (هـ) the exempt procedures —
+    the hospital's policy, so an administrator's to write."""
+    from app.models import Setting
+    from app.utils import site_marking
+
+    _admin_only()
+    Setting.set(site_marking.STYLE_SETTING,
+                (request.form.get("style") or "").strip()[:300])
+    chosen = {int(v) for v in request.form.getlist("exempt") if v.isdigit()}
+    for service in _marking_procedures():
+        # Only a change is written: a procedure nobody ever ticked stays
+        # "nobody decided" rather than becoming a recorded "no".
+        if service.id in chosen:
+            service.site_mark_exempt = True
+        elif service.site_mark_exempt:
+            service.site_mark_exempt = False
+    ActivityLog.record("theatre.site_marking_policy", user_id=current_user.id,
+                       entity="setting", detail=str(sorted(chosen)),
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("site_mark.policy_saved"), "success")
+    return redirect(url_for("theatres.setup") + "#site-marking")
+
+
+@theatres_bp.route("/site-marking")
+@module_required(MODULE)
+def site_marking_report():
+    """SAS.05 (g) — *"the hospital monitors the reported data regarding the
+    site marking process"*: every case in the period that needed a mark, and
+    which check each one missed."""
+    from app.utils import site_marking
+
+    start, end = site_marking.default_period(local_today())
+    start = _a_date(request.args.get("from")) or start
+    end = _a_date(request.args.get("to")) or end
+    return render_template("theatres/site_marking.html",
+                           data=site_marking.report(start, end),
+                           checks=site_marking.CHECKS,
+                           start=start, end=end,
+                           mark_style=site_marking.mark_style())
 
 
 @theatres_bp.route("/room", methods=["POST"])
@@ -271,6 +337,12 @@ def operation(operation_id):
                            # sign-in items the standard asks be *verified*.
                            site_state=theatre.site_state(row),
                            site_sides=SITE_SIDES,
+                           # SAS.05 — is a mark needed, and which of the
+                           # policy's checks this case misses.
+                           site_required=_marking.required(row),
+                           site_exempt=_marking.exempt(row),
+                           site_problems=_marking.problems(row),
+                           mark_style=_marking.mark_style(),
                            # Who this child is — the other half of the
                            # never-event. The guardians already on file are
                            # offered so confirming is one click rather than
@@ -564,10 +636,19 @@ def mark_site(operation_id):
     site is how a wrong-side operation gets a signature saying it was
     verified.
     """
+    from app.utils import site_marking
+
     row = Operation.query.get_or_404(operation_id)
+    # (أ) — the box says "this was the hospital's mark". Unticked is "no"
+    # only when the hospital has said what its mark is; before that nobody
+    # could have answered.
+    unified = (True if request.form.get("unified")
+               else (False if site_marking.mark_style() else None))
     if theatre.mark_site(row, (request.form.get("side") or "").strip(),
                          current_user,
-                         note=request.form.get("site_note")) is None:
+                         note=request.form.get("site_note"),
+                         with_whom=(request.form.get("site_with") or "").strip(),
+                         unified=unified) is None:
         flash(t("theatre.site_needs_side"), "warning")
         return redirect(url_for("theatres.operation", operation_id=row.id))
     db.session.commit()

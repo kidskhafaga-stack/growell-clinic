@@ -241,7 +241,8 @@ def site_ok(operation):
     return site_state(operation) == "marked"
 
 
-def mark_site(operation, side, user=None, note=None, at=None):
+def mark_site(operation, side, user=None, note=None, at=None,
+              with_whom=None, unified=None):
     """Record which side, and who says so. Returns the operation, or ``None``.
 
     Refused without a recognised side: a free-typed one would put the
@@ -256,6 +257,12 @@ def mark_site(operation, side, user=None, note=None, at=None):
     operation.site_note = (note or "").strip()[:160] or None
     operation.site_marked_by = getattr(user, "id", None)
     operation.site_marked_at = at or datetime.utcnow()
+    # SAS.05 (د) and (أ). Only a recognised answer is kept — a free-typed
+    # "who was there" is the tick this replaced wearing a different hat.
+    from app.models.theatre import IDENTITY_WITH
+
+    operation.site_with = with_whom if with_whom in IDENTITY_WITH else None
+    operation.site_unified = unified
     return operation
 
 
