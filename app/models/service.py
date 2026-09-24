@@ -196,6 +196,9 @@ class Service(db.Model):
     code = db.Column(db.String(40))
     eta_item_type = db.Column(db.String(8), default="EGS")  # EGS | GS1 (ETA coding)
     category = db.Column(db.String(40), default="other", nullable=False)
+    # SAS.05 (هـ) — the hospital's list of procedures exempt from site
+    # marking, kept on the procedure itself. Nullable: nobody decided.
+    site_mark_exempt = db.Column(db.Boolean)
     # Service Engine: operational kind + how the service behaves in a visit.
     service_type = db.Column(db.String(20), default="other")
     # Which part of the bill this is totalled under. NULL is not "nowhere":

@@ -688,6 +688,11 @@ ADDITIONS = [
     ("sedation_records", "recovery_fluids_out_ml", "INTEGER"),
     ("sedation_records", "recovery_blood", "VARCHAR(200)"),
     ("sedation_records", "recovery_criteria_met", "BOOLEAN"),
+    # `SAS.05` — مين كان مع الطفل وهو بيتعلّم، والعلامة الموحّدة، والإجراءات
+    # المعفاة. فاضيين على كل عملية وخدمة قديمة: محدّش سأل لسه.
+    ("operations", "site_with", "VARCHAR(20)"),
+    ("operations", "site_unified", "BOOLEAN"),
+    ("services", "site_mark_exempt", "BOOLEAN"),
 ]
 
 def apply_schema(report=None):

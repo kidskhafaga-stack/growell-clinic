@@ -247,6 +247,14 @@ class Operation(db.Model):
     site_note = db.Column(db.String(160))
     site_marked_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     site_marked_at = db.Column(db.DateTime)
+    # SAS.05 (د): the marking is done *"along with the patient and/or family
+    # involvement"* — who stood with the child, in the same words the identity
+    # check uses. ``none_present`` is an honest answer and stays visible.
+    site_with = db.Column(db.String(20))
+    # SAS.05 (أ): *"unified mark"* — the hospital's own mark
+    # (``site_marking.STYLE_SETTING``), and whoever marked says it was that
+    # one. Tri-state: nobody said is not the same as no.
+    site_unified = db.Column(db.Boolean)
 
     # ------------------------------------ called off, or moved to another day --
     #

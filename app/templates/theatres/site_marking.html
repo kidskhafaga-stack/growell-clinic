@@ -1,0 +1,85 @@
+{% extends "shell.html" %}
+{% set active_module = 'theatres' %}
+{% block title %}{{ t('site_mark.report_title') }}{% endblock %}
+{% block page_heading %}{{ t('site_mark.report_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR SAS.05 دليل ٥ — *"monitors the reported data regarding the site
+   marking process"*. نفس الفحوصات اللي بتتعمل على كل حالة، على فترة، والحالة
+   اللي فوّتت فحص بتتسمّى بالاسم علشان حد يروح يشوفها. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-crosshair"></i> {{ t('site_mark.report_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('site_mark.report_sub') }}</p>
+  </div>
+  <form method="get" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;" class="no-print">
+    <div class="form-row" style="margin:0;"><label for="sm_from">{{ t('site_mark.from') }}</label>
+      <input class="input" type="date" id="sm_from" name="from" value="{{ start }}" dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label for="sm_to">{{ t('site_mark.to') }}</label>
+      <input class="input" type="date" id="sm_to" name="to" value="{{ end }}" dir="ltr"></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i></button>
+    <button class="btn btn-outline gc-press" type="button" onclick="window.print()"><i class="bi bi-printer"></i></button>
+  </form>
+</div>
+
+{% if not mark_style %}
+<p class="alert-pill warn" style="margin-bottom:12px;" data-style-unset>
+  <i class="bi bi-exclamation-circle"></i> {{ t('site_mark.style_unset') }}</p>
+{% endif %}
+
+<div class="grid grid--cards gc-stagger" style="margin-bottom:16px;">
+  <div class="stat-card"><div class="value">{{ data.cases }}</div><div class="label">{{ t('site_mark.n_cases') }}</div></div>
+  <div class="stat-card"><div class="value">{{ data.needed }}</div><div class="label">{{ t('site_mark.n_needed') }}</div></div>
+  <div class="stat-card"><div class="value">{{ data.exempt }}</div><div class="label">{{ t('site_mark.n_exempt') }}</div></div>
+  <div class="stat-card"><div class="value" style="color:var(--danger);">{{ data.failing|length }}</div><div class="label">{{ t('site_mark.n_failing') }}</div></div>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;" data-site-totals>
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr><th>{{ t('site_mark.check') }}</th>
+      <th style="text-align:end;">{{ t('site_mark.ok') }}</th>
+      <th style="text-align:end;">{{ t('site_mark.not_ok') }}</th>
+      <th style="text-align:end;">{{ t('site_mark.pending') }}</th>
+      <th style="text-align:end;">%</th></tr></thead>
+    <tbody>
+    {% for name in checks %}
+    {% set row = data.totals[name] %}
+    {% set judged = row.ok + row.no %}
+    <tr data-check="{{ name }}">
+      <td>{{ t('site_mark.check_' ~ name) }}</td>
+      <td style="text-align:end;font-variant-numeric:tabular-nums;">{{ row.ok }}</td>
+      <td style="text-align:end;font-variant-numeric:tabular-nums;">{% if row.no %}<span class="badge badge--warn">{{ row.no }}</span>{% else %}0{% endif %}</td>
+      <td style="text-align:end;font-variant-numeric:tabular-nums;">{{ row.open }}</td>
+      <td style="text-align:end;font-variant-numeric:tabular-nums;" dir="ltr">{{ ((row.ok * 100) // judged) if judged else '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;" data-site-failing>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);"><strong>{{ t('site_mark.failing_title') }}</strong></div>
+  {% if data.failing %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr><th>{{ t('invoices.date') }}</th><th>{{ t('followup.child') }}</th><th>{{ t('theatre.procedure') }}</th><th>{{ t('site_mark.missed') }}</th></tr></thead>
+    <tbody>
+    {% for item in data.failing %}
+    {% set op = item.operation %}
+    <tr data-failing="{{ op.id }}">
+      <td dir="ltr">{{ op.on_date }}</td>
+      <td><a href="{{ url_for('theatres.operation', operation_id=op.id) }}">{{ op.patient.display_name(current_lang) if op.patient else '—' }}</a></td>
+      <td>{{ op.procedure }}</td>
+      <td>{% for p in item.problems %}<span class="badge badge--warn">{{ t('site_mark.problem_' ~ p) }}</span> {% endfor %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;padding:18px;">{{ t('site_mark.none_failing') }}</p>
+  {% endif %}
+</div>
+{% endblock %}
