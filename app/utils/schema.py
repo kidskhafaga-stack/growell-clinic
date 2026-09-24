@@ -711,6 +711,9 @@ ADDITIONS = [
     ("operation_implants", "technician_external", "BOOLEAN"),
     ("operation_implants", "instructions_given_at", "DATETIME"),
     ("operation_implants", "instructions_given_by", "INTEGER"),
+    # The developer's account (a door the owner opens). False on every user
+    # already there: nobody is a support account until the owner makes one.
+    ("users", "is_vendor", "BOOLEAN DEFAULT 0"),
 ]
 
 def apply_schema(report=None):

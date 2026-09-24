@@ -89,6 +89,11 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('settings.licence') }}">
       <i class="bi bi-patch-check"></i> {{ t('licence.title') }}</a>
     {% endif %}
+    {# The developer's door — the owner in person only. #}
+    {% if current_user.is_owner_in_person %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('settings.support') }}">
+      <i class="bi bi-person-badge"></i> {{ t('support.title') }}</a>
+    {% endif %}
   </div>
 </div>
 

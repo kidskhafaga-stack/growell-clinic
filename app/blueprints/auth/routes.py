@@ -93,6 +93,21 @@ def login():
             flash(t("auth.account_disabled"), "warning")
             return render_template("auth/login.html"), 403
 
+        # The developer's account signs in only through a window the owner
+        # opened for it (see `app.models.support_access`). The right password
+        # with the door shut is logged — somebody holding it is the fact the
+        # owner most needs to know.
+        if user.is_vendor:
+            from app.utils.support_access import open_window
+            if open_window(user) is None:
+                ActivityLog.record(
+                    "login_support_closed", user_id=user.id, entity="user",
+                    entity_id=user.id, detail=username[:80],
+                    ip_address=client_ip())
+                db.session.commit()
+                flash(t("support.door_shut"), "warning")
+                return render_template("auth/login.html"), 403
+
         login_user(user, remember=remember)
         # Apply the user's preferred UI language (doctors default to English).
         if user.language:

@@ -266,6 +266,33 @@ def create_app(config_name="default"):
         }
 
     @app.context_processor
+    def inject_support():
+        """The developer's door, for the banner: the developer sees when
+        their own window closes, and the owner sees every window open.
+
+        A function the banner calls rather than a value, and asked only for
+        those two people — every other page load for every other person
+        costs nothing.
+        """
+        from flask_login import current_user
+
+        def support_open():
+            try:
+                if not current_user.is_authenticated:
+                    return []
+                from app.utils import support_access
+                if current_user.is_vendor:
+                    row = support_access.open_window(current_user)
+                    return [row] if row else []
+                if current_user.is_owner_in_person:
+                    return support_access.any_open()
+            except Exception:  # noqa: BLE001 - never break a page for a banner
+                return []
+            return []
+
+        return {"support_open": support_open}
+
+    @app.context_processor
     def inject_licence():
         """What the banner and the hidden buttons read.
 
@@ -469,6 +496,53 @@ def create_app(config_name="default"):
                                 "logo_url": None, "accent": None}}
 
     @app.before_request
+    def _support_door():
+        """The developer's account, on every request (see
+        `app.models.support_access`).
+
+        Door shut — no window, or it ran out, or the owner closed it — signs
+        the account out on this very click, even one that ticked "remember
+        me". Door open — the request is written down, and the handful of
+        things that stay the owner's alone are refused and written down too.
+
+        **A request that cannot be written down does not go through.** The
+        log is written before the screen runs; on a copy whose licence has
+        lapsed nothing can be written, so the read-only page answers instead
+        of the screen — unlogged access is not a fallback this door has.
+        """
+        from flask import abort, redirect, request, url_for
+        from flask_login import current_user, logout_user
+
+        if not current_user.is_authenticated or not current_user.is_vendor:
+            return None
+        if (request.endpoint or "") == "static":
+            return None
+        from app.extensions import db as _db
+        from app.utils import support_access
+        from app.utils.decorators import client_ip
+        from app.i18n import t as _t
+
+        window = support_access.open_window(current_user)
+        if window is None:
+            from app.models import ActivityLog
+            ActivityLog.record("support_signed_out", user_id=current_user.id,
+                               entity="user", entity_id=current_user.id,
+                               ip_address=client_ip())
+            logout_user()
+            _db.session.commit()
+            from flask import flash
+            flash(_t("support.door_shut"), "warning")
+            return redirect(url_for("auth.login"))
+        refused = support_access.owner_only(request.endpoint, request.method)
+        support_access.record(window, request.method, request.endpoint,
+                              request.path, status=403 if refused else None,
+                              refused=refused, ip_address=client_ip())
+        _db.session.commit()
+        if refused:
+            abort(403, description=_t("support.owner_in_person"))
+        return None
+
+    @app.before_request
     def _auto_backup():
         """Daily automatic DB snapshot (throttled, silent, never breaks a request)."""
         from app.utils.backups import auto_backup_if_due
@@ -498,8 +572,11 @@ def create_app(config_name="default"):
         # otherwise be redirected to a form that cannot save — the licence
         # blocks the write, the wizard blocks the licence screen, and there is
         # no way round the loop from inside the program.
+        # `settings.support` too: a new clinic's owner may be letting the
+        # developer in precisely to help finish the setup.
         allowed = ("static", "settings.setup", "settings.wizard",
                    "settings.licence", "settings.licence_install",
+                   "settings.support",
                    "auth.logout", "auth.login", "main.set_theme")
         # `settings.wizard*` covers the checklist's own actions too — a POST
         # that gets swallowed by this redirect looks to the user like a button

@@ -45,6 +45,10 @@ class User(UserMixin, db.Model):
     # practitioners so they appear in the appointments / doctor pickers without
     # every admin showing up as a doctor.
     is_practitioner = db.Column(db.Boolean, default=False, nullable=False)
+    # The developer's account — see `app.models.support_access`. It signs in
+    # only through a window the owner opened for it, and holds nothing at
+    # all outside one.
+    is_vendor = db.Column(db.Boolean, default=False, nullable=False)
 
     # `IMT.05` دليل ٥ — *a signed confidentiality agreement in each staff
     # member's personal file*. **الورقة نفسها ورق** وبتتحفظ في ملف الموظف؛
@@ -200,8 +204,20 @@ class User(UserMixin, db.Model):
 
         return remember(f"role:{self.role}", load)
 
+    def _door_shut(self):
+        """A developer's account with no window open holds nothing — not a
+        module, not a capability, not a screen. Checked here as well as at
+        the door (the request hook signs it out) so that nothing that asks
+        the user directly can be told otherwise."""
+        if not self.is_vendor:
+            return False
+        from app.utils.support_access import open_window
+        return open_window(self) is None
+
     @property
     def is_admin(self):
+        if self._door_shut():
+            return False
         rec = self._role_record()
         if rec is not None:
             return rec.is_admin
@@ -211,10 +227,23 @@ class User(UserMixin, db.Model):
     def is_owner(self):
         """Super-admin: an admin flagged as the institution's owner. Owners
         reach the facility/institution settings a plain admin cannot."""
+        if self.is_vendor:
+            # Inside a window the developer holds the owner's powers — the
+            # work they were let in for. The few that stay the owner's alone
+            # are refused at the door, by endpoint, whatever this says.
+            return not self._door_shut()
         return bool(self.is_super_admin) and self.is_admin
+
+    @property
+    def is_owner_in_person(self):
+        """The owner as themselves — never a developer holding the owner's
+        powers through a window."""
+        return self.is_owner and not self.is_vendor
 
     def can_access(self, module):
         """Whether this user's role may reach ``module``."""
+        if self._door_shut():
+            return False
         rec = self._role_record()
         if rec is not None:
             return rec.is_admin or module in rec.module_list
@@ -277,6 +306,8 @@ class User(UserMixin, db.Model):
         stop somebody is to change their role where everyone can see it.
         """
         from app.models.permissions import role_has_capability
+        if self._door_shut():
+            return False
         rec = self._role_record()
         if rec is not None and rec.is_admin:
             return True

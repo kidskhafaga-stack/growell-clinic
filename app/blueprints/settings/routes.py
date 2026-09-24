@@ -1596,6 +1596,80 @@ def wizard_seed_drugs():
 #
 # Every endpoint here begins `settings.licence`, which is what
 # `app.utils.read_only.ALLOWED_PREFIXES` allows through — the way out of
+# ------------------------------------------------ the developer's door ----
+@settings_bp.route("/support", methods=["GET", "POST"])
+@owner_required
+def support():
+    """The developer's door: the owner makes the account, opens a window for
+    a set time with a reason, closes it, and reads what happened inside
+    (see `app.models.support_access`).
+
+    The owner **in person**. A developer inside a window holds the owner's
+    powers, and this is the one screen those powers must not reach — the
+    request hook refuses it, and this says so again.
+    """
+    from datetime import datetime
+
+    from flask import abort
+
+    from app.models import SupportWindow, User
+    from app.models.support_access import DURATIONS
+    from app.utils import support_access
+
+    if not current_user.is_owner_in_person:
+        abort(403, description=t("support.owner_in_person"))
+
+    if request.method == "POST":
+        action = (request.form.get("action") or "").strip()
+        try:
+            if action == "make":
+                row = support_access.make_vendor(
+                    current_user, request.form.get("username"),
+                    request.form.get("full_name"),
+                    request.form.get("password"))
+                db.session.flush()
+                ActivityLog.record("support.account", user_id=current_user.id,
+                                   entity="user", entity_id=row.id,
+                                   detail=row.username, ip_address=client_ip())
+            elif action == "password":
+                vendor = db.get_or_404(User, request.form.get("user_id", type=int))
+                support_access.set_vendor_password(
+                    current_user, vendor, request.form.get("password"))
+                ActivityLog.record("support.password", user_id=current_user.id,
+                                   entity="user", entity_id=vendor.id,
+                                   ip_address=client_ip())
+            elif action == "open":
+                vendor = db.get_or_404(User, request.form.get("user_id", type=int))
+                row = support_access.open_for(
+                    current_user, vendor, request.form.get("hours"),
+                    request.form.get("reason"))
+                db.session.flush()
+                ActivityLog.record("support.open", user_id=current_user.id,
+                                   entity="support_window", entity_id=row.id,
+                                   detail=row.reason, ip_address=client_ip())
+            elif action == "close":
+                row = db.get_or_404(SupportWindow,
+                                    request.form.get("window_id", type=int))
+                support_access.close(current_user, row)
+                ActivityLog.record("support.close", user_id=current_user.id,
+                                   entity="support_window", entity_id=row.id,
+                                   ip_address=client_ip())
+            else:
+                raise ValueError("unknown action")
+        except ValueError:
+            db.session.rollback()
+            flash(t("support.refused"), "warning")
+        else:
+            db.session.commit()
+            flash(t("common.saved"), "success")
+        return redirect(url_for("settings.support"))
+
+    return render_template("settings/support.html",
+                           vendors=support_access.vendors(),
+                           windows=support_access.windows(),
+                           durations=DURATIONS, now=datetime.utcnow())
+
+
 # read-only must not itself be read-only.
 @settings_bp.route("/licence")
 @owner_required
