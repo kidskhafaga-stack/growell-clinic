@@ -568,6 +568,14 @@ def create():
     )
 
 
+def _implanted_in(patient_id):
+    """Everything inside this child (SAS.11) — read through the theatre's
+    own reader, so the file and the recall agree on what counts."""
+    from app.utils.theatres import implanted_in
+
+    return implanted_in(patient_id)
+
+
 # ---------------------------------------------------------------- view -----
 @patients_bp.route("/<int:patient_id>")
 @module_required(MODULE)
@@ -697,6 +705,9 @@ def view(patient_id):
         # What this file still owes the clinic, worked out now rather than
         # kept anywhere — see `app/utils/patient_basics`.
         basics_missing=_basics.missing(patient),
+        # SAS.11 — what is inside this child, on the file itself. Only what
+        # went in; a plate prepared and not used is not in anybody.
+        implants_in=_implanted_in(patient.id),
         vaccine_cards=certificate_cards(vaccine_plan),
         vaccine_plan=vaccine_plan,
         vaccine_next=vaccine_next,

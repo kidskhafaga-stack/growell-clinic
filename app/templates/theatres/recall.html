@@ -74,6 +74,22 @@
       </tbody>
     </table>
   </div>
+  {# A search answers "which children". A notice needs the work after it —
+     every family reached, inside the hospital's time frame — so the same
+     question can be turned into a recall that tracks it (SAS.11 evidence 5). #}
+  <form method="post" action="{{ url_for('theatres.open_implant_recall') }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);"
+        data-open-recall>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for field in ('name', 'lot', 'serial', 'manufacturer') %}
+    <input type="hidden" name="{{ field }}" value="{{ terms[field] }}">
+    {% endfor %}
+    <div class="form-row" style="margin:0;flex:1;min-width:220px;">
+      <label for="rc_notice">{{ t('implants.notice') }}</label>
+      <input class="input" id="rc_notice" name="notice" maxlength="255" required></div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-broadcast"></i> {{ t('implants.open_recall') }}</button>
+  </form>
   {% else %}
   <p class="hint">{{ t('theatre.recall_none') }}</p>
   {% endif %}

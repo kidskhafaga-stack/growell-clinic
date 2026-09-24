@@ -60,6 +60,8 @@ from app.models.operative_report import OperativeReport
 from app.models.postop_plan import LEVELS as POSTOP_LEVELS, PostOpPlan
 from app.models.specimen import Specimen
 from app.models.preop_assessment import PreOpAssessment, PreOpRisk
+from app.models.implant import (ImplantDevice, ImplantEvent, ImplantRecall,
+                                ImplantRecallContact)
 from app.models.risk_assessment import RISK_KINDS, RiskAssessment
 from app.models.care_plan import (GOAL_PROGRESS, CarePlan,
                                   CarePlanGoal)
@@ -358,6 +360,7 @@ __all__ = [
     "OperativeReport",
     "PostOpPlan", "POSTOP_LEVELS",
     "Specimen", "PreOpAssessment", "PreOpRisk",
+    "ImplantDevice", "ImplantEvent", "ImplantRecall", "ImplantRecallContact",
     "RiskAssessment",
     "RISK_KINDS",
     "CarePlan",

@@ -64,6 +64,8 @@ KEEP = {
     # اتعدم فعلاً برّه البرنامج. «امسح البيانات» بيبدأ الشغل من جديد، ما
     # بيمحيش إن الورق ده اتعدم.
     "retention_rules", "record_destructions",
+    # `SAS.11` — قايمة الغرسات بتاعة المستشفى: كتالوج، زي الخدمات.
+    "implant_devices",
 }
 
 #: شغل تشغيلي مالوش `patient_id` ولا بيوصل لمريض — بس مش كتالوج.
@@ -88,6 +90,9 @@ OPERATIONAL = {
     "record_reviews", "record_review_members", "record_review_findings",
     "duty_slots", "duties", "room_assignments", "feedback", "conversations",
     "claims", "claim_items",
+    # `SAS.11` — إشعار استدعاء مالوش مريض بنفسه؛ الاتصالات بالأسر بتوصل
+    # لمريض عن طريق الغرسة وبتتمسح لوحدها.
+    "implant_recalls",
 }
 
 

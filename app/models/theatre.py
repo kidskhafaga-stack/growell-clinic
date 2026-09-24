@@ -858,7 +858,22 @@ class OperationImplant(db.Model):
     implanted_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     sort_order = db.Column(db.Integer, default=0, nullable=False)
 
+    #: SAS.11 (a): the entry on the hospital's list this is. Empty for one
+    #: named by hand — which is allowed, and shows as not from the list.
+    device_id = db.Column(db.Integer, db.ForeignKey("implant_devices.id"),
+                          index=True)
+    #: SAS.11 (c): who fitted it, and whether they are the hospital's own
+    #: staff or the company's representative. Tri-state: None is nobody said.
+    technician = db.Column(db.String(120))
+    technician_external = db.Column(db.Boolean)
+    #: SAS.11 (h): the discharge instructions for this device were given to
+    #: the family — when, and by whom.
+    instructions_given_at = db.Column(db.DateTime)
+    instructions_given_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+
     operation = db.relationship("Operation", backref="implants")
+    device = db.relationship("ImplantDevice")
+    instructor = db.relationship("User", foreign_keys=[instructions_given_by])
     confirmer = db.relationship("User", foreign_keys=[available_by])
     implanter = db.relationship("User", foreign_keys=[implanted_by])
 
