@@ -84,7 +84,7 @@
   {% endif %}
 
   <!-- Prominent, animated safety banner: allergies / chronic / growth concern -->
-  {% if current_user.can('patient_medical') and (patient.allergies or patient.chronic_diseases or growth_alert) %}
+  {% if current_user.can('patient_medical') and (patient.allergies or patient.chronic_diseases or growth_alert or implants_in) %}
   <div class="alert-banner gc-scale-in">
     {% if patient.allergies %}
     <div class="alert-banner__item ab-danger">
@@ -98,6 +98,17 @@
       <span class="ab-ico"><i class="bi bi-heart-pulse-fill"></i></span>
       <div><div class="ab-title">{{ t('patients.chronic_diseases') }}</div>
         <div class="ab-body">{{ patient.chronic_diseases }}</div></div>
+    </div>
+    {% endif %}
+    {# SAS.11 — «every patient with an implantable device should be easily
+       identified». On the file, where somebody is standing when a family
+       telephones or a scan is being booked. #}
+    {% if implants_in %}
+    <div class="alert-banner__item ab-warn" data-implants-in>
+      <span class="ab-ico"><i class="bi bi-cpu-fill"></i></span>
+      <div><div class="ab-title">{{ t('implants.in_this_child') }}</div>
+        <div class="ab-body">{% for item in implants_in %}{{ item.name }}
+          <span dir="ltr">({{ item.lot or item.serial }})</span>{{ ' · ' if not loop.last else '' }}{% endfor %}</div></div>
     </div>
     {% endif %}
     {% if growth_alert %}

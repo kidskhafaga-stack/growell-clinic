@@ -1,0 +1,169 @@
+{% extends "shell.html" %}
+{% set active_module = 'theatres' %}
+{% block title %}{{ t('implants.title') }}{% endblock %}
+{% block page_heading %}{{ t('implants.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR SAS.11 — «a system for managing implantable devices, including
+   recall». The case screen holds the two halves every case touches (in the
+   room; in the child, with its batch). This screen holds the system around
+   them: the hospital's list (a, b — evidence 2), what went wrong and where it
+   was reported (e, g), and the recalls (f — evidence 5). #}
+<div class="gc-animate" style="margin-bottom:16px;">
+  <h1 class="page-title"><i class="bi bi-cpu"></i> {{ t('implants.title') }}</h1>
+  <p class="page-sub" style="margin:0;">{{ t('implants.sub') }}</p>
+</div>
+
+{# ------------------------------------------------ waiting on a report -- #}
+{% if waiting %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:3px solid var(--warn,#b45309);" data-unreported>
+  <h2 class="section-title" style="margin:0 0 8px;font-size:1rem;">
+    <i class="bi bi-exclamation-triangle"></i> {{ t('implants.unreported', n=waiting|length) }}</h2>
+  {% for event in waiting %}
+  {% set child = event.implant.operation.patient if event.implant.operation else None %}
+  <div style="padding:8px 0;border-top:1px solid var(--line);" data-event="{{ event.id }}">
+    <div><span class="badge badge--muted">{{ t('implants.kind_' ~ event.kind) }}</span>
+      <b>{{ event.implant.name }}</b>
+      <span class="hint" dir="ltr">{{ event.implant.lot or event.implant.serial or '—' }}</span>
+      {% if child %}· <a href="{{ url_for('patients.view', patient_id=child.id) }}">{{ child.display_name(current_lang) }}</a>{% endif %}
+      · <span class="hint" dir="ltr">{{ event.noted_at|clinic_stamp }}</span></div>
+    <div class="hint">{{ event.description }}</div>
+    <form method="post" action="{{ url_for('theatres.report_implant_event', event_id=event.id) }}"
+          style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:6px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;flex:1;min-width:180px;">
+        <label for="ev_to_{{ event.id }}">{{ t('implants.reported_to') }}</label>
+        <input class="input" id="ev_to_{{ event.id }}" name="reported_to" maxlength="160" required></div>
+      <div class="form-row" style="margin:0;">
+        <label for="ev_at_{{ event.id }}">{{ t('implants.reported_at') }}</label>
+        <input class="input" type="datetime-local" id="ev_at_{{ event.id }}" name="reported_at" dir="ltr"></div>
+      <div class="form-row" style="margin:0;width:140px;">
+        <label for="ev_ref_{{ event.id }}">{{ t('implants.reference') }}</label>
+        <input class="input" id="ev_ref_{{ event.id }}" name="reference" maxlength="80" dir="ltr"></div>
+      <button class="btn btn-outline gc-press" type="submit">{{ t('implants.record_report') }}</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ------------------------------------------------------------ recalls -- #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin:0 0 8px;font-size:1rem;">
+    <i class="bi bi-broadcast"></i> {{ t('implants.recalls') }}
+    <a class="btn btn-outline gc-press" style="float:inline-end;font-size:.8rem;"
+       href="{{ url_for('theatres.implant_recall') }}">
+      <i class="bi bi-search"></i> {{ t('theatre.recall_title') }}</a></h2>
+  {% if hours %}
+  <p class="hint" data-recall-hours="{{ hours }}">{{ t('implants.hours_are', n=hours) }}</p>
+  {% else %}
+  <p class="alert-pill warn" data-recall-hours-unset>
+    <i class="bi bi-exclamation-circle"></i> {{ t('implants.hours_unset') }}</p>
+  {% endif %}
+  {% if current_user.is_admin %}
+  <form method="post" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:6px 0 10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="hours">
+    <div class="form-row" style="margin:0;width:170px;">
+      <label for="im_hours">{{ t('implants.hours') }}</label>
+      <input class="input" type="number" min="1" step="1" id="im_hours" name="hours"
+             value="{{ hours or '' }}" dir="ltr"></div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+  {% endif %}
+  {% if recalls %}
+  <div style="overflow-x:auto;">
+    <table class="table">
+      <thead><tr><th>{{ t('implants.notice') }}</th><th>{{ t('implants.opened') }}</th>
+        <th>{{ t('common.status') }}</th></tr></thead>
+      <tbody>
+        {% for r in recalls %}
+        <tr data-recall="{{ r.id }}">
+          <td><a href="{{ url_for('theatres.implant_recall_case', recall_id=r.id) }}">{{ r.notice }}</a></td>
+          <td dir="ltr">{{ r.opened_at|clinic_stamp }}</td>
+          <td>{% if r.closed_at %}<span class="badge badge--muted">{{ t('implants.closed') }}</span>
+              {% elif outstanding.get(r.id) %}<span class="alert-pill warn">{{ t('implants.n_unreached', n=outstanding[r.id]) }}</span>
+              {% else %}<span class="alert-pill ok">{{ t('implants.all_reached') }}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint">{{ t('implants.no_recalls') }}</p>
+  {% endif %}
+</div>
+
+{# ------------------------------------------------ the hospital's list -- #}
+{# Evidence 2 — «a list of implantable devices used in the hospital». Empty
+   until the hospital writes it: which plates a children's theatre uses is
+   its selection (a), not the program's. Each entry names its primary
+   source (b), because the intent asks for tracking «from its primary
+   source». #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin:0 0 8px;font-size:1rem;">
+    <i class="bi bi-list-check"></i> {{ t('implants.list') }}</h2>
+  {% if not devices %}
+  <p class="alert-pill warn" data-list-empty>
+    <i class="bi bi-exclamation-circle"></i> {{ t('implants.list_empty') }}</p>
+  {% endif %}
+  {% for device in devices %}
+  <div style="padding:8px 0;border-top:1px solid var(--line);{{ 'opacity:.6;' if not device.is_active else '' }}" data-device="{{ device.id }}">
+    <div><b>{{ device.name }}</b>
+      {% if device.manufacturer %}<span class="hint">· {{ device.manufacturer }}</span>{% endif %}
+      {% if not device.is_active %}<span class="badge badge--muted">{{ t('implants.retired') }}</span>{% endif %}
+      <span class="hint">· {{ t('implants.approved') }} <span dir="ltr">{{ device.approved_at|clinic_stamp }}</span>
+        {% if device.approver %}{{ device.approver.display_name(current_lang) }}{% endif %}</span></div>
+    <div class="hint">{{ t('implants.supplier') }}: {{ device.supplier or '—' }}</div>
+    {% if not device.instructions %}
+    <div class="hint" style="color:var(--warn,#b45309);" data-no-instructions>{{ t('implants.no_instructions') }}</div>
+    {% endif %}
+    {% if current_user.is_admin and device.is_active %}
+    <details style="margin-top:4px;">
+      <summary class="hint">{{ t('common.edit') }}</summary>
+      <form method="post" style="display:grid;gap:8px;margin-top:6px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="device_id" value="{{ device.id }}">
+        <div class="form-row" style="margin:0;">
+          <label for="dv_sup_{{ device.id }}">{{ t('implants.supplier') }}</label>
+          <input class="input" id="dv_sup_{{ device.id }}" name="supplier" maxlength="160" value="{{ device.supplier or '' }}"></div>
+        <div class="form-row" style="margin:0;">
+          <label for="dv_ins_{{ device.id }}">{{ t('implants.instructions') }}</label>
+          <textarea class="input" id="dv_ins_{{ device.id }}" name="instructions" rows="3">{{ device.instructions or '' }}</textarea></div>
+        <div class="form-row" style="margin:0;">
+          <label for="dv_note_{{ device.id }}">{{ t('implants.note') }}</label>
+          <input class="input" id="dv_note_{{ device.id }}" name="note" maxlength="200" value="{{ device.note or '' }}"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary gc-press" type="submit" name="action" value="update">{{ t('common.save') }}</button>
+          <button class="btn btn-outline gc-press" type="submit" name="action" value="retire">{{ t('implants.retire') }}</button>
+        </div>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  {% if current_user.is_admin %}
+  <form method="post" style="display:grid;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="add">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div class="form-row" style="margin:0;flex:1;min-width:170px;">
+        <label for="dv_name">{{ t('implants.device_name') }}</label>
+        <input class="input" id="dv_name" name="name" maxlength="160" required></div>
+      <div class="form-row" style="margin:0;flex:1;min-width:140px;">
+        <label for="dv_maker">{{ t('theatre.implant_manufacturer') }}</label>
+        <input class="input" id="dv_maker" name="manufacturer" maxlength="120"></div>
+      <div class="form-row" style="margin:0;flex:1;min-width:140px;">
+        <label for="dv_supplier">{{ t('implants.supplier') }}</label>
+        <input class="input" id="dv_supplier" name="supplier" maxlength="160"></div>
+    </div>
+    <div class="form-row" style="margin:0;">
+      <label for="dv_instr">{{ t('implants.instructions') }}</label>
+      <textarea class="input" id="dv_instr" name="instructions" rows="2"></textarea></div>
+    <div><button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-plus-lg"></i> {{ t('implants.add') }}</button></div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

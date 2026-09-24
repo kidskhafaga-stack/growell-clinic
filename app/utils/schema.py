@@ -693,6 +693,14 @@ ADDITIONS = [
     ("operations", "site_with", "VARCHAR(20)"),
     ("operations", "site_unified", "BOOLEAN"),
     ("services", "site_mark_exempt", "BOOLEAN"),
+    # `SAS.11` — the implant's entry on the hospital's list (a), who fitted
+    # it (c), and the discharge instructions given (h). Empty on every
+    # implant already recorded: nobody was asked.
+    ("operation_implants", "device_id", "INTEGER"),
+    ("operation_implants", "technician", "VARCHAR(120)"),
+    ("operation_implants", "technician_external", "BOOLEAN"),
+    ("operation_implants", "instructions_given_at", "DATETIME"),
+    ("operation_implants", "instructions_given_by", "INTEGER"),
 ]
 
 def apply_schema(report=None):

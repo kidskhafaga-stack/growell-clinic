@@ -950,7 +950,11 @@
         {% if item.size %}<span class="hint">· {{ item.size }}</span>{% endif %}
         {% if item.manufacturer %}<span class="hint">· {{ item.manufacturer }}</span>{% endif %}
         <span class="alert-pill {{ 'ok' if item.state == 'implanted' else 'warn' }}"
-              style="font-size:.72rem;">{{ t('theatre.implant_' ~ item.state) }}</span></span>
+              style="font-size:.72rem;">{{ t('theatre.implant_' ~ item.state) }}</span>
+        {# SAS.11 (a) — named by hand, not from the hospital's list. Allowed;
+           said. #}
+        {% if not item.device_id %}<span class="badge badge--muted" style="font-size:.72rem;"
+              data-off-list>{{ t('implants.off_list') }}</span>{% endif %}</span>
       {# The batch is filled in **here**, at the moment it is known: the
          wrapper is open and in somebody's hand. Asking for it at planning
          time gets a placeholder typed, and a recall would then search it. #}
@@ -980,10 +984,51 @@
       <span class="hint"><span dir="ltr">{{ item.implanted_at|clinic_stamp }}</span>
         {% if item.implanter %} · {{ item.implanter.display_name(current_lang) }}{% endif %}</span>
       {% endif %}
+      {# SAS.11 (c) — who fitted it: the hospital's own staff or the
+         company's representative. #}
+      <div class="form-row" style="margin:0;width:150px;">
+        <label for="tech_{{ item.id }}">{{ t('implants.technician') }}</label>
+        <input class="input" id="tech_{{ item.id }}" name="tech_{{ item.id }}"
+               maxlength="120" value="{{ item.technician or '' }}"></div>
+      <div class="form-row" style="margin:0;">
+        <label for="tech_from_{{ item.id }}">{{ t('implants.technician_from') }}</label>
+        <select class="select" id="tech_from_{{ item.id }}" name="tech_from_{{ item.id }}">
+          <option value="">—</option>
+          <option value="no" {{ 'selected' if item.technician_external is sameas false else '' }}>{{ t('implants.from_staff') }}</option>
+          <option value="yes" {{ 'selected' if item.technician_external else '' }}>{{ t('implants.from_company') }}</option>
+        </select></div>
+      {# SAS.11 (h) — the hospital's discharge instructions for this device,
+         and whether the family was given them. #}
+      {% if item.implanted_at %}
+      <div style="flex-basis:100%;" data-instructions="{{ 'given' if item.instructions_given_at else 'missing' }}">
+        {% if item.device and item.device.instructions %}
+        <div class="hint" style="white-space:pre-line;">{{ item.device.instructions }}</div>
+        {% endif %}
+        {% if item.instructions_given_at %}
+        <span class="hint"><i class="bi bi-check2"></i> {{ t('implants.told') }} ·
+          <span dir="ltr">{{ item.instructions_given_at|clinic_stamp }}</span>
+          {% if item.instructor %} · {{ item.instructor.display_name(current_lang) }}{% endif %}</span>
+        {% else %}
+        <label style="font-weight:400;margin:0;color:var(--warn,#b45309);">
+          <input type="checkbox" name="told_{{ item.id }}" value="yes"> {{ t('implants.tell') }}</label>
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
     {% endfor %}
 
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+      {# SAS.11 (a) — from the hospital's list. Typing a name by hand stays
+         possible: a plate fetched in the middle of a case is recorded, and
+         shown as not from the list. #}
+      <div class="form-row" style="margin:0;min-width:170px;">
+        <label for="imp_device">{{ t('implants.from_list') }}</label>
+        <select class="select" id="imp_device" name="new_device">
+          <option value="">{{ t('implants.by_hand') }}</option>
+          {% for device in implant_devices %}
+          <option value="{{ device.id }}">{{ device.name }}{% if device.manufacturer %} · {{ device.manufacturer }}{% endif %}</option>
+          {% endfor %}
+        </select></div>
       <div class="form-row" style="margin:0;flex:1;min-width:150px;">
         <label for="imp_new">{{ t('theatre.implant_add') }}</label>
         <input class="input" id="imp_new" name="new_name" maxlength="160"></div>
@@ -996,6 +1041,39 @@
       <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
     </div>
   </form>
+
+  {# SAS.11 (e) and (g) — an adverse event in the child, or the device
+     failing. Noted here, against the implant; where it was reported is
+     written on the implants screen, where the unreported ones wait. #}
+  {% for item in implants if item.implanted_at %}
+  <details style="margin-top:10px;" data-implant-events="{{ item.id }}">
+    <summary class="hint"><i class="bi bi-exclamation-octagon"></i>
+      {{ t('implants.events_for', name=item.name) }}
+      {% if item.events %}({{ item.events|length }}){% endif %}</summary>
+    {% for event in item.events %}
+    <div class="hint">· {{ t('implants.kind_' ~ event.kind) }} ·
+      <span dir="ltr">{{ event.noted_at|clinic_stamp }}</span> · {{ event.description }}
+      {% if event.reported %}· {{ t('implants.reported_to') }}: {{ event.reported_to }}
+      {% else %}· <b style="color:var(--warn,#b45309);">{{ t('implants.not_reported') }}</b>{% endif %}</div>
+    {% endfor %}
+    <form method="post" action="{{ url_for('theatres.implant_event', implant_id=item.id) }}"
+          style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:6px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;">
+        <label for="ev_kind_{{ item.id }}">{{ t('implants.kind') }}</label>
+        <select class="select" id="ev_kind_{{ item.id }}" name="kind">
+          <option value="adverse">{{ t('implants.kind_adverse') }}</option>
+          <option value="malfunction">{{ t('implants.kind_malfunction') }}</option>
+        </select></div>
+      <div class="form-row" style="margin:0;flex:1;min-width:200px;">
+        <label for="ev_desc_{{ item.id }}">{{ t('implants.what_happened') }}</label>
+        <input class="input" id="ev_desc_{{ item.id }}" name="description" required></div>
+      <button class="btn btn-outline gc-press" type="submit">{{ t('implants.note_event') }}</button>
+    </form>
+  </details>
+  {% endfor %}
+  <p class="hint" style="margin-top:8px;"><a href="{{ url_for('theatres.implants_system') }}">
+    <i class="bi bi-cpu"></i> {{ t('implants.title') }}</a></p>
 </div>
 
 {# ------------------------------------- what the case needs in the room -- #}

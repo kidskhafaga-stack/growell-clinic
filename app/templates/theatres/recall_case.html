@@ -1,0 +1,89 @@
+{% extends "shell.html" %}
+{% set active_module = 'theatres' %}
+{% block title %}{{ t('implants.recall') }}{% endblock %}
+{% block page_heading %}{{ t('implants.recall') }}{% endblock %}
+
+{% block content %}
+{# SAS.11, evidence 5, and the intent's «reachable within a defined time
+   frame». A search says which children; this is the work after it — who was
+   reached, who was not, and whether inside the hospital's own time frame. #}
+<div class="gc-animate" style="margin-bottom:16px;">
+  <h1 class="page-title"><i class="bi bi-broadcast"></i> {{ recall.notice }}</h1>
+  <p class="page-sub" style="margin:0;">
+    <span dir="ltr">{{ recall.opened_at|clinic_stamp }}</span>
+    {% if recall.opener %} · {{ recall.opener.display_name(current_lang) }}{% endif %}
+    {% for key in ('name', 'lot', 'serial', 'manufacturer') if recall.terms[key] %}
+    · {{ t('theatre.implant_' ~ key) }}: <b dir="auto">{{ recall.terms[key] }}</b>{% endfor %}</p>
+</div>
+
+<div class="grid grid--cards gc-stagger" style="margin-bottom:16px;">
+  <div class="stat-card"><div class="value">{{ board|length }}</div><div class="label">{{ t('implants.n_children') }}</div></div>
+  <div class="stat-card"><div class="value" style="{{ 'color:var(--danger);' if outstanding else '' }}">{{ outstanding }}</div><div class="label">{{ t('implants.n_unreached_label') }}</div></div>
+  <div class="stat-card"><div class="value" dir="ltr" style="font-size:1rem;">{{ deadline|clinic_stamp if deadline else '—' }}</div><div class="label">{{ t('implants.deadline') }}</div></div>
+</div>
+{% if not hours %}
+<p class="alert-pill warn" style="margin-bottom:12px;" data-recall-hours-unset>
+  <i class="bi bi-exclamation-circle"></i> {{ t('implants.hours_unset') }}</p>
+{% endif %}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  {% if board %}
+  {% for row in board %}
+  {% set item = row.implant %}
+  {% set child = item.operation.patient if item.operation else None %}
+  <div style="padding:10px 0;border-top:1px solid var(--line);" data-recall-child="{{ item.id }}" data-state="{{ row.state }}">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      {% if child %}<a href="{{ url_for('patients.view', patient_id=child.id) }}"><b>{{ child.display_name(current_lang) }}</b></a>
+        <span class="hint" dir="ltr">{{ child.patient_number }}</span>{% endif %}
+      <span class="hint">{{ item.name }} · <span dir="ltr">{{ item.lot or item.serial or '—' }}</span></span>
+      <span dir="ltr">{{ (child.own_phone if child else '')
+                         or (child.family.parents[0].phone
+                             if child and child.family and child.family.parents
+                             else '') or '—' }}</span>
+      <span class="alert-pill {{ 'ok' if row.state == 'reached' else 'warn' }}">{{ t('implants.state_' ~ row.state) }}</span>
+    </div>
+    {% for c in row.attempts %}
+    <div class="hint">· {{ t('implants.outcome_' ~ c.outcome) }} · <span dir="ltr">{{ c.at|clinic_stamp }}</span>
+      {% if c.by %} · {{ c.by.display_name(current_lang) }}{% endif %}{% if c.note %} · {{ c.note }}{% endif %}</div>
+    {% endfor %}
+    {% if not recall.closed_at %}
+    <form method="post" action="{{ url_for('theatres.implant_recall_contact', recall_id=recall.id) }}"
+          style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:6px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="implant_id" value="{{ item.id }}">
+      <div class="form-row" style="margin:0;flex:1;min-width:180px;">
+        <label for="rc_note_{{ item.id }}">{{ t('implants.note') }}</label>
+        <input class="input" id="rc_note_{{ item.id }}" name="note" maxlength="255"></div>
+      <button class="btn btn-primary gc-press" type="submit" name="outcome" value="reached">{{ t('implants.outcome_reached') }}</button>
+      <button class="btn btn-outline gc-press" type="submit" name="outcome" value="not_reached">{{ t('implants.outcome_not_reached') }}</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="hint">{{ t('theatre.recall_none') }}</p>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in">
+  {% if recall.closed_at %}
+  <p data-recall-closed>{{ t('implants.closed') }} · <span dir="ltr">{{ recall.closed_at|clinic_stamp }}</span>
+    {% if recall.closer %} · {{ recall.closer.display_name(current_lang) }}{% endif %}
+    {% if recall.close_note %}<br><span class="hint">{{ recall.close_note }}</span>{% endif %}</p>
+  {% else %}
+  {# Closing with families unreached is allowed — sometimes a family cannot be
+     found — but then the reason is required, so the record says why the
+     hospital stopped looking. #}
+  <form method="post" action="{{ url_for('theatres.close_implant_recall', recall_id=recall.id) }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;flex:1;min-width:200px;">
+      <label for="rc_close">{{ t('implants.close_note') }}</label>
+      <input class="input" id="rc_close" name="note" maxlength="255"></div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('implants.close') }}</button>
+  </form>
+  {% endif %}
+  <p class="hint" style="margin-top:8px;"><a href="{{ url_for('theatres.implants_system') }}">
+    <i class="bi bi-cpu"></i> {{ t('implants.title') }}</a></p>
+</div>
+{% endblock %}

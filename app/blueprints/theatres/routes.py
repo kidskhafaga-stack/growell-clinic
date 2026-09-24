@@ -35,6 +35,7 @@ from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
                                 REVIEW_KINDS, REVIEW_VERDICTS, Operation,
                                 Theatre)
 from app.utils import privileges as _privileges
+from app.utils import implants as _implants
 from app.utils import surgical_counts as _counts
 from app.utils import operative_report as _report
 from app.utils import postop_plan as _postop
@@ -433,6 +434,8 @@ def operation(operation_id):
                            # (SAS.06 ز / SAS.11). Two moments, kept apart.
                            implant_state=theatre.implant_state(row),
                            implants=theatre.implants_for(row),
+                           # SAS.11 (a): the hospital's list to pick from.
+                           implant_devices=_implants.catalogue(),
                            # Is this booking inside the surgeon's privileges
                            # (SAS.02 أ)? Derived, and judged against the day of
                            # the operation.
@@ -751,11 +754,19 @@ def implants(operation_id):
     if raw in ("yes", "no"):
         theatre.set_implants_needed(row, raw == "yes", user=current_user)
 
+    # From the hospital's list (SAS.11 a) when one was picked; by hand
+    # otherwise, which is allowed and shows as not from the list.
+    from app.models import ImplantDevice
+    device = None
+    device_id = request.form.get("new_device", type=int)
+    if device_id:
+        device = db.session.get(ImplantDevice, device_id)
     theatre.add_implant(row, request.form.get("new_name"),
                         lot=request.form.get("new_lot"),
                         manufacturer=request.form.get("new_manufacturer"),
                         serial=request.form.get("new_serial"),
-                        size=request.form.get("new_size"))
+                        size=request.form.get("new_size"),
+                        device=device)
     db.session.flush()
 
     complained = False
@@ -773,6 +784,16 @@ def implants(operation_id):
                 complained = True
         elif action == "drop":
             theatre.remove_implant(item)
+        # SAS.11 (c) — who fitted it. Written whenever the box is posted,
+        # before or after the implant went in: the representative's name is
+        # often known before the case, and sometimes only after.
+        if f"tech_{item.id}" in request.form:
+            _implants.record_technician(
+                item, request.form.get(f"tech_{item.id}"),
+                external=_form_tri(f"tech_from_{item.id}"))
+        # SAS.11 (h) — the discharge instructions were given to the family.
+        if request.form.get(f"told_{item.id}") == "yes" and item.implanted_at:
+            _implants.give_instructions(item, user=current_user)
     db.session.commit()
     flash(t("theatre.implant_needs_lot") if complained
           else t("common.saved"), "warning" if complained else "success")
@@ -842,6 +863,176 @@ def privileges_screen():
                   .order_by(Service.name).all()),
         types=(ServiceType.query.filter(ServiceType.is_active.is_(True))
                .order_by(ServiceType.sort_order, ServiceType.id).all()))
+
+
+@theatres_bp.route("/implant/<int:implant_id>/event", methods=["POST"])
+@module_required(MODULE)
+def implant_event(implant_id):
+    """An adverse event or a malfunction, against an implant in a child
+    (SAS.11 e and g)."""
+    from app.models.theatre import OperationImplant
+
+    item = OperationImplant.query.get_or_404(implant_id)
+    try:
+        _implants.record_event(item, (request.form.get("kind") or "").strip(),
+                               request.form.get("description"),
+                               user=current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("implants.event_needs_words"), "warning")
+    else:
+        db.session.commit()
+        flash(t("implants.event_noted"), "success")
+    return redirect(url_for("theatres.operation",
+                            operation_id=item.operation_id))
+
+
+@theatres_bp.route("/implant-event/<int:event_id>/report", methods=["POST"])
+@module_required(MODULE)
+def report_implant_event(event_id):
+    """Where the event was reported, when, and under what reference."""
+    from app.models import ImplantEvent
+
+    event = ImplantEvent.query.get_or_404(event_id)
+    try:
+        _implants.report_event(event, request.form.get("reported_to"),
+                               at=_local_moment("reported_at"),
+                               reference=request.form.get("reference"),
+                               user=current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("implants.report_refused"), "warning")
+    else:
+        db.session.commit()
+        flash(t("implants.reported"), "success")
+    return redirect(url_for("theatres.implants_system"))
+
+
+@theatres_bp.route("/implants", methods=["GET", "POST"])
+@module_required(MODULE)
+def implants_system():
+    """The hospital's system for implantable devices (SAS.11).
+
+    Everybody in the module reads it — whoever books needs the list, and
+    whoever reports an event needs to see what is waiting. Writing the list
+    and the time frame is an administrator's: the list is the hospital's
+    selection (a), and a device on it is one somebody approved.
+    """
+    from app.models import ImplantDevice
+
+    if request.method == "POST":
+        _admin_only()
+        action = (request.form.get("action") or "").strip()
+        try:
+            if action == "add":
+                _implants.add_device(
+                    request.form.get("name"),
+                    manufacturer=request.form.get("manufacturer"),
+                    supplier=request.form.get("supplier"),
+                    instructions=request.form.get("instructions"),
+                    note=request.form.get("note"), user=current_user)
+            elif action in ("update", "retire"):
+                device = ImplantDevice.query.get_or_404(
+                    request.form.get("device_id", type=int))
+                if action == "retire":
+                    _implants.retire_device(device)
+                else:
+                    _implants.update_device(
+                        device, supplier=request.form.get("supplier"),
+                        instructions=request.form.get("instructions"),
+                        note=request.form.get("note"))
+            elif action == "hours":
+                _implants.set_recall_hours(request.form.get("hours"))
+        except ValueError:
+            db.session.rollback()
+            flash(t("implants.refused"), "warning")
+        else:
+            db.session.commit()
+            flash(t("common.saved"), "success")
+        return redirect(url_for("theatres.implants_system"))
+
+    return render_template(
+        "theatres/implants.html",
+        devices=_implants.catalogue(active_only=False),
+        hours=_implants.recall_hours(),
+        waiting=_implants.unreported(),
+        recalls=_implants.recalls(),
+        outstanding={r.id: len(_implants.outstanding(r))
+                     for r in _implants.recalls(open_only=True)})
+
+
+@theatres_bp.route("/implants/recall/open", methods=["POST"])
+@module_required(MODULE)
+def open_implant_recall():
+    """Turn a search into a recall: the notice, and the work of reaching
+    every child it names (SAS.11, evidence 5)."""
+    try:
+        row = _implants.open_recall(
+            request.form.get("notice"), user=current_user,
+            **{k: request.form.get(k)
+               for k in ("name", "lot", "serial", "manufacturer")})
+    except ValueError:
+        db.session.rollback()
+        flash(t("implants.recall_needs_notice"), "warning")
+        return redirect(url_for("theatres.implant_recall",
+                                **{k: request.form.get(k) or ""
+                                   for k in ("name", "lot", "serial",
+                                             "manufacturer")}))
+    db.session.commit()
+    return redirect(url_for("theatres.implant_recall_case", recall_id=row.id))
+
+
+@theatres_bp.route("/implants/recall/<int:recall_id>")
+@module_required(MODULE)
+def implant_recall_case(recall_id):
+    from app.models import ImplantRecall
+
+    row = ImplantRecall.query.get_or_404(recall_id)
+    return render_template("theatres/recall_case.html", recall=row,
+                           board=_implants.board(row),
+                           deadline=_implants.deadline(row),
+                           hours=_implants.recall_hours(),
+                           outstanding=len(_implants.outstanding(row)))
+
+
+@theatres_bp.route("/implants/recall/<int:recall_id>/contact",
+                   methods=["POST"])
+@module_required(MODULE)
+def implant_recall_contact(recall_id):
+    from app.models import ImplantRecall
+    from app.models.theatre import OperationImplant
+
+    row = ImplantRecall.query.get_or_404(recall_id)
+    item = OperationImplant.query.get_or_404(
+        request.form.get("implant_id", type=int))
+    try:
+        _implants.record_contact(row, item,
+                                 (request.form.get("outcome") or "").strip(),
+                                 note=request.form.get("note"),
+                                 user=current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("implants.contact_refused"), "warning")
+    else:
+        db.session.commit()
+    return redirect(url_for("theatres.implant_recall_case", recall_id=row.id))
+
+
+@theatres_bp.route("/implants/recall/<int:recall_id>/close", methods=["POST"])
+@module_required(MODULE)
+def close_implant_recall(recall_id):
+    from app.models import ImplantRecall
+
+    row = ImplantRecall.query.get_or_404(recall_id)
+    try:
+        _implants.close_recall(row, user=current_user,
+                               note=request.form.get("note"))
+    except ValueError:
+        db.session.rollback()
+        flash(t("implants.close_needs_note"), "warning")
+    else:
+        db.session.commit()
+    return redirect(url_for("theatres.implant_recall_case", recall_id=row.id))
 
 
 @theatres_bp.route("/implants/recall")

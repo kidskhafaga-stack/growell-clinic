@@ -506,18 +506,26 @@ def set_implants_needed(operation, needed, user=None):
 
 
 def add_implant(operation, name, lot=None, manufacturer=None, serial=None,
-                expiry=None, size=None, note=None):
+                expiry=None, size=None, note=None, device=None):
     """Name one implant this case plans to use. Returns it, or ``None``.
 
     A blank name is refused. Everything else is optional at this point on
     purpose: a plate is often chosen from a tray in the room, and demanding
     the batch number before the case would have somebody type a placeholder —
     which is worse than an empty field, because a recall would then search it.
+
+    ``device`` is an entry on the hospital's list (SAS.11 a). Picked from
+    the list, the name and maker are the list's, so the recall search finds
+    it by the words the hospital wrote once rather than the ones typed at
+    the table.
     """
     from app.models.theatre import OperationImplant
 
     if operation is None or getattr(operation, "id", None) is None:
         return None
+    if device is not None:
+        name = device.name
+        manufacturer = device.manufacturer
     clean = (name or "").strip()[:160]
     if not clean:
         return None
@@ -528,6 +536,7 @@ def add_implant(operation, name, lot=None, manufacturer=None, serial=None,
         serial=(serial or "").strip()[:60] or None,
         expiry=expiry, size=(size or "").strip()[:60] or None,
         note=(note or "").strip()[:160] or None,
+        device_id=getattr(device, "id", None),
         sort_order=len(implants_for(operation)))
     db.session.add(row)
     # Naming one *is* the answer to "does this case implant anything".
