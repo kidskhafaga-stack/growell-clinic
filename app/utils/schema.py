@@ -693,6 +693,16 @@ ADDITIONS = [
     ("operations", "site_with", "VARCHAR(20)"),
     ("operations", "site_unified", "BOOLEAN"),
     ("services", "site_mark_exempt", "BOOLEAN"),
+    # The anaesthetist's privilege (SAS.16, evidence 3): a privilege scoped
+    # to a kind of anaesthetic rather than to a procedure. NULL on every row
+    # already written, which is what those rows are — a surgeon's scope.
+    ("clinical_privileges", "anaesthesia_kind", "VARCHAR(12)"),
+    # Who accepted an anaesthetic given outside the anaesthetist's
+    # privileges, and why. The check itself is derived and needs no column,
+    # exactly as the surgeon's is.
+    ("operations", "anaesthesia_ack_by", "INTEGER"),
+    ("operations", "anaesthesia_ack_at", "DATETIME"),
+    ("operations", "anaesthesia_ack_reason", "VARCHAR(200)"),
     # `SAS.11` — the implant's entry on the hospital's list (a), who fitted
     # it (c), and the discharge instructions given (h). Empty on every
     # implant already recorded: nobody was asked.

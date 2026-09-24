@@ -223,6 +223,14 @@
       <span class="alert-pill warn" data-no-anaesthetist>
         <i class="bi bi-lungs"></i> {{ t('theatre.no_anaesthetist_yet') }}</span>
       {% endif %}
+      {# Named, but not privileged for this kind of anaesthetic (SAS.16,
+         evidence 3). Silent once somebody has accepted it with a reason —
+         the case page still shows the gap; the list only shows what is
+         still waiting on a decision. #}
+      {% if case.gas_privilege == 'outside' %}
+      <span class="alert-pill warn" data-gas-outside>
+        <i class="bi bi-lungs"></i> {{ t('theatre.gas_privilege_outside_short') }}</span>
+      {% endif %}
       {% if op.status == 'scheduled' and not case.safety.ready %}
       <span class="alert-pill warn" data-unsigned>
         <i class="bi bi-shield-exclamation"></i> {{ t('theatre.not_signed_in_short') }}</span>
@@ -325,6 +333,10 @@
          } catch (e) { this.chosenState = ''; }
        },
        needsGas() { return GAS.indexOf(this.anaes) >= 0; },
+       gasState() {
+         if (!this.gas || !this.needsGas()) { return ''; }
+         return (GAS_PRIV[this.gas] || {})[this.anaes] || '';
+       },
        suggest(event) {
          const option = event.target.options[event.target.selectedIndex];
          const usual = option ? option.dataset.minutes : '';
@@ -533,6 +545,11 @@
            past — and this one has to survive to matter. #}
         <div class="hint" x-show="!gas" x-cloak data-gas-needed
              style="color:#b45309;">{{ t('theatre.gas_needed') }}</div>
+        {# Where the chosen anaesthetist stands on the chosen kind, on this
+           day. It tells; it never blocks — as the surgeon's does. #}
+        <div class="hint" x-show="GAS_WARN[gasState()]" x-cloak
+             data-gas-warning style="color:#b45309;"
+             x-text="GAS_WARN[gasState()] || ''"></div>
       </div>
       <div class="form-row" style="margin-bottom:0;min-width:120px;">
         <label for="th_start">{{ t('theatre.start_time') }}</label>
@@ -573,6 +590,15 @@
   // app/utils/theatres.py, which is what the record is judged by; this copy
   // only decides whether a box appears.
   const GAS = {{ needs_anaesthetist | list | tojson }};
+
+  // Where each doctor stands on each of those kinds, on the day this list
+  // is for — rendered with the page (SAS.16, evidence 3). The same two
+  // words the surgeon's warning uses; `ok` says nothing.
+  const GAS_PRIV = {{ gas_privileges | tojson }};
+  const GAS_WARN = {
+    supervised: {{ t('theatre.gas_privilege_warn_supervised') | tojson }},
+    outside:    {{ t('theatre.gas_privilege_warn_outside')    | tojson }}
+  };
 
   // Where a surgeon stands on the chosen procedure, in one word.
   const PRIV = {

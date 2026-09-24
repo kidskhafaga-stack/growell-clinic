@@ -117,6 +117,74 @@ def allowed(doctor_id, service, on_date=None):
     return state(doctor_id, service, on_date) in ("ok", "supervised")
 
 
+# --------------------------------------------------- the anaesthetist ----
+#
+# SAS.16, evidence 3: *"Anesthesia and sedation are administered by qualified
+# physicians **according to their approved clinical privileges**."* The same
+# record and the same rules as the surgeon's — judged on the day of the case,
+# warned about and never refused — with the one difference the anaesthetist's
+# work makes: the scope is a **kind of anaesthetic**, not a procedure.
+#
+# **No kind covers another.** A privilege for general anaesthesia does not
+# read as one for sedation here, however obvious that looks: which kinds a
+# hospital folds into which is its credentialing committee's call, written on
+# its own delineation form, and a program that inferred it would be granting
+# privileges nobody signed.
+
+def covers_anaesthesia(privilege, kind):
+    """Does this privilege authorise giving this kind of anaesthetic?"""
+    if privilege is None or not kind:
+        return False
+    return (privilege.anaesthesia_kind or None) == kind
+
+
+def anaesthesia_matching(doctor_id, kind, on_date=None):
+    """The privileges that cover this anaesthetic, unsupervised ones first."""
+    rows = [p for p in live(doctor_id, on_date)
+            if covers_anaesthesia(p, kind)]
+    return sorted(rows, key=lambda p: (p.is_supervised, p.id))
+
+
+def anaesthesia_state(doctor_id, kind, on_date=None):
+    """``unknown`` · ``ok`` · ``supervised`` · ``outside`` — as :func:`state`,
+    for the anaesthetist and the kind of anaesthetic."""
+    if not doctor_id or not kind:
+        return "unknown"
+    rows = anaesthesia_matching(doctor_id, kind, on_date)
+    if not rows:
+        return "outside"
+    return "supervised" if rows[0].is_supervised else "ok"
+
+
+def anaesthesia_map(doctor_ids, kinds, on_date=None):
+    """``{doctor_id: {kind: state}}`` for the booking form.
+
+    One query's worth of answers rendered with the page, so the form can say
+    where the chosen anaesthetist stands the moment they are chosen — the
+    *"used by staff involved in booking"* half of the evidence — without a
+    round trip per click.
+    """
+    day = on_date or local_today()
+    ids = [d for d in doctor_ids if d]
+    held = {}
+    if ids:
+        rows = (ClinicalPrivilege.query
+                .filter(ClinicalPrivilege.doctor_id.in_(ids),
+                        ClinicalPrivilege.anaesthesia_kind.isnot(None)).all())
+        for row in rows:
+            if row.stands_on(day):
+                held.setdefault((row.doctor_id, row.anaesthesia_kind),
+                                []).append(row.is_supervised)
+    out = {}
+    for d in ids:
+        out[d] = {}
+        for k in kinds:
+            found = held.get((d, k))
+            out[d][k] = ("outside" if not found
+                         else "ok" if not all(found) else "supervised")
+    return out
+
+
 def doctors_for(service, on_date=None):
     """Who may book this procedure, as ids.
 
@@ -133,28 +201,39 @@ def doctors_for(service, on_date=None):
             if p.stands_on(day) and covers(p, service)}
 
 
-def grant(doctor_id, *, service_id=None, service_type=None, kind="standard",
-          supervisor_id=None, supervision=None, valid_from=None,
-          valid_until=None, note=None, user=None):
+def grant(doctor_id, *, service_id=None, service_type=None,
+          anaesthesia_kind=None, kind="standard", supervisor_id=None,
+          supervision=None, valid_from=None, valid_until=None, note=None,
+          user=None):
     """Write one privilege down. Returns it, or ``None``.
 
-    Refused without a scope, and refused with **both** scopes: a row that names
-    a type and a service at once has two different answers to "what does this
-    authorise", and whichever the code picked would be a coin toss nobody
-    recorded.
+    Refused without a scope, and refused with **more than one**: a row that
+    names a type and a service at once has two different answers to "what
+    does this authorise", and whichever the code picked would be a coin toss
+    nobody recorded.
+
+    An anaesthesia scope is one of the kinds that need an anaesthetist.
+    *Local* is not among them — it is given by whoever operates, under the
+    surgeon's own privilege — and a word outside the list is refused rather
+    than stored as a privilege for something nothing is ever booked as.
     """
     from app.models import PRIVILEGE_KINDS
+    from app.utils.theatres import NEEDS_ANAESTHETIST
 
     if not doctor_id or kind not in PRIVILEGE_KINDS:
         return None
-    has_service = bool(service_id)
-    has_type = bool((service_type or "").strip())
-    if has_service == has_type:
+    gas = (anaesthesia_kind or "").strip() or None
+    if gas is not None and gas not in NEEDS_ANAESTHETIST:
+        return None
+    scopes = [bool(service_id), bool((service_type or "").strip()),
+              gas is not None]
+    if sum(scopes) != 1:
         return None
     row = ClinicalPrivilege(
         doctor_id=doctor_id,
         service_id=service_id or None,
         service_type=(service_type or "").strip()[:20] or None,
+        anaesthesia_kind=gas,
         kind=kind,
         supervisor_id=supervisor_id or None,
         supervision=(supervision or "").strip()[:160] or None,
