@@ -1,5 +1,5 @@
 """User management (admin only) — create, edit, enable/disable and delete."""
-from flask import flash, g, redirect, render_template, request, url_for
+from flask import abort, flash, g, redirect, render_template, request, url_for
 from flask_login import current_user
 
 import re
@@ -82,8 +82,34 @@ def _seats(users):
 
 
 # ----------------------------------------------------------- audit ---------
+@users_bp.before_request
+def _developer_account_is_the_owners():
+    """The developer's account is the owner's to manage, in person — on
+    every screen here that names one user.
+
+    A plain administrator who could change its password could sign in as the
+    developer inside a window the owner opened for somebody else, and the
+    log would put their actions under the developer's name. So it is
+    managed from the owner's own screen (settings → developer access) and
+    refused here, for reading its form as much as for saving it.
+    """
+    target = (request.view_args or {}).get("user_id")
+    if target is None or not current_user.is_authenticated:
+        return None
+    user = db.session.get(User, target)
+    if user is not None and user.is_vendor and not current_user.is_owner_in_person:
+        abort(403, description=t("support.owner_in_person"))
+    return None
+
+
 # Security-relevant actions worth surfacing as their own filter in the log.
 AUDIT_ACTIONS = ["login", "login_failed", "login_disabled", "logout",
+                 # The developer's door (settings.support): the right
+                 # password with the door shut, the sign-out when it closed,
+                 # and the owner's own openings and closings.
+                 "login_support_closed", "support_signed_out",
+                 "support.open", "support.close", "support.account",
+                 "support.password",
                  "user.create", "user.update", "user.delete",
                  "role.create", "role.update", "role.delete",
                  "user.capability_grant", "user.capability_revoke",

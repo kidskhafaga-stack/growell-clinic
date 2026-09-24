@@ -2118,6 +2118,17 @@ SECTIONS = [
              "fee and shares."),
             ("<b>سجل التدقيق</b>: مين عمل إيه وإمتى ومن أي جهاز.",
              "<b>Audit log</b>: who did what, when, and from which device."),
+            ("<b>دخول المطوّر</b> (لصاحب المنشأة): حساب المبرمج ما بيدخلش "
+             "غير لما إنت تفتح له الباب — لمدة إنت بتحددها وبسبب إنت بتكتبه. "
+             "جوّه المدة معاه صلاحياتك، ما عدا حسابات الموظفين ومسح البيانات "
+             "واسترجاع نسخة والترخيص والباب نفسه. وكل صفحة وكل حفظ بيتسجّل، "
+             "ولما المدة تخلص بيخرج مع أول ضغطة.",
+             "<b>Developer access</b> (for the owner): the developer's account "
+             "signs in only when you open the door — for a time you choose, "
+             "for a reason you write. Inside, it holds your powers, except "
+             "staff accounts, wiping data, restoring a backup, the licence and "
+             "the door itself. Every page and every save is recorded, and "
+             "when the time is up it is signed out on its next click."),
         ],
     },
     {

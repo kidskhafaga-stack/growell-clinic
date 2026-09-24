@@ -4291,7 +4291,8 @@
     "act_login_disabled": "Disabled account",
     "act_logout": "Logout",
     "failed_24h": "{n} failed sign-in attempt(s) in the last 24h.",
-    "view_failed": "View them"
+    "view_failed": "View them",
+    "act_login_support_closed": "Developer sign-in while the door was shut"
   },
   "compliance": {
     "title": "Immunization compliance",
@@ -8332,5 +8333,43 @@
     "found_missing": "Missing",
     "found_faulty": "Present but faulty",
     "found_expired": "Expired"
+  },
+  "support": {
+    "title": "Developer access",
+    "sub": "The developer's account signs in only through a door you open: for a time you choose, for a reason you write, and everything done inside is recorded.",
+    "rules_title": "How the door works",
+    "rule_door": "The account cannot sign in at all unless the door is open for it. The right password with the door shut is recorded.",
+    "rule_powers": "Inside the window it holds the owner's powers: switch a module on, change a setting, fix a list.",
+    "rule_owner": "Five things stay yours alone even with the door open: staff accounts (create, edit, delete), wiping the data, restoring a backup, installing a licence, and this door itself.",
+    "rule_log": "Every page opened and every change saved is recorded here, and “wipe data” does not erase this record. When the time runs out or you close it, the account is signed out on its next click.",
+    "accounts": "Developer accounts",
+    "no_account": "No developer account. Make one below and give the developer the password.",
+    "make": "Make a developer account",
+    "username": "Username",
+    "full_name": "Name",
+    "new_password": "New password (at least 8 characters)",
+    "change_password": "Change the password",
+    "open": "Open the door",
+    "for": "For",
+    "hours": "{n} hour(s)",
+    "reason": "Reason",
+    "open_until": "Open until",
+    "shut": "Shut",
+    "close_now": "Close now",
+    "history": "What happened",
+    "no_history": "The door has never been opened.",
+    "n_actions": "{n} step(s)",
+    "n_refused": "{n} refused attempt(s)",
+    "refused_line": "Refused — owner only",
+    "opened_by": "Opened by",
+    "closed_by": "Closed by",
+    "when": "When",
+    "what": "What",
+    "refused": "Not saved — check the fields. The account needs a new username and a password of at least 8 characters; a door cannot be opened twice at once, or without a reason.",
+    "door_shut": "Developer access is closed. The owner of the facility opens it.",
+    "owner_in_person": "This is for the owner in person — it cannot be done through developer access.",
+    "banner": "Developer access is open: {name}",
+    "until": "until",
+    "manage": "Manage the door"
   }
 }

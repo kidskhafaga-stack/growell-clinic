@@ -64,7 +64,10 @@
         </td>
         <td>{{ user.username }}</td>
         <td><span class="badge badge--role">{{ user.role_label(current_lang) }}</span>
-          {% if user.is_owner %}<span class="badge" style="background:var(--amber-100,#fef3c7);color:#92400e;"><i class="bi bi-shield-lock"></i> {{ t('users.owner_badge') }}</span>{% endif %}</td>
+          {% if user.is_owner_in_person %}<span class="badge" style="background:var(--amber-100,#fef3c7);color:#92400e;"><i class="bi bi-shield-lock"></i> {{ t('users.owner_badge') }}</span>{% endif %}
+          {# The developer's account: managed from the owner's own screen,
+             never from here — see settings → developer access. #}
+          {% if user.is_vendor %}<span class="badge badge--muted" data-vendor-row><i class="bi bi-person-badge"></i> {{ t('support.title') }}</span>{% endif %}</td>
         <td>
           {% if user.is_active %}
             <span class="badge badge--green">{{ t('common.active') }}</span>
@@ -77,6 +80,12 @@
           {% if last_ip.get(user.id) %}<div style="font-size:0.76rem;" dir="ltr">{{ last_ip.get(user.id) }}</div>{% endif %}
         </td>
         <td style="text-align:end;white-space:nowrap;">
+          {% if user.is_vendor %}
+          {% if current_user.is_owner_in_person %}
+          <a class="btn btn-outline btn-sm" href="{{ url_for('settings.support') }}">
+            <i class="bi bi-person-badge"></i> {{ t('support.manage') }}</a>
+          {% endif %}
+          {% else %}
           <a class="btn btn-outline btn-sm" href="{{ url_for('users.edit', user_id=user.id) }}">
             <i class="bi bi-pencil"></i> {{ t('common.edit') }}
           </a>
@@ -88,6 +97,7 @@
               <i class="bi bi-trash"></i>
             </button>
           </form>
+          {% endif %}
           {% endif %}
         </td>
       </tr>

@@ -1,0 +1,19 @@
+{# The developer's door, open. The developer sees when their window closes;
+   the owner sees every window open, and one click to close it. Not
+   dismissible: somebody from outside holding the owner's powers is not a
+   notice to be tidied away. #}
+{% set open_now = support_open() %}
+{% if open_now %}
+<div class="licence-bar licence-bar--warn" role="status" data-support-open>
+  <i class="bi bi-person-badge"></i>
+  <div>
+    {% for w in open_now %}
+    <strong>{{ t('support.banner', name=w.user.display_name(current_lang)) }}</strong>
+    <span>{{ t('support.until') }} <span dir="ltr">{{ w.expires_at|clinic_stamp }}</span> · {{ w.reason }}</span>
+    {% endfor %}
+  </div>
+  {% if current_user.is_owner_in_person %}
+  <a class="btn btn-sm btn-outline" href="{{ url_for('settings.support') }}">{{ t('support.manage') }}</a>
+  {% endif %}
+</div>
+{% endif %}

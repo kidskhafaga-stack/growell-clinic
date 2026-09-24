@@ -1,0 +1,140 @@
+{% extends "shell.html" %}
+{% set active_module = 'settings' %}
+{% block title %}{{ t('support.title') }}{% endblock %}
+{% block page_heading %}{{ t('support.title') }}{% endblock %}
+
+{% block content %}
+{# The developer's door (see app/models/support_access.py). The owner, in
+   person: make the account, open a window for a set time with a reason,
+   close it, and read everything that happened inside. #}
+<div class="gc-animate" style="margin-bottom:16px;">
+  <h1 class="page-title"><i class="bi bi-person-badge"></i> {{ t('support.title') }}</h1>
+  <p class="page-sub" style="margin:0;">{{ t('support.sub') }}</p>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin:0 0 8px;font-size:1rem;">
+    <i class="bi bi-shield-lock"></i> {{ t('support.rules_title') }}</h2>
+  <ul style="margin:0;padding-inline-start:20px;line-height:1.9;">
+    <li>{{ t('support.rule_door') }}</li>
+    <li>{{ t('support.rule_powers') }}</li>
+    <li>{{ t('support.rule_owner') }}</li>
+    <li>{{ t('support.rule_log') }}</li>
+  </ul>
+</div>
+
+{# ----------------------------------------------------- the accounts -- #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin:0 0 8px;font-size:1rem;">
+    <i class="bi bi-door-closed"></i> {{ t('support.accounts') }}</h2>
+  {% if not vendors %}
+  <p class="hint" data-no-vendor>{{ t('support.no_account') }}</p>
+  {% endif %}
+  {% for v in vendors %}
+  {% set live = windows|selectattr('user_id', 'equalto', v.id)|selectattr('closed_at', 'none')|selectattr('expires_at', 'gt', now)|list %}
+  <div style="padding:10px 0;border-top:1px solid var(--line);" data-vendor="{{ v.id }}" data-door="{{ 'open' if live else 'shut' }}">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <b>{{ v.display_name(current_lang) }}</b>
+      <span class="hint" dir="ltr">{{ v.username }}</span>
+      {% if live %}
+      <span class="alert-pill warn"><i class="bi bi-door-open"></i> {{ t('support.open_until') }} <span dir="ltr">{{ live[0].expires_at|clinic_stamp }}</span></span>
+      {% else %}
+      <span class="alert-pill ok"><i class="bi bi-door-closed"></i> {{ t('support.shut') }}</span>
+      {% endif %}
+    </div>
+    {% if live %}
+    <form method="post" style="margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="close">
+      <input type="hidden" name="window_id" value="{{ live[0].id }}">
+      <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-door-closed"></i> {{ t('support.close_now') }}</button>
+    </form>
+    {% else %}
+    <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="open">
+      <input type="hidden" name="user_id" value="{{ v.id }}">
+      <div class="form-row" style="margin:0;">
+        <label for="sp_hours_{{ v.id }}">{{ t('support.for') }}</label>
+        <select class="select" id="sp_hours_{{ v.id }}" name="hours">
+          {% for h in durations %}<option value="{{ h }}">{{ t('support.hours', n=h) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row" style="margin:0;flex:1;min-width:220px;">
+        <label for="sp_reason_{{ v.id }}">{{ t('support.reason') }}</label>
+        <input class="input" id="sp_reason_{{ v.id }}" name="reason" maxlength="255" required></div>
+      <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-door-open"></i> {{ t('support.open') }}</button>
+    </form>
+    {% endif %}
+    <details style="margin-top:6px;">
+      <summary class="hint">{{ t('support.change_password') }}</summary>
+      <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:6px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="password">
+        <input type="hidden" name="user_id" value="{{ v.id }}">
+        <div class="form-row" style="margin:0;">
+          <label for="sp_pw_{{ v.id }}">{{ t('support.new_password') }}</label>
+          <input class="input" type="password" id="sp_pw_{{ v.id }}" name="password" minlength="8" autocomplete="new-password" required></div>
+        <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+      </form>
+    </details>
+  </div>
+  {% endfor %}
+
+  <details style="margin-top:12px;" {{ 'open' if not vendors else '' }}>
+    <summary class="hint">{{ t('support.make') }}</summary>
+    <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="make">
+      <div class="form-row" style="margin:0;">
+        <label for="sp_user">{{ t('support.username') }}</label>
+        <input class="input" id="sp_user" name="username" maxlength="64" dir="ltr" autocomplete="off" required></div>
+      <div class="form-row" style="margin:0;">
+        <label for="sp_name">{{ t('support.full_name') }}</label>
+        <input class="input" id="sp_name" name="full_name" maxlength="120" required></div>
+      <div class="form-row" style="margin:0;">
+        <label for="sp_pw">{{ t('support.new_password') }}</label>
+        <input class="input" type="password" id="sp_pw" name="password" minlength="8" autocomplete="new-password" required></div>
+      <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('support.make') }}</button>
+    </form>
+  </details>
+</div>
+
+{# -------------------------------------------------------- what happened -- #}
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin:0 0 8px;font-size:1rem;">
+    <i class="bi bi-journal-text"></i> {{ t('support.history') }}</h2>
+  {% if not windows %}
+  <p class="hint">{{ t('support.no_history') }}</p>
+  {% endif %}
+  {% for w in windows %}
+  {% set refused = w.actions|selectattr('refused')|list %}
+  <details style="padding:8px 0;border-top:1px solid var(--line);" data-window="{{ w.id }}">
+    <summary>
+      <b>{{ w.user.display_name(current_lang) if w.user else '—' }}</b> ·
+      <span dir="ltr">{{ w.opened_at|clinic_stamp }} → {{ w.ended_at|clinic_stamp }}</span> ·
+      {{ w.reason }} ·
+      <span class="hint">{{ t('support.n_actions', n=w.actions|length) }}</span>
+      {% if refused %}<span class="alert-pill danger" data-refused="{{ refused|length }}">{{ t('support.n_refused', n=refused|length) }}</span>{% endif %}
+    </summary>
+    <p class="hint" style="margin:6px 0;">{{ t('support.opened_by') }}: {{ w.opener.display_name(current_lang) if w.opener else '—' }}
+      {% if w.closer %} · {{ t('support.closed_by') }}: {{ w.closer.display_name(current_lang) }}{% endif %}</p>
+    {% if w.actions %}
+    <div style="overflow-x:auto;">
+      <table class="table">
+        <thead><tr><th>{{ t('support.when') }}</th><th>{{ t('support.what') }}</th><th></th></tr></thead>
+        <tbody>
+          {% for a in w.actions %}
+          <tr>
+            <td dir="ltr">{{ a.at|clinic_stamp }}</td>
+            <td dir="ltr"><span class="badge badge--muted">{{ a.method }}</span> {{ a.path or a.endpoint or '—' }}</td>
+            <td>{% if a.refused %}<span class="alert-pill danger">{{ t('support.refused_line') }}</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </details>
+  {% endfor %}
+</div>
+{% endblock %}

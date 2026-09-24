@@ -64,6 +64,7 @@ from app.models.implant import (ImplantDevice, ImplantEvent, ImplantRecall,
                                 ImplantRecallContact)
 from app.models.recovery_equipment import (RecoveryCheck, RecoveryCheckLine,
                                            RecoveryItem)
+from app.models.support_access import SupportAction, SupportWindow
 from app.models.risk_assessment import RISK_KINDS, RiskAssessment
 from app.models.care_plan import (GOAL_PROGRESS, CarePlan,
                                   CarePlanGoal)
@@ -364,6 +365,7 @@ __all__ = [
     "Specimen", "PreOpAssessment", "PreOpRisk",
     "ImplantDevice", "ImplantEvent", "ImplantRecall", "ImplantRecallContact",
     "RecoveryItem", "RecoveryCheck", "RecoveryCheckLine",
+    "SupportWindow", "SupportAction",
     "RiskAssessment",
     "RISK_KINDS",
     "CarePlan",
