@@ -8386,7 +8386,9 @@
     "partly": "{posted} posted, {left} still not — the audit log has the reason."
   },
   "fhir": {
-    "export": "FHIR file",
-    "export_hint": "The child's whole record as a FHIR R4 file — for the hospital or whoever asked. Recorded in the audit log."
+    "export": "Full FHIR file",
+    "export_hint": "The child's whole record as a FHIR R4 file — for the hospital or whoever asked. Recorded in the audit log.",
+    "ips": "IPS summary",
+    "ips_hint": "International Patient Summary: problems, allergies, current medicines, immunisations and results — for a hospital meeting the child for the first time. Recorded in the audit log."
   }
 }

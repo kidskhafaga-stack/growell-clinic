@@ -241,6 +241,8 @@ def test_the_child_their_family_and_what_stays_behind(chart):
     relations = {c["name"]["text"]: c["relationship"][0]["coding"][0]["code"]
                  for c in patient["contact"]}
     assert relations == {"الأب": "FTH", "الأم": "MTH"}
+    assert all(c["relationship"][1]["coding"][0]["code"] == "N"
+               for c in patient["contact"])
     assert patient["managingOrganization"]["reference"].startswith("urn:uuid:")
     # The desk's own note about the family is not part of a clinical record.
     assert "ملاحظة داخلية" not in str(patient)

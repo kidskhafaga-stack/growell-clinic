@@ -150,6 +150,15 @@ def _clean(value):
     return value
 
 
+DATA_ABSENT = "http://hl7.org/fhir/StructureDefinition/data-absent-reason"
+
+
+def _absent(reason="unknown"):
+    """An element nobody recorded, said so — FHIR's own way of leaving a
+    required field honestly empty instead of filling it with a guess."""
+    return {"extension": [{"url": DATA_ABSENT, "valueCode": reason}]}
+
+
 def _number(value):
     """A stored reading as a JSON number, or ``None`` when there is none."""
     if value is None or value == "":
@@ -206,6 +215,16 @@ class _Record:
                                             "name": names})
         return self.ref("Practitioner", user.id)
 
+    def place(self, name):
+        """An organisation known only by the name the clinic wrote for it —
+        the outside lab, the other hospital."""
+        name = (name or "").strip()
+        if not name:
+            return None
+        key = f"place-{uuid.uuid5(self.ns, 'place/' + name)}"
+        self.add("Organization", key, {"active": True, "name": name})
+        return self.ref("Organization", key)
+
     def organization(self):
         from app.models import Setting
 
@@ -223,6 +242,22 @@ class _Record:
 def bundle_for(patient, lang="ar", now=None):
     """The whole exportable record of one child, as a FHIR R4 ``Bundle``
     (a ``dict``, ready for :func:`json.dumps`)."""
+    record = build(patient, lang)
+    stamp = now or datetime.now(timezone.utc)
+    return {
+        "resourceType": "Bundle",
+        "id": str(uuid.uuid4()),
+        "meta": {"lastUpdated": _instant(stamp)},
+        "type": "collection",
+        "timestamp": _instant(stamp),
+        "entry": record.entries,
+    }
+
+
+def build(patient, lang="ar"):
+    """Every resource the record holds, in a :class:`_Record` — the one
+    mapping from this program to FHIR, which the full file and the patient
+    summary (:mod:`app.utils.fhir_ips`) are both read from."""
     record = _Record(namespace(), lang)
     child = record.ref("Patient", patient.id)
     _patient(record, patient)
@@ -238,15 +273,7 @@ def bundle_for(patient, lang="ar", now=None):
     _inpatient_orders(record, patient, child)
     _long_term_medicines(record, patient, child)
     _operations(record, patient, child)
-    stamp = now or datetime.now(timezone.utc)
-    return {
-        "resourceType": "Bundle",
-        "id": str(uuid.uuid4()),
-        "meta": {"lastUpdated": _instant(stamp)},
-        "type": "collection",
-        "timestamp": _instant(stamp),
-        "entry": record.entries,
-    }
+    return record
 
 
 def dumps(bundle):
@@ -283,9 +310,14 @@ def _patient(record, patient):
         code, word = RELATION.get(parent.relation, (None, None))
         phones = [p for p in (parent.phone, parent.phone_alt) if (p or "").strip()]
         contacts.append({
-            "relationship": [_concept(
-                parent.relation,
-                _hl7("v3-RoleCode", code, word) if code else None)],
+            # Who they are to the child, and — in the list FHIR binds this
+            # field to — that they are the child's next of kin, which a
+            # parent or guardian on the family card is.
+            "relationship": [
+                _concept(parent.relation,
+                         _hl7("v3-RoleCode", code, word) if code else None),
+                _concept(None, _hl7("v2-0131", "N", "Next-of-Kin")),
+            ],
             "name": {"text": parent.full_name},
             "telecom": [{"system": "phone", "value": p.strip()} for p in phones]
             + ([{"system": "email", "value": parent.email.strip()}]
@@ -588,6 +620,11 @@ def _results(record, patient, child):
         notes = [n for n in (row.result_comment,
                              _text(row.outside_place) if row.done_outside
                              else None) if (n or "").strip()]
+        if row.done_outside and (row.outside_place or "").strip():
+            performer = record.place(row.outside_place)
+        else:
+            performer = (record.practitioner(row.resulter)
+                         or record.organization())
         record.add("Observation", f"result-{row.id}", {
             "status": "final",
             "category": [_concept(None, _hl7(
@@ -600,6 +637,7 @@ def _results(record, patient, child):
             "effectiveDateTime": _instant(row.collected_at or row.performed_at
                                           or row.resulted_at),
             "issued": _instant(row.resulted_at),
+            "performer": [performer] if performer else None,
             "valueQuantity": ({"value": value, "unit": unit}
                               if value is not None else None),
             "valueString": ((row.result_text or "").strip() or None
@@ -743,8 +781,13 @@ def _long_term_medicines(record, patient, child):
             "status": "stopped" if med.stopped_on else "active",
             "medicationCodeableConcept": _concept(med.name),
             "subject": child,
-            "effectivePeriod": {"start": _day(med.started_on),
-                                "end": _day(med.stopped_on)},
+            "effectivePeriod": ({"start": _day(med.started_on),
+                                 "end": _day(med.stopped_on)}
+                                if med.started_on or med.stopped_on
+                                else None),
+            # When it started is part of the statement; nobody wrote it down.
+            "_effectiveDateTime": (None if med.started_on or med.stopped_on
+                                   else _absent()),
             "dateAsserted": _instant(med.created_at),
             "reasonCode": [_concept(med.reason)] if (med.reason or "").strip()
             else None,
