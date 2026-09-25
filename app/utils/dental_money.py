@@ -85,11 +85,11 @@ def accept(plan, user_id=None):
 
     from datetime import datetime
 
-    invoice = Invoice(invoice_number=generate_invoice_number(),
-                      patient_id=plan.patient_id, doctor_id=plan.doctor_id,
+    from app.utils.sequences import claim
+
+    invoice = Invoice(patient_id=plan.patient_id, doctor_id=plan.doctor_id,
                       created_by=user_id)
-    db.session.add(invoice)
-    db.session.flush()
+    claim(invoice, "invoice_number", generate_invoice_number)
     for item in items:
         db.session.add(InvoiceItem(
             invoice_id=invoice.id, service_id=item.service_id,

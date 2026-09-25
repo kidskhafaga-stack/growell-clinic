@@ -6,12 +6,14 @@ contracts about to expire — and cached briefly so the bell stays cheap on ever
 page. Each alert carries the module it belongs to, so it is only shown to users
 who can reach it.
 """
+import threading
 import time
 from datetime import date, timedelta
 from app.utils.clock import local_today
 
 # Short process-level cache so the (heavier) scans run at most every TTL seconds.
 _CACHE = {"at": 0.0, "data": None}
+_LOCK = threading.Lock()
 _TTL = 90
 CONTRACT_SOON_DAYS = 30
 BIRTHDAY_AHEAD_DAYS = 7
@@ -267,11 +269,40 @@ def _compute():
 
 
 def _all():
-    now = time.time()
-    if _CACHE["data"] is None or (now - _CACHE["at"]) > _TTL:
-        _CACHE["data"] = _compute()
-        _CACHE["at"] = now
-    return _CACHE["data"]
+    """The bell's list, worked out at most once per ``_TTL`` for everybody.
+
+    **One request refreshes it; the others do not wait for that.** Found by
+    the load test (``tools/loadtest``): on a clinic two years old the list
+    took seconds to work out, and when it went stale in the middle of a busy
+    morning **every request that arrived in those seconds worked it out
+    again, all at once** — eight people waited over a minute for a screen
+    that takes a quarter of a second. So when it is stale, the first request
+    to notice recomputes it and the rest are handed the list they already
+    had, which is at most one refresh old — as it always was.
+
+    With no list at all (the first request after a start, or after
+    ``invalidate``), there is nothing to hand out, so the others wait for the
+    one working it out instead of repeating its work.
+    """
+    data = _CACHE["data"]
+    if data is not None and (time.time() - _CACHE["at"]) <= _TTL:
+        return data
+    if data is not None:
+        if not _LOCK.acquire(blocking=False):
+            return data
+    else:
+        _LOCK.acquire()
+    try:
+        # Somebody else may have finished it while this one waited.
+        if (_CACHE["data"] is not None
+                and (time.time() - _CACHE["at"]) <= _TTL):
+            return _CACHE["data"]
+        fresh = _compute()
+        _CACHE["data"] = fresh
+        _CACHE["at"] = time.time()
+        return fresh
+    finally:
+        _LOCK.release()
 
 
 def _dismissed_map(user):

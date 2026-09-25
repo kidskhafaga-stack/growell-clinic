@@ -59,6 +59,7 @@ from app.utils.pricing import (
 from app.utils import billing
 from app.utils import case_rates
 from app.utils import einvoice as eta
+from app.utils.sequences import retry_on_number_clash
 
 MODULE = "finance"
 
@@ -3008,6 +3009,7 @@ def _booked_vaccine_line(appt, lang, vaccine_lines):
 
 @finance_bp.route("/checkout/<int:appt_id>", methods=["GET", "POST"])
 @cashier_access
+@retry_on_number_clash
 def checkout(appt_id):
     """Reception checkout for a booked appointment."""
     from app.models import Appointment
@@ -3047,6 +3049,7 @@ def collect_pick():
 
 @finance_bp.route("/collect/<int:patient_id>", methods=["GET", "POST"])
 @cashier_access
+@retry_on_number_clash
 def collect(patient_id):
     """The same checkout, for a patient who has no appointment to collect on.
 
@@ -3116,16 +3119,17 @@ def _checkout_screen(appt, patient):
         if invoice is not None and invoice.status == "refunded":
             invoice = None
         if invoice is None:
-            invoice = Invoice(invoice_number=generate_invoice_number(),
-                              patient_id=patient_id, doctor_id=doctor_id,
+            invoice = Invoice(patient_id=patient_id, doctor_id=doctor_id,
                               # Which appointment the money was taken for. The
                               # board used to match invoices by date and got
                               # this wrong for every family that pays before
                               # the day of their appointment — see the column.
                               appointment_id=appt.id if appt else None,
                               created_by=current_user.id)
-            db.session.add(invoice)
-            db.session.flush()
+            # Numbered while holding the write lock — two cashiers pressing
+            # collect together must not both get "the next number".
+            from app.utils.sequences import claim
+            claim(invoice, "invoice_number", generate_invoice_number)
         else:
             if invoice.doctor_id is None:
                 invoice.doctor_id = doctor_id

@@ -24,18 +24,11 @@ DEFAULT_SCHEME = "yearly"          # "yearly" -> AT-2026-0001, "fixed" -> AT-000
 
 
 def _next_sequence(prefix):
-    """Highest trailing integer among existing numbers sharing ``prefix``."""
-    rows = Patient.query.filter(
-        Patient.patient_number.like(prefix + "%")
-    ).all()
-    top = 0
-    for row in rows:
-        tail = row.patient_number[len(prefix):]
-        try:
-            top = max(top, int(tail))
-        except (ValueError, TypeError):
-            continue
-    return top + 1
+    """Highest trailing integer among existing numbers sharing ``prefix``,
+    plus one — asked of the database (see :mod:`app.utils.sequences`)."""
+    from app.utils.sequences import highest
+
+    return highest(Patient.patient_number, prefix) + 1
 
 
 def generate_patient_number(scheme=None, prefix=None):
@@ -123,10 +116,11 @@ def apply_patient_search(query, q):
 def patient_number_allocator(scheme=None, prefix=None):
     """Return a generator of sequential file numbers with no per-call DB query.
 
-    ``generate_patient_number`` scans every existing patient on each call, which
-    turns a bulk import into an O(n²) hang. This computes the starting sequence
-    once and then increments in memory — callers must persist the patients so a
-    later import continues from the right number.
+    ``generate_patient_number`` asks the database for the highest number on
+    every call — one query now (it used to read every patient, which turned a
+    bulk import into an O(n²) hang), but still one per child. This computes
+    the starting sequence once and then increments in memory — callers must
+    persist the patients so a later import continues from the right number.
     """
     scheme = scheme or Setting.get("patient_number_scheme", DEFAULT_SCHEME)
     if scheme == "fixed":
@@ -253,9 +247,11 @@ def quick_create(full_name, gender, date_of_birth):
     if born is None:
         return None, "dob"
 
-    patient = Patient(patient_number=generate_patient_number(),
-                      full_name=name, gender=gender.strip(),
+    from app.utils.sequences import claim
+
+    patient = Patient(full_name=name, gender=gender.strip(),
                       date_of_birth=born, is_active=True)
-    db.session.add(patient)
-    db.session.flush()
+    # Numbered while holding the write lock — two desks registering at once
+    # must not both get "the next file number".
+    claim(patient, "patient_number", generate_patient_number)
     return patient, None

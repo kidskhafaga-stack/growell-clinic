@@ -48,6 +48,7 @@ from app.utils import theatres as theatre
 from app.utils.clock import local_today, to_utc
 from app.utils.decorators import (admin_required, client_ip,
                                   module_required)
+from app.utils.sequences import retry_on_number_clash
 
 MODULE = "theatres"
 
@@ -2235,6 +2236,7 @@ def patient_search():
 
 @theatres_bp.route("/patient-quick", methods=["POST"])
 @module_required(MODULE)
+@retry_on_number_clash
 def patient_quick():
     """Register a child from the booking screen, in three fields.
 

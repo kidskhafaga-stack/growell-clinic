@@ -43,14 +43,9 @@ def generate_invoice_number():
         base = f"{prefix}-"
         width = 6
 
-    top = 0
-    rows = (Invoice.query.filter(Invoice.invoice_number.like(base + "%"))
-            .with_entities(Invoice.invoice_number).all())
-    for (num,) in rows:
-        tail = num[len(base):]
-        if tail.isdigit():
-            top = max(top, int(tail))
+    from app.utils.sequences import highest
 
+    top = highest(Invoice.invoice_number, base)
     seq = max(top + 1, start)
     candidate = f"{base}{seq:0{width}d}"
     while Invoice.query.filter_by(invoice_number=candidate).first() is not None:
