@@ -1373,6 +1373,35 @@ def report(patient_id):
     )
 
 
+@patients_bp.route("/<int:patient_id>/fhir")
+@module_required(MODULE)
+@capability_required("patient_medical")
+def fhir_export(patient_id):
+    """The child's record as a FHIR R4 file, to hand to whoever asked.
+
+    A download and nothing else: no port is opened and nothing is sent. The
+    same people who may read the whole clinical file may take it away, and
+    every time they do the audit log says who, and whose record.
+    """
+    from app.models import ActivityLog
+    from app.utils import fhir_export as fhir
+
+    patient = db.get_or_404(Patient, patient_id)
+    bundle = fhir.bundle_for(patient, getattr(g, "lang", "ar"))
+    ActivityLog.record("patient.fhir_export", user_id=current_user.id,
+                       entity="patient", entity_id=patient.id,
+                       detail=f"{len(bundle['entry'])} resources",
+                       ip_address=client_ip())
+    db.session.commit()
+    name = "".join(ch for ch in (patient.patient_number or str(patient.id))
+                   if ch.isalnum() or ch in "-_") or str(patient.id)
+    return Response(
+        fhir.dumps(bundle), mimetype=fhir.MEDIA_TYPE,
+        headers={"Content-Disposition":
+                 f'attachment; filename="{name}-fhir.json"',
+                 "Cache-Control": "no-store"})
+
+
 def _growth_concern(picture):
     """The reading worth flagging at the top of the file, from rows already read.
 

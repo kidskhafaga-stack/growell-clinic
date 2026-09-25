@@ -93,12 +93,18 @@ def normalise(text):
     return re.sub(r"(.)\1+", r"\1", out)
 
 
+def allergy_phrases(patient):
+    """The patient's allergies as typed, one phrase each — split on the
+    separators people actually type."""
+    raw = (getattr(patient, "allergies", "") or "") if patient is not None else ""
+    parts = re.split(r"[,،;\n/|+]| و ", raw)
+    return [p.strip() for p in parts if normalise(p)]
+
+
 def recorded_allergies(patient):
     """The patient's allergies as normalised phrases (free text, split on the
     separators people actually type)."""
-    raw = (getattr(patient, "allergies", "") or "") if patient is not None else ""
-    parts = re.split(r"[,،;\n/|+]| و ", raw)
-    return [normalise(p) for p in parts if normalise(p)]
+    return [normalise(p) for p in allergy_phrases(patient)]
 
 
 def _families_of(text):

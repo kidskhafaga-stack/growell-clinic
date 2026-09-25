@@ -170,6 +170,10 @@
       {% if current_user.can('patient_medical') %}
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.report', patient_id=patient.id) }}" target="_blank">
         <i class="bi bi-file-medical"></i> {{ t('report.title') }}</a>
+      <a class="btn btn-outline btn-sm gc-press" data-fhir-export
+         href="{{ url_for('patients.fhir_export', patient_id=patient.id) }}"
+         title="{{ t('fhir.export_hint') }}">
+        <i class="bi bi-filetype-json"></i> {{ t('fhir.export') }}</a>
       {% endif %}
       {% if current_user.can_access('prescriptions') %}
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.new', patient_id=patient.id) }}">

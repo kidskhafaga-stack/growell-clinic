@@ -117,6 +117,8 @@ AUDIT_ACTIONS = ["login", "login_failed", "login_disabled", "logout",
                  "role.create", "role.update", "role.delete",
                  "user.capability_grant", "user.capability_revoke",
                  "patient.archive", "patient.restore", "patient.delete",
+                 # A child's whole record leaving the building as a file.
+                 "patient.fhir_export",
                  "appointment.booking_toggle",
                  "retention.rule", "retention.destroyed"]
 

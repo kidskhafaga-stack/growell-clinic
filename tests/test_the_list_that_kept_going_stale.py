@@ -109,10 +109,23 @@ def test_fhir_endpoints_are_still_not_built(app):
     """The models carry the FHIR names already — ``Observation``,
     ``Encounter``, ``Immunization`` — which is exactly what makes this easy to
     believe is done. The endpoints are the thing, so the endpoints are what is
-    looked for."""
+    looked for.
+
+    **The file is not the door.** The child's record downloads as a FHIR
+    file from their page (``/patients/<id>/fhir``) — stage one, built and on
+    this list's own line as built. What is still to come is an API another
+    system asks, and that is what is looked for: any FHIR route but that one.
+    """
     rules = [str(r) for r in app.url_map.iter_rules()]
-    fhir = [r for r in rules if "fhir" in r.lower()]
-    assert not fhir, STALE.format("FHIR readiness") + f" ({fhir})"
+    fhir = [r for r in rules if "fhir" in r.lower()
+            and r != "/patients/<int:patient_id>/fhir"]
+    assert not fhir, STALE.format("FHIR for other systems") + f" ({fhir})"
+
+
+def test_the_fhir_file_the_list_says_is_built_is_built(app):
+    """The other direction: the line says the file exists, so it had better."""
+    rules = {str(r) for r in app.url_map.iter_rules()}
+    assert "/patients/<int:patient_id>/fhir" in rules
 
 
 # --------------------------------------------------- and the list itself --

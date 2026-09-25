@@ -282,11 +282,13 @@ NEXT = [
     ("مراكز التكلفة: توزيع الإيراد والمصروف على أقسام العيادة",
      "Cost centres: revenue and expense split across the clinic's "
      "departments"),
-    ("جاهزية FHIR: endpoints قراءة فقط للمريض والزيارة والتطعيم والقياسات. "
-     "الموديلات أصلاً بأسماء FHIR",
-     "FHIR readiness: read-only endpoints for patient, encounter, "
-     "immunisation and observations. The models already carry the FHIR "
-     "names"),
+    # Half of it is built: the child's record downloads as a FHIR file from
+    # the patient's page (docs/FHIR_EXPORT.md). What is left is the door —
+    # a read-only API another system can ask, which waits on knowing who.
+    ("FHIR للأنظمة التانية: واجهة قراءة فقط بمفتاح لكل جهة. ملف الطفل "
+     "بصيغة FHIR بيتنزّل من ملفه خلاص",
+     "FHIR for other systems: a read-only API with a key per receiver. The "
+     "child's record already downloads as a FHIR file from their page"),
 ]
 
 # The section every roadmap leaves out. These are decisions, not gaps.
