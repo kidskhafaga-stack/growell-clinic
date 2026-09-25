@@ -54,18 +54,41 @@ def open_for(patient_id, on=None, service_id=None):
     other way round quietly wastes the one that could be lost. Ties fall back
     to the older sale.
     """
-    on = on or local_today()
     q = PatientPackage.query.filter(
         PatientPackage.patient_id == patient_id,
         PatientPackage.cancelled_at.is_(None))
     if service_id is not None:
         q = q.filter(PatientPackage.service_id == service_id)
-    rows = [p for p in q.order_by(PatientPackage.id).all() if p.is_open(on)]
-    # Sorted in Python, not SQL: "remaining" is derived from the use rows and
-    # "no window" has to sort *last* rather than first, which is the opposite
-    # of how NULL orders in SQLite.
+    return spending_order(q.order_by(PatientPackage.id).all(), on=on)
+
+
+def spending_order(rows, on=None):
+    """The ones of ``rows`` still open on ``on``, in the order to spend them.
+
+    Sorted in Python, not SQL: "remaining" is derived from the use rows and
+    "no window" has to sort *last* rather than first, which is the opposite
+    of how NULL orders in SQLite.
+    """
+    on = on or local_today()
+    rows = [p for p in rows if p.is_open(on)]
     rows.sort(key=lambda p: (p.expires_on is None, p.expires_on or on, p.id))
     return rows
+
+
+def uncancelled_for(patient_ids):
+    """Every uncancelled balance of these children, ``{patient_id: [rows]}``
+    in the order :func:`open_for` reads them — for a screen that asks the
+    same question of a whole day's list."""
+    ids = [pid for pid in set(patient_ids) if pid is not None]
+    found = {}
+    if not ids:
+        return found
+    for row in (PatientPackage.query
+                .filter(PatientPackage.patient_id.in_(ids),
+                        PatientPackage.cancelled_at.is_(None))
+                .order_by(PatientPackage.id).all()):
+        found.setdefault(row.patient_id, []).append(row)
+    return found
 
 
 def covering(patient_id, service_id, on=None):

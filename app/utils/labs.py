@@ -306,7 +306,7 @@ def _drawn_on(row):
     return local_date(getattr(row, "collected_at", None))
 
 
-def unbilled(patient_id=None, visit_id=None):
+def unbilled(patient_id=None, visit_id=None, patient_ids=None):
     """Tests that have been drawn and nobody has charged for.
 
     **Drawn, not merely ordered.** An order somebody wrote and then thought
@@ -324,6 +324,9 @@ def unbilled(patient_id=None, visit_id=None):
         query = query.filter(VisitInvestigation.patient_id == patient_id)
     if visit_id is not None:
         query = query.filter(VisitInvestigation.visit_id == visit_id)
+    if patient_ids is not None:
+        query = query.filter(
+            VisitInvestigation.patient_id.in_(list(patient_ids)))
     return query.order_by(VisitInvestigation.created_at,
                           VisitInvestigation.id).all()
 

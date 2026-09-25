@@ -5,6 +5,7 @@ commission (default + per-doctor overrides) and service bundles. Later
 phases build invoices, doctor statements and discount claims on top.
 """
 import calendar
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 
 from flask import abort, flash, g, redirect, render_template, request, url_for
@@ -1715,6 +1716,120 @@ def booking_due(appt, lang="ar"):
                      for line in lines), 2)
 
 
+#: Where `_asked_once` keeps the day's answers while the till adds them up.
+_ASKED = "_till_asked_once"
+
+
+def _asked(name, key, ask):
+    """``ask()`` — unless the till has already asked it for the whole list.
+
+    Outside `_asked_once` there is nothing kept, and every caller asks the
+    database exactly as it always did: the checkout, a single booking, every
+    screen that writes. Inside it, an answer fetched for the whole list is
+    read from there, and anything else is asked once and kept.
+    """
+    answers = getattr(g, _ASKED, None)
+    if answers is None:
+        return ask()
+    kept = answers.setdefault(name, {})
+    if key not in kept:
+        kept[key] = ask()
+    return kept[key]
+
+
+def _forget_asked(name):
+    """Drop a kept answer this request has just made untrue."""
+    answers = getattr(g, _ASKED, None)
+    if answers is not None:
+        answers.pop(name, None)
+
+
+@contextmanager
+def _asked_once(appts):
+    """Ask each of the till's questions once for a whole day's bookings.
+
+    Found by the load test: the till adds up what every unbilled booking would
+    cost by building its checkout, and each checkout asked the database the
+    same seven or eight things about one child — a hundred and twenty
+    bookings, a thousand questions, a second on every visit to the screen.
+
+    Nothing about *how* a booking is priced changes. The checkout still builds
+    its lines through the same functions; they read the answer from here
+    instead of asking, and the answers are the same queries with the whole
+    list's ids in them. Only for the length of this block — nothing is written
+    while the till adds up, and nothing kept outlives it.
+    """
+    if not appts:
+        yield
+        return
+    setattr(g, _ASKED, _ask_for_the_list(appts))
+    try:
+        yield
+    finally:
+        g.pop(_ASKED, None)
+
+
+def _ask_for_the_list(appts):
+    """The answers `_asked_once` keeps — every child on the list present, so
+    "nothing" is an answer and not a reason to ask again."""
+    from app.models import VisitService
+    from app.utils import packages as pkgs
+    from app.utils.facility import module_enabled
+
+    pids = sorted({a.patient_id for a in appts})
+    aids = sorted({a.id for a in appts})
+
+    def each(rows, key_of, keys):
+        grouped = {k: [] for k in keys}
+        for row in rows:
+            grouped.setdefault(key_of(row), []).append(row)
+        return grouped
+
+    stays = billing.stay_invoices(pids)
+    todays = {}
+    for inv in (Invoice.query
+                .filter(Invoice.patient_id.in_(pids),
+                        Invoice.invoice_date == local_today())
+                .order_by(Invoice.id.desc()).all()):
+        todays.setdefault(inv.patient_id, inv)
+    answers = {
+        "todays_invoice": {pid: (stays[pid] if pid in stays
+                                 else todays.get(pid)) for pid in pids},
+        "uncharged_vaccines": {
+            (pid, _DOSE_DAYS): doses for pid, doses in each(
+                _priced_doses(PatientVaccine.query.filter(
+                    PatientVaccine.patient_id.in_(pids),
+                    *_uncharged_dose_filter(_DOSE_DAYS))),
+                lambda d: d.patient_id, pids).items()},
+        "visit_services": {aid: [vs for vs, _ in rows] for aid, rows in each(
+            (db.session.query(VisitService, Visit.appointment_id)
+             .join(Visit, VisitService.visit_id == Visit.id)
+             .filter(Visit.appointment_id.in_(aids),
+                     VisitService.invoice_id.is_(None))
+             .order_by(VisitService.id).all()),
+            lambda pair: pair[1], aids).items()},
+        "packages": {**{pid: [] for pid in pids},
+                     **pkgs.uncancelled_for(pids)},
+    }
+    if module_enabled("theatres"):
+        from app.utils import theatres
+
+        answers["operations"] = each(theatres.unbilled(patient_ids=pids),
+                                     lambda op: op.patient_id, pids)
+    if module_enabled("labs"):
+        from app.utils import labs
+
+        answers["tests"] = each(labs.unbilled(patient_ids=pids),
+                                lambda row: row.patient_id, pids)
+    if module_enabled("pharmacy"):
+        from app.utils import pharmacy
+
+        answers["dispensed"] = each(
+            pharmacy.unbilled(patient_ids=pids),
+            lambda line: line.prescription.patient_id, pids)
+    return answers
+
+
 def _unbilled_bookings(on_date):
     """Today's bookings that nobody has billed yet.
 
@@ -1745,11 +1860,13 @@ def _unbilled_bookings(on_date):
 
     state = _payment_status(rows, on_date)
     lang = getattr(g, "lang", "ar")
+    waiting = [a for a in rows
+               if a.patient is not None
+               and state.get(a.id, {}).get("state") == "none"]
     out = []
-    for a in rows:
-        if a.patient is None or state.get(a.id, {}).get("state") != "none":
-            continue
-        due = booking_due(a, lang)
+    with _asked_once(waiting):
+        dues = [(a, booking_due(a, lang)) for a in waiting]
+    for a, due in dues:
         # Nothing to collect is not the same as "not collected yet". A free
         # consultation belongs on nobody's chase list; `None` means the price
         # could not be worked out, which is a reason to show it rather than
@@ -2446,18 +2563,29 @@ def _apply_coverage(invoice, patient, auto_discount=True):
               if auto_discount else None))
 
 
-def _uncharged_vaccines(patient_id, days=2):
-    """Recently-given, priced, not-yet-billed doses for a patient (charge on exit)."""
-    from datetime import timedelta
+#: How far back a dose given and not charged is still offered at the desk.
+_DOSE_DAYS = 2
 
+
+def _uncharged_dose_filter(days):
     since = local_today() - timedelta(days=days)
-    doses = (PatientVaccine.query.filter(
-        PatientVaccine.patient_id == patient_id,
-        PatientVaccine.event_type == "given",
-        PatientVaccine.given_outside.is_(False),
-        PatientVaccine.invoice_id.is_(None),
-        PatientVaccine.given_date >= since).all())
+    return (PatientVaccine.event_type == "given",
+            PatientVaccine.given_outside.is_(False),
+            PatientVaccine.invoice_id.is_(None),
+            PatientVaccine.given_date >= since)
+
+
+def _priced_doses(query):
+    doses = query.order_by(PatientVaccine.id).all()
     return [d for d in doses if d.brand and (d.brand.price or 0) > 0]
+
+
+def _uncharged_vaccines(patient_id, days=_DOSE_DAYS):
+    """Recently-given, priced, not-yet-billed doses for a patient (charge on exit)."""
+    return _asked("uncharged_vaccines", (patient_id, days),
+                  lambda: _priced_doses(PatientVaccine.query.filter(
+                      PatientVaccine.patient_id == patient_id,
+                      *_uncharged_dose_filter(days))))
 
 
 def _vaccine_service():
@@ -2466,6 +2594,10 @@ def _vaccine_service():
     free text. Self-heals: if the clinic never seeded a vaccination-fee service
     (e.g. the wizard's vaccination capability was left unticked) one is created
     now, editable afterwards like any other service."""
+    return _asked("vaccine_service", None, _vaccine_service_asked)
+
+
+def _vaccine_service_asked():
     svc = service_for_visit_type("vaccination")
     if svc is not None:
         return svc
@@ -2483,6 +2615,7 @@ def _vaccine_service():
         # already claims that slot.
         if Service.query.filter_by(visit_type="vaccination").first() is None:
             svc.visit_type = "vaccination"
+            _forget_asked("visit_type_service")
     return svc
 
 
@@ -2575,6 +2708,11 @@ def _todays_invoice(patient_id):
     # the desk was guessing from a date because nothing said what the bill was
     # for. Only an unsettled one is offered, so a stay paid at discharge does
     # not come back when the child returns for a follow-up.
+    return _asked("todays_invoice", patient_id,
+                  lambda: _todays_invoice_asked(patient_id))
+
+
+def _todays_invoice_asked(patient_id):
     stay = billing.stay_invoice(patient_id)
     if stay is not None:
         return stay
@@ -2720,11 +2858,12 @@ def _unbilled_visit_services(appt):
     """Doctor-added services on this appointment's visit(s) not yet invoiced."""
     from app.models import VisitService
 
-    return (VisitService.query
-            .join(Visit, VisitService.visit_id == Visit.id)
-            .filter(Visit.appointment_id == appt.id,
-                    VisitService.invoice_id.is_(None))
-            .all())
+    return _asked("visit_services", appt.id, lambda: (
+        VisitService.query
+        .join(Visit, VisitService.visit_id == Visit.id)
+        .filter(Visit.appointment_id == appt.id,
+                VisitService.invoice_id.is_(None))
+        .order_by(VisitService.id).all()))
 
 
 def _unbilled_operations(patient_id):
@@ -2744,7 +2883,8 @@ def _unbilled_operations(patient_id):
         return []
     from app.utils import theatres
 
-    return [op for op in theatres.unbilled(patient_id=patient_id)
+    return [op for op in _asked("operations", patient_id,
+                                lambda: theatres.unbilled(patient_id=patient_id))
             if op.admission_id is None]
 
 
@@ -2761,7 +2901,8 @@ def _unbilled_dispensed(patient_id):
         return []
     from app.utils import pharmacy
 
-    return pharmacy.unbilled(patient_id=patient_id)
+    return _asked("dispensed", patient_id,
+                  lambda: pharmacy.unbilled(patient_id=patient_id))
 
 
 def _unbilled_tests(patient_id):
@@ -2780,7 +2921,8 @@ def _unbilled_tests(patient_id):
         return []
     from app.utils import labs
 
-    return labs.unbilled(patient_id=patient_id)
+    return _asked("tests", patient_id,
+                  lambda: labs.unbilled(patient_id=patient_id))
 
 
 def _test_lines(patient_id, lang):
@@ -2835,7 +2977,7 @@ def _operation_lines(patient_id, lang):
     from app.utils import case_rates, theatres
 
     lines = []
-    anaes = theatres.anaesthesia_service()
+    anaes = _asked("anaesthesia_service", None, theatres.anaesthesia_service)
     for op in _unbilled_operations(patient_id):
         service = op.service
         lines.append({
@@ -2906,6 +3048,18 @@ def _patient_checkout_lines(patient, doctor_id, lang):
     return _cover_with_packages(patient.id, lines, lang)
 
 
+def _covering(patient_id, service_id):
+    """``packages.covering``, read from the till's list when it has one."""
+    from app.utils import packages as pkgs
+
+    held = (getattr(g, _ASKED, None) or {}).get("packages")
+    if held is None or patient_id not in held:
+        return pkgs.covering(patient_id, service_id)
+    rows = pkgs.spending_order([p for p in held[patient_id]
+                                if p.service_id == service_id])
+    return rows[0] if rows else None
+
+
 def _cover_with_packages(patient_id, lines, lang):
     """Zero the lines a package this family already paid for covers.
 
@@ -2929,7 +3083,7 @@ def _cover_with_packages(patient_id, lines, lang):
             sid = None
         if not sid or line.get("pkg_id"):
             continue
-        balance = pkgs.covering(patient_id, sid)
+        balance = _covering(patient_id, sid)
         if balance is None:
             continue
         spare = left.get(balance.id, balance.remaining)
@@ -2962,7 +3116,8 @@ def _checkout_lines(appt, lang):
     inv_today = _todays_invoice(appt.patient_id)
     billed_sids = ({i.service_id for i in inv_today.items if i.service_id}
                    if inv_today else set())
-    base = service_for_visit_type(appt.appt_type)
+    base = _asked("visit_type_service", appt.appt_type,
+                  lambda: service_for_visit_type(appt.appt_type))
     has_vacc_base = base is not None and base.category == "vaccination_fee"
     if base is not None and base.id not in billed_sids:
         price = base.price_for(appt.doctor) if appt.doctor else base.price

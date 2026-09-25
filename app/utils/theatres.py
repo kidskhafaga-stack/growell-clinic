@@ -1912,7 +1912,7 @@ def _line(operation, service, lang):
     return f"{' · '.join(parts)} ({operation.on_date.isoformat()})"[:200]
 
 
-def unbilled(admission_id=None, patient_id=None):
+def unbilled(admission_id=None, patient_id=None, patient_ids=None):
     """Operations that were done and never charged.
 
     Same shape as an uncharged night or an unbilled dose: the operation
@@ -1927,4 +1927,6 @@ def unbilled(admission_id=None, patient_id=None):
         query = query.filter(Operation.admission_id == admission_id)
     if patient_id is not None:
         query = query.filter(Operation.patient_id == patient_id)
+    if patient_ids is not None:
+        query = query.filter(Operation.patient_id.in_(list(patient_ids)))
     return query.order_by(Operation.on_date, Operation.id).all()
