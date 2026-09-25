@@ -56,8 +56,9 @@
    فيه حساب ومدين ودائن ووصف وخلاص، مفيش أي بُعد تاني.)
 2. **تجميع كشف الحساب على مستوى الأسرة** — الإخوات في ورقة واحدة. كشف المريض
    نفسه وأعمار ديونه شغّالين، و`Family` و`patient.siblings` موجودين.
-3. **جاهزية FHIR** — مفيش endpoints، والموديلات أصلاً بأسماء FHIR
-   (`Observation` · `Encounter` · `Immunization`).
+3. **FHIR للأنظمة التانية** — واجهة قراءة فقط بمفتاح لكل جهة. **نصّها اتعمل:**
+   ملف الطفل بيتنزّل بصيغة FHIR R4 من ملفه (`docs/FHIR_EXPORT.md`). والواجهة
+   مستنية نعرف مين الجهة اللي هتستلم.
 
 ---
 
@@ -237,7 +238,8 @@ CRM واتساب متكامل (ميزة تنافسية قلّما موجودة) 
 `GrowthRecord/VitalSigns→Observation` · `Prescription→MedicationRequest` ·
 `Invoice→Invoice/Account`. فالتداخل مع الأنظمة العالمية **مش هيحتاج إعادة بناء** —
 هيحتاج **طبقة تصدير/API**:
-- **Phase 4 — FHIR Readiness:** endpoints قراءة فقط بصيغة FHIR R4 JSON للموارد
+- **Phase 4 — FHIR Readiness:** ✅ المرحلة الأولى: تصدير ملف الطفل بصيغة FHIR R4
+  (`docs/FHIR_EXPORT.md`). الباقي: endpoints قراءة فقط بصيغة FHIR R4 JSON للموارد
   الأساسية (Patient/Encounter/Immunization/Observation) خلف module toggle —
   يفتح الباب للتكامل والاعتماد دون أي تغيير في قواعد البيانات.
 - التكامل الكامل (write/subscriptions/SMART on FHIR) يفضل v3+.
