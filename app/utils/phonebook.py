@@ -21,8 +21,24 @@ Both rows carry the number to *ring from* where one exists, because a work list
 that tells you to phone somebody without giving you the number is a list you
 work through with the patient file open in another tab.
 """
-from app.models import Patient
+from sqlalchemy.orm import selectinload
+
+from app.models import Family, Patient
 from app.models.patient import own_phone_cutoff
+
+
+def _with_guardians(query):
+    """Load every child's family and its guardians in two more queries, not
+    two per child.
+
+    Found by the load test (``tools/loadtest``): the bell asks for this list
+    on every page, and reading each guardian as the loop reached them was
+    **one query per child in the clinic** — eight thousand of them on a
+    clinic two years old, seconds of work on every page that found the bell
+    stale.
+    """
+    return query.options(selectinload(Patient.family)
+                         .selectinload(Family.parents))
 
 
 def _guardian_phone(patient):
@@ -60,9 +76,9 @@ def unreachable(lang="ar", limit=None):
     guardian's. The query cannot express "no guardian has a phone" without a
     join per parent, so the shortlist comes from the database and the last
     check is done in Python over a set that is small by definition."""
-    query = (Patient.query
-             .filter(Patient.is_active.is_(True))
-             .order_by(Patient.created_at.desc()))
+    query = _with_guardians(Patient.query
+                            .filter(Patient.is_active.is_(True))
+                            .order_by(Patient.created_at.desc()))
     rows = []
     for patient in query.all():
         if (patient.own_phone or "").strip():
@@ -77,11 +93,12 @@ def unreachable(lang="ar", limit=None):
 
 def teens_without_own_phone(lang="ar", limit=None):
     """Old enough to be rung directly, and no number to ring."""
-    query = (Patient.query
-             .filter(Patient.is_active.is_(True),
-                     Patient.date_of_birth <= own_phone_cutoff(),
-                     Patient.own_phone.is_(None) | (Patient.own_phone == ""))
-             .order_by(Patient.date_of_birth))
+    query = _with_guardians(Patient.query
+                            .filter(Patient.is_active.is_(True),
+                                    Patient.date_of_birth <= own_phone_cutoff(),
+                                    Patient.own_phone.is_(None)
+                                    | (Patient.own_phone == ""))
+                            .order_by(Patient.date_of_birth))
     rows = [_row(p, "teen", lang) for p in query.all()]
     # A teen whose family has no number either is already on the harder list;
     # showing them twice makes the two counts add up to more than the problem.

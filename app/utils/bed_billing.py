@@ -276,14 +276,13 @@ def invoice_for(admission, user=None):
                 .order_by(Invoice.id).first())
     if existing is not None:
         return existing
-    invoice = Invoice(invoice_number=generate_invoice_number(),
-                      patient_id=admission.patient_id,
+    from app.utils.sequences import claim
+
+    invoice = Invoice(patient_id=admission.patient_id,
                       doctor_id=admission.doctor_id,
                       admission_id=admission.id,
                       created_by=getattr(user, "id", None))
-    db.session.add(invoice)
-    db.session.flush()
-    return invoice
+    return claim(invoice, "invoice_number", generate_invoice_number)
 
 
 def post(admission, user=None, upto=None, lang="ar"):

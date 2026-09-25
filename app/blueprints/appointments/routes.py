@@ -52,6 +52,7 @@ from app.utils import patient_flags as flags
 from app.utils.clock import local_now, local_today
 from app.utils.decorators import cashier_access, client_ip, module_required
 from app.utils.money import format_money
+from app.utils.sequences import retry_on_number_clash
 
 MODULE = "appointments"
 
@@ -86,12 +87,17 @@ def index():
         doctor_id = current_user.id
 
     # The board shows each child's name and their guardian's phone, so the
-    # patient (and their family) come along rather than one query per row.
+    # patient, their family **and the guardians** come along rather than one
+    # query per row. The guardians were missing, and reading the phone
+    # fetched them row by row — found by the load test (``tools/loadtest``).
     from sqlalchemy.orm import selectinload
+
+    from app.models import Family as _Family
 
     query = (Appointment.query
              .options(selectinload(Appointment.patient)
-                      .selectinload(Patient.family))
+                      .selectinload(Patient.family)
+                      .selectinload(_Family.parents))
              .filter(Appointment.appt_date == on_date))
     if doctor_id:
         query = query.filter(Appointment.doctor_id == doctor_id)
@@ -303,7 +309,15 @@ def _maybe_free(appt, base):
     return price <= 0
 
 
-def _costs_nothing(appt, base=None):
+#: "Nobody looked the base charge up" — kept apart from "looked, and there is
+#: none". The board looks every type up once and hands the answer in, and a
+#: type the clinic has not priced *is* an answer: reading ``None`` as "not
+#: given" had every such row look it up again, one query per row. Found by the
+#: load test (``tools/loadtest``).
+_NOT_GIVEN = object()
+
+
+def _costs_nothing(appt, base=_NOT_GIVEN):
     """True when this booking would come to exactly zero if billed now.
 
     Answered by the checkout's own line builder, through the till's
@@ -314,7 +328,7 @@ def _costs_nothing(appt, base=None):
     from app.blueprints.finance.routes import booking_due
     from app.utils.pricing import service_for_visit_type
 
-    if base is None:
+    if base is _NOT_GIVEN:
         base = service_for_visit_type(appt.appt_type)
     if not _maybe_free(appt, base):
         return False
@@ -932,6 +946,7 @@ def patient_search():
 
 @appointments_bp.route("/patient-quick", methods=["POST"])
 @module_required(MODULE)
+@retry_on_number_clash
 def patient_quick():
     """Create a minimal patient inline during booking and return it as JSON.
 

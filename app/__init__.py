@@ -15,6 +15,22 @@ from app.utils.brand import PRIMARY as BRAND_PRIMARY
 from app.utils.clock import local_today
 
 
+def _busy_timeout_ms():
+    """How long a writer waits for the lock before giving up, in ms.
+
+    15 seconds unless ``SQLITE_BUSY_TIMEOUT_MS`` says otherwise — the load
+    test (``tools/loadtest``) turns it to measure what the number buys, and
+    a clinic that never sets it gets exactly the value it always had. A
+    value that is not a whole number above zero is ignored rather than
+    trusted: zero would turn every busy moment into "database is locked".
+    """
+    try:
+        value = int(os.environ.get("SQLITE_BUSY_TIMEOUT_MS", "15000"))
+    except ValueError:
+        return 15000
+    return value if value > 0 else 15000
+
+
 @event.listens_for(Engine, "connect")
 def _set_sqlite_pragmas(dbapi_connection, _record):
     """Make SQLite robust under the threaded dev server / bulk imports.
@@ -25,7 +41,7 @@ def _set_sqlite_pragmas(dbapi_connection, _record):
     if isinstance(dbapi_connection, sqlite3.Connection):
         cur = dbapi_connection.cursor()
         cur.execute("PRAGMA journal_mode=WAL")
-        cur.execute("PRAGMA busy_timeout=15000")
+        cur.execute(f"PRAGMA busy_timeout={_busy_timeout_ms()}")
         cur.execute("PRAGMA synchronous=NORMAL")
         cur.close()
 
