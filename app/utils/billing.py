@@ -208,15 +208,31 @@ def stay_invoice(patient_id):
     settled at discharge does not reappear when the child comes back for a
     follow-up.
     """
+    return stay_invoices([patient_id]).get(patient_id)
+
+
+def stay_invoices(patient_ids):
+    """:func:`stay_invoice` for many children at once — ``{patient_id:
+    invoice}``, holding only the children who have one.
+
+    One question for a whole day's list instead of one per child; the rule is
+    the same rule, because the single form is this one with one id in it.
+    """
     from app.models.admission import Admission
     from app.models.invoice import Invoice
 
+    ids = [pid for pid in set(patient_ids) if pid is not None]
+    if not ids:
+        return {}
     rows = (Invoice.query
             .join(Admission, Invoice.admission_id == Admission.id)
-            .filter(Invoice.patient_id == patient_id,
+            .filter(Invoice.patient_id.in_(ids),
                     Invoice.status != "refunded")
             .order_by(Invoice.id.desc()).all())
+    found = {}
     for invoice in rows:
+        if invoice.patient_id in found:
+            continue
         if round(invoice.total - invoice.paid, 2) > 0:
-            return invoice
-    return None
+            found[invoice.patient_id] = invoice
+    return found

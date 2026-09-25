@@ -163,7 +163,7 @@ def open_queries(days=7, limit=50):
 
 
 # ------------------------------------------------------------- the money ---
-def unbilled(patient_id=None, prescription_id=None):
+def unbilled(patient_id=None, prescription_id=None, patient_ids=None):
     """Lines handed over that nobody has charged for.
 
     Handed over, not written: a prescription the family took away to fill
@@ -181,6 +181,8 @@ def unbilled(patient_id=None, prescription_id=None):
     if prescription_id is not None:
         query_ = query_.filter(
             PrescriptionItem.prescription_id == prescription_id)
+    if patient_ids is not None:
+        query_ = query_.filter(Prescription.patient_id.in_(list(patient_ids)))
     return query_.order_by(PrescriptionItem.dispensed_at,
                            PrescriptionItem.id).all()
 
