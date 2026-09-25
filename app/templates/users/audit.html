@@ -57,7 +57,7 @@
     </tr></thead>
     <tbody>
       {% for e in entries %}
-      <tr {% if e.action in ('login_failed','login_disabled','login_support_closed') %}style="background:color-mix(in srgb, var(--danger) 8%, transparent);"{% endif %}>
+      <tr {% if e.action in ('login_failed','login_disabled','login_support_closed','ledger.failed') %}style="background:color-mix(in srgb, var(--danger) 8%, transparent);"{% endif %}>
         <td style="white-space:nowrap;font-size:0.84rem;" dir="ltr">{{ e.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
         <td>{% if e.user %}{{ e.user.display_name(current_lang) }}{% else %}<span style="color:var(--muted);">—</span>{% endif %}</td>
         <td>

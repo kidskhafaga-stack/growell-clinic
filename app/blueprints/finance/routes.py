@@ -175,9 +175,40 @@ def journal():
         "debit": round(sum(e.total_debit for e in entries), 2),
         "credit": round(sum(e.total_credit for e in entries), 2),
     }
+    from app.utils import ledger_gaps
+
     return render_template("finance/journal.html", accounts=accounts,
                            entries=entries, totals=totals,
+                           # What should be in the ledger and is not — a
+                           # posting that failed after the bill was saved.
+                           gaps=ledger_gaps.missing(),
                            today=local_today().isoformat())
+
+
+@finance_bp.route("/journal/repair", methods=["POST"])
+@module_required(MODULE)
+def journal_repair():
+    """Post everything the ledger is missing (``app.utils.ledger_gaps``).
+
+    Admin-only, like the manual entry: it writes to the ledger. Safe to press
+    twice — an entry that exists is refreshed or left alone, never doubled.
+    """
+    from flask import abort
+
+    from app.utils import ledger_gaps
+
+    if not current_user.is_admin:
+        abort(403)
+    posted, left = ledger_gaps.repair(user_id=current_user.id)
+    ActivityLog.record("ledger.repair", user_id=current_user.id,
+                       detail=f"posted={posted} left={left}",
+                       ip_address=client_ip())
+    db.session.commit()
+    if left:
+        flash(t("ledger_gaps.partly", posted=posted, left=left), "warning")
+    else:
+        flash(t("ledger_gaps.done", posted=posted), "success")
+    return redirect(url_for("finance.journal"))
 
 
 @finance_bp.route("/journal/new", methods=["POST"])

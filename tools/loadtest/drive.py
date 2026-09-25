@@ -402,6 +402,18 @@ def integrity(db, done, started_at):
     return out
 
 
+def ledger_gaps(db):
+    """What the journal is missing after the run, read the way the journal
+    screen reads it (``app.utils.ledger_gaps``)."""
+    os.environ["DATABASE_URL"] = "sqlite:///" + db
+    from app import create_app
+    from app.utils import ledger_gaps as gaps
+
+    app = create_app("testing")
+    with app.app_context():
+        return {k: len(v) for k, v in gaps.missing().items()}
+
+
 # ------------------------------------------------------------ the run ----
 def start_server(db, port, threads, busy_ms, log_path):
     env = dict(os.environ, SQLITE_BUSY_TIMEOUT_MS=str(busy_ms),
@@ -499,6 +511,7 @@ def run(db, out, threads=8, busy_ms=15000, stages=(1, 2, 4, 8, 16),
     results["server_log"] = {"tracebacks": text.count("Traceback"),
                              "database_is_locked": text.count("database is locked")}
     results["done"] = {k: len(v) for k, v in h.done.items()}
+    results["ledger_gaps"] = ledger_gaps(db)
     with open(os.path.join(out, "results.json"), "w") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
     return results

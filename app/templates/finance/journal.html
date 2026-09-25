@@ -19,6 +19,38 @@
   </div>
 </div>
 
+{# What the ledger is missing (app/utils/ledger_gaps.py). A posting that
+   failed never blocked the bill — and never disappears either: it waits here
+   until it is posted. Shown to everybody who can read the journal, because
+   the numbers on this screen are short by exactly this much. #}
+{% set gap_total = gaps.invoice|length + gaps.payment|length + gaps.expense|length %}
+{% if gap_total %}
+<div class="card gc-scale-in" style="margin-bottom:16px;border-inline-start:3px solid var(--warn,#b45309);" data-ledger-gaps="{{ gap_total }}">
+  <h2 class="section-title" style="margin:0 0 6px;font-size:1rem;">
+    <i class="bi bi-exclamation-triangle"></i> {{ t('ledger_gaps.title', n=gap_total) }}</h2>
+  <p class="hint" style="margin:0 0 8px;">{{ t('ledger_gaps.why') }}</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+    {% for kind in ('invoice', 'payment', 'expense') if gaps[kind] %}
+    <span class="alert-pill warn" data-gap-kind="{{ kind }}">{{ t('ledger_gaps.kind_' ~ kind, n=gaps[kind]|length) }}</span>
+    {% endfor %}
+  </div>
+  <details>
+    <summary class="hint">{{ t('ledger_gaps.show') }}</summary>
+    <ul style="margin:6px 0 0;padding-inline-start:20px;">
+      {% for inv in gaps.invoice[:50] %}<li><a href="{{ url_for('finance.invoice_view', invoice_id=inv.id) }}" dir="ltr">{{ inv.invoice_number }}</a> · <span dir="ltr">{{ inv.total }}</span></li>{% endfor %}
+      {% for pay in gaps.payment[:50] %}<li>{{ t('ledger_gaps.payment_of') }} <span dir="ltr">{{ pay.amount }}</span> · <span dir="ltr">{{ pay.invoice.invoice_number if pay.invoice else '—' }}</span></li>{% endfor %}
+      {% for exp in gaps.expense[:50] %}<li>{{ exp.description or t('ledger_gaps.expense') }} · <span dir="ltr">{{ exp.amount }}</span></li>{% endfor %}
+    </ul>
+  </details>
+  {% if current_user.is_admin %}
+  <form method="post" action="{{ url_for('finance.journal_repair') }}" style="margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-arrow-repeat"></i> {{ t('ledger_gaps.post_now') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
 {% if current_user.is_admin %}
 <!-- Manual journal entry (admin only) -->
 <div id="manual-je" class="card gc-scale-in" style="display:none;margin-bottom:16px;" x-data="manualJE()">

@@ -2,8 +2,10 @@
 
 Operational events call the ``post_*`` helpers after their own commit; each
 builds a balanced JournalEntry from the seeded chart of accounts. Posting
-failures are swallowed by the callers (a bookkeeping hiccup must never block
-billing a patient) — but entries are simple enough that they don't fail.
+failures never block billing a patient — but they are no longer silent:
+the caller writes each one to the audit log, and
+:mod:`app.utils.ledger_gaps` finds every document the ledger is missing and
+posts it again from the journal screen.
 
 Standard entries (per the HIS brainstorm):
 * Invoice issued   → Dr 1030 Patients AR      / Cr 4010 Services revenue
@@ -150,15 +152,12 @@ def repair_till_accounts():
 
 
 def _je_number():
+    """The next entry number — one query for the highest, not every entry
+    ever posted (see :mod:`app.utils.sequences`)."""
+    from app.utils.sequences import highest
+
     prefix = "JE-"
-    top = 0
-    rows = (JournalEntry.query.filter(JournalEntry.entry_number.like(prefix + "%"))
-            .with_entities(JournalEntry.entry_number).all())
-    for (num,) in rows:
-        tail = num[len(prefix):]
-        if tail.isdigit():
-            top = max(top, int(tail))
-    return f"{prefix}{top + 1:06d}"
+    return f"{prefix}{highest(JournalEntry.entry_number, prefix) + 1:06d}"
 
 
 def post_entry(source_type, source_id, memo, lines, entry_date=None, user_id=None,
@@ -208,12 +207,16 @@ def post_entry(source_type, source_id, memo, lines, entry_date=None, user_id=Non
             db.session.commit()
             return existing
 
-    entry = JournalEntry(entry_number=_je_number(),
-                         entry_date=entry_date or local_today(),
+    entry = JournalEntry(entry_date=entry_date or local_today(),
                          memo=memo, source_type=source_type,
                          source_id=source_id, created_by=user_id)
     entry.lines = built
-    db.session.add(entry)
+    # Numbered while holding the write lock. "The last entry, plus one" read
+    # before taking it gave two cashiers collecting at once the same entry
+    # number — and the second entry was refused and swallowed by the caller,
+    # so a payment reached the till and never reached the ledger.
+    from app.utils.sequences import claim
+    claim(entry, "entry_number", _je_number)
     db.session.commit()
     return entry
 

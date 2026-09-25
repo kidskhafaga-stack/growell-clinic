@@ -110,6 +110,9 @@ AUDIT_ACTIONS = ["login", "login_failed", "login_disabled", "logout",
                  "login_support_closed", "support_signed_out",
                  "support.open", "support.close", "support.account",
                  "support.password",
+                 # A journal entry that could not be posted after the bill
+                 # was saved — and the owner putting the ledger right.
+                 "ledger.failed", "ledger.repair",
                  "user.create", "user.update", "user.delete",
                  "role.create", "role.update", "role.delete",
                  "user.capability_grant", "user.capability_revoke",
