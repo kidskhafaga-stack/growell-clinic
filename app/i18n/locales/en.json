@@ -8371,5 +8371,18 @@
     "banner": "Developer access is open: {name}",
     "until": "until",
     "manage": "Manage the door"
+  },
+  "ledger_gaps": {
+    "title": "{n} document(s) missing from the journal",
+    "why": "The invoice and the money were recorded, but their journal entry was not written. The profit-and-loss is short by exactly this much until it is.",
+    "kind_invoice": "{n} invoice(s)",
+    "kind_payment": "{n} payment(s)",
+    "kind_expense": "{n} expense(s)",
+    "show": "Show which",
+    "payment_of": "Payment",
+    "expense": "Expense",
+    "post_now": "Post them now",
+    "done": "{posted} document(s) posted. The journal is complete.",
+    "partly": "{posted} posted, {left} still not — the audit log has the reason."
   }
 }

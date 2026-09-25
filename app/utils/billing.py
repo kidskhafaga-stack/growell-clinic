@@ -140,10 +140,12 @@ def apply_coverage(invoice, patient, warn=None, then=None):
 def post_to_ledger(kind, obj, user_id=None):
     """Best-effort automatic journal posting.
 
-    A bookkeeping hiccup must never block billing, so every failure is
-    swallowed after a rollback — the invoice and the money it took are the
+    A bookkeeping hiccup must never block billing, so a failure is rolled
+    back and the bill goes on — the invoice and the money it took are the
     facts, and a journal entry that could not be written is a report to fix
-    later rather than a payment to refuse now.
+    later rather than a payment to refuse now. **Fixed later, not lost:** it
+    is written to the audit log (``ledger.failed``) and the journal screen
+    lists it until it is posted (:mod:`app.utils.ledger_gaps`).
 
     **Called from the wards as well as from the till.** Before this moved, the
     only caller was the checkout screen, so a stay billed on the ward and paid
@@ -166,6 +168,27 @@ def post_to_ledger(kind, obj, user_id=None):
             acct.post_payment(obj, user_id=user_id)
         elif kind == "expense":
             acct.post_expense(obj, user_id=user_id)
+    except Exception as exc:  # noqa: BLE001
+        db.session.rollback()
+        # Never blocks the bill — but never silent either. The document is
+        # the fact and stays; the missing entry is written down here, and
+        # `app.utils.ledger_gaps` finds it on the journal screen and posts it
+        # again. Swallowed without a trace, a payment could reach the till
+        # and never the ledger, and the profit-and-loss would disagree with
+        # the revenue report by exactly that much with nobody told why.
+        _note_ledger_failure(kind, obj, exc, user_id)
+
+
+def _note_ledger_failure(kind, obj, exc, user_id=None):
+    """Write down a journal entry that could not be posted. Best effort: if
+    even this cannot be written, the ledger-gap reader still finds it."""
+    try:
+        from app.models import ActivityLog
+
+        ActivityLog.record("ledger.failed", user_id=user_id, entity=kind,
+                           entity_id=getattr(obj, "id", None),
+                           detail=f"{type(exc).__name__}: {exc}"[:200])
+        db.session.commit()
     except Exception:  # noqa: BLE001
         db.session.rollback()
 

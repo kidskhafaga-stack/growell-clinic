@@ -102,6 +102,11 @@ def build(path, patients=8000, seed=7, today=None, log=print):
         # in this copy and the report says so.
         Setting.set("require_shift_to_collect", "0")
         Setting.set("patient_number_scheme", "fixed")
+        # The ledger on, as in a clinic that has opened its reports once: the
+        # till then posts every bill to the journal, and the test checks each
+        # one arrived — two cashiers at once used to lose an entry here.
+        from app.utils.accounting import ensure_seeded
+        ensure_seeded()
 
         people = {}
         for username, role, name in STAFF:
