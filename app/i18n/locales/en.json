@@ -538,6 +538,7 @@
     "deleted": "Appointment deleted",
     "no_appointments": "No appointments on this day",
     "slot_taken": "That time is taken or unavailable, please pick another",
+    "reopen_slot_taken": "Someone else has been booked into this time since it was cancelled — choose a new time with Reschedule",
     "invalid_time": "Invalid time format",
     "invalid_transition": "The appointment cannot move to that status",
     "status_changed": "Appointment status updated to: {status}",
