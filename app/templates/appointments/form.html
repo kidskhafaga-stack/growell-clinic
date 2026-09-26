@@ -14,11 +14,26 @@
 </div>
 {% endif %}
 
+{% if booking_request %}
+{# Booking a family's request: what they asked for stays in sight while the
+   desk picks the slot, and saving the booking answers the request. #}
+<div class="info-note gc-animate" data-booking-request="{{ booking_request.id }}" style="max-width:820px;">
+  <i class="bi bi-inbox"></i> <strong>{{ t('booking_requests.booking_for') }}</strong>
+  {{ booking_request.who(current_lang) }}
+  {% if not booking_request.patient_id %}
+  <span class="num" dir="ltr">{{ booking_request.contact_phone }}</span>
+  — {{ t('booking_requests.choose_or_register') }}
+  {% endif %}
+  {% if booking_request.message %}<div style="margin-top:4px;white-space:pre-wrap;">«{{ booking_request.message }}»</div>{% endif %}
+</div>
+{% endif %}
+
 <div class="md" style="max-width:820px;"
      x-data="slotPicker('{{ url_for('appointments.slots') }}', '{{ form.appt_time or '' }}', '{{ url_for('appointments.next_available_slot') }}', '{{ url_for('appointments.first_available') }}')">
   <form method="post">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if form.from_waitlist %}<input type="hidden" name="from_waitlist" value="{{ form.from_waitlist }}">{% endif %}
+    {% if booking_request %}<input type="hidden" name="from_request" value="{{ booking_request.id }}">{% endif %}
     {# `gap: 0 18px` on `.form-grid` means no row gap at all, so rows of very
        different heights — the patient picker with its results list open, and
        a plain date box — ran into each other. Row spacing is set here rather

@@ -21,6 +21,8 @@ from app.models.appointment import (
 from app.models.doctor_schedule import WEEKDAY_ORDER, DoctorSchedule
 from app.models.schedule_exception import ScheduleException
 from app.models.waitlist import WAITLIST_STATUSES, WaitlistEntry
+from app.models.booking_request import (REQUEST_SOURCES, REQUEST_STATUSES,
+                                        BookingRequest)
 from app.models.clinic_room import ClinicRoom, RoomAssignment
 from app.models.nursing_station import NursingStation
 from app.models.vaccine_plan import VaccinePlanItem
@@ -496,6 +498,9 @@ __all__ = [
     "STATUS_TRANSITIONS",
     "ScheduleException",
     "WaitlistEntry",
+    "BookingRequest",
+    "REQUEST_STATUSES",
+    "REQUEST_SOURCES",
     "WAITLIST_STATUSES",
     "WEEKDAY_ORDER",
     "VISIT_STATUSES",

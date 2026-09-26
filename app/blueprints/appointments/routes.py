@@ -26,6 +26,7 @@ from app.models import (
     Patient,
     ScheduleException,
     Setting,
+    BookingRequest,
     VaccineBrand,
     WaitlistEntry,
 )
@@ -47,6 +48,7 @@ from app.utils.appointments import (
     slot_duration,
 )
 from app.utils import appt_reminder as reminders
+from app.utils import booking_requests
 from app.utils import no_show
 from app.utils import patient_flags as flags
 from app.utils.clock import local_now, local_today
@@ -153,6 +155,9 @@ def index():
                    WaitlistEntry.doctor_id.is_(None))
         )
     waitlist = wl_query.order_by(WaitlistEntry.created_at).all()
+    # Families who asked and are waiting for an answer — a count on the
+    # board, because the board is where the desk already is.
+    requests_waiting = len(booking_requests.pending(doctor_id))
 
     # The booking that was just made, when the desk may collect and there is
     # something to collect. Read from the URL rather than the session so a
@@ -179,6 +184,7 @@ def index():
         current_summary=current_summary,
         clinics=clinics,
         waitlist=waitlist,
+        requests_waiting=requests_waiting,
         appt_types=APPOINTMENT_TYPES,
         pay=pay,
         flags=flags,
@@ -553,6 +559,8 @@ def create():
                 services=_bookable_services(),
                 doctor_marks=_doctor_marks(),
                 vaccination_service_id=_vaccination_service_id(),
+                booking_request=_open_request(
+                    request.form.get("from_request", type=int)),
             )
 
         appt = Appointment(
@@ -583,6 +591,12 @@ def create():
             if entry and entry.status == "active":
                 entry.status = "booked"
                 entry.appointment_id = appt.id
+        # Or from a family's request: it is answered by this booking.
+        req_id = request.form.get("from_request", type=int)
+        if req_id:
+            booking_requests.booked(db.session.get(BookingRequest, req_id),
+                                    appt, current_user,
+                                    ip_address=client_ip())
         # Queue the day-before reminder. Declines quietly for every ordinary
         # reason (manual mode, type off, no phone, booked for later today) —
         # the reminder's settings card is where those are explained, not a
@@ -627,6 +641,7 @@ def create():
         "doctor_id": request.args.get("doctor_id", ""),
         "appt_type": _appt_type(request.args.get("appt_type", "")),
         "from_waitlist": request.args.get("from_waitlist", ""),
+        "from_request": request.args.get("from_request", ""),
         # Opens on today rather than empty. Almost every booking a desk makes
         # is for today or the next few days, and an empty date box means the
         # slot list below it can say nothing at all until somebody fills it —
@@ -646,7 +661,18 @@ def create():
         doctor_marks=_doctor_marks(),
         vaccination_service_id=_vaccination_service_id(),
         booking_open=is_open,
+        booking_request=_open_request(
+            request.args.get("from_request", type=int)),
     )
+
+
+def _open_request(request_id):
+    """The request this booking answers, while it is still waiting — shown
+    above the form so the desk books what the family asked for."""
+    if not request_id:
+        return None
+    row = db.session.get(BookingRequest, request_id)
+    return row if row is not None and row.status == "pending" else None
 
 
 def _doctor_options(doctors):
@@ -917,6 +943,87 @@ def waitlist_book(entry_id):
         doctor_id=entry.doctor_id or "", appt_type=entry.appt_type or "",
         from_waitlist=entry.id,
     ))
+
+
+# ------------------------------------------------------------ requests ----
+@appointments_bp.route("/requests")
+@module_required(MODULE)
+def requests_page():
+    """Families who asked for an appointment and have not been given one.
+
+    Oldest first, because the one who has waited longest is the one to
+    answer first. Booking opens the ordinary booking screen with the request
+    beside it; declining asks why. Nothing here writes to the family.
+    """
+    doctor_id = request.args.get("doctor_id", type=int)
+    return render_template(
+        "appointments/requests.html",
+        pending=booking_requests.pending(doctor_id),
+        decided=booking_requests.recent_decisions(),
+        doctors=list_doctors(), doctor_id=doctor_id,
+        appt_types=APPOINTMENT_TYPES, today=local_today().isoformat())
+
+
+@appointments_bp.route("/requests", methods=["POST"])
+@module_required(MODULE)
+def request_take():
+    """Write down what a family asked for — by phone, at the desk, or read
+    off a message."""
+    try:
+        booking_requests.take(
+            current_user,
+            patient_id=request.form.get("patient_id", type=int),
+            contact_name=request.form.get("contact_name"),
+            contact_phone=request.form.get("contact_phone"),
+            doctor_id=request.form.get("doctor_id", type=int),
+            wanted_date=parse_date_arg(request.form.get("wanted_date"),
+                                       default=None),
+            appt_type=(_appt_type((request.form.get("appt_type") or "").strip())
+                       if (request.form.get("appt_type") or "").strip()
+                       else None),
+            message=request.form.get("message"),
+            ip_address=client_ip())
+    except ValueError:
+        flash(t("booking_requests.need_who"), "danger")
+        return redirect(url_for("appointments.requests_page"))
+    db.session.commit()
+    flash(t("booking_requests.taken"), "success")
+    return redirect(url_for("appointments.requests_page"))
+
+
+@appointments_bp.route("/requests/<int:request_id>/book")
+@module_required(MODULE)
+def request_book(request_id):
+    """Answer a request with a booking: the ordinary booking screen, filled
+    in from what the family asked for."""
+    row = db.get_or_404(BookingRequest, request_id)
+    if row.status != "pending":
+        flash(t("booking_requests.already_decided"), "info")
+        return redirect(url_for("appointments.requests_page"))
+    return redirect(url_for(
+        "appointments.create", patient_id=row.patient_id or "",
+        doctor_id=row.doctor_id or "", appt_type=row.appt_type or "",
+        date=row.wanted_date.isoformat() if row.wanted_date else "",
+        from_request=row.id))
+
+
+@appointments_bp.route("/requests/<int:request_id>/decline", methods=["POST"])
+@module_required(MODULE)
+def request_decline(request_id):
+    row = db.get_or_404(BookingRequest, request_id)
+    try:
+        done = booking_requests.decline(row, current_user,
+                                        request.form.get("reason"),
+                                        ip_address=client_ip())
+    except ValueError:
+        flash(t("booking_requests.need_reason"), "danger")
+        return redirect(url_for("appointments.requests_page"))
+    if done is None:
+        flash(t("booking_requests.already_decided"), "info")
+    else:
+        db.session.commit()
+        flash(t("booking_requests.declined"), "info")
+    return redirect(url_for("appointments.requests_page"))
 
 
 @appointments_bp.route("/patient-search")

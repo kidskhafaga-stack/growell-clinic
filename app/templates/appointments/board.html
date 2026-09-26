@@ -147,6 +147,9 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('visits.station') }}">
       <i class="bi bi-heart-pulse"></i> {{ t('dashboard.vitals_station') }}</a>
     {% endif %}
+    <a class="btn btn-outline gc-press" data-requests-link href="{{ url_for('appointments.requests_page', doctor_id=doctor_id) }}">
+      <i class="bi bi-inbox"></i> {{ t('booking_requests.title') }}
+      {% if requests_waiting %}<span class="badge" data-requests-waiting="{{ requests_waiting }}" style="background:var(--danger);color:#fff;">{{ requests_waiting }}</span>{% endif %}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('appointments.schedules', doctor_id=doctor_id) }}">
       <i class="bi bi-calendar2-week"></i> {{ t('appointments.manage_schedules') }}</a>
     <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('appointments.create') }}">
