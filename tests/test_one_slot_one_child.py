@@ -107,6 +107,9 @@ def slow_to_answer(monkeypatch):
         return answer
 
     monkeypatch.setattr(appointments, "taken_times", taken_times)
+    # And where the status button asks it, which imported it by name.
+    from app.blueprints.appointments import routes
+    monkeypatch.setattr(routes, "taken_times", taken_times)
 
 
 def _together(n, work):
@@ -317,3 +320,95 @@ def test_a_refused_booking_does_not_hold_up_the_other_desks(diary, monkeypatch):
         "appt_type": "followup"})               # before the doctor starts
     assert reply.status_code == 200
     assert others == ["saved"]
+
+
+# ------------------------------------------------------------ bringing back ----
+def _book_row(diary, kid, on_date, hhmm, status="scheduled"):
+    from app.extensions import db
+    from app.models import Appointment
+
+    hour, minute = (int(x) for x in hhmm.split(":"))
+    with diary["app"].app_context():
+        appt = Appointment(patient_id=diary["kids"][kid],
+                           doctor_id=diary["doctor"], appt_date=on_date,
+                           appt_time=time(hour, minute), appt_type="followup",
+                           status=status)
+        db.session.add(appt)
+        db.session.commit()
+        return appt.id
+
+
+def _status(diary, appt_id):
+    from app.extensions import db
+    from app.models import Appointment
+
+    with diary["app"].app_context():
+        return db.session.get(Appointment, appt_id).status
+
+
+def _bring_back(client, appt_id):
+    return client.post(f"/appointments/{appt_id}/status",
+                       data={"status": "scheduled"}, follow_redirects=True)
+
+
+def _reopen_refused(diary):
+    from app.i18n import t
+
+    with diary["app"].test_request_context():
+        return t("appointments.reopen_slot_taken")
+
+
+def test_a_cancelled_booking_whose_time_was_given_away_stays_cancelled(diary):
+    """Cancelled at ten; somebody else was booked at ten; bringing the first
+    one back would have put two children in one slot."""
+    day = diary["tomorrow"]
+    first = _book_row(diary, 0, day, "10:00", status="cancelled")
+    _book_row(diary, 1, day, "10:00")
+    client = diary["sign_in"]("desk0")
+    page = _bring_back(client, first).get_data(as_text=True)
+    assert _status(diary, first) == "cancelled"
+    assert _reopen_refused(diary) in page
+    assert _at(diary, day, "10:00") == ["10:00"]
+
+
+def test_a_missed_booking_whose_time_was_given_away_stays_missed(diary):
+    day = diary["tomorrow"]
+    missed = _book_row(diary, 0, day, "11:00", status="no_show")
+    _book_row(diary, 1, day, "11:00")
+    _bring_back(diary["sign_in"]("desk0"), missed)
+    assert _status(diary, missed) == "no_show"
+
+
+def test_a_cancelled_booking_whose_time_is_still_free_comes_back(diary):
+    day = diary["tomorrow"]
+    first = _book_row(diary, 0, day, "10:00", status="cancelled")
+    _book_row(diary, 1, day, "10:15")                 # next door, not a clash
+    _bring_back(diary["sign_in"]("desk0"), first)
+    assert _status(diary, first) == "scheduled"
+
+
+def test_a_missed_booking_comes_back_after_its_hour(diary):
+    """Marked absent at nine, walks in at ten: the hour having gone is not a
+    reason to refuse — only another child in the slot is."""
+    from app.utils.clock import local_today
+
+    today = local_today()
+    missed = _book_row(diary, 0, today, "00:00", status="no_show")
+    _bring_back(diary["sign_in"]("desk0"), missed)
+    assert _status(diary, missed) == "scheduled"
+
+
+def test_two_cancelled_bookings_brought_back_at_once(diary, slow_to_answer):
+    """Two cancelled at the same ten o'clock, brought back by two desks in
+    the same instant: one of them."""
+    day = diary["tomorrow"]
+    ids = [_book_row(diary, i, day, "10:00", status="cancelled")
+           for i in range(2)]
+    desks = [diary["sign_in"](f"desk{i}") for i in range(2)]
+
+    def bring_back(i):
+        return desks[i].post(f"/appointments/{ids[i]}/status",
+                             data={"status": "scheduled"})
+
+    _together(2, bring_back)
+    assert sorted(_status(diary, i) for i in ids) == ["cancelled", "scheduled"]

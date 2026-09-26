@@ -47,6 +47,7 @@ from app.utils.appointments import (
     next_available,
     parse_date_arg,
     slot_duration,
+    taken_times,
 )
 from app.utils import appt_reminder as reminders
 from app.utils import booking_requests
@@ -1220,6 +1221,19 @@ def change_status(appt_id):
     if not Appointment.valid_status(new_status) or not appt.can_transition_to(new_status):
         flash(t("appointments.invalid_transition"), "warning")
         return _back_to_board(appt)
+
+    # Bringing back a cancelled or missed booking puts it in its old time
+    # again — and the time may have been given to somebody else since. Only
+    # a clash stops it: the hour having gone by does not, because the usual
+    # case is a family marked absent at nine who walks in at ten.
+    if new_status == "scheduled" and appt.status in ("cancelled", "no_show"):
+        hold_the_diary(appt.doctor_id)
+        clash = appt.time_label in taken_times(
+            appt.doctor_id, appt.appt_date, exclude_id=appt.id)
+        if clash:
+            db.session.rollback()
+            flash(t("appointments.reopen_slot_taken"), "danger")
+            return _back_to_board(appt)
 
     # Capture an optional reason when cancelling or marking a no-show.
     if new_status in ("cancelled", "no_show"):
