@@ -627,7 +627,28 @@ def auto_backup_if_due():
         today = datetime.now()
         if today.hour < hour:
             return None
+    except Exception:  # noqa: BLE001 - a failed backup must never break a request
+        return None
 
+    # Claimed before it is asked whether one is due. With ``WORKERS`` every
+    # process keeps its own five-minute throttle, so at two in the morning
+    # each of them would find tonight's backup missing and take it — every
+    # photo the clinic has, copied four times over at once. The one holding
+    # the claim takes it; the others find it taken when they next look.
+    try:
+        claim = _claim("auto-backup")
+    except Exception:  # noqa: BLE001 - no folder to claim in: no backup either
+        return None
+    if claim is None:
+        return None
+    try:
+        return _auto_backup_now(every, full_every)
+    finally:
+        _release(claim)
+
+
+def _auto_backup_now(every, full_every):
+    try:
         # Two rhythms, because the halves have different natures: the database
         # changes every minute and is small; the pictures barely change and are
         # large. One schedule for both means copying gigabytes nightly to catch
@@ -648,6 +669,48 @@ def auto_backup_if_due():
         return None
     except Exception:  # noqa: BLE001 - a failed backup must never break a request
         return None
+
+
+#: A claim older than this is from a process that died holding it. Longer
+#: than any full backup takes, so a slow one is never taken twice.
+_CLAIM_STALE_SECONDS = 3 * 60 * 60
+
+
+def _claim(name, now=None):
+    """Take a claim only one process can hold, or ``None`` if another has it.
+
+    A file created with "only if it is not already there", which every
+    operating system this runs on does in one step — the database is not
+    used, because a copy whose licence has lapsed can write nothing to it
+    and must still be backed up."""
+    import time as _time
+
+    path = os.path.join(backup_dir(), f".{name}.claim")
+    now = _time.time() if now is None else now
+    for _attempt in (1, 2):
+        try:
+            handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            try:
+                if now - os.path.getmtime(path) < _CLAIM_STALE_SECONDS:
+                    return None
+                os.remove(path)             # left by a process that died
+            except OSError:
+                return None
+            continue
+        except OSError:
+            return None
+        os.write(handle, str(os.getpid()).encode())
+        os.close(handle)
+        return path
+    return None
+
+
+def _release(path):
+    try:
+        os.remove(path)
+    except OSError:
+        pass
 
 
 def restore_backup(name, password=None):

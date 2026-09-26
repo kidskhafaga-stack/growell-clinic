@@ -78,5 +78,33 @@ class Setting(db.Model):
             forget("settings:group:" + key.split(":", 1)[0])
         return row
 
+    @classmethod
+    def swap(cls, key, expected, value):
+        """Set ``key`` to ``value`` only if it still holds ``expected``
+        (``None``: only if there is no such row yet). True if this call did.
+
+        For a turn that must be taken once: two requests — two threads, or
+        two server processes — that both read "not yet" and both write "now"
+        would both believe it was theirs. Asked in one statement, only one
+        of them finds the old value still there.
+        """
+        from sqlalchemy.exc import IntegrityError
+
+        from app.utils.request_cache import forget
+
+        forget(f"setting:{key}")
+        if expected is None:
+            try:
+                with db.session.begin_nested():
+                    db.session.add(cls(key=key, value=str(value)))
+            except IntegrityError:
+                return False                # somebody made it first
+            return True
+        changed = (cls.query.filter(cls.key == key, cls.value == expected)
+                   .update({"value": str(value),
+                            "updated_at": datetime.utcnow()},
+                           synchronize_session=False))
+        return changed == 1
+
     def __repr__(self):
         return f"<Setting {self.key}={self.value!r}>"

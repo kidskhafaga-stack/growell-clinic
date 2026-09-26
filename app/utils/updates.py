@@ -167,7 +167,10 @@ def hand_off():
     script = os.path.join(_root(), HANDOFF)
     try:
         subprocess.Popen(
-            ["cmd", "/c", "start", "", script, str(os.getpid())],
+            # The process to wait for is the first one when there are
+            # several (``WORKERS``): it closes the others before it goes,
+            # so once it has gone none of them is left holding a file.
+            ["cmd", "/c", "start", "", script, str(_program_pid())],
             cwd=_root(), close_fds=True,
             creationflags=(getattr(subprocess, "DETACHED_PROCESS", 0)
                            | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)),
@@ -175,6 +178,12 @@ def hand_off():
     except Exception:  # noqa: BLE001 — a failed hand-off leaves the clinic up
         return False
     return True
+
+
+def _program_pid():
+    from app.utils.workers import master_pid
+
+    return master_pid()
 
 
 def close_after(seconds=3):
@@ -195,7 +204,14 @@ def close_after(seconds=3):
     def _go():
         import time
 
+        from app.utils.workers import ask_everyone_to_close
+
         time.sleep(seconds)
+        # One of several: the first process closes them all, itself last —
+        # this one going alone would leave the rest serving old code while
+        # the updater replaced it.
+        if ask_everyone_to_close():
+            return
         os._exit(0)
 
     threading.Thread(target=_go, daemon=True).start()
