@@ -25,6 +25,11 @@ PAYMENT_METHODS = ["cash", "card", "instapay", "transfer", "wallet"]
 
 class Invoice(db.Model):
     __tablename__ = "invoices"
+    # One doctor's day or month of bills — the collection card on their
+    # board. See ``Appointment``'s index of the same shape.
+    __table_args__ = (
+        db.Index("ix_invoices_doctor_date", "doctor_id", "invoice_date"),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     invoice_number = db.Column(db.String(40), unique=True, nullable=False, index=True)
@@ -68,7 +73,10 @@ class Invoice(db.Model):
     discount_name = db.Column(db.String(120))
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
-    invoice_date = db.Column(db.Date, default=local_today, nullable=False)
+    # Indexed: the day board's collection card and every report by date ask
+    # for a day's or a month's invoices, and a hospital has a year of them.
+    invoice_date = db.Column(db.Date, default=local_today, nullable=False,
+                             index=True)
     status = db.Column(db.String(10), default="unpaid", nullable=False)
 
     # ---- and whether accounts have signed it off ------------------------

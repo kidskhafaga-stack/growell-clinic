@@ -25,6 +25,25 @@ def clamp_print_scale(value, fallback=100):
     return max(PRINT_SCALE_MIN, min(PRINT_SCALE_MAX, pct))
 
 
+def grants_key(user_id):
+    """The request-cache key for one person's grants."""
+    return f"grants:{user_id}"
+
+
+def _grants_pending():
+    """Whether this session holds a grant added or removed but not yet
+    written — the old query would have flushed it and seen it, so the
+    remembered answer must not be given instead."""
+    try:
+        from app.models.user_capability import UserCapability
+
+        session = db.session()
+        return any(isinstance(o, UserCapability)
+                   for o in (*session.new, *session.deleted))
+    except Exception:                                       # pragma: no cover
+        return False
+
+
 class User(UserMixin, db.Model):
     __tablename__ = "users"
 
@@ -326,16 +345,31 @@ class User(UserMixin, db.Model):
 
     @property
     def granted_capabilities(self):
-        """Capabilities given to this person beyond their role."""
-        try:
-            from app.models.user_capability import UserCapability
+        """Capabilities given to this person beyond their role.
 
-            rows = UserCapability.query.filter_by(user_id=self.id).all()
-            return {row.capability for row in rows}
-        except Exception:                                   # pragma: no cover
-            # A permission screen is not worth a 500, and falling back to the
-            # role alone is the safe direction: it can only ever allow less.
-            return set()
+        Read once per request, like the role: ``can`` asks it for every
+        button on every row, and a doctor's day board at a hospital asked
+        eighty times to draw one page. A grant or a revocation made in the
+        same request is seen at once (``user_capability`` forgets on write,
+        and one not yet written is never answered from memory).
+        """
+        from app.utils.request_cache import remember
+
+        def load():
+            try:
+                from app.models.user_capability import UserCapability
+
+                rows = UserCapability.query.filter_by(user_id=self.id).all()
+                return frozenset(row.capability for row in rows)
+            except Exception:                               # pragma: no cover
+                # A permission screen is not worth a 500, and falling back to
+                # the role alone is the safe direction: it can only ever allow
+                # less.
+                return frozenset()
+
+        if _grants_pending():
+            return set(load())
+        return set(remember(grants_key(self.id), load))
 
     @property
     def modules(self):

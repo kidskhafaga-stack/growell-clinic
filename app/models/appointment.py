@@ -59,6 +59,12 @@ STATUS_TRANSITIONS = {
 
 class Appointment(db.Model):
     __tablename__ = "appointments"
+    # One doctor's day or month. Asked by the doctor's own board on every
+    # draw; with the two single-column indexes the database walked all of
+    # the doctor's appointments since the clinic opened to find this month.
+    __table_args__ = (
+        db.Index("ix_appointments_doctor_date", "doctor_id", "appt_date"),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(

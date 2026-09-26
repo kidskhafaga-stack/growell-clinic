@@ -786,6 +786,11 @@ def apply_schema(report=None):
     applied += _add_columns_the_models_expect(
         inspect(db.engine), existing_tables, report)
     db.session.commit()
+    # And the indexes: a column that arrived through the list or the loop
+    # above came without the index its model asks for, and so did an index
+    # added to a column that was already there. Not counted in ``applied`` —
+    # an index changes how fast a question is answered, never the answer.
+    _add_indexes_the_models_expect(inspect(db.engine), existing_tables, report)
 
     # A new table can hold what an old settings key used to. The About page
     # kept one "medical supervisor" in three settings; it now keeps a list of
@@ -958,6 +963,46 @@ def _add_columns_the_models_expect(inspector, existing_tables, report=None):
             if report:
                 report(f"  + {table_name}.{column.name} (from the model)")
     return added
+
+
+def _add_indexes_the_models_expect(inspector, existing_tables, report=None):
+    """Create any plain index a model declares that the database lacks.
+
+    ``create_all`` makes a table's indexes only when it makes the table, so a
+    clinic whose ``invoices`` table is two years old never got an index added
+    to the model since — and a hospital's month of invoices was being found
+    by reading all of them.
+
+    **Never a unique one.** A unique index on a table that already holds a
+    duplicate fails, and a start-up that fails over a speed-up is the wrong
+    trade; the model's unique rules stay where they were. Each index on its
+    own, so one that cannot be built leaves the rest to be.
+    """
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from app.extensions import db
+
+    made = 0
+    for table_name, table in db.metadata.tables.items():
+        if table_name not in existing_tables:
+            continue                    # create_all just made it, in full
+        have = {ix["name"] for ix in inspector.get_indexes(table_name)}
+        columns = {c["name"] for c in inspector.get_columns(table_name)}
+        for index in table.indexes:
+            if index.unique or index.name in have:
+                continue
+            if any(c.name not in columns for c in index.columns):
+                continue                # the column itself could not be added
+            try:
+                index.create(db.engine, checkfirst=True)
+            except SQLAlchemyError as exc:
+                if report:
+                    report(f"  ! {index.name}: {exc}")
+                continue
+            made += 1
+            if report:
+                report(f"  + {index.name}")
+    return made
 
 
 def _literal_default(column):
