@@ -203,6 +203,34 @@ def available_slots(doctor_id, on_date, exclude_id=None):
     return sorted(slots)
 
 
+def hold_the_diary(doctor_id):
+    """Keep this doctor's diary to this request until it commits.
+
+    Booking is "is the slot free?" and then "write it", and two desks that ask
+    in the same instant both hear yes: six receptionists booking one doctor's
+    nine o'clock at once made five appointments at nine o'clock
+    (``docs/LOAD_TEST.md``). The check was right; it was only asked before
+    anybody had written.
+
+    So the order is turned round, as ``sequences.claim`` does for numbers:
+    something is written first, and the slot is asked after. The write is a
+    harmless one to the doctor's own row. On SQLite it takes the database's
+    write lock, so a second desk waits — for milliseconds — until the first
+    booking is saved, and then finds the slot taken. On a database that locks
+    by row it holds that doctor's row, so two desks booking two different
+    doctors do not wait for each other.
+
+    Call it before asking what is free, and roll back or commit soon after:
+    the lock is held until then.
+    """
+    from sqlalchemy import text
+
+    if doctor_id:
+        db.session.execute(
+            text("UPDATE users SET is_active = is_active WHERE id = :doctor"),
+            {"doctor": doctor_id})
+
+
 def next_available(doctor_id, from_date=None, days=LOOKAHEAD_DAYS):
     """First free slot for a doctor scanning forward from ``from_date``.
 

@@ -42,6 +42,7 @@ from app.utils.appointments import (
     consult_window_days,
     consultation_window,
     first_available_doctor,
+    hold_the_diary,
     list_doctors,
     next_available,
     parse_date_arg,
@@ -540,6 +541,9 @@ def create():
         reason = (request.form.get("reason") or "").strip()
         appt_type = _appt_type((request.form.get("appt_type") or "").strip())
 
+        # Held before the slot is asked about, so a desk booking the same
+        # time in the same instant waits for this one and is told it is gone.
+        hold_the_diary(doctor_id)
         error = _validate_booking(patient_id, doctor_id, on_date, slot)
         # A payment block stops the booking unless somebody with financial
         # authority says otherwise on this booking, and that override is
@@ -556,6 +560,9 @@ def create():
                     entity="patient", entity_id=patient_id,
                     ip_address=client_ip())
         if error:
+            # Let go of the diary before drawing the form again: nothing was
+            # written, and every other desk is waiting on it.
+            db.session.rollback()
             flash(error, "danger")
             chosen = db.session.get(Patient, patient_id) if patient_id else None
             return render_template(
@@ -832,7 +839,9 @@ def reschedule(appt_id):
     if new_date < local_today():
         flash(t("appointments.date_in_past"), "danger")
         return _back_to_board(appt)
-    # The slot must be free (ignoring this appointment itself).
+    # The slot must be free (ignoring this appointment itself) — asked with
+    # the new doctor's diary held, like a booking.
+    hold_the_diary(new_doctor)
     if new_slot not in available_slots(new_doctor, new_date, exclude_id=appt.id):
         flash(t("appointments.slot_taken"), "danger")
         return _back_to_board(appt)
@@ -876,6 +885,9 @@ def walk_in():
     # local time was being stamped with yesterday and never reached the
     # doctor's station, which asks for local_today().
     today = local_today()
+    # Two walk-ins for one doctor at once were both given the same next
+    # slot. Held first, the second is given the one after.
+    hold_the_diary(doctor_id)
     spot = next_available(doctor_id, today, days=1)
     if spot:
         appt_time = datetime.strptime(spot["time"], "%H:%M").time()
