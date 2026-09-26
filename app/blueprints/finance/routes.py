@@ -8,7 +8,8 @@ import calendar
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 
-from flask import abort, flash, g, redirect, render_template, request, url_for
+from flask import (abort, flash, g, has_request_context, redirect,
+                   render_template, request, url_for)
 from flask_login import current_user
 
 from app.blueprints.finance import finance_bp
@@ -2616,6 +2617,16 @@ def _vaccine_service_asked():
         if Service.query.filter_by(visit_type="vaccination").first() is None:
             svc.visit_type = "vaccination"
             _forget_asked("visit_type_service")
+        # Kept, when the screen that needed it only shows things. The booking
+        # form, the checkout and the invoice builder all ask for this service
+        # to draw themselves, and nothing they do is saved — so the row was
+        # made, its number handed to the page, and the row rolled away with
+        # the request. The page went on offering a service that did not
+        # exist, on every visit, and whatever was saved next took its number.
+        # A request that saves (a POST) commits it with everything else, as
+        # it always did.
+        if has_request_context() and request.method in ("GET", "HEAD"):
+            db.session.commit()
     return svc
 
 
