@@ -234,6 +234,40 @@ class Invoice(db.Model):
     def clinic_share_total(self):
         return round(self.total - self.doctor_share_total, 2)
 
+    @classmethod
+    def paid_and_share_for(cls, invoice_ids):
+        """``{invoice_id: (paid, doctor_share_total)}`` for many invoices, in
+        two queries and without loading a single invoice.
+
+        The same two numbers as the properties above, worked out the same
+        way — each invoice's payments (refunds negative) and each line's
+        commission, summed in the same order and rounded per invoice — so a
+        month's totals from here and from the loaded invoices cannot
+        disagree. The day board asked for them by loading every invoice of
+        the month with its lines and payments, several thousand objects, on
+        a screen the wall asks for every ten seconds.
+
+        ``invoice_ids`` may be a query of ids; an invoice with neither lines
+        nor payments is simply absent (both its numbers are nought).
+        """
+        paid, share = {}, {}
+        for invoice_id, kind, amount in (
+                db.session.query(Payment.invoice_id, Payment.kind,
+                                 Payment.amount)
+                .filter(Payment.invoice_id.in_(invoice_ids))
+                .order_by(Payment.invoice_id, Payment.id)):
+            paid.setdefault(invoice_id, []).append(
+                -(amount or 0) if kind == "refund" else (amount or 0))
+        for invoice_id, commission in (
+                db.session.query(InvoiceItem.invoice_id,
+                                 InvoiceItem.commission_amount)
+                .filter(InvoiceItem.invoice_id.in_(invoice_ids))
+                .order_by(InvoiceItem.invoice_id, InvoiceItem.id)):
+            share.setdefault(invoice_id, []).append(commission or 0)
+        return {invoice_id: (round(sum(paid.get(invoice_id, [])), 2),
+                             round(sum(share.get(invoice_id, [])), 2))
+                for invoice_id in set(paid) | set(share)}
+
     # --- one doctor's part of a bill several doctors worked on --------------
     #
     # An invoice used to belong to one doctor and these three questions had

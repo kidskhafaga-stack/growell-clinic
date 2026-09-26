@@ -208,7 +208,11 @@
 {% if current_user.role in ['doctor','admin','accountant'] or current_user.can('finance_manage') %}
 <div class="card gc-scale-in" style="margin-bottom:18px;">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
-    <h3 class="section-title" style="margin:0;"><i class="bi bi-cash-stack"></i> {{ t('appointments.collection_title') }}{% if doctor_id %} · {{ (doctors | selectattr('id','equalto',doctor_id) | first).display_name(current_lang) if doctors else '' }}{% endif %}</h3>
+    <h3 class="section-title" style="margin:0;"><i class="bi bi-cash-stack"></i> {{ t('appointments.collection_title') }}{#- A doctor id nobody on the list has — a doctor since deactivated, an
+       old link kept on a wall screen — is a board with no name here, not a
+       page that fails every ten seconds. -#}
+      {%- set named = (doctors or []) | selectattr('id', 'equalto', doctor_id) | list if doctor_id else [] %}
+      {%- if named %} · {{ named[0].display_name(current_lang) }}{% endif %}</h3>
     <span class="hint" style="margin:0;">{{ on_date }}</span>
   </div>
   <div class="fin-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
