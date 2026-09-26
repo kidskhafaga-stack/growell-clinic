@@ -1,0 +1,162 @@
+{% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
+{% set active_module = 'appointments' %}
+{% block title %}{{ t('booking_requests.title') }}{% endblock %}
+{% block page_heading %}{{ t('booking_requests.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-inbox"></i> {{ t('booking_requests.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('booking_requests.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index', doctor_id=doctor_id) }}">
+    <i class="bi bi-calendar3"></i> {{ t('appointments.today') }}</a>
+</div>
+
+{# Taking a request. The child if they are on file; otherwise who asked and a
+   number to call back — the form says which, and the server refuses a
+   request that names nobody. #}
+<details class="card gc-scale-in" {% if not pending %}open{% endif %}
+         x-data="{ q: '', results: [], chosen: null,
+                   async find() {
+                     if (this.q.trim().length < 2) { this.results = []; return; }
+                     const r = await fetch('{{ url_for('appointments.patient_search') }}?q=' + encodeURIComponent(this.q));
+                     this.results = (await r.json()).patients || [];
+                   } }">
+  <summary class="section-title" style="cursor:pointer;">
+    <i class="bi bi-plus-circle"></i> {{ t('booking_requests.take') }}</summary>
+  <form method="post" action="{{ url_for('appointments.request_take') }}" style="margin-top:12px;" data-request-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="patient_id" :value="chosen ? chosen.id : ''">
+
+    <div class="form-row">
+      <label>{{ t('booking_requests.child_on_file') }}</label>
+      <template x-if="chosen">
+        <div style="display:flex;gap:10px;align-items:center;">
+          <strong x-text="chosen.name"></strong>
+          <span class="num" style="color:var(--muted);" x-text="chosen.number"></span>
+          <button type="button" class="btn btn-outline btn-sm" x-on:click="chosen = null">{{ t('booking_requests.change') }}</button>
+        </div>
+      </template>
+      <div x-show="!chosen">
+        <input class="input" x-model="q" x-on:input.debounce.250ms="find()"
+               placeholder="{{ t('booking_requests.search_ph') }}" autocomplete="off">
+        <div x-show="results.length" style="border:1px solid var(--border);border-radius:8px;margin-top:4px;max-height:220px;overflow:auto;">
+          <template x-for="p in results" :key="p.id">
+            <button type="button" class="list-row" style="display:flex;gap:10px;width:100%;padding:6px 10px;background:none;border:0;text-align:start;cursor:pointer;"
+                    x-on:click="chosen = p; results = []; q = ''">
+              <span x-text="p.name"></span>
+              <span class="num" style="color:var(--muted);" x-text="p.number"></span>
+              <span style="color:var(--muted);" x-text="p.age"></span>
+            </button>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-grid" x-show="!chosen">
+      <div class="form-row"><label>{{ t('booking_requests.contact_name') }}</label>
+        <input class="input" name="contact_name" maxlength="120"></div>
+      <div class="form-row"><label>{{ t('booking_requests.contact_phone') }}</label>
+        <input class="input" name="contact_phone" maxlength="30" dir="ltr" inputmode="tel"></div>
+    </div>
+    <p class="hint" x-show="!chosen" style="margin-top:-4px;">{{ t('booking_requests.who_hint') }}</p>
+
+    <div class="form-grid">
+      {# The one doctor picker every screen uses; left empty is "any doctor",
+         which is how most families ask. #}
+      {{ pickers.doctor_picker('doctor_id', doctor_id,
+                               t('appointments.doctor') ~ ' — ' ~ t('appointments.any_doctor'),
+                               doctors=doctors, allow_all=True,
+                               autosubmit=False) }}
+      <div class="form-row"><label>{{ t('appointments.visit_type') }}</label>
+        <select class="select" name="appt_type">
+          <option value="">—</option>
+          {% for key in appt_types %}<option value="{{ key }}">{{ visit_type_label(key) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('booking_requests.wanted_date') }}</label>
+        <input class="input" type="date" name="wanted_date" min="{{ today }}"></div>
+    </div>
+    <div class="form-row"><label>{{ t('booking_requests.message') }}</label>
+      <textarea class="input" name="message" rows="3" placeholder="{{ t('booking_requests.message_ph') }}"></textarea></div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-check-lg"></i> {{ t('booking_requests.take') }}</button>
+  </form>
+</details>
+
+<div class="card gc-scale-in" style="animation-delay:.05s;">
+  <h2 class="section-title" style="margin:0 0 10px;">
+    <i class="bi bi-hourglass-split"></i> {{ t('booking_requests.waiting') }}
+    <span class="badge" data-requests-waiting="{{ pending|length }}">{{ pending|length }}</span></h2>
+  {% if pending %}
+  <table class="table">
+    <tbody>
+      {% for r in pending %}
+      <tr data-request="{{ r.id }}">
+        <td>
+          {% if r.patient %}
+          <a href="{{ url_for('patients.view', patient_id=r.patient_id) }}" style="color:inherit;font-weight:600;">{{ r.who(current_lang) }}</a>
+          <span class="num" style="color:var(--muted);">{{ r.patient.patient_number }}</span>
+          {% else %}
+          <strong>{{ r.contact_name }}</strong>
+          <span class="num" dir="ltr" style="color:var(--muted);">{{ r.contact_phone }}</span>
+          <span class="pill" style="font-size:.75rem;">{{ t('booking_requests.not_on_file') }}</span>
+          {% endif %}
+          {% if r.message %}<div style="color:var(--muted);font-size:.9rem;margin-top:4px;white-space:pre-wrap;">«{{ r.message }}»</div>{% endif %}
+        </td>
+        <td>{{ r.doctor.display_name(current_lang) if r.doctor else t('appointments.any_doctor') }}</td>
+        <td>{% if r.appt_type %}<span class="type-tag tt-{{ visit_type_color(r.appt_type) }}">{{ visit_type_label(r.appt_type) }}</span>{% endif %}</td>
+        <td class="num">{{ r.wanted_date or t('booking_requests.soonest') }}</td>
+        <td style="color:var(--muted);font-size:.85rem;">
+          {{ (r.requested_at|clinic_stamp) if r.requested_at else '' }}
+          {% if r.requester %}<br>{{ r.requester.display_name(current_lang) }}{% endif %}</td>
+        <td style="text-align:end;white-space:nowrap;">
+          <a class="btn btn-primary btn-sm gc-press" href="{{ url_for('appointments.request_book', request_id=r.id) }}">
+            <i class="bi bi-calendar-plus"></i> {{ t('booking_requests.book') }}</a>
+          <details style="display:inline-block;">
+            <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;">
+              <i class="bi bi-x-circle"></i> {{ t('booking_requests.decline') }}</summary>
+            <form method="post" action="{{ url_for('appointments.request_decline', request_id=r.id) }}" style="margin-top:6px;display:flex;gap:6px;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input class="input" name="reason" required maxlength="200" placeholder="{{ t('booking_requests.reason_ph') }}">
+              <button class="btn btn-outline btn-sm" type="submit">{{ t('booking_requests.decline') }}</button>
+            </form>
+          </details>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="placeholder-soft">{{ t('booking_requests.none_waiting') }}</div>
+  {% endif %}
+</div>
+
+{% if decided %}
+<div class="card gc-scale-in" style="animation-delay:.1s;">
+  <h2 class="section-title" style="margin:0 0 10px;"><i class="bi bi-clock-history"></i> {{ t('booking_requests.decided') }}</h2>
+  <table class="table">
+    <tbody>
+      {% for r in decided %}
+      <tr>
+        <td>{{ r.who(current_lang) }}</td>
+        <td>
+          {% if r.status == 'booked' %}
+          <span class="pill ok">{{ t('booking_requests.status_booked') }}</span>
+          {% if r.appointment %}<span class="num" style="color:var(--muted);">{{ r.appointment.appt_date }} {{ r.appointment.time_label }}</span>{% endif %}
+          {% else %}
+          <span class="pill warn">{{ t('booking_requests.status_declined') }}</span>
+          <span style="color:var(--muted);">{{ r.decline_reason }}</span>
+          {% endif %}
+        </td>
+        <td style="color:var(--muted);font-size:.85rem;">
+          {{ (r.decided_at|clinic_stamp) if r.decided_at else '' }}
+          {% if r.decider %} · {{ r.decider.display_name(current_lang) }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
