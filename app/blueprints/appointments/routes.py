@@ -262,10 +262,6 @@ def _visit_breakdown(doctor_id, on_date):
             db.session.query(Appointment.appt_type, db.func.count())
             .filter(*window).group_by(Appointment.appt_type).all()))
 
-    def children(window):
-        return {pid for (pid,) in db.session.query(Appointment.patient_id)
-                .filter(*window).distinct()}
-
     day_c = by_type(day_window)
     month_c = by_type(month_window)
     rows, seen = [], set()
@@ -279,20 +275,28 @@ def _visit_breakdown(doctor_id, on_date):
             rows.append({"key": k, "label": vt_label(k, lang), "color": "blue",
                          "day": day_c.get(k, 0), "month": month_c.get(k, 0)})
 
-    def _newold(pids, start):
+    seen_before = db.aliased(Appointment)
+
+    def _newold(window, start):
         """New = the patient's first-ever real visit (any doctor) falls inside
-        the window; otherwise they are a returning patient."""
-        if not pids:
+        the window; otherwise they are a returning patient.
+
+        Asked as "has a real visit before the window starts" — the same
+        thing, since every child counted has one inside it — and answered by
+        the database. The children were being fetched and sent back as a list,
+        which at a hospital is tens of thousands of numbers in one question,
+        and SQLite will not take more than 32,766 of them."""
+        kid = db.func.count(db.distinct(Appointment.patient_id))
+        total = db.session.query(kid).filter(*window).scalar() or 0
+        if not total:
             return {"new": 0, "old": 0, "total": 0}
-        firsts = dict(
-            db.session.query(Appointment.patient_id,
-                             db.func.min(Appointment.appt_date))
-            .filter(Appointment.patient_id.in_(pids),
-                    Appointment.status.notin_(("cancelled", "no_show")))
-            .group_by(Appointment.patient_id).all())
-        new = sum(1 for p in pids
-                  if firsts.get(p) and start <= firsts[p] <= on_date)
-        return {"new": new, "old": len(pids) - new, "total": len(pids)}
+        earlier = (db.session.query(seen_before.id)
+                   .filter(seen_before.patient_id == Appointment.patient_id,
+                           seen_before.status.notin_(("cancelled", "no_show")),
+                           seen_before.appt_date < start)
+                   .exists())
+        new = db.session.query(kid).filter(*window, ~earlier).scalar() or 0
+        return {"new": new, "old": total - new, "total": total}
 
     return {
         "enabled": True,
@@ -301,8 +305,8 @@ def _visit_breakdown(doctor_id, on_date):
         "rows": rows,
         "total": {"day": sum(day_c.values()),
                   "month": sum(month_c.values())},
-        "newold": {"day": _newold(children(day_window), on_date),
-                   "month": _newold(children(month_window), month_start)},
+        "newold": {"day": _newold(day_window, on_date),
+                   "month": _newold(month_window, month_start)},
     }
 
 

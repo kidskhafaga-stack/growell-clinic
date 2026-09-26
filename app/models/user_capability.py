@@ -24,6 +24,8 @@ remembers agreeing to.
 """
 from datetime import datetime
 
+from sqlalchemy import event
+
 from app.extensions import db
 
 
@@ -51,3 +53,15 @@ class UserCapability(db.Model):
 
     def __repr__(self):
         return f"<UserCapability u={self.user_id} {self.capability}>"
+
+
+@event.listens_for(UserCapability, "after_insert")
+@event.listens_for(UserCapability, "after_update")
+@event.listens_for(UserCapability, "after_delete")
+def _forget_the_grants(_mapper, _connection, target):
+    """``User.granted_capabilities`` remembers a person's grants for one
+    request; one written in that request must be seen by the rest of it."""
+    from app.models.user import grants_key
+    from app.utils.request_cache import forget
+
+    forget(grants_key(target.user_id))

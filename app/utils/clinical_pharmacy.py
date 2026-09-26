@@ -100,10 +100,19 @@ def board(kind=None, on_date=None):
     screen is to find who has been missed, and a list that buries them among
     the ones already done is a list that gets read from the top and abandoned.
     """
+    from sqlalchemy.orm import selectinload
+
     from app.utils import drug_round
+    from app.models.admission import BedStay
     from app.models.place import Bed, Space, Unit
 
+    # The child, the bed and the unit it stands in, for every stay at once:
+    # asked one at a time they were three questions a bed, and a hospital's
+    # ward is fifty beds.
     stays = (Admission.query
+             .options(selectinload(Admission.patient),
+                      selectinload(Admission.stays).selectinload(BedStay.bed)
+                      .selectinload(Bed.space).selectinload(Space.unit))
              .filter(Admission.discharged_at.is_(None))
              .order_by(Admission.admitted_at).all())
     if kind:
