@@ -1,6 +1,14 @@
-"""A clinic two years into its life, made up from nothing.
+"""A clinic — or a hospital — two years into its life, made up from nothing.
 
     python -m tools.loadtest.fake_clinic loadtest.db [--patients 8000]
+    python -m tools.loadtest.fake_clinic hospital.db --profile hospital
+
+**The hospital** is the clinic's outpatient day at hospital size — twelve
+doctors, six at reception, three at the till, forty thousand children on
+file — and the part a clinic does not have: a ward, intensive care and an
+incubator unit, four in five beds taken, every child in them on three
+standing drug orders and with a blood count waiting at the lab. Its staff
+are the people who work those beds: nurses, pharmacists, ward doctors.
 
 Builds a **new** SQLite file — it refuses one that already exists, and it
 refuses the path the clinic itself is configured to use — and fills it with
@@ -44,6 +52,40 @@ STAFF = [("admin", "admin", "مدير التجربة"),
          ("doctor3", "doctor", "د. تالت"),
          ("cashier", "accountant", "الكاشير")]
 
+#: How big each kind of place is. ``doctors`` etc. are head counts; the
+#: hospital's beds are asked of the program's own ward builder.
+PROFILES = {
+    "clinic": {"patients": 8000, "doctors": 3, "reception": 2, "cashiers": 1,
+               "nurses": 0, "pharmacists": 0, "per_doctor_today": 40},
+    "hospital": {"patients": 40000, "doctors": 12, "reception": 6,
+                 "cashiers": 3, "nurses": 12, "pharmacists": 2,
+                 "per_doctor_today": 40,
+                 "beds": {"ward__rooms": "12", "ward__beds_per_room": "4",
+                          "icu__beds": "10", "nicu__incubators": "10"},
+                 "occupied": 0.8, "orders_per_child": 3},
+}
+HOSPITAL_MODULES = ("beds", "ward", "icu", "nicu", "observations",
+                    "pharmacy", "labs")
+
+
+def staff_for(profile):
+    """The people who work there: ``(username, role, name)``."""
+    if profile == "clinic":
+        return list(STAFF)
+    size = PROFILES[profile]
+    rows = [("admin", "admin", "مدير التجربة")]
+    rows += [(f"reception{i}", "reception", f"استقبال {i}")
+             for i in range(1, size["reception"] + 1)]
+    rows += [(f"doctor{i}", "doctor", f"د. {i}")
+             for i in range(1, size["doctors"] + 1)]
+    rows += [("cashier" if i == 1 else f"cashier{i}", "accountant",
+              f"الكاشير {i}") for i in range(1, size["cashiers"] + 1)]
+    rows += [(f"nurse{i}", "nursing", f"تمريض {i}")
+             for i in range(1, size["nurses"] + 1)]
+    rows += [(f"pharmacist{i}", "pharmacy", f"صيدلي {i}")
+             for i in range(1, size["pharmacists"] + 1)]
+    return rows
+
 
 def _refuse(path):
     """Why this path must not be built on, or ``None``."""
@@ -70,7 +112,8 @@ def _sequence(first):
     return first[:-digits], digits, int(first[-digits:])
 
 
-def build(path, patients=8000, seed=7, today=None, log=print):
+def build(path, patients=None, seed=7, today=None, log=print,
+          profile="clinic"):
     """Build the copy. Returns a summary dict."""
     why = _refuse(path)
     if why:
@@ -83,6 +126,9 @@ def build(path, patients=8000, seed=7, today=None, log=print):
     app = create_app("testing")
     assert os.path.abspath(path) in app.config["SQLALCHEMY_DATABASE_URI"]
     rnd = random.Random(seed)
+    size = PROFILES[profile]
+    patients = patients or size["patients"]
+    staff = staff_for(profile)
     with app.app_context():
         from app.models import (Appointment, Family, Invoice, InvoiceItem,
                                 Parent, Patient, Payment, Service, Setting,
@@ -96,6 +142,7 @@ def build(path, patients=8000, seed=7, today=None, log=print):
         # The clinic's day, which is what the screens filter today's list by.
         today = today or local_today()
         Setting.set(MARK, "1")
+        Setting.set("load_test_profile", profile)
         Setting.set("facility_configured", "1")
         # Collecting cash normally needs an open cashier shift; the test is
         # about the database under load, not the drawer, so the gate is off
@@ -109,14 +156,15 @@ def build(path, patients=8000, seed=7, today=None, log=print):
         ensure_seeded()
 
         people = {}
-        for username, role, name in STAFF:
+        for username, role, name in staff:
             user = User(username=username, full_name=name, role=role,
                         is_active=True, is_super_admin=(username == "admin"))
             user.set_password(PASSWORD)
             db.session.add(user)
             people[username] = user
         db.session.flush()
-        doctors = [people[f"doctor{i}"].id for i in (1, 2, 3)]
+        doctors = [people[f"doctor{i}"].id
+                   for i in range(1, size["doctors"] + 1)]
 
         exam = Service(name="كشف", category="consultation", price=250,
                        commission_type="percent", commission_value=40,
@@ -213,9 +261,11 @@ def build(path, patients=8000, seed=7, today=None, log=print):
         # the same day is a real thing, but it folds into one invoice by
         # design and would make "was this booking paid" a harder question
         # than the test is asking.
-        todays = iter(rnd.sample(range(patients), min(patients, 40 * len(doctors))))
+        per_doctor = size["per_doctor_today"]
+        todays = iter(rnd.sample(range(patients),
+                                 min(patients, per_doctor * len(doctors))))
         for d, doctor in enumerate(doctors):
-            for slot in range(40):
+            for slot in range(per_doctor):
                 today_rows.append({
                     "patient_id": first_child + next(todays),
                     "doctor_id": doctor, "appt_date": today,
@@ -226,19 +276,82 @@ def build(path, patients=8000, seed=7, today=None, log=print):
         db.session.execute(Appointment.__table__.insert(), today_rows)
         db.session.commit()
         log(f"  {len(today_rows)} appointments on today's list")
+
+        inpatients = 0
+        if profile == "hospital":
+            booked_today = {r["patient_id"] for r in today_rows}
+            inpatients = _the_wards(size, rnd, people, doctors, first_child,
+                                    patients, booked_today, log)
     return {"path": os.path.abspath(path), "patients": patients,
             "visits": visits, "today": len(today_rows),
-            "password": PASSWORD, "staff": [s[0] for s in STAFF]}
+            "inpatients": inpatients, "profile": profile,
+            "password": PASSWORD, "staff": [s[0] for s in staff]}
+
+
+def _the_wards(size, rnd, people, doctors, first_child, patients, busy, log):
+    """The beds, the children in them, their drug orders and their bloods —
+    made through the program's own ward builder, admission and ordering, so
+    the stays look exactly like ones the screens made."""
+    from app.extensions import db
+    from app.models import (Investigation, Setting, Visit,
+                            VisitInvestigation)
+    from app.models.place import Bed
+    from app.utils import beds as ward
+    from app.utils import drug_round, ward_plan
+
+    for module in HOSPITAL_MODULES:
+        Setting.set(f"mod_enabled:{module}", "1")
+    made = ward_plan.build(["ward", "icu", "nicu"], size["beds"],
+                           lambda key, number=None:
+                           f"{key} {number}" if number else key)
+    db.session.commit()
+    beds = Bed.query.order_by(Bed.id).all()
+    taken = int(len(beds) * size["occupied"])
+    cbc = Investigation(name_ar="صورة دم كاملة", kind="lab", is_active=True)
+    db.session.add(cbc)
+    db.session.flush()
+    free = [first_child + i for i in rnd.sample(range(patients),
+                                                taken + len(busy) + 10)
+            if first_child + i not in busy][:taken]
+    drugs = ("سيفترياكسون", "باراسيتامول", "محلول", "أموكسيسيللين",
+             "فنتولين", "أوميبرازول")
+    orders = 0
+    from app.models import Patient
+    for bed, child in zip(beds, free):
+        doctor = db.session.get(type(people["admin"]), rnd.choice(doctors))
+        patient = db.session.get(Patient, child)
+        visit = Visit(patient_id=child, doctor_id=doctor.id,
+                      visit_date=datetime.utcnow().date(), status="open",
+                      chief_complaint="حجز بالقسم")
+        db.session.add(visit)
+        db.session.flush()
+        stay = ward.admit(patient, bed, user=doctor, visit=visit,
+                          doctor_id=doctor.id, reason="التهاب رئوي")
+        for name in rnd.sample(drugs, size["orders_per_child"]):
+            drug_round.order(stay, name, user=doctor, dose="حسب الوزن",
+                             route="oral", every_hours=rnd.choice((6, 8, 12)))
+            orders += 1
+        db.session.add(VisitInvestigation(
+            visit_id=visit.id, patient_id=child, investigation_id=cbc.id,
+            kind="lab", name=cbc.name_ar, status="requested",
+            ordered_by=doctor.id))
+    db.session.commit()
+    log(f"  {made['beds']} beds in {made['units']} units; {taken} children "
+        f"admitted on {orders} drug orders, {taken} bloods at the lab")
+    return taken
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("path")
-    parser.add_argument("--patients", type=int, default=8000)
+    parser.add_argument("--patients", type=int, default=None)
     parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--profile", choices=sorted(PROFILES),
+                        default="clinic")
     args = parser.parse_args(argv)
     started = datetime.utcnow()
-    summary = build(args.path, patients=args.patients, seed=args.seed)
+    summary = build(args.path, patients=args.patients, seed=args.seed,
+                    profile=args.profile)
     took = (datetime.utcnow() - started).total_seconds()
     print(f"built {summary['path']} in {took:.0f}s")
     return 0

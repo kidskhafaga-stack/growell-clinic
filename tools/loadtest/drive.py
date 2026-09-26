@@ -14,9 +14,17 @@ between clicks:
 * **doctor** — takes the next child waiting for them, opens the visit, writes
   it up, writes a drug, sends the child out;
 * **cashier** — takes the next child the doctors sent out and collects;
-* **board** — the screen on the wall, asking every ten seconds.
+* **board** — the screen on the wall, doing what the real one does: asking
+  the cheap fingerprint (``/appointments/poll``) every twelve seconds, and
+  drawing the whole board again only when the answer changes.
 
-Stage 1 is the normal mix (2 reception, 3 doctors, 1 cashier, 2 boards).
+* **nurse**, **ward_doctor**, **pharmacist**, **lab** — on a hospital copy
+  (``fake_clinic --profile hospital``): the vitals round and a dose, the
+  ward round, checking a drug order, taking a sample and writing its result.
+
+Stage 1 is the normal mix — for a clinic 2 reception, 3 doctors, 1 cashier,
+2 boards; for a hospital, what a hospital of that size has on a weekday
+morning (``MIXES``).
 Each next stage multiplies everybody, until the slowest twentieth of
 responses passes ``--give-up-p95`` seconds or more than 5% fail — and then
 it stops, because the question is **how it breaks**, not whether.
@@ -44,7 +52,45 @@ from datetime import datetime
 import requests
 
 MARKER = "LOADTEST"      # written into every visit and drug the test saves
-MIX = (("reception", 2), ("doctor", 3), ("cashier", 1), ("board", 2))
+MIXES = {
+    "clinic": (("reception", 2), ("doctor", 3), ("cashier", 1), ("board", 2)),
+    "hospital": (("reception", 6), ("doctor", 12), ("cashier", 3),
+                 ("board", 6), ("nurse", 12), ("ward_doctor", 4),
+                 ("pharmacist", 2), ("lab", 2)),
+}
+MIX = MIXES["clinic"]
+
+
+def account(role, k, profile):
+    """Which of the copy's accounts the ``k``-th person in a role signs in
+    with — several people share one where the copy has fewer accounts."""
+    from tools.loadtest.fake_clinic import PROFILES
+
+    size = PROFILES[profile]
+    if role == "reception":
+        return f"reception{k % size['reception'] + 1}"
+    if role in ("doctor", "ward_doctor"):
+        return f"doctor{k % size['doctors'] + 1}"
+    if role == "cashier":
+        n = k % size["cashiers"] + 1
+        return "cashier" if n == 1 else f"cashier{n}"
+    if role in ("nurse", "lab"):
+        return f"nurse{k % size['nurses'] + 1}"
+    if role == "pharmacist":
+        return f"pharmacist{k % size['pharmacists'] + 1}"
+    return "admin"
+
+
+def profile_of(path):
+    con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        row = con.execute("SELECT value FROM settings WHERE key = ?",
+                          ("load_test_profile",)).fetchone()
+    except sqlite3.Error:
+        row = None
+    finally:
+        con.close()
+    return row[0] if row and row[0] in MIXES else "clinic"
 CSRF = re.compile(r'name="csrf_token"[^>]*value="([^"]+)"|'
                   r'<meta name="csrf-token" content="([^"]+)"')
 
@@ -87,6 +133,23 @@ class Harness:
         self.names = [r[0].split()[0] for r in con.execute(
             "SELECT full_name FROM patients LIMIT 400")]
         self.max_appt_seen = 0
+        # The wards, when there are any: the children in beds, and the work
+        # waiting on them — each drug order given once, each checked once,
+        # each blood taken and resulted once, however many people are at it.
+        try:
+            self.admissions = con.execute(
+                "SELECT id, patient_id FROM admissions "
+                "WHERE discharged_at IS NULL").fetchall()
+            orders = con.execute(
+                "SELECT id, admission_id FROM medication_orders "
+                "WHERE stopped_at IS NULL ORDER BY id").fetchall()
+            bloods = [r[0] for r in con.execute(
+                "SELECT id FROM visit_investigations "
+                "WHERE status = 'requested' AND kind = 'lab' ORDER BY id")]
+        except sqlite3.OperationalError:
+            self.admissions, orders, bloods = [], [], []
+        self.pools = {"dose": deque(orders), "verify": deque(orders),
+                      "lab": deque(bloods)}
         con.close()
         self.refresh()
 
@@ -124,6 +187,10 @@ class Harness:
                     self.taken.add(appt)
                     return appt, patient
         return None
+
+    def take(self, pool):
+        with self.lock:
+            return self.pools[pool].popleft() if self.pools[pool] else None
 
     def record(self, role, action, status, ms, kind):
         with self.lock:
@@ -215,8 +282,21 @@ class Person(threading.Thread):
                 self.think(1, 2)
 
     def as_board(self):
-        self.call("board", "GET", "/appointments/")
-        self.think(9, 11)
+        # `gcLivePoll` on the board page: the fingerprint every 12 s, the
+        # page only when it moved. This used to fetch the whole board every
+        # ten seconds, which is not what a wall screen does, and it counted
+        # the page's cost against every tick.
+        reply, kind = self.call("board_poll", "GET", "/appointments/poll")
+        fingerprint = None
+        if kind is None and reply is not None and reply.status_code == 200:
+            try:
+                fingerprint = reply.json().get("fp")
+            except ValueError:
+                fingerprint = None
+        if fingerprint is None or fingerprint != getattr(self, "seen", None):
+            self.call("board", "GET", "/appointments/")
+            self.seen = fingerprint
+        self.think(11, 13)
 
     def as_reception(self):
         self.call("patient_search", "GET", "/patients/?q=" +
@@ -280,6 +360,83 @@ class Person(threading.Thread):
         if kind is None and reply is not None and reply.status_code in (302, 303):
             self.h.to_pay.put(appt)
         self.think(2, 4)
+
+    # -- the wards --
+    def _saved(self, reply, kind):
+        return (kind is None and reply is not None
+                and reply.status_code in (302, 303))
+
+    def as_nurse(self):
+        self.call("ward_board", "GET", "/ward/")
+        if not self.h.admissions:
+            self.think(10, 20)
+            return
+        admission, patient = self.rnd.choice(self.h.admissions)
+        self.call("chart", "GET", f"/beds/admission/{admission}")
+        self.think(5, 10)                      # at the bedside
+        reply, kind = self.post("record_obs",
+                                f"/observations/patient/{patient}/record", {
+                                    "temperature_c": "37.8", "pulse_bpm": "118",
+                                    "resp_rate": "30", "spo2": "96",
+                                    "note": MARKER})
+        if self._saved(reply, kind):
+            self.h.done["record_obs"].append(patient)
+        self.think(3, 8)
+        order = self.h.take("dose")
+        if order:
+            reply, kind = self.post("give_dose",
+                                    f"/beds/medication/{order[0]}/dose",
+                                    {"outcome": "given", "note": MARKER})
+            if self._saved(reply, kind):
+                self.h.done["give_dose"].append(order[0])
+        self.think(15, 30)
+
+    def as_ward_doctor(self):
+        self.call("ward_board", "GET", "/ward/")
+        if not self.h.admissions:
+            self.think(10, 20)
+            return
+        admission, _patient = self.rnd.choice(self.h.admissions)
+        self.call("chart", "GET", f"/beds/admission/{admission}")
+        self.think(10, 20)                     # reading the chart
+        reply, kind = self.post("round", f"/beds/admission/{admission}/round", {
+            "trend": "stable", "assessment": f"{MARKER} مستقر",
+            "plan": "نفس العلاج"})
+        if self._saved(reply, kind):
+            self.h.done["round"].append(admission)
+        self.think(20, 40)
+
+    def as_pharmacist(self):
+        self.call("pharmacy_ward", "GET", "/pharmacy/ward")
+        order = self.h.take("verify")
+        if not order:
+            self.think(10, 20)
+            return
+        self.call("pharmacy_chart", "GET", f"/pharmacy/ward/{order[1]}")
+        self.think(5, 10)
+        reply, kind = self.post("verify", f"/pharmacy/order/{order[0]}/verify",
+                                {})
+        if self._saved(reply, kind):
+            self.h.done["verify"].append(order[0])
+        self.think(5, 15)
+
+    def as_lab(self):
+        self.call("lab_bench", "GET", "/labs/")
+        blood = self.h.take("lab")
+        if not blood:
+            self.think(10, 20)
+            return
+        reply, kind = self.post("collect", f"/labs/order/{blood}/collect",
+                                {"code": f"S{blood}"})
+        if not self._saved(reply, kind):
+            return
+        self.think(10, 20)                     # on the analyser
+        reply, kind = self.post("result", f"/labs/order/{blood}/result", {
+            "result_value": "11.2", "result_unit": "g/dL",
+            "result_low": "11", "result_high": "14"})
+        if self._saved(reply, kind):
+            self.h.done["result"].append(blood)
+        self.think(5, 10)
 
     def as_cashier(self):
         try:
@@ -397,9 +554,42 @@ def integrity(db, done, started_at):
             "no_journal": (len([v for v in present.values() if not v[2]])
                            if journal_on else None),
         }
+        _ward_integrity(con, done, out)
     finally:
         con.close()
     return out
+
+
+def _ward_integrity(con, done, out):
+    """The ward's work, checked the same way: said saved, and there."""
+    if not any(done.get(k) for k in ("record_obs", "give_dose", "round",
+                                     "verify", "result")):
+        return
+    obs = done.get("record_obs", [])
+    rows = con.execute("SELECT COUNT(*) FROM observations WHERE note = ?",
+                       (MARKER,)).fetchone()[0]
+    out["record_obs"] = {"said_done": len(obs),
+                         "missing": max(0, len(obs) - rows)}
+    given = set(done.get("give_dose", []))
+    there = {r[0] for r in con.execute(
+        "SELECT order_id FROM medication_doses WHERE note = ?", (MARKER,))}
+    out["give_dose"] = {"said_done": len(given),
+                        "missing": len(given - there)}
+    rounds = done.get("round", [])
+    rows = con.execute("SELECT COUNT(*) FROM round_notes WHERE assessment "
+                       "LIKE ?", (MARKER + "%",)).fetchone()[0]
+    out["round"] = {"said_done": len(rounds),
+                    "missing": max(0, len(rounds) - rows)}
+    checked = set(done.get("verify", []))
+    there = {r[0] for r in con.execute(
+        "SELECT id FROM medication_orders WHERE verified_at IS NOT NULL")}
+    out["verify"] = {"said_done": len(checked),
+                     "missing": len(checked - there)}
+    resulted = set(done.get("result", []))
+    there = {r[0] for r in con.execute(
+        "SELECT id FROM visit_investigations WHERE status = 'resulted'")}
+    out["result"] = {"said_done": len(resulted),
+                     "missing": len(resulted - there)}
 
 
 def ledger_gaps(db):
@@ -448,11 +638,13 @@ def run(db, out, threads=8, busy_ms=15000, stages=(1, 2, 4, 8, 16),
     server_log = os.path.join(out, "server.log")
     proc, base = start_server(db, port, threads, busy_ms, server_log)
     started_at = datetime.utcnow().isoformat(sep=" ")
+    profile = profile_of(db)
+    mix = MIXES[profile]
     h = Harness(db, base)
     results = {"config": {"threads": threads, "busy_ms": busy_ms,
                           "stage_seconds": stage_seconds, "cpus": os.cpu_count(),
                           "db_mb": round(os.path.getsize(db) / 2**20, 1),
-                          "mix": dict(MIX)},
+                          "profile": profile, "mix": dict(mix)},
                "stages": []}
     refresher_stop = threading.Event()
 
@@ -468,12 +660,10 @@ def run(db, out, threads=8, busy_ms=15000, stages=(1, 2, 4, 8, 16),
             h.stage = n
             h.stop.clear()
             people = []
-            for role, count in MIX:
+            for role, count in mix:
                 for k in range(count * mult):
                     address += 1
-                    name = {"reception": f"reception{k % 2 + 1}",
-                            "doctor": f"doctor{k % 3 + 1}",
-                            "cashier": "cashier", "board": "admin"}[role]
+                    name = account(role, k, profile)
                     people.append(Person(h, role, name,
                                          f"10.{address // 250}.{address % 250}.9",
                                          password))

@@ -198,30 +198,28 @@ def index():
 
 def _finance_summary(doctor_id, on_date):
     """Collection + doctor share for a doctor (or the whole clinic) — today and
-    month-to-date. Invoice-date based, matching the doctor statement screen."""
-    from sqlalchemy.orm import selectinload
+    month-to-date. Invoice-date based, matching the doctor statement screen.
 
+    The sums come from ``Invoice.paid_and_share_for`` — the properties'
+    own arithmetic without loading the month's invoices, their lines and
+    their payments as objects, which was a third of every board load.
+    """
     from app.models import Invoice
 
-    month_start = on_date.replace(day=1)
-    # The totals below are summed in Python from the lines and the payments,
-    # so without loading them up front this is two queries per invoice — and
-    # month-to-date on a working clinic is thousands of invoices.
-    base = Invoice.query.options(selectinload(Invoice.items),
-                                 selectinload(Invoice.payments))
-    if doctor_id:
-        base = base.filter(Invoice.doctor_id == doctor_id)
-
-    def agg(invoices):
+    def window(first, last):
+        ids = db.session.query(Invoice.id).filter(
+            Invoice.invoice_date >= first, Invoice.invoice_date <= last)
+        if doctor_id:
+            ids = ids.filter(Invoice.doctor_id == doctor_id)
+        totals = Invoice.paid_and_share_for(ids).values()
         return {
-            "collection": round(sum(i.paid for i in invoices), 2),
-            "share": round(sum(i.doctor_share_total for i in invoices), 2),
+            "collection": round(sum(paid for paid, _ in totals), 2),
+            "share": round(sum(share for _, share in totals), 2),
         }
 
     return {
-        "today": agg(base.filter(Invoice.invoice_date == on_date).all()),
-        "month": agg(base.filter(Invoice.invoice_date >= month_start,
-                                 Invoice.invoice_date <= on_date).all()),
+        "today": window(on_date, on_date),
+        "month": window(on_date.replace(day=1), on_date),
     }
 
 
@@ -250,16 +248,26 @@ def _visit_breakdown(doctor_id, on_date):
     month_start = on_date.replace(day=1)
 
     # Real visits only — a cancelled or no-show slot is not a patient seen.
-    base = Appointment.query.filter(
-        Appointment.status.notin_(("cancelled", "no_show")))
+    # Counted by the database: the month's appointments were being loaded
+    # as objects only to be counted.
+    real = [Appointment.status.notin_(("cancelled", "no_show"))]
     if doctor_id:
-        base = base.filter(Appointment.doctor_id == doctor_id)
-    day_appts = base.filter(Appointment.appt_date == on_date).all()
-    month_appts = base.filter(Appointment.appt_date >= month_start,
-                              Appointment.appt_date <= on_date).all()
+        real.append(Appointment.doctor_id == doctor_id)
+    day_window = real + [Appointment.appt_date == on_date]
+    month_window = real + [Appointment.appt_date >= month_start,
+                           Appointment.appt_date <= on_date]
 
-    day_c = Counter(a.appt_type for a in day_appts)
-    month_c = Counter(a.appt_type for a in month_appts)
+    def by_type(window):
+        return Counter(dict(
+            db.session.query(Appointment.appt_type, db.func.count())
+            .filter(*window).group_by(Appointment.appt_type).all()))
+
+    def children(window):
+        return {pid for (pid,) in db.session.query(Appointment.patient_id)
+                .filter(*window).distinct()}
+
+    day_c = by_type(day_window)
+    month_c = by_type(month_window)
     rows, seen = [], set()
     for vt in active_types():
         rows.append({"key": vt.key, "label": vt.display_name(lang),
@@ -271,10 +279,9 @@ def _visit_breakdown(doctor_id, on_date):
             rows.append({"key": k, "label": vt_label(k, lang), "color": "blue",
                          "day": day_c.get(k, 0), "month": month_c.get(k, 0)})
 
-    def _newold(appts, start):
+    def _newold(pids, start):
         """New = the patient's first-ever real visit (any doctor) falls inside
         the window; otherwise they are a returning patient."""
-        pids = {a.patient_id for a in appts}
         if not pids:
             return {"new": 0, "old": 0, "total": 0}
         firsts = dict(
@@ -292,9 +299,10 @@ def _visit_breakdown(doctor_id, on_date):
         "show_month": show_month,
         "show_newold": show_newold,
         "rows": rows,
-        "total": {"day": len(day_appts), "month": len(month_appts)},
-        "newold": {"day": _newold(day_appts, on_date),
-                   "month": _newold(month_appts, month_start)},
+        "total": {"day": sum(day_c.values()),
+                  "month": sum(month_c.values())},
+        "newold": {"day": _newold(children(day_window), on_date),
+                   "month": _newold(children(month_window), month_start)},
     }
 
 
