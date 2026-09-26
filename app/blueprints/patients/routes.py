@@ -1379,26 +1379,38 @@ def report(patient_id):
 def fhir_export(patient_id):
     """The child's record as a FHIR R4 file, to hand to whoever asked.
 
+    Two shapes of the same record: the whole of it (``?format=full``, the
+    default) or the International Patient Summary (``?format=ips``) — the
+    short document a hospital meeting the child for the first time reads.
+
     A download and nothing else: no port is opened and nothing is sent. The
     same people who may read the whole clinical file may take it away, and
-    every time they do the audit log says who, and whose record.
+    every time they do the audit log says who, whose record, and which shape.
     """
     from app.models import ActivityLog
     from app.utils import fhir_export as fhir
 
     patient = db.get_or_404(Patient, patient_id)
-    bundle = fhir.bundle_for(patient, getattr(g, "lang", "ar"))
+    lang = getattr(g, "lang", "ar")
+    shape = "ips" if request.args.get("format") == "ips" else "full"
+    if shape == "ips":
+        from app.utils.fhir_ips import ips_for
+
+        bundle = ips_for(patient, author=current_user, lang=lang)
+    else:
+        bundle = fhir.bundle_for(patient, lang)
     ActivityLog.record("patient.fhir_export", user_id=current_user.id,
                        entity="patient", entity_id=patient.id,
-                       detail=f"{len(bundle['entry'])} resources",
+                       detail=f"{shape}: {len(bundle['entry'])} resources",
                        ip_address=client_ip())
     db.session.commit()
     name = "".join(ch for ch in (patient.patient_number or str(patient.id))
                    if ch.isalnum() or ch in "-_") or str(patient.id)
+    suffix = "ips" if shape == "ips" else "fhir"
     return Response(
         fhir.dumps(bundle), mimetype=fhir.MEDIA_TYPE,
         headers={"Content-Disposition":
-                 f'attachment; filename="{name}-fhir.json"',
+                 f'attachment; filename="{name}-{suffix}.json"',
                  "Cache-Control": "no-store"})
 
 
