@@ -185,6 +185,16 @@ SECTIONS = [
              "said to the family until the booking is really made. \"Book\" "
              "opens the booking screen with all its checks, and \"Decline\" "
              "needs a reason."),
+            ("<b>البطاقة جنب كل طلب</b>: سنّ الطفل وآخر زيارة والتطعيم الجاي، "
+             "وتنبيه أحمر لو عنده ميعاد فعلاً، وجنبها <b>أقرب ميعاد فاضي</b> مع "
+             "الدكتور المطلوب (أو أول دكتور فاضي). «احجز الميعاد ده» بيفتح شاشة "
+             "الحجز والميعاد متعبّي — البطاقة بتقترح وإنت اللي بتحجز.",
+             "<b>The card beside each request</b>: the child's age, last "
+             "visit and next vaccine, a red warning if they already hold a "
+             "booking, and beside it the <b>soonest free time</b> with the "
+             "doctor asked for (or the first doctor free). \"Book this "
+             "time\" opens the booking screen with it filled in — the card "
+             "suggests, you book."),
             ("<b>مين يوافق على الطلب</b>: قاعدة العيادة «الاستقبال وبعده "
              "الدكتور» إلا لو اتغيّرت من الإعدادات. الاستقبال بيدوس «ابعته "
              "للدكتور»، والدكتور بيلاقيه فوق شاشته في «طلبات مستنية "

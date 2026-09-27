@@ -1,10 +1,46 @@
 {% extends "shell.html" %}
 {% import "_pickers.html" as pickers with context %}
+{% import "patients/_macros.html" as pm with context %}
 {% set active_module = 'appointments' %}
 {% block title %}{{ t('booking_requests.title') }}{% endblock %}
 {% block page_heading %}{{ t('booking_requests.title') }}{% endblock %}
 
+{# The card: what the desk — and the doctor asked to approve — would
+   otherwise open the child's file for. #}
+{% macro child_card(r) %}
+          {% set c = cards.get(r.id) %}
+          {% if c and r.patient %}
+          <div class="rq-card" data-request-card="{{ r.id }}">
+            <span class="rq-fact" data-card-age>{{ pm.age_label(r.patient) }}</span>
+            <span class="rq-fact" data-card-last-visit="{{ c.last_visit or '' }}">
+              {% if c.last_visit %}{{ t('booking_requests.card_last_visit') }}: <span class="num">{{ c.last_visit }}</span>{% if c.last_visit_doctor %} · {{ c.last_visit_doctor }}{% endif %}
+              {% else %}{{ t('booking_requests.card_no_visit') }}{% endif %}</span>
+            {% if c.next_dose %}
+            <span class="rq-fact {{ 'rq-late' if c.next_dose[3] == 'overdue' else '' }}" data-card-dose="{{ c.next_dose[3] }}">
+              <i class="bi bi-shield-plus"></i> {{ c.next_dose[0] }} — {{ t('vaccinations.dose') }} {{ c.next_dose[1] }}
+              · <span class="num">{{ c.next_dose[2] or '—' }}</span> · {{ t('vstatus.' ~ c.next_dose[3]) }}</span>
+            {% endif %}
+            {% if c.booked %}
+            <span class="rq-fact rq-late" data-card-booked>
+              <i class="bi bi-exclamation-circle"></i> {{ t('booking_requests.card_booked', date=c.booked[0], time=c.booked[1], doctor=c.booked[2]) }}</span>
+            {% endif %}
+          </div>
+          {% endif %}
+{% endmacro %}
+
 {% block content %}
+<style>
+  /* The card beside a request: small facts in a row that wraps, the one that
+     needs attention (a dose overdue, a booking already held) in colour. */
+  .rq-card { display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:6px;
+    font-size:.85rem; color:var(--muted); }
+  .rq-fact { white-space:nowrap; }
+  .rq-late { color: var(--danger); font-weight:600; white-space:normal; }
+  /* On a phone a table scrolls in its own box; the page does not. */
+  .rq-scroll { overflow-x: auto; }
+  .rq-suggest { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end;
+    gap:6px; margin-bottom:6px; white-space:normal; font-size:.88rem; }
+</style>
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
     <h1 class="page-title"><i class="bi bi-inbox"></i> {{ t('booking_requests.title') }}</h1>
@@ -92,14 +128,16 @@
   <h2 class="section-title" style="margin:0 0 10px;">
     <i class="bi bi-person-check"></i> {{ t('booking_requests.awaiting_you') }}
     <span class="badge">{{ mine|length }}</span></h2>
+  <div class="rq-scroll">
   <table class="table">
     <tbody>
       {% for r in mine %}
       <tr data-mine="{{ r.id }}">
         <td><strong>{{ r.who(current_lang) }}</strong>
-          {% if r.message %}<div style="color:var(--muted);font-size:.9rem;margin-top:4px;white-space:pre-wrap;">«{{ r.message }}»</div>{% endif %}</td>
+          {% if r.message %}<div style="color:var(--muted);font-size:.9rem;margin-top:4px;white-space:pre-wrap;">«{{ r.message }}»</div>{% endif %}
+          {{ child_card(r) }}</td>
         <td>{% if r.appt_type %}<span class="type-tag tt-{{ visit_type_color(r.appt_type) }}">{{ visit_type_label(r.appt_type) }}</span>{% endif %}</td>
-        <td class="num">{{ r.wanted_date or t('booking_requests.soonest') }}</td>
+        <td class="num" style="white-space:nowrap;">{{ r.wanted_date or t('booking_requests.soonest') }}</td>
         <td style="text-align:end;white-space:nowrap;">
           <form method="post" action="{{ url_for('appointments.request_approve', request_id=r.id) }}" style="display:inline-flex;gap:6px;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -120,6 +158,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 {% endif %}
 
@@ -128,6 +167,7 @@
     <i class="bi bi-hourglass-split"></i> {{ t('booking_requests.waiting') }}
     <span class="badge" data-requests-waiting="{{ pending|length }}">{{ pending|length }}</span></h2>
   {% if pending %}
+  <div class="rq-scroll">
   <table class="table">
     <tbody>
       {% for r in pending %}
@@ -142,10 +182,11 @@
           <span class="pill" style="font-size:.75rem;">{{ t('booking_requests.not_on_file') }}</span>
           {% endif %}
           {% if r.message %}<div style="color:var(--muted);font-size:.9rem;margin-top:4px;white-space:pre-wrap;">«{{ r.message }}»</div>{% endif %}
+          {{ child_card(r) }}
         </td>
         <td>{{ r.doctor.display_name(current_lang) if r.doctor else t('appointments.any_doctor') }}</td>
         <td>{% if r.appt_type %}<span class="type-tag tt-{{ visit_type_color(r.appt_type) }}">{{ visit_type_label(r.appt_type) }}</span>{% endif %}</td>
-        <td class="num">{{ r.wanted_date or t('booking_requests.soonest') }}</td>
+        <td class="num" style="white-space:nowrap;">{{ r.wanted_date or t('booking_requests.soonest') }}</td>
         <td style="color:var(--muted);font-size:.85rem;">
           {{ (r.requested_at|clinic_stamp) if r.requested_at else '' }}
           {% if r.requester %}<br>{{ r.requester.display_name(current_lang) }}{% endif %}</td>
@@ -157,8 +198,28 @@
             <span class="pill ok" data-approved-by="{{ r.approved_by }}">{{ t('booking_requests.status_approved', doctor=r.approver.display_name(current_lang)) }}</span>
             {% if r.approval_note %}<div style="color:var(--muted);font-size:.85rem;white-space:normal;">«{{ r.approval_note }}»</div>{% endif %}
           {% endif %}
-          {% if r.status == 'approved' or (r.status == 'pending' and not doctor_approves.get(r.id)) %}
-          <a class="btn btn-primary btn-sm gc-press" href="{{ url_for('appointments.request_book', request_id=r.id) }}" data-book>
+          {% set bookable = r.status == 'approved' or (r.status == 'pending' and not doctor_approves.get(r.id)) %}
+          {# The soonest free time — a suggestion. The booking screen it opens
+             checks it again, and the doctor's yes, like any booking. #}
+          {% set sug = cards.get(r.id).suggestion if cards.get(r.id) else None %}
+          <div class="rq-suggest" data-suggestion="{{ (sug.date ~ ' ' ~ sug.time) if sug else '' }}">
+            {% if sug %}
+              <span class="hint">{{ t('booking_requests.card_soonest') }}:</span>
+              <strong class="num">{{ sug.date }} {{ sug.time }}</strong>
+              {% if not r.doctor_id %}· {{ doctor_names.get(sug.doctor_id, '') }}{% endif %}
+              {% if bookable and not sug.needs_approval %}
+              <a class="btn btn-primary btn-sm gc-press" data-book-suggested
+                 href="{{ url_for('appointments.request_book', request_id=r.id, doctor_id=sug.doctor_id, date=sug.date, time=sug.time) }}">
+                <i class="bi bi-lightning-charge"></i> {{ t('booking_requests.card_book_this') }}</a>
+              {% elif sug.needs_approval and r.status == 'pending' and not r.doctor_id %}
+              <span class="pill warn" data-needs-ok>{{ t('booking_requests.card_needs_ok', doctor=doctor_names.get(sug.doctor_id, '')) }}</span>
+              {% endif %}
+            {% else %}
+              <span class="hint" data-nothing-free>{{ t('booking_requests.card_nothing_free', days=lookahead_days) }}</span>
+            {% endif %}
+          </div>
+          {% if bookable %}
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.request_book', request_id=r.id) }}" data-book>
             <i class="bi bi-calendar-plus"></i> {{ t('booking_requests.book') }}</a>
           {% endif %}
           {% if r.status == 'pending' %}
@@ -194,6 +255,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <div class="placeholder-soft">{{ t('booking_requests.none_waiting') }}</div>
   {% endif %}
@@ -202,6 +264,7 @@
 {% if decided %}
 <div class="card gc-scale-in" style="animation-delay:.1s;">
   <h2 class="section-title" style="margin:0 0 10px;"><i class="bi bi-clock-history"></i> {{ t('booking_requests.decided') }}</h2>
+  <div class="rq-scroll">
   <table class="table">
     <tbody>
       {% for r in decided %}
@@ -223,6 +286,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 {% endif %}
 {% endblock %}

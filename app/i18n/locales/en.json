@@ -8464,6 +8464,13 @@
     "policy_both": "Reception, then the doctor",
     "policy_hint": "When the doctor approves too, reception sends them the request and it is booked only after their yes — and one doctor's yes is not a yes to book with another.",
     "clinic_policy": "Who approves a booking request",
+    "card_last_visit": "Last visit",
+    "card_no_visit": "No visits yet",
+    "card_booked": "Already booked: {date} {time} with {doctor}",
+    "card_soonest": "Soonest free time",
+    "card_book_this": "Book this time",
+    "card_needs_ok": "{doctor} has to approve first — send it to them",
+    "card_nothing_free": "Nothing free in the next {days} days",
     "clinic_policy_hint": "The clinic's rule. Each doctor can change it for themselves on their own page, or the admin on the doctor's page."
   },
   "online_pay": {
