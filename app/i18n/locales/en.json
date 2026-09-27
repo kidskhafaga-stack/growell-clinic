@@ -8417,6 +8417,11 @@
     "ips": "IPS summary",
     "ips_hint": "International Patient Summary: problems, allergies, current medicines, immunisations and results — for a hospital meeting the child for the first time. Recorded in the audit log."
   },
+  "arrival": {
+    "marked": "And marked arrived — now in the waiting queue.",
+    "setting": "Payment at the desk marks today's booking as arrived",
+    "setting_hint": "One step instead of two: a family paying at the desk for today's booking is standing there, so the child joins the waiting queue. A booking for another day, or a child already inside, is left alone. Paying online from home does not mark an arrival."
+  },
   "booking_requests": {
     "title": "Booking requests",
     "subtitle": "Families who asked for an appointment and have not been answered. A request holds no slot: booking is done from here, on the ordinary booking screen.",

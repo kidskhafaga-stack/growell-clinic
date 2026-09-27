@@ -90,6 +90,8 @@ TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled"
                # Workflow policies: doctor privacy + refund manager sign-off
                # + the cashier shift gate (no open shift, no collection).
                "doctors_see_own_only", "refund_approval_required",
+               # Money taken at the desk for today's booking marks it arrived.
+               "arrive_on_payment",
                "require_shift_to_collect",
                # Whether the program looks for a newer version when it starts.
                # It only ever *says*; updating stays a decision somebody makes

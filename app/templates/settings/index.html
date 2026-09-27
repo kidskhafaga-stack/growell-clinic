@@ -551,6 +551,12 @@
       <label for="refund_approval_required" style="margin:0;font-weight:400;">{{ t('settings.refund_approval_required') }}</label>
     </div>
     <p class="hint">{{ t('settings.refund_approval_required_hint') }}</p>
+    <div class="form-row checkbox" data-arrive-on-payment>
+      <input type="checkbox" id="arrive_on_payment" name="arrive_on_payment" value="1"
+             {{ 'checked' if values.get('arrive_on_payment','1') != '0' else '' }}>
+      <label for="arrive_on_payment" style="margin:0;font-weight:400;">{{ t('arrival.setting') }}</label>
+    </div>
+    <p class="hint">{{ t('arrival.setting_hint') }}</p>
     <div class="form-row" data-booking-approval>
       <label for="booking_approval">{{ t('booking_requests.clinic_policy') }}</label>
       <select class="select" id="booking_approval" name="booking_approval">
