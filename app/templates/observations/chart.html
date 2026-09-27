@@ -13,8 +13,30 @@
   :root[data-theme="dark"] .ob-warn { color: #fcd34d; }
   /* A hand-sized entry grid. This screen is opened on a tablet beside a bed,
      and a column of full-width inputs means scrolling with one hand full. */
-  .ob-grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); }
-  .ob-grid .form-row { margin-bottom:0; }
+  /* Each box as wide as what goes in it. At 110px a column the time was
+     cut to "27/09/202", the pressure's two numbers to "12 | 2", and the
+     lists showed nothing but their dash. So a fixed plan instead of "as
+     many as fit": the time and the pressure always get two columns, and
+     the rows come out full —
+       phone   2: time · temp pulse · resp SpO2 · pressure · glucose AVPU ·
+                  oxygen pain
+       tablet  4: time temp pulse · resp SpO2 pressure · glucose AVPU
+                  oxygen pain
+       desk    6: time temp pulse resp SpO2 · pressure glucose AVPU oxygen
+                  pain */
+  .ob-grid { display:grid; gap:12px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .ob-grid .form-row { margin-bottom:0; min-width:0; }
+  .ob-grid .input, .ob-grid .select { width:100%; min-width:0; }
+  .ob-grid .ob-wide { grid-column: span 2; }
+  @media (min-width: 700px) {
+    .ob-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  }
+  @media (min-width: 1200px) {
+    .ob-grid { grid-template-columns:repeat(6,minmax(0,1fr)); }
+  }
+  .ob-bp { display:flex; align-items:center; gap:6px; }
+  .ob-bp .input { flex:1; text-align:center; }
+  .ob-bp-sep { color: var(--muted); font-weight:700; }
 </style>
 
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
@@ -111,7 +133,7 @@
         action="{{ url_for('observations.record', patient_id=patient.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="ob-grid">
-      <div class="form-row">
+      <div class="form-row ob-wide">
         {# Prefilled with now, and editable, because four readings written on
            paper at the bedside are typed in together at the desk. Local time:
            the server stores UTC and converts on the way in. #}
@@ -139,11 +161,12 @@
         <input class="input" type="number" min="0" max="100" inputmode="numeric"
                id="spo2" name="spo2" dir="ltr">
       </div>
-      <div class="form-row">
+      <div class="form-row ob-wide">
         <label for="bp_systolic">{{ t('observations.bp') }}</label>
-        <div style="display:flex;gap:6px;" dir="ltr">
+        <div class="ob-bp" dir="ltr">
           <input class="input" type="number" min="0" max="300" inputmode="numeric"
                  id="bp_systolic" name="bp_systolic" placeholder="120">
+          <span class="ob-bp-sep" aria-hidden="true">/</span>
           <input class="input" type="number" min="0" max="200" inputmode="numeric"
                  id="bp_diastolic" name="bp_diastolic" placeholder="80">
         </div>
