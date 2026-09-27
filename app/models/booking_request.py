@@ -31,9 +31,13 @@ REQUEST_STATUSES = ("pending", "with_doctor", "approved", "booked",
 #: Still waiting for somebody to do something.
 OPEN_STATUSES = ("pending", "with_doctor", "approved")
 
-#: Where it came in. Only the desk exists yet; the others are the two doors
-#: the plan leaves open (the official WhatsApp API, or a request page).
+#: Where it came in: the desk, a WhatsApp conversation in the inbox, or —
+#: a door the plan leaves open — a request page.
 REQUEST_SOURCES = ("desk", "whatsapp", "page")
+
+#: A person's word on "is this an emergency": ``yes`` raises it, ``no``
+#: overrules the program's guess. Empty is nobody said — the guess stands.
+URGENT_MARKS = ("yes", "no")
 
 
 class BookingRequest(db.Model):
@@ -74,12 +78,23 @@ class BookingRequest(db.Model):
     approved_at = db.Column(db.DateTime)
     approval_note = db.Column(db.String(200))
 
+    # Stage two's emergency rule: the program raises a request whose words
+    # say "emergency" (``app/utils/triage.py``, the inbox's own list); a
+    # person can raise one, or say it is not — and who said it is kept.
+    urgent_mark = db.Column(db.String(4))
+    urgent_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    urgent_at = db.Column(db.DateTime)
+    # The WhatsApp conversation it was taken from (the inbox's thread key),
+    # so the thread can show where its request stands.
+    conversation_key = db.Column(db.String(64), index=True)
+
     patient = db.relationship("Patient")
     doctor = db.relationship("User", foreign_keys=[doctor_id])
     requester = db.relationship("User", foreign_keys=[requested_by])
     decider = db.relationship("User", foreign_keys=[decided_by])
     forwarder = db.relationship("User", foreign_keys=[forwarded_by])
     approver = db.relationship("User", foreign_keys=[approved_by])
+    urgent_marker = db.relationship("User", foreign_keys=[urgent_by])
     appointment = db.relationship("Appointment")
 
     def who(self, lang="ar"):

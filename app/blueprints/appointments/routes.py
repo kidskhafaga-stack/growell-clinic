@@ -1006,13 +1006,26 @@ def requests_page():
     beside it; declining asks why. Nothing here writes to the family.
     """
     from app.utils import request_card
+    from app.utils.triage import URGENT_WORDS
 
     doctor_id = request.args.get("doctor_id", type=int)
     waiting = booking_requests.pending(doctor_id)
     doctors = list_doctors()
+    doctor_approves = {r.id: r.doctor_id is not None
+                       and booking_requests.policy_for(r.doctor) == "both"
+                       for r in waiting}
     return render_template(
         "appointments/requests.html",
         pending=waiting,
+        # The urgent first, and why: the word the family used, or who said.
+        urgent={r.id: booking_requests.is_urgent(r) for r in waiting},
+        urgent_words={r.id: booking_requests.urgent_word(r) for r in waiting},
+        said={r.id: booking_requests.said_parts(
+                  r.message, booking_requests.urgent_word(r))
+              for r in waiting},
+        urgent_list=list(URGENT_WORDS),
+        steps={r.id: booking_requests.steps(r, doctor_approves[r.id])
+               for r in waiting},
         # Stage two: beside each request, what the desk would otherwise open
         # three screens for — and the soonest free time, as a suggestion.
         cards=request_card.cards(waiting, getattr(g, "lang", "ar")),
@@ -1025,9 +1038,7 @@ def requests_page():
         mine=booking_requests.awaiting(current_user.id),
         # Per request: does its doctor approve too? A request for "any
         # doctor" is asked of the doctor the desk sends it to.
-        doctor_approves={r.id: r.doctor_id is not None
-                         and booking_requests.policy_for(r.doctor) == "both"
-                         for r in waiting},
+        doctor_approves=doctor_approves,
         doctors=doctors, doctor_id=doctor_id,
         appt_types=APPOINTMENT_TYPES, today=local_today().isoformat())
 
@@ -1035,8 +1046,11 @@ def requests_page():
 @appointments_bp.route("/requests", methods=["POST"])
 @module_required(MODULE)
 def request_take():
-    """Write down what a family asked for — by phone, at the desk, or read
-    off a message."""
+    """Write down what a family asked for — by phone, at the desk, or from a
+    WhatsApp conversation in the inbox, which it goes back to."""
+    conversation = (request.form.get("conversation") or "").strip()[:64]
+    back = (url_for("messages.inbox_thread", key=conversation)
+            if conversation else url_for("appointments.requests_page"))
     try:
         booking_requests.take(
             current_user,
@@ -1050,13 +1064,31 @@ def request_take():
                        if (request.form.get("appt_type") or "").strip()
                        else None),
             message=request.form.get("message"),
+            source=request.form.get("source") or "desk",
+            conversation_key=conversation,
             ip_address=client_ip())
     except ValueError:
         flash(t("booking_requests.need_who"), "danger")
-        return redirect(url_for("appointments.requests_page"))
+        return redirect(back)
     db.session.commit()
     flash(t("booking_requests.taken"), "success")
-    return redirect(url_for("appointments.requests_page"))
+    return redirect(back)
+
+
+@appointments_bp.route("/requests/<int:request_id>/urgent", methods=["POST"])
+@module_required(MODULE)
+def request_urgent(request_id):
+    """A person's word on whether a request is urgent — raising one the
+    family's words did not, or saying one they did is not."""
+    row = db.get_or_404(BookingRequest, request_id)
+    if booking_requests.mark_urgent(
+            row, current_user, request.form.get("urgent") == "yes",
+            ip_address=client_ip()) is None:
+        flash(t("booking_requests.already_decided"), "info")
+    else:
+        db.session.commit()
+    return redirect(url_for("appointments.requests_page",
+                            _anchor=f"request-{request_id}"))
 
 
 @appointments_bp.route("/requests/<int:request_id>/book")

@@ -28,12 +28,20 @@ first. So:
   yes from one doctor is not a yes to book the family with another;
 * the booking screen refuses a request that still needs its doctor, so the
   rule holds however the desk reached the form.
+
+**The urgent first** (stage two). "The urgent does not wait for a model": a
+written rule, the same word list the WhatsApp inbox reads
+(``app/utils/triage.py``), puts a request whose words say emergency above
+every other. The rule only ever **raises**; a person may say it is not
+urgent, or mark one urgent the words missed — and who said it is kept. It
+tells the desk; it sends the family nothing.
 """
 from datetime import datetime
 
 from app.extensions import db
 from app.models import ActivityLog, BookingRequest, Setting, User
-from app.models.booking_request import OPEN_STATUSES
+from app.models.booking_request import (OPEN_STATUSES, REQUEST_SOURCES,
+                                        URGENT_MARKS)
 
 #: "both": the desk, then the doctor. "reception": the desk alone.
 POLICIES = ("both", "reception")
@@ -48,7 +56,7 @@ REASON_MAX = 200
 
 def take(user, patient_id=None, contact_name=None, contact_phone=None,
          doctor_id=None, wanted_date=None, appt_type=None, message=None,
-         source="desk", ip_address=None):
+         source="desk", ip_address=None, conversation_key=None):
     """Record a request. Raises ``ValueError`` when it names nobody — a
     request nobody can be booked for or called back about is not one."""
     name = (contact_name or "").strip()[:NAME_MAX] or None
@@ -61,7 +69,9 @@ def take(user, patient_id=None, contact_name=None, contact_phone=None,
         contact_phone=None if patient_id else phone,
         doctor_id=doctor_id or None, wanted_date=wanted_date,
         appt_type=appt_type or None,
-        message=(message or "").strip() or None, source=source,
+        message=(message or "").strip() or None,
+        source=source if source in REQUEST_SOURCES else "desk",
+        conversation_key=(conversation_key or "").strip()[:64] or None,
         status="pending", requested_by=getattr(user, "id", None),
         requested_at=datetime.utcnow())
     db.session.add(row)
@@ -173,27 +183,131 @@ def booked(row, appointment, user, ip_address=None):
     return row
 
 
+def urgent_word(row):
+    """The emergency word the family's message carries, or ``None``."""
+    from app.utils.triage import urgent_word as _word
+
+    return _word(row.message)
+
+
+def said_parts(text, word):
+    """``[(piece, is_the_word)]``: the family's words, cut where the
+    emergency word is, so the screen can mark it without writing markup
+    into their words. Found however it was capitalised."""
+    if not text:
+        return []
+    if not word:
+        return [(text, False)]
+    out, low, needle, at = [], text.lower(), word.lower(), 0
+    while True:
+        hit = low.find(needle, at)
+        if hit < 0:
+            break
+        if hit > at:
+            out.append((text[at:hit], False))
+        out.append((text[hit:hit + len(word)], True))
+        at = hit + len(word)
+    if at < len(text):
+        out.append((text[at:], False))
+    return out
+
+
+def is_urgent(row):
+    """A person said so, or the words did and nobody has said otherwise."""
+    if row.urgent_mark == "yes":
+        return True
+    return row.urgent_mark != "no" and urgent_word(row) is not None
+
+
+def _urgent_first(rows):
+    """The same order, with the urgent ones lifted above the rest. A stable
+    sort: among the urgent, and among the rest, the longest wait still
+    comes first."""
+    return sorted(rows, key=lambda row: not is_urgent(row))
+
+
+def mark_urgent(row, user, urgent, ip_address=None):
+    """A person's word: urgent, or not. Returns the row, or ``None`` when it
+    is no longer waiting for anybody."""
+    if row is None or row.status not in OPEN_STATUSES:
+        return None
+    mark = URGENT_MARKS[0] if urgent else URGENT_MARKS[1]
+    row.urgent_mark = mark
+    row.urgent_by = getattr(user, "id", None)
+    row.urgent_at = datetime.utcnow()
+    ActivityLog.record("booking_request.urgent", user_id=row.urgent_by,
+                       entity="booking_request", entity_id=row.id,
+                       detail=mark, ip_address=ip_address)
+    return row
+
+
 def pending(doctor_id=None):
-    """Requests waiting for somebody, oldest first — the one who has waited
-    longest is the one to answer first. With a doctor, that doctor's and the
-    ones for any doctor."""
+    """Requests waiting for somebody: the urgent first, then oldest first —
+    the one who has waited longest is the one to answer first. With a
+    doctor, that doctor's and the ones for any doctor."""
     query = BookingRequest.query.filter(
         BookingRequest.status.in_(OPEN_STATUSES))
     if doctor_id:
         query = query.filter(db.or_(BookingRequest.doctor_id == doctor_id,
                                     BookingRequest.doctor_id.is_(None)))
-    return query.order_by(BookingRequest.requested_at,
-                          BookingRequest.id).all()
+    return _urgent_first(query.order_by(BookingRequest.requested_at,
+                                        BookingRequest.id).all())
 
 
 def awaiting(doctor_id):
-    """What the desk has sent this doctor to approve, oldest first."""
+    """What the desk has sent this doctor to approve: the urgent first, then
+    oldest first."""
     if not doctor_id:
         return []
-    return (BookingRequest.query
-            .filter(BookingRequest.status == "with_doctor",
-                    BookingRequest.doctor_id == doctor_id)
-            .order_by(BookingRequest.forwarded_at, BookingRequest.id).all())
+    return _urgent_first(
+        BookingRequest.query
+        .filter(BookingRequest.status == "with_doctor",
+                BookingRequest.doctor_id == doctor_id)
+        .order_by(BookingRequest.forwarded_at, BookingRequest.id).all())
+
+
+#: Where a request can stand, in order. A request whose doctor does not
+#: approve goes from taken to booked.
+STEPS_WITH_DOCTOR = ("taken", "with_doctor", "approved", "booked")
+STEPS_DESK = ("taken", "booked")
+_REACHED = {"pending": "taken", "with_doctor": "with_doctor",
+            "approved": "approved", "booked": "booked"}
+
+
+def steps(row, doctor_approves):
+    """``[(step, state)]`` for the little progress line: ``done``,
+    ``current`` or ``todo``. A declined request is not on this line — the
+    screen says declined, and why."""
+    names = STEPS_WITH_DOCTOR if doctor_approves or row.status in (
+        "with_doctor", "approved") else STEPS_DESK
+    reached = _REACHED.get(row.status)
+    if reached not in names:
+        return []
+    at = names.index(reached)
+    return [(name, "done" if i < at or row.status == "booked" else
+             "current" if i == at else "todo")
+            for i, name in enumerate(names)]
+
+
+def for_conversation(key, patient_id=None, phone=None):
+    """The requests taken from this WhatsApp conversation, newest first.
+
+    A thread's key is the child once the number is on their file, and the
+    number before that — so a request taken while the number was unknown is
+    found by the number (however it is spelled), and one taken for the child
+    from WhatsApp by the child."""
+    if not key:
+        return []
+    from app.utils.inbox import phone_variants
+
+    keys = [key] + phone_variants(phone)
+    cond = BookingRequest.conversation_key.in_(keys)
+    if patient_id:
+        cond = db.or_(cond, db.and_(BookingRequest.patient_id == patient_id,
+                                    BookingRequest.source == "whatsapp"))
+    return (BookingRequest.query.filter(cond)
+            .order_by(BookingRequest.requested_at.desc(),
+                      BookingRequest.id.desc()).limit(5).all())
 
 
 def recent_decisions(limit=30):

@@ -1,6 +1,8 @@
 {% extends "shell.html" %}
 {% set active_module = 'messages' %}
 {% from "patients/_macros.html" import patient_avatar %}
+{% import "appointments/_request_bits.html" as rb with context %}
+{% import "_pickers.html" as pickers with context %}
 {% block title %}{{ t('inbox.title') }}{% endblock %}
 {% block page_heading %}{{ t('inbox.title') }}{% endblock %}
 
@@ -105,6 +107,107 @@
       </select>
       <button class="btn btn-primary btn-sm gc-press" type="submit">
         <i class="bi bi-link-45deg"></i> {{ t('inbox.link') }}</button>
+    </form>
+  </div>
+  {% endif %}
+
+  {% if can_request %}
+  {{ rb.styles() }}
+  <!-- A booking request from the chat: the family asked here, so it is
+       taken here — the child already chosen, their words already copied,
+       and the request then lives on the requests screen like any other. -->
+  <div class="card gc-scale-in" style="margin-bottom:12px;" data-from-chat
+       x-data="{ open: false, when: '', note: {{ request_message|tojson|forceescape }},
+                 urgentWord() { return urgentScan(this.note); } }">
+    {% if conv_requests %}
+    <div data-conv-requests="{{ conv_requests|length }}" style="margin-bottom:10px;">
+      <div class="hint" style="margin:0 0 6px;"><i class="bi bi-inbox"></i> {{ t('booking_requests.from_chat_open') }}</div>
+      {% for r, r_steps, r_urgent in conv_requests %}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line);"
+           data-conv-request="{{ r.id }}">
+        <div>
+          {% if r_urgent %}<span class="rq-pulse"></span>{% endif %}
+          <strong>{{ r.who(current_lang) }}</strong>
+          <span class="hint">· {{ r.doctor.display_name(current_lang) if r.doctor else t('appointments.any_doctor') }}
+            {% if r.appt_type %}· {{ visit_type_label(r.appt_type) }}{% endif %}</span>
+          {% if r.status == 'declined' %}<div class="hint" style="color:var(--danger);">{{ t('booking_requests.status_declined') }}{% if r.decline_reason %} — «{{ r.decline_reason }}»{% endif %}</div>{% endif %}
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          {{ rb.stepper(r_steps) }}
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.requests_page', _anchor='request-' ~ r.id) }}">
+            <i class="bi bi-box-arrow-up-left"></i> {{ t('booking_requests.open_requests') }}</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <button type="button" class="btn btn-primary gc-press" x-on:click="open = !open"
+            :aria-expanded="open.toString()" data-from-chat-toggle>
+      <i class="bi bi-calendar-plus"></i> {{ t('booking_requests.from_chat') }}
+      <i class="bi" :class="open ? 'bi-chevron-up' : 'bi-chevron-down'"></i></button>
+
+    <form method="post" action="{{ url_for('appointments.request_take') }}" x-show="open" x-cloak
+          x-transition style="margin-top:14px;" data-from-chat-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="source" value="whatsapp">
+      <input type="hidden" name="conversation" value="{{ key }}">
+      {% if patient %}
+      <input type="hidden" name="patient_id" value="{{ patient.id }}">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        {{ patient_avatar(patient, 'sm') }}
+        <div><strong>{{ patient.display_name(current_lang) }}</strong>
+          <span class="num hint">{{ patient.patient_number }}</span></div>
+      </div>
+      {% else %}
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('booking_requests.contact_name') }}</label>
+          <input class="input" name="contact_name" maxlength="120" required></div>
+        <div class="form-row"><label>{{ t('booking_requests.contact_phone') }}</label>
+          <input class="input" name="contact_phone" maxlength="30" dir="ltr" value="{{ phone or '' }}" required></div>
+      </div>
+      {% endif %}
+
+      <div class="form-grid">
+        {{ pickers.doctor_picker('doctor_id', None,
+                                 t('appointments.doctor') ~ ' — ' ~ t('appointments.any_doctor'),
+                                 doctors=request_doctors, allow_all=True,
+                                 autosubmit=False) }}
+      </div>
+
+      <div class="form-row">
+        <label>{{ t('appointments.visit_type') }}</label>
+        <div class="rq-chips" role="radiogroup" data-type-chips>
+          {% for key_ in request_types %}
+          <label class="rq-chip"><input type="radio" name="appt_type" value="{{ key_ }}">
+            <span><i class="bi bi-circle-fill" style="font-size:.5rem;opacity:.6;"></i> {{ visit_type_label(key_) }}</span></label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>{{ t('booking_requests.wanted_date') }}</label>
+        <div class="rq-chips" data-when-chips>
+          {% set tomorrow = request_tomorrow %}
+          <button type="button" class="rq-chip-btn" :class="when === '' && 'is-on'" x-on:click="when = ''">
+            <i class="bi bi-lightning-charge"></i> {{ t('booking_requests.when_soonest') }}</button>
+          <button type="button" class="rq-chip-btn" :class="when === '{{ request_today.isoformat() }}' && 'is-on'"
+                  x-on:click="when = '{{ request_today.isoformat() }}'">{{ t('booking_requests.when_today') }}</button>
+          <button type="button" class="rq-chip-btn" :class="when === '{{ tomorrow.isoformat() }}' && 'is-on'"
+                  x-on:click="when = '{{ tomorrow.isoformat() }}'">{{ t('booking_requests.when_tomorrow') }}</button>
+          <input class="input" type="date" name="wanted_date" x-model="when"
+                 min="{{ request_today.isoformat() }}" style="max-width:180px;">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>{{ t('booking_requests.message') }}</label>
+        <textarea class="input" name="message" rows="3" x-model="note"></textarea>
+        {{ rb.urgent_hint(urgent_list) }}
+      </div>
+      <p class="hint" style="margin:0 0 10px;">{{ t('booking_requests.from_chat_hint') }}</p>
+      <button class="btn btn-primary gc-press gc-ripple" type="submit">
+        <i class="bi bi-check-lg"></i> {{ t('booking_requests.take') }}</button>
     </form>
   </div>
   {% endif %}

@@ -1,6 +1,7 @@
 {% extends "shell.html" %}
 {% import "_pickers.html" as pickers with context %}
 {% import "patients/_macros.html" as pm with context %}
+{% import "appointments/_request_bits.html" as rb with context %}
 {% set active_module = 'appointments' %}
 {% block title %}{{ t('booking_requests.title') }}{% endblock %}
 {% block page_heading %}{{ t('booking_requests.title') }}{% endblock %}
@@ -29,6 +30,7 @@
 {% endmacro %}
 
 {% block content %}
+{{ rb.styles() }}
 <style>
   /* The card beside a request: small facts in a row that wraps, the one that
      needs attention (a dose overdue, a booking already held) in colour. */
@@ -50,11 +52,26 @@
     <i class="bi bi-calendar3"></i> {{ t('appointments.today') }}</a>
 </div>
 
+{# The urgent, counted above everything: the same rule that puts them at
+   the top of the list below. #}
+{% set n_urgent = urgent.values()|select|list|length %}
+{% if n_urgent %}
+{# The list puts the urgent first, so the first row is the one to go to. #}
+<a class="rq-alarm gc-scale-in" href="#request-{{ pending[0].id }}"
+   data-urgent-count="{{ n_urgent }}" style="text-decoration:none;">
+  <span class="rq-pulse"></span>
+  <span class="rq-count">{{ n_urgent }}</span>
+  <span>{{ t('booking_requests.urgent_strip') }}</span>
+  <i class="bi bi-arrow-down-circle" style="margin-inline-start:auto;"></i>
+</a>
+{% endif %}
+
 {# Taking a request. The child if they are on file; otherwise who asked and a
    number to call back — the form says which, and the server refuses a
    request that names nobody. #}
 <details class="card gc-scale-in" {% if not pending %}open{% endif %}
-         x-data="{ q: '', results: [], chosen: null,
+         x-data="{ q: '', results: [], chosen: null, note: '',
+                   urgentWord() { return urgentScan(this.note); },
                    async find() {
                      if (this.q.trim().length < 2) { this.results = []; return; }
                      const r = await fetch('{{ url_for('appointments.patient_search') }}?q=' + encodeURIComponent(this.q));
@@ -115,7 +132,8 @@
         <input class="input" type="date" name="wanted_date" min="{{ today }}"></div>
     </div>
     <div class="form-row"><label>{{ t('booking_requests.message') }}</label>
-      <textarea class="input" name="message" rows="3" placeholder="{{ t('booking_requests.message_ph') }}"></textarea></div>
+      <textarea class="input" name="message" rows="3" x-model="note" placeholder="{{ t('booking_requests.message_ph') }}"></textarea>
+      {{ rb.urgent_hint(urgent_list) }}</div>
     <button class="btn btn-primary gc-press gc-ripple" type="submit">
       <i class="bi bi-check-lg"></i> {{ t('booking_requests.take') }}</button>
   </form>
@@ -132,9 +150,10 @@
   <table class="table">
     <tbody>
       {% for r in mine %}
-      <tr data-mine="{{ r.id }}">
-        <td><strong>{{ r.who(current_lang) }}</strong>
-          {% if r.message %}<div style="color:var(--muted);font-size:.9rem;margin-top:4px;white-space:pre-wrap;">«{{ r.message }}»</div>{% endif %}
+      <tr data-mine="{{ r.id }}" class="{{ 'rq-row--urgent' if urgent.get(r.id) }}">
+        <td>{% if urgent.get(r.id) %}<span class="rq-pulse" title="{{ t('booking_requests.urgent') }}"></span>{% endif %}<strong>{{ r.who(current_lang) }}</strong>
+          {{ rb.said(said.get(r.id)) }}
+          {% if urgent.get(r.id) %}{{ rb.urgent_tag(r, true, urgent_words.get(r.id)) }}{% endif %}
           {{ child_card(r) }}</td>
         <td>{% if r.appt_type %}<span class="type-tag tt-{{ visit_type_color(r.appt_type) }}">{{ visit_type_label(r.appt_type) }}</span>{% endif %}</td>
         <td class="num" style="white-space:nowrap;">{{ r.wanted_date or t('booking_requests.soonest') }}</td>
@@ -171,8 +190,9 @@
   <table class="table">
     <tbody>
       {% for r in pending %}
-      <tr data-request="{{ r.id }}">
+      <tr data-request="{{ r.id }}" id="request-{{ r.id }}" class="{{ 'rq-row--urgent' if urgent.get(r.id) }}">
         <td>
+          {% if urgent.get(r.id) %}<span class="rq-pulse" title="{{ t('booking_requests.urgent') }}"></span>{% endif %}
           {% if r.patient %}
           <a href="{{ url_for('patients.view', patient_id=r.patient_id) }}" style="color:inherit;font-weight:600;">{{ r.who(current_lang) }}</a>
           <span class="num" style="color:var(--muted);">{{ r.patient.patient_number }}</span>
@@ -181,7 +201,9 @@
           <span class="num" dir="ltr" style="color:var(--muted);">{{ r.contact_phone }}</span>
           <span class="pill" style="font-size:.75rem;">{{ t('booking_requests.not_on_file') }}</span>
           {% endif %}
-          {% if r.message %}<div style="color:var(--muted);font-size:.9rem;margin-top:4px;white-space:pre-wrap;">«{{ r.message }}»</div>{% endif %}
+          {{ rb.source_tag(r) }}
+          {{ rb.said(said.get(r.id)) }}
+          {{ rb.urgent_tag(r, urgent.get(r.id), urgent_words.get(r.id)) }}
           {{ child_card(r) }}
         </td>
         <td>{{ r.doctor.display_name(current_lang) if r.doctor else t('appointments.any_doctor') }}</td>
@@ -191,6 +213,8 @@
           {{ (r.requested_at|clinic_stamp) if r.requested_at else '' }}
           {% if r.requester %}<br>{{ r.requester.display_name(current_lang) }}{% endif %}</td>
         <td style="text-align:end;white-space:nowrap;" data-request-state="{{ r.status }}">
+          {# Where it stands, as a line of steps. #}
+          <div style="display:flex;justify-content:flex-end;margin-bottom:6px;">{{ rb.stepper(steps.get(r.id)) }}</div>
           {# Where it stands with its doctor, when the doctor approves too. #}
           {% if r.status == 'with_doctor' %}
             <span class="pill warn" data-with-doctor>{{ t('booking_requests.status_with_doctor', doctor=r.doctor.display_name(current_lang)) }}</span>

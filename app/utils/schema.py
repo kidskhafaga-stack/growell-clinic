@@ -718,6 +718,13 @@ ADDITIONS = [
     # the desk. Empty on every doctor already there: the clinic's rule
     # (`booking_requests.policy_for`) until they say otherwise.
     ("users", "booking_approval", "VARCHAR(10)"),
+    # A booking request's emergency mark and the conversation it came from.
+    # Empty on every request already there: nobody said, and the program's
+    # guess from the family's words stands; none came from the inbox.
+    ("booking_requests", "urgent_mark", "VARCHAR(4)"),
+    ("booking_requests", "urgent_by", "INTEGER"),
+    ("booking_requests", "urgent_at", "DATETIME"),
+    ("booking_requests", "conversation_key", "VARCHAR(64)"),
 ]
 
 def apply_schema(report=None):
