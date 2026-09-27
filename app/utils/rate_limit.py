@@ -33,6 +33,10 @@ from functools import wraps
 _hits = {}
 _lock = threading.Lock()
 
+# How to ask the first process's count, when the program runs as several
+# (``app.utils.workers``). ``None`` in one process.
+_shared = None
+
 # Above this many tracked callers, expired windows are swept. Someone rotating
 # addresses would otherwise grow this dictionary until the process died —
 # which would be a denial of service delivered by the thing meant to prevent
@@ -65,25 +69,47 @@ def hit(bucket, key, limit, per_seconds, now=None):
     current window; ``retry_after`` is how long until that window ends.
     """
     now = time.time() if now is None else now
-    slot = (bucket, key)
-    with _lock:
-        if len(_hits) > _SWEEP_AT:
-            _sweep(now, per_seconds)
-        started, count = _hits.get(slot, (now, 0))
+    if _shared is not None:
+        try:
+            return _shared((bucket, key), limit, per_seconds, now)
+        except (EOFError, OSError):
+            # The first process's counter has gone, and with it the one count
+            # for all the workers. Counted here instead: a limit per process
+            # is weaker, and a login screen that stopped working would be
+            # worse.
+            pass
+    return _count(_hits, _lock, (bucket, key), limit, per_seconds, now)
+
+
+def _count(hits, lock, slot, limit, per_seconds, now):
+    with lock:
+        if len(hits) > _SWEEP_AT:
+            _sweep(hits, now, per_seconds)
+        started, count = hits.get(slot, (now, 0))
         if now - started >= per_seconds:
             started, count = now, 0
         count += 1
-        _hits[slot] = (started, count)
+        hits[slot] = (started, count)
         if count > limit:
             return False, max(int(per_seconds - (now - started)) + 1, 1)
         return True, 0
 
 
-def _sweep(now, per_seconds):
+def _sweep(hits, now, per_seconds):
     """Drop windows that have expired. Caller holds the lock."""
-    for slot in [s for s, (started, _) in _hits.items()
+    for slot in [s for s, (started, _) in list(hits.items())
                  if now - started >= per_seconds]:
-        _hits.pop(slot, None)
+        hits.pop(slot, None)
+
+
+def share(ask):
+    """Count with ``ask(slot, limit, per_seconds, now)`` — the first
+    process's count, shared by every worker (``app.utils.workers``) — so the
+    limit is one limit however many processes answer. A password guesser
+    whose tries were spread over four workers would otherwise have had four
+    allowances."""
+    global _shared
+    _shared = ask
 
 
 def reset():

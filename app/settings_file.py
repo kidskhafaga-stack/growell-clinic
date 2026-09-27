@@ -51,6 +51,13 @@ DEFAULT_LANGUAGE=ar
 
 # Where the database lives. The default is instance/growell.db
 # DATABASE_URL=sqlite:///instance/growell.db
+
+# How many server processes answer. One is right for a clinic. A hospital
+# with dozens of screens open at once can set it to the number of cores
+# (4 on most PCs) — see docs/LOAD_TEST.md.
+# عدد نسخ السيرفر — واحدة كفاية للعيادة. المستشفى اللي فيها عشرات الشاشات
+# مفتوحة في نفس الوقت تحطها بعدد أنوية الجهاز (غالباً ٤).
+# WORKERS=1
 """
 
 

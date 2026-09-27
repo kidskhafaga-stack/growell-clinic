@@ -393,7 +393,10 @@ def test_the_scheduler_trims_both_shelves(clinic_db):
 
     from app.utils import backups
 
-    source = inspect.getsource(backups.auto_backup_if_due)
+    # The two paths live in `_auto_backup_now`, which the scheduler runs
+    # once it holds the claim (so two server processes never both take it).
+    source = inspect.getsource(backups._auto_backup_now)
+    assert "_auto_backup_now(" in inspect.getsource(backups.auto_backup_if_due)
     assert source.count("_retain()") == 2, "one of the two paths never trims"
     retain = inspect.getsource(backups._retain)
     assert "backup_keep" in retain and "backup_full_keep" in retain

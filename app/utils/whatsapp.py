@@ -501,14 +501,22 @@ def maybe_dispatch(min_gap_minutes=10):
     try:
         from datetime import timedelta
         now = datetime.utcnow()
-        last = Setting.get("wa_last_auto_dispatch", "")
+        last = Setting._read("wa_last_auto_dispatch")
         if last:
             try:
                 if now - datetime.fromisoformat(last) < timedelta(minutes=min_gap_minutes):
                     return None
             except ValueError:
                 pass
-        Setting.set("wa_last_auto_dispatch", now.isoformat())
+        # The turn is taken, not assumed. Every screen's live refresh calls
+        # this, so when the ten minutes run out several arrive at once — from
+        # several threads, and with ``WORKERS`` from several processes — and
+        # each that read the old time used to write its own and send the
+        # queue: the same message to the same family, more than once. Only
+        # the one that finds the old time still there sends.
+        if not Setting.swap("wa_last_auto_dispatch", last, now.isoformat()):
+            db.session.rollback()
+            return None
         db.session.commit()
         return dispatch_due()
     except Exception:  # noqa: BLE001

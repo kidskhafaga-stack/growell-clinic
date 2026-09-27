@@ -76,8 +76,28 @@ def serve(application, port, host="0.0.0.0"):
               "     run:  pip install -r requirements.txt)")
         application.run(host=host, port=port)
         return
+    # ``WORKERS=4`` in clinic.env: a hospital's worth of screens, on four
+    # processes instead of one (see ``app/utils/workers.py``). Unset, this is
+    # the one process it always was, and the module is never imported.
+    workers = chosen_workers()
+    if workers > 1:
+        from app.utils.workers import serve_many
+
+        sys.exit(serve_many(port, workers, threads=8, host=host,
+                            config=os.environ.get("FLASK_CONFIG", "production"),
+                            options={"ident": "PediaPro"}))
     waitress_serve(application, host=host, port=port, threads=8,
                    ident="PediaPro")
+
+
+def chosen_workers(environ=None):
+    """How many server processes clinic.env asks for — 1 unless it says."""
+    environ = os.environ if environ is None else environ
+    if (environ.get("WORKERS") or "1").strip() in ("", "1"):
+        return 1
+    from app.utils.workers import chosen
+
+    return chosen(environ)
 
 
 if __name__ == "__main__":

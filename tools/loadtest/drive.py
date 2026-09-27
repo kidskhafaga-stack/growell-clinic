@@ -605,13 +605,13 @@ def ledger_gaps(db):
 
 
 # ------------------------------------------------------------ the run ----
-def start_server(db, port, threads, busy_ms, log_path):
+def start_server(db, port, threads, busy_ms, log_path, workers=1):
     env = dict(os.environ, SQLITE_BUSY_TIMEOUT_MS=str(busy_ms),
                FLASK_CONFIG="production")
     log = open(log_path, "w")
     proc = subprocess.Popen(
         [sys.executable, "-m", "tools.loadtest.serve", db, str(port),
-         str(threads)], env=env, stdout=log, stderr=subprocess.STDOUT,
+         str(threads), str(workers)], env=env, stdout=log, stderr=subprocess.STDOUT,
         cwd=os.path.dirname(os.path.dirname(os.path.dirname(
             os.path.abspath(__file__)))))
     base = f"http://127.0.0.1:{port}"
@@ -627,7 +627,8 @@ def start_server(db, port, threads, busy_ms, log_path):
 
 
 def run(db, out, threads=8, busy_ms=15000, stages=(1, 2, 4, 8, 16),
-        stage_seconds=60, port=5099, give_up_p95=10.0, password=None):
+        stage_seconds=60, port=5099, give_up_p95=10.0, password=None,
+        workers=1):
     from tools.loadtest.fake_clinic import PASSWORD
 
     db = os.path.abspath(db)
@@ -636,12 +637,14 @@ def run(db, out, threads=8, busy_ms=15000, stages=(1, 2, 4, 8, 16),
     os.makedirs(out, exist_ok=True)
     password = password or PASSWORD
     server_log = os.path.join(out, "server.log")
-    proc, base = start_server(db, port, threads, busy_ms, server_log)
+    proc, base = start_server(db, port, threads, busy_ms, server_log,
+                              workers=workers)
     started_at = datetime.utcnow().isoformat(sep=" ")
     profile = profile_of(db)
     mix = MIXES[profile]
     h = Harness(db, base)
-    results = {"config": {"threads": threads, "busy_ms": busy_ms,
+    results = {"config": {"threads": threads, "workers": workers,
+                          "busy_ms": busy_ms,
                           "stage_seconds": stage_seconds, "cpus": os.cpu_count(),
                           "db_mb": round(os.path.getsize(db) / 2**20, 1),
                           "profile": profile, "mix": dict(mix)},
@@ -717,12 +720,14 @@ def main(argv=None):
     parser.add_argument("--stage-seconds", type=int, default=60)
     parser.add_argument("--port", type=int, default=5099)
     parser.add_argument("--give-up-p95", type=float, default=10.0)
+    parser.add_argument("--workers", type=int, default=1,
+                        help="server processes, as WORKERS in clinic.env")
     args = parser.parse_args(argv)
     results = run(args.db, args.out, threads=args.threads,
                   busy_ms=args.busy_ms,
                   stages=tuple(int(s) for s in args.stages.split(",")),
                   stage_seconds=args.stage_seconds, port=args.port,
-                  give_up_p95=args.give_up_p95)
+                  give_up_p95=args.give_up_p95, workers=args.workers)
     print(json.dumps(results["integrity"], ensure_ascii=False, indent=2))
     return 0
 
