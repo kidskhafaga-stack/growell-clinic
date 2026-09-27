@@ -171,10 +171,10 @@
             <form method="post" action="{{ url_for('appointments.request_forward', request_id=r.id) }}" style="margin-top:6px;display:flex;gap:6px;">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               {% if not r.doctor_id %}
-              <select class="select" name="doctor_id" required>
-                <option value="">{{ t('appointments.doctor') }}</option>
-                {% for d in doctors %}<option value="{{ d.id }}">{{ d.display_name(current_lang) }}</option>{% endfor %}
-              </select>
+              {# Asked for "any doctor": the desk picks who is asked. The
+                 server refuses a request sent to nobody. #}
+              {{ pickers.doctor_picker('doctor_id', None, None, doctors=doctors,
+                                       autosubmit=False) }}
               {% endif %}
               <button class="btn btn-outline btn-sm" type="submit">{{ t('booking_requests.forward') }}</button>
             </form>
