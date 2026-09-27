@@ -922,6 +922,54 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 }
 .sidebar__scrim { display: none; }
 
+/* The top bar where there is no room for all of it. Drawn for a wide desk,
+   it laid the date, the three theme buttons, the bell, both languages, the
+   name and role and a worded "log out" in one row that does not wrap: 753px
+   of it on a 390px phone, and on a tablet or small laptop, beside the
+   sidebar, 924px on a 700px screen — every page scrolled sideways. The bar
+   keeps every control and gives up, step by step, only words said elsewhere.
+
+   Below 1440px: the date (it is on the dashboard and every dated screen),
+   and the words on "log out" and "close your shift", which keep their icon
+   and still say their words to a screen reader and on a long press. Below
+   1100px, the name and role too — the photo stays, and is the way to the
+   profile. The title shortens with "…" rather than pushing the row wider. */
+.topbar__title { min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.topbar__actions { flex: 0 0 auto; }
+@media (max-width: 1439px) {
+  .topbar { gap: 12px; }
+  .topbar__title { flex: 1 1 auto; }
+  .topbar-date { display: none; }
+  .topbar__label { position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap; }
+  .topbar__logout { padding-inline: 9px; }
+}
+@media (max-width: 1099px) {
+  .user-chip { padding: 2px; }
+  .user-chip .meta { display: none; }
+}
+.lang-switch .lang-short { display: none; }
+/* A phone: only the language you are not in is offered — the one you are
+   in is the page itself — by its short name ("EN", "ع"; the whole name is
+   its tooltip), and the theme buttons get narrower. What is left goes to
+   the page's title. */
+@media (max-width: 640px) {
+  .lang-switch .lang-full { position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .lang-switch .lang-short { display: inline; font-weight: 700; }
+  .topbar { padding: 0 12px; gap: 8px; }
+  .topbar__title { font-size: 0.98rem; }
+  .topbar__actions { gap: 8px; }
+  .lang-switch a.active { display: none; }
+  .theme-switch button { width: 28px; }
+}
+/* A small phone (320–400px): the theme is kept on the profile page, and the
+   row needs the room for the bell, the language and the way out. */
+@media (max-width: 400px) {
+  .theme-switch { display: none; }
+}
+
 @media (max-width: 880px) {
   .topbar__menu { display: inline-flex; }
   /* The rail is a desktop idea; on a phone the sidebar is either over the
