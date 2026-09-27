@@ -3,6 +3,7 @@
 Includes the doctor's "Today's Appointments" board, conflict-free booking,
 the appointment status lifecycle, and per-doctor working-hours schedules.
 """
+import re
 from datetime import datetime, timedelta
 
 from flask import (
@@ -44,6 +45,7 @@ from app.utils.appointments import (
     available_slots,
     consult_window_days,
     consultation_window,
+    LOOKAHEAD_DAYS,
     first_available_doctor,
     hold_the_diary,
     list_doctors,
@@ -62,6 +64,9 @@ from app.utils.money import format_money
 from app.utils.sequences import retry_on_number_clash
 
 MODULE = "appointments"
+
+#: A time as the slot list writes it — carried in a link, so checked.
+_SLOT = re.compile(r"(?:[01]\d|2[0-3]):[0-5]\d")
 
 
 def _appt_type(value):
@@ -684,6 +689,12 @@ def create():
         # is somebody booking *from* a particular day on the board.
         "appt_date": (request.args.get("date")
                       or local_today().isoformat()),
+        # A time chosen before the form — the request card's suggestion. The
+        # slot list preselects it if it is still free, and says nothing if
+        # it has gone; the booking itself checks again on save.
+        "appt_time": (request.args.get("time", "")
+                      if _SLOT.fullmatch(request.args.get("time", ""))
+                      else ""),
     }
     return render_template(
         "appointments/form.html", doctors=doctors, form=form,
@@ -994,11 +1005,20 @@ def requests_page():
     answer first. Booking opens the ordinary booking screen with the request
     beside it; declining asks why. Nothing here writes to the family.
     """
+    from app.utils import request_card
+
     doctor_id = request.args.get("doctor_id", type=int)
     waiting = booking_requests.pending(doctor_id)
+    doctors = list_doctors()
     return render_template(
         "appointments/requests.html",
         pending=waiting,
+        # Stage two: beside each request, what the desk would otherwise open
+        # three screens for — and the soonest free time, as a suggestion.
+        cards=request_card.cards(waiting, getattr(g, "lang", "ar")),
+        doctor_names={d.id: d.display_name(getattr(g, "lang", "ar"))
+                      for d in doctors},
+        lookahead_days=LOOKAHEAD_DAYS,
         decided=booking_requests.recent_decisions(),
         # What the desk has sent *this* user to approve, when they are a
         # doctor — the same screen, with their part at the top.
@@ -1008,7 +1028,7 @@ def requests_page():
         doctor_approves={r.id: r.doctor_id is not None
                          and booking_requests.policy_for(r.doctor) == "both"
                          for r in waiting},
-        doctors=list_doctors(), doctor_id=doctor_id,
+        doctors=doctors, doctor_id=doctor_id,
         appt_types=APPOINTMENT_TYPES, today=local_today().isoformat())
 
 
@@ -1048,15 +1068,28 @@ def request_book(request_id):
     if row.status not in ("pending", "approved"):
         flash(t("booking_requests.already_decided"), "info")
         return redirect(url_for("appointments.requests_page"))
-    if booking_requests.needs_doctor(row, row.doctor_id):
+    # The card's suggested time arrives here: a request that names its
+    # doctor is booked with that doctor, whatever the link says; one for
+    # "any doctor" with the doctor the card found free.
+    doctor_id = row.doctor_id or request.args.get("doctor_id", type=int)
+    if booking_requests.needs_doctor(row, doctor_id):
+        from app.models import User
+
+        doctor = db.session.get(User, doctor_id)
         flash(t("booking_requests.doctor_first",
-                doctor=row.doctor.display_name(getattr(g, "lang", "ar"))),
+                doctor=doctor.display_name(getattr(g, "lang", "ar"))),
               "warning")
         return redirect(url_for("appointments.requests_page"))
+    # Only a date the link carries: ``parse_date_arg`` answers an empty one
+    # with today, which would overwrite the day the family asked for.
+    on_date = (parse_date_arg(request.args.get("date"), default=None)
+               if request.args.get("date") else None) or row.wanted_date
+    slot = (request.args.get("time") or "").strip()
     return redirect(url_for(
         "appointments.create", patient_id=row.patient_id or "",
-        doctor_id=row.doctor_id or "", appt_type=row.appt_type or "",
-        date=row.wanted_date.isoformat() if row.wanted_date else "",
+        doctor_id=doctor_id or "", appt_type=row.appt_type or "",
+        date=on_date.isoformat() if on_date else "",
+        time=slot if _SLOT.fullmatch(slot) else "",
         from_request=row.id))
 
 
