@@ -41,6 +41,16 @@ TOPIC_WORDS = {
 }
 
 
+def urgent_word(text):
+    """The emergency word ``text`` carries, as written in the list — or
+    ``None``. The one list the inbox and the booking requests both read: an
+    emergency is not decided two ways in one clinic."""
+    body = (text or "").strip().lower()
+    if not body:
+        return None
+    return next((word for word in URGENT_WORDS if word.lower() in body), None)
+
+
 def suggest_topic(text):
     """What this message looks like it is about — a guess, and only a guess.
 
@@ -50,7 +60,7 @@ def suggest_topic(text):
     body = (text or "").strip().lower()
     if not body:
         return None
-    if any(word.lower() in body for word in URGENT_WORDS):
+    if urgent_word(body):
         return "urgent"
     for topic, words in TOPIC_WORDS.items():
         if any(word.lower() in body for word in words):

@@ -609,7 +609,46 @@ def inbox_thread(key):
         topics=TRIAGE_TOPICS,
         patients=(Patient.query.filter_by(is_active=True)
                   .order_by(Patient.full_name).limit(500).all()
-                  if patient is None else []))
+                  if patient is None else []),
+        **_booking_from_thread(key, patient, phone, msgs, lang))
+
+
+def _booking_from_thread(key, patient, phone, msgs, lang):
+    """What the thread needs to take a booking request from the chat — only
+    for somebody who can take one — and where its requests stand."""
+    if not current_user.can_access("appointments"):
+        return {"can_request": False}
+    from app.models.appointment import APPOINTMENT_TYPES
+    from app.utils import booking_requests as br
+    from app.utils.appointments import list_doctors
+    from app.utils.clock import local_today
+    from app.utils.triage import URGENT_WORDS
+
+    taken = br.for_conversation(key, patient.id if patient else None, phone)
+    # The family's words since the desk last wrote — what they are asking
+    # now, not the whole history. Edited before it is saved.
+    asked = []
+    for m in reversed(msgs):
+        if m.direction != "in":
+            if asked:
+                break
+            continue
+        if m.body:
+            asked.append(m.body.strip())
+    return {
+        "can_request": True,
+        "conv_requests": [
+            (r, br.steps(r, r.doctor_id is not None
+                         and br.policy_for(r.doctor) == "both"),
+             br.is_urgent(r)) for r in taken],
+        "request_doctors": list_doctors(),
+        "request_types": APPOINTMENT_TYPES,
+        "request_message": "\n".join(reversed(asked))[:1000],
+        "request_today": local_today(),
+        "request_tomorrow": local_today().fromordinal(
+            local_today().toordinal() + 1),
+        "urgent_list": list(URGENT_WORDS),
+    }
 
 
 def _approved_for(window):

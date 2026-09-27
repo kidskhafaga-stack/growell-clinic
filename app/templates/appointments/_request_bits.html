@@ -1,0 +1,160 @@
+{# The pieces the booking-request screens share — the requests list and the
+   WhatsApp thread — so a request looks the same wherever it is read:
+
+   * ``styles()``      the look, once per page;
+   * ``stepper()``     where the request stands, as a line of steps;
+   * ``said()``        the family's words, the emergency word marked in them;
+   * ``urgent_tag()``  urgent, and why: the word, or who said so;
+   * ``urgent_hint()`` the live warning while the desk is still typing. #}
+
+{% macro styles() %}
+<style>
+  /* The progress line: taken → with the doctor → approved → booked. */
+  .rq-steps { list-style:none; display:flex; align-items:center; gap:0;
+    margin:6px 0 0; padding:0; font-size:.74rem; color:var(--muted); }
+  .rq-step { display:flex; align-items:center; gap:4px; white-space:nowrap; }
+  .rq-step + .rq-step::before { content:""; width:18px; height:2px;
+    background:var(--line); margin-inline:4px; border-radius:2px; }
+  .rq-step.is-done + .rq-step::before,
+  .rq-step.is-current::before { background:var(--green-500); }
+  .rq-dot { width:18px; height:18px; border-radius:50%; display:grid;
+    place-items:center; border:2px solid var(--line); background:var(--card);
+    font-size:.62rem; color:var(--muted); flex:0 0 auto; }
+  .rq-step.is-done .rq-dot { background:var(--green-600); border-color:var(--green-600); color:#fff; }
+  .rq-step.is-current .rq-dot { border-color:var(--green-600); color:var(--green-700);
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--green-500) 22%, transparent); }
+  .rq-step.is-current { color:var(--ink); font-weight:600; }
+
+  /* The urgent: a red edge on the row, a dot that breathes, the word marked. */
+  .rq-row--urgent > td { background:color-mix(in srgb, var(--danger) 6%, var(--card)); }
+  .rq-row--urgent > td:first-child { box-shadow:inset -4px 0 0 var(--danger); }
+  [dir="ltr"] .rq-row--urgent > td:first-child { box-shadow:inset 4px 0 0 var(--danger); }
+  .rq-pulse { display:inline-block; width:10px; height:10px; border-radius:50%;
+    background:var(--danger); margin-inline-end:6px; vertical-align:middle;
+    animation:rq-breathe 1.6s ease-in-out infinite; }
+  @keyframes rq-breathe {
+    0%, 100% { box-shadow:0 0 0 0 color-mix(in srgb, var(--danger) 55%, transparent); }
+    50% { box-shadow:0 0 0 7px color-mix(in srgb, var(--danger) 0%, transparent); }
+  }
+  .rq-said mark { background:color-mix(in srgb, var(--danger) 18%, transparent);
+    color:var(--danger); font-weight:700; border-radius:4px; padding:0 3px; }
+  .rq-urgent-tag { display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;
+    margin-top:6px; font-size:.8rem; }
+  .rq-urgent-tag .rq-flag { color:var(--danger); font-weight:700; }
+  .rq-urgent-tag .rq-flag.is-off { color:var(--muted); font-weight:500;
+    text-decoration:line-through; }
+  .rq-switch { border:1px solid var(--line); background:var(--card); color:var(--ink);
+    border-radius:999px; padding:2px 10px; font-size:.76rem; cursor:pointer; }
+  .rq-switch:hover { border-color:var(--danger); color:var(--danger); }
+  .rq-switch.is-raise:hover { border-color:var(--danger); }
+  .rq-switch:focus-visible { outline:2px solid var(--green-600); outline-offset:2px; }
+
+  /* The strip above the list: how many may be urgent. */
+  .rq-alarm { display:flex; align-items:center; gap:10px; padding:10px 14px;
+    border-radius:var(--radius, 12px); margin-bottom:12px;
+    background:color-mix(in srgb, var(--danger) 10%, var(--card));
+    border:1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+    color:var(--danger); font-weight:600; }
+  .rq-alarm .rq-count { font-size:1.4rem; font-variant-numeric:tabular-nums; }
+
+  /* Where it came in. */
+  .rq-source { display:inline-flex; align-items:center; gap:4px; font-size:.72rem;
+    border-radius:999px; padding:1px 8px; border:1px solid var(--line); color:var(--muted); }
+  .rq-source.is-whatsapp { color:#128c4a; border-color:color-mix(in srgb, #25d366 45%, transparent); }
+
+  /* One-tap choices: the visit type, and when. */
+  .rq-chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .rq-chip { position:relative; }
+  .rq-chip input { position:absolute; opacity:0; inset:0; }
+  .rq-chip span { display:inline-flex; align-items:center; gap:5px; padding:5px 12px;
+    border-radius:999px; border:1px solid var(--line); background:var(--card);
+    cursor:pointer; font-size:.85rem; }
+  .rq-chip input:checked + span { background:var(--green-700); border-color:var(--green-700); color:#fff; }
+  .rq-chip input:focus-visible + span { outline:2px solid var(--green-600); outline-offset:2px; }
+  button.rq-chip-btn { border:1px dashed var(--line); background:var(--surface);
+    border-radius:999px; padding:5px 12px; font-size:.85rem; cursor:pointer; color:var(--ink); }
+  button.rq-chip-btn.is-on { border-style:solid; border-color:var(--green-700); color:var(--green-700); font-weight:600; }
+
+  /* The live warning while typing. */
+  .rq-live { display:flex; gap:8px; align-items:flex-start; margin-top:8px;
+    padding:8px 12px; border-radius:10px; font-size:.88rem;
+    background:color-mix(in srgb, var(--danger) 10%, var(--card));
+    color:var(--danger); border:1px solid color-mix(in srgb, var(--danger) 30%, transparent); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rq-pulse { animation:none; }
+  }
+</style>
+{% endmacro %}
+
+{% set STEP_ICONS = {'taken': 'inbox', 'with_doctor': 'person-check',
+                     'approved': 'check-lg', 'booked': 'calendar-check'} %}
+
+{% macro stepper(steps) %}
+{% if steps %}
+<ol class="rq-steps" data-steps="{% for name, state in steps %}{{ name }}:{{ state }}{% if not loop.last %},{% endif %}{% endfor %}">
+  {% for name, state in steps %}
+  <li class="rq-step is-{{ state }}" {% if state == 'current' %}aria-current="step"{% endif %}>
+    <span class="rq-dot"><i class="bi bi-{{ STEP_ICONS[name] }}"></i></span>
+    <span>{{ t('booking_requests.step_' ~ name) }}</span>
+  </li>
+  {% endfor %}
+</ol>
+{% endif %}
+{% endmacro %}
+
+{% macro said(parts) %}
+{%- if parts -%}
+<div class="rq-said" style="color:var(--muted);font-size:.9rem;margin-top:4px;white-space:pre-wrap;">«
+{%- for piece, is_word in parts -%}{% if is_word %}<mark>{{ piece }}</mark>{% else %}{{ piece }}{% endif %}{%- endfor -%}
+»</div>
+{%- endif -%}
+{% endmacro %}
+
+{# Urgent, and why; and the one-click switch. The program's guess is shown
+   as a guess; a person's word is shown with their name. #}
+{% macro urgent_tag(r, urgent, word) %}
+<div class="rq-urgent-tag" data-urgent="{{ 'yes' if urgent else 'no' }}">
+  {% if urgent %}
+    <span class="rq-flag"><i class="bi bi-exclamation-triangle-fill"></i>
+      {% if r.urgent_mark == 'yes' %}{{ t('booking_requests.urgent_by', who=r.urgent_marker.display_name(current_lang) if r.urgent_marker else '') }}
+      {% else %}{{ t('booking_requests.urgent_word', word=word) }}{% endif %}</span>
+    <form method="post" action="{{ url_for('appointments.request_urgent', request_id=r.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="urgent" value="no">
+      <button class="rq-switch" type="submit" data-urgent-off>{{ t('booking_requests.urgent_off') }}</button>
+    </form>
+  {% else %}
+    {% if r.urgent_mark == 'no' and word %}
+    <span class="rq-flag is-off" title="{{ t('booking_requests.urgent_word', word=word) }}">{{ t('booking_requests.urgent_cleared', who=r.urgent_marker.display_name(current_lang) if r.urgent_marker else '') }}</span>
+    {% endif %}
+    <form method="post" action="{{ url_for('appointments.request_urgent', request_id=r.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="urgent" value="yes">
+      <button class="rq-switch is-raise" type="submit" data-urgent-on><i class="bi bi-exclamation-triangle"></i> {{ t('booking_requests.urgent_on') }}</button>
+    </form>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro source_tag(r) %}
+{% if r.source == 'whatsapp' %}
+<span class="rq-source is-whatsapp" data-source="whatsapp"><i class="bi bi-whatsapp"></i> {{ t('booking_requests.source_whatsapp') }}</span>
+{% endif %}
+{% endmacro %}
+
+{# The textarea's live warning: the same list the server reads, so what the
+   desk sees while typing is what the list will do once it is saved. #}
+{% macro urgent_hint(words) %}
+<div class="rq-live" x-show="urgentWord()" x-cloak x-transition data-live-urgent>
+  <i class="bi bi-exclamation-triangle-fill" style="margin-top:2px;"></i>
+  <span>{{ t('booking_requests.urgent_live_a') }} «<strong x-text="urgentWord()"></strong>» — {{ t('booking_requests.urgent_live_b') }}</span>
+</div>
+<script>
+  window.GC_URGENT_WORDS = {{ words|tojson }};
+  function urgentScan(text) {
+    const body = (text || '').toLowerCase();
+    return (window.GC_URGENT_WORDS || []).find(w => body.includes(w.toLowerCase())) || '';
+  }
+</script>
+{% endmacro %}

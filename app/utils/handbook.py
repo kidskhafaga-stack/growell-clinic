@@ -195,6 +195,29 @@ SECTIONS = [
              "doctor asked for (or the first doctor free). \"Book this "
              "time\" opens the booking screen with it filled in — the card "
              "suggests, you book."),
+            ("<b>الطارئ فوق</b>: الطلب اللي كلام الأهل فيه كلمة طوارئ (نفس "
+             "قايمة صندوق الواتساب: تشنج، مش بيتنفس، ازرقاق…) بيطلع أول "
+             "القايمة بالأحمر، والكلمة متعلّمة جوّه كلامهم — وبيبان التحذير "
+             "وإنت لسه بتكتب. «مش طارئ» بتنزّله بضغطة، و«علّمه طارئ» بتطلّع "
+             "طلب الكلمات فاتته، واسم اللي قال بيتسجّل. البرنامج بيرفع بس، "
+             "ما بينزّلش، وما بيبعتش للأهل حاجة.",
+             "<b>The urgent first</b>: a request whose words carry an "
+             "emergency word (the WhatsApp inbox's own list: seizure, not "
+             "breathing, turning blue…) goes to the top in red, the word "
+             "marked in their words — and the warning shows while you are "
+             "still typing. \"Not urgent\" takes it down in one click, and "
+             "\"Mark urgent\" raises one the words missed; who said it is "
+             "kept. The program only ever raises, and sends the family "
+             "nothing."),
+            ("<b>طلب من محادثة الواتساب</b>: من المحادثة نفسها «سجّل طلب ميعاد "
+             "من المحادثة» — الطفل متختار، وكلام الأهل من آخر رد متنقل، ونوع "
+             "الزيارة واليوم بضغطة. والمحادثة بتوريك الطلب واقف فين: اتسجّل، "
+             "عند الدكتور، اتوافق، اتحجز.",
+             "<b>A request from a WhatsApp chat</b>: from the chat itself, "
+             "\"Take a booking request from this chat\" — the child already "
+             "chosen, the family's words since the last reply copied, the "
+             "visit type and the day one tap each. And the chat shows where "
+             "the request stands: taken, with the doctor, approved, booked."),
             ("<b>مين يوافق على الطلب</b>: قاعدة العيادة «الاستقبال وبعده "
              "الدكتور» إلا لو اتغيّرت من الإعدادات. الاستقبال بيدوس «ابعته "
              "للدكتور»، والدكتور بيلاقيه فوق شاشته في «طلبات مستنية "
