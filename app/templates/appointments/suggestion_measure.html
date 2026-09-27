@@ -1,0 +1,154 @@
+{% extends "shell.html" %}
+{% set active_module = 'appointments' %}
+{% block title %}{{ t('suggestion_measure.title') }}{% endblock %}
+{% block page_heading %}{{ t('suggestion_measure.title') }}{% endblock %}
+
+{# One bar: the four things the desk can do with a suggestion, each as wide
+   as its share, with the count on hover and the percent where it fits. #}
+{% macro bar(share, big=False) %}
+<div class="sm-bar {{ 'is-big' if big }}" role="img"
+     aria-label="{% for key in changes %}{{ t('suggestion_measure.o_' ~ key) }} {{ share[key][1] }}%{% if not loop.last %}، {% endif %}{% endfor %}">
+  {% for key in changes %}
+  {% if share[key][1] %}
+  <span class="sm-seg sm-{{ key }}" style="width:{{ share[key][1] }}%;"
+        title="{{ t('suggestion_measure.o_' ~ key) }}: {{ share[key][0] }} ({{ share[key][1] }}%)"
+        data-seg="{{ key }}" data-pct="{{ share[key][1] }}">
+    {% if share[key][1] >= 12 %}{{ share[key][1] }}%{% endif %}</span>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{% block content %}
+<style>
+  .sm-head { display:flex; justify-content:space-between; align-items:end; gap:14px;
+    flex-wrap:wrap; margin-bottom:16px; }
+  .sm-periods { display:flex; gap:6px; flex-wrap:wrap; }
+  .sm-periods a { padding:5px 12px; border-radius:999px; border:1px solid var(--line);
+    color:var(--ink); text-decoration:none; font-size:.85rem; background:var(--card); }
+  .sm-periods a.is-on { background:var(--green-700); border-color:var(--green-700); color:#fff; }
+  .sm-periods a:focus-visible { outline:2px solid var(--green-600); outline-offset:2px; }
+
+  .sm-top { display:grid; grid-template-columns:auto 1fr; gap:22px; align-items:center; }
+  @media (max-width: 640px) { .sm-top { grid-template-columns:1fr; justify-items:center; } }
+  /* The share kept, as a ring: the one number stage five decides on. */
+  .sm-ring { --p:0; width:150px; height:150px; border-radius:50%; display:grid;
+    place-items:center; background:conic-gradient(var(--green-600) calc(var(--p) * 1%),
+    color-mix(in srgb, var(--line) 70%, transparent) 0); }
+  .sm-ring > div { width:112px; height:112px; border-radius:50%; background:var(--card);
+    display:grid; place-items:center; text-align:center; }
+  .sm-ring strong { font-size:2rem; font-variant-numeric:tabular-nums; line-height:1; }
+  .sm-ring span { font-size:.75rem; color:var(--muted); }
+
+  .sm-counts { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; }
+  .sm-count { border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+  .sm-count b { display:block; font-size:1.4rem; font-variant-numeric:tabular-nums; }
+  .sm-count small { color:var(--muted); }
+  .sm-count i { margin-inline-end:4px; }
+
+  .sm-bar { display:flex; height:22px; border-radius:8px; overflow:hidden;
+    background:color-mix(in srgb, var(--line) 50%, transparent); }
+  .sm-bar.is-big { height:30px; }
+  .sm-seg { display:flex; align-items:center; justify-content:center; font-size:.72rem;
+    font-weight:700; color:#fff; font-variant-numeric:tabular-nums; min-width:3px; }
+  .sm-kept   { background:var(--green-600); }
+  .sm-time   { background:var(--info, #0ea5e9); }
+  .sm-day    { background:var(--warning, #d97706); }
+  .sm-doctor { background:color-mix(in srgb, var(--ink) 55%, var(--card)); }
+  .sm-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:.82rem; color:var(--muted); margin-top:8px; }
+  .sm-legend span::before { content:""; display:inline-block; width:10px; height:10px;
+    border-radius:3px; margin-inline-end:5px; vertical-align:middle; background:var(--sw); }
+
+  .sm-rows { display:grid; gap:10px; }
+  .sm-row { display:grid; grid-template-columns:minmax(120px, 190px) 1fr 52px; gap:12px; align-items:center; }
+  .sm-row .n { text-align:end; color:var(--muted); font-variant-numeric:tabular-nums; }
+  @media (max-width: 640px) { .sm-row { grid-template-columns:1fr 44px; }
+    .sm-row .sm-bar { grid-column:1 / -1; order:3; } }
+</style>
+
+<div class="sm-head gc-animate">
+  <div>
+    <h1 class="page-title"><i class="bi bi-bullseye"></i> {{ t('suggestion_measure.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:65ch;">{{ t('suggestion_measure.subtitle') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <nav class="sm-periods" aria-label="{{ t('suggestion_measure.period') }}" data-periods>
+      {% for d in periods %}
+      <a href="{{ url_for('appointments.suggestion_measure', days=d or 'all') }}"
+         class="{{ 'is-on' if d == report.days }}" {% if d == report.days %}aria-current="true"{% endif %}>
+        {{ t('suggestion_measure.days', n=d) if d else t('suggestion_measure.all') }}</a>
+      {% endfor %}
+    </nav>
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.requests_page') }}">
+      <i class="bi bi-inbox"></i> {{ t('booking_requests.title') }}</a>
+  </div>
+</div>
+
+{% if not report.suggested %}
+<div class="card gc-scale-in" data-measure-empty>
+  <p style="margin:0;"><i class="bi bi-hourglass"></i> {{ t('suggestion_measure.empty') }}</p>
+  <p class="hint" style="margin:8px 0 0;">{{ t('suggestion_measure.how') }}</p>
+</div>
+{% else %}
+<div class="card gc-scale-in" data-measure="{{ report.suggested }}">
+  <div class="sm-top">
+    <div class="sm-ring" style="--p:{{ report.share.kept[1] }};" data-kept-pct="{{ report.share.kept[1] }}">
+      <div><div><strong>{{ report.share.kept[1] }}%</strong><br><span>{{ t('suggestion_measure.kept_ring') }}</span></div></div>
+    </div>
+    <div>
+      <div class="sm-counts">
+        {% for key, icon in (('kept', 'check2-circle'), ('time', 'clock'), ('day', 'calendar-event'), ('doctor', 'person')) %}
+        {# ``data-count`` is the shell's count-up (app.js): the number rises
+           from 0 as the page opens, and lands on the count. #}
+        <div class="sm-count" data-outcome="{{ key }}">
+          <b data-count="{{ report.share[key][0] }}">{{ report.share[key][0] }}</b>
+          <small><i class="bi bi-{{ icon }}"></i>{{ t('suggestion_measure.o_' ~ key) }}</small>
+        </div>
+        {% endfor %}
+      </div>
+      <div style="margin-top:14px;">{{ bar(report.share, big=True) }}</div>
+      <div class="sm-legend">
+        {% for key, sw in (('kept', 'var(--green-600)'), ('time', 'var(--info, #0ea5e9)'), ('day', 'var(--warning, #d97706)'), ('doctor', 'color-mix(in srgb, var(--ink) 55%, var(--card))')) %}
+        <span style="--sw:{{ sw }};">{{ t('suggestion_measure.o_' ~ key) }}</span>
+        {% endfor %}
+      </div>
+      <p class="hint" style="margin:10px 0 0;">
+        {{ t('suggestion_measure.basis', n=report.suggested, since=report.since) }}
+        {% if report.nothing_free %}· {{ t('suggestion_measure.nothing_free', n=report.nothing_free) }}{% endif %}
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="animation-delay:.05s;">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-tags"></i> {{ t('suggestion_measure.by_type') }}</h2>
+  <p class="hint" style="margin-top:-4px;">{{ t('suggestion_measure.by_type_hint') }}</p>
+  <div class="sm-rows">
+    {% for line in report.by_type %}
+    <div class="sm-row" data-type-line="{{ line.key or '-' }}">
+      <div>{% if line.key %}<span class="type-tag tt-{{ visit_type_color(line.key) }}">{{ visit_type_label(line.key) }}</span>
+        {% else %}<span class="hint">{{ t('suggestion_measure.no_type') }}</span>{% endif %}</div>
+      {{ bar(line.share) }}
+      <div class="n">{{ line.total }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="animation-delay:.08s;">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-signpost-split"></i> {{ t('suggestion_measure.by_source') }}</h2>
+  <div class="sm-rows">
+    {% for line in report.by_source %}
+    <div class="sm-row" data-source-line="{{ line.key }}">
+      <div>{% if line.key == 'whatsapp' %}<i class="bi bi-whatsapp" style="color:#128c4a;"></i>{% else %}<i class="bi bi-telephone"></i>{% endif %}
+        {{ t('suggestion_measure.source_' ~ line.key) }}</div>
+      {{ bar(line.share) }}
+      <div class="n">{{ line.total }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<p class="hint" style="margin-top:14px;max-width:70ch;">{{ t('suggestion_measure.decision') }}</p>
+{% endblock %}

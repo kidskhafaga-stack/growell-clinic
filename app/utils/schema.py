@@ -725,6 +725,13 @@ ADDITIONS = [
     ("booking_requests", "urgent_by", "INTEGER"),
     ("booking_requests", "urgent_at", "DATETIME"),
     ("booking_requests", "conversation_key", "VARCHAR(64)"),
+    # What the program suggested when a request was booked, and what the desk
+    # did with it (stage five's measure). Empty on every request booked
+    # before: nothing was recorded then, and nothing is made up now.
+    ("booking_requests", "suggested_doctor_id", "INTEGER"),
+    ("booking_requests", "suggested_date", "DATE"),
+    ("booking_requests", "suggested_time", "VARCHAR(5)"),
+    ("booking_requests", "suggestion_outcome", "VARCHAR(8)"),
 ]
 
 def apply_schema(report=None):

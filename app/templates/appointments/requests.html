@@ -48,8 +48,12 @@
     <h1 class="page-title"><i class="bi bi-inbox"></i> {{ t('booking_requests.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('booking_requests.subtitle') }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index', doctor_id=doctor_id) }}">
-    <i class="bi bi-calendar3"></i> {{ t('appointments.today') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('appointments.suggestion_measure') }}" data-measure-link>
+      <i class="bi bi-bullseye"></i> {{ t('suggestion_measure.link') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index', doctor_id=doctor_id) }}">
+      <i class="bi bi-calendar3"></i> {{ t('appointments.today') }}</a>
+  </div>
 </div>
 
 {# The urgent, counted above everything: the same rule that puts them at
