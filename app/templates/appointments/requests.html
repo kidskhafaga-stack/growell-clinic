@@ -85,6 +85,44 @@
   </form>
 </details>
 
+{# A doctor's part: what the desk sent them to approve. Only theirs — a yes
+   from the doctor a request was sent to, and from nobody else. #}
+{% if mine %}
+<div class="card gc-scale-in" data-awaiting-me="{{ mine|length }}" style="border-inline-start:3px solid var(--warn,#b45309);">
+  <h2 class="section-title" style="margin:0 0 10px;">
+    <i class="bi bi-person-check"></i> {{ t('booking_requests.awaiting_you') }}
+    <span class="badge">{{ mine|length }}</span></h2>
+  <table class="table">
+    <tbody>
+      {% for r in mine %}
+      <tr data-mine="{{ r.id }}">
+        <td><strong>{{ r.who(current_lang) }}</strong>
+          {% if r.message %}<div style="color:var(--muted);font-size:.9rem;margin-top:4px;white-space:pre-wrap;">«{{ r.message }}»</div>{% endif %}</td>
+        <td>{% if r.appt_type %}<span class="type-tag tt-{{ visit_type_color(r.appt_type) }}">{{ visit_type_label(r.appt_type) }}</span>{% endif %}</td>
+        <td class="num">{{ r.wanted_date or t('booking_requests.soonest') }}</td>
+        <td style="text-align:end;white-space:nowrap;">
+          <form method="post" action="{{ url_for('appointments.request_approve', request_id=r.id) }}" style="display:inline-flex;gap:6px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="input" name="note" maxlength="200" placeholder="{{ t('booking_requests.note_ph') }}">
+            <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('booking_requests.approve') }}</button>
+          </form>
+          <details style="display:inline-block;">
+            <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;">
+              <i class="bi bi-x-circle"></i> {{ t('booking_requests.decline') }}</summary>
+            <form method="post" action="{{ url_for('appointments.request_decline', request_id=r.id) }}" style="margin-top:6px;display:flex;gap:6px;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input class="input" name="reason" required maxlength="200" placeholder="{{ t('booking_requests.reason_ph') }}">
+              <button class="btn btn-outline btn-sm" type="submit">{{ t('booking_requests.decline') }}</button>
+            </form>
+          </details>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
 <div class="card gc-scale-in" style="animation-delay:.05s;">
   <h2 class="section-title" style="margin:0 0 10px;">
     <i class="bi bi-hourglass-split"></i> {{ t('booking_requests.waiting') }}
@@ -111,9 +149,37 @@
         <td style="color:var(--muted);font-size:.85rem;">
           {{ (r.requested_at|clinic_stamp) if r.requested_at else '' }}
           {% if r.requester %}<br>{{ r.requester.display_name(current_lang) }}{% endif %}</td>
-        <td style="text-align:end;white-space:nowrap;">
-          <a class="btn btn-primary btn-sm gc-press" href="{{ url_for('appointments.request_book', request_id=r.id) }}">
+        <td style="text-align:end;white-space:nowrap;" data-request-state="{{ r.status }}">
+          {# Where it stands with its doctor, when the doctor approves too. #}
+          {% if r.status == 'with_doctor' %}
+            <span class="pill warn" data-with-doctor>{{ t('booking_requests.status_with_doctor', doctor=r.doctor.display_name(current_lang)) }}</span>
+          {% elif r.status == 'approved' %}
+            <span class="pill ok" data-approved-by="{{ r.approved_by }}">{{ t('booking_requests.status_approved', doctor=r.approver.display_name(current_lang)) }}</span>
+            {% if r.approval_note %}<div style="color:var(--muted);font-size:.85rem;white-space:normal;">«{{ r.approval_note }}»</div>{% endif %}
+          {% endif %}
+          {% if r.status == 'approved' or (r.status == 'pending' and not doctor_approves.get(r.id)) %}
+          <a class="btn btn-primary btn-sm gc-press" href="{{ url_for('appointments.request_book', request_id=r.id) }}" data-book>
             <i class="bi bi-calendar-plus"></i> {{ t('booking_requests.book') }}</a>
+          {% endif %}
+          {% if r.status == 'pending' %}
+          {# Sent to the doctor: the one it names, or — asked for "any doctor"
+             — the one the desk picks. A doctor who leaves it to the desk is
+             still one the desk may ask. #}
+          <details style="display:inline-block;" {{ 'open' if doctor_approves.get(r.id) else '' }}>
+            <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;" data-forward>
+              <i class="bi bi-person-check"></i> {{ t('booking_requests.forward') }}</summary>
+            <form method="post" action="{{ url_for('appointments.request_forward', request_id=r.id) }}" style="margin-top:6px;display:flex;gap:6px;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              {% if not r.doctor_id %}
+              {# Asked for "any doctor": the desk picks who is asked. The
+                 server refuses a request sent to nobody. #}
+              {{ pickers.doctor_picker('doctor_id', None, None, doctors=doctors,
+                                       autosubmit=False) }}
+              {% endif %}
+              <button class="btn btn-outline btn-sm" type="submit">{{ t('booking_requests.forward') }}</button>
+            </form>
+          </details>
+          {% endif %}
           <details style="display:inline-block;">
             <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;">
               <i class="bi bi-x-circle"></i> {{ t('booking_requests.decline') }}</summary>

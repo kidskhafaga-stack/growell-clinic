@@ -714,6 +714,10 @@ ADDITIONS = [
     # The developer's account (a door the owner opens). False on every user
     # already there: nobody is a support account until the owner makes one.
     ("users", "is_vendor", "BOOLEAN DEFAULT 0"),
+    # Whether this doctor approves booking requests too, or leaves them to
+    # the desk. Empty on every doctor already there: the clinic's rule
+    # (`booking_requests.policy_for`) until they say otherwise.
+    ("users", "booking_approval", "VARCHAR(10)"),
 ]
 
 def apply_schema(report=None):

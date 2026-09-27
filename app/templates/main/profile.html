@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% from "appointments/_approval_policy.html" import approval_policy with context %}
 {% block title %}{{ t('profile.title') }}{% endblock %}
 {% block page_heading %}{{ t('profile.my_profile') }}{% endblock %}
 
@@ -170,4 +171,9 @@
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </div>
 </form>
+{# Outside the form above: its own small form, so saving one never posts the
+   other. A doctor decides whether they approve booking requests too. #}
+{% if current_user.role == 'doctor' %}
+<div style="margin-top:14px;">{{ approval_policy(current_user) }}</div>
+{% endif %}
 {% endblock %}

@@ -6,6 +6,7 @@ the appointment status lifecycle, and per-doctor working-hours schedules.
 from datetime import datetime, timedelta
 
 from flask import (
+    abort,
     flash,
     g,
     jsonify,
@@ -14,7 +15,7 @@ from flask import (
     request,
     url_for,
 )
-from flask_login import current_user
+from flask_login import current_user, login_required
 
 from app.blueprints.appointments import appointments_bp
 from app.extensions import db
@@ -27,9 +28,11 @@ from app.models import (
     ScheduleException,
     Setting,
     BookingRequest,
+    User,
     VaccineBrand,
     WaitlistEntry,
 )
+from app.models.booking_request import OPEN_STATUSES
 from app.models.appointment import (
     ACTIVE_STATUSES,
     APPOINTMENT_TYPES,
@@ -564,6 +567,17 @@ def create():
                     "appointment.flag_override", user_id=current_user.id,
                     entity="patient", entity_id=patient_id,
                     ip_address=client_ip())
+        # A family's request whose doctor approves too is booked only after
+        # that doctor's yes — and a yes from one doctor is not a yes to book
+        # them with another. Checked here, on the booking itself, so it holds
+        # however the desk reached this form.
+        answering = _open_request(request.form.get("from_request", type=int))
+        if (not error and answering is not None
+                and booking_requests.needs_doctor(answering, doctor_id)):
+            doctor = db.session.get(User, doctor_id)
+            error = t("booking_requests.doctor_first",
+                      doctor=doctor.display_name(getattr(g, "lang", "ar"))
+                      if doctor else "")
         if error:
             # Let go of the diary before drawing the form again: nothing was
             # written, and every other desk is waiting on it.
@@ -692,7 +706,7 @@ def _open_request(request_id):
     if not request_id:
         return None
     row = db.session.get(BookingRequest, request_id)
-    return row if row is not None and row.status == "pending" else None
+    return row if row is not None and row.status in OPEN_STATUSES else None
 
 
 def _doctor_options(doctors):
@@ -981,10 +995,19 @@ def requests_page():
     beside it; declining asks why. Nothing here writes to the family.
     """
     doctor_id = request.args.get("doctor_id", type=int)
+    waiting = booking_requests.pending(doctor_id)
     return render_template(
         "appointments/requests.html",
-        pending=booking_requests.pending(doctor_id),
+        pending=waiting,
         decided=booking_requests.recent_decisions(),
+        # What the desk has sent *this* user to approve, when they are a
+        # doctor — the same screen, with their part at the top.
+        mine=booking_requests.awaiting(current_user.id),
+        # Per request: does its doctor approve too? A request for "any
+        # doctor" is asked of the doctor the desk sends it to.
+        doctor_approves={r.id: r.doctor_id is not None
+                         and booking_requests.policy_for(r.doctor) == "both"
+                         for r in waiting},
         doctors=list_doctors(), doctor_id=doctor_id,
         appt_types=APPOINTMENT_TYPES, today=local_today().isoformat())
 
@@ -1022,8 +1045,13 @@ def request_book(request_id):
     """Answer a request with a booking: the ordinary booking screen, filled
     in from what the family asked for."""
     row = db.get_or_404(BookingRequest, request_id)
-    if row.status != "pending":
+    if row.status not in ("pending", "approved"):
         flash(t("booking_requests.already_decided"), "info")
+        return redirect(url_for("appointments.requests_page"))
+    if booking_requests.needs_doctor(row, row.doctor_id):
+        flash(t("booking_requests.doctor_first",
+                doctor=row.doctor.display_name(getattr(g, "lang", "ar"))),
+              "warning")
         return redirect(url_for("appointments.requests_page"))
     return redirect(url_for(
         "appointments.create", patient_id=row.patient_id or "",
@@ -1049,6 +1077,65 @@ def request_decline(request_id):
         db.session.commit()
         flash(t("booking_requests.declined"), "info")
     return redirect(url_for("appointments.requests_page"))
+
+
+@appointments_bp.route("/requests/<int:request_id>/forward", methods=["POST"])
+@module_required(MODULE)
+def request_forward(request_id):
+    """The desk sends a request to its doctor to approve."""
+    row = db.get_or_404(BookingRequest, request_id)
+    try:
+        done = booking_requests.forward(
+            row, current_user, request.form.get("doctor_id", type=int),
+            ip_address=client_ip())
+    except ValueError:
+        flash(t("booking_requests.need_doctor"), "danger")
+        return redirect(url_for("appointments.requests_page"))
+    if done is None:
+        flash(t("booking_requests.already_decided"), "info")
+    else:
+        db.session.commit()
+        flash(t("booking_requests.forwarded"), "success")
+    return redirect(url_for("appointments.requests_page"))
+
+
+@appointments_bp.route("/requests/<int:request_id>/approve", methods=["POST"])
+@module_required(MODULE)
+def request_approve(request_id):
+    """The doctor it was sent to says yes. Nobody else can — not another
+    doctor, and not the desk on the doctor's behalf."""
+    row = db.get_or_404(BookingRequest, request_id)
+    if row.doctor_id != current_user.id:
+        abort(403)
+    done = booking_requests.approve(row, current_user,
+                                    request.form.get("note"),
+                                    ip_address=client_ip())
+    if done is None:
+        flash(t("booking_requests.already_decided"), "info")
+    else:
+        db.session.commit()
+        flash(t("booking_requests.approved"), "success")
+    return redirect(url_for("appointments.requests_page"))
+
+
+@appointments_bp.route("/approval/<int:doctor_id>", methods=["POST"])
+@login_required
+def approval_policy(doctor_id):
+    """A doctor's own rule for requests: approve them too, leave them to the
+    desk, or follow the clinic. Theirs to set, and the admin's."""
+    doctor = db.get_or_404(User, doctor_id)
+    if current_user.id != doctor.id and not current_user.is_admin:
+        abort(403)
+    chosen = (request.form.get("booking_approval") or "").strip()
+    doctor.booking_approval = (chosen if chosen in booking_requests.POLICIES
+                               else None)
+    ActivityLog.record("booking_request.policy", user_id=current_user.id,
+                       entity="user", entity_id=doctor.id,
+                       detail=doctor.booking_approval or "clinic",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("booking_requests.policy_saved"), "success")
+    return redirect(request.referrer or url_for("main.profile"))
 
 
 @appointments_bp.route("/patient-search")

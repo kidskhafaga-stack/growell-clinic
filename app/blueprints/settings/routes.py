@@ -23,6 +23,10 @@ ALLOWED_LOGO = {"png", "jpg", "jpeg", "webp", "svg", "gif"}
 
 # Settings exposed on the form (text fields).
 TEXT_KEYS = [
+    # Who says yes to a family's booking request: "both" (the desk, then the
+    # doctor — the clinic's decision) or "reception". Each doctor may set
+    # their own over it (``booking_requests.policy_for``).
+    "booking_approval",
     "clinic_name", "clinic_name_ar", "clinic_phone",
     "clinic_address", "clinic_address_en", "clinic_tagline",
     "product_name", "product_name_en",
