@@ -170,7 +170,7 @@
         <a class="btn btn-sm gc-press topbar__amber-chip" href="{{ url_for('finance.cashier') }}"
            title="{{ t('shifts.quick_close_hint', number=my_open_shift.shift_number or my_open_shift.id) }}"
            style="background:#fff7ed;border:1px solid #fdba74;color:#9a3412;display:inline-flex;align-items:center;gap:6px;">
-          <i class="bi bi-hourglass-split"></i> {{ t('shifts.quick_close') }}</a>
+          <i class="bi bi-hourglass-split"></i> <span class="topbar__label">{{ t('shifts.quick_close') }}</span></a>
         {% endif %}
 
         <div class="notif-wrap" x-data="{ open: false }" x-on:keydown.escape.window="open=false">
@@ -203,9 +203,12 @@
         </div>
         <div class="lang-switch">
           {% for lang in available_languages %}
+            {% set lang_name = t('common.arabic') if lang == 'ar' else t('common.english') %}
             <a class="{{ 'active' if current_lang == lang else '' }}"
-               href="{{ url_for('auth.set_language', lang=lang) }}">
-              {{ t('common.arabic') if lang == 'ar' else t('common.english') }}
+               href="{{ url_for('auth.set_language', lang=lang) }}"
+               title="{{ lang_name }}" lang="{{ lang }}">
+              <span class="lang-full">{{ lang_name }}</span>
+              <span class="lang-short" aria-hidden="true">{{ 'ع' if lang == 'ar' else 'EN' }}</span>
             </a>
           {% endfor %}
         </div>
@@ -220,8 +223,9 @@
             <div class="role">{{ current_user.role_label(current_lang) }}</div>
           </div>
         </a>
-        <a class="btn btn-outline btn-sm" href="{{ url_for('auth.logout') }}">
-          <i class="bi bi-box-arrow-right"></i> {{ t('auth.logout') }}
+        <a class="btn btn-outline btn-sm topbar__logout" href="{{ url_for('auth.logout') }}"
+           aria-label="{{ t('auth.logout') }}" title="{{ t('auth.logout') }}">
+          <i class="bi bi-box-arrow-right"></i> <span class="topbar__label">{{ t('auth.logout') }}</span>
         </a>
       </div>
     </header>
