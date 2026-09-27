@@ -1,0 +1,54 @@
+{% extends "shell.html" %}
+{% set active_module = 'settings' %}
+{% block title %}{{ t('data_tools.old_demo_title') }}{% endblock %}
+{% block page_heading %}{{ t('data_tools.old_demo_title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ t('data_tools.old_demo_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('data_tools.old_demo_intro') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('settings.data_tools') }}">
+    <i class="bi bi-arrow-right"></i> {{ t('data_tools.title') }}</a>
+</div>
+
+<div class="card gc-scale-in">
+  {% if not found or not found.total %}
+  <p data-old-demo-none>{{ t('data_tools.old_demo_none') }}</p>
+  {% else %}
+  <p><strong>{{ t('data_tools.old_demo_when') }}</strong>
+     <span data-old-demo-at>{{ found.at.strftime('%Y-%m-%d %H:%M') }}</span> (UTC)</p>
+
+  {% if found.patients %}
+  <p><strong>{{ t('data_tools.old_demo_patients') }}:</strong>
+    <span data-old-demo-patients>{{ found.patients|join('، ') }}</span></p>
+  {% endif %}
+
+  <div style="overflow-x:auto;">
+    <table class="table" data-old-demo-tables>
+      <thead><tr><th>{{ t('data_tools.old_demo_table') }}</th>
+                 <th style="text-align:end;">{{ t('data_tools.old_demo_rows') }}</th></tr></thead>
+      <tbody>
+        {% for name, rows in found.tables %}
+        <tr data-table="{{ name }}"><td><code>{{ name }}</code></td>
+            <td style="text-align:end;font-variant-numeric:tabular-nums;">{{ rows }}</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot><tr><th>{{ t('data_tools.old_demo_total') }}</th>
+                 <th style="text-align:end;" data-old-demo-total="{{ found.total }}">{{ found.total }}</th></tr></tfoot>
+    </table>
+  </div>
+
+  <p class="hint" style="margin-top:12px;">{{ t('data_tools.old_demo_safe') }}</p>
+
+  <form method="post" action="{{ url_for('settings.old_demo') }}"
+        onsubmit="return confirm('{{ t('data_tools.old_demo_warn') }}');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="expected" value="{{ found.total }}">
+    <button class="btn btn-outline gc-press" type="submit" style="color:var(--danger);">
+      <i class="bi bi-eraser"></i> {{ t('data_tools.old_demo_confirm') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

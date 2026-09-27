@@ -1149,13 +1149,20 @@ def data_tools():
 
     from app.utils import demo_trace
 
+    from app.utils import demo_sections
+
     plan = demo_trace.manifest()
     stats = {
         "patients": Patient.query.count(),
         "invoices": Invoice.query.count(),
         "seeded": Setting.get("demo_seeded") == "1",
+        # الأقسام المفتوحة اللي لسه مالهاش بيانات تجريبية — والزرار بيحمّل
+        # لها هي بس.
+        "demo_missing": demo_sections.missing(),
         # كام صف تجريبي لسه موجود — والزرار بيبان بيهم.
         "demo_rows": sum(len(ids) for ids in plan.values()),
+        # متحمّلة قبل الكشف — ليها شاشة تدوّر عليها وتعرضها قبل المسح.
+        "old_demo": Setting.get("demo_seeded") == "1" and not plan,
     }
     bset = {
         "enabled": Setting.get("backup_auto_enabled", "1") != "0",
@@ -1479,6 +1486,43 @@ def remove_demo_data():
             # هيكسر الشغل ده. واللي قدام الشاشة لازم يعرف.
             flash(t("data_tools.demo_kept") % {
                 "rows": sum(kept.values())}, "info")
+    return redirect(url_for("settings.data_tools"))
+
+
+@settings_bp.route("/data/old-demo", methods=["GET", "POST"])
+@owner_required
+def old_demo():
+    """التجريبية اللي اتحمّلت قبل الكشف — **تتشاف الأول، وبعدين تتمسح**.
+
+    الكشف هنا تخمين بالوقت (``old_demo``)، فمحدّش بيمسح بيه من غير ما
+    يشوف هو لقى إيه. والتأكيد بيحمل العدد اللي اتعرض: لو اتغيّر ما بين
+    العرض والتأكيد — حد سجّل حاجة في النص — الشاشة بتتعرض تاني بدل ما
+    تمسح حاجة محدّش شافها.
+    """
+    from app.utils import demo_trace, old_demo as finder
+
+    if not finder.applies():
+        flash(t("data_tools.no_demo"), "warning")
+        return redirect(url_for("settings.data_tools"))
+    found = finder.preview()
+    if request.method == "GET":
+        return render_template("settings/old_demo.html", found=found)
+
+    if found is None or not found["total"] or \
+            request.form.get("expected") != str(found["total"]):
+        flash(t("data_tools.old_demo_changed"), "warning")
+        return redirect(url_for("settings.old_demo"))
+    finder.adopt(found["found"])
+    removed, kept = demo_trace.remove()
+    ActivityLog.record("data.remove_old_demo", user_id=current_user.id,
+                       entity="system", ip_address=client_ip(),
+                       detail=f"{sum(removed.values())} removed, "
+                              f"{sum(kept.values())} kept")
+    db.session.commit()
+    flash(t("data_tools.demo_removed") % {"rows": sum(removed.values())},
+          "success")
+    if kept:
+        flash(t("data_tools.demo_kept") % {"rows": sum(kept.values())}, "info")
     return redirect(url_for("settings.data_tools"))
 
 

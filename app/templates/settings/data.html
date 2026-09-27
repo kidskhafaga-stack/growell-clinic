@@ -342,10 +342,17 @@
 <div class="card gc-scale-in">
   <h2 class="section-title"><i class="bi bi-stars"></i> {{ t('data_tools.demo_section') }}</h2>
   <p style="color:var(--muted);">{{ t('data_tools.demo_desc') }}</p>
+  {# على الأقسام المفتوحة: الزرار بيحمّل للي لسه مالهاش بس، ولما كله
+     يبقى متحمّل بيتقفل. #}
   <form method="post" action="{{ url_for('settings.seed_demo_data') }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="btn btn-primary gc-press gc-ripple" type="submit" {{ 'disabled' if stats.seeded else '' }}>
-      <i class="bi bi-download"></i> {{ t('data_tools.seed_btn') }}</button>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit" {{ '' if stats.demo_missing else 'disabled' }}>
+      <i class="bi bi-download"></i> {{ t('data_tools.seed_btn') if not stats.seeded else t('data_tools.seed_missing_btn') }}</button>
+    {% if stats.demo_missing %}
+    <span class="hint" style="margin-inline-start:8px;" data-demo-missing="{{ stats.demo_missing|join(',') }}">
+      {{ t('data_tools.demo_for') }}
+      {% for key in stats.demo_missing %}{{ t('data_tools.section_' ~ key) }}{% if not loop.last %}، {% endif %}{% endfor %}</span>
+    {% endif %}
   </form>
 
   {# **امسح التجريبية بس.**
@@ -365,6 +372,15 @@
     <span class="hint" style="margin-inline-start:8px;">
       {{ t('data_tools.remove_demo_hint') }}</span>
   </form>
+  {% endif %}
+  {# متحمّلة قبل ما الكشف يبقى موجود: مفيش كشف يتمسح بيه، فالشاشة دي
+     بتدوّر بالوقت وبتعرض اللي لقته قبل ما حاجة تتمسح. #}
+  {% if stats.old_demo and current_user.is_owner %}
+  <div style="margin-top:10px;" data-old-demo>
+    <a class="btn btn-outline gc-press" href="{{ url_for('settings.old_demo') }}">
+      <i class="bi bi-search"></i> {{ t('data_tools.old_demo_btn') }}</a>
+    <span class="hint" style="margin-inline-start:8px;">{{ t('data_tools.old_demo_hint') }}</span>
+  </div>
   {% endif %}
 </div>
 

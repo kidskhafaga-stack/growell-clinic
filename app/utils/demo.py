@@ -55,6 +55,8 @@ def reset_all():
     # العنبر بيعيش المسح، فبيفضل في الكشف وينفع يتشال لوحده بعدين.
     demo_trace.forget(wiped_tables())
     Setting.set("demo_seeded", "0")
+    from app.utils import demo_sections
+    demo_sections.clear()
     db.session.commit()
     return counts
 
@@ -90,18 +92,23 @@ def _doctor():
 
 
 def seed_demo():
-    """Create a demo dataset. Returns a summary dict. Idempotent-ish (guarded)."""
-    if Setting.get("demo_seeded") == "1":
-        return {"skipped": True}
+    """حمّل بيانات تجريبية لكل قسم مفتوح لسه مالوش — شوف
+    :mod:`app.utils.demo_sections`. بيرجّع ملخّص؛ ``skipped`` لو مفيش حاجة
+    اتحمّلت."""
+    from app.utils import demo_sections
 
+    return demo_sections.load()
+
+
+def seed_clinic():
+    """العيادة نفسها: مرضى وزيارات ومواعيد وفواتير وتطعيمات وروشتات.
+
+    القسم الأول، واللي الباقيين بيتبنوا عليه. **مش بيسجّل ولا بيقلّب
+    ``demo_seeded``** — ده شغل ``demo_sections.load`` لكل الأقسام بنفس
+    الطريقة."""
     rnd = random.Random(42)
     doc = _doctor()
     today = datetime.utcnow().date()
-
-    # **صورة قبل الزرع.** «امسح التجريبية بس» محتاج يعرف الزرع عمل إيه
-    # بالظبط — والصف التجريبي شكله زي الحقيقي، فالفرق هو اللي بيفرّق.
-    from app.utils import demo_trace
-    before = demo_trace.snapshot()
 
     # --- Services -------------------------------------------------------
     # Demo cases hang off the clinic's *real* catalogue (seeded by
@@ -502,20 +509,14 @@ def seed_demo():
                 status="scheduled", appt_type="vaccination",
                 vaccine_brand_id=vbrand.id, vaccine_dose=1, reason="تطعيم"))
 
-    # والأقسام: مستشفى صغيّرة بأسرّة وطفلين داخلين — علشان شاشات
-    # الإقامة والعنابر تبان مليانة زي باقي البرنامج.
-    ward = seed_ward(patients)
-
-    Setting.set("demo_seeded", "1")
+    # العنابر **مش هنا**: بقت قسم لوحدها بتتحمّل لو الأسرّة مفتوحة بس
+    # (``demo_sections``) — عيادة من غير أسرّة ما بتتبنيش لها مستشفى.
     db.session.flush()
-    made_rows = demo_trace.record(before)
-    db.session.commit()
     return {"patients": len(patients), "services": len(services),
-            "invoices": made, "ward": ward,
-            "tables": len(made_rows), "skipped": False}
+            "invoices": made}
 
 
-def seed_ward(patients=None):
+def seed_ward(patients=None, caps=None):
     """مستشفى صغيّرة: طوارئ وعناية وحضّانات وداخلي، وطفلين داخلين.
 
     **بتتعمل بنفس الويزارد اللي العيادة بتستعمله** — مش بكود تاني.
@@ -541,7 +542,7 @@ def seed_ward(patients=None):
         label = _lookup(_load_translations(), "ar", key) or key
         return f"{label} {number}" if number else label
 
-    caps = ["emergency_care", "icu", "nicu", "ward"]
+    caps = list(caps or ["emergency_care", "icu", "nicu", "ward"])
     made = ward_plan.build(caps, {
         ward_plan.field("emergency_care", "partitions"): "3",
         ward_plan.field("icu", "beds"): "4",

@@ -302,6 +302,11 @@ DEFERRED = [
      "Full multi-branch and multi-company"),
     ("بوابة مريض وحجز أونلاين — محتاجة موقع عام واستضافة",
      "A patient portal and online booking — needs a public site and hosting"),
+    ("بوابات الدفع أونلاين (Paymob وFawry وKashier) — الأساس المشترك جاهز، "
+     "وكل بوابة مستنية توثيقها الرسمي وحساب تجريبي تتجرّب عليه",
+     "Online payment gateways (Paymob, Fawry, Kashier) — the shared "
+     "groundwork is in; each gateway waits for its official documentation "
+     "and a test account to be checked against"),
     ("تطبيق موبايل و SaaS والكشف عن بُعد",
      "A mobile app, SaaS and telemedicine"),
 ]
