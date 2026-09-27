@@ -56,6 +56,14 @@ PUBLIC = {
     ("GET", "/prescriptions/copy/<token>"),
     ("GET", "/prescriptions/<int:rx_id>/verify.svg"),
     ("GET", "/vaccinations/verify/<token>"),
+    # A payment gateway telling us what became of a payment: from outside, so
+    # no session — proved by the gateway's own signature before anything is
+    # read (``Gateway.prove``), and not there at all for a gateway the clinic
+    # has not switched on.
+    ("POST", "/wa/webhook/pay/<name>"),
+    # Where the family's phone lands after paying. It shows what a proved
+    # confirmation already said, and decides nothing.
+    ("GET", "/wa/webhook/pay/<name>/back/<reference>"),
 }
 
 # The one place a capability stands in for a whole module: reception collects
@@ -180,7 +188,8 @@ def test_the_webhooks_refuse_an_unsigned_caller(everyone):
     is the only thing between the internet and the message log."""
     client = everyone["app"].test_client()
 
-    for url in ("/wa/webhook/meta", "/wa/webhook/wapilot/nothing"):
+    for url in ("/wa/webhook/meta", "/wa/webhook/wapilot/nothing",
+                "/wa/webhook/pay/nothing"):
         answer = client.post(url, json={"hello": "world"})
         assert _refused(answer.status_code) or answer.status_code >= 400, \
             f"{url} accepted an unsigned POST"

@@ -23,6 +23,7 @@ from app.models.schedule_exception import ScheduleException
 from app.models.waitlist import WAITLIST_STATUSES, WaitlistEntry
 from app.models.booking_request import (REQUEST_SOURCES, REQUEST_STATUSES,
                                         BookingRequest)
+from app.models.online_payment import OnlinePayment
 from app.models.clinic_room import ClinicRoom, RoomAssignment
 from app.models.nursing_station import NursingStation
 from app.models.vaccine_plan import VaccinePlanItem
@@ -499,6 +500,7 @@ __all__ = [
     "ScheduleException",
     "WaitlistEntry",
     "BookingRequest",
+    "OnlinePayment",
     "REQUEST_STATUSES",
     "REQUEST_SOURCES",
     "WAITLIST_STATUSES",

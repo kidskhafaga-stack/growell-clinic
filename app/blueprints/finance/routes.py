@@ -4198,7 +4198,78 @@ def invoice_view(invoice_id):
         # one of its numbers looks wrong. Both are the same lines: the totals
         # here are their own nets added up, never a second figure.
         **_bill_shape(invoice),
+        **_online_pay_card(invoice),
     )
+
+
+def _online_pay_card(invoice):
+    """The gateways this clinic switched on, and the links already made for
+    this bill. Nothing at all when no gateway is on — the usual case — so the
+    screen is the one it always was."""
+    from app.models import OnlinePayment
+    from app.utils import gateways
+    from app.utils.whatsapp import (DEFAULT_COUNTRY_CODE, normalize_phone,
+                                    wa_link)
+
+    rows = (OnlinePayment.query.filter_by(invoice_id=invoice.id)
+            .order_by(OnlinePayment.id.desc()).all())
+    on = gateways.enabled()
+    labels = {name: cls.label_en if getattr(g, "lang", "ar") == "en"
+              else cls.label_ar
+              for name, cls in gateways.available().items()}
+    phone = invoice.patient.contact_phone if invoice.patient else None
+    country = Setting.get("wa_country_code", DEFAULT_COUNTRY_CODE)
+    whatsapp = {}
+    for row in rows:
+        target = row.checkout_url or row.pay_code
+        if row.is_open and target and phone:
+            whatsapp[row.id] = wa_link(
+                normalize_phone(phone, country),
+                t("online_pay.wa_text", amount=format_money(row.amount),
+                  link=target, reference=row.reference))
+    return {"online_gateways": on, "online_payments": rows,
+            "online_labels": labels, "online_whatsapp": whatsapp}
+
+
+@finance_bp.route("/invoices/<int:invoice_id>/pay-link", methods=["POST"])
+@cashier_access
+def invoice_pay_link(invoice_id):
+    """Ask a gateway for a way to pay what is left on this bill.
+
+    What comes back is a link or a code for the family — **not** a payment.
+    The bill changes only when the gateway itself confirms, at its webhook
+    (``online_pay.receive``)."""
+    from app.utils import gateways, online_pay, wa_connect
+
+    invoice = db.get_or_404(Invoice, invoice_id)
+    back = redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+    name = (request.form.get("provider") or "").strip()
+    gateway = next((g for g in gateways.enabled() if g.name == name), None)
+    if gateway is None:
+        flash(t("online_pay.no_gateway"), "danger")
+        return back
+    base = wa_connect.base_url()
+    if not base:
+        # The gateway has to reach us, and the family's phone has to come
+        # back to us: an address on the clinic's own network is neither.
+        flash(t("online_pay.no_public_address"), "danger")
+        return back
+    try:
+        row = online_pay.ask(
+            invoice, gateway, current_user.id,
+            return_url=lambda r: base + url_for(
+                "webhooks.pay_back", name=gateway.name, reference=r.reference),
+            notify_url=lambda r: base + url_for(
+                "webhooks.pay_notify", name=gateway.name))
+    except ValueError:
+        flash(t("online_pay.nothing_owed"), "info")
+        return back
+    if row.status == "failed":
+        flash(t("online_pay.gateway_refused", reason=row.error or ""),
+              "danger")
+    else:
+        flash(t("online_pay.link_made"), "success")
+    return back
 
 
 def _bill_shape(invoice):

@@ -1,0 +1,36 @@
+{# Public, standalone: where the family's browser lands after a gateway.
+   It shows what a proved confirmation already said — never decides. #}
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ direction }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ t('online_pay.back_title') }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+  <style>
+    body { background:#f3f5f7; margin:0; padding:24px 14px; font-family:system-ui, "Segoe UI", Tahoma, sans-serif; }
+    .pbox { max-width:520px; margin:0 auto; background:#fff; border-radius:16px;
+      box-shadow:0 12px 40px rgba(0,0,0,.10); padding:26px; text-align:center; }
+    .pmark { width:56px; height:56px; border-radius:50%; margin:0 auto 12px; display:flex;
+      align-items:center; justify-content:center; font-size:1.6rem; color:#fff; }
+    .ok { background:#15803d; } .wait { background:#b45309; } .bad { background:#b91c1c; }
+    .muted { color:#666; }
+  </style>
+</head>
+<body>
+  <div class="pbox" data-pay-state="{{ row.status }}">
+    {% if row.status == 'paid' %}
+      <div class="pmark ok">✓</div>
+      <h2 style="margin:0 0 6px;">{{ t('online_pay.back_paid') }}</h2>
+    {% elif row.status in ('failed', 'expired', 'cancelled') %}
+      <div class="pmark bad">!</div>
+      <h2 style="margin:0 0 6px;">{{ t('online_pay.back_not_paid') }}</h2>
+    {% else %}
+      <div class="pmark wait">…</div>
+      <h2 style="margin:0 0 6px;">{{ t('online_pay.back_checking') }}</h2>
+      <p class="muted">{{ t('online_pay.back_checking_sub') }}</p>
+    {% endif %}
+    <p class="muted" dir="ltr">{{ row.reference }}</p>
+  </div>
+</body>
+</html>
