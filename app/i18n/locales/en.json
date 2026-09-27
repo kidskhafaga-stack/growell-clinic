@@ -8417,12 +8417,11 @@
     "ips": "IPS summary",
     "ips_hint": "International Patient Summary: problems, allergies, current medicines, immunisations and results — for a hospital meeting the child for the first time. Recorded in the audit log."
   },
-<<<<<<< HEAD
   "arrival": {
     "marked": "And marked arrived — now in the waiting queue.",
     "setting": "Payment at the desk marks today's booking as arrived",
     "setting_hint": "One step instead of two: a family paying at the desk for today's booking is standing there, so the child joins the waiting queue. A booking for another day, or a child already inside, is left alone. Paying online from home does not mark an arrival."
-=======
+  },
   "suggestion_measure": {
     "title": "How often is the suggestion kept?",
     "subtitle": "Every request booked: the program had suggested a time, and here is what the desk did with it. These are the numbers to decide by after two months: whether a kind of request can be booked on its own, or a person is needed.",
@@ -8447,7 +8446,6 @@
     "empty": "No request has been booked since the measure started.",
     "how": "Every request booked from the requests screen — by either button — keeps the time the program suggested beside the time that was booked.",
     "decision": "This only measures; it changes nothing about booking. The decision (stage five of the booking plan) comes after two months of use, by these numbers rather than by opinion."
->>>>>>> origin/main
   },
   "booking_requests": {
     "title": "Booking requests",
