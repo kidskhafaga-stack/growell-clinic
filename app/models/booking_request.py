@@ -35,6 +35,12 @@ OPEN_STATUSES = ("pending", "with_doctor", "approved")
 #: a door the plan leaves open — a request page.
 REQUEST_SOURCES = ("desk", "whatsapp", "page")
 
+#: What the desk did with the program's suggested time, when it booked —
+#: stage five's question, "how often does the desk change the suggestion?":
+#: ``kept`` it, moved the ``time`` on the same day, another ``day``, another
+#: ``doctor``; or ``none`` — nothing was free to suggest.
+SUGGESTION_OUTCOMES = ("kept", "time", "day", "doctor", "none")
+
 #: A person's word on "is this an emergency": ``yes`` raises it, ``no``
 #: overrules the program's guess. Empty is nobody said — the guess stands.
 URGENT_MARKS = ("yes", "no")
@@ -87,6 +93,15 @@ class BookingRequest(db.Model):
     # The WhatsApp conversation it was taken from (the inbox's thread key),
     # so the thread can show where its request stands.
     conversation_key = db.Column(db.String(64), index=True)
+
+    # Stage five's measure: the time the program suggested when the desk
+    # opened the booking, and what the desk did with it. Kept once, when
+    # the request is booked — the answer to "how often is it changed?" is
+    # read from these after two months, not guessed.
+    suggested_doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    suggested_date = db.Column(db.Date)
+    suggested_time = db.Column(db.String(5))
+    suggestion_outcome = db.Column(db.String(8), index=True)
 
     patient = db.relationship("Patient")
     doctor = db.relationship("User", foreign_keys=[doctor_id])

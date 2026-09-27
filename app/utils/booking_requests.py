@@ -161,7 +161,23 @@ def decline(row, user, reason, ip_address=None):
     return row
 
 
-def booked(row, appointment, user, ip_address=None):
+def outcome(suggested, appointment):
+    """What the desk did with ``suggested`` — ``(doctor_id, date, "HH:MM")``,
+    or empty when nothing was free — when it booked ``appointment``. One of
+    ``SUGGESTION_OUTCOMES``."""
+    if not suggested:
+        return "none"
+    doctor_id, on_date, at = suggested
+    if appointment.doctor_id != doctor_id:
+        return "doctor"
+    if appointment.appt_date != on_date:
+        return "day"
+    if appointment.time_label != at:
+        return "time"
+    return "kept"
+
+
+def booked(row, appointment, user, ip_address=None, suggested=None):
     """The booking screen made an appointment from this request. Returns the
     row, or ``None`` when it had already been decided — the appointment
     stands either way; it is the request that is not decided twice.
@@ -176,6 +192,14 @@ def booked(row, appointment, user, ip_address=None):
     row.patient_id = appointment.patient_id
     row.decided_by = getattr(user, "id", None)
     row.decided_at = datetime.utcnow()
+    # Stage five's measure: what was suggested, and what was done with it.
+    # ``None`` is "not known" — a booking not opened from the request — and
+    # records nothing; ``()`` is "nothing was free to suggest".
+    if suggested is not None:
+        if suggested:
+            (row.suggested_doctor_id, row.suggested_date,
+             row.suggested_time) = suggested
+        row.suggestion_outcome = outcome(suggested, appointment)
     ActivityLog.record("booking_request.book", user_id=row.decided_by,
                        entity="booking_request", entity_id=row.id,
                        detail=f"appointment {appointment.id}",

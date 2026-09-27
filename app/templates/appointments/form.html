@@ -33,7 +33,10 @@
   <form method="post">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if form.from_waitlist %}<input type="hidden" name="from_waitlist" value="{{ form.from_waitlist }}">{% endif %}
-    {% if booking_request %}<input type="hidden" name="from_request" value="{{ booking_request.id }}">{% endif %}
+    {% if booking_request %}<input type="hidden" name="from_request" value="{{ booking_request.id }}">
+    {# What the program suggested when this booking was opened — kept with
+       the request when it is booked, to count how often the desk changes it. #}
+    <input type="hidden" name="suggested" value="{{ form.suggested or '' }}">{% endif %}
     {# `gap: 0 18px` on `.form-grid` means no row gap at all, so rows of very
        different heights — the patient picker with its results list open, and
        a plain date box — ran into each other. Row spacing is set here rather
