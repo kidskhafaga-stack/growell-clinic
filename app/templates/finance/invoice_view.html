@@ -369,6 +369,58 @@
   {% endif %}
 </div>
 
+{# Paying through a gateway. Shown only when the clinic switched one on (or a
+   link was already made): a link is a way for the family to pay, never a
+   payment — the bill changes when the gateway itself confirms. #}
+{% if online_gateways or online_payments %}
+<div class="card gc-scale-in no-print" style="margin-top:14px;" data-online-pay>
+  <h2 class="section-title"><i class="bi bi-link-45deg"></i> {{ t('online_pay.title') }}</h2>
+  {% for op in online_payments %}
+  <div data-online-row="{{ op.reference }}" data-online-status="{{ op.status }}"
+       style="border-bottom:1px solid var(--line);padding:8px 0;">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <strong>{{ online_labels.get(op.provider, op.provider) }}</strong>
+      <span dir="ltr">{{ op.amount|money }}</span>
+      <span class="badge">{{ t('online_pay.st_' ~ op.status) }}</span>
+      <span class="muted" dir="ltr" style="font-size:.82rem;">{{ op.reference }}</span>
+    </div>
+    {% if op.is_open and op.checkout_url %}
+      <input class="input" readonly dir="ltr" value="{{ op.checkout_url }}" style="margin-top:6px;" onclick="this.select()">
+    {% endif %}
+    {% if op.is_open and op.pay_code %}
+      <div style="margin-top:6px;">{{ t('online_pay.pay_code') }}: <strong dir="ltr">{{ op.pay_code }}</strong></div>
+    {% endif %}
+    {% if online_whatsapp.get(op.id) %}
+      <a class="btn btn-outline btn-sm gc-press" style="margin-top:6px;color:#25D366;border-color:#25D366;"
+         href="{{ online_whatsapp[op.id] }}" target="_blank" rel="noopener"><i class="bi bi-whatsapp"></i> {{ t('online_pay.send_whatsapp') }}</a>
+    {% endif %}
+    {% if op.status == 'mismatch' %}
+      <div style="margin-top:6px;color:var(--danger);font-weight:600;">
+        {{ t('online_pay.mismatch_note', said=(op.reported_amount|money) ~ ' ' ~ (op.reported_currency or ''), asked=op.amount|money) }}</div>
+    {% elif op.status == 'failed' and op.error %}
+      <div class="muted" style="margin-top:6px;">{{ op.error }}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% if online_gateways and invoice.balance > 0 %}
+  <form method="post" action="{{ url_for('finance.invoice_pay_link', invoice_id=invoice.id) }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if online_gateways|length > 1 %}
+    <div class="form-row" style="margin:0;"><label>{{ t('online_pay.gateway') }}</label>
+      <select class="select" name="provider">
+        {% for gw in online_gateways %}<option value="{{ gw.name }}">{{ online_labels.get(gw.name, gw.name) }}</option>{% endfor %}
+      </select></div>
+    {% else %}
+    <input type="hidden" name="provider" value="{{ online_gateways[0].name }}">
+    {% endif %}
+    <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-link-45deg"></i>
+      {{ t('online_pay.make_link', amount=invoice.balance|money) }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
 {# What has been done to this bill. A bill can be corrected while its period is
    open, which is deliberate — a clinic must be able to fix a typo without
    reopening its books. What makes that safe rather than merely convenient is

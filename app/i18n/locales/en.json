@@ -2011,7 +2011,8 @@
     "card": "Card",
     "instapay": "InstaPay",
     "transfer": "Transfer",
-    "wallet": "Wallet"
+    "wallet": "Wallet",
+    "online": "Online (gateway)"
   },
   "statements": {
     "title": "Doctor account statement",
@@ -8422,5 +8423,31 @@
     "taken": "Request taken.",
     "declined": "Request declined.",
     "already_decided": "This request was already answered."
+  },
+  "online_pay": {
+    "title": "Online payment",
+    "gateway": "Payment gateway",
+    "make_link": "Make a payment link for the balance ({amount})",
+    "send_whatsapp": "Send it to the family on WhatsApp",
+    "pay_code": "Payment code",
+    "wa_text": "To pay {amount} on your clinic bill: {link}\nReference: {reference}",
+    "link_made": "Payment link made. The bill is marked paid only when the gateway itself confirms.",
+    "gateway_refused": "The gateway refused: {reason}",
+    "no_gateway": "That payment gateway is not switched on.",
+    "no_public_address": "The program needs an address on the internet for the gateway to reach it — Messages settings → public address.",
+    "nothing_owed": "Nothing is left to pay on this bill.",
+    "mismatch_note": "The gateway confirmed {said} but {asked} was asked — not recorded on the bill. Check it with the gateway.",
+    "st_created": "Being made",
+    "st_pending": "Waiting for payment",
+    "st_paid": "Paid — confirmed by the gateway",
+    "st_mismatch": "Different amount — needs review",
+    "st_failed": "Did not work",
+    "st_expired": "Expired",
+    "st_cancelled": "Cancelled",
+    "back_title": "Payment",
+    "back_paid": "Payment received, thank you",
+    "back_not_paid": "The payment did not go through",
+    "back_checking": "We are checking the payment",
+    "back_checking_sub": "The clinic will know as soon as the gateway confirms. There is nothing else you need to do."
   }
 }

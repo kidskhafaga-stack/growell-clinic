@@ -83,3 +83,56 @@ def wapilot_receive(secret):
         inbound.record_unreadable(payload, "wapilot")
     db.session.commit()
     return jsonify(ok=True)
+
+
+# ------------------------------------------------------------ payments ----
+def _enabled_gateway(name):
+    """The gateway at this address, if the clinic switched it on. One it has
+    not is not there at all: 404, the same as an address that never was."""
+    from app.utils import gateways
+
+    for gateway in gateways.enabled():
+        if gateway.name == name:
+            return gateway
+    abort(404)
+
+
+@webhooks_bp.route("/pay/<name>", methods=["POST"])
+@limit("webhook", WEBHOOK_PER_MINUTE)
+def pay_notify(name):
+    """A gateway telling us what became of a payment.
+
+    Proved by the gateway's own rule before a single field is believed
+    (``Gateway.prove``); unproved is 403 and nothing else. What a proved
+    message may change is decided in ``online_pay.receive`` — the same rules
+    for every gateway."""
+    from app.utils import online_pay
+
+    gateway = _enabled_gateway(name)
+    event = gateway.prove(request)
+    if event is None:
+        abort(403)
+    outcome = online_pay.receive(gateway, event)
+    return jsonify(ok=True, outcome=outcome)
+
+
+@webhooks_bp.route("/pay/<name>/back/<reference>", methods=["GET"])
+@limit("webhook", WEBHOOK_PER_MINUTE, methods=("GET",))
+def pay_back(name, reference):
+    """Where the family's browser lands after paying.
+
+    **Shows, never decides.** Whatever the gateway put in this address, and
+    whatever anybody types into it, the page says only what the program
+    already knows from a proved confirmation — and "we are checking" until
+    it has one. Believing this page would let anybody mark a bill paid by
+    opening a link."""
+    from flask import render_template
+
+    from app.models import OnlinePayment
+
+    _enabled_gateway(name)
+    row = OnlinePayment.query.filter_by(reference=reference,
+                                        provider=name).first()
+    if row is None:
+        abort(404)
+    return render_template("pay/back.html", row=row)
