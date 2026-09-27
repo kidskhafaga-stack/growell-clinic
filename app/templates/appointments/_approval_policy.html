@@ -1,0 +1,21 @@
+{# Who says yes to a family's booking request for this doctor: the clinic's
+   rule, or this doctor's own. Posted to its own small form so saving it
+   touches nothing else on the page it sits on. #}
+{% macro approval_policy(doctor) %}
+{% set clinic = booking_clinic_policy() %}
+<div class="card gc-scale-in no-print" data-approval-policy="{{ doctor.booking_approval or 'clinic' }}">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-person-check"></i> {{ t('booking_requests.policy_title') }}</h2>
+  <form method="post" action="{{ url_for('appointments.approval_policy', doctor_id=doctor.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <select class="select" name="booking_approval">
+        <option value="" {{ 'selected' if not doctor.booking_approval else '' }}>{{ t('booking_requests.policy_clinic', rule=t('booking_requests.policy_' ~ clinic)) }}</option>
+        <option value="reception" {{ 'selected' if doctor.booking_approval == 'reception' else '' }}>{{ t('booking_requests.policy_reception') }}</option>
+        <option value="both" {{ 'selected' if doctor.booking_approval == 'both' else '' }}>{{ t('booking_requests.policy_both') }}</option>
+      </select>
+    </div>
+    <p class="hint">{{ t('booking_requests.policy_hint') }}</p>
+    <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</div>
+{% endmacro %}

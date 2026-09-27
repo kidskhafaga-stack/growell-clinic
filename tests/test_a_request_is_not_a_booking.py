@@ -32,6 +32,11 @@ def desk(clinic):
 
     with clinic["app"].app_context():
         doctor_id = db.session.get(Visit, clinic["ids"]["visit"]).doctor_id
+        # The desk alone says yes here: this file is the request itself —
+        # taken, booked, declined, once. Where the doctor approves too, which
+        # is the clinic's default, is `test_the_doctor_says_yes.py`.
+        from app.models import Setting
+        Setting.set("booking_approval", "reception")
         for weekday in range(7):
             db.session.add(DoctorSchedule(
                 doctor_id=doctor_id, weekday=weekday, start_time=time(9, 0),

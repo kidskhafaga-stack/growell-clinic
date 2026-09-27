@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% from "appointments/_approval_policy.html" import approval_policy with context %}
 {% set active_module = 'users' %}
 {% block title %}{{ doc.display_name(current_lang) }}{% endblock %}
 {% block page_heading %}{{ t('doctors.manage_one') }}{% endblock %}
@@ -237,4 +238,5 @@
   <p style="color:var(--muted);">{{ t('doctors.no_services') }}</p>
   {% endif %}
 </div>
+<div style="margin-top:14px;">{{ approval_policy(doc) }}</div>
 {% endblock %}

@@ -336,6 +336,13 @@ def create_app(config_name="default"):
         }
 
     @app.context_processor
+    def inject_booking_policy():
+        def booking_clinic_policy():
+            from app.utils.booking_requests import clinic_policy
+            return clinic_policy()
+        return {"booking_clinic_policy": booking_clinic_policy}
+
+    @app.context_processor
     def inject_visit_types():
         """Expose the editable visit-type catalogue to templates: an active
         list for selects, plus label/colour resolvers for any stored key."""

@@ -111,6 +111,10 @@ class User(UserMixin, db.Model):
     rx_display_name_en = db.Column(db.String(160))
     professional_title = db.Column(db.String(40))   # Professor/Consultant/...
     specialty = db.Column(db.String(160))           # التخصص الرئيسي
+    # Whether this doctor approves a family's booking request too, or leaves
+    # it to the desk: "both" / "reception", or empty for the clinic's own
+    # rule (``booking_requests.policy_for``). Set by the doctor or the admin.
+    booking_approval = db.Column(db.String(10))
     sub_specialties = db.Column(db.String(255))     # التخصصات الفرعية
 
     # **How this doctor is settled: on what was billed, or on what came in.**

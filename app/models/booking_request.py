@@ -23,7 +23,13 @@ from datetime import datetime
 from app.extensions import db
 
 #: pending → booked (an appointment was made from it) or declined (with why).
-REQUEST_STATUSES = ("pending", "booked", "declined")
+#: Where the doctor approves too (``booking_requests.policy_for``):
+#: pending → with_doctor (sent by the desk) → approved (by that doctor) → booked.
+REQUEST_STATUSES = ("pending", "with_doctor", "approved", "booked",
+                    "declined")
+
+#: Still waiting for somebody to do something.
+OPEN_STATUSES = ("pending", "with_doctor", "approved")
 
 #: Where it came in. Only the desk exists yet; the others are the two doors
 #: the plan leaves open (the official WhatsApp API, or a request page).
@@ -60,10 +66,20 @@ class BookingRequest(db.Model):
     decline_reason = db.Column(db.String(200))
     appointment_id = db.Column(db.Integer, db.ForeignKey("appointments.id"))
 
+    # Sent to the doctor by the desk, and the doctor's yes — kept apart from
+    # ``decided_*``, which is the final answer (booked or declined).
+    forwarded_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    forwarded_at = db.Column(db.DateTime)
+    approved_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    approved_at = db.Column(db.DateTime)
+    approval_note = db.Column(db.String(200))
+
     patient = db.relationship("Patient")
     doctor = db.relationship("User", foreign_keys=[doctor_id])
     requester = db.relationship("User", foreign_keys=[requested_by])
     decider = db.relationship("User", foreign_keys=[decided_by])
+    forwarder = db.relationship("User", foreign_keys=[forwarded_by])
+    approver = db.relationship("User", foreign_keys=[approved_by])
     appointment = db.relationship("Appointment")
 
     def who(self, lang="ar"):
