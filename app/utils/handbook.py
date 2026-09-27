@@ -218,6 +218,16 @@ SECTIONS = [
              "chosen, the family's words since the last reply copied, the "
              "visit type and the day one tap each. And the chat shows where "
              "the request stands: taken, with the doctor, approved, booked."),
+            ("<b>«الاقتراح اتاخد كام مرة؟»</b> (زرار في شاشة الطلبات): كل طلب "
+             "بيتحجز بيتسجّل جنبه الميعاد اللي البرنامج كان مقترحه، والاستقبال "
+             "عمل بيه إيه — خده زي ما هو، ولا غيّر الساعة أو اليوم أو الدكتور. "
+             "والشاشة بتوري النسبة لكل نوع زيارة. قياس بس، ما بيغيّرش الحجز.",
+             "<b>\"How often is the suggestion kept?\"</b> (a button on the "
+             "requests screen): every request booked keeps, beside it, the "
+             "time the program suggested and what the desk did with it — "
+             "kept it, or changed the time, the day or the doctor. The screen "
+             "shows the share for each visit type. It only measures; booking "
+             "is unchanged."),
             ("<b>مين يوافق على الطلب</b>: قاعدة العيادة «الاستقبال وبعده "
              "الدكتور» إلا لو اتغيّرت من الإعدادات. الاستقبال بيدوس «ابعته "
              "للدكتور»، والدكتور بيلاقيه فوق شاشته في «طلبات مستنية "

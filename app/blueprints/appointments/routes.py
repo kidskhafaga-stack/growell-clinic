@@ -635,7 +635,9 @@ def create():
         if req_id:
             booking_requests.booked(db.session.get(BookingRequest, req_id),
                                     appt, current_user,
-                                    ip_address=client_ip())
+                                    ip_address=client_ip(),
+                                    suggested=_suggestion_arg(
+                                        request.form.get("suggested")))
         # Queue the day-before reminder. Declines quietly for every ordinary
         # reason (manual mode, type off, no phone, booked for later today) —
         # the reminder's settings card is where those are explained, not a
@@ -681,6 +683,9 @@ def create():
         "appt_type": _appt_type(request.args.get("appt_type", "")),
         "from_waitlist": request.args.get("from_waitlist", ""),
         "from_request": request.args.get("from_request", ""),
+        "suggested": (request.args.get("sug", "")
+                      if _suggestion_arg(request.args.get("sug")) is not None
+                      else ""),
         # Opens on today rather than empty. Almost every booking a desk makes
         # is for today or the next few days, and an empty date box means the
         # slot list below it can say nothing at all until somebody fills it —
@@ -709,6 +714,23 @@ def create():
         booking_request=_open_request(
             request.args.get("from_request", type=int)),
     )
+
+
+def _suggestion_arg(value):
+    """``"doctor|YYYY-MM-DD|HH:MM"`` as carried with the booking form →
+    ``(doctor_id, date, "HH:MM")``; ``"none"`` (nothing was free) → ``()``;
+    anything else → ``None``, which records nothing rather than a guess."""
+    value = (value or "").strip()
+    if value == "none":
+        return ()
+    parts = value.split("|")
+    if len(parts) != 3 or not parts[0].isdigit() or not _SLOT.fullmatch(parts[2]):
+        return None
+    try:
+        on_date = datetime.strptime(parts[1], "%Y-%m-%d").date()
+    except ValueError:
+        return None
+    return (int(parts[0]), on_date, parts[2])
 
 
 def _open_request(request_id):
@@ -1075,6 +1097,22 @@ def request_take():
     return redirect(back)
 
 
+@appointments_bp.route("/requests/measure")
+@module_required(MODULE)
+def suggestion_measure():
+    """How often the desk kept the program's suggested time — the numbers
+    stage five of the booking plan is to be decided by."""
+    from app.utils import suggestion_measure as measure
+
+    raw = request.args.get("days", "90")
+    days = None if raw == "all" else (int(raw) if raw.isdigit() else 90)
+    if days not in measure.PERIODS:
+        days = 90
+    return render_template("appointments/suggestion_measure.html",
+                           report=measure.report(days),
+                           periods=measure.PERIODS, changes=measure.CHANGES)
+
+
 @appointments_bp.route("/requests/<int:request_id>/urgent", methods=["POST"])
 @module_required(MODULE)
 def request_urgent(request_id):
@@ -1117,11 +1155,19 @@ def request_book(request_id):
     on_date = (parse_date_arg(request.args.get("date"), default=None)
                if request.args.get("date") else None) or row.wanted_date
     slot = (request.args.get("time") or "").strip()
+    # What the program suggests now, worked out here rather than read off
+    # the link — whichever button opened the booking. Carried with the form
+    # and kept with the request when it is booked (stage five's measure).
+    from app.utils.request_card import suggest
+
+    found = suggest(row)
     return redirect(url_for(
         "appointments.create", patient_id=row.patient_id or "",
         doctor_id=doctor_id or "", appt_type=row.appt_type or "",
         date=on_date.isoformat() if on_date else "",
         time=slot if _SLOT.fullmatch(slot) else "",
+        sug=(f"{found.doctor_id}|{found.date}|{found.time}" if found
+             else "none"),
         from_request=row.id))
 
 
