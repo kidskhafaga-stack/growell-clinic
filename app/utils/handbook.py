@@ -137,6 +137,18 @@ SECTIONS = [
              "under Settings → Phrases. The drug allergies are deliberately "
              "not editable there: they come from the checker itself, so the "
              "chip and the check can never drift apart."),
+            ("<b>ملف الطفل لمستشفى تانية</b>: من صفحة المريض «ملف FHIR كامل» "
+             "بينزّل الملف كله بصيغة FHIR R4، و«ملخص IPS» بينزّل ملخص المريض "
+             "الدولي (المشاكل والحساسية والأدوية الحالية والتطعيمات "
+             "والنتائج) للمستشفى اللي هتشوف الطفل لأول مرة. تنزيل بس — "
+             "مفيش حاجة بتتبعت — وكل تنزيل بيتسجّل: مين، ولمين، وأنهي صيغة.",
+             "<b>The child's file for another hospital</b>: on the patient's "
+             "page, \"Full FHIR file\" downloads the whole record as FHIR R4, "
+             "and \"IPS summary\" downloads the International Patient Summary "
+             "(problems, allergies, current medicines, immunisations and "
+             "results) for a hospital meeting the child for the first time. "
+             "A download only — nothing is sent — and every download is "
+             "logged: who, whose record, and which shape."),
         ],
     },
     {
@@ -161,6 +173,51 @@ SECTIONS = [
             ("زر <b>واتساب</b> على الموعد بيبعت للمريض تأكيد بالوقت ورقم الدور.",
              "The <b>WhatsApp</b> button sends the patient a confirmation with "
              "the time and queue number."),
+            ("<b>طلبات المواعيد</b>: الأهل اللي بيطلبوا ميعاد بالتليفون أو "
+             "الواتساب بيتسجّل طلبهم من «سجّل طلب» — لطفل عنده ملف، أو باسم "
+             "ورقم للرد. <b>الطلب مش حجز</b>: مش ماسك ميعاد، ومفيش حاجة "
+             "بتتقال للأهل غير لما الحجز يتعمل فعلاً. «احجز» بيفتح شاشة "
+             "الحجز بكل مراجعاتها، و«اعتذر» لازم يتكتب معاه السبب.",
+             "<b>Booking requests</b>: a family asking for an appointment by "
+             "phone or WhatsApp is recorded under \"Take a request\" — for a "
+             "child on file, or by a name and number to call back. <b>A "
+             "request is not a booking</b>: it holds no slot, and nothing is "
+             "said to the family until the booking is really made. \"Book\" "
+             "opens the booking screen with all its checks, and \"Decline\" "
+             "needs a reason."),
+            ("<b>مين يوافق على الطلب</b>: قاعدة العيادة «الاستقبال وبعده "
+             "الدكتور» إلا لو اتغيّرت من الإعدادات. الاستقبال بيدوس «ابعته "
+             "للدكتور»، والدكتور بيلاقيه فوق شاشته في «طلبات مستنية "
+             "موافقتك» — يوافق (ومعاه ملاحظة لو حب) أو يعتذر بسبب — وبعدها "
+             "بس الاستقبال يقدر يحجز، <b>ومع نفس الدكتور</b>.",
+             "<b>Who approves a request</b>: the clinic's rule is \"reception, "
+             "then the doctor\" unless changed in Settings. Reception presses "
+             "\"Send to the doctor\", and the doctor finds it at the top of "
+             "their screen under \"Requests waiting for your approval\" — "
+             "approve (with a note if they like) or decline with a reason — "
+             "and only then can reception book it, <b>with that same "
+             "doctor</b>."),
+            ("<b>كل طبيب ليه اختياره</b>: من «حسابي» الطبيب يسيب طلباته "
+             "للاستقبال لوحده، أو يطلب إنه يوافق عليها حتى لو قاعدة العيادة "
+             "الاستقبال بس. المدير يقدر يغيّرها من صفحة الطبيب؛ ومحدّش تاني. "
+             "والموافقة ما بتتعملش غير من الطبيب اللي الطلب اتبعت له — مش "
+             "طبيب تاني ولا الاستقبال ولا المدير.",
+             "<b>Each doctor chooses</b>: under \"My profile\" a doctor can "
+             "leave their requests to reception alone, or ask to approve them "
+             "even where the clinic's rule is reception only. The admin can "
+             "change it from the doctor's page; nobody else can. Only the "
+             "doctor the request was sent to can approve it — not another "
+             "doctor, not reception, not the admin."),
+            ("<b>ميعاد واحد لطفل واحد</b>: لو مكتبين حجزوا نفس الدكتور في "
+             "نفس الوقت في نفس اللحظة، واحد بس بياخده والتاني بيتقال له إن "
+             "الميعاد اتاخد. ورجوع موعد ملغي أو «لم يحضر» لـ«محجوز» بيتأكد "
+             "الأول إن وقته لسه فاضي — ولو اتاخد بيطلب منك تختار وقت جديد.",
+             "<b>One slot, one child</b>: if two desks book the same doctor "
+             "at the same time at the same moment, one gets it and the other "
+             "is told the time is gone. Bringing a cancelled or missed "
+             "booking back to \"scheduled\" first checks its time is still "
+             "free — and if it was given away, asks you to choose a new "
+             "one."),
         ],
     },
     {
@@ -1745,6 +1802,24 @@ SECTIONS = [
              "A named discount (insurer / club / syndicate) is <b>applied "
              "automatically</b> from the payer's benefits table, and an "
              "expired card is flagged."),
+            ("<b>الدفع أونلاين</b> (لو العيادة مفعّلة بوابة دفع): على الفاتورة "
+             "«اعمل لينك دفع بالمتبقي» و«ابعته للأهل واتساب». الفاتورة "
+             "<b>ما بتتعلّمش مدفوعة غير لما البوابة نفسها تأكّد</b> — مش "
+             "صورة تحويل ولا الصفحة اللي الأهل بيرجعوا عليها — والفلوس "
+             "بتنزل في خزنة «تحت التحصيل» بتاعة البوابة لحد ما تتسوّى في "
+             "البنك. مبلغ مختلف عن المطلوب ما بيتكتبش على الفاتورة: بيتعلّم "
+             "وبيتعرض على حد يراجعه. ومن غير بوابة مفعّلة، التحصيل في "
+             "الاستقبال زي ما هو.",
+             "<b>Online payment</b> (when the clinic has a gateway switched "
+             "on): on the invoice, \"Make a payment link for the balance\" "
+             "and \"Send it to the family on WhatsApp\". The bill is "
+             "<b>marked paid only when the gateway itself confirms</b> — not "
+             "a transfer screenshot, not the page the family lands on — and "
+             "the money goes to the gateway's \"under collection\" till "
+             "until it settles into the bank. An amount different from the "
+             "one asked is not written on the bill: it is flagged for a "
+             "person to review. With no gateway on, reception collects "
+             "exactly as before."),
         ],
     },
     {
@@ -2116,6 +2191,12 @@ SECTIONS = [
              "والنسب.",
              "<b>Doctors</b>: specialty, title, signature, stamp, consultation "
              "fee and shares."),
+            ("<b>موافقة الطبيب على طلبات الحجز</b>: على صفحة الطبيب المدير "
+             "يقدر يخلّيه على قاعدة العيادة، أو «الاستقبال لوحده»، أو "
+             "«الاستقبال وبعده الدكتور».",
+             "<b>A doctor's approval of booking requests</b>: on the doctor's "
+             "page the admin can leave them on the clinic's rule, or set "
+             "\"Reception alone\" or \"Reception, then the doctor\"."),
             ("<b>سجل التدقيق</b>: مين عمل إيه وإمتى ومن أي جهاز.",
              "<b>Audit log</b>: who did what, when, and from which device."),
             ("<b>دخول المطوّر</b> (لصاحب المنشأة): حساب المبرمج ما بيدخلش "
@@ -2155,6 +2236,45 @@ SECTIONS = [
              "و<b>منطقة الخطر</b> لمسح كل البيانات (بتتطلب كتابة DELETE).",
              "<b>Visit types</b>, <b>devices</b> and data tools — plus a "
              "<b>danger zone</b> that wipes everything (type DELETE)."),
+            ("<b>البيانات التجريبية على الأقسام المفتوحة</b>: «تحميل البيانات "
+             "التجريبية» بيحمّل للعيادة، ولكل قسم مفتوح نصيبه — العنابر "
+             "والعلامات الحيوية والمعمل والصيدلية والعمليات والأسنان "
+             "والنوبتجيات — والقسم المقفول ما بيتحمّلش له حاجة. قسم اتفتح "
+             "بعدين؟ الزرار بيبقى «حمّل للأقسام اللي لسه مالهاش» وبيحمّل له "
+             "هو بس.",
+             "<b>Demo data for the sections you use</b>: \"Load demo data\" "
+             "loads the clinic and gives each switched-on section its share "
+             "— wards, vital signs, the lab, the pharmacy, theatres, "
+             "dentistry and duty rosters — and nothing for a section that is "
+             "off. Switched a section on later? The button becomes \"Load "
+             "for the sections that have none yet\" and loads for that "
+             "section only."),
+            ("<b>امسح التجريبية بس</b>: بيشيل اللي التحميل عمله بالظبط، "
+             "والحقيقي بيفضل مكانه؛ وصف تجريبي اتبنى عليه شغل حقيقي بيتساب "
+             "ويتقال إنه اتساب. وبيانات تجريبية اتحمّلت في نسخة قديمة، قبل "
+             "ما البرنامج يسجّل اللي بيحمّله؟ «دوّر على البيانات التجريبية "
+             "القديمة» (لصاحب المنشأة) بيلاقيها من لحظة التحميل في سجل "
+             "النشاط، <b>وبيعرض اللي لقاه قبل ما حاجة تتمسح</b>.",
+             "<b>Remove the demo data only</b>: removes exactly what loading made, "
+             "and the real data stays; a demo row that real work is built on "
+             "is kept and reported. Demo data loaded by an older version, "
+             "before the program recorded what it loads? \"Find the old demo "
+             "data\" (for the owner) finds it from the moment it was loaded "
+             "in the activity log, <b>and shows what it found before anything "
+             "is removed</b>."),
+            ("<b>مستشفى على جهاز واحد</b>: <code>WORKERS=4</code> في ملف "
+             "<code>clinic.env</code> بيشغّل البرنامج على أربع عمليات بدل "
+             "واحدة، فالأنوية كلها بتشتغل والشاشات ما بتبطّأش لما الناس "
+             "تكتر. من غيره البرنامج شغّال زي ما هو. اتجرّب على لينكس؛ "
+             "قبل ما مستشفى تعتمد عليه على ويندوز، الفني يعمل التجربة اللي "
+             "في دليل التشغيل على أكتر من عملية.",
+             "<b>A hospital on one machine</b>: <code>WORKERS=4</code> in "
+             "<code>clinic.env</code> runs the program as four processes "
+             "instead of one, so every core works and the screens stay quick "
+             "as people are added. Without it the program runs exactly as "
+             "before. Tested on Linux; before a hospital relies on it on "
+             "Windows, the technician runs the check in the more-than-one-"
+             "process guide."),
         ],
     },
 ]

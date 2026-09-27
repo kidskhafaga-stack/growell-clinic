@@ -18,6 +18,17 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import pytest  # noqa: F401,E402
 
 
+def _hospital():
+    """العنبر التجريبي بيتبني بس لو الأسرّة مفتوحة — وأقسامه على قد
+    المفتوح منها. هنا كلهم مفتوحين، فبيتبني بأربع وحدات."""
+    from app.extensions import db
+    from app.models import Setting
+
+    for module in ("beds", "emergency", "icu", "nicu", "ward"):
+        Setting.set(f"mod_enabled:{module}", "1")
+    db.session.commit()
+
+
 # ============ الأقسام التجريبية ============
 def test_the_demo_now_builds_a_ward(clinic):
     """كانت بتعمل مرضى وفواتير ومواعيد — **ولا سرير واحد**."""
@@ -25,9 +36,10 @@ def test_the_demo_now_builds_a_ward(clinic):
     from app.utils.demo import seed_demo
 
     with clinic["app"].app_context():
+        _hospital()
         out = seed_demo()
 
-        assert out["ward"]["units"] == 4
+        assert out["sections"]["wards"]["units"] == 4
         assert Unit.query.count() == 4
         assert Space.query.count() > 0
         assert Bed.query.count() > 0
@@ -53,6 +65,7 @@ def test_the_unit_names_match_the_clinic_s_own_words(clinic):
     ar = json.load(open("app/i18n/locales/ar.json", encoding="utf-8"))
 
     with clinic["app"].app_context():
+        _hospital()
         seed_demo()
         names = {u.name for u in Unit.query.all()}
 
@@ -79,6 +92,7 @@ def test_the_seeder_records_what_it_made(clinic):
     from app.utils.demo import seed_demo
 
     with clinic["app"].app_context():
+        _hospital()
         seed_demo()
         plan = demo_trace.manifest()
 
@@ -299,6 +313,7 @@ def test_but_the_ward_stays_in_the_manifest(clinic):
     from app.utils.demo import reset_all, seed_demo
 
     with clinic["app"].app_context():
+        _hospital()
         seed_demo()
         reset_all()
 

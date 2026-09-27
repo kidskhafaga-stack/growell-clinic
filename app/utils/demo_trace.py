@@ -70,15 +70,22 @@ def snapshot():
     return {name: _ids(tables[name]) for name in tracked_tables()}
 
 
-def record(before):
-    """اللي ظهر بعد الصورة دي = اللي الزرع عمله. بيتخزّن ويترجّع."""
+def record(before, merge=False):
+    """اللي ظهر بعد الصورة دي = اللي الزرع عمله. بيتخزّن ويترجّع.
+
+    ``merge``: **يتضاف** على الكشف اللي موجود بدل ما يحلّ محلّه — القسم
+    اللي بيتحمّل بعدين (``demo_sections``) مش بيمحي كشف العيادة اللي
+    اتحمّلت قبله. واللي بيترجّع هو اللي الزرع ده عمله بس."""
     tables = wipe._tables()
     made = {}
     for name in tracked_tables():
         fresh = sorted(_ids(tables[name]) - before.get(name, set()))
         if fresh:
             made[name] = fresh
-    Setting.set(MANIFEST, json.dumps(made))
+    kept = manifest() if merge else {}
+    for name, ids in made.items():
+        kept[name] = sorted(set(kept.get(name, [])) | set(ids))
+    Setting.set(MANIFEST, json.dumps(kept))
     return made
 
 
@@ -207,4 +214,6 @@ def remove():
     kept = {name: len(ids) for name, ids in left.items() if ids}
     Setting.set(MANIFEST, "")
     Setting.set("demo_seeded", "0")
+    from app.utils import demo_sections
+    demo_sections.clear()
     return dict(removed), kept
