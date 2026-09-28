@@ -2219,6 +2219,19 @@ SECTIONS = [
         "icon": "whatsapp",
         "title": ("واتساب وخدمة المرضى", "WhatsApp & patient service"),
         "lines": [
+            ("<b>التقييم بعد كل خدمة، مش بعد الكشف بس:</b> بعد الخروج من "
+             "الداخلي والحضّانات والطوارئ الأهل بيوصلهم تقييم بتلات نواحي — "
+             "الطبية والخدمية والمالية — ومرة واحدة في الأسبوع بالكتير. "
+             "ولو ناحية نجمتين أو أقل بتوصل لصندوق الرسايل كشكوى. وما بيتبعتش "
+             "أبداً بعد وفاة أو تحويل. <b>والخروج على المسؤولية</b> بيتسأل "
+             "فيه «ماشيين ليه؟» بضغطة، والقايمة بتتعدّل من القوايم.",
+             "<b>A rating after every service, not only after a visit:</b> "
+             "after leaving the ward, the NICU or emergency the family is "
+             "sent a survey on three sides — medical, service and money — at "
+             "most once a week. A side rated two stars or less reaches the "
+             "inbox as a complaint. It is never sent after a death or a "
+             "transfer. <b>Leaving against advice</b> asks \"why?\" in one "
+             "tap, from a list the clinic edits."),
             ("<b>هب واحد</b> لكل الرسائل: قالب لكل نوع (تأكيد حجز، تذكير "
              "تطعيم، متابعة، استبيان…)، وتشغيل/إيقاف و<b>تلقائي أو يدوي</b> "
              "لكل نوع على حدة.",

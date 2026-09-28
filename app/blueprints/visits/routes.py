@@ -1716,7 +1716,6 @@ def _send_feedback_survey(visit, force=False):
     reusing the visit's existing survey token if there is one. Returns the
     MessageLog, or None when skipped.
     """
-    tpl = wa.template_for("feedback")
     patient = visit.patient
     if not force and wa.type_is_off("feedback"):
         # Switched off deliberately. A clinic that has simply never opened the
@@ -1740,34 +1739,14 @@ def _send_feedback_survey(visit, force=False):
     elif not force:                                        # already sent
         return None
 
-    lang = getattr(g, "lang", "ar")
     # {link} depends on the survey delivery mode: the built-in page, an
     # external form (Google Form — works when the program is LAN-only), or
     # nothing (inline mode: the questions ride inside the message itself and
-    # the patient just replies on WhatsApp).
-    from app.utils.feedback import inline_survey_text, survey_delivery
-    mode, ext_url = survey_delivery()
-    if mode == "external" and ext_url:
-        link = ext_url
-    elif mode == "inline":
-        link = ""
-    else:
-        link = wa.feedback_link(fb.token)
-    body = wa.render(wa.template_body("feedback"), {
-        "patient": patient.display_name(lang) if patient else "",
-        "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
-        "doctor": visit.doctor.display_name(lang) if visit.doctor else "",
-        "link": link,
-    }).strip()
-    if mode == "inline":
-        body = f"{body}\n\n{inline_survey_text(lang)}"
-    # Honour the template's schedule (e.g. "send the survey N days after the
-    # visit"); None means send as soon as due.
-    from app.models.message import _template_schedule
-    schedule_at = _template_schedule(tpl) if tpl is not None else None
-    return wa.send(body, phone, patient_id=visit.patient_id, user_id=current_user.id,
-                   template_type="feedback", image_url=wa.template_image("feedback"),
-                   scheduled_at=schedule_at)
+    # the patient just replies on WhatsApp). One sender for a visit and a
+    # stay alike, so the two cannot drift (``utils/feedback.deliver``).
+    from app.utils.feedback import deliver
+    return deliver(fb, patient, doctor=visit.doctor, user_id=current_user.id,
+                   lang=getattr(g, "lang", "ar"))
 
 
 @visits_bp.route("/<int:visit_id>/send-survey", methods=["POST"])

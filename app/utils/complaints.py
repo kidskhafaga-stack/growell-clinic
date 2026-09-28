@@ -64,7 +64,7 @@ def is_complaint(fb):
     if fb is None or fb.status != "submitted":
         return False
     stars = stars_threshold()
-    for rating in (fb.doctor_rating, fb.service_rating):
+    for rating in (fb.doctor_rating, fb.service_rating, fb.finance_rating):
         if rating is not None and rating <= stars:
             return True
     return fb.nps is not None and fb.nps <= nps_threshold()
@@ -82,9 +82,23 @@ def summarise(fb, lang="ar"):
         parts.append(f"الطبيب {fb.doctor_rating}/5")
     if fb.service_rating is not None:
         parts.append(f"الخدمة {fb.service_rating}/5")
+    if fb.finance_rating is not None:
+        parts.append(f"المالية {fb.finance_rating}/5")
     if fb.nps is not None:
         parts.append(f"الترشيح {fb.nps}/10")
-    head = "تقييم بعد الزيارة — " + " · ".join(parts) if parts else "تقييم بعد الزيارة"
+    # After a stay it says which unit — "the NICU", not "the visit" — since
+    # that is who has to answer it.
+    if getattr(fb, "admission_id", None) or getattr(fb, "emergency_visit_id", None):
+        place = fb.cost_centre.name_ar if getattr(fb, "cost_centre", None) else ""
+        title = f"تقييم بعد الإقامة — {place}".strip(" —") if place else "تقييم بعد الإقامة"
+    else:
+        title = "تقييم بعد الزيارة"
+    head = f"{title} — " + " · ".join(parts) if parts else title
+    if getattr(fb, "concerns", None):
+        from app.i18n import t
+
+        said = [t("feedback.c_" + c.split(":", 1)[1]) for c in fb.concerns.split(",")]
+        head += "\n" + " · ".join(said)
     body = (fb.comment or "").strip()
     return f"{head}\n{body}" if body else head
 

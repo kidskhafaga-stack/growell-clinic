@@ -332,6 +332,7 @@
   {% else %}
   <p style="margin:0;">
     <span class="badge badge--muted">{{ t('beds.outcome_' ~ (admission.outcome or 'home')) }}</span>
+    {% if admission.leave_reason %}<span class="badge badge--warning" data-left-because="{{ admission.leave_reason }}">{{ t('leave.because') }} {{ leave_label(admission.leave_reason) }}{% if admission.leave_note %} — {{ admission.leave_note }}{% endif %}</span>{% endif %}
     <span dir="ltr">{{ admission.discharged_at|clinic_stamp }}</span>
     {% if admission.discharge_note %} · {{ admission.discharge_note }}{% endif %}
   </p>
@@ -1973,11 +1974,12 @@
      they are not the same event to anybody reading the file afterwards. #}
   <form method="post"
         action="{{ url_for('beds.discharge', admission_id=admission.id) }}"
-        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;"
+        x-data="{ out: '{{ outcomes[0] }}' }">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row" style="margin-bottom:0;min-width:190px;">
       <label for="outcome">{{ t('beds.outcome') }}</label>
-      <select class="select" id="outcome" name="outcome">
+      <select class="select" id="outcome" name="outcome" x-model="out">
         {% for kind in outcomes %}
         <option value="{{ kind }}">{{ t('beds.outcome_' ~ kind) }}</option>
         {% endfor %}
@@ -1986,6 +1988,19 @@
     <div class="form-row" style="margin-bottom:0;min-width:220px;flex:1;">
       <label for="note">{{ t('beds.discharge_note') }}</label>
       <input class="input" id="note" name="note" maxlength="255">
+    </div>
+    {# Against advice: why, in one tap. Never required — "didn't say" is on
+       the list, and the family is at the door (utils/leave_reasons). #}
+    <div class="form-row" style="margin-bottom:0;min-width:200px;" x-show="out === 'self_discharge'" x-cloak data-leave-reason>
+      <label for="leave_reason">{{ t('leave.why') }}</label>
+      <select class="select" id="leave_reason" name="leave_reason">
+        <option value="">—</option>
+        {% for r in leave_reasons %}<option value="{{ r.key }}">{{ r.display_name(current_lang) }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:200px;flex:1;" x-show="out === 'self_discharge'" x-cloak>
+      <label for="leave_note">{{ t('leave.their_words') }}</label>
+      <input class="input" id="leave_note" name="leave_note" maxlength="255" placeholder="{{ t('leave.their_words_ph') }}">
     </div>
     <button class="btn btn-primary gc-press" type="submit">
       <i class="bi bi-check2"></i> {{ t('beds.discharge') }}</button>

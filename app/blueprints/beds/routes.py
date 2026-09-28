@@ -129,6 +129,18 @@ def setup():
                                      .order_by(Service.name).all()))
 
 
+def _leave_reason_options():
+    from app.utils import leave_reasons
+
+    return leave_reasons.options()
+
+
+def _leave_label(key):
+    from app.utils import leave_reasons
+
+    return leave_reasons.label(key, g.get("lang", "ar"))
+
+
 def _admin_only():
     if not current_user.is_admin:
         abort(403, description=t("auth.no_permission"))
@@ -420,6 +432,8 @@ def admission(admission_id):
         nursing_known=_nursing_utils.assembled(row),
         nursing_gaps=_nursing_utils.missing,
         free=ward.free_beds(), outcomes=OUTCOMES, trends=ROUND_TRENDS,
+        leave_reasons=_leave_reason_options(),
+        leave_label=_leave_label,
         rounds=sorted(row.round_notes, key=lambda n: (n.at, n.id),
                       reverse=True),
         # The chart, and what the clinic's own safety check makes of it. Not a
@@ -618,9 +632,19 @@ def summary_print(admission_id):
 @module_required(MODULE)
 def discharge(admission_id):
     """End the stay. The bed is freed by the stay closing, not by a flag."""
+    from app.utils import leave_reasons
+
     row = Admission.query.get_or_404(admission_id)
-    ward.discharge(row, (request.form.get("outcome") or "").strip(),
-                   user=current_user, note=request.form.get("note"))
+    outcome = (request.form.get("outcome") or "").strip()
+    # The last unit the child was in, read before the stay closes — it is
+    # the unit the family is asked about.
+    from app.utils.cost_centres import unit_on
+    last_unit = unit_on(row, None)
+    ward.discharge(row, outcome, user=current_user, note=request.form.get("note"))
+    # Against advice: why, in one tap. Never a reason to hold the discharge
+    # — an empty answer is saved as empty (``utils/leave_reasons``).
+    leave_reasons.record(row, row.outcome, request.form.get("leave_reason"),
+                         request.form.get("leave_note"))
     db.session.flush()
     # The nights, at the one moment the whole stay is finally known. A
     # discharge is already a deliberate act with a form in front of it, so
@@ -641,7 +665,33 @@ def discharge(admission_id):
         flash(t("lab.n_charged", n=billed["tests"]), "info")
     if billed["rounds"]:
         flash(t("rounds.n_charged", n=billed["rounds"]), "info")
+    _survey_after(row.patient, row.outcome, admission=row, doctor=row.doctor,
+                  unit=last_unit)
     return redirect(url_for("beds.admission", admission_id=row.id))
+
+
+def _survey_after(patient, how_left, unit=None, centre_key=None, **episode):
+    """Ask the family how it went, once the stay has closed and been billed.
+
+    Best effort, after the commit that matters: a WhatsApp hiccup must never
+    undo a discharge. The survey remembers the unit's cost centre, so the
+    rating is read per unit (``utils/feedback.after_stay``).
+    """
+    from flask import current_app
+
+    from app.utils import cost_centres, feedback
+
+    try:
+        centre = (cost_centres.for_unit(unit) if unit is not None
+                  else cost_centres.centre(centre_key) if centre_key else None)
+        feedback.after_stay(patient, how_left,
+                            centre_id=getattr(centre, "id", None),
+                            user=current_user, lang=getattr(g, "lang", "ar"),
+                            **episode)
+        db.session.commit()
+    except Exception:  # noqa: BLE001 — the discharge is already saved
+        db.session.rollback()
+        current_app.logger.exception("survey after the stay was not sent")
 
 
 # ------------------------------------------------------------ the round -----

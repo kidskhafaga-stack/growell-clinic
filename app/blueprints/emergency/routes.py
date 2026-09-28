@@ -41,6 +41,18 @@ def index():
     return department_screen.render(MODULE, KIND)
 
 
+def _reasons():
+    from app.utils import leave_reasons
+
+    return leave_reasons.options()
+
+
+def _asked_on():
+    from app.utils import leave_reasons
+
+    return leave_reasons.ASKED_ON
+
+
 @emergency_bp.route("/register")
 @module_required(MODULE)
 def register():
@@ -56,7 +68,8 @@ def register():
                            open_visits=er.open_visits(),
                            untriaged=er.untriaged(),
                            incomplete=er.incomplete_departed(),
-                           dispositions=DISPOSITIONS, arrivals=ARRIVALS)
+                           dispositions=DISPOSITIONS, arrivals=ARRIVALS,
+                           leave_reasons=_reasons(), asked_on=_asked_on())
 
 
 @emergency_bp.route("/arrive", methods=["POST"])
@@ -116,6 +129,9 @@ def depart(visit_id):
     from app.models import EmergencyVisit
     from app.utils import emergency as er
 
+    from app.blueprints.beds.routes import _survey_after
+    from app.utils import leave_reasons
+
     row = db.get_or_404(EmergencyVisit, visit_id)
     try:
         er.depart(row, (request.form.get("disposition") or "").strip(),
@@ -124,7 +140,12 @@ def depart(visit_id):
     except ValueError:
         db.session.rollback()
         return _back(t("emergency.not_saved"), "error")
+    # Left against advice, or before being seen: why, in one tap.
+    leave_reasons.record(row, row.disposition, request.form.get("leave_reason"),
+                         request.form.get("leave_note"))
     db.session.commit()
+    _survey_after(row.patient, row.disposition, centre_key="emergency",
+                  emergency_visit=row)
     return _back(t("emergency.departed"), "success")
 
 
