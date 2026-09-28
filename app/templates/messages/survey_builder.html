@@ -9,8 +9,12 @@
     <h1 class="page-title" style="margin-bottom:2px;"><i class="bi bi-ui-checks"></i> {{ t('survey.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('survey.subtitle') }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('messages.satisfaction') }}">
-    <i class="bi bi-emoji-smile"></i> {{ t('crm.satisfaction') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-primary gc-press" href="{{ url_for('messages.survey_questions') }}" data-open-questions>
+      <i class="bi bi-diagram-3"></i> {{ t('survey.questions_and_jumps') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.satisfaction') }}">
+      <i class="bi bi-emoji-smile"></i> {{ t('board_cs.title') }}</a>
+  </div>
 </div>
 
 <div class="info-note" style="margin-bottom:14px;"><i class="bi bi-info-circle"></i> {{ t('survey.hint') }}</div>
@@ -51,6 +55,9 @@
         <input class="input" name="survey_thanks_ar" value="{{ values.get('survey_thanks_ar','') }}" placeholder="{{ cfg.ar.thanks }}"></div>
       <div class="form-row"><label>{{ t('survey.thanks') }} (EN)</label>
         <input class="input" name="survey_thanks_en" dir="ltr" value="{{ values.get('survey_thanks_en','') }}" placeholder="{{ cfg.en.thanks }}"></div>
+      <div class="form-row"><label>{{ t('survey.review_url') }}</label>
+        <input class="input" name="survey_review_url" dir="ltr" value="{{ values.get('survey_review_url','') }}" placeholder="https://g.page/r/…">
+        <span class="hint">{{ t('survey.review_url_hint') }}</span></div>
     </div>
   </div>
 

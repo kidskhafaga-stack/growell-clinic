@@ -2248,6 +2248,22 @@ SECTIONS = [
              "told, and the answer reaches the family with a link to rate it "
              "— a low rating reopens it by itself. A complaint past the "
              "hospital's policy timeframes shows as late (PCC.16)."),
+            ("<b>استبيان بيمشي ورا الإجابات:</b> من «محرّر الاستبيان» ← «الأسئلة "
+             "والقفزات» تضيف أسئلة المؤسسة وترتّبها، وعلى كل إجابة تقول «روح "
+             "لسؤال كذا» أو «اخلص». السؤال الفرعي ما بيظهرش غير لما إجابة تودّي "
+             "عليه، والعيلة بتشوف سؤال واحد في كل شاشة. وفي الآخر شاشة شكر "
+             "بلوجو المؤسسة: اللي قيّم وحش بيتقاله «هنكلّمك»، واللي قيّم 9 أو "
+             "10 بيتعرض عليه لينك تقييم جوجل. ولوحة خدمة العملاء بتعرض "
+             "إجابات أسئلة المؤسسة.",
+             "<b>A survey that follows the answers:</b> under the survey "
+             "editor → «Questions and jumps», add the organisation's own "
+             "questions, order them, and on each answer say «go to question "
+             "N» or «finish». A branch question appears only when an answer "
+             "leads to it, and families see one question per screen. It ends "
+             "on a thank-you in the organisation's name and logo: an unhappy "
+             "family is told someone will call, one that scored 9 or 10 is "
+             "offered the Google review link. The customer-service board "
+             "shows the answers to the organisation's questions."),
             ("<b>هب واحد</b> لكل الرسائل: قالب لكل نوع (تأكيد حجز، تذكير "
              "تطعيم، متابعة، استبيان…)، وتشغيل/إيقاف و<b>تلقائي أو يدوي</b> "
              "لكل نوع على حدة.",

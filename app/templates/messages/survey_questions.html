@@ -1,0 +1,130 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('survey.questions_and_jumps') }}{% endblock %}
+{% block page_heading %}{{ t('survey.questions_and_jumps') }}{% endblock %}
+
+{# The survey in order, and where each answer leads. A jump is written on an
+   answer ("if no → question 5"), only forward or to the end. A branch
+   question is skipped in the normal order and reached only through a jump. #}
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-diagram-3"></i> {{ t('survey.questions_and_jumps') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('survey.qj_sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.survey_preview') }}" target="_blank"><i class="bi bi-phone"></i> {{ t('survey.preview') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.survey_builder') }}"><i class="bi bi-ui-checks"></i> {{ t('survey.title') }}</a>
+  </div>
+</div>
+
+{% set main = rows|selectattr('is_active')|rejectattr('branch_only')|list|length %}
+<div class="card gc-scale-in" style="margin-bottom:14px;{{ 'border-color:var(--warning,#b7791f);' if happy > 7 }}" data-happy="{{ happy }}">
+  {% if happy > 7 %}<i class="bi bi-exclamation-triangle" style="color:#b7791f;"></i> {{ t('survey.too_long', n=happy) }}
+  {% else %}<i class="bi bi-check2-circle" style="color:var(--green-600);"></i> {{ t('survey.happy_path', n=happy) }}{% endif %}
+  {% for kind, key in problems %}
+  <div style="color:var(--danger);margin-top:6px;" data-problem="{{ kind }}:{{ key }}"><i class="bi bi-exclamation-circle"></i>
+    {{ t('survey.problem_' ~ kind, q=labels.get(key, key)) }}</div>
+  {% endfor %}
+</div>
+
+{% set order = rows|map(attribute='key')|list %}
+<div style="display:grid;gap:10px;">
+{% for r in rows %}
+  {% set n = loop.index %}
+  <div class="card gc-scale-in" id="q-{{ r.key }}" data-question="{{ r.key }}"
+       style="padding:12px 16px;{{ 'border-style:dashed;' if r.branch_only }}{{ 'opacity:.55;' if not r.is_active }}">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
+      <strong><span class="badge badge--role num">{{ n }}</span> {{ labels[r.key] or '—' }}</strong>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <span class="badge badge--muted">{{ t('survey.builtin') if r.builtin else t('survey.kind_' ~ r.kind) }}</span>
+        {% if r.branch_only %}<span class="badge" style="background:#f7ecd6;color:#96620f;">{{ t('survey.branch_badge') }}</span>{% endif %}
+        {% for group, to in r.jump_map().items() %}
+          {% set gl = dict(groups[r.key]).get(group, group) %}
+          <span class="badge" style="background:{{ '#f8e0de' if to == 'end' else '#e7f1fb' }};color:{{ '#b0332d' if to == 'end' else '#1d5d99' }};" data-jump="{{ group }}:{{ to }}">
+            {{ gl }} ← {{ t('survey.to_end') if to == 'end' else t('survey.to_q', n=order.index(to) + 1) }}</span>
+        {% endfor %}
+        <form method="post" action="{{ url_for('messages.survey_question_move', qid=r.id) }}" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="dir" value="up">
+          <button class="btn btn-outline btn-sm gc-press" type="submit" aria-label="up" {{ 'disabled' if loop.first }}>↑</button></form>
+        <form method="post" action="{{ url_for('messages.survey_question_move', qid=r.id) }}" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="dir" value="down">
+          <button class="btn btn-outline btn-sm gc-press" type="submit" aria-label="down" {{ 'disabled' if loop.last }}>↓</button></form>
+      </div>
+    </div>
+
+    <details style="margin-top:8px;">
+      <summary style="cursor:pointer;color:var(--muted);">{{ t('survey.edit_q') }}</summary>
+      <form method="post" action="{{ url_for('messages.survey_question_save', qid=r.id) }}" style="display:grid;gap:8px;margin-top:10px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if not r.builtin %}
+        <div class="form-grid">
+          <div class="form-row" style="margin:0;"><label>{{ t('survey.wording') }} (ع)</label><input class="input" name="text_ar" value="{{ r.text_ar or '' }}" maxlength="255"></div>
+          <div class="form-row" style="margin:0;"><label>{{ t('survey.wording') }} (EN)</label><input class="input" name="text_en" dir="ltr" value="{{ r.text_en or '' }}" maxlength="255"></div>
+          <div class="form-row" style="margin:0;"><label>{{ t('survey.kind') }}</label>
+            <select class="input" name="kind">{% for k in kinds %}<option value="{{ k }}" {{ 'selected' if r.kind == k }}>{{ t('survey.kind_' ~ k) }}</option>{% endfor %}</select></div>
+          <div class="form-row" style="margin:0;"><label>{{ t('survey.asked_about') }}</label>
+            <select class="input" name="centres" multiple size="3">
+              {% for c in centres %}<option value="{{ c.key }}" {{ 'selected' if c.key in r.centres() }}>{{ c.display_name(current_lang) }}</option>{% endfor %}
+            </select><span class="hint">{{ t('survey.asked_about_hint') }}</span></div>
+          <div class="form-row" style="margin:0;"><label>{{ t('survey.options') }} (ع)</label><textarea class="input" name="options_ar" rows="3">{{ r.options_ar or '' }}</textarea></div>
+          <div class="form-row" style="margin:0;"><label>{{ t('survey.options') }} (EN)</label><textarea class="input" name="options_en" rows="3" dir="ltr">{{ r.options_en or '' }}</textarea></div>
+        </div>
+        <label class="checkbox"><input type="checkbox" name="branch_only" value="1" {{ 'checked' if r.branch_only }}> {{ t('survey.branch_only') }}</label>
+        <label class="checkbox"><input type="checkbox" name="is_active" value="1" {{ 'checked' if r.is_active }}> {{ t('survey.active') }}</label>
+        {% else %}
+        <p class="hint" style="margin:0;">{{ t('survey.builtin_hint') }}</p>
+        {% endif %}
+
+        {% if groups[r.key] %}
+        <div style="border-top:1px dashed var(--line);padding-top:8px;">
+          <strong style="font-size:.9rem;">{{ t('survey.after_answer') }}</strong>
+          {% for group, label in groups[r.key] %}
+          <div style="display:grid;grid-template-columns:minmax(110px,auto) auto 1fr;gap:8px;align-items:center;margin-top:6px;">
+            <span class="badge badge--muted" style="justify-self:start;">{{ label }}</span><span>←</span>
+            <select class="input" name="jump_{{ group }}" data-jump-select="{{ group }}">
+              <option value="">{{ t('survey.to_next') }}</option>
+              {% for other in rows[n:] if other.is_active %}
+              <option value="{{ other.key }}" {{ 'selected' if r.jump_map().get(group) == other.key }}>{{ order.index(other.key) + 1 }}. {{ (labels[other.key] or '')[:50] }}</option>
+              {% endfor %}
+              <option value="end" {{ 'selected' if r.jump_map().get(group) == 'end' }}>{{ t('survey.to_end_long') }}</option>
+            </select>
+          </div>
+          {% endfor %}
+        </div>
+        {% elif r.kind in ('multi', 'text') %}
+        <p class="hint" style="margin:0;">{{ t('survey.no_jumps') }}</p>
+        {% endif %}
+        <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+        </div>
+      </form>
+      {% if not r.builtin %}
+      <form method="post" action="{{ url_for('messages.survey_question_delete', qid=r.id) }}" style="margin-top:8px;"
+            onsubmit="return confirm({{ t('survey.delete_confirm')|tojson }});">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline btn-sm gc-press" type="submit" style="color:var(--danger);"><i class="bi bi-trash"></i> {{ t('common.delete') }}</button>
+      </form>
+      {% endif %}
+    </details>
+  </div>
+{% endfor %}
+</div>
+
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-plus-circle"></i> {{ t('survey.add_q') }}</h2>
+  <form method="post" action="{{ url_for('messages.survey_question_new') }}" style="display:grid;gap:8px;" data-new-question>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-grid">
+      <div class="form-row" style="margin:0;"><label>{{ t('survey.wording') }} (ع)</label><input class="input" name="text_ar" maxlength="255" placeholder="{{ t('survey.wording_ph') }}"></div>
+      <div class="form-row" style="margin:0;"><label>{{ t('survey.wording') }} (EN)</label><input class="input" name="text_en" dir="ltr" maxlength="255"></div>
+      <div class="form-row" style="margin:0;"><label>{{ t('survey.kind') }}</label>
+        <select class="input" name="kind">{% for k in kinds %}<option value="{{ k }}" {{ 'selected' if k == 'yesno' }}>{{ t('survey.kind_' ~ k) }}</option>{% endfor %}</select></div>
+      <div class="form-row" style="margin:0;"><label>{{ t('survey.options') }} (ع)</label><textarea class="input" name="options_ar" rows="3" placeholder="{{ t('survey.options_ph') }}"></textarea></div>
+    </div>
+    <label class="checkbox"><input type="checkbox" name="branch_only" value="1"> {{ t('survey.branch_only') }}</label>
+    <p class="hint" style="margin:0;">{{ t('survey.add_hint') }}</p>
+    <div><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('survey.add_q') }}</button></div>
+  </form>
+</div>
+{% endblock %}
