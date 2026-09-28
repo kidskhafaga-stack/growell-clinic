@@ -157,6 +157,10 @@ def test_contact_answer_and_the_familys_verdict_closes_it(clinic):
     public = clinic["app"].test_client()
     page = public.get(f"/f/c/{case['token']}").get_data(as_text=True)
     assert "اعتذرنا وضفنا دكتور تاني" in page and "data-verdict-form" in page
+    # A score that is not one of the five stars is not a verdict.
+    for junk in ("9", "0", "", "خمسة"):
+        public.post(f"/f/c/{case['token']}", data={"stars": junk})
+    assert _case(clinic)["rating"] is None
     public.post(f"/f/c/{case['token']}", data={"stars": "5", "comment": "تمام"})
     done = _case(clinic)
     assert (done["status"], done["rating"]) == ("closed", 5)
@@ -215,11 +219,16 @@ def test_the_clinics_timeframe_decides_what_is_late(clinic):
                                             "complaint_close_days": "10"})
     assert f'data-case-row="{case["number"]}"' not in boss.get(
         "/complaints/?view=late").get_data(as_text=True)
-    # And a figure outside any sensible range is not taken.
+    # And a figure outside any sensible range is not taken — not from the
+    # screen, and not if one reached the settings some other way.
     boss.post("/complaints/settings", data={"complaint_contact_hours": "0"})
+    from app.models import Setting
     from app.utils import complaint_cases
     with clinic["app"].app_context():
         assert complaint_cases.first_contact_hours() == 48
+        Setting.set("complaint_close_days", "900")
+        clinic["db"].session.commit()
+        assert complaint_cases.close_days() == complaint_cases.DEFAULT_CLOSE_DAYS
 
 
 # ---------------------------------------------------- from elsewhere ---
@@ -243,6 +252,13 @@ def test_a_low_survey_answer_opens_one_case(clinic):
     assert (case["channel"], case["side"], case["patient"]) == (
         "survey", "finance", clinic["ids"]["child"])
     assert case["feedback"] is not None
+    # And asked again for the same survey — by a retry, a second worker —
+    # it hands back the case it already opened.
+    from app.utils import complaint_cases
+    with clinic["app"].app_context():
+        fb = Feedback.query.filter_by(token="tok-low").one()
+        assert complaint_cases.from_feedback(fb).id == case["id"]
+        assert Complaint.query.count() == 1
 
 
 def test_a_family_writes_it_themselves_from_a_signed_link(clinic):

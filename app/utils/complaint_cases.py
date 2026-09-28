@@ -346,8 +346,7 @@ def read_invite(token):
         data = _signer().loads(token, max_age=INVITE_DAYS * 86400)
     except (BadSignature, SignatureExpired):
         return None
-    pid = data.get("p") if isinstance(data, dict) else None
-    return pid if isinstance(pid, int) else None
+    return data.get("p") if isinstance(data, dict) else None
 
 
 def invite_link(patient):
