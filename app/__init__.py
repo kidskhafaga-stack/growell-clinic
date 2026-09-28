@@ -271,9 +271,13 @@ def create_app(config_name="default"):
             # is the licence terms, and terms squeezed into a 250px column at
             # 0.64rem are terms nobody has read.
             "copyright_short": "© Eng. Mohamed Khafaga",
+            # The owner's wording, word for word: the protection is the
+            # Egyptian law on intellectual property (No. 82 of 2002). Shown on
+            # the login page, the error pages, the About page and the foot of
+            # everything printed — one string, so they cannot differ.
             "copyright_notice": (
-                "© Eng. Mohamed Khafaga — All rights reserved · "
-                "يُحظر نسخه أو تعديله أو إعادة استخدامه بدون إذن صريح"
+                "© 2026 Eng. Mohamed Khafaga · جميع الحقوق محفوظة · "
+                "محمي بموجب القانون المصري رقم 82 لسنة 2002."
             ),
             # Read from the one place that works it out. It was typed here
             # as well, so the number on the sidebar and the number in a

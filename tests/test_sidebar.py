@@ -164,14 +164,15 @@ def test_the_sidebar_carries_one_line_not_a_paragraph(clinic, doc):
     licence terms at 0.64rem — permanent space, read by nobody."""
     body = doc.get("/dashboard").get_data(as_text=True)
     assert "sidebar__footer-line" in body
-    assert "يُحظر نسخه" not in body, "the full licence text is still in the sidebar"
+    assert "82 لسنة 2002" not in body.split('class="print-footer"')[0], (
+        "the full licence text is still in the sidebar")
 
 
 def test_the_terms_are_on_a_page_at_a_readable_size(clinic, doc):
     reply = doc.get("/about")
     assert reply.status_code == 200
     body = reply.get_data(as_text=True)
-    assert "يُحظر نسخه" in body
+    assert "محمي بموجب القانون المصري رقم 82 لسنة 2002." in body
     assert "0.64rem" not in body
 
 
@@ -203,3 +204,18 @@ def test_every_module_link_is_still_there(clinic, doc):
 def test_the_screens_still_render(clinic, doc):
     for url in ("/dashboard", "/about", "/patients/"):
         assert doc.get(url).status_code in (200, 302), url
+
+
+def test_the_one_copyright_line_everywhere_it_is_shown(clinic, doc):
+    """The owner's wording, word for word, on the login page, the About page
+    and the foot of every printed page — and the old wording nowhere."""
+    line = ("© 2026 Eng. Mohamed Khafaga · جميع الحقوق محفوظة · "
+            "محمي بموجب القانون المصري رقم 82 لسنة 2002.")
+    login = clinic["app"].test_client().get("/login").get_data(as_text=True)
+    about = doc.get("/about").get_data(as_text=True)
+    printed = doc.get("/dashboard").get_data(as_text=True)
+    footer = printed[printed.index('class="print-footer"'):]
+    for page in (login, about, footer):
+        assert line in page
+        assert "All rights reserved" not in page
+        assert "يُحظر نسخه" not in page
