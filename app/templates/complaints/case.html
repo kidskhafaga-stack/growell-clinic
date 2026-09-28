@@ -20,6 +20,7 @@
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <a class="btn btn-outline gc-press" href="{{ url_for('complaints.index') }}"><i class="bi bi-list-ul"></i> {{ t('cmp.title') }}</a>
     {% if case.thread_key %}<a class="btn btn-outline gc-press" href="{{ url_for('messages.inbox_thread', key=case.thread_key) }}"><i class="bi bi-whatsapp"></i> {{ t('cmp.thread') }}</a>{% endif %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('complaints.receipt', case_id=case.id) }}"><i class="bi bi-receipt"></i> {{ t('cmp.receipt_title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('complaints.print_case', case_id=case.id) }}" target="_blank"><i class="bi bi-printer"></i> {{ t('common.print') }}</a>
   </div>
 </div>
