@@ -74,6 +74,12 @@ def test_how_full_it_has_been(hospital):
         got = bed_map.occupancy(days=1, now=now)[Unit.query.one().id]
     # One child for twelve hours, two beds for a day: a quarter.
     assert got == 25
+    # A stay that began before the period counts only from its start.
+    with hospital["app"].app_context():
+        row = BedStay.query.filter_by(admission_id=stay).one()
+        row.since = now - timedelta(hours=36)
+        hospital["db"].session.commit()
+        assert bed_map.occupancy(days=1, now=now)[Unit.query.one().id] == 50
 
 
 def test_the_case_behind_a_bed(hospital):
