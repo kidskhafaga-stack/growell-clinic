@@ -148,7 +148,14 @@ def visit_fingerprint(visit_id):
 # The screens a fingerprint can be asked for, and how to build it. Kept as a
 # map so the endpoint serving them cannot be talked into running something
 # else by a crafted URL.
+def beds_fingerprint(ident=0):
+    from app.utils.bed_map import fingerprint
+    return fingerprint(ident)
+
+
 FINGERPRINTS = {
     "patient": patient_fingerprint,
     "visit": visit_fingerprint,
+    # The bed map: who is in which bed, and which places are open.
+    "beds": beds_fingerprint,
 }

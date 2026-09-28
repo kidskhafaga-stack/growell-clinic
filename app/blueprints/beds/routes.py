@@ -59,11 +59,48 @@ MODULE = "beds"
 @beds_bp.route("/")
 @module_required(MODULE)
 def index():
-    """The board: every unit, every space, every bed and who is in it."""
+    """The map: every unit, every space, every bed and who is in it — drawn
+    by the shape of the bed, with how long each child has been there, how
+    full each unit is now and has been, and the case one tap away. Retired
+    units nobody is in are left off (``utils/bed_map``)."""
+    from app.utils import bed_map
+
+    units = bed_map.board(ward.board())
+    admissions = [cell["stay"].admission for row in units
+                  for block in row["spaces"] for cell in block["beds"]
+                  if cell["stay"] is not None]
     return render_template("beds/index.html",
-                           units=ward.board(),
+                           units=units,
                            counts=ward.counts(),
-                           may_build=current_user.is_admin)
+                           occupancy=bed_map.occupancy(),
+                           period_days=bed_map.PERIOD_DAYS,
+                           diagnoses=bed_map.diagnoses_by_admission(admissions),
+                           may_build=current_user.is_admin,
+                           may_admit=current_user.can_access(MODULE))
+
+
+@beds_bp.route("/panel/<int:admission_id>")
+@module_required(MODULE)
+def panel(admission_id):
+    """The case behind a bed, for the map's side panel."""
+    from app.utils import bed_map
+
+    row = Admission.query.get_or_404(admission_id)
+    return render_template("beds/_panel.html", p=bed_map.panel(row))
+
+
+@beds_bp.route("/admit-here", methods=["POST"])
+@module_required(MODULE)
+def admit_here():
+    """Admit from the map: the bed that was tapped and the child's file
+    number. Finds the child, then admits exactly as ``admit`` does."""
+    number = (request.form.get("patient_number") or "").strip()
+    patient = (Patient.query.filter_by(patient_number=number).first()
+               if number else None)
+    if patient is None:
+        flash(t("beds.map_no_patient", number=number), "error")
+        return redirect(url_for("beds.index"))
+    return admit(patient.id)
 
 
 # ------------------------------------------------------------ building it ---
