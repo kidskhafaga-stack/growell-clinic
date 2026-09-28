@@ -1819,6 +1819,17 @@ SECTIONS = [
              "Collecting <b>requires an open shift</b>, and \"close your "
              "shift\" at handover prints the shift report (opening, "
              "collected, expected, actual, difference)."),
+            ("<b>الدفع = وصل</b>: التحصيل في الاستقبال لميعاد النهارده اللي لسه "
+             "«محجوز» بيعلّمه «وصل» ويدخّل الطفل طابور الانتظار — خطوة واحدة "
+             "بدل اتنين. ميعاد يوم تاني، أو طفل جوّه أصلاً، ما بيتلمسش، والدفع "
+             "أونلاين من البيت ما بيعلّمش وصول. والعيادة تقدر تقفلها من "
+             "الإعدادات.",
+             "<b>Paid means here</b>: collecting at the desk for today's "
+             "booking that is still \"scheduled\" marks it arrived and puts "
+             "the child in the waiting queue — one step instead of two. A "
+             "booking for another day, or a child already inside, is left "
+             "alone, and paying online from home does not mark an arrival. "
+             "The clinic can turn it off in Settings."),
             ("<b>الدفع الزائد ممنوع</b> — النظام مش بيقبل رصيد سالب على "
              "الفاتورة.",
              "<b>Overpayment is refused</b> — the system will not leave an "

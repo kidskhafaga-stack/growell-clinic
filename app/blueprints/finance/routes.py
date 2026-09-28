@@ -1678,6 +1678,16 @@ def _take_payment(invoice, amt_raw, method, remaining, shift_id, notes=None,
     return pay, round(remaining - applied, 2), change
 
 
+def _arrived_on_payment(appt):
+    """Money taken at the desk for ``appt``: today's booking, still only
+    booked, is marked arrived (``app/utils/arrival.py``). The appointment
+    when it was, else ``None``."""
+    from app.utils import arrival
+
+    return arrival.on_payment(appt, current_user, ip_address=client_ip(),
+                              lang=getattr(g, "lang", "ar"))
+
+
 def _flash_change(change):
     """Tell the cashier, loudly, how much to hand back."""
     if change and change > 0:
@@ -3587,16 +3597,22 @@ def _checkout_screen(appt, patient):
         shift_id = _current_shift_id()
         remaining = invoice.balance
         change_total = 0.0
+        took = False
         for i, (amt_raw, m) in enumerate(zip(amounts, methods)):
-            _, remaining, change = _take_payment(
+            pay, remaining, change = _take_payment(
                 invoice, amt_raw, m, remaining, shift_id,
                 account_id=_int_at(tills, i))
+            took = took or pay is not None
             change_total = round(change_total + change, 2)
         _till_notice(paying)
         invoice.recalc_status()
         ActivityLog.record("invoice.checkout", user_id=current_user.id, entity="invoice",
                            detail=invoice.invoice_number, ip_address=client_ip())
+        # Paid at the desk for today's booking: the family is here.
+        arrived = _arrived_on_payment(appt) if took else None
         db.session.commit()
+        if arrived is not None:
+            flash(t("arrival.marked"), "info")
         _post_journal_safe("invoice", invoice)
         flash(t("invoices.created"), "success")
         if burned:
@@ -4360,7 +4376,15 @@ def invoice_payment(invoice_id):
     ActivityLog.record("invoice.payment", user_id=current_user.id, entity="invoice",
                        detail=f"{invoice.invoice_number}:{round(added, 2)}",
                        ip_address=client_ip())
+    # Paid at the desk for today's booking: the family is here.
+    from app.models import Appointment
+
+    arrived = _arrived_on_payment(
+        db.session.get(Appointment, invoice.appointment_id)
+        if invoice.appointment_id else None)
     db.session.commit()
+    if arrived is not None:
+        flash(t("arrival.marked"), "info")
     for pay in new_payments:
         _post_journal_safe("payment", pay)
     flash(t("invoices.payment_added"), "success")
