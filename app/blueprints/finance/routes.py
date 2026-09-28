@@ -185,7 +185,34 @@ def journal():
                            # What should be in the ledger and is not — a
                            # posting that failed after the bill was saved.
                            gaps=ledger_gaps.missing(),
+                           # And the other way: entries whose expense was
+                           # deleted before deleting took the entry with it.
+                           left_behind=ledger_gaps.left_behind(),
                            today=local_today().isoformat())
+
+
+@finance_bp.route("/journal/left-behind", methods=["POST"])
+@module_required(MODULE)
+def journal_left_behind():
+    """Take out the entries whose expense is gone (``ledger_gaps``).
+
+    Admin-only, like every write to the ledger from this screen. A closed
+    period keeps its entries; the screen says how many and why."""
+    from flask import abort
+
+    from app.utils import ledger_gaps
+
+    if not current_user.is_admin:
+        abort(403)
+    removed, kept = ledger_gaps.clear_left_behind()
+    ActivityLog.record("ledger.left_behind", user_id=current_user.id,
+                       detail=f"removed={removed} kept={kept}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("ledger_gaps.left_done", removed=removed), "success")
+    if kept:
+        flash(t("ledger_gaps.left_kept", kept=kept), "warning")
+    return redirect(url_for("finance.journal"))
 
 
 @finance_bp.route("/journal/repair", methods=["POST"])
@@ -5635,30 +5662,75 @@ def expense_new():
     return redirect(url_for("finance.expenses", month=request.form.get("month")))
 
 
+def _shift_closed(expense):
+    """Whether this expense came out of a drawer whose shift is counted and
+    closed. Changing it would change a count the cashier has signed — the
+    same reason a closed month is closed for money."""
+    if not expense.shift_id:
+        return False
+    shift = db.session.get(CashierShift, expense.shift_id)
+    return shift is not None and shift.status == "closed"
+
+
 @finance_bp.route("/expenses/<int:expense_id>/edit", methods=["POST"])
 @module_required(MODULE)
 def expense_edit(expense_id):
+    """Change an expense — **and its entry in the ledger with it**.
+
+    It used to change the row and leave the journal as it was, so the income
+    statement kept the first amount for ever and the expenses screen and the
+    profit-and-loss disagreed by the difference."""
+    back = redirect(url_for("finance.expenses", month=request.form.get("month")))
     exp = db.get_or_404(Expense, expense_id)
     if _period_blocked(exp.expense_date):
-        return redirect(url_for("finance.expenses", month=request.form.get("month")))
+        return back
+    if _shift_closed(exp):
+        flash(t("expenses.shift_closed"), "danger")
+        return back
     for k, v in _read_expense(request.form).items():
         setattr(exp, k, v)
     exp.expense_date = parse_date_or_today(request.form.get("expense_date"), exp.expense_date)
+    # Moved *into* a closed month is as much a change to that month as one
+    # made from inside it.
+    if _period_blocked(exp.expense_date):
+        db.session.rollback()
+        return back
+    ActivityLog.record("expense.update", user_id=current_user.id, entity="expense",
+                       entity_id=exp.id, detail=f"{exp.category} {exp.amount}",
+                       ip_address=client_ip())
     db.session.commit()
+    _post_journal_safe("expense_edited", exp)
     flash(t("expenses.updated"), "success")
-    return redirect(url_for("finance.expenses", month=request.form.get("month")))
+    return back
 
 
 @finance_bp.route("/expenses/<int:expense_id>/delete", methods=["POST"])
 @module_required(MODULE)
 def expense_delete(expense_id):
+    """Delete an expense — **and take its entry out of the ledger**.
+
+    Deleting the row alone left the journal entry behind: the expenses screen
+    stopped showing the cost and the income statement went on counting it,
+    with nothing on any screen saying why the two differed."""
+    from app.utils import accounting as acct
+
+    back = redirect(url_for("finance.expenses", month=request.form.get("month")))
     exp = db.get_or_404(Expense, expense_id)
     if _period_blocked(exp.expense_date):
-        return redirect(url_for("finance.expenses", month=request.form.get("month")))
+        return back
+    if _shift_closed(exp):
+        flash(t("expenses.shift_closed"), "danger")
+        return back
+    removed = acct.unpost("expense", exp.id)
+    ActivityLog.record("expense.delete", user_id=current_user.id, entity="expense",
+                       entity_id=exp.id,
+                       detail=f"{exp.category} {exp.amount} {exp.expense_date} "
+                              f"entries={removed}",
+                       ip_address=client_ip())
     db.session.delete(exp)
     db.session.commit()
     flash(t("expenses.deleted"), "info")
-    return redirect(url_for("finance.expenses", month=request.form.get("month")))
+    return back
 
 
 def parse_date_or_today(raw, default=None):

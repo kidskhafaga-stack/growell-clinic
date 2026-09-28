@@ -89,3 +89,38 @@ def repair(user_id=None):
     total = sum(len(v) for v in before.values())
     left = count()
     return total - left, left
+
+
+# ------------------------------------------------ the other direction ------
+def left_behind():
+    """Entries whose expense is gone: ``[JournalEntry]``, oldest first.
+
+    The mirror of :func:`missing`. Deleting an expense used to delete the row
+    and leave its entry in the journal, so the income statement went on
+    counting a cost the expenses screen no longer showed. Deleting now takes
+    the entry with it; this finds the ones left behind before it did.
+    """
+    from app.models import Expense, JournalEntry
+
+    return (JournalEntry.query
+            .outerjoin(Expense, Expense.id == JournalEntry.source_id)
+            .filter(JournalEntry.source_type == "expense",
+                    Expense.id.is_(None))
+            .order_by(JournalEntry.entry_date, JournalEntry.id).all())
+
+
+def clear_left_behind():
+    """Remove the entries :func:`left_behind` finds, except inside a closed
+    period — a month whose books are signed keeps what it said, and its
+    correction is a manual entry in an open month. Returns ``(removed,
+    kept)``. The caller commits and writes the audit log."""
+    from app.utils.periods import locked_period
+
+    removed = kept = 0
+    for entry in left_behind():
+        if locked_period(entry.entry_date) is not None:
+            kept += 1
+            continue
+        db.session.delete(entry)
+        removed += 1
+    return removed, kept

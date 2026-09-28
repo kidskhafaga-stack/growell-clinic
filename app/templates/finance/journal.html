@@ -51,6 +51,28 @@
 </div>
 {% endif %}
 
+{# The other direction: entries whose expense was deleted before deleting
+   took the entry with it (ledger_gaps.left_behind). #}
+{% if left_behind %}
+<div class="card gc-scale-in" style="margin-bottom:16px;border-inline-start:3px solid var(--danger,#b91c1c);" data-left-behind="{{ left_behind|length }}">
+  <h2 class="section-title" style="margin:0 0 6px;font-size:1rem;">
+    <i class="bi bi-journal-x"></i> {{ t('ledger_gaps.left_title', n=left_behind|length) }}</h2>
+  <p class="hint" style="margin:0 0 8px;">{{ t('ledger_gaps.left_why') }}</p>
+  <details>
+    <summary class="hint">{{ t('ledger_gaps.show') }}</summary>
+    <ul style="margin:6px 0 0;padding-inline-start:20px;">
+      {% for entry in left_behind[:50] %}<li><span dir="ltr">{{ entry.entry_number }} · {{ entry.entry_date }}</span> · {{ entry.memo or '' }} · <span dir="ltr">{{ entry.total_debit }}</span></li>{% endfor %}
+    </ul>
+  </details>
+  {% if current_user.is_admin %}
+  <form method="post" action="{{ url_for('finance.journal_left_behind') }}" style="margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-danger gc-press" type="submit"><i class="bi bi-trash"></i> {{ t('ledger_gaps.left_remove') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
 {% if current_user.is_admin %}
 <!-- Manual journal entry (admin only) -->
 <div id="manual-je" class="card gc-scale-in" style="display:none;margin-bottom:16px;" x-data="manualJE()">

@@ -299,6 +299,53 @@ def reopen_place():
     return redirect(url_for("beds.setup"))
 
 
+# ------------------------------------------------------------ renaming it --
+@beds_bp.route("/rename", methods=["POST"])
+@module_required(MODULE)
+def rename_place():
+    """اسم ونوع لقسم أو حيّز أو سرير — **حتى لو نام فيه أطفال**.
+
+    المسح بيترفض لسرير نام فيه طفل، وده صح: الإقامة بتشاور عليه. بس الاسم
+    مش تاريخ — الإقامة بتشاور على السرير نفسه مش على اسمه، فتغيير الاسم
+    بيبان في كل مكان من غير ما يغيّر إقامة. وقبل كده ماكانش فيه أي طريقة،
+    فاللي اتكتب غلط (Patrions) كان بيفضل غلط.
+
+    نوع القسم ما بيتغيّرش من هنا: هو اللي بيحدد الحساب بالساعة ولا
+    بالليلة ومركز التكلفة، وتغييره قرار أكبر من تصحيح اسم.
+    """
+    from app.models import ActivityLog, CostCentre
+    from app.utils.decorators import client_ip
+
+    _admin_only()
+    place = _place()
+    name = (request.form.get("name") or "").strip()
+    if place is None or not name:
+        flash(t("places.need_name"), "error")
+        return redirect(url_for("beds.setup"))
+    limit = {Unit: 80, Space: 60, Bed: 40}[type(place)]
+    old = place.name
+    place.name = name[:limit]
+    kind = (request.form.get("kind") or "").strip()
+    kinds = {Space: SPACE_KINDS, Bed: BED_KINDS}.get(type(place), ())
+    if kind in kinds:
+        place.kind = kind
+    if isinstance(place, Unit):
+        # The unit's cost centre carries its name unless the clinic renamed
+        # the centre on its own screen — then it keeps the clinic's name.
+        centre = CostCentre.query.filter_by(unit_id=place.id).first()
+        if centre is not None and centre.name_ar == old:
+            centre.name_ar = place.name
+            if centre.name_en in (None, old):
+                centre.name_en = place.name
+    ActivityLog.record("place.rename", user_id=current_user.id,
+                       entity=type(place).__name__.lower(), entity_id=place.id,
+                       detail=f"{old} -> {place.name}"[:250],
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("places.renamed"), "success")
+    return redirect(url_for("beds.setup"))
+
+
 # --------------------------------------------------------- the stay itself --
 @beds_bp.route("/admit/<int:patient_id>", methods=["POST"])
 @module_required(MODULE)

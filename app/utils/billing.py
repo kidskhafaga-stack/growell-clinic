@@ -168,6 +168,8 @@ def post_to_ledger(kind, obj, user_id=None):
             acct.post_payment(obj, user_id=user_id)
         elif kind == "expense":
             acct.post_expense(obj, user_id=user_id)
+        elif kind == "expense_edited":
+            acct.post_expense(obj, user_id=user_id, replace=True)
     except Exception as exc:  # noqa: BLE001
         db.session.rollback()
         # Never blocks the bill — but never silent either. The document is

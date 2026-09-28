@@ -1933,7 +1933,8 @@
     "recur_end": "Ends",
     "recur_window": "Active window",
     "recur_window_hint": "Leave blank for no fixed start / end",
-    "recur_inactive": "Not this month"
+    "recur_inactive": "Not this month",
+    "shift_closed": "This expense came out of a drawer whose shift is counted and closed, so it cannot be changed or deleted. Correct it with a new expense in an open shift."
   },
   "pnl": {
     "title": "P&L (Profit & Loss)",
@@ -7867,9 +7868,9 @@
     "q_surgery_beds": "How many recovery beds?",
     "q_ward_beds_per_room": "Beds per room?",
     "q_ward_rooms": "How many rooms?",
-    "refused_bed_used": "A child has slept in this bed, so it is not deleted — take it out of service instead.",
-    "refused_space_has_used_beds": "A bed in this space has been slept in, so it is not deleted.",
-    "refused_unit_has_used_beds": "A bed in this department has been slept in, so it is not deleted.",
+    "refused_bed_used": "A child has slept in this bed, so it is not deleted. Rename it or change its kind from Edit, or close it from Close.",
+    "refused_space_has_used_beds": "A bed in this space has been slept in, so it is not deleted. Rename it from Edit, or close it from Close.",
+    "refused_unit_has_used_beds": "A bed in this department has been slept in, so it is not deleted. Rename it from Edit, or close it from Close.",
     "sub": "Answer with the numbers you have and the program creates the departments, spaces and beds. Only what this facility ticked is asked about.",
     "title": "Build the departments in one press"
   },
@@ -8409,7 +8410,12 @@
     "expense": "Expense",
     "post_now": "Post them now",
     "done": "{posted} document(s) posted. The journal is complete.",
-    "partly": "{posted} posted, {left} still not — the audit log has the reason."
+    "partly": "{posted} posted, {left} still not — the audit log has the reason.",
+    "left_title": "{n} entries for a deleted expense",
+    "left_why": "The expense was deleted from the expenses screen, but its entry stayed in the journal, so the income statement still counts it. This happened before deleting took the entry with it.",
+    "left_remove": "Remove these entries",
+    "left_done": "{removed} entries removed. The income statement now matches the expenses screen.",
+    "left_kept": "{kept} entries in a closed period were kept: a closed month stays as it was closed. Correct it with a manual entry in an open month."
   },
   "fhir": {
     "export": "Full FHIR file",
@@ -8446,6 +8452,11 @@
     "empty": "No request has been booked since the measure started.",
     "how": "Every request booked from the requests screen — by either button — keeps the time the program suggested beside the time that was booked.",
     "decision": "This only measures; it changes nothing about booking. The decision (stage five of the booking plan) comes after two months of use, by these numbers rather than by opinion."
+  },
+  "places": {
+    "edit": "Edit",
+    "need_name": "Write the name.",
+    "renamed": "Name saved."
   },
   "cost_centres": {
     "title": "Cost centres",
