@@ -77,6 +77,12 @@ class Admission(db.Model):
     discharged_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     outcome = db.Column(db.String(16))
     discharge_note = db.Column(db.Text)
+    # **Why the family took the child home against advice**, in one tap —
+    # a key from the clinic's list (``utils/leave_reasons``) and their own
+    # words. Only ever set when ``outcome`` is ``self_discharge``; NULL on
+    # every other ending, and on every self-discharge before this existed.
+    leave_reason = db.Column(db.String(40), index=True)
+    leave_note = db.Column(db.String(255))
 
     patient = db.relationship("Patient", backref="admissions")
     visit = db.relationship("Visit", backref="admissions")

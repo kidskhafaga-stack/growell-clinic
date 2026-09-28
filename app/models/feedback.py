@@ -26,6 +26,25 @@ class Feedback(db.Model):
     service_rating = db.Column(db.Integer)  # 1..5 stars for the service
     nps = db.Column(db.Integer)             # 0..10 "would you recommend us?"
     comment = db.Column(db.Text)
+    # **The money side** — was the bill clear, was the price fair for what
+    # was done. 1..5 like the other two. Asked because a family that leaves
+    # over the bill rates the doctor five and the service five, and the
+    # survey had nowhere to say what actually went wrong.
+    finance_rating = db.Column(db.Integer)
+    # What bothered them, tapped under a low score: "finance:price,
+    # service:waiting". Fixed keys (``utils/feedback.CONCERNS``) so the
+    # report can count them.
+    concerns = db.Column(db.String(255))
+    # **What the survey is about** when it is not a visit: a stay on a ward
+    # or in the NICU, an emergency attendance. And the part of the clinic
+    # it is about (the unit's cost centre), so a rating is read per unit.
+    admission_id = db.Column(db.Integer, db.ForeignKey("admissions.id"),
+                             nullable=True, index=True)
+    emergency_visit_id = db.Column(db.Integer,
+                                   db.ForeignKey("emergency_visits.id"),
+                                   nullable=True, index=True)
+    cost_centre_id = db.Column(db.Integer, db.ForeignKey("cost_centres.id"),
+                               nullable=True, index=True)
 
     status = db.Column(db.String(12), default="sent", nullable=False, index=True)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
@@ -35,6 +54,9 @@ class Feedback(db.Model):
     patient = db.relationship("Patient")
     visit = db.relationship("Visit")
     doctor = db.relationship("User", foreign_keys=[doctor_id])
+    admission = db.relationship("Admission")
+    emergency_visit = db.relationship("EmergencyVisit")
+    cost_centre = db.relationship("CostCentre")
     creator = db.relationship("User", foreign_keys=[created_by])
 
     @staticmethod

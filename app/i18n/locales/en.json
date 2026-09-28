@@ -3259,7 +3259,22 @@
     "comment_ph": "Write your feedback here…",
     "submit": "Submit rating",
     "privacy": "Your feedback is confidential and used only to improve the service.",
-    "inline_reply_hint": "Reply with your answers by number, e.g. 1) 5  2) 4  3) 9 — thank you 🙏"
+    "inline_reply_hint": "Reply with your answers by number, e.g. 1) 5  2) 4  3) 9 — thank you 🙏",
+    "q_finance": "Rate the bill and the price",
+    "why_q": "What bothered you?",
+    "about_stay": "the stay in {place}",
+    "c_explain": "The explanation was unclear",
+    "c_convinced": "Not convinced by the treatment",
+    "c_late": "The doctor was late",
+    "c_many_doctors": "Moved between many doctors",
+    "c_waiting": "Long wait",
+    "c_nursing": "Nursing",
+    "c_cleanliness": "Cleanliness",
+    "c_reception": "Reception",
+    "c_price": "The price is high",
+    "c_bill_unclear": "The bill is unclear",
+    "c_not_told": "Items we were not told about",
+    "c_insurance": "Insurance did not cover it"
   },
   "sat": {
     "title": "Patient satisfaction analytics",
@@ -3421,7 +3436,8 @@
     "steps_meta_3": "In Verify Token put the same value set above:",
     "steps_meta_4": "The Meta app secret must be set above, or receiving is refused outright.",
     "steps_meta_5": "Once Meta accepts the URL, subscribe the WABA to the messages field — without it the URL is accepted and no message ever arrives.",
-    "steps_meta_missing": "Set a Verify Token above and save to complete these steps."
+    "steps_meta_missing": "Set a Verify Token above and save to complete these steps.",
+    "reason_recent_survey": "This family was sent a survey this week"
   },
   "update": {
     "do_it": "Close the program and update",
@@ -4399,7 +4415,9 @@
     "mode_external": "External link (e.g. Google Form)",
     "mode_external_hint": "Paste the form link — works even when the program is LAN-only, since the form is hosted outside.",
     "mode_inline": "Questions inside the message itself",
-    "mode_inline_hint": "Questions are numbered inside the WhatsApp message and the patient replies — answers arrive in the WhatsApp inbox."
+    "mode_inline_hint": "Questions are numbered inside the WhatsApp message and the patient replies — answers arrive in the WhatsApp inbox.",
+    "q_finance": "Bill and price rating",
+    "type_finance": "1–5 stars"
   },
   "data_export": {
     "title": "Data export",
@@ -5432,7 +5450,8 @@
     "none": "Nothing in this list yet.",
     "saved": "Saved.",
     "subtitle": "Item types, categories, units and warehouse kinds — all added, edited and removed here.",
-    "title": "Store lists"
+    "title": "Store lists",
+    "d_leave_reason": "Reasons for leaving against advice"
   },
   "redflags": {
     "level_urgent": "Should be seen now",
@@ -8457,6 +8476,12 @@
     "edit": "Edit",
     "need_name": "Write the name.",
     "renamed": "Name saved."
+  },
+  "leave": {
+    "why": "Why is the family leaving?",
+    "their_words": "In their words (optional)",
+    "their_words_ph": "e.g. insurance does not cover it",
+    "because": "Reason:"
   },
   "cost_centres": {
     "title": "Cost centres",

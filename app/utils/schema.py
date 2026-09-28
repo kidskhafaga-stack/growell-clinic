@@ -740,6 +740,17 @@ ADDITIONS = [
     ("expenses", "cost_centre_id", "INTEGER"),
     ("services", "cost_centre_id", "INTEGER"),
     ("stock_movements", "cost_centre_id", "INTEGER"),
+    # The survey after a stay, and its money side; and why a family left
+    # against advice. Empty on every row already there: nobody was asked.
+    ("feedback", "finance_rating", "INTEGER"),
+    ("feedback", "concerns", "VARCHAR(255)"),
+    ("feedback", "admission_id", "INTEGER"),
+    ("feedback", "emergency_visit_id", "INTEGER"),
+    ("feedback", "cost_centre_id", "INTEGER"),
+    ("admissions", "leave_reason", "VARCHAR(40)"),
+    ("admissions", "leave_note", "VARCHAR(255)"),
+    ("emergency_visits", "leave_reason", "VARCHAR(40)"),
+    ("emergency_visits", "leave_note", "VARCHAR(255)"),
 ]
 
 def apply_schema(report=None):

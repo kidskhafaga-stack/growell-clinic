@@ -93,6 +93,10 @@ class EmergencyVisit(db.Model):
 
     # --- البنود v و vii و viii ---
     disposition = db.Column(db.String(20), index=True)
+    # Why the family left before the doctor was done — self-discharge or
+    # left unseen — as on a stay (``utils/leave_reasons``). NULL otherwise.
+    leave_reason = db.Column(db.String(40), index=True)
+    leave_note = db.Column(db.String(255))
     # بكلام المستشفى برضه. البرنامج بيقرا «متكتوب ولا لأ» وبس — ودرجات
     # زي «اتحسّن/ما اتغيّرش» حكم إكلينيكي، واختيارها من عندنا كان هيخلّي
     # البرنامج بيقول رأي مالوش.

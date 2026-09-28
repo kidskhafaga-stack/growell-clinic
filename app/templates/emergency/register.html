@@ -103,9 +103,10 @@
           {# الخروج حركة واحدة: ماشي فين، خرج على إيه، ويعمل إيه بعد كده.
              تلات شاشات كانت هتخلّي اتنين منهم فاضيين في كل ملف. #}
           <form method="post" action="{{ url_for('emergency.depart', visit_id=row.id) }}"
-                style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;"
+                x-data="{ d: '{{ dispositions[0] }}' }">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <select class="select" name="disposition" style="max-width:130px;" data-disposition>
+            <select class="select" name="disposition" style="max-width:130px;" data-disposition x-model="d">
               {% for d in dispositions %}
               <option value="{{ d }}">{{ t('emergency.disp_' ~ d) }}</option>
               {% endfor %}
@@ -114,6 +115,12 @@
                    placeholder="{{ t('emergency.condition_ph') }}" data-condition>
             <input class="input" name="followup" style="max-width:170px;"
                    placeholder="{{ t('emergency.followup_ph') }}" data-followup>
+            {# Left against advice or unseen: why, in one tap (never required). #}
+            <select class="select" name="leave_reason" style="max-width:150px;" aria-label="{{ t('leave.why') }}"
+                    x-show="{{ asked_on|list|tojson|forceescape }}.includes(d)" x-cloak data-leave-reason>
+              <option value="">{{ t('leave.why') }}</option>
+              {% for r in leave_reasons %}<option value="{{ r.key }}">{{ r.display_name(current_lang) }}</option>{% endfor %}
+            </select>
             <button class="btn btn-sm btn-outline gc-press" type="submit">
               {{ t('emergency.save_depart') }}</button>
           </form>

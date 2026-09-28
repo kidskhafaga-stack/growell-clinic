@@ -94,7 +94,7 @@ BUILT_IN_CATEGORIES = [
 #: هنا — «صيانة» و«تعقيم» تشغيلية زي «علبة» و«ثلاجة»، بس بتتحط مع
 #: الموديول اللي بيستعملها علشان مستشفى من غير أقسام ما تشوفهاش.
 DOMAINS = list(BUILT_IN) + ["item_category", "special_diet", "pain_tool",
-                            "closure_reason"]
+                            "closure_reason", "leave_reason"]
 
 
 def ensure_seeded():
@@ -199,6 +199,13 @@ def usage_counts(domain):
             from app.models import Closure
 
             out[row.key] = Closure.query.filter_by(reason=row.key).count()
+        elif domain == "leave_reason":
+            # A stay and an emergency attendance both carry it.
+            from app.models import Admission, EmergencyVisit
+
+            out[row.key] = (
+                Admission.query.filter_by(leave_reason=row.key).count()
+                + EmergencyVisit.query.filter_by(leave_reason=row.key).count())
         else:
             # **وقايمة جديدة من غير فرع هنا كانت بتبان «مش مستعملة»
             # دايماً** — يعني تتمسح ومعاها كل صف بيشاور عليها، وده

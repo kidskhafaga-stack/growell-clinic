@@ -12,6 +12,7 @@ from flask import (current_app, g, redirect, render_template, request,
 
 from app.blueprints.feedback import feedback_bp
 from app.extensions import db
+from app.i18n import t
 from app.models import Feedback, Setting
 from app.utils.rate_limit import SURVEY_PER_MINUTE, limit
 
@@ -41,9 +42,16 @@ def rate(token):
     if fb is None:
         return render_template("feedback/rate.html", fb=None,
                                clinic=_clinic_name(lang)), 404
-    from app.utils.feedback import survey_config
+    from app.utils.feedback import CONCERNS, survey_config
+    # What the survey is about, in the family's words: "the stay in the
+    # NICU" rather than "your visit" when it was three nights upstairs.
+    about = None
+    if fb.admission is not None or fb.emergency_visit is not None:
+        centre = fb.cost_centre.display_name(lang) if fb.cost_centre else ""
+        about = t("feedback.about_stay", place=centre) if centre else None
     return render_template(
         "feedback/rate.html", fb=fb, clinic=_clinic_name(lang),
+        concerns=CONCERNS, about=about,
         done=(fb.status == "submitted"), survey=survey_config(lang),
         doctor_name=fb.doctor.display_name(lang) if fb.doctor else None,
         patient_name=fb.patient.display_name(lang) if fb.patient else None,
@@ -60,6 +68,9 @@ def submit(token):
     if fb.status != "submitted":  # ignore double submissions
         fb.doctor_rating = _clamp(request.form.get("doctor_rating"), 1, 5)
         fb.service_rating = _clamp(request.form.get("service_rating"), 1, 5)
+        fb.finance_rating = _clamp(request.form.get("finance_rating"), 1, 5)
+        from app.utils.feedback import clean_concerns
+        fb.concerns = clean_concerns(request.form.getlist("concern"))
         fb.nps = _clamp(request.form.get("nps"), 0, 10)
         fb.comment = (request.form.get("comment") or "").strip()[:2000] or None
         fb.status = "submitted"
