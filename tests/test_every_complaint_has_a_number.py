@@ -305,9 +305,10 @@ def test_the_paper_form_says_how_soon(clinic):
 
 def test_the_bell_tells_whoever_handles_them(clinic):
     from app.models import User
-    from app.utils.notifications import get_notifications
+    from app.utils.notifications import get_notifications, invalidate
 
     _register(clinic)
+    invalidate()                    # the bell's list is shared, and cached
     with clinic["app"].app_context():
         boss = clinic["db"].session.get(User, clinic["ids"]["admin"])
         desk = clinic["db"].session.get(User, clinic["ids"]["desk"])

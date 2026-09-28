@@ -248,6 +248,9 @@ def test_no_page_is_left_without_a_link(boss, clinic):
             # There is deliberately no way in from the program: it is the
             # parent's copy, reached by a token and nothing else.
             "public_copy",
+            # A family's complaint: their verdict on the answer, and one they
+            # write themselves — both reached by a link sent to them.
+            "feedback.case_verdict", "feedback.case_new",
             # `/update` and `/update/install` — the addresses the update screen
             # used to have, kept so a bookmark does not become a 404. They
             # redirect to the settings tab that replaced them, and nothing
