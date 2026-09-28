@@ -747,6 +747,7 @@ ADDITIONS = [
     # The clinic's own survey questions' answers. Empty on every survey sent
     # before there were any — which is what they are.
     ("feedback", "answers", "TEXT"),
+    ("feedback", "outside_state", "VARCHAR(12)"),
     ("feedback", "admission_id", "INTEGER"),
     ("feedback", "emergency_visit_id", "INTEGER"),
     ("feedback", "cost_centre_id", "INTEGER"),

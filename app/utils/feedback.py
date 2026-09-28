@@ -54,8 +54,14 @@ def survey_delivery():
     """
     from app.models import Setting
     mode = (Setting.get("survey_mode", "link") or "link").strip()
-    if mode not in ("link", "external", "inline"):
+    if mode not in ("link", "external", "inline", "outside"):
         mode = "link"
+    # The page outside the clinic, only once clinic.env says where it is.
+    # Until then the clinic's own page, as before.
+    if mode == "outside":
+        from app.utils import survey_outside
+        if not survey_outside.configured():
+            mode = "link"
     return mode, (Setting.get("survey_external_url", "") or "").strip()
 
 
@@ -172,7 +178,17 @@ def deliver(fb, patient, doctor=None, user_id=None, lang="ar"):
 
     tpl = wa.template_for("feedback")
     mode, ext_url = survey_delivery()
-    if mode == "external" and ext_url:
+    if mode == "outside":
+        from app.utils import survey_outside
+        link = survey_outside.link(fb.token)
+        fb.outside_state = "pending"
+        # Out before the message, so the page has it when the family taps;
+        # if the internet is down it waits, and goes on the next sync.
+        try:
+            survey_outside.push([fb], lang)
+        except Exception:  # noqa: BLE001 — the survey is still sent
+            pass
+    elif mode == "external" and ext_url:
         link = ext_url
     elif mode == "inline":
         link = ""

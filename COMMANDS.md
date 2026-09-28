@@ -172,6 +172,7 @@ flask --app run seed        # تثبيت أول مرة: الكتالوجات + �
 
 ```bash
 flask --app run send-due
+flask --app run survey-sync   # صفحة التقييم اللي برّه: ابعت الاستبيانات واسحب الردود (outside/survey/README.md)
 ```
 
 بيبعت رسايل الواتساب المجدولة اللي جه وقتها. البرنامج بيعمل ده لوحده وهو

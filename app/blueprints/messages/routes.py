@@ -1061,7 +1061,8 @@ def survey_builder():
         # questions answered by replying on WhatsApp.
         mode = (request.form.get("survey_mode") or "link").strip()
         Setting.set("survey_mode",
-                    mode if mode in ("link", "external", "inline") else "link")
+                    mode if mode in ("link", "external", "inline", "outside")
+                    else "link")
         Setting.set("survey_external_url",
                     (request.form.get("survey_external_url") or "").strip())
         # Where a delighted family is invited to say so publicly — offered on
@@ -1073,9 +1074,14 @@ def survey_builder():
         flash(t("survey.saved"), "success")
         return redirect(url_for("messages.survey_builder"))
 
+    from app.utils import survey_outside
     from app.utils.feedback import survey_config
     return render_template(
         "messages/survey_builder.html",
+        outside={"configured": survey_outside.configured(),
+                 "url": survey_outside.base_url(),
+                 "last": Setting.get("survey_outside_last") or "",
+                 "error": Setting.get("survey_outside_error") or ""},
         cfg={lang: survey_config(lang) for lang in langs},
         questions=SURVEY_QUESTIONS,
         values={s.key: s.value for s in Setting.query.filter(
@@ -1088,6 +1094,24 @@ def _labels_for(row, lang):
     if row.kind == "single":
         return [(f"o{i}", o) for i, o in enumerate(row.options(lang))]
     return [(b, t(f"survey.bucket_{row.kind}_{b}")) for b in row.buckets()]
+
+
+@messages_bp.route("/survey/sync", methods=["POST"])
+@admin_required
+def survey_sync():
+    """Send waiting surveys out and collect the answers, now."""
+    from app.utils import survey_outside
+
+    if not survey_outside.configured():
+        flash(t("survey_out.not_configured"), "warning")
+        return redirect(url_for("messages.survey_builder"))
+    res = survey_outside.sync(getattr(g, "lang", "ar"))
+    if res["error"]:
+        flash(t("survey_out.sync_failed"), "danger")
+    else:
+        flash(t("survey_out.synced", pushed=res["pushed"],
+                answered=res["answered"]), "success")
+    return redirect(url_for("messages.survey_builder"))
 
 
 @messages_bp.route("/survey/questions")

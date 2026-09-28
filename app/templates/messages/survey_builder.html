@@ -36,6 +36,22 @@
       <input class="input" name="survey_external_url" dir="ltr" x-show="mode==='external'" x-cloak
              value="{{ values.get('survey_external_url','') }}" placeholder="https://forms.gle/…" style="margin-top:6px;">
     </div>
+    <div class="form-row" data-mode-outside>
+      <label style="display:flex;gap:8px;align-items:start;font-weight:400;cursor:pointer;">
+        <input type="radio" name="survey_mode" value="outside" x-model="mode">
+        <span><strong>{{ t('survey.mode_outside') }}</strong><br><span class="hint">{{ t('survey.mode_outside_hint') }}</span></span></label>
+      <div x-show="mode==='outside'" x-cloak class="hint" style="margin:6px 26px 0;">
+        {% if outside.configured %}
+          <span class="badge badge--green"><i class="bi bi-cloud-check"></i> {{ t('survey_out.status_on') }}</span>
+          <span class="num" dir="ltr">{{ outside.url }}</span>
+          {% if outside.last %} · {{ t('survey_out.last') }} <span class="num">{{ outside.last.replace('T', ' ') }}</span>{% endif %}
+          {% if outside.error %} · <span style="color:var(--danger);">{{ t('survey_out.last_failed') }}</span>{% endif %}
+          <button class="btn btn-outline btn-sm gc-press" type="submit" form="survey-sync" style="margin-inline-start:6px;"><i class="bi bi-arrow-repeat"></i> {{ t('survey_out.sync_now') }}</button>
+        {% else %}
+          <span class="badge badge--muted">{{ t('survey_out.status_off') }}</span> {{ t('survey_out.env_hint') }}
+        {% endif %}
+      </div>
+    </div>
     <div class="form-row" style="margin-bottom:0;">
       <label style="display:flex;gap:8px;align-items:start;font-weight:400;cursor:pointer;">
         <input type="radio" name="survey_mode" value="inline" x-model="mode">
@@ -84,5 +100,8 @@
   </div>
 
   <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+</form>
+<form id="survey-sync" method="post" action="{{ url_for('messages.survey_sync') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 </form>
 {% endblock %}

@@ -39,6 +39,10 @@ class Feedback(db.Model):
     # ``{"q3": {"q": the question as asked, "a": the answer}}`` — only those
     # on the path the family's answers drew (``utils/survey_flow``).
     answers = db.Column(db.Text)
+    # On the page outside the clinic (``utils/survey_outside``): "pending"
+    # (waiting to be sent out), "out" (there, waiting for the family),
+    # "answered" (collected, and deleted outside). Empty for the rest.
+    outside_state = db.Column(db.String(12), index=True)
     # **What the survey is about** when it is not a visit: a stay on a ward
     # or in the NICU, an emergency attendance. And the part of the clinic
     # it is about (the unit's cost centre), so a rating is read per unit.

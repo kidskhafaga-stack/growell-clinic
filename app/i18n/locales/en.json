@@ -4401,6 +4401,8 @@
     "complaints_manage": "Handle complaints"
   },
   "survey": {
+    "mode_outside": "The survey page outside the program (Vercel)",
+    "mode_outside_hint": "Families open a page on the internet in the organisation's name and logo, while the program itself stays inside the clinic. What leaves: the organisation's name and logo, the unit's name and the questions — no child's name, phone or diagnosis. Answers are pulled into the program and deleted outside.",
     "questions_and_jumps": "Questions and jumps",
     "qj_sub": "Order the questions, add the organisation's own, and on each answer say \"go to question N\" or \"finish\". A branch question (dashed) appears only when an answer leads to it.",
     "preview": "Preview",
@@ -8940,5 +8942,20 @@
     "col_doctor": "Doctor",
     "col_concerns": "Bothered by",
     "col_comment": "Comment"
+  },
+
+  "survey_out": {
+    "sending": "Sending your answers…",
+    "failed": "We could not send it just now — please try again in a moment.",
+    "already": "This survey has already been answered. Thank you.",
+    "not_configured": "The page's address and key are not in clinic.env.",
+    "sync_failed": "Could not reach the page outside — it will try again by itself.",
+    "synced": "Sent {pushed} surveys, collected {answered} answers.",
+    "status_on": "Connected",
+    "status_off": "Not connected",
+    "last": "Last sync",
+    "last_failed": "The last attempt failed",
+    "sync_now": "Sync now",
+    "env_hint": "Put SURVEY_PAGE_URL and SURVEY_SYNC_KEY in clinic.env and restart the program — the steps are in outside/survey/README.md. Until then surveys go out with the program's own page, as before."
   }
 }

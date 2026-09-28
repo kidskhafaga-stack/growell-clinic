@@ -2264,6 +2264,19 @@ SECTIONS = [
              "family is told someone will call, one that scored 9 or 10 is "
              "offered the Google review link. The customer-service board "
              "shows the answers to the organisation's questions."),
+            ("<b>صفحة التقييم اللي برّه البرنامج:</b> صفحة صغيرة على النت "
+             "(Vercel) الأهل بيقيّموا منها، والبرنامج بيفضل جوّه العيادة. "
+             "اللي بيطلع اسم المؤسسة واللوجو واسم القسم والأسئلة بس — من غير "
+             "اسم الطفل ولا التليفون. البرنامج بيسحب الردود كل ١٠ دقايق "
+             "وبيمسحها من برّه. عنوانها ومفتاحها في clinic.env، والخطوات في "
+             "outside/survey/README.md.",
+             "<b>The survey page outside the program:</b> a small page on "
+             "the internet (Vercel) families rate from, while the program "
+             "stays inside the clinic. What leaves is the organisation's "
+             "name and logo, the unit's name and the questions — no child's "
+             "name or phone. The program collects answers every 10 minutes "
+             "and deletes them outside. Its address and key live in "
+             "clinic.env; the steps are in outside/survey/README.md."),
             ("<b>هب واحد</b> لكل الرسائل: قالب لكل نوع (تأكيد حجز، تذكير "
              "تطعيم، متابعة، استبيان…)، وتشغيل/إيقاف و<b>تلقائي أو يدوي</b> "
              "لكل نوع على حدة.",

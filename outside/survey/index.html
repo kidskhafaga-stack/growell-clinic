@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>تقييم</title>
+<style>
+  :root { --brand:#12855f; --ink:#1b2733; --muted:#6c7a89; --line:#d8dde2; --soft:#f5f8fa; --card:#fff; --bg:#eef1f4; --bad:#b43b35; --bad-soft:#fdecea; }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink:#e6edf3; --muted:#93a3b1; --line:#2b3644; --soft:#0f151c; --card:#171e28; --bg:#0f151c; --bad:#ef9a93; --bad-soft:#442221; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:22px 14px; background:var(--bg); color:var(--ink); font-family:system-ui,"Segoe UI",Tahoma,sans-serif; }
+  .fb { max-width:520px; margin:0 auto; background:var(--card); border-radius:18px; box-shadow:0 14px 44px rgba(0,0,0,.12); padding:24px 20px; }
+  .head { text-align:center; margin-bottom:16px; }
+  .head img { width:64px; height:64px; object-fit:contain; border-radius:14px; background:#fff; }
+  .head .mark { width:56px; height:56px; border-radius:16px; display:inline-grid; place-items:center; background:var(--brand); color:#fff; font-size:1.5rem; font-weight:800; }
+  .head h1 { margin:8px 0 2px; font-size:1.25rem; }
+  .head p { margin:0; color:var(--muted); font-size:.92rem; }
+  .prog { height:5px; background:var(--soft); border-radius:999px; overflow:hidden; margin-bottom:12px; }
+  .prog span { display:block; height:100%; width:0; background:var(--brand); transition:width .3s ease; }
+  .count { color:var(--muted); font-size:.8rem; margin-bottom:6px; }
+  .q { animation:qin .28s ease-out; }
+  @media (prefers-reduced-motion: reduce) { .q { animation:none; } .prog span { transition:none; } }
+  @keyframes qin { from { opacity:0; transform:translateY(6px); } }
+  .qlab { display:block; font-weight:700; font-size:1.05rem; line-height:1.5; margin-bottom:12px; }
+  .stars { display:flex; flex-direction:row-reverse; justify-content:center; gap:4px; direction:ltr; }
+  .stars button { border:0; background:none; font-size:2.4rem; line-height:1; color:#d8dde2; cursor:pointer; padding:0 2px; }
+  .stars button.on { color:#f5b301; }
+  .nps { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; direction:ltr; }
+  .nps button { border:1.5px solid var(--line); background:var(--card); color:var(--ink); border-radius:10px; padding:9px 0; font-weight:700; cursor:pointer; }
+  .nps button.on { background:var(--brand); border-color:var(--brand); color:#fff; }
+  .ends { display:flex; justify-content:space-between; color:var(--muted); font-size:.75rem; margin-top:5px; }
+  .choices { display:grid; gap:8px; }
+  .choices.yn { grid-template-columns:1fr 1fr; }
+  .choices button { border:1.5px solid var(--line); background:var(--card); color:var(--ink); border-radius:12px; padding:12px 14px; text-align:start; font-size:.98rem; cursor:pointer; }
+  .choices.yn button { text-align:center; font-weight:700; }
+  .choices button.on { border-color:var(--brand); background:color-mix(in srgb, var(--brand) 12%, var(--card)); font-weight:600; }
+  .why { margin-top:12px; font-size:.88rem; }
+  .why summary { cursor:pointer; color:var(--muted); }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .chips button { border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:999px; padding:5px 12px; cursor:pointer; }
+  .chips button.on { border-color:var(--bad); background:var(--bad-soft); color:var(--bad); }
+  textarea { width:100%; min-height:100px; border:1.5px solid var(--line); border-radius:12px; padding:11px; font:inherit; background:var(--card); color:var(--ink); resize:vertical; }
+  .nav { display:flex; gap:8px; margin-top:18px; }
+  .nav button { flex:1; border:0; border-radius:12px; padding:13px; font-size:1rem; font-weight:700; cursor:pointer; background:var(--brand); color:#fff; }
+  .nav button.back { flex:0 0 auto; padding-inline:18px; background:var(--card); color:var(--muted); border:1px solid var(--line); }
+  .note { text-align:center; color:var(--muted); font-size:.78rem; margin-top:14px; }
+  .thanks { text-align:center; line-height:1.8; }
+  .thanks h2 { margin:8px 0 4px; }
+  .care { background:var(--bad-soft); color:var(--bad); border-radius:12px; padding:10px 12px; margin:12px 0; }
+  .review { display:inline-block; margin:10px 0; padding:10px 16px; border:1.5px solid var(--brand); border-radius:12px; color:var(--brand); font-weight:700; text-decoration:none; }
+  :focus-visible { outline:2px solid var(--brand); outline-offset:2px; }
+</style>
+</head>
+<body>
+<main class="fb" id="app" aria-live="polite">
+  <div class="head"><div class="mark">…</div></div>
+</main>
+<script src="survey.js"></script>
+</body>
+</html>
