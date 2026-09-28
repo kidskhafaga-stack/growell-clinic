@@ -125,6 +125,10 @@ def test_too_few_answers_are_not_judged(clinic):
     with clinic["app"].app_context():
         (d,) = cs_board.by_doctor(*_period(30))
     assert d["judged"] is True and d["medical"] == 1.2
+    assert d["low"] == 5                           # two stars is low too
+    # The colours, on the stars' own scale.
+    assert [cs_board.colour(v) for v in (4.3, 4.2, 3.6, 3.5, None)] == [
+        "good", "fair", "fair", "poor", "none"]
 
 
 def test_what_bothered_them_is_counted(clinic):
@@ -141,11 +145,13 @@ def test_what_bothered_them_is_counted(clinic):
 def test_leaving_against_advice_is_counted_with_its_reason_or_its_absence(hospital):
     from app.utils import cs_board
 
-    for name, reason in (("أ", "price"), ("ب", "made_up")):
+    for name, outcome, reason in (("أ", "self_discharge", "price"),
+                                  ("ب", "self_discharge", "made_up"),
+                                  ("ج", "home", ""), ("د", "transferred", "")):
         stay = _admit(hospital, _child(hospital, name))
         hospital["sign_in"]("boss").post(
             f"/beds/admission/{stay}/discharge",
-            data={"outcome": "self_discharge", "leave_reason": reason})
+            data={"outcome": outcome, "leave_reason": reason})
     with hospital["app"].app_context():
         got = dict(cs_board.leave_reasons(*_period(30)))
     assert got == {"price": 1, None: 1}
