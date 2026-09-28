@@ -380,6 +380,23 @@ def get_notifications(user):
                         "kwargs": {}})
     except Exception:  # noqa: BLE001 — the bell never breaks a page
         pass
+    # Complaints waiting for somebody: new ones nobody has spoken to yet, and
+    # any past the clinic's timeframe. Only for whoever handles them — a
+    # capability, not a module, so it cannot ride on the shared list.
+    try:
+        if user.can("complaints_manage"):
+            from app.utils.complaint_cases import open_counts
+
+            c = open_counts()
+            waiting = c["attention"]
+            if waiting:
+                out.append({"key": "complaints", "module": "dashboard",
+                            "icon": "megaphone",
+                            "severity": "danger" if c["late"] else "warning",
+                            "count": waiting, "endpoint": "complaints.index",
+                            "kwargs": {"view": "late"} if c["late"] else {}})
+    except Exception:  # noqa: BLE001 — the bell never breaks a page
+        pass
     for it in _all():
         if not user.can_access(it["module"]):
             continue

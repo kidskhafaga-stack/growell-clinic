@@ -1,0 +1,42 @@
+{# Public: a family writes their complaint or suggestion themselves, from a
+   link the clinic sent them. It is theirs already — the link knows the
+   child — so it asks only what happened. #}
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ direction }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ t('cmp.public_new_title') }} · {{ clinic }}</title>
+  {% include "feedback/_case_style.html" %}
+</head>
+<body>
+<main class="fb">
+  <div class="fb-head">
+    <div class="fb-badge">✉</div>
+    <h1>{{ clinic }}</h1>
+    <p>{{ t('cmp.public_new_title') }}</p>
+  </div>
+  {% if not patient %}
+    <p class="thanks">{{ t('cmp.public_link_expired') }}</p>
+  {% else %}
+  <form method="post" data-online-complaint>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="q"><span class="qlab">{{ t('cmp.public_kind_q') }}</span>
+      <div class="chips">
+        {% for k in kinds %}<label><input type="radio" name="kind" value="{{ k }}" {{ 'checked' if k == 'complaint' }}> {{ t('cmp.kind_' ~ k) }}</label>{% endfor %}
+      </div></div>
+    <div class="q"><span class="qlab">{{ t('cmp.public_side_q') }}</span>
+      <div class="chips">
+        {% for s in sides %}<label><input type="radio" name="side" value="{{ s }}"> {{ t('cmp.side_' ~ s) }}</label>{% endfor %}
+      </div></div>
+    <div class="q"><label class="qlab" for="d">{{ t('cmp.public_what_q') }}</label>
+      <textarea id="d" name="description" required maxlength="4000"></textarea></div>
+    <div class="q"><label class="qlab" for="w">{{ t('cmp.wanted') }}</label>
+      <input id="w" class="fb-input" name="wanted" maxlength="2000"></div>
+    <button class="fb-btn" type="submit">{{ t('cmp.public_send') }}</button>
+    <p class="fb-note">{{ t('cmp.public_promise', hours=hours) }}</p>
+  </form>
+  {% endif %}
+</main>
+</body>
+</html>

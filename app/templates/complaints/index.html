@@ -1,0 +1,90 @@
+{% extends "shell.html" %}
+{% set active_module = 'complaints' %}
+{% from "_pagination.html" import render_pagination with context %}
+{% block title %}{{ t('cmp.title') }}{% endblock %}
+{% block page_heading %}{{ t('cmp.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-megaphone"></i> {{ t('cmp.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:70ch;">{{ t('cmp.sub', hours=hours, days=days) }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-primary gc-press" href="{{ url_for('complaints.new') }}"><i class="bi bi-plus-lg"></i> {{ t('cmp.new_title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('complaints.blank') }}" target="_blank"><i class="bi bi-printer"></i> {{ t('cmp.print_blank') }}</a>
+  </div>
+</div>
+
+{# The last 30 days: the numbers PCC.16 (e) asks the clinic to watch. #}
+<div class="gc-scale-in" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;" data-complaint-stats>
+  <div class="card" style="padding:12px 14px;"><div class="hint" style="margin:0;">{{ t('cmp.stat_open') }}</div>
+    <strong class="num" style="font-size:1.5rem;">{{ counts.open }}</strong></div>
+  <div class="card" style="padding:12px 14px;"><div class="hint" style="margin:0;">{{ t('cmp.stat_late') }}</div>
+    <strong class="num" style="font-size:1.5rem;{{ 'color:var(--danger);' if counts.late }}">{{ counts.late }}</strong></div>
+  <div class="card" style="padding:12px 14px;"><div class="hint" style="margin:0;">{{ t('cmp.stat_first_contact') }}</div>
+    <strong class="num" style="font-size:1.5rem;">{{ month.first_contact_hours if month.first_contact_hours is not none else '—' }}</strong>
+    {% if month.first_contact_hours is not none %}<span class="hint">{{ t('cmp.hours') }}</span>{% endif %}</div>
+  <div class="card" style="padding:12px 14px;"><div class="hint" style="margin:0;">{{ t('cmp.stat_in_time') }}</div>
+    <strong class="num" style="font-size:1.5rem;">{{ (month.closed_in_time_pct ~ '%') if month.closed_in_time_pct is not none else '—' }}</strong></div>
+  <div class="card" style="padding:12px 14px;"><div class="hint" style="margin:0;">{{ t('cmp.stat_verdict') }}</div>
+    <strong class="num" style="font-size:1.5rem;">{{ month.resolution_avg if month.resolution_avg is not none else '—' }}</strong>
+    {% if month.resolution_count %}<span class="hint">{{ t('cmp.of_5', n=month.resolution_count) }}</span>{% endif %}</div>
+</div>
+
+<form method="get" class="card gc-scale-in" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+  {% for v in ('open', 'late', 'mine', 'closed', 'all') %}
+  <a class="btn btn-sm gc-press {{ 'btn-primary' if view == v else 'btn-outline' }}" href="{{ url_for('complaints.index', view=v, kind=kind, q=search or None) }}">
+    {{ t('cmp.view_' ~ v) }}{% if v == 'late' and counts.late %} <span class="badge badge--danger">{{ counts.late }}</span>{% endif %}</a>
+  {% endfor %}
+  <input type="hidden" name="view" value="{{ view }}">
+  <select class="input" name="kind" style="width:auto;" onchange="this.form.submit()">
+    <option value="">{{ t('cmp.all_kinds') }}</option>
+    {% for k in kinds %}<option value="{{ k }}" {{ 'selected' if k == kind }}>{{ t('cmp.kind_' ~ k) }}</option>{% endfor %}
+  </select>
+  <input class="input" name="q" value="{{ search }}" placeholder="{{ t('cmp.search_ph') }}" style="flex:1;min-width:180px;">
+  <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-search"></i></button>
+</form>
+
+<div class="card gc-scale-in" style="padding:0;overflow-x:auto;">
+  {% if page.items %}
+  <table class="table">
+    <thead><tr><th>{{ t('cmp.number') }}</th><th>{{ t('cmp.opened_at') }}</th><th>{{ t('cmp.who_short') }}</th>
+      <th>{{ t('cmp.kind') }}</th><th>{{ t('cmp.centre') }}</th><th>{{ t('cmp.what') }}</th><th>{{ t('cmp.owner') }}</th><th>{{ t('cmp.status') }}</th></tr></thead>
+    <tbody>
+      {% for c in page.items %}
+      <tr data-case-row="{{ c.number }}" onclick="location.href='{{ url_for('complaints.view', case_id=c.id) }}'" style="cursor:pointer;{{ 'box-shadow:inset 3px 0 0 var(--danger);' if c.id in late }}">
+        <td class="num" style="white-space:nowrap;"><a href="{{ url_for('complaints.view', case_id=c.id) }}"><strong>{{ c.number }}</strong></a></td>
+        <td class="num" style="white-space:nowrap;">{{ c.created_at.strftime('%Y-%m-%d') }}</td>
+        <td style="white-space:nowrap;">{{ c.who(current_lang) or t('cmp.anonymous_short') }}</td>
+        <td>{{ t('cmp.kind_' ~ c.kind) }}{% if c.severity == 'serious' %} <span class="badge badge--danger">{{ t('cmp.sev_serious') }}</span>{% endif %}</td>
+        <td>{{ c.cost_centre.display_name(current_lang) if c.cost_centre else '—' }}</td>
+        <td style="max-width:36ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.description }}</td>
+        <td>{{ c.owner.display_name(current_lang) if c.owner else '—' }}</td>
+        <td><span class="badge {{ 'badge--danger' if c.id in late else ('badge--green' if c.status == 'closed' else 'badge--role') }}">
+          {{ t('cmp.st_' ~ c.status) }}{% if c.id in late %} · {{ t('cmp.late') }}{% endif %}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-emoji-smile"></i> {{ t('cmp.none') }}</div>
+  {% endif %}
+</div>
+{{ render_pagination(page) }}
+
+{% if current_user.is_admin %}
+<details class="card gc-scale-in" style="margin-top:14px;">
+  <summary style="cursor:pointer;font-weight:600;"><i class="bi bi-clock-history"></i> {{ t('cmp.timeframes') }}</summary>
+  <p class="hint">{{ t('cmp.timeframes_hint') }}</p>
+  <form method="post" action="{{ url_for('complaints.settings') }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label>{{ t('cmp.contact_within') }}</label>
+      <input class="input" type="number" name="complaint_contact_hours" min="1" max="720" value="{{ hours }}" style="width:120px;"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('cmp.close_within') }}</label>
+      <input class="input" type="number" name="complaint_close_days" min="1" max="90" value="{{ days }}" style="width:120px;"></div>
+    <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+</details>
+{% endif %}
+{% endblock %}
