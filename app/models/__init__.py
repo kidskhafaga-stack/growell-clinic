@@ -293,6 +293,7 @@ from app.models.doctor_payout import DOCTOR_PAYOUT_METHODS, DoctorPayout
 from app.models.refund_notice import REFUND_SCOPES, RefundNotice
 from app.models.discount import (DISCOUNT_TYPES, VACCINE_SCOPE,
                                  DiscountMember, NamedDiscount)
+from app.models.cost_centre import CostCentre
 from app.models.accounting import (
     ACCOUNT_TYPES,
     PERIOD_STATUSES,
@@ -500,6 +501,7 @@ __all__ = [
     "ScheduleException",
     "WaitlistEntry",
     "BookingRequest",
+    "CostCentre",
     "OnlinePayment",
     "REQUEST_STATUSES",
     "REQUEST_SOURCES",

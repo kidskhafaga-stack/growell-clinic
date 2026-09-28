@@ -41,6 +41,11 @@
       <div class="form-row"><label>{{ t('expenses.payment_method') }}</label>
         <select class="select" name="payment_method"><option value="">—</option>
           {% for m in methods %}<option value="{{ m }}">{{ t('payment_methods.' ~ m) }}</option>{% endfor %}</select></div>
+      <div class="form-row" data-expense-centre><label>{{ t('cost_centres.field') }}</label>
+        <select class="select" name="cost_centre_id">
+          <option value="">{{ t('cost_centres.shared') }}</option>
+          {% for c in centres %}<option value="{{ c.id }}">{{ c.display_name(current_lang) }}</option>{% endfor %}</select>
+        <span class="hint" style="margin:4px 0 0;">{{ t('cost_centres.field_hint') }}</span></div>
     </div>
     <label class="form-row checkbox" style="margin:0 0 10px;"><input type="checkbox" name="is_recurring" value="1" x-model="rec">
       <span style="font-weight:400;">{{ t('expenses.is_recurring') }}</span></label>
@@ -64,7 +69,8 @@
       {% set inactive = e.id not in active_recur_ids %}
       <tr {% if inactive %}style="opacity:.55;"{% endif %}>
         <td><span class="badge badge--role">{{ t('expenses.cat_' ~ e.category) }}</span></td>
-        <td>{{ e.description or '—' }}{% if e.vendor %} <span style="color:var(--muted);">· {{ e.vendor }}</span>{% endif %}</td>
+        <td>{{ e.description or '—' }}{% if e.vendor %} <span style="color:var(--muted);">· {{ e.vendor }}</span>{% endif %}
+          {% if e.cost_centre %}<span class="badge badge--role" data-centre-tag style="margin-inline-start:4px;"><i class="bi bi-diagram-3"></i> {{ e.cost_centre.display_name(current_lang) }}</span>{% endif %}</td>
         <td style="white-space:nowrap;font-size:.85rem;color:var(--muted);" dir="ltr">
           {{ e.recur_start or '…' }} → {{ e.recur_end or '…' }}
           {% if inactive %}<span class="badge badge--muted" style="margin-inline-start:4px;">{{ t('expenses.recur_inactive') }}</span>{% endif %}</td>
@@ -93,7 +99,8 @@
       <tr>
         <td dir="ltr">{{ e.expense_date }}</td>
         <td><span class="badge badge--muted">{{ t('expenses.cat_' ~ e.category) }}</span></td>
-        <td>{{ e.description or '—' }}{% if e.vendor %} <span style="color:var(--muted);">· {{ e.vendor }}</span>{% endif %}</td>
+        <td>{{ e.description or '—' }}{% if e.vendor %} <span style="color:var(--muted);">· {{ e.vendor }}</span>{% endif %}
+          {% if e.cost_centre %}<span class="badge badge--role" data-centre-tag style="margin-inline-start:4px;"><i class="bi bi-diagram-3"></i> {{ e.cost_centre.display_name(current_lang) }}</span>{% endif %}</td>
         <td><strong>{{ e.amount|money }}</strong></td>
         <td style="text-align:end;">
           <form method="post" action="{{ url_for('finance.expense_delete', expense_id=e.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">

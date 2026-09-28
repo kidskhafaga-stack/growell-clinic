@@ -60,6 +60,7 @@ from app.utils.pricing import (
 )
 from app.utils import billing
 from app.utils import case_rates
+from app.utils import cost_centres
 from app.utils import einvoice as eta
 from app.utils.sequences import retry_on_number_clash
 
@@ -369,6 +370,11 @@ def _apply_service_engine_fields(svc):
         except (TypeError, ValueError):
             svc.followup_days = None
     svc.cost = request.form.get("cost", type=float)
+    # Only when the form carried the box: a screen that edits the price
+    # alone must not send the service back to "worked out" by leaving it off.
+    if "cost_centre_id" in request.form:
+        svc.cost_centre_id = _cost_centre_arg(
+            request.form.get("cost_centre_id", type=int))
     svc.duration_minutes = request.form.get("duration_minutes", type=int)
     svc.device_id = request.form.get("device_id", type=int) or None
     if request.form.get("se") == "1":
@@ -455,8 +461,11 @@ def services():
                .order_by(MedicalDevice.name).all())
     store_items = (StoreItem.query.filter_by(is_active=True)
                    .order_by(StoreItem.name).all())
+    cost_centres.ensure_all()
+    db.session.commit()
     return render_template(
         "finance/services.html", services=every, rows=rows, grouped=grouped,
+        centres=cost_centres.listing(),
         q=q, f_type=f_type, f_cat=f_cat, f_status=f_status,
         categories=SERVICE_CATEGORIES, commission_types=COMMISSION_TYPES,
         item_types=ETA_ITEM_TYPES, devices=devices,
@@ -1162,6 +1171,8 @@ def _deduct_service_consumables(item, invoice):
             reason=t("services.consumed_by", svc=service.display_name(getattr(g, "lang", "ar"))),
             # COGS follows the store's dispensing policy (FIFO/LIFO layers).
             unit_cost=(issue_unit_cost(cons.item) if cons.item else None),
+            # Burned by this line, so their cost is this line's centre's.
+            cost_centre_id=cost_centres.for_item(item),
             created_by=current_user.id, document_id=doc.id,
         ))
         n += 1
@@ -3451,6 +3462,13 @@ def _checkout_screen(appt, patient):
                 billed_rx[id(item)] = handover
             case = _case_for_line(cases, op_ids, i)
             gassed = _case_for_line(cases, anaes_ids, i)
+            # Where the line's money belongs, when what it bills says so: a
+            # box over the pharmacy's counter, a day case in theatre. The
+            # rest is worked out when the bill is posted (cost_centres).
+            if handover is not None:
+                cost_centres.stamp(item, "pharmacy")
+            elif case is not None or gassed is not None:
+                cost_centres.stamp(item, "theatres")
             # **Which day this line's work happened**, when it was not today.
             # Left NULL for everything raised on the day, because the
             # invoice's own date already says so and writing it twice would
@@ -5448,6 +5466,63 @@ def einvoice_doc(doc_id):
     return render_template("finance/einvoice_doc.html", doc=doc)
 
 
+# ======================================================== cost centres =====
+@finance_bp.route("/cost-centres")
+@admin_required
+def cost_centre_list():
+    """The parts of the clinic money is counted by. Made from what the clinic
+    runs; renamed, switched off, or added to here."""
+    cost_centres.ensure_all()
+    db.session.commit()
+    from app.models import CostCentre, JournalLine
+
+    rows = CostCentre.query.order_by(CostCentre.sort_order, CostCentre.id).all()
+    used = dict(db.session.query(JournalLine.cost_centre_id,
+                                 db.func.count(JournalLine.id))
+                .filter(JournalLine.cost_centre_id.isnot(None))
+                .group_by(JournalLine.cost_centre_id).all())
+    return render_template("finance/cost_centres.html", rows=rows, used=used)
+
+
+@finance_bp.route("/cost-centres/new", methods=["POST"])
+@admin_required
+def cost_centre_new():
+    name = (request.form.get("name_ar") or "").strip()
+    if not name:
+        flash(t("cost_centres.need_name"), "danger")
+        return redirect(url_for("finance.cost_centre_list"))
+    row = cost_centres.add_own(name[:80],
+                               (request.form.get("name_en") or "").strip()[:80])
+    ActivityLog.record("cost_centre.create", user_id=current_user.id,
+                       entity="cost_centre", entity_id=row.id, detail=row.key,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("cost_centres.added"), "success")
+    return redirect(url_for("finance.cost_centre_list"))
+
+
+@finance_bp.route("/cost-centres/<int:centre_id>", methods=["POST"])
+@admin_required
+def cost_centre_save(centre_id):
+    """Rename, or switch on and off. Never deleted: the journal points at it,
+    and a report of a closed month must still be able to name it."""
+    from app.models import CostCentre
+
+    row = db.get_or_404(CostCentre, centre_id)
+    name = (request.form.get("name_ar") or "").strip()
+    if name:
+        row.name_ar = name[:80]
+    row.name_en = (request.form.get("name_en") or "").strip()[:80] or None
+    row.is_active = bool(request.form.get("is_active"))
+    ActivityLog.record("cost_centre.update", user_id=current_user.id,
+                       entity="cost_centre", entity_id=row.id,
+                       detail=f"{row.key} active={int(row.is_active)}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("cost_centres.saved"), "success")
+    return redirect(url_for("finance.cost_centre_list"))
+
+
 # ============================================================ expenses =====
 def _month_bounds(year, month):
     """First and last date of a given month."""
@@ -5484,9 +5559,12 @@ def expenses():
     month_total = round(
         sum(e.amount for e in one_off)
         + sum(e.amount for e in recurring if e.id in active_recur_ids), 2)
+    cost_centres.ensure_all()
+    db.session.commit()
     return render_template(
         "finance/expenses.html", one_off=one_off, recurring=recurring,
         active_recur_ids=active_recur_ids,
+        centres=cost_centres.listing(),
         categories=EXPENSE_CATEGORIES, methods=PAYMENT_METHODS,
         month=f"{year:04d}-{month:02d}", month_total=month_total,
     )
@@ -5522,7 +5600,19 @@ def _read_expense(form):
         "shift_id": (_current_shift_id()
                      if (form.get("payment_method") or "cash") == "cash"
                      else None),
+        # The part of the clinic it belongs to; none is shared.
+        "cost_centre_id": _cost_centre_arg(form.get("cost_centre_id", type=int)),
     }
+
+
+def _cost_centre_arg(centre_id):
+    """A cost centre from a form, when it is one that exists and is on."""
+    from app.models import CostCentre
+
+    if not centre_id:
+        return None
+    row = db.session.get(CostCentre, centre_id)
+    return row.id if row is not None and row.is_active else None
 
 
 @finance_bp.route("/expenses/new", methods=["POST"])

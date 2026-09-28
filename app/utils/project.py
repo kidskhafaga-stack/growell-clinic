@@ -91,6 +91,12 @@ PRINCIPLES = [
 ]
 
 DONE = [
+    ("مراكز التكلفة: كل قسم بإيراده ومصروفه المباشر، والإيراد بيروح لقسمه "
+     "لوحده من مكان ما الفاتورة جت، والمصروفات المشتركة في سطر لوحدها — "
+     "والمجموع هو نفس صافي قائمة الدخل",
+     "Cost centres: each part of the clinic with its revenue and direct "
+     "costs, revenue placed by itself from where the bill came from, shared "
+     "costs on a line of their own — adding up to the income statement's net"),
     ("كشف حساب الأسرة: الإخوات في ورقة واحدة بترتيب زمني، وكل سطر بيقول "
      "ابن مين — الحساب هو نفسه حساب كشف الطفل مش نسخة تانية منه",
      "A family statement: siblings on one sheet in date order, each row naming the child — the arithmetic is the per-patient sheet's own, not a second copy of it"),
@@ -279,9 +285,6 @@ BUILDING = [
 # built, that test fails and this list has to be brought up to date before
 # anything else can be merged.
 NEXT = [
-    ("مراكز التكلفة: توزيع الإيراد والمصروف على أقسام العيادة",
-     "Cost centres: revenue and expense split across the clinic's "
-     "departments"),
     # Half of it is built: the child's record downloads as a FHIR file from
     # the patient's page (docs/FHIR_EXPORT.md). What is left is the door —
     # a read-only API another system can ask, which waits on knowing who.

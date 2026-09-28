@@ -1,0 +1,50 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('cost_centres.manage') }}{% endblock %}
+{% block page_heading %}{{ t('cost_centres.manage') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-diagram-3"></i> {{ t('cost_centres.manage') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:70ch;">{{ t('cost_centres.manage_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('reports.cost_centres') }}"><i class="bi bi-bar-chart"></i> {{ t('cost_centres.title') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow-x:auto;">
+  <table class="table">
+    <thead><tr><th>{{ t('cost_centres.name_ar') }}</th><th>{{ t('cost_centres.name_en') }}</th>
+      <th>{{ t('cost_centres.kind') }}</th><th>{{ t('cost_centres.lines') }}</th><th>{{ t('cost_centres.on') }}</th><th></th></tr></thead>
+    <tbody>
+      {% for c in rows %}
+      <tr data-centre-row="{{ c.key }}" {% if not c.is_active %}style="opacity:.6;"{% endif %}>
+        {% set f = 'cc-' ~ c.id %}
+        <td><input class="input" name="name_ar" value="{{ c.name_ar }}" required maxlength="80" form="{{ f }}" aria-label="{{ t('cost_centres.name_ar') }}"></td>
+        <td><input class="input" name="name_en" value="{{ c.name_en or '' }}" maxlength="80" dir="ltr" form="{{ f }}" aria-label="{{ t('cost_centres.name_en') }}"></td>
+        <td><span class="badge {{ 'badge--role' if c.is_own else 'badge--muted' }}">
+          {% if c.is_own %}{{ t('cost_centres.kind_own') }}{% elif c.unit_id %}{{ t('cost_centres.kind_unit') }}{% else %}{{ t('cost_centres.kind_program') }}{% endif %}</span></td>
+        <td class="num">{{ used.get(c.id, 0) }}</td>
+        <td><label class="checkbox" style="margin:0;"><input type="checkbox" name="is_active" value="1" form="{{ f }}" {{ 'checked' if c.is_active }} aria-label="{{ t('cost_centres.on') }}"></label></td>
+        <td style="text-align:end;">
+          <form method="post" id="{{ f }}" action="{{ url_for('finance.cost_centre_save', centre_id=c.id) }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+          </form></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card gc-scale-in" style="animation-delay:.05s;">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-plus-circle"></i> {{ t('cost_centres.add') }}</h2>
+  <p class="hint" style="margin-top:-4px;">{{ t('cost_centres.add_hint') }}</p>
+  <form method="post" action="{{ url_for('finance.cost_centre_new') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label>{{ t('cost_centres.name_ar') }}</label><input class="input" name="name_ar" required maxlength="80"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('cost_centres.name_en') }}</label><input class="input" name="name_en" maxlength="80" dir="ltr"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('cost_centres.add') }}</button>
+  </form>
+</div>
+{% endblock %}

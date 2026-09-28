@@ -165,6 +165,32 @@ def income():
     )
 
 
+@reports_bp.route("/cost-centres")
+@module_required(MODULE)
+def cost_centres():
+    """Each part of the clinic: what it brought in, what it cost, and what
+    is left — adding up to the income statement (``cost_centre_report``)."""
+    from datetime import timedelta
+
+    from app.utils import cost_centre_report
+    from app.utils.accounting import ensure_seeded
+
+    ensure_seeded()
+    date_from, date_to = _range()
+    today = local_today()
+    first = today.replace(day=1)
+    last_month_end = first - timedelta(days=1)
+    presets = [
+        ("this_month", first, today),
+        ("last_month", last_month_end.replace(day=1), last_month_end),
+        ("this_year", today.replace(month=1, day=1), today),
+    ]
+    return render_template(
+        "reports/cost_centres.html",
+        report=cost_centre_report.report(date_from, date_to),
+        presets=presets, date_from=date_from, date_to=date_to)
+
+
 AGING_BUCKETS = [(0, 30), (31, 60), (61, 90), (91, None)]
 
 
