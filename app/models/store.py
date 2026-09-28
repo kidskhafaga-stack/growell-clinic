@@ -233,6 +233,12 @@ class StockMovement(db.Model):
     unit_cost = db.Column(db.Float)
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
     note = db.Column(db.String(200))
+    # The part of the clinic that used what left the shelf — the pharmacy
+    # for a box handed over or a dose given on the ward, the department of
+    # the service whose consumables these were. Its cost of goods is posted
+    # there (``accounting.post_store_doc``); NULL is shared.
+    cost_centre_id = db.Column(db.Integer, db.ForeignKey("cost_centres.id"),
+                               nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 

@@ -88,9 +88,18 @@ class JournalLine(db.Model):
     debit = db.Column(db.Float, default=0, nullable=False)
     credit = db.Column(db.Float, default=0, nullable=False)
     description = db.Column(db.String(255))
+    # **Which part of the clinic this line belongs to** (مركز التكلفة).
+    # Written when the line is posted and never worked out again: a report
+    # printed for a closed month must still say the same thing after a
+    # service is moved to another centre. NULL is every line posted before
+    # centres existed, and every cost that belongs to no one part — the rent,
+    # the electricity — which the report shows on a line of its own.
+    cost_centre_id = db.Column(db.Integer, db.ForeignKey("cost_centres.id"),
+                               nullable=True, index=True)
 
     entry = db.relationship("JournalEntry", back_populates="lines")
     account = db.relationship("Account", backref="lines")
+    cost_centre = db.relationship("CostCentre")
 
     def __repr__(self):
         return f"<JournalLine {self.account_id} D{self.debit} C{self.credit}>"

@@ -54,6 +54,12 @@ class Expense(db.Model):
     # it. Null when it was not cash, or when no shift was open.
     shift_id = db.Column(db.Integer, db.ForeignKey("cashier_shifts.id"),
                          nullable=True, index=True)
+    # The part of the clinic this cost belongs to, when it belongs to one.
+    # Left empty it is shared — rent, electricity — and the cost-centre
+    # report shows it on its own line rather than spreading it by a rule
+    # nobody agreed.
+    cost_centre_id = db.Column(db.Integer, db.ForeignKey("cost_centres.id"),
+                               nullable=True, index=True)
     notes = db.Column(db.Text)
 
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
@@ -61,6 +67,7 @@ class Expense(db.Model):
 
     creator = db.relationship("User")
     account = db.relationship("CashAccount")
+    cost_centre = db.relationship("CostCentre")
 
     def __repr__(self):
         return f"<Expense {self.category} {self.amount}>"

@@ -732,6 +732,14 @@ ADDITIONS = [
     ("booking_requests", "suggested_date", "DATE"),
     ("booking_requests", "suggested_time", "VARCHAR(5)"),
     ("booking_requests", "suggestion_outcome", "VARCHAR(8)"),
+    # Cost centres. Empty on every row already there: a journal line posted
+    # before centres existed belongs to none, and the report says so rather
+    # than guessing; an expense, a service and an invoice line likewise.
+    ("journal_lines", "cost_centre_id", "INTEGER"),
+    ("invoice_items", "cost_centre_id", "INTEGER"),
+    ("expenses", "cost_centre_id", "INTEGER"),
+    ("services", "cost_centre_id", "INTEGER"),
+    ("stock_movements", "cost_centre_id", "INTEGER"),
 ]
 
 def apply_schema(report=None):

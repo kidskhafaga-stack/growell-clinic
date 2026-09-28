@@ -228,6 +228,12 @@ class Service(db.Model):
     duration_minutes = db.Column(db.Integer)
     price = db.Column(db.Float, default=0, nullable=False)
     cost = db.Column(db.Float)          # direct cost (for profitability)
+    # The cost centre this service's revenue goes to, when the clinic says
+    # so — physiotherapy sessions to a physiotherapy centre it added. Empty
+    # is the ordinary answer: the program works it out from where the line
+    # came from (``cost_centres.for_item``).
+    cost_centre_id = db.Column(db.Integer, db.ForeignKey("cost_centres.id"),
+                               nullable=True)
     max_discount = db.Column(db.Float)  # max allowed discount (%)
 
     # Device this service is performed on (when needs_device).

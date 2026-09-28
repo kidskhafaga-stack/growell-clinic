@@ -1,0 +1,214 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('cost_centres.title') }}{% endblock %}
+{% block page_heading %}{{ t('cost_centres.title') }}{% endblock %}
+
+{% block content %}
+<style>
+  .cc-head { display:flex; justify-content:space-between; align-items:end; gap:14px;
+    flex-wrap:wrap; margin-bottom:16px; }
+  .cc-periods { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .cc-periods a { padding:5px 12px; border-radius:999px; border:1px solid var(--line);
+    color:var(--ink); text-decoration:none; font-size:.85rem; background:var(--card); }
+  .cc-periods a.is-on { background:var(--green-700); border-color:var(--green-700); color:#fff; }
+  .cc-periods a:focus-visible { outline:2px solid var(--green-600); outline-offset:2px; }
+  .cc-range { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .cc-range .input { width:auto; min-width:0; }
+  /* Four figures side by side: a smaller figure so a six-digit sum fits. */
+  .cc-stats .value { font-size:1.45rem; white-space:nowrap; }
+  .cc-money { text-align:end; font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
+
+  /* One row per centre. The bar is the revenue, with the doctors' part of
+     it darker at the start; the thin bar under it is what the centre cost. */
+  .cc-list { display:grid; gap:4px; }
+  .cc-row { border:1px solid transparent; border-radius:12px; }
+  .cc-row[open] { border-color:var(--line); background:var(--surface-2, var(--card)); }
+  .cc-row > summary { list-style:none; cursor:pointer; display:grid; align-items:center;
+    grid-template-columns:minmax(120px, 200px) 1fr repeat(3, minmax(84px, 110px)) 70px;
+    gap:12px; padding:10px 12px; border-radius:12px; }
+  .cc-row > summary::-webkit-details-marker { display:none; }
+  .cc-row > summary:hover { background:color-mix(in srgb, var(--green-600) 6%, transparent); }
+  .cc-row > summary:focus-visible { outline:2px solid var(--green-600); outline-offset:2px; }
+  .cc-name { font-weight:700; display:flex; gap:6px; align-items:center; }
+  .cc-name i.bi-chevron-down { color:var(--muted); font-size:.75rem; transition:transform .15s; }
+  .cc-row[open] .cc-name i.bi-chevron-down { transform:rotate(180deg); }
+  .cc-bars { display:grid; gap:3px; }
+  .cc-rev { height:14px; border-radius:6px; background:var(--green-500); position:relative;
+    overflow:hidden; min-width:2px; }
+  .cc-rev > span { position:absolute; inset-block:0; inset-inline-start:0;
+    background:var(--green-800); }
+  .cc-cost { height:6px; border-radius:4px; background:var(--danger); opacity:.75; min-width:2px; }
+  .cc-num { text-align:end; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .cc-num small { display:block; color:var(--muted); font-size:.72rem; }
+  .cc-chip { justify-self:end; padding:2px 8px; border-radius:999px; font-size:.78rem;
+    font-weight:700; font-variant-numeric:tabular-nums; }
+  .cc-chip.is-up { background:color-mix(in srgb, var(--green-600) 16%, transparent); color:var(--green-800); }
+  .cc-chip.is-down { background:color-mix(in srgb, var(--danger) 16%, transparent); color:var(--danger); }
+  .cc-chip.is-none { color:var(--muted); }
+  .cc-detail { padding:0 12px 12px; }
+  .cc-detail table { width:100%; font-size:.86rem; }
+  .cc-detail td { padding:4px 0; border-top:1px dashed var(--line); }
+  .cc-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:.8rem; color:var(--muted); margin:2px 0 12px; }
+  .cc-legend span::before { content:""; display:inline-block; width:10px; height:10px;
+    border-radius:3px; margin-inline-end:5px; vertical-align:middle; background:var(--sw); }
+  .cc-heads { display:grid; grid-template-columns:minmax(120px, 200px) 1fr repeat(3, minmax(84px, 110px)) 70px;
+    gap:12px; padding:0 12px 4px; font-size:.75rem; color:var(--muted); }
+  .cc-heads span:nth-child(n+3) { text-align:end; }
+  @media (max-width: 760px) {
+    .cc-heads { display:none; }
+    .cc-row > summary { grid-template-columns:1fr auto; }
+    .cc-row > summary .cc-bars { grid-column:1 / -1; order:3; }
+    .cc-row > summary .cc-num { text-align:start; }
+    .cc-row > summary .cc-num.is-rev, .cc-row > summary .cc-num.is-cost { display:none; }
+  }
+
+  /* The sum at the bottom, written out: it is the income statement's net. */
+  .cc-sum { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px;
+    font-variant-numeric:tabular-nums; }
+  .cc-sum b { font-size:1.1rem; }
+  .cc-sum .op { color:var(--muted); font-size:1.2rem; }
+</style>
+
+<div class="cc-head gc-animate">
+  <div>
+    <h1 class="page-title"><i class="bi bi-diagram-3"></i> {{ t('cost_centres.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:70ch;">{{ t('cost_centres.subtitle') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <nav class="cc-periods" aria-label="{{ t('cost_centres.period') }}" data-periods>
+      {% for key, start, end in presets %}
+      {% set on = start == date_from and end == date_to %}
+      <a href="{{ url_for('reports.cost_centres', date_from=start, date_to=end) }}"
+         class="{{ 'is-on' if on }}" {% if on %}aria-current="true"{% endif %}>{{ t('cost_centres.p_' ~ key) }}</a>
+      {% endfor %}
+    </nav>
+    <form method="get" class="cc-range">
+      <input class="input" type="date" name="date_from" value="{{ date_from }}" aria-label="{{ t('reports.from') }}">
+      <input class="input" type="date" name="date_to" value="{{ date_to }}" aria-label="{{ t('reports.to') }}">
+      <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-funnel"></i></button>
+    </form>
+    {% if current_user.is_admin %}
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.cost_centre_list') }}" data-manage-centres>
+      <i class="bi bi-gear"></i> {{ t('cost_centres.manage') }}</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="stat-grid cc-stats gc-stagger" style="margin-bottom:16px;">
+  <div class="stat-card edge-green gc-lift"><i class="bi bi-arrow-down-left-circle ico"></i>
+    <div class="value">{{ report.revenue|money }}</div><div class="label">{{ t('income.total_revenue') }}</div></div>
+  <div class="stat-card edge-teal gc-lift" data-placed-pct="{{ report.placed_pct if report.placed_pct is not none else '' }}"><i class="bi bi-diagram-3 ico"></i>
+    <div class="value">{% if report.placed_pct is not none %}{{ report.placed_pct }}%{% else %}—{% endif %}</div>
+    <div class="label">{{ t('cost_centres.placed') }}</div></div>
+  <div class="stat-card edge-yellow gc-lift"><i class="bi bi-share ico"></i>
+    <div class="value">{{ report.shared_total|money }}</div><div class="label">{{ t('cost_centres.shared_costs') }}</div></div>
+  <div class="stat-card {{ 'edge-green' if report.net >= 0 else 'edge-red' }} gc-lift"><i class="bi bi-graph-up-arrow ico"></i>
+    <div class="value" data-net="{{ report.net }}">{{ report.net|money }}</div><div class="label">{{ t('income.net') }}</div></div>
+</div>
+
+{% if not report.lines and not report.shared and not report.unplaced %}
+<div class="card gc-scale-in" data-centres-empty>
+  <p style="margin:0;"><i class="bi bi-hourglass"></i> {{ t('cost_centres.empty') }}</p>
+  <p class="hint" style="margin:8px 0 0;">{{ t('cost_centres.how') }}</p>
+</div>
+{% else %}
+
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-diagram-3"></i> {{ t('cost_centres.by_centre') }}</h2>
+  <div class="cc-legend">
+    <span style="--sw:var(--green-500);">{{ t('cost_centres.revenue') }}</span>
+    <span style="--sw:var(--green-800);">{{ t('cost_centres.doctors_part') }}</span>
+    <span style="--sw:var(--danger);">{{ t('cost_centres.direct') }}</span>
+  </div>
+  {% if report.lines %}
+  <div class="cc-heads" aria-hidden="true">
+    <span>{{ t('cost_centres.centre') }}</span><span></span>
+    <span>{{ t('cost_centres.revenue') }}</span><span>{{ t('cost_centres.direct') }}</span>
+    <span>{{ t('cost_centres.contribution') }}</span><span>{{ t('cost_centres.margin') }}</span>
+  </div>
+  <div class="cc-list">
+    {% for line in report.lines %}
+    {% set c = line.centre %}
+    <details class="cc-row" data-centre="{{ c.key if c else '' }}" data-revenue="{{ line.revenue }}" data-direct="{{ line.direct }}">
+      <summary>
+        <span class="cc-name"><i class="bi bi-chevron-down"></i>{{ c.display_name(current_lang) if c else '—' }}</span>
+        <span class="cc-bars" role="img"
+              aria-label="{{ t('cost_centres.revenue') }} {{ line.revenue|money }}، {{ t('cost_centres.direct') }} {{ line.direct|money }}">
+          <span class="cc-rev" style="width:{{ line.bar }}%;"
+                title="{{ t('cost_centres.doctors_part') }}: {{ line.doctors|money }}">
+            {% if line.revenue > 0 %}<span style="width:{{ (line.doctors * 100 / line.revenue)|round(1) }}%;"></span>{% endif %}</span>
+          {% if line.direct > 0 %}<span class="cc-cost" style="width:{{ line.cost_bar }}%;"></span>{% endif %}
+        </span>
+        <span class="cc-num is-rev">{{ line.revenue|money }}</span>
+        <span class="cc-num is-cost">{{ line.direct|money }}</span>
+        <span class="cc-num"><b>{{ line.contribution|money }}</b></span>
+        {% if line.margin is none %}<span class="cc-chip is-none">—</span>
+        {% else %}<span class="cc-chip {{ 'is-up' if line.margin >= 0 else 'is-down' }}" data-margin="{{ line.margin }}">{{ line.margin }}%</span>{% endif %}
+      </summary>
+      <div class="cc-detail">
+        <table>
+          {% for acc, amount in line.accounts %}
+          <tr><td>{{ acc.display_name(current_lang) }} <span class="num" style="color:var(--muted);" dir="ltr">{{ acc.code }}</span></td>
+              <td class="cc-num">{% if acc.type == 'expense' %}−{% endif %}{{ amount|money }}</td></tr>
+          {% endfor %}
+          {% if line.doctors %}
+          <tr><td style="color:var(--muted);">{{ t('cost_centres.doctors_part') }}</td>
+              <td class="cc-num" style="color:var(--muted);">{{ line.doctors|money }}</td></tr>
+          {% endif %}
+        </table>
+      </div>
+    </details>
+    {% endfor %}
+  </div>
+  <p class="hint" style="margin:10px 0 0;">{{ t('cost_centres.doctors_hint') }}</p>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('cost_centres.none_placed') }}</p>
+  {% endif %}
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;">
+  <div class="card gc-scale-in" style="animation-delay:.05s;" data-shared="{{ report.shared_total }}">
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-share"></i> {{ t('cost_centres.shared_costs') }}</h2>
+    <p class="hint" style="margin-top:-4px;">{{ t('cost_centres.shared_hint') }}</p>
+    <table class="table">
+      <tbody>
+        {% for acc, amount in report.shared %}
+        <tr><td>{{ acc.display_name(current_lang) }} <span class="num" style="color:var(--muted);" dir="ltr">{{ acc.code }}</span></td>
+            <td class="cc-money">{{ amount|money }}</td></tr>
+        {% else %}
+        <tr><td colspan="2" class="empty-state">{{ t('income.none') }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if report.unplaced %}
+  <div class="card gc-scale-in" style="animation-delay:.08s;" data-unplaced="{{ report.unplaced_total }}">
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-question-circle"></i> {{ t('cost_centres.unplaced') }}</h2>
+    <p class="hint" style="margin-top:-4px;">{{ t('cost_centres.unplaced_hint') }}</p>
+    <table class="table">
+      <tbody>
+        {% for why, amount in report.unplaced.items() %}
+        <tr data-unplaced-why="{{ why }}"><td>{{ t('cost_centres.why_' ~ why) }}</td>
+            <td class="cc-money">{{ amount|money }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="animation-delay:.1s;">
+  <div class="cc-sum" data-sum>
+    <span>{{ t('cost_centres.contribution_all') }} <b>{{ report.contribution|money }}</b></span>
+    {% if report.unplaced %}<span class="op">+</span>
+    <span>{{ t('cost_centres.unplaced') }} <b>{{ report.unplaced_total|money }}</b></span>{% endif %}
+    <span class="op">−</span>
+    <span>{{ t('cost_centres.shared_costs') }} <b>{{ report.shared_total|money }}</b></span>
+    <span class="op">=</span>
+    <span>{{ t('income.net') }} <b>{{ report.net|money }}</b></span>
+  </div>
+  <p class="hint" style="margin:8px 0 0;">{{ t('cost_centres.matches') }}
+    <a href="{{ url_for('reports.income', date_from=date_from, date_to=date_to) }}">{{ t('reports.income') }}</a></p>
+</div>
+{% endif %}
+{% endblock %}

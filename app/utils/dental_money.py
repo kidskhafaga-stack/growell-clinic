@@ -67,6 +67,7 @@ def accept(plan, user_id=None):
     invoice reads back as the plan and not as a single lump nobody can check.
     """
     from app.models import Invoice, InvoiceItem
+    from app.utils import cost_centres
     from app.utils.finance import generate_invoice_number
 
     _require_module()
@@ -91,9 +92,11 @@ def accept(plan, user_id=None):
                       created_by=user_id)
     claim(invoice, "invoice_number", generate_invoice_number)
     for item in items:
-        db.session.add(InvoiceItem(
+        line = InvoiceItem(
             invoice_id=invoice.id, service_id=item.service_id,
-            description=_line_name(item), unit_price=item.price, quantity=1))
+            description=_line_name(item), unit_price=item.price, quantity=1)
+        cost_centres.stamp(line, "dentistry")
+        db.session.add(line)
     plan.invoice_id = invoice.id
     plan.status = "accepted"
     plan.accepted_at = datetime.utcnow()

@@ -465,10 +465,17 @@ class InvoiceItem(db.Model):
     # written before this column behaves exactly as it did.
     doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True,
                           index=True)
+    # **Which part of the clinic earned this line**, set the first time the
+    # bill is posted to the books (``cost_centres.for_item``) or by whatever
+    # wrote the line when it knows better — the theatre, the drug round.
+    # Kept once set, so the answer does not move when the rules do.
+    cost_centre_id = db.Column(db.Integer, db.ForeignKey("cost_centres.id"),
+                               nullable=True, index=True)
 
     invoice = db.relationship("Invoice", back_populates="items")
     service = db.relationship("Service")
     doctor = db.relationship("User", foreign_keys=[doctor_id])
+    cost_centre = db.relationship("CostCentre")
 
     @property
     def on_date(self):

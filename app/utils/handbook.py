@@ -2162,6 +2162,15 @@ SECTIONS = [
              "والميزانية.",
              "<b>Financial</b>: income, AR ageing, discounts, VAT, trial "
              "balance and balance sheet."),
+            ("<b>مراكز التكلفة</b>: كل قسم بإيراده ومصروفه المباشر والباقي "
+             "منه. الإيراد بيروح لقسمه لوحده من مكان ما الفاتورة جت، والمصروف "
+             "بتختار قسمه وإنت بتسجّله، ولو ما اخترتش بيبقى مشترك في سطر "
+             "لوحده. والمجموع هو نفس صافي قائمة الدخل.",
+             "<b>Cost centres</b>: each part of the clinic with its revenue, "
+             "its direct costs and what is left. Revenue reaches its centre by "
+             "itself from where the bill came from; an expense takes the "
+             "centre you choose when you record it, and with none it is shared, "
+             "on a line of its own. The total is the income statement's net."),
             ("<b>تشغيلية وطبية</b>: أداء العيادة، الأطباء والموظفين، المخزون، "
              "والتطعيمات.",
              "<b>Operational and clinical</b>: clinic performance, doctors and "

@@ -50,17 +50,26 @@ def app():
 
 
 # ------------------------------------------------------- 1) cost centres --
-def test_cost_centres_are_still_not_built(app):
-    """The claim is that the accounting engine runs without them. What would
-    make it false is a dimension on the journal line — revenue and expense
-    cannot be split by department without somewhere to write the department.
+def test_cost_centres_have_been_built_and_are_off_the_list(app):
+    """This one has flipped too, as written: it asserted the journal line had
+    no department, and went red the day ``JournalLine.cost_centre_id`` landed
+    — the list was brought up to date before the merge.
+
+    Kept as the mirror, both halves: the dimension and the report exist, and
+    NEXT no longer calls them to come. Cost centres quietly removed while the
+    About screen lists them as built is the same failure pointing the other
+    way.
     """
     from app.models.accounting import JournalLine
+    from app.utils.project import DONE, NEXT
 
-    columns = set(JournalLine.__table__.columns.keys())
-    for dimension in ("cost_centre_id", "cost_center_id", "department_id",
-                      "cost_centre", "cost_center"):
-        assert dimension not in columns, STALE.format("cost centres")
+    assert "cost_centre_id" in JournalLine.__table__.columns.keys()
+    endpoints = {r.endpoint for r in app.url_map.iter_rules()}
+    assert "reports.cost_centres" in endpoints
+    for arabic, english in NEXT:
+        assert "تكلفة" not in arabic and "cost centre" not in english.lower(), (
+            "cost centres are built; NEXT still lists them")
+    assert any("cost centre" in english.lower() for _a, english in DONE)
 
 
 # --------------------------------------------- 2) the family-level statement --
@@ -136,6 +145,7 @@ def test_every_item_on_the_next_list_is_covered_here(app):
     """
     from app.utils.project import NEXT
 
-    assert len(NEXT) == 2, (
-        f"NEXT has {len(NEXT)} items; this file checks 2. Add a check for the "
-        "new one — an unchecked item is how this list went stale twice.")
+    assert len(NEXT) == 1, (
+        f"NEXT has {len(NEXT)} items; this file checks 1 (the FHIR API — cost "
+        "centres were built and left it). Add a check for the new one — an "
+        "unchecked item is how this list went stale twice.")

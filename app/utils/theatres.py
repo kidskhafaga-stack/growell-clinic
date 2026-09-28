@@ -27,6 +27,7 @@ from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, PREOP_KINDS,
                                 REVIEW_VERDICTS, SIGN_IN, SIGN_OUT, TIME_OUT,
                                 Operation, PreOpReview, SafetyCheck, Theatre)
 from app.utils import case_rates
+from app.utils import cost_centres
 from app.utils import surgical_counts as _counts
 from app.utils.clock import local_today
 
@@ -1829,6 +1830,8 @@ def charge(admission, invoice, user=None, lang="ar"):
         # later works it out at the surgeon's rate rather than handing it back
         # to the doctor the invoice belongs to.
         item.doctor_id = operation.surgeon_id or None
+        # The theatre's, whichever unit's bill it is on.
+        cost_centres.stamp(item, "theatres")
         db.session.add(item)
         db.session.flush()
         operation.invoice_item_id = item.id
@@ -1891,6 +1894,7 @@ def _charge_anaesthesia(operation, invoice, lang="ar"):
     # whoever the invoice belongs to, and the two people the theatre owes are
     # one person in the books.
     item.doctor_id = doctor.id
+    cost_centres.stamp(item, "theatres")
     db.session.add(item)
     db.session.flush()
     operation.anaesthesia_item_id = item.id

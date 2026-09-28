@@ -413,6 +413,9 @@ def charge(admission, invoice, user=None, lang="ar"):
     if not due or invoice is None:
         return 0
 
+    from app.utils import cost_centres
+
+    pharmacy_centre = cost_centres.centre_id("pharmacy")
     document = None
     for dose in due:
         order = dose.order
@@ -427,7 +430,10 @@ def charge(admission, invoice, user=None, lang="ar"):
             # right: nobody's percentage rides on a nurse pushing a syringe.
             description=_dose_line(order, item, dose, lang),
             service_date=_given_on(dose),
-            unit_price=price, quantity=units)
+            unit_price=price, quantity=units,
+            # The pharmacy's, like a box handed over at its counter: the
+            # ward gave the dose, the pharmacy supplied and charged for it.
+            cost_centre_id=pharmacy_centre)
         db.session.add(line)
         db.session.flush()
         dose.invoice_item_id = line.id
@@ -438,6 +444,7 @@ def charge(admission, invoice, user=None, lang="ar"):
             item_id=item.id, kind="out", qty=-abs(units),
             reason=_dose_reason(order, lang),
             unit_cost=issue_unit_cost(item),
+            cost_centre_id=pharmacy_centre,
             created_by=getattr(user, "id", None), document_id=document.id)
         db.session.add(movement)
         db.session.flush()

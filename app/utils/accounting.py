@@ -164,7 +164,8 @@ def post_entry(source_type, source_id, memo, lines, entry_date=None, user_id=Non
                replace=False):
     """Create a balanced journal entry.
 
-    ``lines``: iterable of (account_code, debit, credit, description).
+    ``lines``: iterable of (account_code, debit, credit, description), with
+    an optional fifth element — the cost centre's id the line belongs to.
     Skips silently when accounts aren't seeded; raises ValueError when the
     entry doesn't balance (a programming error worth surfacing in dev).
     Commits on success and returns the entry (or None when skipped).
@@ -174,7 +175,9 @@ def post_entry(source_type, source_id, memo, lines, entry_date=None, user_id=Non
     used for invoices that grow during the day (one invoice per visit).
     """
     built = []
-    for code, debit, credit, desc in lines:
+    for line in lines:
+        code, debit, credit, desc = line[:4]
+        centre = line[4] if len(line) > 4 else None
         amount_d = round(float(debit or 0), 2)
         amount_c = round(float(credit or 0), 2)
         if amount_d <= 0 and amount_c <= 0:
@@ -183,7 +186,8 @@ def post_entry(source_type, source_id, memo, lines, entry_date=None, user_id=Non
         if acc is None:
             return None  # chart not seeded — skip quietly
         built.append(JournalLine(account_id=acc.id, debit=amount_d,
-                                 credit=amount_c, description=desc))
+                                 credit=amount_c, description=desc,
+                                 cost_centre_id=centre))
     if not built:
         return None
     total_d = round(sum(ln.debit for ln in built), 2)
@@ -233,16 +237,49 @@ def _vaccine_split(invoice):
     return vac, round(invoice.total - vac, 2)
 
 
+def _by_centre(invoice, vac, svc):
+    """The two revenue amounts, each split over the cost centres its lines
+    belong to: ``[(code, amount, centre_id)]``.
+
+    ``None`` when the split does not come to exactly the two amounts the
+    entry has always carried — a line with a negative net, a vaccine share
+    capped at the total. The entry is then posted as it always was, without
+    centres, rather than with numbers that differ from the bill.
+    """
+    from app.utils import cost_centres
+
+    sums = {}
+    for item in invoice.items:
+        stype = getattr(getattr(item, "service", None), "service_type", None)
+        code = "4020" if stype == "vaccination" else "4010"
+        key = (code, cost_centres.for_item(item))
+        sums[key] = round(sums.get(key, 0) + item.net, 2)
+    if any(amount < 0 for amount in sums.values()):
+        return None
+    for code, expected in (("4020", vac), ("4010", svc)):
+        got = round(sum(a for (c, _k), a in sums.items() if c == code), 2)
+        if abs(got - expected) > 0.01:
+            return None
+    return [(code, amount, centre) for (code, centre), amount in sums.items()
+            if amount > 0]
+
+
 def post_invoice(invoice, user_id=None):
-    """Invoice issued: Dr Patients AR / Cr revenue (split by service type)."""
+    """Invoice issued: Dr Patients AR / Cr revenue (split by service type,
+    and each by the cost centre its lines belong to)."""
     if not invoice or invoice.total <= 0:
         return None
     vac, svc = _vaccine_split(invoice)
     lines = [("1030", invoice.total, 0, invoice.invoice_number)]
-    if svc > 0:
-        lines.append(("4010", 0, svc, invoice.invoice_number))
-    if vac > 0:
-        lines.append(("4020", 0, vac, invoice.invoice_number))
+    split = _by_centre(invoice, vac, svc)
+    if split is not None:
+        for code, amount, centre in split:
+            lines.append((code, 0, amount, invoice.invoice_number, centre))
+    else:
+        if svc > 0:
+            lines.append(("4010", 0, svc, invoice.invoice_number))
+        if vac > 0:
+            lines.append(("4020", 0, vac, invoice.invoice_number))
     return post_entry("invoice", invoice.id,
                       f"فاتورة {invoice.invoice_number}", lines,
                       entry_date=invoice.invoice_date, user_id=user_id,
@@ -281,11 +318,12 @@ def post_payment(payment, user_id=None):
 
 
 def post_expense(expense, user_id=None):
-    """Expense recorded: Dr operating expenses / Cr cash."""
+    """Expense recorded: Dr operating expenses / Cr cash. The debit carries
+    the expense's cost centre; none means shared."""
     if not expense or (expense.amount or 0) <= 0:
         return None
     memo = expense.description or "مصروف"
-    lines = [("5010", expense.amount, 0, memo),
+    lines = [("5010", expense.amount, 0, memo, expense.cost_centre_id),
              (till_code(expense), 0, expense.amount, memo)]
     return post_entry("expense", expense.id, memo, lines,
                       entry_date=expense.expense_date, user_id=user_id)
@@ -333,6 +371,32 @@ def _doc_value(doc):
     return round(value, 2)
 
 
+def _cost_by_centre(doc, value):
+    """``[(centre_id, amount)]`` for a document's cost: each movement's at
+    the centre that used it (``StockMovement.cost_centre_id``; ``None`` is
+    shared), adding up to exactly ``value`` — the rounding lands on the
+    largest share rather than unbalancing the entry."""
+    sums = {}
+    for m in doc.movements:
+        cost = abs(m.qty or 0) * (m.unit_cost or 0)
+        sums[m.cost_centre_id] = sums.get(m.cost_centre_id, 0) + cost
+    # Anything the movements do not account for (a vaccine batch on the
+    # document) is nobody's in particular.
+    rest = value - sum(sums.values())
+    if rest > 0.005:
+        sums[None] = sums.get(None, 0) + rest
+    shares = [(centre, round(amount, 2)) for centre, amount in sums.items()
+              if round(amount, 2) > 0]
+    if not shares:
+        return [(None, value)]
+    gap = round(value - sum(a for _c, a in shares), 2)
+    if gap:
+        biggest = max(range(len(shares)), key=lambda i: shares[i][1])
+        centre, amount = shares[biggest]
+        shares[biggest] = (centre, round(amount + gap, 2))
+    return shares
+
+
 def post_store_doc(doc, user_id=None):
     """Inventory-side journal for a warehouse document (skipped at value 0):
 
@@ -356,12 +420,11 @@ def post_store_doc(doc, user_id=None):
     elif doc.kind == "return":
         lines = [("2010", value, 0, doc.doc_number),
                  ("1040", 0, value, doc.doc_number)]
-    elif doc.kind == "issue":
-        lines = [("5020", value, 0, doc.doc_number),
-                 ("1040", 0, value, doc.doc_number)]
-    elif doc.kind == "waste":
-        lines = [("5010", value, 0, doc.doc_number),
-                 ("1040", 0, value, doc.doc_number)]
+    elif doc.kind in ("issue", "waste"):
+        code = "5020" if doc.kind == "issue" else "5010"
+        lines = [(code, amount, 0, doc.doc_number, centre)
+                 for centre, amount in _cost_by_centre(doc, value)]
+        lines.append(("1040", 0, value, doc.doc_number))
     else:
         return None
     return post_entry("store_doc", doc.id, memo, lines,
@@ -397,5 +460,9 @@ def post_dose_cogs(pv, user_id=None):
         return None
     name = pv.brand.name if pv.brand else "جرعة تطعيم"
     memo = f"تكلفة جرعة — {name} #{pv.dose_number}"
-    lines = [("5020", cost, 0, memo), ("1040", 0, cost, memo)]
+    # The dose's cost is the vaccination service's: a fact, not a rule.
+    from app.utils import cost_centres
+
+    lines = [("5020", cost, 0, memo, cost_centres.centre_id("vaccinations")),
+             ("1040", 0, cost, memo)]
     return post_entry("vaccine_dose", pv.id, memo, lines, user_id=user_id)

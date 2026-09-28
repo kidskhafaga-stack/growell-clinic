@@ -213,6 +213,9 @@ def take_off_shelf(rows, invoice, user=None, lang="ar"):
     if not rows or invoice is None:
         return 0
 
+    from app.utils import cost_centres
+
+    pharmacy_centre = cost_centres.centre_id("pharmacy")
     document = getattr(invoice, "_iss_doc", None)
     for line in rows:
         if document is None:
@@ -222,6 +225,7 @@ def take_off_shelf(rows, invoice, user=None, lang="ar"):
             qty=-abs(max(1, int(line.quantity or 1))),
             reason=_reason(line, lang),
             unit_cost=issue_unit_cost(line.store_item),
+            cost_centre_id=pharmacy_centre,
             created_by=getattr(user, "id", None), document_id=document.id)
         db.session.add(movement)
         db.session.flush()
