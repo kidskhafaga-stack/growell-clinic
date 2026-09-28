@@ -277,7 +277,7 @@
 </div>
 <div class="print-footer">
   {% if program.logo_url %}<img src="{{ program.logo_url }}" alt="" class="print-footer__logo">{% endif %}
-  <span><strong>{{ program.name }}</strong> — {{ program.slogan }} · © Eng. Mohamed Khafaga — All rights reserved</span>
+  <span><strong>{{ program.name }}</strong> — {{ program.slogan }} · <span dir="auto">{{ copyright_notice }}</span></span>
 </div>
 <script>
   // Clicking an alert records it as seen (keepalive so it lands as we navigate),
