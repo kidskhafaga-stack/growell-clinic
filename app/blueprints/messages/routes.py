@@ -6,7 +6,7 @@ click-to-send wa.me link for the front desk.
 """
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import (current_app, flash, g, jsonify, redirect,
                    render_template, request, url_for)
@@ -954,19 +954,86 @@ def _render_canned(body, patient):
 @messages_bp.route("/satisfaction")
 @module_required(MODULE)
 def satisfaction():
-    """Patient-satisfaction analytics: CSAT/NPS, distribution, doctor board."""
-    from app.utils.feedback import clinic_summary, doctor_ratings
+    """The customer-service board: ratings for a period against the one
+    before, per unit and per doctor, why families left against advice — and,
+    for whoever handles them, the complaints book. See ``utils/cs_board``."""
+    from app.utils import cost_centres, cs_board
 
-    summary = clinic_summary()
-    ratings = doctor_ratings()
-    docs = ({u.id: u for u in User.query.filter(User.id.in_(ratings.keys())).all()}
-            if ratings else {})
-    leaderboard = sorted(
-        ({"doctor": docs[d], "avg": v["avg"], "count": v["count"]}
-         for d, v in ratings.items() if d in docs),
-        key=lambda x: (-x["avg"], -x["count"]))
-    return render_template("messages/satisfaction.html", s=summary,
-                           leaderboard=leaderboard)
+    start, end = cs_board.period(request.args.get("from"), request.args.get("to"))
+    centre_id = request.args.get("centre", type=int)
+    tab = request.args.get("tab") or "all"
+    can_complaints = current_user.can("complaints_manage")
+    if tab not in ("all", "units", "complaints") or (
+            tab == "complaints" and not can_complaints):
+        tab = "all"
+    ctx = {"start": start.date(), "last": (end - timedelta(days=1)).date(),
+           "prev": [cs_board.previous(start, end)[0].date(),
+                    (start - timedelta(days=1)).date()],
+           "centre_id": centre_id, "tab": tab, "can_complaints": can_complaints,
+           "centres": cost_centres.listing(), "colour": cs_board.colour,
+           "min_colour": cs_board.MIN_TO_COLOUR,
+           "min_doctor": cs_board.MIN_FOR_DOCTOR}
+    if tab == "all":
+        from app.utils import leave_reasons
+        ctx.update(o=cs_board.overview(start, end, centre_id),
+                   trend=cs_board.trend(start, end, centre_id),
+                   concerns=cs_board.concerns(start, end, centre_id)[:10],
+                   left=cs_board.leave_reasons(start, end, centre_id),
+                   leave_label=leave_reasons.label,
+                   comments=cs_board.comments(start, end, centre_id))
+    elif tab == "units":
+        ctx.update(units=cs_board.by_centre(start, end),
+                   doctors=cs_board.by_doctor(start, end, centre_id))
+    else:
+        ctx.update(c=cs_board.complaints(start, end, centre_id))
+    if can_complaints:
+        from app.utils.complaint_cases import open_counts
+        ctx["open_complaints"] = open_counts()["attention"]
+    return render_template("messages/cs_board.html", **ctx)
+
+
+@messages_bp.route("/satisfaction/answers")
+@module_required(MODULE)
+def satisfaction_answers():
+    """The families behind a number on the board — paged, and as CSV."""
+    from app.utils import cs_board
+
+    start, end = cs_board.period(request.args.get("from"), request.args.get("to"))
+    side = request.args.get("side")
+    q = cs_board.responses(start, end,
+                           centre_id=request.args.get("centre", type=int),
+                           side=side, low=bool(request.args.get("low")),
+                           concern=(request.args.get("concern") or "").strip() or None,
+                           doctor_id=request.args.get("doctor", type=int))
+    lang = getattr(g, "lang", "ar")
+    if request.args.get("format") == "csv":
+        import csv
+        import io
+        from flask import Response
+
+        buf = io.StringIO()
+        out = csv.writer(buf)
+        out.writerow([t("board_cs.col_date"), t("board_cs.col_patient"),
+                      t("board_cs.col_unit"), t("board_cs.col_doctor"),
+                      t("board_cs.medical"), t("board_cs.service"),
+                      t("board_cs.finance"), "NPS", t("board_cs.col_concerns"),
+                      t("board_cs.col_comment")])
+        for fb in q.limit(20000).all():
+            out.writerow([
+                fb.submitted_at.strftime("%Y-%m-%d") if fb.submitted_at else "",
+                fb.patient.display_name(lang) if fb.patient else "",
+                fb.cost_centre.display_name(lang) if fb.cost_centre else t("board_cs.outpatient"),
+                fb.doctor.display_name(lang) if fb.doctor else "",
+                fb.doctor_rating or "", fb.service_rating or "",
+                fb.finance_rating or "", "" if fb.nps is None else fb.nps,
+                fb.concerns or "", (fb.comment or "").replace("\n", " ")])
+        return Response("\ufeff" + buf.getvalue(),
+                        mimetype="text/csv; charset=utf-8",
+                        headers={"Content-Disposition":
+                                 "attachment; filename=ratings.csv"})
+    return render_template("messages/cs_answers.html", page=paginate(q),
+                           start=start.date(),
+                           last=(end - timedelta(days=1)).date())
 
 
 @messages_bp.route("/survey", methods=["GET", "POST"])
