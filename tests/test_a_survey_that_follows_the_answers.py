@@ -100,6 +100,37 @@ def test_the_path_skips_branches_and_never_goes_back(clinic):
     assert path(steps, {"a": "yes", "c": "1"}) == ["a", "c", "d"]    # not back
 
 
+def test_the_answer_groups_have_their_edges_where_the_builder_says(clinic):
+    from app.utils.survey_flow import bucket
+
+    assert [bucket("stars", n) for n in (1, 2, 3, 4, 5)] == [
+        "low", "low", "mid", "high", "high"]
+    assert [bucket("nps", n) for n in (0, 6, 7, 8, 9, 10)] == [
+        "low", "low", "mid", "mid", "high", "high"]
+    assert (bucket("yesno", "maybe"), bucket("single", "x"), bucket("stars", "")) == (
+        None, None, None)
+
+
+def test_the_page_is_not_given_a_jump_to_a_question_it_does_not_ask(hospital):
+    from app.models.place import Unit
+    from app.utils import cost_centres
+
+    first, _ = _question(hospital, "سؤال للكل")
+    _, only_key = _question(hospital, "للعيادة بس", centres="outpatient",
+                            branch_only=True)
+    _jump(hospital, first, no=only_key)
+    with hospital["app"].app_context():
+        ward = cost_centres.for_unit(Unit.query.one())
+        hospital["db"].session.commit()
+        ward_id = ward.id
+    _feedback(hospital, "ward", centre_id=ward_id)
+    _feedback(hospital, "visit")
+    public = hospital["app"].test_client()
+    assert only_key not in public.get("/f/ward").get_data(as_text=True)
+    assert f'&#34;no&#34;: &#34;{only_key}&#34;' in public.get("/f/visit").get_data(as_text=True) \
+        or f'"no": "{only_key}"' in public.get("/f/visit").get_data(as_text=True)
+
+
 def test_the_built_in_survey_still_works_as_it_did(clinic):
     _feedback(clinic)
     page = clinic["app"].test_client().get("/f/tok").get_data(as_text=True)
@@ -230,7 +261,7 @@ def test_the_thank_you_depends_on_what_they_said(clinic):
         Setting.set("survey_review_url", "https://g.page/r/example")
         Setting.set("clinic_logo", "logo.png")
         clinic["db"].session.commit()
-    for token, form in (("sad", {"finance_rating": "1", "nps": "10"}),
+    for token, form in (("sad", {"finance_rating": "2", "nps": "10"}),
                         ("glad", {"finance_rating": "5", "nps": "9"}),
                         ("meh", {"finance_rating": "4", "nps": "7"})):
         _feedback(clinic, token)
