@@ -483,6 +483,15 @@ SECTIONS = [
         "icon": "hospital",
         "title": ("الأسرّة والإقامة", "Beds and admissions"),
         "lines": [
+            ("<b>اسم اتكتب غلط بيتصلّح:</b> من «تجهيز الأقسام» زرار «تعديل» "
+             "جنب كل قسم وحيّز وسرير — الاسم، ونوع الحيّز (غرفة/بارتشن) ونوع "
+             "السرير (سرير/حضّانة/كبسولة). حتى لو نام فيه أطفال: الإقامة "
+             "بتشاور على السرير نفسه مش على اسمه. والمسح بس للي عمره ما اتسكن.",
+             "<b>A name typed wrong can be fixed:</b> in the ward setup, Edit "
+             "beside every unit, space and bed changes the name, the space's "
+             "kind (room, partition) and the bed's kind (bed, incubator, "
+             "capsule), even where children have stayed: a stay points at the "
+             "bed, not at its name. Deleting is only for what was never used."),
             ("<b>الإقامة مش زيارة.</b> الزيارة الخارجية بتبتدي وتخلص في يوم "
              "واحد، وده صح ليها. الإقامة بتمتد أيام، وبتنتهي بقرار (خروج، أو "
              "تحويل لمستشفى تانية)، وفي كل ساعة منها الطفل في <b>مكان</b>. "

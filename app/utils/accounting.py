@@ -317,16 +317,36 @@ def post_payment(payment, user_id=None):
     return post_entry("payment", payment.id, memo, lines, user_id=user_id)
 
 
-def post_expense(expense, user_id=None):
+def post_expense(expense, user_id=None, replace=False):
     """Expense recorded: Dr operating expenses / Cr cash. The debit carries
-    the expense's cost centre; none means shared."""
+    the expense's cost centre; none means shared.
+
+    ``replace=True`` rebuilds the entry already posted, in place (same entry
+    number) — an expense edited after it was entered. Without it the ledger
+    kept the first amount, date and centre for ever."""
     if not expense or (expense.amount or 0) <= 0:
         return None
     memo = expense.description or "مصروف"
     lines = [("5010", expense.amount, 0, memo, expense.cost_centre_id),
              (till_code(expense), 0, expense.amount, memo)]
     return post_entry("expense", expense.id, memo, lines,
-                      entry_date=expense.expense_date, user_id=user_id)
+                      entry_date=expense.expense_date, user_id=user_id,
+                      replace=replace)
+
+
+def unpost(source_type, source_id):
+    """Take a document's entry out of the ledger — because the document
+    itself is gone. Returns how many entries went (0 or 1, in practice).
+
+    Only ever called with the document, in the same transaction: an entry
+    whose document was deleted is a cost the income statement goes on
+    counting with nothing behind it. The caller has already refused a closed
+    period; this does not decide that."""
+    rows = JournalEntry.query.filter_by(source_type=source_type,
+                                        source_id=source_id).all()
+    for row in rows:
+        db.session.delete(row)
+    return len(rows)
 
 
 def post_doctor_payout(payout, user_id=None):

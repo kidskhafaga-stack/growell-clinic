@@ -60,6 +60,34 @@
 {% endif %}
 {% endmacro %}
 
+{# **تغيير الاسم والنوع** — لقسم أو حيّز أو سرير، حتى لو نام فيه أطفال. الاسم
+   مش تاريخ: الإقامة بتشاور على السرير نفسه، فتغيير اسمه بيغيّره في كل مكان
+   من غير ما يلمس الإقامة. والنوع (غرفة/بارتشن، سرير/حضّانة) بيغيّر الشكل
+   على الخريطة بس. #}
+{% macro rename_control(level, place, kinds=None) %}
+<details style="display:inline-block;" data-rename-{{ level }}="{{ place.id }}">
+  <summary class="btn btn-sm btn-outline gc-press" style="list-style:none;">
+    <i class="bi bi-pencil"></i> {{ t('places.edit') }}</summary>
+  <form method="post" action="{{ url_for('beds.rename_place') }}"
+        style="display:flex;gap:6px;align-items:end;flex-wrap:wrap;margin-top:6px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="level" value="{{ level }}">
+    <input type="hidden" name="target_id" value="{{ place.id }}">
+    <div class="form-row" style="margin:0;min-width:160px;">
+      <label for="rn-{{ level }}-{{ place.id }}">{{ t('beds.name') }}</label>
+      <input class="input" id="rn-{{ level }}-{{ place.id }}" name="name" value="{{ place.name }}" required maxlength="80"></div>
+    {% if kinds %}
+    <div class="form-row" style="margin:0;min-width:140px;">
+      <label for="rk-{{ level }}-{{ place.id }}">{{ t('beds.kind') }}</label>
+      <select class="select" id="rk-{{ level }}-{{ place.id }}" name="kind">
+        {% for kind in kinds %}<option value="{{ kind }}" {{ 'selected' if place.kind == kind }}>{{ t('beds.' ~ level ~ '_' ~ kind) }}</option>{% endfor %}
+      </select></div>
+    {% endif %}
+    <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+</details>
+{% endmacro %}
+
 {% block content %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
@@ -203,7 +231,13 @@
               data-delete-unit="{{ row.unit.id }}" style="color:var(--danger);">
         <i class="bi bi-trash3"></i> {{ t('ward_wizard.delete') }}</button>
     </form>
-    {% endif %}</h2>
+    {% endif %}
+    <span style="font-size:.9rem;font-weight:400;">{{ rename_control('unit', row.unit) }}</span></h2>
+  {# Why there is no delete button — said, not left for somebody to wonder. #}
+  {% if not deletable(row.unit) %}
+  <p class="hint" style="margin:-6px 0 8px;" data-why-kept-unit="{{ row.unit.id }}">
+    <i class="bi bi-info-circle"></i> {{ t('ward_wizard.refused_unit_has_used_beds') }}</p>
+  {% endif %}
   <div style="margin:-4px 0 10px;">{{ closure_control('unit', row.unit) }}</div>
 
   {# What a stay in this department costs, and whether it is sold by the
@@ -251,6 +285,7 @@
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
       <b>{{ block.space.name }}</b>
       <span class="badge badge--muted">{{ t('beds.space_' ~ block.space.kind) }}</span>
+      {{ rename_control('space', block.space, space_kinds) }}
       {% if space_deletable(block.space) %}
       <form method="post" style="display:inline;"
             action="{{ url_for('beds.delete_space', space_id=block.space.id) }}"
@@ -339,6 +374,7 @@
              touch — which is the mess this screen was rebuilt for. #}
           {# الإغلاق على السرير نفسه — وبس لو اللي فوقه شغّال: سرير في
              عنبر مقفول مقفول أصلاً، وزرار فتحه لوحده كان هيرفض كل مرة. #}
+          {{ rename_control('bed', cell.bed, bed_kinds) }}
           {% if row.unit.is_active and block.space.is_active %}
           {{ closure_control('bed', cell.bed) }}
           {% endif %}
