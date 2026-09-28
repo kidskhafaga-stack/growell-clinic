@@ -37,16 +37,19 @@ def outside(clinic, monkeypatch):
 
     monkeypatch.setenv("SURVEY_PAGE_URL", "https://survey.example.app")
     monkeypatch.setenv("SURVEY_SYNC_KEY", KEY)
-    store = {"brand": None, "surveys": {}, "answers": {}, "calls": []}
+    store = {"brand": None, "surveys": {}, "answers": {}, "calls": [],
+             "refuse": set()}
 
     def fake(action, payload=None):
         payload = payload or {}
         store["calls"].append((action, json.loads(json.dumps(payload))))
         if action == "push":
             store["brand"] = payload.get("brand")
-            for s in payload.get("surveys", []):
+            took = [s for s in payload.get("surveys", [])
+                    if s["token"] not in store["refuse"]]
+            for s in took:
                 store["surveys"][s["token"]] = s["config"]
-            return {"ok": True, "pushed": [s["token"] for s in payload.get("surveys", [])]}
+            return {"ok": True, "pushed": [s["token"] for s in took]}
         if action == "pull":
             return {"ok": True, "answers": [{"token": t, "payload": p}
                                             for t, p in store["answers"].items()]}
@@ -161,6 +164,21 @@ def test_a_survey_that_could_not_go_out_waits_and_goes_next_time(outside, monkey
     with outside["app"].app_context():                  # as the command line does
         assert survey_outside.sync()["pushed"] == 1
         assert Feedback.query.filter_by(token=token).one().outside_state == "out"
+
+
+def test_a_survey_the_page_did_not_take_stays_waiting(outside):
+    from app.models import Feedback
+    from app.utils import survey_outside
+
+    token, _ = _send(outside)
+    with outside["app"].app_context():
+        fb = Feedback.query.filter_by(token=token).one()
+        fb.outside_state = "pending"
+        outside["db"].session.commit()
+    outside["store"]["refuse"].add(token)
+    with outside["app"].app_context():
+        survey_outside.sync()
+        assert Feedback.query.filter_by(token=token).one().outside_state == "pending"
 
 
 def test_the_heartbeat_syncs_at_most_every_ten_minutes(outside):
