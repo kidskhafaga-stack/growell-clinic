@@ -1,0 +1,39 @@
+<style>
+  body { background:#eef1f4; margin:0; padding:24px 14px; font-family:system-ui,"Segoe UI",Tahoma,sans-serif; color:#1b2733; }
+  .fb { max-width:520px; margin:0 auto; background:#fff; border-radius:18px; box-shadow:0 14px 44px rgba(0,0,0,.12); padding:26px 22px; }
+  .fb-head { text-align:center; margin-bottom:18px; }
+  .fb-badge { width:56px; height:56px; border-radius:16px; display:inline-flex; align-items:center; justify-content:center;
+    font-size:1.6rem; color:#fff; background:linear-gradient(135deg,#20c997,#12855f); margin-bottom:10px; }
+  .fb-head h1 { margin:6px 0 2px; font-size:1.3rem; }
+  .fb-head p { margin:0; color:#6c7a89; font-size:.95rem; }
+  .num { font-variant-numeric:tabular-nums; direction:ltr; unicode-bidi:isolate; }
+  .q { margin:16px 0; }
+  .qlab { display:block; font-weight:700; margin-bottom:8px; }
+  .rate { display:inline-flex; flex-direction:row-reverse; }
+  .rate input { display:none; }
+  .rate label { color:#d8dde2; font-size:2.3rem; line-height:1; cursor:pointer; padding:0 3px; }
+  .rate label:hover, .rate label:hover ~ label, .rate input:checked ~ label { color:#f5b301; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chips label { border:1px solid #d8dde2; border-radius:999px; padding:7px 14px; cursor:pointer; }
+  .chips label:has(input:checked) { border-color:#12855f; background:#e8f6ef; font-weight:600; }
+  .chips input { display:none; }
+  textarea, .fb-input { width:100%; box-sizing:border-box; border:1px solid #d8dde2; border-radius:12px; padding:11px; font-size:.95rem; font-family:inherit; }
+  textarea { resize:vertical; min-height:90px; }
+  .fb-btn { width:100%; margin-top:18px; padding:13px; border:0; border-radius:12px; background:#12855f; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; }
+  .thanks { text-align:center; color:#41505e; line-height:1.8; }
+  .ro-row { display:flex; justify-content:space-between; gap:10px; margin:10px 0; border-bottom:1px solid #eef1f4; padding-bottom:8px; }
+  .ro-row .k, .said .k { color:#6c7a89; font-size:.9rem; }
+  .said { background:#f5f8fa; border-radius:12px; padding:12px 14px; margin:12px 0; line-height:1.8; }
+  .fb-note { text-align:center; color:#8593a0; font-size:.8rem; margin-top:14px; }
+  @media (prefers-color-scheme: dark) {
+    body { background:#0f151c; color:#e6edf3; }
+    .fb { background:#171e28; box-shadow:0 14px 44px rgba(0,0,0,.5); }
+    textarea, .fb-input { background:#0f151c; border-color:#2b3644; color:#e6edf3; }
+    .chips label { border-color:#2b3644; }
+    .chips label:has(input:checked) { background:#123a2a; }
+    .rate label { color:#3a4652; }
+    .said { background:#0f151c; }
+    .ro-row { border-color:#232d39; }
+    .thanks { color:#c4cfda; }
+  }
+</style>

@@ -157,4 +157,10 @@ def raise_from_feedback(fb, lang="ar"):
         # A rating that arrives after somebody closed the thread re-opens it,
         # which is the same rule an inbound message already follows.
         conv.resolved_at = None
+    # And a numbered case beside the thread: the thread is where the family
+    # is talked to, the case is what was found, done and answered, and the
+    # number is what they are sent so they know it was written down.
+    from app.utils.complaint_cases import from_feedback
+    db.session.flush()
+    from_feedback(fb, lang)
     return row

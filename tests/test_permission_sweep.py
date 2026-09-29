@@ -40,6 +40,8 @@ BOGUS = 999999
 #   /login                              the way in
 #   /healthz                            the watchdog's check
 #   /f/<token>                          the rating link sent to a family
+#   /f/c/<token>, /f/c/new/<token>      a family's complaint: its verdict, and
+#                                       one written from a link we sent
 #   /prescriptions/copy/<token>         the copy a parent opens from WhatsApp
 #   /prescriptions/<id>/verify.svg      the QR a pharmacy scans
 #   /vaccinations/verify/<token>        the certificate check behind a QR
@@ -53,6 +55,15 @@ PUBLIC = {
     ("GET", "/healthz"),
     ("GET", "/f/<token>"),
     ("POST", "/f/<token>"),
+    # A family's complaint (``utils/complaint_cases``): their verdict on the
+    # answer they were sent, behind the case's own random token — and the
+    # complaint they write themselves from a link the clinic sent, behind a
+    # signed, expiring token naming the child. Neither shows or accepts
+    # anything without its token.
+    ("GET", "/f/c/<token>"),
+    ("POST", "/f/c/<token>"),
+    ("GET", "/f/c/new/<token>"),
+    ("POST", "/f/c/new/<token>"),
     ("GET", "/prescriptions/copy/<token>"),
     ("GET", "/prescriptions/<int:rx_id>/verify.svg"),
     ("GET", "/vaccinations/verify/<token>"),

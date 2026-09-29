@@ -265,6 +265,13 @@ CAPABILITIES = [
     # and separating the two is granting this to one person rather than
     # rebuilding anything.
     "messages_setup",
+    # Handling complaints: contacting the family, finding out, answering and
+    # closing (``models/complaint``). **Not** taking one — anybody who works
+    # here may write down what a parent said and hand them a number; the case
+    # then goes to whoever holds this. Reception books all morning, and the
+    # desk that investigates a complaint is not the one that caused it.
+    # A small clinic where reception *is* customer service grants it to them.
+    "complaints_manage",
     # Writing a standing drug order for a child in a bed. **Not the same act
     # as giving one**, and the split is the oldest safety rule on a ward:
     # whoever holds the syringe is not the one who decided what is in it.

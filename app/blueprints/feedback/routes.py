@@ -86,3 +86,60 @@ def submit(token):
             current_app.logger.exception("could not raise complaint thread")
         db.session.commit()
     return redirect(url_for("feedback.rate", token=token))
+
+
+# ------------------------------------------------------------ complaints ---
+# Two public pages for the complaints book (``utils/complaint_cases``): the
+# family's verdict on the answer they were sent, and a complaint written by
+# the family themselves from a link the clinic sent them. Same rules as the
+# survey: an opaque token, no login, rate-limited, and a page that never
+# errors at a guardian because of something on the clinic's side.
+@feedback_bp.route("/c/<token>", methods=["GET", "POST"])
+@limit("survey", SURVEY_PER_MINUTE, methods=("GET", "POST"))
+def case_verdict(token):
+    from app.models import Complaint
+    from app.utils import complaint_cases as cases
+
+    lang = getattr(g, "lang", "ar")
+    case = Complaint.query.filter_by(token=token).first()
+    if case is None:
+        return render_template("feedback/case_verdict.html", case=None,
+                               clinic=_clinic_name(lang)), 404
+    if request.method == "POST":
+        stars = _clamp(request.form.get("stars"), 1, 5)
+        if stars is not None and cases.rate(case, stars,
+                                            request.form.get("comment")):
+            db.session.commit()
+        return redirect(url_for("feedback.case_verdict", token=token))
+    return render_template("feedback/case_verdict.html", case=case,
+                           clinic=_clinic_name(lang),
+                           can_rate=(case.rated_at is None
+                                     and case.status in ("answered", "closed")))
+
+
+@feedback_bp.route("/c/new/<token>", methods=["GET", "POST"])
+@limit("survey", SURVEY_PER_MINUTE, methods=("GET", "POST"))
+def case_new(token):
+    from app.models import Patient
+    from app.models.complaint import KINDS, SIDES
+    from app.utils import complaint_cases as cases
+
+    lang = getattr(g, "lang", "ar")
+    pid = cases.read_invite(token)
+    patient = db.session.get(Patient, pid) if pid else None
+    if patient is None:
+        return render_template("feedback/case_new.html", patient=None,
+                               clinic=_clinic_name(lang)), 404
+    if request.method == "POST":
+        try:
+            case = cases.open_case(
+                request.form.get("description"), kind=request.form.get("kind"),
+                channel="online", patient=patient, side=request.form.get("side"),
+                wanted=request.form.get("wanted"), lang=lang)
+        except ValueError:
+            return redirect(url_for("feedback.case_new", token=token))
+        db.session.commit()
+        return redirect(url_for("feedback.case_verdict", token=case.token))
+    return render_template("feedback/case_new.html", patient=patient,
+                           clinic=_clinic_name(lang), kinds=KINDS, sides=SIDES,
+                           hours=cases.first_contact_hours())

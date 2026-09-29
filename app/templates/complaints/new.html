@@ -1,0 +1,87 @@
+{% extends "shell.html" %}
+{% set active_module = 'complaints' %}
+{% block title %}{{ t('cmp.new_title') }}{% endblock %}
+{% block page_heading %}{{ t('cmp.new_title') }}{% endblock %}
+
+{# Written down by whoever heard it. Short on purpose: what they said, who
+   they are (or nobody), and what it is about. The handling is customer
+   service's, on the case page — not the desk's. #}
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-megaphone"></i> {{ t('cmp.new_title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:70ch;">{{ t('cmp.new_sub', hours=hours, days=days) }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('complaints.blank') }}" target="_blank"><i class="bi bi-printer"></i> {{ t('cmp.print_blank') }}</a>
+</div>
+
+<form method="post" action="{{ url_for('complaints.new') }}" class="card gc-scale-in" x-data="{ anon: false, kind: 'complaint' }" data-complaint-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if thread %}<input type="hidden" name="thread" value="{{ thread }}">{% endif %}
+
+  <div class="form-row">
+    <label>{{ t('cmp.kind') }}</label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      {% for k in kinds %}
+      <label class="chip-radio"><input type="radio" name="kind" value="{{ k }}" x-model="kind" {{ 'checked' if k == 'complaint' }}> {{ t('cmp.kind_' ~ k) }}</label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+    <div class="form-row"><label>{{ t('cmp.channel') }}</label>
+      <select class="input" name="channel">
+        {% for c in channels if c not in ('survey', 'online') %}
+        <option value="{{ c }}" {{ 'selected' if c == channel }}>{{ t('cmp.channel_' ~ c) }}</option>
+        {% endfor %}
+      </select></div>
+    <div class="form-row"><label>{{ t('cmp.side') }}</label>
+      <select class="input" name="side">
+        <option value="">—</option>
+        {% for s in sides %}<option value="{{ s }}">{{ t('cmp.side_' ~ s) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row"><label>{{ t('cmp.centre') }}</label>
+      <select class="input" name="cost_centre_id">
+        <option value="">—</option>
+        {% for c in centres %}<option value="{{ c.id }}">{{ c.display_name(current_lang) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row" x-show="kind === 'complaint'"><label>{{ t('cmp.severity') }}</label>
+      <select class="input" name="severity">
+        {% for s in severities %}<option value="{{ s }}">{{ t('cmp.sev_' ~ s) }}</option>{% endfor %}
+      </select></div>
+  </div>
+
+  <div class="form-row"><label>{{ t('cmp.description') }}</label>
+    <textarea class="input" name="description" rows="4" required maxlength="4000" placeholder="{{ t('cmp.description_ph') }}">{{ said }}</textarea></div>
+  <div class="form-row" x-show="kind !== 'compliment'"><label>{{ t('cmp.wanted') }}</label>
+    <input class="input" name="wanted" maxlength="2000" placeholder="{{ t('cmp.wanted_ph') }}"></div>
+
+  <h2 class="section-title">{{ t('cmp.who') }}</h2>
+  <label class="checkbox"><input type="checkbox" name="anonymous" value="1" x-model="anon"> {{ t('cmp.anonymous') }}</label>
+  <div x-show="!anon" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+    {% if patient %}
+    <input type="hidden" name="patient_id" value="{{ patient.id }}">
+    <div class="form-row"><label>{{ t('cmp.patient') }}</label>
+      <div class="input" style="background:var(--soft,#f4f7f8);" data-patient-chosen>{{ patient.display_name(current_lang) }} · <span class="num">{{ patient.patient_number }}</span></div></div>
+    {% else %}
+    <div class="form-row"><label>{{ t('cmp.file_number') }}</label>
+      <input class="input" name="patient_number" maxlength="40" dir="ltr"></div>
+    {% endif %}
+    <div class="form-row"><label>{{ t('cmp.contact_name') }}</label>
+      <input class="input" name="contact_name" maxlength="120"></div>
+    <div class="form-row"><label>{{ t('cmp.contact_phone') }}</label>
+      <input class="input" name="contact_phone" maxlength="30" dir="ltr" placeholder="{{ patient.contact_phone if patient and patient.contact_phone else '' }}"></div>
+  </div>
+  <p class="hint" x-show="anon">{{ t('cmp.anonymous_hint') }}</p>
+  <label class="checkbox" x-show="!anon && kind !== 'compliment'"><input type="checkbox" name="notify" value="1" checked> {{ t('cmp.notify') }}</label>
+
+  <div style="display:flex;gap:8px;margin-top:12px;">
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('cmp.save_number') }}</button>
+  </div>
+</form>
+
+<style>
+  .chip-radio { border:1px solid var(--line); border-radius:999px; padding:6px 14px; display:inline-flex; gap:6px; align-items:center; cursor:pointer; }
+  .chip-radio:has(input:checked) { border-color:var(--green-600,#12855f); background:var(--green-50,#e8f6ef); font-weight:600; }
+</style>
+{% endblock %}

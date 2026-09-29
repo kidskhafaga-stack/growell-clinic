@@ -127,6 +127,17 @@
         <span class="nav-tip">{{ t('nav.cashier') }}</span>
       </a>
       {% endif %}
+      {# The complaints book, for whoever handles complaints. Not a module:
+         every clinic has complaints, and GAHAR (PCC.16) does not let one
+         opt out of handling them. #}
+      {% if current_user.can('complaints_manage') %}
+      <a class="nav-item gc-press {{ 'active' if active_module == 'complaints' else '' }}"
+         href="{{ url_for('complaints.index') }}" data-nav-complaints>
+        <i class="bi bi-megaphone"></i>
+        <span>{{ t('cmp.nav') }}</span>
+        <span class="nav-tip">{{ t('cmp.nav') }}</span>
+      </a>
+      {% endif %}
       <a class="nav-item gc-press {{ 'active' if active_module == 'guide' else '' }}"
          href="{{ url_for('main.guide') }}">
         <i class="bi bi-life-preserver"></i>
@@ -172,6 +183,10 @@
            style="background:#fff7ed;border:1px solid #fdba74;color:#9a3412;display:inline-flex;align-items:center;gap:6px;">
           <i class="bi bi-hourglass-split"></i> <span class="topbar__label">{{ t('shifts.quick_close') }}</span></a>
         {% endif %}
+
+        {# «سجّل شكوى» from any screen: whoever hears it writes it down. #}
+        <a class="theme-toggle" href="{{ url_for('complaints.new') }}" data-topbar-complaint
+           title="{{ t('cmp.register_btn') }}" aria-label="{{ t('cmp.register_btn') }}"><i class="bi bi-megaphone"></i></a>
 
         <div class="notif-wrap" x-data="{ open: false }" x-on:keydown.escape.window="open=false">
           <button type="button" class="theme-toggle" x-on:click="open=!open"
