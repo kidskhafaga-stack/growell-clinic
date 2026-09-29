@@ -101,7 +101,7 @@
       </form>
       {% if not r.builtin %}
       <form method="post" action="{{ url_for('messages.survey_question_delete', qid=r.id) }}" style="margin-top:8px;"
-            onsubmit="return confirm({{ t('survey.delete_confirm')|tojson }});">
+            onsubmit="return confirm({{ t('survey.delete_confirm')|tojson|forceescape }});">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-outline btn-sm gc-press" type="submit" style="color:var(--danger);"><i class="bi bi-trash"></i> {{ t('common.delete') }}</button>
       </form>
