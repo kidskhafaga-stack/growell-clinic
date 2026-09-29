@@ -1,0 +1,310 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('board_cs.title') }}{% endblock %}
+{% block page_heading %}{{ t('board_cs.title') }}{% endblock %}
+
+{# The customer-service board. Every number on it links to the families
+   behind it; a unit or a doctor with too few answers to judge is shown
+   without a colour or an average — two unhappy families are not a verdict. #}
+
+{% set q = {'from': start.isoformat(), 'to': last.isoformat()} %}
+{% if centre_id %}{% set _ = q.update({'centre': centre_id}) %}{% endif %}
+
+{% macro pill(value, judged=True) -%}
+  {%- set c = colour(value, judged) -%}
+  <span class="csb-pill csb-{{ c }} num">{{ '%.1f'|format(value) if value is not none else '—' }}</span>
+{%- endmacro %}
+
+{% macro delta(d, unit='', good_up=True) -%}
+  {%- if d is none -%}<span class="csb-d flat">—</span>
+  {%- elif d == 0 -%}<span class="csb-d flat">{{ t('board_cs.same') }}</span>
+  {%- else -%}
+    {%- set good = (d > 0) if good_up else (d < 0) -%}
+    <span class="csb-d {{ 'up' if good else 'down' }}"><span class="num">{{ '▲' if d > 0 else '▼' }} {{ d|abs }}{{ unit }}</span> {{ t('board_cs.vs_before') }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-emoji-smile"></i> {{ t('board_cs.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:70ch;">{{ t('board_cs.sub') }}</p>
+  </div>
+  <div class="csb-tabs" role="tablist">
+    <a role="tab" aria-selected="{{ 'true' if tab == 'all' else 'false' }}" href="{{ url_for('messages.satisfaction', tab='all', **q) }}">{{ t('board_cs.tab_all') }}</a>
+    <a role="tab" aria-selected="{{ 'true' if tab == 'units' else 'false' }}" href="{{ url_for('messages.satisfaction', tab='units', **q) }}">{{ t('board_cs.tab_units') }}</a>
+    {% if can_complaints %}
+    <a role="tab" aria-selected="{{ 'true' if tab == 'complaints' else 'false' }}" href="{{ url_for('messages.satisfaction', tab='complaints', **q) }}" data-tab-complaints>{{ t('board_cs.tab_complaints') }}
+      {% if open_complaints %}<span class="csb-badge num">{{ open_complaints }}</span>{% endif %}</a>
+    {% endif %}
+  </div>
+</div>
+
+<form method="get" class="card gc-scale-in csb-bar">
+  <input type="hidden" name="tab" value="{{ tab }}">
+  <label>{{ t('board_cs.from') }} <input class="input" type="date" name="from" value="{{ start.isoformat() }}"></label>
+  <label>{{ t('board_cs.to') }} <input class="input" type="date" name="to" value="{{ last.isoformat() }}"></label>
+  <label>{{ t('board_cs.unit') }}
+    <select class="input" name="centre">
+      <option value="">{{ t('board_cs.all_units') }}</option>
+      {% for c in centres %}<option value="{{ c.id }}" {{ 'selected' if centre_id == c.id }}>{{ c.display_name(current_lang) }}</option>{% endfor %}
+    </select></label>
+  <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('board_cs.show') }}</button>
+  <span style="flex:1;"></span>
+  <span class="hint" style="margin:0;">{{ t('board_cs.compared') }} <bdi class="num" dir="ltr">{{ prev[0].isoformat() }} – {{ prev[1].isoformat() }}</bdi></span>
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.satisfaction_answers', format='csv', **q) }}"><i class="bi bi-download"></i> CSV</a>
+  {% if current_user.is_admin %}<a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.survey_builder') }}"><i class="bi bi-ui-checks"></i> {{ t('survey.title') }}</a>{% endif %}
+</form>
+
+{% if tab == 'all' %}
+{# ============================== overall ============================== #}
+<div class="csb-kpis gc-scale-in" data-board-kpis>
+  <a class="csb-kpi" href="{{ url_for('messages.satisfaction_answers', **q) }}">
+    <span class="l">{{ t('board_cs.answered') }}</span>
+    <span class="v num">{{ o.answered }} <small>{{ t('board_cs.of_sent', n=o.sent) }}{% if o.rate is not none %} · {{ o.rate }}%{% endif %}</small></span>
+    {{ delta(o.delta.rate, '%') }}</a>
+  {% for side in ('medical', 'service', 'finance') %}
+  <a class="csb-kpi csb-{{ side }}" href="{{ url_for('messages.satisfaction_answers', side=side, low=1, **q) }}" data-kpi="{{ side }}">
+    <span class="l">{{ t('board_cs.' ~ side) }}</span>
+    <span class="v num">{{ '%.1f'|format(o[side]) if o[side] is not none else '—' }} <small>{{ t('board_cs.of_5') }}</small></span>
+    {{ delta(o.delta[side]) }}</a>
+  {% endfor %}
+  <div class="csb-kpi">
+    <span class="l">{{ t('board_cs.nps') }}</span>
+    <span class="v num"><bdi dir="ltr">{{ (('+' if o.nps > 0 else '') ~ o.nps) if o.nps is not none else '—' }}</bdi></span>
+    {{ delta(o.delta.nps) }}</div>
+  {% if can_complaints %}
+  <a class="csb-kpi csb-alert" href="{{ url_for('messages.satisfaction', tab='complaints', **q) }}">
+    <span class="l">{{ t('board_cs.complaints') }}</span>
+    <span class="v num">{{ o.complaints }}</span>
+    {{ delta(o.delta.complaints, '', False) }}</a>
+  {% endif %}
+  <div class="csb-kpi csb-alert">
+    <span class="l">{{ t('board_cs.left') }}</span>
+    <span class="v num">{{ o.left }}</span></div>
+</div>
+
+<div class="csb-grid">
+  <div class="card gc-scale-in">
+    <h2 class="section-title" style="margin-top:0;">{{ t('board_cs.trend') }} <small class="hint">{{ t('board_cs.trend_hint') }}</small></h2>
+    <div class="csb-legend"><span><i style="background:var(--csb-med)"></i>{{ t('board_cs.medical') }}</span><span><i style="background:var(--csb-svc)"></i>{{ t('board_cs.service') }}</span><span><i style="background:var(--csb-fin)"></i>{{ t('board_cs.finance') }}</span></div>
+    {% set W, H, L, R, T, B = 560, 210, 34, 24, 10, 26 %}
+    {% set n = trend|length %}
+    {% if n and trend|sum(attribute='count') %}
+    <svg viewBox="0 0 {{ W }} {{ H }}" width="100%" role="img" aria-label="{{ t('board_cs.trend') }}" style="direction:ltr;" data-trend>
+      {% for v in [1, 2, 3, 4, 5] %}
+        {% set y = T + (5 - v) * (H - T - B) / 4 %}
+        <line x1="{{ L }}" x2="{{ W - R }}" y1="{{ y }}" y2="{{ y }}" stroke="var(--line)"/>
+        <text x="{{ L - 8 }}" y="{{ y + 4 }}" text-anchor="end">{{ v }}</text>
+      {% endfor %}
+      {% for w in trend %}
+        {% set x = L + (loop.index0 * (W - L - R) / ((n - 1) if n > 1 else 1)) %}
+        {% if loop.index0 % ((n // 7) + 1) == 0 %}<text x="{{ x }}" y="{{ H - 6 }}" text-anchor="middle">{{ w.start.strftime('%d/%m') }}</text>{% endif %}
+      {% endfor %}
+      {% for side, var in (('medical', '--csb-med'), ('service', '--csb-svc'), ('finance', '--csb-fin')) %}
+        {% set pts = [] %}
+        {% for w in trend %}{% if w[side] is not none %}
+          {% set _ = pts.append((L + (loop.index0 * (W - L - R) / ((n - 1) if n > 1 else 1)))|round(1) ~ ',' ~ (T + (5 - w[side]) * (H - T - B) / 4)|round(1)) %}
+        {% endif %}{% endfor %}
+        {% if pts|length > 1 %}<polyline points="{{ pts|join(' ') }}" fill="none" stroke="var({{ var }})" stroke-width="2.4" stroke-linejoin="round"/>{% endif %}
+        {% for p in pts %}<circle cx="{{ p.split(',')[0] }}" cy="{{ p.split(',')[1] }}" r="{{ 4 if loop.last else 2.5 }}" fill="var({{ var }})"/>{% endfor %}
+      {% endfor %}
+    </svg>
+    {% else %}<div class="empty-state"><i class="bi bi-graph-up"></i> {{ t('board_cs.no_answers') }}</div>{% endif %}
+  </div>
+
+  <div class="card gc-scale-in">
+    <h2 class="section-title" style="margin-top:0;">{{ t('board_cs.bothered') }}</h2>
+    {% if concerns %}
+    {% set top = concerns[0][3] %}
+    <div class="csb-bars">
+      {% for side, dim, key, count in concerns %}
+      <a class="csb-bar-row" href="{{ url_for('messages.satisfaction_answers', concern=dim ~ ':' ~ key, **q) }}">
+        <span>{{ t('feedback.c_' ~ key) }} <span class="csb-tag csb-t-{{ side }}">{{ t('board_cs.' ~ side) }}</span></span>
+        <span class="csb-track"><span class="csb-fill csb-f-{{ side }}" style="width:{{ [3, count * 100 / top]|max }}%"></span></span>
+        <span class="num">{{ count }}</span></a>
+      {% endfor %}
+    </div>
+    {% else %}<div class="empty-state"><i class="bi bi-emoji-smile"></i> {{ t('board_cs.nothing_bothered') }}</div>{% endif %}
+  </div>
+</div>
+
+<div class="csb-grid">
+  <div class="card gc-scale-in">
+    <h2 class="section-title" style="margin-top:0;">{{ t('board_cs.left_why') }}</h2>
+    {% if left %}
+    {% set top = left[0][1] %}
+    <div class="csb-bars" data-left-reasons>
+      {% for key, count in left %}
+      <div class="csb-bar-row">
+        <span>{{ leave_label(key, current_lang) if key else t('board_cs.not_recorded') }}</span>
+        <span class="csb-track"><span class="csb-fill" style="background:var(--danger);width:{{ [3, count * 100 / top]|max }}%"></span></span>
+        <span class="num">{{ count }}</span></div>
+      {% endfor %}
+    </div>
+    {% else %}<div class="empty-state"><i class="bi bi-door-open"></i> {{ t('board_cs.none_left') }}</div>{% endif %}
+  </div>
+  <div class="card gc-scale-in">
+    <h2 class="section-title" style="margin-top:0;">{{ t('board_cs.comments') }}</h2>
+    {% if comments %}
+    <div style="display:grid;gap:8px;">
+      {% for c in comments %}
+      {% set low = [c.doctor_rating or 5, c.service_rating or 5, c.finance_rating or 5]|min <= 2 %}
+      <div class="csb-comment {{ 'low' if low }}">
+        <div class="hint" style="margin:0;display:flex;gap:8px;flex-wrap:wrap;">
+          <strong>{{ c.patient.display_name(current_lang) if c.patient else t('sat.anon') }}</strong>
+          <span>{{ c.cost_centre.display_name(current_lang) if c.cost_centre else t('board_cs.outpatient') }}</span>
+          <span class="num">{{ c.submitted_at.strftime('%Y-%m-%d') if c.submitted_at }}</span>
+          <span>{{ t('board_cs.medical') }} <span class="num">{{ c.doctor_rating or '—' }}</span> · {{ t('board_cs.service') }} <span class="num">{{ c.service_rating or '—' }}</span> · {{ t('board_cs.finance') }} <span class="num">{{ c.finance_rating or '—' }}</span></span>
+        </div>
+        <div dir="auto">{{ c.comment }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<div class="empty-state"><i class="bi bi-chat-dots"></i> {{ t('sat.no_comments') }}</div>{% endif %}
+  </div>
+</div>
+
+{% elif tab == 'units' %}
+{# ============================== per unit ============================== #}
+<div class="card gc-scale-in" style="padding:0;overflow-x:auto;margin-bottom:14px;">
+  <table class="table" data-units-table>
+    <thead><tr><th>{{ t('board_cs.unit') }}</th><th>{{ t('board_cs.answered') }}</th><th>{{ t('board_cs.rate') }}</th>
+      <th>{{ t('board_cs.medical') }}</th><th>{{ t('board_cs.service') }}</th><th>{{ t('board_cs.finance') }}</th>
+      <th>{{ t('board_cs.nps') }}</th>{% if can_complaints %}<th>{{ t('board_cs.complaints') }}</th>{% endif %}<th>{{ t('board_cs.left') }}</th><th>{{ t('board_cs.top') }}</th></tr></thead>
+    <tbody>
+      {% for u in units %}
+      <tr data-unit="{{ u.centre.key }}" data-judged="{{ '1' if u.judged else '0' }}">
+        <td><a href="{{ url_for('messages.satisfaction', tab='all', centre=u.centre.id, **{'from': q['from'], 'to': q['to']}) }}"><strong>{{ u.centre.display_name(current_lang) }}</strong></a></td>
+        <td class="num">{{ u.answered }}</td>
+        <td class="num">{{ (u.rate ~ '%') if u.rate is not none else '—' }}</td>
+        <td>{{ pill(u.medical, u.judged) }}</td><td>{{ pill(u.service, u.judged) }}</td><td>{{ pill(u.finance, u.judged) }}</td>
+        <td class="num"><bdi dir="ltr">{{ ((('+' if u.nps > 0 else '') ~ u.nps) if u.nps is not none else '—') if u.judged else '—' }}</bdi></td>
+        {% if can_complaints %}<td class="num">{{ u.complaints or '—' }}</td>{% endif %}
+        <td class="num">{{ u.left or '—' }}</td>
+        <td>{% if u.top %}{{ t('feedback.c_' ~ u.top.split(':')[1]) }}{% else %}—{% endif %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="10" class="hint">{{ t('board_cs.no_answers') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="hint" style="margin:10px 14px;">{{ t('board_cs.colours_hint', n=min_colour) }}</p>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow-x:auto;">
+  <h2 class="section-title" style="margin:14px 16px 4px;">{{ t('board_cs.doctors') }}</h2>
+  <table class="table" data-doctors-table>
+    <thead><tr><th>{{ t('board_cs.doctor') }}</th><th>{{ t('board_cs.answered') }}</th><th>{{ t('board_cs.medical') }}</th>
+      <th>{{ t('board_cs.not_explained') }}</th><th>{{ t('board_cs.low') }}</th></tr></thead>
+    <tbody>
+      {% for d in doctors %}
+      <tr data-doctor="{{ d.doctor.id }}">
+        <td><a href="{{ url_for('messages.satisfaction_answers', doctor=d.doctor.id, **q) }}"><strong>{{ d.doctor.display_name(current_lang) }}</strong></a></td>
+        <td class="num">{{ d.count }}</td>
+        <td>{% if d.judged %}{{ pill(d.medical) }}{% else %}<span class="hint" style="margin:0;">{{ t('board_cs.too_few', n=min_doctor) }}</span>{% endif %}</td>
+        <td class="num">{{ d.not_explained or '—' }}</td>
+        <td class="num">{{ d.low or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="hint">{{ t('board_cs.no_answers') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="hint" style="margin:10px 14px;">{{ t('board_cs.doctor_hint', n=min_doctor) }}</p>
+</div>
+
+{% else %}
+{# ============================== complaints ============================== #}
+{% set s = c.summary %}
+<div class="csb-kpis gc-scale-in" data-complaint-kpis>
+  <div class="csb-kpi csb-alert"><span class="l">{{ t('board_cs.c_total') }}</span><span class="v num">{{ s.total }}</span></div>
+  <a class="csb-kpi csb-alert" href="{{ url_for('complaints.index', view='open') }}"><span class="l">{{ t('cmp.stat_open') }}</span><span class="v num">{{ s.open }}</span></a>
+  <a class="csb-kpi csb-alert" href="{{ url_for('complaints.index', view='late') }}"><span class="l">{{ t('cmp.stat_late') }}</span><span class="v num">{{ s.late }}</span></a>
+  <div class="csb-kpi"><span class="l">{{ t('cmp.stat_first_contact') }}</span><span class="v num">{{ s.first_contact_hours if s.first_contact_hours is not none else '—' }} <small>{{ t('cmp.hours') if s.first_contact_hours is not none }}</small></span></div>
+  <div class="csb-kpi"><span class="l">{{ t('board_cs.c_close') }}</span><span class="v num">{{ s.close_hours if s.close_hours is not none else '—' }} <small>{{ t('cmp.hours') if s.close_hours is not none }}</small></span></div>
+  <div class="csb-kpi"><span class="l">{{ t('cmp.stat_in_time') }}</span><span class="v num">{{ (s.closed_in_time_pct ~ '%') if s.closed_in_time_pct is not none else '—' }}</span></div>
+  <div class="csb-kpi"><span class="l">{{ t('cmp.stat_verdict') }}</span><span class="v num">{{ s.resolution_avg if s.resolution_avg is not none else '—' }} {% if s.resolution_count %}<small>{{ t('cmp.of_5', n=s.resolution_count) }}</small>{% endif %}</span></div>
+</div>
+
+<div class="csb-grid">
+  <div class="card gc-scale-in" style="padding:0;overflow-x:auto;">
+    <h2 class="section-title" style="margin:14px 16px 4px;">{{ t('board_cs.c_open') }}</h2>
+    <table class="table" data-open-complaints>
+      <thead><tr><th>{{ t('board_cs.c_waiting') }}</th><th>{{ t('cmp.number') }}</th><th>{{ t('cmp.who_short') }}</th><th>{{ t('cmp.centre') }}</th><th>{{ t('cmp.channel') }}</th><th>{{ t('cmp.owner') }}</th></tr></thead>
+      <tbody>
+        {% for row in c.open %}{% set k = row.case %}
+        <tr onclick="location.href='{{ url_for('complaints.view', case_id=k.id) }}'" style="cursor:pointer;">
+          <td style="white-space:nowrap;{{ 'color:var(--danger);font-weight:700;' if row.late }}">
+            {% if row.hours < 24 %}{{ t('board_cs.hours_n', n=row.hours|int) }}{% else %}{{ t('board_cs.days_n', n=(row.hours // 24)|int) }}{% endif %}</td>
+          <td class="num" style="white-space:nowrap;"><a href="{{ url_for('complaints.view', case_id=k.id) }}">{{ k.number }}</a></td>
+          <td style="white-space:nowrap;">{{ k.who(current_lang) or t('cmp.anonymous_short') }}</td>
+          <td>{{ k.cost_centre.display_name(current_lang) if k.cost_centre else '—' }}</td>
+          <td style="white-space:nowrap;">{{ t('cmp.channel_' ~ k.channel) }}</td>
+          <td>{% if k.owner %}{{ k.owner.display_name(current_lang) }}{% else %}<span class="csb-pill csb-fair">{{ t('board_cs.nobody') }}</span>{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="hint">{{ t('board_cs.c_none_open') }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card gc-scale-in">
+    <h2 class="section-title" style="margin-top:0;">{{ t('board_cs.c_from') }}</h2>
+    {% if c.by_channel %}{% set top = c.by_channel[0][1] %}
+    <div class="csb-bars">{% for ch, count in c.by_channel %}
+      <div class="csb-bar-row"><span>{{ t('cmp.channel_' ~ ch) }}</span><span class="csb-track"><span class="csb-fill" style="background:var(--csb-svc);width:{{ [3, count * 100 / top]|max }}%"></span></span><span class="num">{{ count }}</span></div>
+    {% endfor %}</div>{% else %}<p class="hint">—</p>{% endif %}
+    <h2 class="section-title" style="margin-top:16px;">{{ t('board_cs.c_units') }}</h2>
+    {% if c.by_centre %}{% set top = c.by_centre[0][1] %}
+    <div class="csb-bars">{% for centre, count in c.by_centre %}
+      <div class="csb-bar-row"><span>{{ centre.display_name(current_lang) if centre else t('board_cs.not_recorded') }}</span><span class="csb-track"><span class="csb-fill" style="background:var(--danger);width:{{ [3, count * 100 / top]|max }}%"></span></span><span class="num">{{ count }}</span></div>
+    {% endfor %}</div>{% else %}<p class="hint">—</p>{% endif %}
+    <h2 class="section-title" style="margin-top:16px;">{{ t('board_cs.c_sides') }}</h2>
+    {% if c.by_side %}{% set top = c.by_side[0][1] %}
+    <div class="csb-bars">{% for side, count in c.by_side %}
+      <div class="csb-bar-row"><span>{{ t('cmp.side_' ~ side) if side else t('board_cs.not_recorded') }}</span><span class="csb-track"><span class="csb-fill" style="background:var(--csb-fin);width:{{ [3, count * 100 / top]|max }}%"></span></span><span class="num">{{ count }}</span></div>
+    {% endfor %}</div>{% else %}<p class="hint">—</p>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+<style>
+  :root { --csb-med:#3b82c4; --csb-svc:#0f9aa8; --csb-fin:#c47a16; }
+  .csb-tabs { display:flex; gap:4px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:4px; flex-wrap:wrap; }
+  .csb-tabs a { padding:7px 14px; border-radius:9px; font-weight:600; color:var(--muted); text-decoration:none; }
+  .csb-tabs a[aria-selected="true"] { background:var(--green-700,#0b6f7a); color:#fff; }
+  .csb-badge { display:inline-block; min-width:20px; padding:0 6px; border-radius:999px; background:var(--danger); color:#fff; font-size:.72rem; margin-inline-start:4px; }
+  .csb-bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .csb-bar label { display:flex; gap:6px; align-items:center; font-size:.85rem; color:var(--muted); }
+  .csb-bar .input { width:auto; }
+  .csb-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(122px,1fr)); gap:10px; margin-bottom:14px; }
+  .csb-kpi { background:var(--card); border:1px solid var(--line); border-top:3px solid var(--line); border-radius:14px; padding:12px 14px; display:grid; gap:3px; color:inherit; text-decoration:none; }
+  a.csb-kpi:hover { border-color:var(--green-500); }
+  .csb-kpi .l { font-size:.8rem; color:var(--muted); }
+  .csb-kpi .v { font-size:1.4rem; font-weight:700; line-height:1.2; }
+  .csb-kpi .v small { font-size:.78rem; color:var(--muted); font-weight:500; }
+  .csb-kpi.csb-medical { border-top-color:var(--csb-med); } .csb-kpi.csb-service { border-top-color:var(--csb-svc); }
+  .csb-kpi.csb-finance { border-top-color:var(--csb-fin); } .csb-kpi.csb-alert { border-top-color:var(--danger); }
+  .csb-d { font-size:.76rem; } .csb-d.up { color:var(--green-700,#1e8a55); } .csb-d.down { color:var(--danger); } .csb-d.flat { color:var(--muted); }
+  .csb-grid { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:14px; margin-bottom:14px; }
+  @media (max-width:900px) { .csb-grid { grid-template-columns:1fr; } }
+  .csb-legend { display:flex; gap:12px; font-size:.8rem; color:var(--muted); flex-wrap:wrap; }
+  .csb-legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-inline-end:4px; vertical-align:middle; }
+  svg[data-trend] text { fill:var(--muted); font-size:11px; }
+  .csb-bars { display:grid; gap:6px; }
+  .csb-bar-row { display:grid; grid-template-columns:minmax(110px,180px) 1fr 40px; gap:8px; align-items:center; font-size:.86rem; color:inherit; text-decoration:none; }
+  .csb-track { height:13px; background:var(--green-050,#eef5f6); border-radius:999px; overflow:hidden; }
+  .csb-fill { display:block; height:100%; border-radius:999px; }
+  .csb-f-medical { background:var(--csb-med); } .csb-f-service { background:var(--csb-svc); } .csb-f-finance { background:var(--csb-fin); }
+  .csb-tag { font-size:.68rem; border-radius:999px; padding:0 6px; border:1px solid var(--line); color:var(--muted); }
+  .csb-pill { display:inline-block; border-radius:999px; padding:1px 9px; font-size:.82rem; }
+  .csb-good { background:#dcf1e5; color:#1e7a4b; } .csb-fair { background:#f7ecd6; color:#96620f; } .csb-poor { background:#f8e0de; color:#b0332d; } .csb-none { color:var(--muted); }
+  .csb-comment { border:1px solid var(--line); border-radius:12px; padding:9px 12px; display:grid; gap:3px; }
+  .csb-comment.low { border-inline-start:3px solid var(--danger); }
+  :root[data-theme="dark"] .csb-good { background:#173a2a; color:#4cc288; }
+  :root[data-theme="dark"] .csb-fair { background:#3f3119; color:#e3a94a; }
+  :root[data-theme="dark"] .csb-poor { background:#442221; color:#ef7a73; }
+</style>
+{% endblock %}

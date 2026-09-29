@@ -259,6 +259,12 @@ ADDITIONS = [
     ("prescription_items", "query_note", "VARCHAR(255)"),
     ("prescription_items", "queried_at", "DATETIME"),
     ("prescription_items", "queried_by", "INTEGER"),
+    ("prescription_items", "form", "VARCHAR(20)"),
+    ("prescription_items", "strength", "VARCHAR(60)"),
+    ("prescription_items", "route", "VARCHAR(20)"),
+    ("prescription_items", "prn_reason", "VARCHAR(160)"),
+    ("prescription_items", "prn_min_hours", "INTEGER"),
+    ("prescription_items", "prn_max_per_day", "INTEGER"),
     # The clinical pharmacist's question on a ward order, and the doctor's
     # answer to it. Nullable: an order written before the ward pharmacy
     # existed was never asked about, which is not the same as being approved.
