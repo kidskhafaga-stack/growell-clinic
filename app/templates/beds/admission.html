@@ -1,5 +1,6 @@
 {% extends "shell.html" %}
 {% import "_pickers.html" as pickers with context %}
+{% import "labs/_values.html" as lab_values with context %}
 {% set active_module = 'beds' %}
 {% block title %}{{ t('beds.stay') }} — {{ admission.patient.display_name(current_lang) }}{% endblock %}
 {% block page_heading %}{{ t('beds.stay') }}{% endblock %}
@@ -1273,12 +1274,15 @@
       <span class="badge badge--green" data-test-state="resulted">{{ t('stay_tests.resulted') }}</span>
       {% if x.result_value is not none %}<span class="num" dir="ltr">{{ x.result_value }}{% if x.result_unit %} {{ x.result_unit }}{% endif %}</span>
       {% elif x.result_text %}<span style="color:var(--muted);">{{ x.result_text|truncate(80) }}</span>{% endif %}
+      {% if x.critical_at and not x.critical_seen_at %}<span class="badge badge--danger" data-test-critical><i class="bi bi-exclamation-octagon"></i> {{ t('lab_result.critical_unread_short') }}</span>
+      {% elif x.abnormal_count %}<span class="badge badge--warn" data-test-abnormal>{{ t('lab_result.abnormal_n', n=x.abnormal_count) }}</span>{% endif %}
       {% elif x.status == 'collected' %}
       <span class="badge badge--warn" data-test-state="collected">{{ t('beds.map_st_collected') }}</span>
       {% else %}
       <span class="badge badge--warn" data-test-state="requested">{{ t('beds.map_st_requested') }}</span>
       {% endif %}
       <span class="hint" dir="ltr" style="margin:0;">{{ x.created_at|clinic_stamp }}</span>
+      {% if x.analytes_resulted %}<div style="flex:1 1 100%;min-width:0;">{{ lab_values.table(x) }}</div>{% endif %}
     </li>
     {% endfor %}
   </ul>

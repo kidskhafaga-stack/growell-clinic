@@ -397,6 +397,25 @@ def get_notifications(user):
                         "kwargs": {}})
     except Exception:  # noqa: BLE001 — the bell never breaks a page
         pass
+    # **A critical lab value nobody has read**, for the doctors it is for —
+    # whoever ordered it, the child's doctor, the stay's responsible doctor
+    # and whoever the rota has on now. Per person for the same reason as the
+    # refunds above, and never dismissed from here: it goes when a doctor
+    # says they have read it, on the order itself.
+    try:
+        from app.utils.facility import module_enabled
+
+        if module_enabled("labs") and user.can_access("labs"):
+            from app.utils.lab_results import critical_for
+
+            critical = critical_for(user)
+            if critical:
+                out.insert(0, {"key": "lab_critical", "module": "labs",
+                               "icon": "exclamation-octagon",
+                               "severity": "danger", "count": len(critical),
+                               "endpoint": "labs.critical", "kwargs": {}})
+    except Exception:  # noqa: BLE001 — the bell never breaks a page
+        pass
     for it in _all():
         if not user.can_access(it["module"]):
             continue

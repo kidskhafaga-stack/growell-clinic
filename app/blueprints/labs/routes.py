@@ -30,6 +30,7 @@ from app.models import Investigation, VisitInvestigation
 # every investigation the clinic offers and `add_test` creates either.
 # What stopped being two kinds is the *rack* — see `index`.
 from app.models.prescription import INVESTIGATION_KINDS
+from app.utils import lab_results
 from app.utils import labs as bench
 from app.utils.decorators import module_required
 
@@ -67,6 +68,8 @@ def index():
                            diagnostic_open=sum(
                                bench.counts(bench.DIAGNOSTIC).values()),
                            now=datetime.utcnow(),
+                           late=lab_results.late,
+                           critical_open=len(lab_results.all_waiting()),
                            may_build=current_user.is_admin)
 
 
@@ -75,7 +78,15 @@ def index():
 def order(order_id):
     """One order: what was asked for, where it is, and the box for the answer."""
     row = db.get_or_404(VisitInvestigation, order_id)
+    # A test the laboratory has broken into what it measures is answered
+    # line by line, each against this child's range; one it has not is
+    # answered the way it always was.
+    lines = lab_results.sheet(row) if lab_results.measured(row) else None
     return render_template("labs/order.html", order=row, bench=bench,
+                           lines=lines, late=lab_results.late(row),
+                           age_days=lab_results.age_days(
+                               row.patient, row.collected_at or row.created_at),
+                           may_read=lab_results.reads_results(current_user),
                            waited=bench.waiting_minutes(row))
 
 
@@ -103,6 +114,8 @@ def collect(order_id):
 def result(order_id):
     """The answer, written on the order it answers."""
     row = db.get_or_404(VisitInvestigation, order_id)
+    if lab_results.measured(row):
+        return _result_by_analyte(row)
     bench.record(row,
                  value=_number(request.form.get("result_value")),
                  unit=request.form.get("result_unit"),
@@ -113,6 +126,72 @@ def result(order_id):
     db.session.commit()
     flash(t("lab.resulted") if row.status == bench.RESULTED
           else t("lab.result_cleared"), "success")
+    return redirect(url_for("labs.order", order_id=row.id))
+
+
+def _result_by_analyte(row):
+    """The answer as the laboratory prints it: one value per analyte."""
+    from app.models import ActivityLog
+
+    entries = {}
+    for key, raw in request.form.items():
+        if key.startswith("a_") and key[2:].isdigit():
+            entries[int(key[2:])] = raw
+    was_critical = row.critical_at is not None
+    critical = lab_results.save(row, entries, user=current_user,
+                                text=request.form.get("result_text") or "")
+    if critical and not was_critical:
+        # Kept in the log as well as on the order: a critical value that was
+        # later corrected leaves the order clean, and the log is where «was
+        # anybody told» is still answerable.
+        ActivityLog.record(
+            "lab.critical", user_id=current_user.id,
+            entity="visit_investigation", entity_id=row.id,
+            detail=json.dumps([{"analyte": v.analyte.name, "value": v.shown(),
+                                "flag": v.flag} for v in critical],
+                              ensure_ascii=False))
+    db.session.commit()
+    if critical:
+        flash(t("lab_result.critical_saved", n=len(critical)), "warning")
+    else:
+        flash(t("lab.resulted") if row.status == bench.RESULTED
+              else t("lab.result_cleared"), "success")
+    return redirect(url_for("labs.order", order_id=row.id))
+
+
+@labs_bp.route("/critical")
+@module_required(MODULE)
+def critical():
+    """Critical values nobody has read yet — the lab's list to chase, and a
+    doctor's own at the top."""
+    rows = lab_results.all_waiting()
+    mine = set(lab_results.critical_for(current_user))
+    rows.sort(key=lambda r: (r.id not in mine, r.critical_at))
+    return render_template("labs/critical.html", rows=rows, mine=mine,
+                           beds=bench.beds_of(rows), now=datetime.utcnow(),
+                           may_read=lab_results.reads_results(current_user))
+
+
+@labs_bp.route("/order/<int:order_id>/critical-read", methods=["POST"])
+@module_required(MODULE)
+def critical_read(order_id):
+    """A doctor has read the critical value on this order."""
+    from app.models import ActivityLog
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    try:
+        lab_results.mark_read(row, current_user)
+    except PermissionError:
+        abort(403, description=t("lab_result.only_a_doctor"))
+    except ValueError:
+        flash(t("lab_result.nothing_critical"), "error")
+        return redirect(url_for("labs.order", order_id=row.id))
+    ActivityLog.record("lab.critical_read", user_id=current_user.id,
+                       entity="visit_investigation", entity_id=row.id)
+    db.session.commit()
+    flash(t("lab_result.read_saved"), "success")
+    if request.form.get("back") == "list":
+        return redirect(url_for("labs.critical"))
     return redirect(url_for("labs.order", order_id=row.id))
 
 

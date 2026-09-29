@@ -310,7 +310,14 @@ def record(row, value=None, unit=None, low=None, high=None, text=None,
         row.result_text = (text or "").strip() or None
     if comment is not None:
         row.result_comment = (comment or "").strip() or None
+    return settle(row, user=user, at=at)
 
+
+def settle(row, user=None, at=None):
+    """Move the order to where its answer says it is — answered, or back to
+    where the sample is. Shared by `record` and by the analyte-by-analyte
+    result (`utils/lab_results.save`), so the two cannot disagree about when
+    an order is finished."""
     if row.has_result:
         row.status = RESULTED
         row.resulted_at = at or datetime.utcnow()

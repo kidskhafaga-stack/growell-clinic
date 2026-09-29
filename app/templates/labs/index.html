@@ -17,6 +17,7 @@
   .lb-row__who { min-width:190px; flex:1; }
   .lb-name { font-weight:600; }
   .lb-waited { font-variant-numeric: tabular-nums; }
+  .lb-critical { border-color:var(--danger); color:var(--danger); }
 </style>
 
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
@@ -37,6 +38,12 @@
       {{ t('lab.to_run', n=counts.to_run) }}</a>
     <a class="btn btn-outline gc-press{{ ' btn-primary' if not state else '' }}"
        href="{{ url_for('labs.index') }}">{{ t('lab.everything') }}</a>
+    {# Critical values nobody has read yet: the one list the lab chases by
+       telephone. Always here, so an empty one is seen to be empty. #}
+    <a class="btn btn-outline gc-press{{ ' lb-critical' if critical_open else '' }}"
+       data-to-critical href="{{ url_for('labs.critical') }}">
+      <i class="bi bi-exclamation-octagon"></i> {{ t('lab_result.critical_title') }}
+      {% if critical_open %}<span class="badge badge--danger">{{ critical_open }}</span>{% endif %}</a>
     {# The scans' door. **This is the screen's own nav entry**: imaging shares
        the `labs` module rather than bringing an opt-in one of its own — a new
        module ships *off*, and every clinic already running would have lost
@@ -95,6 +102,12 @@
        for, and it is on the row rather than in a tooltip. #}
     <span class="hint lb-waited" dir="ltr" data-waited>
       {{ t('lab.waiting_n', n=bench.waiting_minutes(row, now)) }}</span>
+    {# Past the time the laboratory says this test takes, counted from the
+       sample. Only when the laboratory has said: no figure, no judgement. #}
+    {% if late(row, now) %}
+    <span class="alert-pill danger" data-late>
+      <i class="bi bi-alarm"></i> {{ t('lab_result.late') }}</span>
+    {% endif %}
 
     <a class="btn btn-sm btn-outline gc-press"
        href="{{ url_for('labs.order', order_id=row.id) }}">

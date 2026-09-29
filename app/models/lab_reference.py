@@ -144,3 +144,81 @@ class LabRange(db.Model):
 
     def __repr__(self):
         return f"<LabRange {self.analyte_id} {self.age_label} {self.sex}>"
+
+
+#: What a value was called against its range. ``None`` — no flag — is its own
+#: answer: no approved range for this child, or a range that is a guideline
+#: and not a usual range. It is never "normal".
+FLAGS = ("normal", "low", "high", "critical_low", "critical_high")
+
+
+class LabResultValue(db.Model):
+    """One analyte's value on one order — «Hb 9.1 g/dL, low».
+
+    **The range it was read against is copied onto the row.** A range is
+    approved, replaced by a newer sheet, approved again; a result from March
+    must still say what it was called in March and against what, or last
+    spring's «normal» quietly turns into this autumn's «low» with nobody
+    having looked at the child again.
+    """
+    __tablename__ = "lab_result_values"
+    __table_args__ = (
+        db.UniqueConstraint("order_id", "analyte_id", name="uq_lab_result_value"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey("visit_investigations.id"),
+                         nullable=False, index=True)
+    analyte_id = db.Column(db.Integer, db.ForeignKey("lab_analytes.id"),
+                           nullable=False, index=True)
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+
+    # A number when it is one; the words when it is not — «Negative», «+++»,
+    # «No growth». Never both invented from each other.
+    value = db.Column(db.Float)
+    text = db.Column(db.String(120))
+    unit = db.Column(db.String(30))
+
+    # The range it was read against, as it stood that moment. ``range_id``
+    # says which row; the figures are copied because that row can change.
+    range_id = db.Column(db.Integer, db.ForeignKey("lab_ranges.id"))
+    range_approved = db.Column(db.Boolean, default=False, nullable=False)
+    ref_kind = db.Column(db.String(10))
+    ref_low = db.Column(db.Float)
+    ref_high = db.Column(db.Float)
+    crit_low = db.Column(db.Float)
+    crit_high = db.Column(db.Float)
+    ref_label = db.Column(db.String(60))
+    ref_note = db.Column(db.String(255))
+
+    flag = db.Column(db.String(14))
+
+    entered_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    entered_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+
+    order = db.relationship(
+        "VisitInvestigation", backref=db.backref(
+            "analyte_values", order_by="LabResultValue.sort_order",
+            cascade="all, delete-orphan"))
+    analyte = db.relationship("LabAnalyte")
+
+    @property
+    def has_value(self):
+        return self.value is not None or bool((self.text or "").strip())
+
+    @property
+    def abnormal(self):
+        return self.flag not in (None, "normal")
+
+    @property
+    def critical(self):
+        return self.flag in ("critical_low", "critical_high")
+
+    def shown(self):
+        """The value as the report prints it: the number, or the words."""
+        if self.value is None:
+            return self.text or ""
+        return f"{self.value:g}"
+
+    def __repr__(self):
+        return f"<LabResultValue {self.order_id}:{self.analyte_id} {self.shown()}>"
