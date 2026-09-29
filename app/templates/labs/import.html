@@ -1,0 +1,119 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_import.title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_import.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-file-earmark-spreadsheet"></i> {{ t('lab_import.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lab_import.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.tests') }}">
+    <i class="bi bi-list-check"></i> {{ t('lab.tests') }}</a>
+</div>
+
+{% if not plan %}
+{# The first step: a sheet. Nothing is written by this form — it is read and
+   shown, and only the next page's button writes. #}
+<div class="card gc-scale-in" data-lab-upload>
+  <form method="post" enctype="multipart/form-data" action="{{ url_for('labs.import_tests') }}"
+        style="display:grid;gap:12px;max-width:60ch;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <p class="hint" style="margin:0;">{{ t('lab_import.how') }}</p>
+    <input class="input" type="file" name="sheet" accept=".xlsx" required>
+    <p class="hint" style="margin:0;"><i class="bi bi-shield-check"></i> {{ t('lab_import.safe') }}</p>
+    <div><button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-eye"></i> {{ t('lab_import.read') }}</button></div>
+  </form>
+</div>
+{% else %}
+{# ------------------------------------------------------------- preview -- #}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-lab-preview>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-clipboard-data"></i> {{ t('lab_import.found') }}</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;">
+    <div class="card" style="padding:12px;margin:0;"><div class="hint" style="margin:0;">{{ t('lab_import.n_tests') }}</div><strong class="num" style="font-size:1.4rem;" data-n-tests>{{ plan.tests|length }}</strong></div>
+    <div class="card" style="padding:12px;margin:0;"><div class="hint" style="margin:0;">{{ t('lab_import.n_linked') }}</div><strong class="num" style="font-size:1.4rem;" data-n-auto>{{ found.auto|length }}</strong></div>
+    <div class="card" style="padding:12px;margin:0;"><div class="hint" style="margin:0;">{{ t('lab_import.n_new') }}</div><strong class="num" style="font-size:1.4rem;" data-n-new>{{ fresh }}</strong></div>
+    <div class="card" style="padding:12px;margin:0;"><div class="hint" style="margin:0;">{{ t('lab_import.n_analytes') }}</div><strong class="num" style="font-size:1.4rem;">{{ plan.analytes|length }}</strong></div>
+    <div class="card" style="padding:12px;margin:0;"><div class="hint" style="margin:0;">{{ t('lab_import.n_ranges') }}</div><strong class="num" style="font-size:1.4rem;" data-n-ranges>{{ n_ranges }}</strong></div>
+  </div>
+  <p class="hint" style="margin:10px 0 0;">{{ t('lab_import.sheets_read', names=plan.sheets|join(' · ')) }}</p>
+</div>
+
+{# What the laboratory still owes: said as counts, so an empty column is a
+   question on the page and not a silence. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-lab-missing>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-hourglass-split"></i> {{ t('lab_import.still_owed') }}</h2>
+  <ul style="margin:0;padding-inline-start:18px;display:grid;gap:4px;">
+    <li>{{ t('lab_import.draft_note', n=n_ranges, sourced=n_sourced) }}</li>
+    <li data-owed-critical>{{ t('lab_import.owed_critical', n=n_critical) }}</li>
+    <li data-owed-tat>{{ t('lab_import.owed_tat', n=n_tat, total=plan.tests|length) }}</li>
+    <li>{{ t('lab_import.owed_tube', n=n_tube, total=plan.tests|length) }}</li>
+    {% if n_parts_missing %}<li data-owed-parts>{{ t('lab_import.owed_parts', n=n_parts_missing) }}</li>{% endif %}
+  </ul>
+</div>
+
+{% if plan.problems %}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-lab-problems>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-exclamation-triangle"></i> {{ t('lab_import.problems', n=plan.problems|length) }}</h2>
+  <ul style="margin:0;padding-inline-start:18px;display:grid;gap:4px;">
+    {% for p in plan.problems %}
+    <li><span class="badge badge--warn">{{ t('lab_import.problem_' ~ p.what) }}</span>
+      <span dir="ltr">{{ p.detail }}</span> <span class="hint" style="margin:0;">({{ p.where }})</span></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('labs.import_apply', token=token) }}" data-lab-apply>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if found.questions %}
+  {# Our side asks: each of the clinic's tests that found no exact twin,
+     with the sheet's closest names. Linking keeps the clinic's name — a
+     doctor who orders «سكر صائم» keeps seeing «سكر صائم». #}
+  <div class="card gc-scale-in" style="margin-bottom:14px;" data-lab-questions>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-question-circle"></i> {{ t('lab_import.questions', n=found.questions|length) }}</h2>
+    <p class="hint" style="margin:0 0 10px;">{{ t('lab_import.questions_hint') }}</p>
+    <div style="display:grid;gap:8px;">
+      {% for q in found.questions %}
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;" data-question="{{ q.id }}">
+        <strong style="flex:1 1 220px;min-width:0;">{{ q.name_ar }}{% if q.name_en %} <span class="hint" dir="ltr" style="margin:0;">· {{ q.name_en }}</span>{% endif %}</strong>
+        <select class="select" name="q_{{ q.id }}" style="max-width:320px;" dir="ltr">
+          <option value="">{{ t('lab_import.keep_apart') }}</option>
+          {% for k, label in q.candidates %}
+          <option value="{{ k }}" {{ 'selected' if k == q.pick else '' }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <details class="card gc-scale-in" style="margin-bottom:14px;">
+    <summary style="cursor:pointer;font-weight:600;">{{ t('lab_import.auto_list', n=found.auto|length) }}</summary>
+    <ul style="margin:10px 0 0;padding-inline-start:18px;display:grid;gap:3px;">
+      {% for k, cid in found.auto.items() %}
+      <li><span dir="ltr">{{ tests_by_key[k].name_en or tests_by_key[k].label }}</span> → <strong>{{ ours[cid].name_ar }}</strong></li>
+      {% endfor %}
+    </ul>
+  </details>
+
+  <details class="card gc-scale-in" style="margin-bottom:14px;">
+    <summary style="cursor:pointer;font-weight:600;">{{ t('lab_import.new_by_category', n=fresh) }}</summary>
+    <ul style="margin:10px 0 0;padding-inline-start:18px;display:grid;gap:3px;">
+      {% for name, n in by_category %}<li><span dir="ltr">{{ name }}</span>: <span class="num">{{ n }}</span></li>{% endfor %}
+    </ul>
+  </details>
+
+  <div class="card gc-scale-in" style="display:grid;gap:10px;">
+    <label style="display:flex;gap:8px;align-items:center;">
+      <input type="checkbox" name="show_new" value="1" checked> {{ t('lab_import.show_new') }}</label>
+    <p class="hint" style="margin:0;"><i class="bi bi-shield-check"></i> {{ t('lab_import.safe') }}</p>
+    <div><button class="btn btn-primary gc-press" type="submit" data-lab-apply-go>
+      <i class="bi bi-box-arrow-in-down"></i> {{ t('lab_import.apply') }}</button></div>
+  </div>
+</form>
+{% endif %}
+{% endblock %}
