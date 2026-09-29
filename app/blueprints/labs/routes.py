@@ -217,15 +217,18 @@ def import_tests():
                             token=lab_import.keep(plan)))
 
 
-@labs_bp.route("/tests/import/<token>")
+@labs_bp.route("/tests/import/<token>", methods=["GET", "POST"])
 @module_required(MODULE)
 def import_preview(token):
     """What the sheet holds, what it meets in the catalogue, and what looked
-    wrong — before a single row is written."""
+    wrong — before a single row is written. The page's own «import» button
+    posts back here (``_import_apply``)."""
     _admin_only()
     from app.models import Investigation as Inv
     from app.utils import lab_import
 
+    if request.method == "POST":
+        return _import_apply(token)
     plan = lab_import.load(token)
     if plan is None:
         flash(t("lab_import.expired"), "error")
@@ -256,11 +259,8 @@ def import_preview(token):
         n_tube=sum(1 for x in plan["tests"] if x["tube"]))
 
 
-@labs_bp.route("/tests/import/<token>", methods=["POST"])
-@module_required(MODULE)
-def import_apply(token):
+def _import_apply(token):
     """Write what the preview showed, with the links as a person left them."""
-    _admin_only()
     from app.models import ActivityLog
     from app.utils import lab_import
     from app.utils.decorators import client_ip
