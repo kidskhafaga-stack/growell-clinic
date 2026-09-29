@@ -55,6 +55,9 @@ def index():
     rows = bench.worklist(kind=bench.LAB, state=state)
     return render_template("labs/index.html",
                            rows=rows, state=state,
+                           # Where the child is, when they are in a bed: the
+                           # sample is drawn at the bed, not at the desk.
+                           beds=bench.beds_of(rows),
                            counts=bench.counts(bench.LAB), bench=bench,
                            # On the door to the scans, so a rack that no
                            # longer lists them still says they are there.

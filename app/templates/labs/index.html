@@ -75,6 +75,8 @@
       <div class="hint">
         <a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
           {{ row.patient.display_name(current_lang) }}</a>
+        {% if beds and beds.get(row.patient_id) %}
+        · <span class="badge badge--muted" data-lab-bed><i class="bi bi-hospital"></i> {{ beds[row.patient_id] }}</span>{% endif %}
         {% if row.investigation and row.investigation.sample_type %}
         · {{ row.investigation.sample_type }}{% endif %}
         {% if row.request_notes %} · {{ row.request_notes }}{% endif %}

@@ -52,6 +52,9 @@ from app.utils import round_billing
 from app.utils import rounds as ward_round
 from app.utils.clock import to_local, to_utc
 from app.utils.decorators import capability_required, module_required
+from app.utils import stay_orders
+from app.models.prescription import INVESTIGATION_KINDS
+from app.models.visit import SIDES
 from app.utils.sequences import retry_on_number_clash
 
 MODULE = "beds"
@@ -751,6 +754,10 @@ def admission(admission_id):
         safety=drug_round.safety(row, lang=getattr(g, "lang", "ar")),
         routes=ROUTES, dose_outcomes=DOSE_OUTCOMES,
         may_order=current_user.can("medication_order"),
+        # «ليه مش بتطلب من ملف الإقامة؟» — the tests and scans this stay owns,
+        # by the same rule its bill uses, and the box to order another.
+        stay_tests=stay_orders.for_stay(row),
+        test_kinds=INVESTIGATION_KINDS, test_sides=SIDES,
         # Shown, never posted by opening a page. Money is written onto a
         # family's account by somebody pressing something.
         due_nights=bed_billing.outstanding(row),
@@ -1833,6 +1840,65 @@ def dose(order_id):
     db.session.commit()
     flash(t("meds.recorded"), "success")
     return _back_from_dose(row)
+
+
+@beds_bp.route("/investigation-search")
+@module_required(MODULE)
+def investigation_search():
+    """The catalogue, for the order box on the stay.
+
+    Its own address rather than the visit screen's, for the reason the drug
+    search and the patient search here have theirs: that one sits behind the
+    visits module, and a ward whose order box goes quiet because an unrelated
+    module was switched off is a bug waiting to happen.
+    """
+    from flask import jsonify
+
+    kind = (request.args.get("kind") or "").strip() or None
+    lang = getattr(g, "lang", "ar")
+    return jsonify([{"id": x.id, "name": x.display_name(lang), "kind": x.kind,
+                     "in_house": x.in_house is not False,
+                     "sample": x.sample_type or "", "unit": x.unit or ""}
+                    for x in stay_orders.search(request.args.get("q"), kind)])
+
+
+@beds_bp.route("/admission/<int:admission_id>/test", methods=["POST"])
+@module_required(MODULE)
+@capability_required("medication_order")
+def order_test(admission_id):
+    """Order a test or a scan for a child in a bed — from the stay itself.
+
+    Behind ``medication_order``, the stay's one «doctor's orders» right: the
+    person who may decide what a child is given is the person who may decide
+    what they are tested for, and a hospital that has already said who that
+    is has nothing new to set up.
+    """
+    from app.models import Investigation
+
+    row = Admission.query.get_or_404(admission_id)
+    picked = db.session.get(Investigation,
+                            request.form.get("investigation_id", type=int) or 0)
+    asked = request.form.get("done_outside")
+    try:
+        stay_orders.order(
+            row, current_user, investigation=picked,
+            name=request.form.get("name"), kind=request.form.get("kind"),
+            notes=request.form.get("notes"),
+            laterality=request.form.get("laterality"),
+            outside=(asked == "1") if asked is not None else None,
+            outside_place=request.form.get("outside_place"))
+    except stay_orders.StayClosed:
+        db.session.rollback()
+        flash(t("stay_tests.closed"), "error")
+        return redirect(url_for("beds.admission", admission_id=row.id))
+    except ValueError:
+        db.session.rollback()
+        flash(t("stay_tests.need_name"), "error")
+        return redirect(url_for("beds.admission", admission_id=row.id)
+                        + "#tests")
+    db.session.commit()
+    flash(t("stay_tests.ordered"), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id) + "#tests")
 
 
 def _ward_items():

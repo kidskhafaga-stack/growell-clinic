@@ -1868,7 +1868,10 @@ def _ask_for_the_list(appts):
     if module_enabled("labs"):
         from app.utils import labs
 
-        answers["tests"] = each(labs.unbilled(patient_ids=pids),
+        # The same question `_unbilled_tests` asks one child at a time —
+        # and the same answer, or the list and the checkout would disagree.
+        answers["tests"] = each(labs.unbilled(patient_ids=pids,
+                                              outside_stays=True),
                                 lambda row: row.patient_id, pids)
     if module_enabled("pharmacy"):
         from app.utils import pharmacy
@@ -2983,8 +2986,11 @@ def _unbilled_tests(patient_id):
         return []
     from app.utils import labs
 
+    # Not the tests ordered from a stay: those go on the stay's bill, never
+    # the outpatient till. Everything ordered at a visit is here as before.
     return _asked("tests", patient_id,
-                  lambda: labs.unbilled(patient_id=patient_id))
+                  lambda: labs.unbilled(patient_id=patient_id,
+                                        outside_stays=True))
 
 
 def _test_lines(patient_id, lang):
