@@ -7993,6 +7993,9 @@
     "watch_hint": "An initial assessment on admission and reassessment on time — the rest the program assembles."
   },
   "ward_wizard": {
+    "retired_title": "Units no longer in use",
+    "retired_hint": "Closed as “no longer used” with nobody in them. They cannot be deleted because children stayed in them and their history points at these beds — but they are off the map and nobody can be admitted to them. Open one to edit or reopen it.",
+    "retired_open": "Open",
     "adds_note": "Adds to what is there — an existing department is not duplicated.",
     "build": "Build",
     "built": "Created: %(units)s departments · %(spaces)s spaces · %(beds)s beds.",

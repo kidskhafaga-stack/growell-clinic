@@ -158,3 +158,43 @@ def test_the_map_knows_when_to_refresh(hospital):
     assert boss.get("/live/beds/0").get_json()["fp"] == before
     _admit(hospital, _child(hospital, "جديد"))
     assert boss.get("/live/beds/0").get_json()["fp"] != before
+
+
+def test_a_retired_unit_folds_to_the_foot_of_the_setup_page(hospital):
+    """Asked as: «خرجت الحالات اللي كانت في البارتشن ولسه مش ظاهر إني أمسحه».
+    It still cannot be deleted — children stayed there — but once it is
+    closed as no longer used and nobody is in it, it stops taking a page."""
+    from app.models import Admission
+    from app.models.place import Space, Unit
+    from app.utils import beds as ward
+
+    with hospital["app"].app_context():
+        uid = Unit.query.one().id
+        other = Unit(name="قسم شغّال", kind="ward")
+        hospital["db"].session.add(other)
+        hospital["db"].session.flush()
+        hospital["db"].session.add(Space(unit_id=other.id, name="غرفة", kind="room"))
+        hospital["db"].session.commit()
+        other_id = other.id
+    stay = _admit(hospital, _child(hospital, "لسه جوّه"))
+    boss = hospital["sign_in"]("boss")
+    boss.post("/beds/close", data={"level": "unit", "target_id": uid, "reason": "retired"})
+
+    def setup():
+        return boss.get("/beds/setup").get_data(as_text=True)
+
+    page = setup()
+    # A child still in it: it stays up top, at full size.
+    assert f'data-retired-unit="{uid}"' not in page and "data-retired-title" not in page
+    with hospital["app"].app_context():
+        ward.discharge(hospital["db"].session.get(Admission, stay), "home")
+        hospital["db"].session.commit()
+    page = setup()
+    assert f'data-retired-unit="{uid}"' in page and "data-retired-title" in page
+    # Below the unit in use, and still not deletable, with the reason said.
+    assert page.index(f'data-unit-team="{other_id}"') < page.index("data-retired-title")
+    assert f'data-delete-unit="{uid}"' not in page and f'data-why-kept-unit="{uid}"' in page
+    # Reopened, it is an ordinary unit again.
+    boss.post("/beds/reopen", data={"level": "unit", "target_id": uid})
+    page = setup()
+    assert f'data-retired-unit="{uid}"' not in page and "data-retired-title" not in page

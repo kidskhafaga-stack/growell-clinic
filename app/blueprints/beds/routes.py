@@ -192,9 +192,19 @@ def setup():
     labels = {row.key: row.display_name(lang) for row in reasons}
 
     from app.models import User
-    from app.utils import unit_access
+    from app.utils import bed_map, unit_access
     staff = [u for u in User.query.filter_by(is_active=True)
              .order_by(User.full_name).all() if u.can_access(MODULE)]
+    # A unit closed as "no longer used" with nobody in it goes to the foot
+    # of the page, folded to one line: it cannot be deleted (children stayed
+    # there, and their stays point at its beds), and at full size it buries
+    # the units that are in use. One with a child still in it stays up top —
+    # the child is what somebody has to act on.
+    all_units = ward.board()
+    retired_ids = bed_map.retired_unit_ids()
+    retired = [row for row in all_units
+               if row["unit"].id in retired_ids and not row["taken"]]
+    live_units = [row for row in all_units if row not in retired]
     return render_template("beds/setup.html",
                            teams=unit_access.teams(), staff=staff,
                            glass=unit_access.recent(),
@@ -218,7 +228,8 @@ def setup():
                            space_deletable=partial(ward_plan.space_deletable,
                                                    used=used),
                            bed_used=partial(ward_plan.bed_used, used=used),
-                           units=ward.board(),
+                           units=live_units + retired,
+                           retired_ids={row["unit"].id for row in retired},
                            unit_kinds=UNIT_KINDS, space_kinds=SPACE_KINDS,
                            bed_kinds=BED_KINDS,
                            taken=ward.occupied_bed_ids(),
