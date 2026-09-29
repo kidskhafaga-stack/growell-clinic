@@ -35,6 +35,10 @@ class Feedback(db.Model):
     # service:waiting". Fixed keys (``utils/feedback.CONCERNS``) so the
     # report can count them.
     concerns = db.Column(db.String(255))
+    # The clinic's own questions (``models/survey_question``), as
+    # ``{"q3": {"q": the question as asked, "a": the answer}}`` — only those
+    # on the path the family's answers drew (``utils/survey_flow``).
+    answers = db.Column(db.Text)
     # **What the survey is about** when it is not a visit: a stay on a ward
     # or in the NICU, an emergency attendance. And the part of the clinic
     # it is about (the unit's cost centre), so a rating is read per unit.

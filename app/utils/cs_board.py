@@ -298,6 +298,20 @@ def comments(start, end, centre_id=None, limit=8):
             .order_by(Feedback.submitted_at.desc()).limit(limit).all())
 
 
+def own_questions(start, end, centre_id=None, lang="ar"):
+    """What families answered to the clinic's own questions in the period."""
+    from app.models import Feedback
+    from app.utils import survey_flow
+
+    rows, outpatient = _rows(start, end, centre_id)
+    ids = [r.id for r in rows if r.status == "submitted"]
+    if not ids:
+        return []
+    answered = Feedback.query.filter(Feedback.id.in_(ids),
+                                     Feedback.answers.isnot(None)).all()
+    return survey_flow.summary(answered, lang)
+
+
 def colour(value, judged=True):
     if value is None or not judged:
         return "none"
