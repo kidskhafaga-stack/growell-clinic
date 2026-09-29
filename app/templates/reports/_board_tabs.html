@@ -1,0 +1,11 @@
+{# The boards, as tabs — each shown only to whoever may open it. #}
+{% set board_tabs = [('medical', 'reports.medical_board', True),
+                     ('management', 'reports.management_board', current_user.can('finance_manage'))] %}
+{% if board_tabs|selectattr(2)|list|length > 1 %}
+<div class="mb-tabs" role="tablist" data-board-tabs>
+  {% for key, endpoint, allowed in board_tabs if allowed %}
+  <a role="tab" aria-selected="{{ 'true' if key == board_tab else 'false' }}"
+     href="{{ url_for(endpoint, **({'preset': w.preset} if w.preset else {'from': w['from'].isoformat(), 'to': w['to'].isoformat()})) }}">{{ t('board_med.tab_' ~ key) }}</a>
+  {% endfor %}
+</div>
+{% endif %}
