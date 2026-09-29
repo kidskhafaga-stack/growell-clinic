@@ -81,21 +81,23 @@
         <span style="flex:1;background:var(--ab-cost)"></span></span>
       <span class="load"><span>{{ t('board_admin.direct') }} <b class="num">{{ d.direct|money }}</b></span><span>{{ t('board_admin.left') }} <b class="num">{{ d.contribution|money }}</b></span></span>
     </a>
-    {% if open %}
-    <div class="ab-drawer" data-drawer>
-      <div><div class="ab-kv"><span>{{ t('board_admin.revenue') }}</span><b class="num">{{ d.revenue|money }}</b></div>
-        <div class="ab-kv"><span>{{ t('board_admin.of_it_doctors') }}</span><span class="num">{{ d.doctors|money }}</span></div>
-        <div class="ab-kv"><span>{{ t('board_admin.direct') }}</span><span class="num">{{ d.direct|money }}</span></div>
-        <div class="ab-kv"><span>{{ t('board_admin.left') }}</span><b class="num">{{ d.contribution|money }}</b></div></div>
-      <div><div class="ab-kv"><span>{{ t('board_admin.revenue_before') }}</span><span class="num">{{ d.before|money }}</span></div>
-        <div class="ab-kv"><span>{{ t('board_admin.direct_before') }}</span><span class="num">{{ d.before_direct|money }}</span></div>
-        {% for acc, amount in d.accounts[:6] %}<div class="ab-kv"><span>{{ acc.display_name(current_lang) }}</span><span class="num">{{ amount|money }}</span></div>{% endfor %}</div>
-      <div><p class="hint" style="margin:0 0 8px;">{{ t('board_admin.drawer_hint') }}</p>
-        <a class="mb-more" href="{{ url_for('reports.cost_centres', **dates) }}">{{ t('cost_centres.title') }} ←</a></div>
-    </div>
-    {% endif %}
     {% endfor %}
   </div>
+  {% set d = (departments|selectattr("centre")|selectattr("centre.id", "equalto", open_centre)|first) if open_centre else none %}
+  {% if d %}
+  <div class="ab-drawer" data-drawer>
+    <h3 style="grid-column:1/-1;margin:0;font-size:1rem;">{{ d.centre.display_name(current_lang) }}</h3>
+    <div><div class="ab-kv"><span>{{ t('board_admin.revenue') }}</span><b class="num">{{ d.revenue|money }}</b></div>
+      <div class="ab-kv"><span>{{ t('board_admin.of_it_doctors') }}</span><span class="num">{{ d.doctors|money }}</span></div>
+      <div class="ab-kv"><span>{{ t('board_admin.direct') }}</span><span class="num">{{ d.direct|money }}</span></div>
+      <div class="ab-kv"><span>{{ t('board_admin.left') }}</span><b class="num">{{ d.contribution|money }}</b></div></div>
+    <div><div class="ab-kv"><span>{{ t('board_admin.revenue_before') }}</span><span class="num">{{ d.before|money }}</span></div>
+      <div class="ab-kv"><span>{{ t('board_admin.direct_before') }}</span><span class="num">{{ d.before_direct|money }}</span></div>
+      {% for acc, amount in d.accounts[:6] %}<div class="ab-kv"><span>{{ acc.display_name(current_lang) }}</span><span class="num">{{ amount|money }}</span></div>{% endfor %}</div>
+    <div><p class="hint" style="margin:0 0 8px;">{{ t('board_admin.drawer_hint') }}</p>
+      <a class="mb-more" href="{{ url_for('reports.cost_centres', **dates) }}">{{ t('cost_centres.title') }} ←</a></div>
+  </div>
+  {% endif %}
   <div class="mb-legend"><span><i style="background:var(--mb-teal)"></i>{{ t('board_admin.left') }}</span><span><i style="background:var(--ab-cost)"></i>{{ t('board_admin.direct') }}</span>
     {% if report.shared_total %}<span>{{ t('board_admin.shared_line', amount=report.shared_total|money) }}</span>{% endif %}</div>
   {% else %}<div class="empty-state"><i class="bi bi-diagram-3"></i> {{ t('board_admin.no_money') }}</div>{% endif %}
@@ -200,6 +202,8 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--ab-cost:#ee837c;}}
 :root[data-theme="dark"]{--ab-cost:#ee837c;}
 .mb-link{text-decoration:none;color:inherit;}
+.mb-kpis .mb-kpi .v{font-size:1.2rem;white-space:nowrap;}
+.mb-kpi .row{flex-wrap:wrap;}
 .mb-link:hover{border-color:var(--green-600);}
 .ab-depts{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-bottom:10px;}
 .ab-dept{border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;gap:8px;text-decoration:none;color:inherit;}
@@ -214,7 +218,7 @@
 .ab-margin.low{background:rgba(194,65,59,.14);color:#c2413b;}
 .ab-stack{height:8px;border-radius:5px;background:var(--line);overflow:hidden;display:flex;}
 .ab-stack span{display:block;height:100%;}
-.ab-drawer{grid-column:1/-1;border:1px solid var(--green-600);border-radius:14px;padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;}
+.ab-drawer{margin:0 0 10px;border:1px solid var(--green-600);border-radius:14px;padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;}
 .ab-kv{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed var(--line);padding:5px 0;font-size:.88rem;}
 .ab-kv:last-child{border:0;}
 .ab-watch{display:grid;gap:8px;}
