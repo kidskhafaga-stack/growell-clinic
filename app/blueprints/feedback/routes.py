@@ -23,6 +23,15 @@ def _clinic_name(lang):
     return Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "العيادة"
 
 
+def _brand():
+    """The clinic's logo for the public pages — they are called ``clinic``
+    there already (the clinic's name), which hides the templates' own."""
+    from flask import url_for
+    logo = Setting.get("clinic_logo") or None
+    return {"logo_url": url_for("static", filename="uploads/clinic/" + logo)
+            if logo else None}
+
+
 def _clamp(value, lo, hi):
     try:
         n = int(value)
@@ -49,10 +58,19 @@ def rate(token):
     if fb.admission is not None or fb.emergency_visit is not None:
         centre = fb.cost_centre.display_name(lang) if fb.cost_centre else ""
         about = t("feedback.about_stay", place=centre) if centre else None
+    from app.utils import survey_flow
+    if survey_flow.ensure_seeded():
+        db.session.commit()
+    done = fb.status == "submitted"
+    low = done and any(v is not None and v <= 2 for v in (
+        fb.doctor_rating, fb.service_rating, fb.finance_rating))
     return render_template(
         "feedback/rate.html", fb=fb, clinic=_clinic_name(lang),
-        concerns=CONCERNS, about=about,
-        done=(fb.status == "submitted"), survey=survey_config(lang),
+        concerns=CONCERNS, about=about, steps=survey_flow.steps(fb, lang),
+        answers=survey_flow.answers_of(fb) if done else {},
+        low=low, review_url=(Setting.get("survey_review_url") or "").strip(),
+        clinic_brand=_brand(),
+        done=done, survey=survey_config(lang),
         doctor_name=fb.doctor.display_name(lang) if fb.doctor else None,
         patient_name=fb.patient.display_name(lang) if fb.patient else None,
     )
@@ -66,13 +84,10 @@ def submit(token):
         return render_template("feedback/rate.html", fb=None,
                                clinic=_clinic_name(getattr(g, "lang", "ar"))), 404
     if fb.status != "submitted":  # ignore double submissions
-        fb.doctor_rating = _clamp(request.form.get("doctor_rating"), 1, 5)
-        fb.service_rating = _clamp(request.form.get("service_rating"), 1, 5)
-        fb.finance_rating = _clamp(request.form.get("finance_rating"), 1, 5)
-        from app.utils.feedback import clean_concerns
-        fb.concerns = clean_concerns(request.form.getlist("concern"))
-        fb.nps = _clamp(request.form.get("nps"), 0, 10)
-        fb.comment = (request.form.get("comment") or "").strip()[:2000] or None
+        # Every answer, built-in or the clinic's own, kept only if it lies on
+        # the path the answers themselves draw (``utils/survey_flow``).
+        from app.utils import survey_flow
+        survey_flow.save(fb, request.form, getattr(g, "lang", "ar"))
         fb.status = "submitted"
         fb.submitted_at = datetime.utcnow()
         # A low score used to go into a monthly average and nowhere else. It

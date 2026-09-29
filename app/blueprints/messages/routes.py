@@ -8,7 +8,7 @@ import os
 import uuid
 from datetime import datetime, timedelta
 
-from flask import (current_app, flash, g, jsonify, redirect,
+from flask import (abort, current_app, flash, g, jsonify, redirect,
                    render_template, request, url_for)
 from flask_login import current_user
 from werkzeug.utils import secure_filename
@@ -980,7 +980,9 @@ def satisfaction():
                    concerns=cs_board.concerns(start, end, centre_id)[:10],
                    left=cs_board.leave_reasons(start, end, centre_id),
                    leave_label=leave_reasons.label,
-                   comments=cs_board.comments(start, end, centre_id))
+                   comments=cs_board.comments(start, end, centre_id),
+                   own=cs_board.own_questions(start, end, centre_id,
+                                              getattr(g, "lang", "ar")))
     elif tab == "units":
         ctx.update(units=cs_board.by_centre(start, end),
                    doctors=cs_board.by_doctor(start, end, centre_id))
@@ -1062,6 +1064,11 @@ def survey_builder():
                     mode if mode in ("link", "external", "inline") else "link")
         Setting.set("survey_external_url",
                     (request.form.get("survey_external_url") or "").strip())
+        # Where a delighted family is invited to say so publicly — offered on
+        # the thank-you screen only to those who scored us 9 or 10.
+        review = (request.form.get("survey_review_url") or "").strip()[:500]
+        Setting.set("survey_review_url",
+                    review if review.startswith(("https://", "http://")) else "")
         db.session.commit()
         flash(t("survey.saved"), "success")
         return redirect(url_for("messages.survey_builder"))
@@ -1073,6 +1080,185 @@ def survey_builder():
         questions=SURVEY_QUESTIONS,
         values={s.key: s.value for s in Setting.query.filter(
             Setting.key.like("survey_%")).all()})
+
+
+# --------------------------------------------------- the survey's own questions
+def _labels_for(row, lang):
+    """The answer groups of a question, in words, for the jump editor."""
+    if row.kind == "single":
+        return [(f"o{i}", o) for i, o in enumerate(row.options(lang))]
+    return [(b, t(f"survey.bucket_{row.kind}_{b}")) for b in row.buckets()]
+
+
+@messages_bp.route("/survey/questions")
+@admin_required
+def survey_questions():
+    """The questions in order, the clinic's own among the built-in ones, and
+    where each answer leads. See ``utils/survey_flow``."""
+    from app.utils import cost_centres, survey_flow
+    from app.models.survey_question import KINDS
+
+    lang = getattr(g, "lang", "ar")
+    all_rows = survey_flow.rows(active_only=False)
+    db.session.commit()
+    from app.utils.feedback import survey_config
+    cfg = survey_config(lang)["questions"]
+    return render_template(
+        "messages/survey_questions.html", rows=all_rows, kinds=KINDS,
+        labels={r.key: (cfg[r.key]["label"] if r.builtin and r.key in cfg
+                        else r.text(lang)) for r in all_rows},
+        groups={r.key: _labels_for(r, lang) for r in all_rows},
+        problems=survey_flow.problems(lang),
+        happy=survey_flow.plain_path_length(lang),
+        centres=cost_centres.listing())
+
+
+def _jumps_from(form, row):
+    """The jump rules a form sends, kept only where they point forward on
+    this survey, or to the end."""
+    import json
+    from app.utils import survey_flow
+    from app.models.survey_question import END
+
+    order = [r.key for r in survey_flow.rows(active_only=False)]
+    here = order.index(row.key) if row.key in order else -1
+    later = set(order[here + 1:])
+    out = {}
+    for group in row.buckets():
+        to = (form.get(f"jump_{group}") or "").strip()
+        if to == END or to in later:
+            out[group] = to
+    return json.dumps(out) if out else None
+
+
+def _question_from(form, row):
+    from app.models.survey_question import KINDS
+
+    if not row.builtin:
+        kind = form.get("kind")
+        row.kind = kind if kind in KINDS else row.kind
+        row.text_ar = (form.get("text_ar") or "").strip()[:255] or None
+        row.text_en = (form.get("text_en") or "").strip()[:255] or None
+        row.options_ar = (form.get("options_ar") or "").strip()[:4000] or None
+        row.options_en = (form.get("options_en") or "").strip()[:4000] or None
+        row.branch_only = bool(form.get("branch_only"))
+        keys = [k for k in form.getlist("centres") if k]
+        row.centre_keys = ",".join(keys)[:255] or None
+
+
+@messages_bp.route("/survey/questions/new", methods=["POST"])
+@admin_required
+def survey_question_new():
+    from app.models.survey_question import SurveyQuestion
+    from app.utils import survey_flow
+
+    rows = survey_flow.rows(active_only=False)
+    row = SurveyQuestion(key=survey_flow.next_key(), builtin=False,
+                         sort_order=(max((r.sort_order for r in rows), default=0) + 10))
+    _question_from(request.form, row)
+    if not row.text_ar and not row.text_en:
+        flash(t("survey.need_text"), "danger")
+        return redirect(url_for("messages.survey_questions"))
+    # A new question goes in just before the last one — the free-text "anything
+    # else?" stays last unless the clinic moves it.
+    last = rows[-1] if rows else None
+    if last is not None:
+        row.sort_order = last.sort_order
+        last.sort_order += 10
+    db.session.add(row)
+    db.session.commit()
+    flash(t("survey.q_added"), "success")
+    return redirect(url_for("messages.survey_questions", _anchor=f"q-{row.key}"))
+
+
+@messages_bp.route("/survey/questions/<int:qid>", methods=["POST"])
+@admin_required
+def survey_question_save(qid):
+    from app.models.survey_question import SurveyQuestion
+
+    row = db.get_or_404(SurveyQuestion, qid)
+    _question_from(request.form, row)
+    if not row.builtin:
+        row.is_active = bool(request.form.get("is_active"))
+    row.jumps = _jumps_from(request.form, row)
+    db.session.commit()
+    flash(t("common.saved"), "success")
+    return redirect(url_for("messages.survey_questions", _anchor=f"q-{row.key}"))
+
+
+@messages_bp.route("/survey/questions/<int:qid>/move", methods=["POST"])
+@admin_required
+def survey_question_move(qid):
+    """One place up or down. A jump that now points backwards is dropped —
+    a survey never loops — and the builder says so."""
+    import json
+    from app.models.survey_question import END, SurveyQuestion
+    from app.utils import survey_flow
+
+    row = db.get_or_404(SurveyQuestion, qid)
+    rows = survey_flow.rows(active_only=False)
+    i = [r.id for r in rows].index(row.id)
+    j = i - 1 if request.form.get("dir") == "up" else i + 1
+    if 0 <= j < len(rows):
+        rows[i].sort_order, rows[j].sort_order = rows[j].sort_order, rows[i].sort_order
+        if rows[i].sort_order == rows[j].sort_order:
+            rows[j].sort_order += 1 if j > i else -1
+        rows = sorted(rows, key=lambda r: (r.sort_order, r.id))
+        order = {r.key: n for n, r in enumerate(rows)}
+        for n, r in enumerate(rows):
+            kept = {g_: to for g_, to in r.jump_map().items()
+                    if to == END or order.get(to, -1) > n}
+            r.jumps = json.dumps(kept) if kept else None
+        db.session.commit()
+    return redirect(url_for("messages.survey_questions", _anchor=f"q-{row.key}"))
+
+
+@messages_bp.route("/survey/questions/<int:qid>/delete", methods=["POST"])
+@admin_required
+def survey_question_delete(qid):
+    """A question nobody has answered is deleted; one that has answers is
+    switched off instead, so what families said stays readable."""
+    from app.models import Feedback
+    from app.models.survey_question import SurveyQuestion
+    from app.utils import survey_flow
+
+    row = db.get_or_404(SurveyQuestion, qid)
+    if row.builtin:
+        abort(400)
+    answered = Feedback.query.filter(
+        Feedback.answers.like(f'%"{row.key}"%')).first() is not None
+    for other in survey_flow.rows(active_only=False):
+        jumps = other.jump_map()
+        if row.key in jumps.values():
+            import json
+            kept = {g_: to for g_, to in jumps.items() if to != row.key}
+            other.jumps = json.dumps(kept) if kept else None
+    if answered:
+        row.is_active = False
+        flash(t("survey.q_switched_off"), "info")
+    else:
+        db.session.delete(row)
+        flash(t("survey.q_deleted"), "success")
+    db.session.commit()
+    return redirect(url_for("messages.survey_questions"))
+
+
+@messages_bp.route("/survey/preview")
+@admin_required
+def survey_preview():
+    """The survey as a family will see it, answering nothing."""
+    from app.models import Feedback
+    from app.utils import survey_flow
+    from app.utils.feedback import CONCERNS, survey_config
+
+    lang = getattr(g, "lang", "ar")
+    fb = Feedback(token="preview", status="sent")
+    return render_template(
+        "feedback/rate.html", fb=fb, clinic=Setting.get("clinic_name_ar")
+        or Setting.get("clinic_name") or "", concerns=CONCERNS, about=None,
+        steps=survey_flow.steps(None, lang), answers={}, low=False,
+        review_url="", done=False, survey=survey_config(lang), preview=True,
+        clinic_brand={"logo_url": None}, doctor_name=None, patient_name=None)
 
 
 @messages_bp.route("/send-due", methods=["POST"])

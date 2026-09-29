@@ -57,6 +57,35 @@
     .why-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
     .why-chip { border:1px solid #d9e2ea; border-radius:999px; padding:3px 10px; display:inline-flex; gap:5px; align-items:center; cursor:pointer; }
     .why-chip:has(input:checked) { background:#fdecea; border-color:#c2413b; color:#c2413b; }
+    /* One question at a time, when the script is there to walk them. */
+    form.stepper .q { display:none; margin:0; }
+    form.stepper .q.on { display:block; animation:qin .28s ease-out; }
+    @media (prefers-reduced-motion: reduce) { form.stepper .q.on { animation:none; } }
+    @keyframes qin { from { opacity:0; transform:translateY(6px); } }
+    .prog { height:5px; background:#e3ece9; border-radius:999px; overflow:hidden; margin:0 0 14px; display:none; }
+    form.stepper .prog { display:block; }
+    .prog span { display:block; height:100%; background:#12855f; transition:width .3s ease; }
+    .step-count { color:#8593a0; font-size:.8rem; margin-bottom:6px; display:none; }
+    form.stepper .step-count { display:block; }
+    .nav { display:none; gap:8px; margin-top:18px; }
+    form.stepper .nav { display:flex; }
+    form.stepper .fb-btn.plain { display:none; }
+    .nav .fb-btn { width:auto; flex:1; margin-top:0; }
+    .nav .back { flex:0 0 auto; padding-inline:18px; background:#fff; color:#41505e; border:1px solid #d8dde2; }
+    .choices { display:grid; gap:8px; }
+    .choices label { border:1.5px solid #d8dde2; border-radius:12px; padding:11px 14px; cursor:pointer; display:flex; gap:8px; align-items:center; }
+    .choices label:has(input:checked) { border-color:#12855f; background:#e8f6ef; font-weight:600; }
+    .yn { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .yn label { justify-content:center; font-weight:700; }
+    .brand-logo { width:64px; height:64px; object-fit:contain; border-radius:14px; background:#fff; margin-bottom:8px; }
+    .care { background:#fdecea; color:#b43b35; border-radius:12px; padding:10px 12px; margin:12px 0; }
+    .review { display:inline-block; margin:10px 0; padding:10px 16px; border:1.5px solid #12855f; border-radius:12px; color:#12855f; font-weight:700; text-decoration:none; }
+    @media (prefers-color-scheme: dark) {
+      .choices label { border-color:#2b3644; }
+      .choices label:has(input:checked) { background:#123a2a; }
+      .nav .back { background:#171e28; color:#c4cfda; border-color:#2b3644; }
+      .care { background:#442221; color:#ef9a93; }
+    }
   </style>
 </head>
 <body>
@@ -78,10 +107,18 @@
       <div class="fb-head"><div class="fb-badge" style="background:#b91c1c;">✕</div>
         <h1>{{ t('feedback.invalid') }}</h1><p>{{ t('feedback.invalid_hint') }}</p></div>
     {% elif done %}
-      <div class="thanks">
-        <div class="big">🌟</div>
+      {# The thank-you, in the clinic's name and under its logo — and what
+         comes next depends on what they said: a family that was unhappy is
+         told somebody will call, one that was delighted may say so where
+         others will read it. #}
+      <div class="thanks" data-thanks>
+        {% if clinic_brand.logo_url %}<img class="brand-logo" src="{{ clinic_brand.logo_url }}" alt="">{% else %}<div class="big">🌟</div>{% endif %}
         <h1 style="margin:8px 0 4px;">{{ t('feedback.thanks_title') }}</h1>
-        <p style="color:#6c7a89;margin:0 0 14px;">{{ survey.thanks if survey else t('feedback.thanks_hint') }}</p>
+        <p style="color:#6c7a89;margin:0 0 6px;">{{ survey.thanks if survey else t('feedback.thanks_hint') }}</p>
+        <p style="margin:0 0 10px;font-weight:700;">{{ clinic }}</p>
+        {% if low %}<div class="care" data-care>{{ t('feedback.care', clinic=clinic) }}</div>
+        {% elif review_url and fb.nps is not none and fb.nps >= 9 %}
+        <a class="review" href="{{ review_url }}" target="_blank" rel="noopener" data-review>★ {{ t('feedback.review') }}</a>{% endif %}
         <div style="text-align:start;">
           {% if fb.doctor_rating %}<div class="ro-row"><span class="k">{{ t('feedback.q_doctor') }}{% if doctor_name %} — {{ doctor_name }}{% endif %}</span>
             <span style="color:#f5b301;">{{ '★' * fb.doctor_rating }}{{ '☆' * (5 - fb.doctor_rating) }}</span></div>{% endif %}
@@ -90,69 +127,157 @@
           {% if fb.finance_rating %}<div class="ro-row"><span class="k">{{ t('feedback.q_finance') }}</span>
             <span style="color:#f5b301;">{{ '★' * fb.finance_rating }}{{ '☆' * (5 - fb.finance_rating) }}</span></div>{% endif %}
           {% if fb.nps is not none %}<div class="ro-row"><span class="k">{{ t('feedback.q_nps') }}</span><strong>{{ fb.nps }}/10</strong></div>{% endif %}
+          {% for key, got in answers.items() %}
+          <div class="ro-row" data-own-answer="{{ key }}"><span class="k">{{ got.q }}</span>
+            <strong>{% if got.a is sameas true or got.a in ('yes', 'no') %}{{ t('feedback.' ~ got.a) }}{% elif got.a is iterable and got.a is not string %}{{ got.a|join('، ') }}{% else %}{{ got.a }}{% endif %}</strong></div>
+          {% endfor %}
         </div>
       </div>
     {% else %}
       <div class="fb-head">
-        <div class="fb-badge">💬</div>
+        {% if clinic_brand.logo_url %}<img class="brand-logo" src="{{ clinic_brand.logo_url }}" alt="">{% else %}<div class="fb-badge">💬</div>{% endif %}
         <h1>{{ survey.intro if survey else t('feedback.title') }}</h1>
         <p>{{ clinic }}{% if patient_name %} · {{ patient_name }}{% endif %}{% if about %} · {{ about }}{% endif %}</p>
       </div>
-      <form method="post" action="{{ url_for('feedback.submit', token=fb.token) }}">
+      <form method="post" action="{{ url_for('feedback.submit', token=fb.token) }}" data-survey{% if preview %} data-preview{% endif %}>
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        {% if survey.questions.doctor.show %}
-        <div class="q">
-          <label class="qlab">{{ survey.questions.doctor.label }}{% if doctor_name %} <span class="sub">— {{ doctor_name }}</span>{% endif %}</label>
+        <div class="prog"><span style="width:0"></span></div>
+        <div class="step-count" data-count></div>
+        {% for s in steps %}
+        <div class="q" data-step="{{ s.key }}" data-kind="{{ s.kind }}" data-branch="{{ '1' if s.branch_only else '0' }}"
+             data-jumps='{{ s.jumps|tojson }}'{% if s.key == 'finance' %} data-q-finance{% endif %}>
+          {% if s.builtin and s.key in ('doctor', 'service', 'finance') %}
+          {% set field = {'doctor': 'doctor_rating', 'service': 'service_rating', 'finance': 'finance_rating'}[s.key] %}
+          <label class="qlab">{{ s.label }}{% if s.key == 'doctor' and doctor_name %} <span class="sub">— {{ doctor_name }}</span>{% endif %}</label>
           <div class="rate">
             {% for i in [5,4,3,2,1] %}
-            <input type="radio" id="d{{ i }}" name="doctor_rating" value="{{ i }}"><label for="d{{ i }}" title="{{ i }}">★</label>
+            <input type="radio" id="{{ s.key[0] }}{{ i }}" name="{{ field }}" value="{{ i }}"><label for="{{ s.key[0] }}{{ i }}" title="{{ i }}">★</label>
             {% endfor %}
           </div>
-          {{ why('doctor') }}
-        </div>
-        {% endif %}
-        {% if survey.questions.service.show %}
-        <div class="q">
-          <label class="qlab">{{ survey.questions.service.label }}</label>
-          <div class="rate">
-            {% for i in [5,4,3,2,1] %}
-            <input type="radio" id="s{{ i }}" name="service_rating" value="{{ i }}"><label for="s{{ i }}" title="{{ i }}">★</label>
-            {% endfor %}
-          </div>
-          {{ why('service') }}
-        </div>
-        {% endif %}
-        {% if survey.questions.finance.show %}
-        <div class="q" data-q-finance>
-          <label class="qlab">{{ survey.questions.finance.label }}</label>
-          <div class="rate">
-            {% for i in [5,4,3,2,1] %}
-            <input type="radio" id="f{{ i }}" name="finance_rating" value="{{ i }}"><label for="f{{ i }}" title="{{ i }}">★</label>
-            {% endfor %}
-          </div>
-          {{ why('finance') }}
-        </div>
-        {% endif %}
-        {% if survey.questions.nps.show %}
-        <div class="q">
-          <label class="qlab">{{ survey.questions.nps.label }} <span class="sub">{{ t('feedback.q_nps_sub') }}</span></label>
+          {{ why(s.key) }}
+          {% elif s.builtin and s.key == 'nps' %}
+          <label class="qlab">{{ s.label }} <span class="sub">{{ t('feedback.q_nps_sub') }}</span></label>
           <div class="nps">
             {% for i in range(0, 11) %}
             <input type="radio" id="n{{ i }}" name="nps" value="{{ i }}"><label for="n{{ i }}">{{ i }}</label>
             {% endfor %}
           </div>
           <div class="nps-ends"><span>{{ t('feedback.nps_low') }}</span><span>{{ t('feedback.nps_high') }}</span></div>
-        </div>
-        {% endif %}
-        {% if survey.questions.comment.show %}
-        <div class="q">
-          <label class="qlab">{{ survey.questions.comment.label }} <span class="sub">{{ t('feedback.optional') }}</span></label>
+          {% elif s.builtin and s.key == 'comment' %}
+          <label class="qlab">{{ s.label }} <span class="sub">{{ t('feedback.optional') }}</span></label>
           <textarea class="fb-comment" name="comment" dir="auto" placeholder="{{ t('feedback.comment_ph') }}"></textarea>
+          {% else %}
+          {# The clinic's own question. #}
+          {% set name = 'a_' ~ s.key %}
+          <label class="qlab">{{ s.label }}</label>
+          {% if s.kind == 'stars' %}
+          <div class="rate">
+            {% for i in [5,4,3,2,1] %}
+            <input type="radio" id="{{ name }}{{ i }}" name="{{ name }}" value="{{ i }}"><label for="{{ name }}{{ i }}" title="{{ i }}">★</label>
+            {% endfor %}
+          </div>
+          {% elif s.kind == 'nps' %}
+          <div class="nps">
+            {% for i in range(0, 11) %}
+            <input type="radio" id="{{ name }}n{{ i }}" name="{{ name }}" value="{{ i }}"><label for="{{ name }}n{{ i }}">{{ i }}</label>
+            {% endfor %}
+          </div>
+          <div class="nps-ends"><span>{{ t('feedback.nps_low') }}</span><span>{{ t('feedback.nps_high') }}</span></div>
+          {% elif s.kind == 'yesno' %}
+          <div class="choices yn">
+            <label><input type="radio" name="{{ name }}" value="yes"> {{ t('feedback.yes') }}</label>
+            <label><input type="radio" name="{{ name }}" value="no"> {{ t('feedback.no') }}</label>
+          </div>
+          {% elif s.kind == 'single' %}
+          <div class="choices">
+            {% for o in s.options %}<label><input type="radio" name="{{ name }}" value="o{{ loop.index0 }}"> {{ o }}</label>{% endfor %}
+          </div>
+          {% elif s.kind == 'multi' %}
+          <div class="choices">
+            {% for o in s.options %}<label><input type="checkbox" name="{{ name }}" value="o{{ loop.index0 }}"> {{ o }}</label>{% endfor %}
+          </div>
+          {% else %}
+          <textarea class="fb-comment" name="{{ name }}" dir="auto"></textarea>
+          {% endif %}
+          {% endif %}
         </div>
-        {% endif %}
-        <button class="fb-btn" type="submit">{{ t('feedback.submit') }}</button>
+        {% endfor %}
+        <div class="nav"><button class="fb-btn back" type="button" data-back>{{ t('feedback.back') }}</button>
+          <button class="fb-btn" type="button" data-next>{{ t('feedback.next') }}</button></div>
+        <button class="fb-btn plain" type="submit">{{ t('feedback.submit') }}</button>
         <p class="fb-note">{{ t('feedback.privacy') }}</p>
       </form>
+      <script>
+      /* The same rules as utils/survey_flow.py: start at the first question
+         that is not a branch; after each, a jump for that answer's group, or
+         the next question that is not a branch. The server walks them again. */
+      (function () {
+        var form = document.querySelector('form[data-survey]');
+        if (!form) return;
+        var steps = Array.prototype.slice.call(form.querySelectorAll('[data-step]'));
+        if (!steps.length) return;
+        var nextBtn = form.querySelector('[data-next]'), backBtn = form.querySelector('[data-back]');
+        var bar = form.querySelector('.prog span'), count = form.querySelector('[data-count]');
+        var labels = {next: {{ t('feedback.next')|tojson }}, send: {{ t('feedback.submit')|tojson }}};
+        function branch(i) { return steps[i].getAttribute('data-branch') === '1'; }
+        function after(i) { var j = i + 1; while (j < steps.length && branch(j)) j++; return j < steps.length ? j : -1; }
+        function value(i) {
+          var picked = steps[i].querySelector('input[type=radio]:checked');
+          return picked ? picked.value : '';
+        }
+        function bucket(kind, v) {
+          if (v === '' || v == null) return null;
+          var n = parseInt(v, 10);
+          if (kind === 'stars') return n <= 2 ? 'low' : (n === 3 ? 'mid' : 'high');
+          if (kind === 'nps') return n <= 6 ? 'low' : (n <= 8 ? 'mid' : 'high');
+          if (kind === 'yesno') return (v === 'yes' || v === 'no') ? v : null;
+          if (kind === 'single') return v.charAt(0) === 'o' ? v : null;
+          return null;
+        }
+        function next(i) {
+          var jumps = {};
+          try { jumps = JSON.parse(steps[i].getAttribute('data-jumps') || '{}'); } catch (e) {}
+          var to = jumps[bucket(steps[i].getAttribute('data-kind'), value(i))];
+          if (to === 'end') return -1;
+          if (to) for (var n = i + 1; n < steps.length; n++) if (steps[n].getAttribute('data-step') === to) return n;
+          return after(i);
+        }
+        function ahead(i) { var k = 0; while (i !== -1 && k < steps.length) { k++; i = next(i); } return k; }
+        var trail = [after(-1)];
+        function draw() {
+          var cur = trail[trail.length - 1];
+          steps.forEach(function (s, i) { s.classList.toggle('on', i === cur); });
+          var total = trail.length - 1 + ahead(cur);
+          bar.style.width = Math.round((trail.length - 1) * 100 / Math.max(total, 1)) + '%';
+          count.textContent = trail.length + ' / ' + total;
+          nextBtn.textContent = next(cur) === -1 ? labels.send : labels.next;
+          backBtn.style.visibility = trail.length > 1 ? 'visible' : 'hidden';
+        }
+        function forward() {
+          var n = next(trail[trail.length - 1]);
+          if (n === -1) {
+            // Only the questions on the path go with the answers.
+            steps.forEach(function (s, i) {
+              if (trail.indexOf(i) === -1) s.querySelectorAll('input,textarea').forEach(function (el) { el.disabled = true; });
+            });
+            if (form.hasAttribute('data-preview')) { alert({{ t('survey.preview_end')|tojson }}); return; }
+            form.submit();
+            return;
+          }
+          trail.push(n); draw();
+        }
+        nextBtn.addEventListener('click', forward);
+        backBtn.addEventListener('click', function () { if (trail.length > 1) { trail.pop(); draw(); } });
+        form.addEventListener('change', function (e) {
+          var t = e.target, cur = trail[trail.length - 1];
+          if (t.type === 'radio' && steps[cur].contains(t) && t.name !== 'concern'
+              && !steps[cur].querySelector('[data-why]')) setTimeout(forward, 260);
+          else draw();
+        });
+        form.classList.add('stepper');
+        draw();
+      })();
+      </script>
     {% endif %}
   </div>
 </body>

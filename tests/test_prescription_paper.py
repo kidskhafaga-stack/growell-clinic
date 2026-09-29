@@ -22,6 +22,7 @@ own words, and a line the doctor can keep in the record without handing it to
 the family.
 """
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -428,7 +429,9 @@ def test_the_digital_copy_is_complete_even_on_preprinted_paper(clinic):
 
     on_paper = paper("/prescriptions/1")
     assert printed_name not in on_paper       # the paper carries it already
-    assert number not in on_paper
+    # As a word, not as two characters: the paper carries a random token
+    # (the copy's address), and "P1" turns up inside one now and then.
+    assert not re.search(rf"(?<![A-Za-z0-9_-]){re.escape(number)}(?![A-Za-z0-9_-])", on_paper)
 
     to_send = paper("/prescriptions/1?digital=1")
     assert printed_name in to_send, "the sent copy had no doctor on it"

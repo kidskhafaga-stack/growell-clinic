@@ -274,6 +274,7 @@ from app.models.message import (
 )
 from app.models.feedback import FEEDBACK_STATUSES, Feedback
 from app.models.complaint import Complaint, ComplaintEvent
+from app.models.survey_question import SurveyQuestion
 from app.models.store import (
     DOC_KINDS,
     DOC_PREFIXES,
@@ -655,6 +656,7 @@ __all__ = [
     "FEEDBACK_STATUSES",
     "Complaint",
     "ComplaintEvent",
+    "SurveyQuestion",
     "MedicalDevice",
     "DeviceMeasurement",
     "DeviceStudy",

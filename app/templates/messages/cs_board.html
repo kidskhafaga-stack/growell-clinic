@@ -130,6 +130,33 @@
   </div>
 </div>
 
+{% if own %}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-own-questions>
+  <h2 class="section-title" style="margin-top:0;">{{ t('board_cs.own') }} <small class="hint">{{ t('board_cs.own_hint') }}</small></h2>
+  <div style="display:grid;gap:12px;">
+    {% for item in own %}
+    <div data-own="{{ item.question.key }}">
+      <strong>{{ item.label }}</strong> <span class="hint num">· {{ t('board_cs.answers_n', n=item.count) }}</span>
+      {% if item.kind == 'yesno' %}
+        {% set total = item.yes + item.no %}
+        <div class="csb-split">
+          {% if item.yes %}<span style="width:{{ item.yes * 100 / total }}%;background:var(--green-600,#1e8a55);">{{ t('feedback.yes') }} {{ (item.yes * 100 / total)|round|int }}%</span>{% endif %}
+          {% if item.no %}<span style="width:{{ item.no * 100 / total }}%;background:var(--danger);">{{ t('feedback.no') }} {{ (item.no * 100 / total)|round|int }}%</span>{% endif %}
+        </div>
+      {% elif item.kind in ('stars', 'nps') %}
+        <div class="num" style="font-size:1.2rem;font-weight:700;">{{ item.avg if item.avg is not none else '—' }} <small class="hint">{{ t('board_cs.of_5') if item.kind == 'stars' else '/10' }}</small></div>
+      {% elif item.choices %}
+        {% set top = item.choices[0][1] %}
+        <div class="csb-bars" style="margin-top:6px;">{% for label, count in item.choices %}
+          <div class="csb-bar-row"><span>{{ label }}</span><span class="csb-track"><span class="csb-fill" style="background:var(--csb-svc);width:{{ [3, count * 100 / top]|max }}%"></span></span><span class="num">{{ count }}</span></div>
+        {% endfor %}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <div class="csb-grid">
   <div class="card gc-scale-in">
     <h2 class="section-title" style="margin-top:0;">{{ t('board_cs.left_why') }}</h2>
@@ -301,6 +328,8 @@
   .csb-tag { font-size:.68rem; border-radius:999px; padding:0 6px; border:1px solid var(--line); color:var(--muted); }
   .csb-pill { display:inline-block; border-radius:999px; padding:1px 9px; font-size:.82rem; }
   .csb-good { background:#dcf1e5; color:#1e7a4b; } .csb-fair { background:#f7ecd6; color:#96620f; } .csb-poor { background:#f8e0de; color:#b0332d; } .csb-none { color:var(--muted); }
+  .csb-split { display:flex; height:20px; border-radius:999px; overflow:hidden; font-size:.74rem; margin-top:6px; }
+  .csb-split span { display:grid; place-items:center; color:#fff; min-width:0; white-space:nowrap; overflow:hidden; }
   .csb-comment { border:1px solid var(--line); border-radius:12px; padding:9px 12px; display:grid; gap:3px; }
   .csb-comment.low { border-inline-start:3px solid var(--danger); }
   :root[data-theme="dark"] .csb-good { background:#173a2a; color:#4cc288; }
