@@ -1299,10 +1299,14 @@
           init() {
             {# Made here and not in the object above: the kind has to be read
                off this component when the search runs, and only `this`
-               inside init() is the component. #}
+               inside init() is the component. A plain function and not an
+               arrow on purpose: the CSRF sweep in `tests/test_csrf.py` reads
+               the form tag up to its first closing angle bracket, and an
+               arrow has one. #}
+            const self = this;
             this.picker = window.gcPicker({
               url: {{ url_for('beds.investigation_search')|tojson|forceescape }}, minChars: 2,
-              extra: () => 'kind=' + encodeURIComponent(this.kind) });
+              extra: function () { return 'kind=' + encodeURIComponent(self.kind); } });
           },
           pick(r) {
             this.picker.close();
