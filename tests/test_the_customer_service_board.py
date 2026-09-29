@@ -56,8 +56,11 @@ def _survey(clinic, days_ago=3, centre_key=None, doctor=None, med=5, svc=5,
 
 
 def _period(days=30):
+    # The clinic's today, not the machine's: between the clinic's midnight
+    # and UTC's the two differ, and a row made "now" would fall past the end.
+    from app.utils.clock import local_today
     from app.utils.cs_board import period
-    today = date.today()
+    today = local_today()
     return period((today - timedelta(days=days - 1)).isoformat(), today.isoformat())
 
 
