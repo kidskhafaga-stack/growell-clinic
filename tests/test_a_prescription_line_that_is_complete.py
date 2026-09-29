@@ -172,3 +172,40 @@ def test_a_prescription_dated_back_prints_no_hour(clinic):
         clinic["db"].session.commit()
     page = _page(clinic, rx_id)
     assert f"{local_today() - timedelta(days=1)}</strong>" in page
+
+
+def test_either_limit_makes_a_when_needed_line_complete(clinic):
+    rx_id = _write(clinic, [{"name": "Paracetamol", "dose": "5ml", "frequency": "prn",
+                             "prn_reason": "ألم", "prn_max": "4"}])
+    assert "data-rx-incomplete" not in _page(clinic, rx_id)
+
+
+def test_a_prescription_from_another_day_carries_no_notice(clinic):
+    """Nobody can go back and complete last year's line; saying so helps no one."""
+    from datetime import datetime
+
+    from app.models import Prescription
+
+    rx_id = _write(clinic, [{"name": "Amoxicillin", "dose": "5ml", "frequency": "1x3"}])
+    assert "data-rx-incomplete" in _page(clinic, rx_id)
+    with clinic["app"].app_context():
+        rx = clinic["db"].session.get(Prescription, rx_id)
+        rx.created_at = datetime.utcnow() - timedelta(days=2)
+        clinic["db"].session.commit()
+    assert "data-rx-incomplete" not in _page(clinic, rx_id)
+
+
+def test_a_template_without_the_measurements_prints_no_height(clinic):
+    from app.models import GrowthRecord, RxPrintTemplate
+
+    with clinic["app"].app_context():
+        clinic["db"].session.add_all([
+            GrowthRecord(patient_id=clinic["ids"]["child"], weight_kg=12.6, height_cm=88.5,
+                         record_date=local_today()),
+            RxPrintTemplate(name="t", mode="white", is_default=True, page_size="A4",
+                            font_size=14, margin_mm=12, show_weight=False)])
+        clinic["db"].session.commit()
+    rx_id = _write(clinic, [{"name": "Zinc", "dose": "5ml", "frequency": "1x1",
+                             "duration": "10d"}])
+    page = _page(clinic, rx_id)
+    assert "data-rx-height" not in page and "88.5" not in page
