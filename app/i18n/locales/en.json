@@ -1698,7 +1698,10 @@
     "404_message": "The page you are looking for does not exist",
     "500_title": "Server error",
     "500_message": "An unexpected error occurred, please try again later",
-    "go_home": "Go home"
+    "go_home": "Go home",
+    "form_expired": "For safety, that request was not carried out — nothing was saved. Go back to the page (it will open fresh) and do it again.",
+    "form_expired_title": "This page had been open a long time",
+    "form_expired_back": "Back to the page"
   },
   "services": {
     "title": "Services & Commissions",
