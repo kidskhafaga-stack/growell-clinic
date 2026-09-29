@@ -8,26 +8,100 @@
       {% if _accent %}style="--accent:{{ _accent }};"{% endif %}>
 <head>
   <meta charset="utf-8">
-  {# Same token the forms carry, for the handful of POSTs made by script. #}
-  <meta name="csrf-token" content="{{ csrf_token() }}">
+  {# Same token the forms carry, for the handful of POSTs made by script.
+     `data-life` is how long a token lives (seconds, 0 = for ever) and
+     `data-refresh` where a signed-in page gets a new one — see below. #}
+  <meta name="csrf-token" content="{{ csrf_token() }}"
+        data-life="{{ (config.get('WTF_CSRF_TIME_LIMIT', 3600) or 0)|int }}"
+        data-refresh="{{ url_for('main.fresh_token') if current_user.is_authenticated else '' }}">
   <script>
-    // Every same-origin POST/PUT/PATCH/DELETE made with fetch() carries the
-    // token, so a screen that posts by script doesn't have to remember to.
     (function () {
-      var token = document.querySelector('meta[name="csrf-token"]');
-      if (!token || !window.fetch) return;
+      var meta = document.querySelector('meta[name="csrf-token"]');
+      if (!meta || !window.fetch) return;
       var original = window.fetch;
+
+      // «لما حاولت اعمل ادمشن حصل كده» — The CSRF token has expired. A token
+      // lives an hour and the bed map is left open all shift: it refreshes
+      // its data, never the page, so its forms went stale by mid-morning.
+      // Past half its life the page fetches a new token and puts it wherever
+      // the old one was — the forms, the <template>s a drawer is cloned
+      // from, and this meta the script POSTs read. Asked on a timer, when
+      // the tab comes back into view, and just before anything is sent.
+      // Nothing is loosened: the server checks exactly as before.
+      var life = (parseInt(meta.getAttribute('data-life'), 10) || 0) * 1000;
+      var refreshUrl = meta.getAttribute('data-refresh');
+      var issued = Date.now(), pending = null;
+      var stale = function () {
+        return !!refreshUrl && life > 0 && Date.now() - issued > life / 2;
+      };
+      var spread = function (token) {
+        meta.content = token;
+        document.querySelectorAll('input[name="csrf_token"]').forEach(function (i) { i.value = token; });
+        document.querySelectorAll('template').forEach(function (tpl) {
+          tpl.content.querySelectorAll('input[name="csrf_token"]').forEach(function (i) { i.value = token; });
+        });
+      };
+      var refresh = function () {
+        if (!refreshUrl) return Promise.resolve(meta.content);
+        if (pending) return pending;
+        pending = original(refreshUrl, { credentials: 'same-origin', cache: 'no-store' })
+          .then(function (r) {
+            var json = (r.headers.get('content-type') || '').indexOf('json') !== -1;
+            return r.ok && json ? r.json() : null;
+          })
+          .then(function (d) {
+            if (d && d.token) { spread(d.token); issued = Date.now(); }
+            return meta.content;
+          })
+          .catch(function () { return meta.content; })
+          .then(function (token) { pending = null; return token; });
+        return pending;
+      };
+      window.gcFreshToken = refresh;
+      window.gcTokenStale = stale;
+      setInterval(function () { if (stale()) refresh(); }, 5 * 60 * 1000);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible' && stale()) refresh();
+      });
+      // A form sent from a page past half its token's life waits for a new
+      // token, then goes — the same button, the same fields.
+      document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (!form || form.__gcFresh || !stale()) return;
+        if ((form.getAttribute('method') || '').toLowerCase() !== 'post') return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        var submitter = e.submitter;
+        refresh().then(function () {
+          form.__gcFresh = true;
+          try {
+            if (form.requestSubmit) form.requestSubmit(submitter || undefined);
+            else form.submit();
+          } finally { form.__gcFresh = false; }
+        });
+      }, true);
+
+      // Every same-origin POST/PUT/PATCH/DELETE made with fetch() carries the
+      // token, so a screen that posts by script doesn't have to remember to.
+      // **The page's current token**, even over one a screen wrote in itself
+      // when it was drawn — that one is the token this page started with, and
+      // it goes stale with the page.
       window.fetch = function (input, init) {
         init = init || {};
+        var self = this;
         var method = (init.method || (typeof input === 'object' && input.method) || 'GET').toUpperCase();
         var url = typeof input === 'string' ? input : (input && input.url) || '';
         var sameOrigin = !/^https?:\/\//i.test(url) || url.indexOf(window.location.origin) === 0;
-        if (sameOrigin && ['POST', 'PUT', 'PATCH', 'DELETE'].indexOf(method) !== -1) {
-          var headers = new Headers(init.headers || (typeof input === 'object' ? input.headers : undefined) || {});
-          if (!headers.has('X-CSRFToken')) headers.set('X-CSRFToken', token.content);
-          init.headers = headers;
+        if (!(sameOrigin && ['POST', 'PUT', 'PATCH', 'DELETE'].indexOf(method) !== -1)) {
+          return original.call(self, input, init);
         }
-        return original.call(this, input, init);
+        var send = function () {
+          var headers = new Headers(init.headers || (typeof input === 'object' ? input.headers : undefined) || {});
+          headers.set('X-CSRFToken', meta.content);
+          init.headers = headers;
+          return original.call(self, input, init);
+        };
+        return stale() ? refresh().then(send) : send();
       };
     })();
 
@@ -57,7 +131,9 @@
         for (var i = 0; i < values.length; i++) add(key, values[i]);
       }
       document.body.appendChild(form);
-      form.submit();
+      // Through `requestSubmit` when there is one, so a stale page's token is
+      // renewed on the way out like any other form's (see above).
+      if (form.requestSubmit) form.requestSubmit(); else form.submit();
     };
   </script>
   <!-- Resolve theme before paint (light / dark / follow-system) — no flash. -->

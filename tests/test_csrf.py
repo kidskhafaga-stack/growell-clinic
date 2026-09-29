@@ -195,3 +195,59 @@ def test_no_template_was_missed():
             if "csrf_token" not in following:
                 missing.append(f"{template}:{text[:match.start()].count(chr(10)) + 1}")
     assert not missing, "POST forms with no CSRF token:\n" + "\n".join(missing)
+
+
+# ------------------------------------------- a page left open all shift --
+def test_a_long_open_page_can_renew_its_token(guarded):
+    """«لما حاولت اعمل ادمشن حصل كده» — The CSRF token has expired. The bed
+    map is left open all shift and refreshes its data, never the page, so
+    its forms outlived their token. A signed-in page asks for a new one, and
+    the new one is accepted; nobody signed out can ask."""
+    client = guarded["client"]
+    reply = client.get("/session/token")
+    assert reply.status_code == 200
+    assert reply.headers["Cache-Control"] == "no-store"
+    token = reply.get_json()["token"]
+    before = _services(guarded)
+    assert client.post("/finance/services/new",
+                       data={"name": "بتوكن جديد", "price": "10",
+                             "csrf_token": token},
+                       follow_redirects=True).status_code == 200
+    assert _services(guarded) == before + 1
+    stranger = guarded["app"].test_client().get("/session/token")
+    assert stranger.status_code in (302, 401)
+    assert "token" not in (stranger.get_data(as_text=True) or "")[:40]
+
+
+def test_every_page_knows_how_long_its_token_lives_and_where_to_renew(guarded):
+    page = guarded["client"].get("/finance/services").get_data(as_text=True)
+    meta = page.split('<meta name="csrf-token"')[1].split(">")[0]
+    assert 'data-life="3600"' in meta and 'data-refresh="/session/token"' in meta
+    assert "window.gcFreshToken" in page
+    # Signed out there is nothing to renew from.
+    login = guarded["app"].test_client().get("/login").get_data(as_text=True)
+    assert 'data-refresh=""' in login.split('<meta name="csrf-token"')[1].split(">")[0]
+
+
+def test_a_refused_form_says_so_and_offers_the_way_back(guarded):
+    """Still refused and still a 400 — nothing happened — but in words, with
+    a button back to the page it came from, and never to somebody else's."""
+    client = guarded["client"]
+    host = "http://localhost/"
+    before = _services(guarded)
+    resp = client.post("/finance/services/new",
+                       data={"name": "قديمة", "price": "5", "csrf_token": "stale"},
+                       headers={"Referer": host + "finance/services"})
+    body = resp.get_data(as_text=True)
+    assert resp.status_code == 400 and _services(guarded) == before
+    assert "data-form-expired" in body and "Bad Request" not in body
+    back = body.split("data-form-expired-back")[0].rsplit('href="', 1)[1].split('"')[0]
+    assert back == host + "finance/services"
+    elsewhere = client.post("/finance/services/new",
+                            data={"name": "قديمة", "csrf_token": "stale"},
+                            headers={"Referer": "https://evil.example/x"})
+    back = elsewhere.get_data(as_text=True).split(
+        "data-form-expired-back")[0].rsplit('href="', 1)[1].split('"')[0]
+    assert back == "/"
+    scripted = client.post("/finance/services/new", json={"name": "x"})
+    assert scripted.status_code == 400 and scripted.get_json()["ok"] is False

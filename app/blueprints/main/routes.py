@@ -216,6 +216,30 @@ def dashboard():
     return render_template("main/dashboard.html", **ctx)
 
 
+@main_bp.route("/session/token")
+@login_required
+def fresh_token():
+    """A new form token for a page that has been open a long time.
+
+    «لما حاولت اعمل ادمشن حصل كده» — *The CSRF token has expired.* A token
+    lives an hour, and the bed map is a screen a ward leaves open all shift:
+    it refreshes its own data and never the page, so the token in its admit
+    form was an hour old by mid-morning and the admission was refused.
+
+    The page asks here (``base.html``) and puts the new token wherever the
+    old one was. **Nothing is loosened by it**: the answer is readable only by
+    our own pages — no cross-origin page can read a same-origin JSON reply —
+    and only by somebody signed in, and a POST still needs a token that
+    matches this session exactly as before.
+    """
+    from flask import jsonify
+    from flask_wtf.csrf import generate_csrf
+
+    reply = jsonify({"token": generate_csrf()})
+    reply.headers["Cache-Control"] = "no-store"
+    return reply
+
+
 @main_bp.route("/live/<kind>/<int:ident>")
 @login_required
 def live_fingerprint(kind, ident):
