@@ -966,9 +966,9 @@ def satisfaction():
     if tab not in ("all", "units", "complaints") or (
             tab == "complaints" and not can_complaints):
         tab = "all"
-    ctx = {"start": start.date(), "last": (end - timedelta(days=1)).date(),
-           "prev": [cs_board.previous(start, end)[0].date(),
-                    (start - timedelta(days=1)).date()],
+    first, last = cs_board.dates(start, end)
+    ctx = {"start": first, "last": last,
+           "prev": list(cs_board.dates(*cs_board.previous(start, end))),
            "centre_id": centre_id, "tab": tab, "can_complaints": can_complaints,
            "centres": cost_centres.listing(), "colour": cs_board.colour,
            "min_colour": cs_board.MIN_TO_COLOUR,
@@ -1034,8 +1034,8 @@ def satisfaction_answers():
                         headers={"Content-Disposition":
                                  "attachment; filename=ratings.csv"})
     return render_template("messages/cs_answers.html", page=paginate(q),
-                           start=start.date(),
-                           last=(end - timedelta(days=1)).date())
+                           start=cs_board.dates(start, end)[0],
+                           last=cs_board.dates(start, end)[1])
 
 
 @messages_bp.route("/survey", methods=["GET", "POST"])
