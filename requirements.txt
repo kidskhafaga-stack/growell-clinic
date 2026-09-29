@@ -24,4 +24,4 @@ rcpchgrowth==4.5.0
 tzdata==2025.2
 # Ed25519, for checking the signature on a licence file. Verification only —
 # nothing in this repository can sign one, and the key that can is not in it.
-cryptography==46.0.3
+cryptography==50.0.0
