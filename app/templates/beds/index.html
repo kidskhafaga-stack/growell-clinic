@@ -18,11 +18,22 @@
   .bm-occ { display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:.82rem; color:var(--muted); }
   .bm-meter { width:120px; height:8px; background:var(--green-050,#eef5f6); border-radius:999px; overflow:hidden; display:inline-block; vertical-align:middle; }
   .bm-meter span { display:block; height:100%; background:var(--green-600,#12855f); border-radius:999px; transition:width .6s ease; }
-  .bm-space { border:1px solid var(--line); border-radius:14px; padding:10px; margin-top:12px; }
+  /* «ليه الداخلى مش بيترتب تلقائي افقي بدل رأسي» — the rooms of a unit sit
+     side by side and wrap, each as wide as its own beds, instead of every
+     room taking a full-width row: a ward of nine single-bed rooms was nine
+     rows with one bed at the edge of each. */
+  .bm-spaces { display:flex; flex-wrap:wrap; gap:12px; margin-top:12px; align-items:flex-start; }
+  .bm-space { border:1px solid var(--line); border-radius:14px; padding:10px; box-sizing:border-box;
+              flex:0 1 calc(var(--beds, 1) * 140px + 14px); max-width:100%; min-width:0; }
   .bm-space--partition { border-style:dashed; }
   .bm-space--bay { border-radius:22px; }
   .bm-space__name { font-size:.82rem; color:var(--muted); margin-bottom:8px; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
   .bm-beds { display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(132px,1fr)); }
+  /* On a phone two single-bed rooms fit side by side, not one per line. */
+  @media (max-width: 560px) {
+    .bm-beds { grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); }
+    .bm-space { flex-basis:calc(var(--beds, 1) * 118px + 14px); }
+  }
   .bm-bed { position:relative; border:1.5px solid var(--line); border-radius:14px; background:var(--card); padding:8px; display:grid; gap:3px; align-content:start; text-align:center; cursor:pointer; transition:border-color .25s, transform .2s, background .4s; font:inherit; color:inherit; }
   .bm-bed:hover { transform:translateY(-2px); border-color:var(--green-500,#20a07a); }
   .bm-bed:focus-visible { outline:2px solid var(--green-600,#12855f); outline-offset:2px; }
@@ -116,8 +127,9 @@
     </div>
   </div>
 
+  {% if row.spaces %}<div class="bm-spaces" data-spaces>{% endif %}
   {% for block in row.spaces %}
-  <div class="bm-space bm-space--{{ block.space.kind }}">
+  <div class="bm-space bm-space--{{ block.space.kind }}" style="--beds:{{ [block.beds|length, 1 if block.beds else 2]|max }};">
     <div class="bm-space__name">
       <i class="bi bi-{{ 'layout-split' if block.space.kind == 'partition' else ('grid-3x2' if block.space.kind == 'bay' else 'door-closed') }}"></i>
       {{ block.space.name }} · {{ t('beds.space_' ~ block.space.kind) }}
@@ -172,6 +184,7 @@
     {% endif %}
   </div>
   {% endfor %}
+  {% if row.spaces %}</div>{% endif %}
 
   {% if not row.spaces %}
   <p class="hint" style="margin:0;">{{ t('beds.no_spaces_here') }}</p>
