@@ -279,6 +279,23 @@
             </template>
           </div>
         </div>
+        {# `MMS.11` (هـ)(٩) — a «عند اللزوم» line says what for and how often
+           at most. Shown only on such a line, and always posted (hidden, not
+           removed) so the rows stay aligned; the server keeps them only when
+           the frequency really is "when needed". #}
+        <div class="form-grid" x-show="isPrn(line)" x-cloak data-prn-boxes
+             style="margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--surface-2,#f6f8f7);">
+          <div class="form-row"><label>{{ t('rx.prn_reason') }}</label>
+            <input class="input" name="item_prn_reason" x-model="line.prn_reason"
+                   list="rx-prn-reasons" maxlength="160"
+                   placeholder="{{ t('rx.prn_reason_ph') }}"></div>
+          <div class="form-row"><label>{{ t('rx.prn_hours') }}</label>
+            <input class="input" name="item_prn_hours" x-model="line.prn_hours"
+                   type="number" min="1" max="72" inputmode="numeric" dir="ltr"></div>
+          <div class="form-row"><label>{{ t('rx.prn_max') }}</label>
+            <input class="input" name="item_prn_max" x-model="line.prn_max"
+                   type="number" min="1" max="24" inputmode="numeric" dir="ltr"></div>
+        </div>
         {% if ai_ready %}
         <div style="margin-top:8px;">
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -386,6 +403,9 @@
     <p class="hint" style="margin:8px 0 0;"><i class="bi bi-lightning"></i> {{ t('rx.shorthand_hint') }}</p>
   </div>
 
+  <datalist id="rx-prn-reasons">
+    {% for reason in prn_reasons %}<option value="{{ reason }}">{% endfor %}
+  </datalist>
   <datalist id="rx-frequencies">
     {% for _per_day, label in frequencies %}<option value="{{ label }}">{% endfor %}
     <option value="عند اللزوم"><option value="قبل النوم">
@@ -638,9 +658,9 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
       const s = line.picker.take();
       if (s) { ev.preventDefault(); this.applyDrug(line, s); }
     },
-    blankLine(){ return this.withPicker({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',printed:true,max:'',dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:'',aiCompare:null}); },
+    blankLine(){ return this.withPicker({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',printed:true,prn_reason:'',prn_hours:'',prn_max:'',max:'',dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:'',aiCompare:null}); },
     addLine(){ this.lines.push(this.blankLine()); },
-    continueMed(m){ this.lines.push(this.withPicker({drug_id:m.drug_id||'',name:m.drug_name||'',dose:m.dose||'',frequency:m.frequency||'',duration:m.duration||'',instructions:m.instructions||'',printed:true,max:'',dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:'',aiCompare:null})); },
+    continueMed(m){ this.lines.push(this.withPicker({drug_id:m.drug_id||'',name:m.drug_name||'',dose:m.dose||'',frequency:m.frequency||'',duration:m.duration||'',instructions:m.instructions||'',printed:true,prn_reason:'',prn_hours:'',prn_max:'',max:'',dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:'',aiCompare:null})); },
     // The assistant answers *beside* the reference and fills nothing. It used
     // to write l.dose, l.frequency and l.duration outright, which meant a
     // model that disagreed with the reference produced no visible sign of it.
@@ -771,6 +791,7 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
       else if(!l.dose){ l.dose=s.dose; }
       this.checkInteractions();
     },
+    isPrn(l){ return this.expandFreq(l.frequency) === {{ prn_text|tojson }}; },
     removeLine(i){ this.lines.splice(i,1); this.checkInteractions(); },
     _pendingAmount: null,
 

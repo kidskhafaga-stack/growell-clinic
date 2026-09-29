@@ -500,6 +500,19 @@ SECTIONS = [
              "free one to admit a child by file number. It updates itself. A "
              "unit no longer used is closed with the reason «No longer used» "
              "and leaves the map once it is empty."),
+            ("<b>إقرار الدخول على الشاشة:</b> بعد ما تدخّل طفل من الخريطة، "
+             "الشاشة بتعرض إقرار الدخول لولي الأمر يقراه ويأكّد إنه فهمه "
+             "ويوقّع بصباعه. الكلام هو نص «الدخول والإقامة» في الموافقات، "
+             "والمستشفى تعدّله من إعدادات نصوص الموافقات بقواعدها (الزيارة، "
+             "المرافق…). والسرير اللي إقراره لسه ما اتوقّعش عليه علامة «مستني "
+             "توقيع».",
+             "<b>Admission consent on the screen:</b> after admitting from "
+             "the map, the screen shows the guardian the admission consent to "
+             "read, confirm and sign with a finger. The words are the "
+             "«Admission and stay» consent text, which the hospital edits "
+             "with its own rules (visiting, companions…) in the consent "
+             "wording settings. A bed whose consent is not signed yet is "
+             "marked «awaiting signature»."),
             ("<b>اسم اتكتب غلط بيتصلّح:</b> من «تجهيز الأقسام» زرار «تعديل» "
              "جنب كل قسم وحيّز وسرير — الاسم، ونوع الحيّز (غرفة/بارتشن) ونوع "
              "السرير (سرير/حضّانة/كبسولة). حتى لو نام فيه أطفال: الإقامة "
