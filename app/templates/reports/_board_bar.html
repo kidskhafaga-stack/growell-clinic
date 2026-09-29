@@ -1,15 +1,17 @@
 {# The period bar both boards share: presets, typed dates, and what the
-   figures are compared with. Needs ``w`` and ``board_endpoint``. #}
+   figures are compared with. Needs ``w`` and ``board_endpoint``;
+   ``board_extra`` is anything else the page must keep (the doctor chosen). #}
 <form method="get" class="card gc-scale-in mb-bar" data-board-bar>
   <div class="mb-chips" role="group" aria-label="{{ t('board_med.period') }}">
     {% for p in presets %}
     <a class="mb-chip" aria-pressed="{{ 'true' if w.preset == p else 'false' }}"
-       href="{{ url_for(board_endpoint, preset=p, place=place or None) }}">{{ t('board_med.preset_' ~ p) }}</a>
+       href="{{ url_for(board_endpoint, preset=p, place=place or None, **(board_extra or {})) }}">{{ t('board_med.preset_' ~ p) }}</a>
     {% endfor %}
   </div>
   <label>{{ t('board_med.from') }} <input class="input" type="date" name="from" value="{{ w['from'].isoformat() }}"></label>
   <label>{{ t('board_med.to') }} <input class="input" type="date" name="to" value="{{ w['to'].isoformat() }}"></label>
   {% if place %}<input type="hidden" name="place" value="{{ place }}">{% endif %}
+  {% for k, v in (board_extra or {}).items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
   <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('board_med.show') }}</button>
   <span style="flex:1;"></span>
   <span class="hint" style="margin:0;">{{ t('board_med.compared') }}
