@@ -126,7 +126,10 @@ def test_the_page_is_not_given_a_jump_to_a_question_it_does_not_ask(hospital):
     _feedback(hospital, "ward", centre_id=ward_id)
     _feedback(hospital, "visit")
     public = hospital["app"].test_client()
-    assert only_key not in public.get("/f/ward").get_data(as_text=True)
+    # As a quoted key, not as two letters: the page also carries random
+    # tokens, and "q2" turns up inside one of them now and then.
+    ward_page = public.get("/f/ward").get_data(as_text=True)
+    assert f'&#34;{only_key}&#34;' not in ward_page and f'"{only_key}"' not in ward_page
     assert f'&#34;no&#34;: &#34;{only_key}&#34;' in public.get("/f/visit").get_data(as_text=True) \
         or f'"no": "{only_key}"' in public.get("/f/visit").get_data(as_text=True)
 

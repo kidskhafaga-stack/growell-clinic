@@ -53,6 +53,10 @@ BUILT_IN_REASONS = [
     ("refurbishment", "تجديد ودهانات", "Refurbishment"),
     ("equipment", "عطل جهاز", "Equipment failure"),
     ("staffing", "نقص تمريض", "Staffing shortage"),
+    # مش صيانة: قسم مابقاش بيتستخدم. بيختفي من خريطة الأسرّة أول ما يفضى
+    # (``utils/bed_map``)، والإقامات اللي كانت فيه بتفضل زي ما هي — وده
+    # اللي بيخلّيه يتقفل بدل ما يتمسح.
+    ("retired", "مابقاش مستخدم", "No longer used"),
     ("other", "أخرى", "Other"),
 ]
 

@@ -39,7 +39,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import pytest  # noqa: E402
 
 KINDS = ["general", "examination", "procedure", "vaccination", "anesthesia",
-         "data_privacy", "photography"]
+         "data_privacy", "photography", "admission"]
 
 
 @pytest.fixture()
@@ -111,6 +111,7 @@ def test_each_kind_says_something_specific_to_itself(clinic):
         "data_privacy": ("بيانات",),
         "procedure": ("الإجراء", "إجراء"),
         "examination": ("فحص", "كشف"),
+        "admission": ("دخول", "الإقامة"),
     }
     with clinic["app"].test_request_context("/"):
         for kind, words in marks.items():

@@ -88,6 +88,11 @@
 </script>
 {% endif %}
 
+  {# `MMS.11` (هـ)(١٠): the time as well as the date. From when it was
+     written, in the clinic's own hours — and only when it was written on
+     the day it carries, since a prescription dated back to a visit and
+     typed in the next morning has no honest hour to print. #}
+  {% set rx_clock = (' · ' ~ (rx.created_at|clinic_time)) if rx.created_at and rx.created_at|clinic_stamp('%Y-%m-%d') == rx.rx_date|string else '' %}
   {% if tpl.mode == 'preprinted' %}
     {% if tpl.top_offset_mm %}<div style="height:{{ tpl.top_offset_mm }}mm;"></div>{% endif %}
     {# The top of this sheet belongs to the clinic's own letterhead. The one
@@ -101,7 +106,7 @@
        guaranteed to be empty. Printing them at the top would put them on top
        of the letterhead that is already there. #}
     <div style="text-align:end;font-size:0.85em;margin-bottom:0.7em;">
-      {{ t('rx.date') }}: <strong dir="ltr">{{ rx.rx_date }}</strong></div>
+      {{ t('rx.date') }}: <strong dir="ltr">{{ rx.rx_date }}{{ rx_clock }}</strong></div>
   {% else %}
   <div class="print-header" style="display:flex;justify-content:space-between;align-items:center;gap:14px;border-bottom:2px solid var(--green-600);padding-bottom:0.85em;margin-bottom:1em;">
     <div style="display:flex;align-items:center;gap:14px;">
@@ -115,7 +120,7 @@
         {% if tpl.show_license and doc and doc.license_no %}<div style="color:var(--muted);font-size:0.78em;">{{ t('rx.license') }}: <span dir="ltr">{{ doc.license_no }}</span></div>{% endif %}
       </div>
     </div>
-    <div style="text-align:end;font-size:0.85em;">{{ t('rx.date') }}: <strong dir="ltr">{{ rx.rx_date }}</strong></div>
+    <div style="text-align:end;font-size:0.85em;">{{ t('rx.date') }}: <strong dir="ltr">{{ rx.rx_date }}{{ rx_clock }}</strong></div>
   </div>
   {% endif %}
 
@@ -158,6 +163,15 @@
       <strong dir="ltr">{{ growth.weight_kg }} {{ t('rx.weight_kg') }}</strong>
       {% if growth.record_date != rx.rx_date %}
       <span class="badge badge--muted" dir="ltr">{{ growth.record_date }}</span>{% endif %}</span>
+    {% endif %}
+    {# `MMS.11` (هـ)(٢) asks for the height as well — from the weight's own
+       measurement only, so the two are one moment; the weight's date above
+       already says when that was. #}
+    {% set tall = rx_height(rx.patient, growth) if tpl.show_weight else None %}
+    {% if tall %}
+    <span data-rx-height><span class="rx-k">{{ t('rx.height') }}:</span>
+      <strong dir="ltr">{{ tall[0] }} {{ t('rx.height_cm') }}</strong>
+</span>
     {% endif %}
     {# Insurance or club membership. The payer's name and the member's number
        are the two things a payer's desk asks for, and both were already in the
@@ -308,7 +322,17 @@
     <thead><tr><th>{{ t('rx.drug') }}</th><th>{{ t('rx.default_dose') }}</th><th>{{ t('rx.default_frequency') }}</th><th>{{ t('rx.duration') }}</th><th>{{ t('rx.instructions') }}</th></tr></thead>
     <tbody>
       {% for it in printed_items %}
-      <tr><td><strong>{{ it.drug_name }}</strong></td><td>{{ it.dose or '—' }}</td><td>{{ it.frequency or '—' }}</td><td>{{ it.duration or '—' }}</td><td>{{ it.instructions or '—' }}</td></tr>
+      {# Under the name, what `MMS.11` (هـ) asks and the catalogue already
+         knew: the form, the strength when the name does not already say it,
+         and the way in. And on a «عند اللزوم» line, what for and how often
+         at most — the two things that make it a dose and not an open bottle. #}
+      {% set facts = rx_line_facts(it) %}
+      <tr><td><strong>{{ it.drug_name }}</strong>
+        {% if facts %}<div class="rx-k" style="font-size:0.85em;" data-rx-facts>{{ facts|join(' · ') }}</div>{% endif %}</td>
+        <td>{{ it.dose or '—' }}</td><td>{{ it.frequency or '—' }}
+        {% set prn = rx_prn_words(it) %}
+        {% if prn %}<div style="font-size:0.85em;" data-rx-prn>{% for w in prn %}<div>{{ w }}</div>{% endfor %}</div>{% endif %}</td>
+        <td>{{ it.duration or '—' }}</td><td>{{ it.instructions or '—' }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
