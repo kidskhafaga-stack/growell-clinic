@@ -68,13 +68,22 @@ def test_nothing_is_signed_without_reading_a_name_and_a_signature(hospital):
 
 
 def test_the_signed_consent_belongs_to_the_stay(hospital):
+    from app.models import Consent
+
     stay = _admit(hospital, _child(hospital, "تمام"))
+    # A row with no signature on it is not a signed consent.
+    with hospital["app"].app_context():
+        from app.models import Admission
+        kid = hospital["db"].session.get(Admission, stay).patient_id
+        hospital["db"].session.add(Consent(patient_id=kid, consent_type="admission",
+                                           guardian_name="x", admission_id=stay))
+        hospital["db"].session.commit()
     board = hospital["sign_in"]("boss").get("/beds/").get_data(as_text=True)
     assert "data-unsigned" in board
     page = hospital["sign_in"]("boss").get(f"/beds/admission/{stay}").get_data(as_text=True)
     assert 'data-stay-consent="missing"' in page
     _sign(hospital, stay)
-    assert _consents(hospital, stay) == [("admission", "أم يوسف", "drawn", True)]
+    assert ("admission", "أم يوسف", "drawn", True) in _consents(hospital, stay)
     page = hospital["sign_in"]("boss").get(f"/beds/admission/{stay}").get_data(as_text=True)
     assert 'data-stay-consent="signed"' in page
     assert "data-unsigned" not in hospital["sign_in"]("boss").get("/beds/").get_data(as_text=True)
