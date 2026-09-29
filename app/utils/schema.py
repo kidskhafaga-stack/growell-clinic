@@ -224,6 +224,15 @@ ADDITIONS = [
     # The stay a test was ordered from. Empty on every older order, which is
     # what they are: ordered at a visit, for no stay.
     ("visit_investigations", "admission_id", "INTEGER"),
+    # The laboratory's facts about a test (lab module import). Empty on every
+    # clinic's catalogue, which is what they are: nobody has said.
+    ("investigations", "aliases", "VARCHAR(400)"),
+    ("investigations", "tube", "VARCHAR(60)"),
+    ("investigations", "preparation", "VARCHAR(255)"),
+    ("investigations", "tat_min", "INTEGER"),
+    ("investigations", "tat_max", "INTEGER"),
+    ("investigations", "tat_stat_min", "INTEGER"),
+    ("investigations", "tat_stat_max", "INTEGER"),
     ("prescription_investigations", "laterality", "VARCHAR(8)"),
     # `PCC.12` — «اتسأل عن احتياجاته ولا لأ». فاضي في كل ملف موجود، وده
     # الصح: محدّش سأل لسه.

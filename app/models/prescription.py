@@ -424,6 +424,27 @@ class Investigation(db.Model):
                            nullable=True, index=True)
     service = db.relationship("Service")
 
+    # ---- the laboratory's own facts about the test ----------------------
+    # Filled by the lab module's import (``utils/lab_import``) or by hand on
+    # the lab's list, and by nothing else: the starter catalogue a clinic is
+    # given never writes them, so a clinic's list is exactly as it was.
+    #
+    # Other names the test goes by — «CBC; FBC; Full Blood Count» — so the
+    # search finds it whichever one a doctor types.
+    aliases = db.Column(db.String(400))
+    # The tube it is drawn into, as the laboratory names it.
+    tube = db.Column(db.String(60))
+    # What the family is told beforehand — «صيام ٨ ساعات».
+    preparation = db.Column(db.String(255))
+    # How long the laboratory says a result takes, in minutes, from the
+    # sample being drawn: routine and urgent, each as the range the
+    # laboratory agreed («30 to 60»). Empty until the laboratory says; a
+    # late-result alert needs the figure and never guesses one.
+    tat_min = db.Column(db.Integer)
+    tat_max = db.Column(db.Integer)
+    tat_stat_min = db.Column(db.Integer)
+    tat_stat_max = db.Column(db.Integer)
+
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name_ar
 

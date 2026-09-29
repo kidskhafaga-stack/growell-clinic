@@ -9,9 +9,35 @@
     <h1 class="page-title"><i class="bi bi-list-check"></i> {{ t('lab.tests') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('lab.tests_sub') }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}">
-    <i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}">
+      <i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
+    {# The laboratory's sheet in, and the catalogue out for it to complete.
+       Both here, in the lab module, and nowhere a clinic without one goes. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('labs.import_tests') }}" data-lab-import>
+      <i class="bi bi-file-earmark-arrow-up"></i> {{ t('lab_import.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('labs.export_tests') }}" data-lab-export>
+      <i class="bi bi-file-earmark-arrow-down"></i> {{ t('lab_import.export') }}</a>
+  </div>
 </div>
+
+{# A laboratory's list is hundreds long: searched, and a page at a time. #}
+<form method="get" action="{{ url_for('labs.tests') }}" class="card gc-scale-in"
+      style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;" data-lab-search>
+  <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+    <label for="q">{{ t('lab_import.search') }}</label>
+    <input class="input" id="q" name="q" value="{{ q }}" placeholder="{{ t('lab_import.search_ph') }}">
+  </div>
+  <div class="form-row" style="margin-bottom:0;min-width:200px;">
+    <label for="category">{{ t('lab_import.category') }}</label>
+    <select class="select" id="category" name="category">
+      <option value="">{{ t('lab_import.all_categories') }}</option>
+      {% for c in categories %}<option value="{{ c }}" {{ 'selected' if c == category else '' }}>{{ c }}</option>{% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-search"></i> {{ t('lab_import.find') }}</button>
+  <span class="hint" style="margin:0;" data-total>{{ t('lab_import.showing', n=rows|length, total=total) }}</span>
+</form>
 
 <div class="card gc-scale-in" style="margin-bottom:14px;">
   <h2 class="section-title" style="margin-top:0;">
@@ -127,8 +153,24 @@
       {{ t('lab.in_house') }}</label>
     <button class="btn btn-sm btn-outline gc-press" type="submit">
       {{ t('common.save') }}</button>
+    {% set ref = reference.get(row.id) %}
+    {% if row.kind == 'lab' %}
+    <a class="hint" style="flex-basis:100%;margin:0;" data-ref-line="{{ row.id }}"
+       href="{{ url_for('labs.test_ranges', test_id=row.id) }}">
+      <i class="bi bi-rulers"></i>
+      {% if ref and ref.analytes %}{{ t('lab_import.ref_line', analytes=ref.analytes, ranges=ref.ranges) }}{% if ref.drafts %} · <span class="badge badge--warn">{{ t('lab_import.drafts_n', n=ref.drafts) }}</span>{% endif %}
+      {% else %}{{ t('lab_import.ref_none') }}{% endif %}</a>
+    {% endif %}
   </form>
   {% endfor %}
 </div>
+{% if pages > 1 %}
+<nav style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:12px;" data-pages>
+  {% for n in range(1, pages + 1) %}
+  <a class="btn btn-sm {{ 'btn-primary' if n == page else 'btn-outline' }}"
+     href="{{ url_for('labs.tests', q=q or None, category=category or None, page=n) }}">{{ n }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
 {% endif %}
 {% endblock %}

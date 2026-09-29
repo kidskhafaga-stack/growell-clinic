@@ -15,6 +15,7 @@ Three screens and no more:
 * **the tests** — the catalogue, with what each is charged as. Admin only,
   like every other list that decides what things cost.
 """
+import json
 from datetime import datetime
 
 from flask import (abort, flash, g, redirect, render_template, request,
@@ -116,20 +117,220 @@ def result(order_id):
 
 
 # ------------------------------------------------------------- the tests ---
+#: How many tests the list draws at once. A laboratory's catalogue runs to
+#: hundreds, and each row is a form with the price list in it.
+PAGE = 50
+
+
 @labs_bp.route("/tests")
 @module_required(MODULE)
 def tests():
-    """The catalogue, and what each test is charged as."""
+    """The catalogue, and what each test is charged as — searched, and a page
+    at a time, because a laboratory's list is hundreds long."""
     _admin_only()
+    from sqlalchemy import or_
+
     from app.models.service import Service
 
+    q = (request.args.get("q") or "").strip()
+    category = (request.args.get("category") or "").strip()
+    page = max(1, request.args.get("page", type=int) or 1)
+    query = Investigation.query
+    if q:
+        like = f"%{q}%"
+        query = query.filter(or_(Investigation.name_ar.ilike(like),
+                                 Investigation.name_en.ilike(like),
+                                 Investigation.aliases.ilike(like),
+                                 Investigation.code.ilike(like)))
+    if category:
+        query = query.filter(Investigation.category == category)
+    total = query.count()
+    rows = (query.order_by(Investigation.kind, Investigation.name_ar)
+            .offset((page - 1) * PAGE).limit(PAGE).all())
+    categories = [c for (c,) in db.session.query(Investigation.category)
+                  .filter(Investigation.category.isnot(None))
+                  .distinct().order_by(Investigation.category).all()]
     return render_template(
-        "labs/tests.html",
-        rows=(Investigation.query
-              .order_by(Investigation.kind, Investigation.name_ar).all()),
-        kinds=INVESTIGATION_KINDS,
+        "labs/tests.html", rows=rows, kinds=INVESTIGATION_KINDS,
+        q=q, category=category, categories=categories, page=page,
+        pages=max(1, -(-total // PAGE)), total=total,
+        reference=_reference_state(rows),
         services=(Service.query.filter(Service.is_active.is_(True))
                   .order_by(Service.name).all()))
+
+
+def _reference_state(rows):
+    """``{test id: {"analytes", "ranges", "drafts"}}`` for the page's rows, in
+    one query — the line under each test that says what the laboratory has
+    told us about it."""
+    from app.models import LabRange, LabTestAnalyte
+
+    ids = [r.id for r in rows]
+    if not ids:
+        return {}
+    out = {i: {"analytes": 0, "ranges": 0, "drafts": 0} for i in ids}
+    links = (db.session.query(LabTestAnalyte.investigation_id,
+                              LabTestAnalyte.analyte_id)
+             .filter(LabTestAnalyte.investigation_id.in_(ids)).all())
+    by_analyte = {}
+    for test_id, analyte_id in links:
+        out[test_id]["analytes"] += 1
+        by_analyte.setdefault(analyte_id, []).append(test_id)
+    if by_analyte:
+        for analyte_id, approved in (db.session.query(LabRange.analyte_id,
+                                                      LabRange.approved_at)
+                                     .filter(LabRange.analyte_id.in_(
+                                         list(by_analyte))).all()):
+            for test_id in by_analyte[analyte_id]:
+                out[test_id]["ranges"] += 1
+                if approved is None:
+                    out[test_id]["drafts"] += 1
+    return out
+
+
+# ------------------------------------------------ bringing a list in -------
+@labs_bp.route("/tests/import", methods=["GET", "POST"])
+@module_required(MODULE)
+def import_tests():
+    """«استيراد» — the laboratory's sheet, read and shown before anything is
+    written. The lab module's own door, and the only one: a clinic without
+    the module never reaches it, and the catalogue a clinic is given on
+    install and update is not touched by it."""
+    _admin_only()
+    from app.utils import lab_import
+
+    if request.method == "GET":
+        return render_template("labs/import.html", plan=None)
+    upload = request.files.get("sheet")
+    if upload is None or not (upload.filename or "").lower().endswith(".xlsx"):
+        flash(t("lab_import.need_xlsx"), "error")
+        return redirect(url_for("labs.import_tests"))
+    try:
+        plan = lab_import.read(upload.stream)
+    except Exception:  # noqa: BLE001 — a sheet a person made can be anything
+        flash(t("lab_import.unreadable"), "error")
+        return redirect(url_for("labs.import_tests"))
+    if not plan["tests"]:
+        flash(t("lab_import.nothing_found"), "error")
+        return redirect(url_for("labs.import_tests"))
+    return redirect(url_for("labs.import_preview",
+                            token=lab_import.keep(plan)))
+
+
+@labs_bp.route("/tests/import/<token>", methods=["GET", "POST"])
+@module_required(MODULE)
+def import_preview(token):
+    """What the sheet holds, what it meets in the catalogue, and what looked
+    wrong — before a single row is written. The page's own «import» button
+    posts back here (``_import_apply``)."""
+    _admin_only()
+    from app.models import Investigation as Inv
+    from app.utils import lab_import
+
+    if request.method == "POST":
+        return _import_apply(token)
+    plan = lab_import.load(token)
+    if plan is None:
+        flash(t("lab_import.expired"), "error")
+        return redirect(url_for("labs.import_tests"))
+    found = lab_import.match(plan)
+    tests_by_key = {x["key"]: x for x in plan["tests"]}
+    linked = set(found["auto"]) | {q["pick"] for q in found["questions"]
+                                   if q["pick"]}
+    fresh = [x for x in plan["tests"] if x["key"] not in linked]
+    by_category = {}
+    for test in fresh:
+        name = test["category"] or "—"
+        by_category[name] = by_category.get(name, 0) + 1
+    ranges = [r for a in plan["analytes"].values() for r in a["ranges"]]
+    return render_template(
+        "labs/import.html", plan=plan, token=token, found=found,
+        tests_by_key=tests_by_key,
+        ours={row.id: row for row in Inv.query.filter(
+            Inv.id.in_(list(found["auto"].values()) or [0])).all()},
+        fresh=len(fresh), by_category=sorted(by_category.items(),
+                                             key=lambda x: -x[1]),
+        n_ranges=len(ranges),
+        n_sourced=sum(1 for r in ranges if r["source"]),
+        n_critical=sum(1 for r in ranges if r["critical_low"] is not None
+                       or r["critical_high"] is not None),
+        n_parts_missing=sum(1 for x in plan["tests"] if x["parts_missing"]),
+        n_tat=sum(1 for x in plan["tests"] if x["tat"]),
+        n_tube=sum(1 for x in plan["tests"] if x["tube"]))
+
+
+def _import_apply(token):
+    """Write what the preview showed, with the links as a person left them."""
+    from app.models import ActivityLog
+    from app.utils import lab_import
+    from app.utils.decorators import client_ip
+
+    plan = lab_import.load(token)
+    if plan is None:
+        flash(t("lab_import.expired"), "error")
+        return redirect(url_for("labs.import_tests"))
+    answers = {name[2:]: value for name, value in request.form.items()
+               if name.startswith("q_")}
+    links = lab_import.links_from(plan, answers)
+    counts = lab_import.apply(plan, links, user=current_user,
+                              show_new=request.form.get("show_new") == "1")
+    ActivityLog.record("lab.import", user_id=current_user.id,
+                       entity="investigation", entity_id=None,
+                       detail=json.dumps(counts), ip_address=client_ip())
+    db.session.commit()
+    lab_import.forget(token)
+    flash(t("lab_import.done", **counts), "success")
+    return redirect(url_for("labs.tests"))
+
+
+@labs_bp.route("/tests/export")
+@module_required(MODULE)
+def export_tests():
+    """The catalogue as a sheet for the laboratory to complete and send back —
+    the same columns the import reads."""
+    _admin_only()
+    import io
+
+    from flask import send_file
+
+    from app.utils import lab_import
+
+    rows = (Investigation.query.filter(Investigation.kind == "lab")
+            .order_by(Investigation.name_ar).all())
+    return send_file(io.BytesIO(lab_import.export(rows)),
+                     mimetype="application/vnd.openxmlformats-officedocument."
+                              "spreadsheetml.sheet",
+                     as_attachment=True, download_name="lab_tests.xlsx")
+
+
+@labs_bp.route("/tests/<int:test_id>/ranges")
+@module_required(MODULE)
+def test_ranges(test_id):
+    """What one test measures, and every range the laboratory has given for
+    each — with where it came from and whether it is approved."""
+    _admin_only()
+    row = db.get_or_404(Investigation, test_id)
+    return render_template("labs/test_ranges.html", test=row)
+
+
+@labs_bp.route("/tests/<int:test_id>/approve", methods=["POST"])
+@module_required(MODULE)
+def approve_ranges(test_id):
+    """The laboratory's director approves this test's ranges. Until then they
+    are a reference beside a result and never call it high or low."""
+    _admin_only()
+    from app.models import ActivityLog
+    from app.utils import lab_import
+    from app.utils.decorators import client_ip
+
+    row = db.get_or_404(Investigation, test_id)
+    done = lab_import.approve_test(row, current_user)
+    ActivityLog.record("lab.ranges_approved", user_id=current_user.id,
+                       entity="investigation", entity_id=row.id,
+                       detail=str(done), ip_address=client_ip())
+    db.session.commit()
+    flash(t("lab_import.approved", n=done), "success")
+    return redirect(url_for("labs.test_ranges", test_id=row.id))
 
 
 @labs_bp.route("/tests/add", methods=["POST"])
