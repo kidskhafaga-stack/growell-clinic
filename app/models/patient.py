@@ -411,7 +411,11 @@ class PatientProblem(db.Model):
 
 # Consent kinds a pediatric clinic documents (guardian-signed).
 CONSENT_TYPES = ["general", "examination", "procedure", "vaccination",
-                 "anesthesia", "data_privacy", "photography"]
+                 "anesthesia", "data_privacy", "photography",
+                 # Being admitted: the stay itself and the rules of it, read
+                 # to the guardian and signed on the screen at the bedside.
+                 # Tied to the stay (``admission_id``).
+                 "admission"]
 
 
 class Consent(db.Model):
@@ -459,6 +463,10 @@ class Consent(db.Model):
     # Kept as *kind plus file* rather than one column, because "we have an
     # image" does not tell a reader which of those two they are looking at,
     # and that is the whole question.
+    # The stay an admission consent was signed for. Empty for every other
+    # kind — a vaccination consent belongs to the child, not to a bed.
+    admission_id = db.Column(db.Integer, db.ForeignKey("admissions.id"),
+                             nullable=True, index=True)
     signature_file = db.Column(db.String(255))
     signature_kind = db.Column(db.String(10))          # paper | drawn
     # When the evidence arrived, which is not when the consent was signed: the

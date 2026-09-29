@@ -139,6 +139,8 @@ def create_app(config_name="default"):
     _money.init_app(app)
     from app.utils import clock as _clock
     _clock.init_app(app)
+    from app.utils import rx_complete as _rx_complete
+    _rx_complete.init_app(app)
     # The licence guard. Armed here rather than in a before_request, because
     # what it protects is the database session and not the request: eighteen
     # of this program's screens write on a plain GET.
