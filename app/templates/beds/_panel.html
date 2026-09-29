@@ -1,0 +1,52 @@
+{# The case behind a bed, in the map's side panel: what it is, what is being
+   given, what is still waiting and what came back — each as written where it
+   belongs, with the stay's own page one tap away. #}
+{% set a = p.admission %}
+<div data-case-panel="{{ a.id }}" style="display:grid;gap:12px;">
+  <div>
+    <div style="font-size:1.05rem;font-weight:700;">{{ p.patient.display_name(current_lang) }}</div>
+    <div class="hint" style="margin:0;"><span class="num">{{ p.patient.patient_number }}</span>
+      {% if p.bed %} · {{ p.bed.space.unit.name }} · {{ p.bed.name }}{% endif %}</div>
+    <div class="hint" style="margin:2px 0 0;">{{ t('beds.since') }} <span class="num">{{ a.admitted_at|clinic_stamp }}</span>
+      {% if a.doctor %} · {{ a.doctor.display_name(current_lang) }}{% endif %}</div>
+  </div>
+
+  <div data-panel-dx>
+    <strong style="font-size:.9rem;">{{ t('beds.map_dx') }}</strong>
+    {% if p.diagnoses %}
+    <ul style="margin:4px 0 0;padding-inline-start:18px;">{% for d in p.diagnoses %}<li>{{ d }}</li>{% endfor %}</ul>
+    {% elif a.reason %}<div>{{ a.reason }}</div>
+    {% else %}<div class="hint" style="margin:0;">{{ t('beds.map_none') }}</div>{% endif %}
+  </div>
+
+  <div data-panel-meds>
+    <strong style="font-size:.9rem;">{{ t('beds.map_meds') }}</strong>
+    {% if p.meds %}
+    <ul style="margin:4px 0 0;padding-inline-start:18px;">
+      {% for m in p.meds %}<li>{{ m.drug_name }}{% if m.dose %} — {{ m.dose }}{% endif %}{% if m.every_hours %} · {{ t('beds.map_every', n=m.every_hours) }}{% endif %}{% if m.is_prn %} · {{ t('beds.map_prn') }}{% endif %}</li>{% endfor %}
+    </ul>
+    {% else %}<div class="hint" style="margin:0;">{{ t('beds.map_none') }}</div>{% endif %}
+  </div>
+
+  <div data-panel-waiting>
+    <strong style="font-size:.9rem;">{{ t('beds.map_waiting') }}</strong>
+    {% set waiting = p.labs_waiting + p.imaging_waiting %}
+    {% if waiting %}
+    <ul style="margin:4px 0 0;padding-inline-start:18px;">
+      {% for i in waiting %}<li><span class="badge badge--warning">{{ t('beds.map_' ~ i.kind) }}</span> {{ i.name }}
+        <span class="hint">· {{ t('beds.map_st_' ~ i.status) }}</span></li>{% endfor %}
+    </ul>
+    {% else %}<div class="hint" style="margin:0;">{{ t('beds.map_nothing_waiting') }}</div>{% endif %}
+  </div>
+
+  {% if p.done %}
+  <div data-panel-done>
+    <strong style="font-size:.9rem;">{{ t('beds.map_done') }}</strong>
+    <ul style="margin:4px 0 0;padding-inline-start:18px;">
+      {% for i in p.done %}<li><span class="badge badge--green">{{ t('beds.map_' ~ i.kind) }}</span> {{ i.name }}{% if i.result_text %} — <span class="hint">{{ i.result_text[:80] }}</span>{% endif %}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <div><a class="btn btn-primary gc-press" href="{{ url_for('beds.admission', admission_id=a.id) }}"><i class="bi bi-folder2-open"></i> {{ t('beds.map_open_stay') }}</a></div>
+</div>

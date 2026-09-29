@@ -85,17 +85,28 @@ def _with_growth(patient):
 
 def _items(lang="ar"):
     ar = lang != "en"
+    # The form and route under each name, and the "when needed" limits on the
+    # one line that is — `MMS.11` (هـ) — because they are what makes a line
+    # tall, and a test page without them fits a paper that real ones overflow.
     rows = [
         ("Augmentin 457mg/5ml", "5 مل" if ar else "5 ml",
          "كل ١٢ ساعة" if ar else "every 12h", "٧ أيام" if ar else "7 days",
-         "بعد الأكل" if ar else "after food"),
+         "بعد الأكل" if ar else "after food",
+         {"form": "suspension", "strength": "457mg/5ml", "route": "oral"}),
         ("Brufen 100mg/5ml", "7 مل" if ar else "7 ml",
-         "عند اللزوم" if ar else "as needed", "٣ أيام" if ar else "3 days", ""),
+         "عند اللزوم" if ar else "as needed", "٣ أيام" if ar else "3 days", "",
+         {"form": "syrup", "strength": "100mg/5ml", "route": "oral",
+          "prn_reason": "حرارة (نموذج)" if ar else "fever (sample)",
+          "prn_min_hours": 6, "prn_max_per_day": 4}),
         ("Vitamin D drops", "٤٠٠ وحدة" if ar else "400 IU",
-         "يومياً" if ar else "daily", "مستمر" if ar else "ongoing", ""),
+         "يومياً" if ar else "daily", "مستمر" if ar else "ongoing", "",
+         {"form": "drops", "route": "oral"}),
     ]
+    blank = {"form": None, "strength": None, "route": None, "prn_reason": None,
+             "prn_min_hours": None, "prn_max_per_day": None}
     return [_Sample(printed=True, drug_name=n, dose=d, frequency=f,
-                    duration=u, instructions=i) for n, d, f, u, i in rows]
+                    duration=u, instructions=i, **{**blank, **extra})
+            for n, d, f, u, i, extra in rows]
 
 
 def sample(doctor, lang="ar"):

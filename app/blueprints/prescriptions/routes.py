@@ -30,6 +30,7 @@ from app.models import (
 )
 from app.utils.decorators import admin_required, client_ip, module_required
 from app.utils.paging import paginate
+from app.utils import rx_complete
 from app.utils.rx_shorthand import FREQUENCIES, expand_line
 from app.models.visit import SIDES as _SIDES
 
@@ -908,6 +909,9 @@ def new():
         freqs = request.form.getlist("item_frequency")
         durs = request.form.getlist("item_duration")
         instrs = request.form.getlist("item_instructions")
+        prn_reasons = request.form.getlist("item_prn_reason")
+        prn_hours = request.form.getlist("item_prn_hours")
+        prn_most = request.form.getlist("item_prn_max")
         # Ticked boxes only report the rows that are on, so the set of indices
         # is what says which lines print — an absent value means "off", and
         # that has to be a deliberate press rather than a default.
@@ -930,6 +934,10 @@ def new():
                 "frequency": (freqs[i].strip() if i < len(freqs) else ""),
                 "duration": (durs[i].strip() if i < len(durs) else ""),
             })
+            # `MMS.11` (هـ): the form, strength and route off the drug that
+            # was picked — nothing typed — and the "when needed" boxes only
+            # when the line is one.
+            drug = db.session.get(Drug, did) if did else None
             rx.items.append(PrescriptionItem(
                 drug_id=did, drug_name=name,
                 dose=written["dose"] or None,
@@ -937,6 +945,12 @@ def new():
                 duration=written["duration"] or None,
                 instructions=(instrs[i].strip() if i < len(instrs) else "") or None,
                 printed=i not in off,
+                **rx_complete.snapshot(drug),
+                **rx_complete.prn_fields(
+                    written["frequency"],
+                    prn_reasons[i] if i < len(prn_reasons) else None,
+                    prn_hours[i] if i < len(prn_hours) else None,
+                    prn_most[i] if i < len(prn_most) else None),
             ))
             used_ids.append(did)
             count += 1
@@ -1064,6 +1078,7 @@ def new():
         "prescriptions/new.html", patient=patient, prefill=prefill,
         prefill_invs=prefill_invs, prefill_meds=prefill_meds,
         sides=_SIDES,
+        prn_text=rx_complete.PRN_TEXT, prn_reasons=rx_complete.past_reasons(),
         visit_rx=visit_rx, recent_meds=recent_meds,
         presets=visible_presets(), frequencies=FREQUENCIES,
         # The doctor the field starts on: the one the visit carried over,
@@ -1138,7 +1153,15 @@ def view(rx_id):
                                           getattr(_g, "lang", "ar"))
     except Exception:  # noqa: BLE001 - printing must never break on plan maths
         rx_vaccines = []
+    # `MMS.11` (ز): what a line written today still lacks, said on the screen
+    # and never on the paper. Only today's — a line from last year that
+    # nobody can now go back and complete is a notice nobody can act on.
+    from app.utils.clock import local_date, local_today
+
+    gaps = (rx_complete.incomplete(rx)
+            if rx.created_at and local_date(rx.created_at) == local_today() else [])
     return render_template("prescriptions/view.html", rx=rx, warnings=warnings,
+                           gaps=gaps,
                            tpl=tpl, rx_vaccines=rx_vaccines, digital=digital,
                            next_appt=_next_appt(rx),
                            templates=RxPrintTemplate.query.order_by(RxPrintTemplate.name).all())
