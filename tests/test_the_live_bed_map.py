@@ -14,7 +14,9 @@ What is held here:
   its beds could hold;
 * the case panel reads the diagnosis, the drugs still running and the tests
   still waiting from where each is written;
-* a child is admitted from the map by their file number;
+* a child is admitted from the map by their file number, or picked from a
+  search by name or phone — «هنا لازم ابحث على المريض رقم التليفون او الاسم
+  او لو مالاقتشت اضيف مريض جديد» — or registered there in three fields;
 * a retired unit leaves the map once nobody is in it, and comes back when
   reopened;
 * the map knows when to refresh: its fingerprint moves when a child does.
@@ -151,6 +153,89 @@ def test_admitted_from_the_map_by_file_number(hospital):
     with hospital["app"].app_context():
         row = Admission.query.one()
         assert (row.patient_id, row.reason, row.bed.id) == (pid, "جفاف", hospital["beds"]["د١"])
+
+
+def _family_child(clinic, name, phone):
+    from datetime import date
+
+    from app.models import Family, Parent, Patient
+
+    with clinic["app"].app_context():
+        db = clinic["db"]
+        fam = Family(family_name=f"عائلة {name}")
+        db.session.add(fam)
+        db.session.flush()
+        db.session.add(Parent(family_id=fam.id, full_name=f"أم {name}",
+                              relation="mother", phone=phone))
+        child = Patient(patient_number=f"F-{phone[-4:]}", family_id=fam.id,
+                        full_name=name, date_of_birth=date(2022, 3, 1),
+                        gender="female", is_active=True)
+        db.session.add(child)
+        db.session.commit()
+        return child.id
+
+
+def test_the_admit_box_finds_the_child_by_name_or_a_guardians_phone(hospital):
+    from app.models import Admission
+
+    sara = _family_child(hospital, "سارة حسن", "01012345678")
+    other = _family_child(hospital, "ليلى عمر", "01198765432")
+    inside = _family_child(hospital, "سارة جوّه", "01200001111")
+    _admit(hospital, inside, "د٢")
+    boss = hospital["sign_in"]("boss")
+
+    def found(q):
+        return boss.get("/beds/patient-search", query_string={"q": q}).get_json()
+
+    by_phone = found("01012345678")
+    assert [r["id"] for r in by_phone] == [sara]
+    assert by_phone[0]["file"] == "F-5678" and by_phone[0]["inside"] is False
+    by_name = {r["id"]: r for r in found("سارة")}
+    assert set(by_name) == {sara, inside} and other not in by_name
+    # A child already in a bed is listed, and said so, before the press.
+    assert by_name[inside]["inside"] is True and by_name[sara]["inside"] is False
+    assert found("س") == [] and found("لا أحد هنا") == []
+
+    # Picked from the list: admitted by id, whatever is in the typed box.
+    boss.post("/beds/admit-here", data={"patient_id": sara, "patient_number": "سارة",
+                                        "bed_id": hospital["beds"]["د١"]})
+    with hospital["app"].app_context():
+        assert Admission.query.filter_by(patient_id=sara, discharged_at=None).count() == 1
+
+
+def test_a_child_not_found_is_registered_from_the_admit_box(hospital):
+    from app.models import ActivityLog, Patient
+
+    boss = hospital["sign_in"]("boss")
+    refused = boss.post("/beds/patient-quick", json={"full_name": "يوسف"})
+    assert refused.status_code == 400 and refused.get_json()["ok"] is False
+    made = boss.post("/beds/patient-quick", json={
+        "full_name": "يوسف أحمد", "gender": "male", "date_of_birth": "2024-01-05"})
+    body = made.get_json()
+    assert made.status_code == 200 and body["ok"] is True
+    with hospital["app"].app_context():
+        child = hospital["db"].session.get(Patient, body["patient"]["id"])
+        assert child.full_name == "يوسف أحمد"
+        assert body["patient"]["file"] == child.patient_number
+        assert ActivityLog.query.filter_by(action="patient.create",
+                                           entity_id=child.id).count() == 1
+    # And the search finds them straight after.
+    assert [r["id"] for r in boss.get("/beds/patient-search?q=يوسف").get_json()] == [
+        body["patient"]["id"]]
+
+
+def test_the_admit_box_is_the_wards_own(hospital):
+    desk = hospital["sign_in"]("desk")
+    assert desk.get("/beds/patient-search?q=سارة").status_code in (302, 403, 404)
+    assert desk.post("/beds/patient-quick", json={
+        "full_name": "ممنوع", "gender": "male",
+        "date_of_birth": "2024-01-05"}).status_code in (302, 403, 404)
+    page = _map(hospital)
+    form = page.split("<template data-admit-form>")[1].split("</template>")[0]
+    for hook in ("data-find", "data-found", "data-picked-id", "data-quick-toggle",
+                 "data-quick-save", 'name="patient_number"'):
+        assert hook in form
+    assert "/beds/patient-search" in page and "/beds/patient-quick" in page
 
 
 def test_a_retired_unit_leaves_the_map_once_nobody_is_in_it(hospital):

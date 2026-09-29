@@ -6210,7 +6210,7 @@
     "map_file_number": "Child's file number",
     "map_reason": "Reason for admission",
     "map_admit": "Admit",
-    "map_admit_hint": "The child must be registered. The stay starts now and the timer runs.",
+    "map_admit_hint": "Find the child, or add them here if they are not registered. The stay starts now and the timer runs.",
     "map_no_patient": "No file with number “{number}”.",
     "map_dx": "Diagnosis",
     "map_meds": "Current treatment",
@@ -6331,7 +6331,12 @@
     "team_open": "Open to everyone (no team set)",
     "team_n": "Unit team: {n}",
     "team_saved": "Team saved.",
-    "team_hint": "Choose nobody and the unit stays open to everyone, as before. Admins always see every unit."
+    "team_hint": "Choose nobody and the unit stays open to everyone, as before. Admins always see every unit.",
+    "map_find_child": "Child",
+    "map_find_hint": "Name, phone or file number",
+    "map_none_found": "No child matches. If they are new, add them with the button below.",
+    "map_change": "Change",
+    "map_in_a_bed": "In a bed now"
   },
   "dept": {
     "inside_n": "In now: {n}",

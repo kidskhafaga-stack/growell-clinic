@@ -65,6 +65,16 @@
   .bm-drawer { position:fixed; top:0; bottom:0; inset-inline-end:0; width:min(460px,100%); background:var(--card); border-inline-start:1px solid var(--line); z-index:41; display:flex; flex-direction:column; box-shadow:0 0 30px rgba(0,0,0,.18); }
   .bm-drawer header { padding:14px 16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center; }
   .bm-drawer .body { padding:14px 16px; overflow:auto; flex:1; }
+  /* The admit box: what the search found, and the child once picked. */
+  [data-admit] [hidden] { display:none !important; }
+  .bm-quick { margin-top:8px; display:grid; gap:8px; }
+  .bm-found { display:grid; margin-top:4px; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:var(--card); }
+  .bm-found__row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:8px 10px; border:0; border-bottom:1px solid var(--line); background:none; text-align:start; font:inherit; color:inherit; cursor:pointer; }
+  .bm-found__row:last-child { border-bottom:0; }
+  .bm-found__row span:first-child { font-weight:600; flex:1 1 100%; }
+  .bm-found__row:hover:not([disabled]), .bm-found__row.is-active { background:var(--bg); }
+  .bm-found__row[disabled] { opacity:.6; cursor:not-allowed; }
+  .bm-picked { display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:8px 10px; border:1px solid var(--line); border-radius:8px; }
   [hidden] { display:none !important; }
 </style>
 
@@ -200,13 +210,52 @@
     <button type="button" class="btn btn-outline btn-sm" data-drawer-close aria-label="{{ t('common.close') }}">✕</button></header>
   <div class="body" data-drawer-body></div>
 </aside>
+{# «هنا لازم ابحث على المريض رقم التليفون او الاسم او لو مالاقتشت اضيف مريض
+   جديد». The box finds the child the way every patient list does — name, file
+   number, national id, or any phone on record, the child's own or a
+   guardian's — and when there is no such child, registers them here in the
+   same three fields the theatre and the booking desk ask for. Sending the
+   nurse at the bedside to another screen to register the child is how an
+   admission ends up under the wrong file, or on paper. A number typed and not
+   picked still admits by file number, as the box always did. #}
 <template data-admit-form>
-  <form method="post" action="{{ url_for('beds.admit_here') }}" style="display:grid;gap:10px;">
+  <form method="post" action="{{ url_for('beds.admit_here') }}" style="display:grid;gap:10px;" data-admit>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="bed_id" value="">
     <input type="hidden" name="then" value="consent">
-    <div class="form-row" style="margin:0;"><label>{{ t('beds.map_file_number') }}</label>
-      <input class="input" name="patient_number" required dir="ltr" autocomplete="off"></div>
+    <input type="hidden" name="patient_id" value="" data-picked-id>
+    <div class="form-row" style="margin:0;position:relative;"><label>{{ t('beds.map_find_child') }}</label>
+      <input class="input" name="patient_number" required autocomplete="off" data-find
+             placeholder="{{ t('beds.map_find_hint') }}" aria-autocomplete="list">
+      <div class="bm-found" data-found role="listbox" hidden></div>
+      <div class="bm-picked" data-picked hidden>
+        <i class="bi bi-person-check"></i> <strong data-picked-name></strong>
+        <span class="badge badge--muted" dir="ltr" data-picked-file></span>
+        <button type="button" class="btn btn-outline btn-sm" data-unpick>{{ t('beds.map_change') }}</button>
+      </div>
+      <p class="hint" data-none hidden style="margin:4px 0 0;">{{ t('beds.map_none_found') }}</p>
+    </div>
+    <div data-quick-wrap>
+      <button type="button" class="btn btn-outline btn-sm gc-press" data-quick-toggle>
+        <i class="bi bi-person-plus"></i> {{ t('patients.quick_add') }}</button>
+      <div data-quick hidden class="bm-quick">
+        <div class="form-row" style="margin:0;"><label>{{ t('patients.full_name') }}</label>
+          <input class="input" data-q="full_name" autocomplete="off"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+          <div class="form-row" style="margin:0;flex:1;min-width:140px;"><label>{{ t('patients.dob') }}</label>
+            <input class="input" type="date" dir="ltr" data-q="date_of_birth"></div>
+          <div class="form-row" style="margin:0;min-width:110px;"><label>{{ t('patients.gender') }}</label>
+            <select class="select" data-q="gender">
+              <option value="">—</option>
+              <option value="male">{{ t('genders.male') }}</option>
+              <option value="female">{{ t('genders.female') }}</option>
+            </select></div>
+          <button type="button" class="btn btn-primary btn-sm gc-press" data-quick-save>
+            <i class="bi bi-check-lg"></i> {{ t('patients.quick_save') }}</button>
+        </div>
+        <p class="hint" data-quick-error hidden style="margin:0;color:var(--danger);"></p>
+      </div>
+    </div>
     <div class="form-row" style="margin:0;"><label>{{ t('beds.map_reason') }}</label>
       <input class="input" name="reason" maxlength="200"></div>
     <p class="hint" style="margin:0;">{{ t('beds.map_admit_hint') }} {{ t('beds.consent_next') }}</p>
@@ -219,7 +268,8 @@
   "use strict";
   var L = {
     hours: {{ t('beds.map_hours')|tojson }}, days: {{ t('beds.map_days')|tojson }},
-    admitTo: {{ t('beds.map_admit_to')|tojson }}, loading: {{ t('beds.map_loading')|tojson }}
+    admitTo: {{ t('beds.map_admit_to')|tojson }}, loading: {{ t('beds.map_loading')|tojson }},
+    inside: {{ t('beds.map_in_a_bed')|tojson }}, fillAll: {{ t('patients.quick_fill_all')|tojson }}
   };
   // ---------------------------------------------------------------- timers
   // Hours in a unit billed by the hour, days in one billed by the night.
@@ -281,8 +331,127 @@
       form.querySelector('[name=bed_id]').value = bed.getAttribute('data-bed');
       body.textContent = ''; body.appendChild(form);
       open(L.admitTo.replace('{bed}', bed.getAttribute('data-bed-name')));
-      body.querySelector('[name=patient_number]').focus();
+      body.querySelector('[data-find]').focus();
     }
+  });
+
+  // ------------------------------------------------------ finding the child
+  // Delegated, because the form is a fresh copy every time the panel opens.
+  // Names go in as text, never as markup: they are typed by people.
+  var FIND = {{ url_for('beds.patient_search')|tojson }}, QUICK = {{ url_for('beds.patient_quick')|tojson }};
+  var CSRF = {{ csrf_token()|tojson }}, timer = null, asked = 0;
+  function formOf(el) { return el.closest('[data-admit]'); }
+  function results(form) { return form.querySelector('[data-found]'); }
+  function hideResults(form) { results(form).hidden = true; results(form).textContent = ''; }
+  function pick(form, child) {
+    form.querySelector('[data-picked-id]').value = child.id;
+    form.querySelector('[data-find]').value = child.file;
+    form.querySelector('[data-find]').hidden = true;
+    form.querySelector('[data-picked-name]').textContent = child.name;
+    form.querySelector('[data-picked-file]').textContent = child.file;
+    form.querySelector('[data-picked]').hidden = false;
+    form.querySelector('[data-none]').hidden = true;
+    form.querySelector('[data-quick]').hidden = true;
+    form.querySelector('[data-quick-wrap]').hidden = true;
+    hideResults(form);
+    form.querySelector('[name=reason]').focus();
+  }
+  function unpick(form) {
+    var box = form.querySelector('[data-find]');
+    form.querySelector('[data-picked-id]').value = '';
+    form.querySelector('[data-picked]').hidden = true;
+    form.querySelector('[data-quick-wrap]').hidden = false;
+    box.hidden = false; box.value = ''; box.focus();
+  }
+  function row(child) {
+    var b = document.createElement('button'), name = document.createElement('span');
+    b.type = 'button'; b.className = 'bm-found__row'; b.setAttribute('role', 'option');
+    b.setAttribute('data-child', child.id);
+    name.textContent = child.name; b.appendChild(name);
+    function badge(cls, text, ltr) {
+      var s = document.createElement('span'); s.className = 'badge ' + cls; s.textContent = text;
+      if (ltr) s.dir = 'ltr'; b.appendChild(s); return s;
+    }
+    badge('badge--muted', child.file, true);
+    if (child.phone) badge('badge--muted', child.phone, true);
+    if (child.missing && child.missing.length && typeof BASICS_N !== 'undefined') {
+      var gap = badge('badge--warn', BASICS_N.replace('{n}', child.missing.length));
+      gap.setAttribute('data-basics-missing', '');
+      gap.title = child.missing.map(function (k) { return BASICS[k] || k; }).join(' \u00b7 ');
+    }
+    if (child.inside) { badge('badge--danger', L.inside); b.disabled = true; }
+    b._child = child;
+    return b;
+  }
+  function search(form) {
+    var q = form.querySelector('[data-find]').value.trim(), mine = ++asked;
+    if (q.length < 2) { hideResults(form); form.querySelector('[data-none]').hidden = true; return; }
+    fetch(FIND + '?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (rows) {
+        if (mine !== asked) return;              // an older answer arriving late
+        var box = results(form); box.textContent = '';
+        rows.forEach(function (c) { box.appendChild(row(c)); });
+        box.hidden = !rows.length;
+        form.querySelector('[data-none]').hidden = rows.length > 0;
+      }).catch(function () {});
+  }
+  document.addEventListener('input', function (e) {
+    if (!e.target.matches('[data-find]')) return;
+    var form = formOf(e.target);
+    form.querySelector('[data-picked-id]').value = '';
+    clearTimeout(timer); timer = setTimeout(function () { search(form); }, 250);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (!e.target.matches || !e.target.matches('[data-find]')) return;
+    var form = formOf(e.target), box = results(form);
+    var rows = Array.prototype.slice.call(box.querySelectorAll('button:not([disabled])'));
+    if (box.hidden || !rows.length) return;      // Enter with nothing listed admits by file number
+    var at = rows.indexOf(box.querySelector('.is-active'));
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (at >= 0) rows[at].classList.remove('is-active');
+      var step = e.key === 'ArrowDown' ? 1 : -1;
+      at = at < 0 ? (step > 0 ? 0 : rows.length - 1) : (at + step + rows.length) % rows.length;
+      rows[at].classList.add('is-active');
+    } else if (e.key === 'Enter') {
+      e.preventDefault(); pick(form, rows[Math.max(at, 0)]._child);
+    }
+  });
+  document.addEventListener('click', function (e) {
+    var hit = e.target.closest('[data-found] button');
+    if (hit && !hit.disabled) return pick(formOf(hit), hit._child);
+    if (e.target.closest('[data-unpick]')) return unpick(formOf(e.target));
+    if (e.target.closest('[data-quick-toggle]')) {
+      var form = formOf(e.target), quick = form.querySelector('[data-quick]');
+      quick.hidden = !quick.hidden;
+      if (!quick.hidden) {
+        // What was typed in the search is usually the name — unless it was
+        // a phone or a file number.
+        var typed = form.querySelector('[data-find]').value.trim(), name = quick.querySelector('[data-q=full_name]');
+        if (typed && !/\d/.test(typed) && !name.value) name.value = typed;
+        name.focus();
+      }
+      return;
+    }
+    var save = e.target.closest('[data-quick-save]');
+    if (!save) return;
+    var f = formOf(save), q = f.querySelector('[data-quick]'), err = q.querySelector('[data-quick-error]');
+    var data = {};
+    q.querySelectorAll('[data-q]').forEach(function (el) { data[el.getAttribute('data-q')] = el.value.trim(); });
+    if (!data.full_name || !data.date_of_birth || !data.gender) {
+      err.textContent = L.fillAll; err.hidden = false; return;
+    }
+    save.disabled = true; err.hidden = true;
+    fetch(QUICK, { method: 'POST', credentials: 'same-origin',
+                   headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                   body: JSON.stringify(data) })
+      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        save.disabled = false;
+        if (r.ok) { q.querySelectorAll('[data-q]').forEach(function (el) { el.value = ''; }); pick(f, r.patient); }
+        else { err.textContent = r.error || L.fillAll; err.hidden = false; }
+      }).catch(function () { save.disabled = false; });
   });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') return close();

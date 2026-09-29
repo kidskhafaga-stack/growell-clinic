@@ -52,6 +52,7 @@ from app.utils import round_billing
 from app.utils import rounds as ward_round
 from app.utils.clock import to_local, to_utc
 from app.utils.decorators import capability_required, module_required
+from app.utils.sequences import retry_on_number_clash
 
 MODULE = "beds"
 
@@ -149,15 +150,85 @@ def unit_team(unit_id):
 @beds_bp.route("/admit-here", methods=["POST"])
 @module_required(MODULE)
 def admit_here():
-    """Admit from the map: the bed that was tapped and the child's file
-    number. Finds the child, then admits exactly as ``admit`` does."""
+    """Admit from the map: the bed that was tapped and the child — picked from
+    the search (``patient_id``) or, as before, typed as a file number. Finds
+    the child, then admits exactly as ``admit`` does."""
+    picked = request.form.get("patient_id", type=int)
     number = (request.form.get("patient_number") or "").strip()
-    patient = (Patient.query.filter_by(patient_number=number).first()
-               if number else None)
+    patient = db.session.get(Patient, picked) if picked else None
+    if patient is None and number:
+        patient = Patient.query.filter_by(patient_number=number).first()
     if patient is None:
         flash(t("beds.map_no_patient", number=number), "error")
         return redirect(url_for("beds.index"))
     return admit(patient.id)
+
+
+@beds_bp.route("/patient-search")
+@module_required(MODULE)
+def patient_search():
+    """The admit box's search: name, file number, national id, or any phone on
+    record — the child's own or a guardian's (``apply_patient_search``, the
+    same rule every patient list uses).
+
+    Its own address rather than the theatre's or the booking's, for the reason
+    theirs are their own: those sit behind other modules, and a ward whose
+    admit box stops finding children because somebody switched an unrelated
+    module off is a bug waiting to happen.
+    """
+    from flask import jsonify
+    from sqlalchemy.orm import selectinload
+
+    from app.models import Family
+    from app.utils import patient_basics as basics
+    from app.utils.patients import apply_patient_search
+
+    query = (request.args.get("q") or "").strip()
+    if len(query) < 2:
+        return jsonify([])
+    rows = (apply_patient_search(Patient.query.filter(Patient.is_active.is_(True)), query)
+            .options(selectinload(Patient.family).selectinload(Family.parents))
+            .limit(10).all())
+    lang = getattr(g, "lang", "ar")
+    wanted = basics.required()
+    inside = {a.patient_id for a in Admission.query.filter(
+        Admission.patient_id.in_([p.id for p in rows] or [0]),
+        Admission.discharged_at.is_(None)).all()}
+    return jsonify([{"id": p.id, "name": p.display_name(lang), "file": p.patient_number,
+                     "phone": p.contact_phone or "",
+                     # A child already in a bed is shown, and said so: admitting
+                     # them twice is what the admit itself refuses, and saying it
+                     # before the press saves the round trip.
+                     "inside": p.id in inside,
+                     "missing": basics.missing(p, keys=wanted)} for p in rows])
+
+
+@beds_bp.route("/patient-quick", methods=["POST"])
+@module_required(MODULE)
+@retry_on_number_clash
+def patient_quick():
+    """Register the child in front of you from the admit box, in three fields —
+    the theatre's quick add, the same ``quick_create``. What the three fields
+    leave out is flagged on every screen until somebody finishes the file
+    (``patient_basics``)."""
+    from flask import jsonify
+
+    from app.models import ActivityLog
+    from app.utils.decorators import client_ip
+    from app.utils.patients import QUICK_REASONS, quick_create
+
+    data = request.get_json(silent=True) or {}
+    patient, why = quick_create(data.get("full_name"), data.get("gender"),
+                                data.get("date_of_birth"))
+    if patient is None:
+        return jsonify({"ok": False, "error": t(QUICK_REASONS[why])}), 400
+    ActivityLog.record("patient.create", user_id=current_user.id, entity="patient",
+                       entity_id=patient.id, detail=patient.patient_number,
+                       ip_address=client_ip())
+    db.session.commit()
+    return jsonify({"ok": True, "patient": {
+        "id": patient.id, "name": patient.display_name(getattr(g, "lang", "ar")),
+        "file": patient.patient_number}})
 
 
 # ------------------------------------------------------------ building it ---
