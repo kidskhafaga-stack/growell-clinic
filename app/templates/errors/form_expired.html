@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ t('errors.form_expired_title') }}{% endblock %}
+{% block body %}
+{# A form refused for its token — nearly always a page left open longer than
+   a token lives. Nothing it asked for happened; this says so in words and
+   takes the person back to the page, which is drawn fresh with a new token. #}
+<div class="error-wrap" data-form-expired>
+  <div>
+    <div class="error-code"><i class="bi bi-clock-history"></i></div>
+    <h1>{{ t('errors.form_expired_title') }}</h1>
+    <p style="color:var(--muted);max-width:52ch;margin-inline:auto;">{{ t('errors.form_expired') }}</p>
+    <a class="btn btn-primary" href="{{ back }}" data-form-expired-back>
+      <i class="bi bi-arrow-repeat"></i> {{ t('errors.form_expired_back') }}</a>
+    <div class="copyright" style="margin-top:20px;">{{ copyright_notice }}</div>
+  </div>
+</div>
+{% endblock %}

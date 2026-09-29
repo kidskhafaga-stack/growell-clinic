@@ -642,6 +642,35 @@ def Flask_app():
 
 
 def register_error_handlers(app):
+    from flask_wtf.csrf import CSRFError
+
+    @app.errorhandler(CSRFError)
+    def stale_form(error):
+        """A form refused for its token — said in words, with the way back.
+
+        It used to be the bare «Bad Request / The CSRF token has expired»,
+        which reads as the program having broken. Nearly always it is a page
+        left open longer than a token lives (``main.fresh_token`` keeps them
+        fresh; a laptop that slept through it is what gets here). **Still
+        refused, still a 400** — nothing the request asked for happened — only
+        now the person is told so, with a button back to the page they were
+        on, drawn fresh and so with a fresh token. A script gets JSON.
+        """
+        from flask import jsonify, request, url_for
+
+        from app.i18n import t
+
+        wants_json = (request.is_json
+                      or request.accept_mimetypes.best == "application/json"
+                      or request.headers.get("X-Requested-With") == "XMLHttpRequest")
+        if wants_json:
+            return jsonify({"ok": False, "error": t("errors.form_expired")}), 400
+        back = request.referrer or ""
+        # Our own pages only: a referrer is whatever the browser says it is.
+        if not back.startswith(request.host_url):
+            back = url_for("main.index")
+        return render_template("errors/form_expired.html", back=back), 400
+
     @app.errorhandler(403)
     def forbidden(error):
         return render_template("errors/403.html"), 403
