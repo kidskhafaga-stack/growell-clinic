@@ -1,0 +1,24 @@
+{% extends "shell.html" %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('beds.glass_title') }}{% endblock %}
+{% block page_heading %}{{ t('beds.glass_title') }}{% endblock %}
+
+{# A stay in a unit with its own team, opened by somebody not on it. Not a
+   locked door: the doctor on call covers every unit at night. A reason,
+   written down with the name, and it is open for the shift. #}
+{% block content %}
+<div class="card gc-scale-in" style="max-width:620px;" data-break-glass>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-shield-lock"></i> {{ t('beds.glass_title') }}</h2>
+  <p>{{ t('beds.glass_sub', unit=unit.name if unit else '') }}</p>
+  <form method="post" action="{{ url_for('beds.break_glass', admission_id=admission.id) }}" style="display:grid;gap:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label>{{ t('beds.glass_reason') }}</label>
+      <input class="input" name="reason" required minlength="5" maxlength="255" placeholder="{{ t('beds.glass_reason_ph') }}"></div>
+    <p class="hint" style="margin:0;">{{ t('beds.glass_hint') }}</p>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-unlock"></i> {{ t('beds.glass_open') }}</button>
+      <a class="btn btn-outline gc-press" href="{{ url_for('beds.index') }}">{{ t('common.back') }}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

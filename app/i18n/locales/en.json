@@ -6260,7 +6260,21 @@
     "billed_by": "Charged by the",
     "basis_night": "night",
     "basis_hour": "hour",
-    "rate_from_room": "Same as the room"
+    "rate_from_room": "Same as the room",
+    "glass_title": "This unit is its team's",
+    "glass_sub": "This stay is in {unit}, which has its own team. You can open it by giving a reason — it is recorded with your name.",
+    "glass_reason": "Reason",
+    "glass_reason_ph": "e.g. night on-call, emergency call",
+    "glass_hint": "It stays open for 12 hours, and the manager sees every time it was opened.",
+    "glass_open": "Open",
+    "glass_need_reason": "Give a reason (5 characters at least).",
+    "glass_panel": "This unit is its team's. To see the case, open it and give a reason.",
+    "glass_log": "Who opened stays outside their unit (last 30 days)",
+    "team_only": "Unit team only",
+    "team_open": "Open to everyone (no team set)",
+    "team_n": "Unit team: {n}",
+    "team_saved": "Team saved.",
+    "team_hint": "Choose nobody and the unit stays open to everyone, as before. Admins always see every unit."
   },
   "dept": {
     "inside_n": "In now: {n}",
@@ -8947,8 +8961,6 @@
     "col_comment": "Comment"
   },
   "board_med": {
-    "tab_medical": "Medical",
-    "tab_management": "Management",
     "desc": "Visits and coded diagnoses, inpatient units, emergency and doctors — for any dates, beside the period before.",
     "title": "Medical board",
     "sub": "Counts and illnesses from one date to another, no money. Each figure sits beside the same stretch before it; diagnoses are grouped by code, and each opens the cases behind it.",
@@ -9036,7 +9048,9 @@
     "back7": "Back within 7 days",
     "nocode": "Without a code",
     "no_doctors": "No cases in this period.",
-    "doctors_foot": "Recorded figures only, no rating. \"Back within 7 days\" = the same child seen again within a week. \"First time\" = the child's first visit to the clinic. \"Without a code\" = diagnoses written as words only."
+    "doctors_foot": "Recorded figures only, no rating. \"Back within 7 days\" = the same child seen again within a week. \"First time\" = the child's first visit to the clinic. \"Without a code\" = diagnoses written as words only.",
+    "tab_medical": "Medical",
+    "tab_management": "Management"
   },
   "board_admin": {
     "title": "Management board",
