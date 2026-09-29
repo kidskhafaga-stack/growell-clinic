@@ -22,17 +22,61 @@
      side by side and wrap, each as wide as its own beds, instead of every
      room taking a full-width row: a ward of nine single-bed rooms was nine
      rows with one bed at the edge of each. */
+  /* «تتلائم مع العدد وشكل الشاشة» — the units themselves sit side by side
+     when they fit. Each asks for the width its rooms would take on one line
+     (``--b`` beds in ``--s`` rooms, at ``--bed`` a card), grows to share
+     what is left of the row, and a unit too wide for one line takes the
+     whole row and wraps its rooms inside. A recovery room with two beds no
+     longer spends a full row of an empty screen. */
+  .bm-map { --bed:132px; }
+  .bm-units { display:flex; flex-wrap:wrap; gap:14px; align-items:stretch; }
+  .bm-units > .card { margin:0; box-sizing:border-box; min-width:0; max-width:100%;
+                      --need:calc(var(--b, 1) * (var(--bed) + 8px) + var(--s, 1) * 26px + 34px);
+                      flex:1 1 var(--need); }
+  /* A small unit (six beds or fewer) settles for half a row when it would
+     not fit on one line, so two small ones pair up — four partitions of
+     emergency beside five beds of intensive care — while a big unit keeps
+     the whole row it needs. */
+  .bm-units > .bm-unit--small { flex-basis:min(var(--need), calc(50% - 7px)); }
+  /* And a unit whose card came out narrow — half a row on a laptop — draws
+     smaller beds rather than one partition per line. By the card's own
+     width, not the screen's: the same unit is wide on its own row and
+     narrow beside another. */
+  .bm-units > .card { container:bm-unit / inline-size; }
+  @container bm-unit (max-width: 460px) {
+    .bm-spaces { --bed:100px; gap:8px; }
+    .bm-space { padding:8px; }
+    .bm-shape { width:54px; height:36px; }
+    .bm-bed { padding:6px; }
+  }
+  .bm-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; max-width:100%; }
+  /* A clinic with many beds gets smaller cards, so more of the place is on
+     one screen. */
+  .bm-map--dense { --bed:112px; }
+  .bm-map--dense .bm-shape { width:60px; height:40px; }
+  .bm-map--dense .bm-bed { padding:6px; }
+  .bm-map--dense .bm-bed__who { font-size:.8rem; }
   .bm-spaces { display:flex; flex-wrap:wrap; gap:12px; margin-top:12px; align-items:flex-start; }
   .bm-space { border:1px solid var(--line); border-radius:14px; padding:10px; box-sizing:border-box;
-              flex:0 1 calc(var(--beds, 1) * 140px + 14px); max-width:100%; min-width:0; }
+              flex:0 1 calc(var(--beds, 1) * (var(--bed) + 8px) + 14px); max-width:100%; min-width:0; }
   .bm-space--partition { border-style:dashed; }
   .bm-space--bay { border-radius:22px; }
-  .bm-space__name { font-size:.82rem; color:var(--muted); margin-bottom:8px; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
-  .bm-beds { display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(132px,1fr)); }
-  /* On a phone two single-bed rooms fit side by side, not one per line. */
+  .bm-space__name { font-size:.82rem; color:var(--muted); margin-bottom:8px; display:flex; gap:6px; align-items:flex-start; flex-wrap:wrap; }
+  /* The name wraps inside itself: a one-bed partition was the icon on one
+     line and its name on the next. */
+  .bm-space__name > span:first-of-type { flex:1 1 0; min-width:0; }
+  .bm-beds { display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(var(--bed),1fr)); }
+  /* On a phone: two single-bed rooms side by side, the card's own margin
+     given back to the beds, and the buttons and the unit tabs one line you
+     swipe instead of three stacked lines before the first bed. */
   @media (max-width: 560px) {
-    .bm-beds { grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); }
-    .bm-space { flex-basis:calc(var(--beds, 1) * 118px + 14px); }
+    .bm-map, .bm-map--dense { --bed:104px; }
+    .bm-map .bm-shape { width:56px; height:38px; }
+    .bm-units > .card { padding:12px; flex-basis:100%; }
+    .bm-tabs, .bm-actions { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+    .bm-tabs::-webkit-scrollbar, .bm-actions::-webkit-scrollbar { display:none; }
+    .bm-tabs button, .bm-actions > * { flex:0 0 auto; white-space:nowrap; }
+    .bm-actions .btn { padding:6px 10px; font-size:.85rem; }
   }
   .bm-bed { position:relative; border:1.5px solid var(--line); border-radius:14px; background:var(--card); padding:8px; display:grid; gap:3px; align-content:start; text-align:center; cursor:pointer; transition:border-color .25s, transform .2s, background .4s; font:inherit; color:inherit; }
   .bm-bed:hover { transform:translateY(-2px); border-color:var(--green-500,#20a07a); }
@@ -83,7 +127,7 @@
     <h1 class="page-title"><i class="bi bi-hospital"></i> {{ t('nav.beds') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('beds.board_sub') }}</p>
   </div>
-  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+  <div class="bm-actions">
     {# Counted from the open stays, like everything else here — never from a
        flag on a bed. #}
     <span class="bm-live" data-live-dot title="{{ t('beds.map_live_hint') }}"><i></i> {{ t('beds.map_live') }}</span>
@@ -106,6 +150,8 @@
 </div>
 
 {% if units %}
+{% set all_beds = counts.free + counts.taken %}
+<div class="bm-map{{ ' bm-map--dense' if all_beds > 40 }}" data-bed-map data-beds="{{ all_beds }}">
 {% if units|length > 1 %}
 <div class="bm-tabs" role="group" aria-label="{{ t('beds.map_units') }}" data-unit-tabs>
   <button type="button" data-tab="all" aria-pressed="true">{{ t('beds.map_all') }}</button>
@@ -117,11 +163,13 @@
 </div>
 {% endif %}
 
+<div class="bm-units" data-units>
 {% for row in units %}
 {% set total = row.taken + row.free %}
 {% set today = (row.taken * 100 / total)|round|int if total else 0 %}
 {% set period = occupancy.get(row.unit.id) %}
-<div class="card gc-scale-in" style="margin-bottom:14px;" data-unit="{{ row.unit.id }}">
+{% set wide = namespace(b=0) %}{% for block in row.spaces %}{% set wide.b = wide.b + ([block.beds|length, 1 if block.beds else 2]|max) %}{% endfor %}
+<div class="card gc-scale-in{{ ' bm-unit--small' if wide.b <= 6 }}" data-unit="{{ row.unit.id }}" style="--b:{{ [wide.b, 2]|max }};--s:{{ [row.spaces|length, 1]|max }};">
   <div class="bm-head">
     <h2 class="section-title" style="margin:0;">
       <i class="bi bi-buildings"></i> {{ row.unit.name }}
@@ -142,7 +190,7 @@
   <div class="bm-space bm-space--{{ block.space.kind }}" style="--beds:{{ [block.beds|length, 1 if block.beds else 2]|max }};">
     <div class="bm-space__name">
       <i class="bi bi-{{ 'layout-split' if block.space.kind == 'partition' else ('grid-3x2' if block.space.kind == 'bay' else 'door-closed') }}"></i>
-      {{ block.space.name }} · {{ t('beds.space_' ~ block.space.kind) }}
+      <span>{{ block.space.name }} · {{ t('beds.space_' ~ block.space.kind) }}</span>
       {% if block.closed %}<span class="badge badge--warning" data-space-closed>{{ t('closures.closed_badge') }}</span>{% endif %}
       {% if block.space.is_isolation %}
       <span class="alert-pill warn"><i class="bi bi-shield-exclamation"></i> {{ t('beds.isolation') }}</span>
@@ -201,6 +249,8 @@
   {% endif %}
 </div>
 {% endfor %}
+</div>
+</div>
 
 {# The side panel: the case behind a taken bed, or the admission of a child
    into a free one. #}
