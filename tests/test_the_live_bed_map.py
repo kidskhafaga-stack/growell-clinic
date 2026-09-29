@@ -50,6 +50,27 @@ def test_every_bed_is_drawn_as_its_kind(hospital):
     assert 'data-basis="night"' in page and "data-free" in page
 
 
+def test_the_rooms_of_a_unit_sit_side_by_side(hospital):
+    """«ليه الداخلى مش بيترتب تلقائي افقي بدل رأسي» — the rooms are laid out
+    in one wrapping row, each as wide as its own beds."""
+    from app.models.place import Bed, Space, Unit
+
+    with hospital["app"].app_context():
+        unit = Unit.query.filter_by(name="الداخلي").one()
+        for n in range(2, 5):
+            room = Space(unit_id=unit.id, name=f"غرفة {n}", kind="room")
+            hospital["db"].session.add(room)
+            hospital["db"].session.flush()
+            hospital["db"].session.add(Bed(space_id=room.id, name=f"س{n}"))
+        hospital["db"].session.commit()
+    page = _map(hospital)
+    rows = page.split("data-spaces>")
+    assert len(rows) == 2                        # one row for the unit's rooms
+    rooms = rows[1].split('class="bm-space bm-space--')[1:]
+    assert len(rooms) == 4
+    assert '--beds:2;' in rooms[0] and all('--beds:1;' in r for r in rooms[1:])
+
+
 def test_a_unit_counted_by_the_hour_shows_hours(hospital):
     from app.models.place import Unit
 
