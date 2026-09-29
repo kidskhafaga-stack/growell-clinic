@@ -140,8 +140,13 @@
               data-since="{{ stay.since.isoformat() }}Z" data-basis="{{ row.unit.billing_basis }}">
         {{ bed_shape(cell.bed.kind, row.unit.kind, True) }}
         <span class="bm-bed__name">{{ cell.bed.name }}</span>
+        {% if row.unit.id in open_units %}
         <a class="bm-bed__who" href="{{ url_for('beds.admission', admission_id=stay.admission_id) }}">{{ cell.patient.display_name(current_lang) }}</a>
         <span class="bm-bed__dx">{{ dx[0] if dx else (stay.admission.reason or '') }}</span>
+        {% else %}
+        {# Its own team's: taken, and for how long, but not who or why. #}
+        <span class="bm-bed__who" data-team-only><i class="bi bi-shield-lock"></i> {{ t('beds.team_only') }}</span>
+        {% endif %}
         {% if stay.admission_id not in signed %}<span class="bm-bed__flag" data-unsigned title="{{ t('beds.consent_chip_missing') }}">✍ {{ t('beds.consent_flag') }}</span>{% endif %}
         <span class="bm-bed__timer" data-timer>{{ t('beds.since') }} {{ stay.since|clinic_stamp }}</span>
       </div>
