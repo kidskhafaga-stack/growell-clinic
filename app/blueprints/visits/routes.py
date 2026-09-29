@@ -41,7 +41,7 @@ from app.models import (
     VitalSigns,
 )
 from app.utils import whatsapp as wa
-from app.utils.decorators import client_ip, module_required
+from app.utils.decorators import capability_required, client_ip, module_required
 from app.utils.paging import paginate
 from app.utils import vital_bands
 from app.utils.icd import available_versions
@@ -2214,3 +2214,101 @@ def study_print(study_id):
     study = db.get_or_404(DeviceStudy, study_id)
     return render_template("visits/study_print.html", study=study,
                            spiro=analyse(study), today=local_today())
+
+
+# ============================================================ «مرضايا» =====
+def _whose():
+    """The doctor this list is for: yourself, or — for an admin — whoever
+    they pick. ``(doctor, doctors_to_pick_from)``."""
+    from app.models import User
+
+    doctors = (User.query.filter(User.role == "doctor", User.is_active.is_(True))
+               .order_by(User.full_name).all())
+    if current_user.is_admin:
+        chosen = request.args.get("doctor", type=int)
+        pick = next((d for d in doctors if d.id == chosen), None)
+        return pick or (doctors[0] if doctors else current_user), doctors
+    return current_user, []
+
+
+@visits_bp.route("/mine")
+@module_required(MODULE)
+@capability_required("patient_medical")
+def mine():
+    """«مرضايا» — ``utils/my_patients``. A doctor opens on themselves; an
+    admin may look at any doctor's list."""
+    from app.utils import med_board, my_patients
+
+    doctor, doctors = _whose()
+    w = med_board.window(request.args.get("from"), request.args.get("to"),
+                         request.args.get("preset"))
+    seen = my_patients.last_seen()
+    months = request.args.get("months", my_patients.DEFAULT_CHRONIC_MONTHS, type=int)
+    search = (request.args.get("q") or "").strip()
+    rows = my_patients.followups(doctor.id, search)
+    page = max(1, request.args.get("page", 1, type=int))
+    pages = max(1, (len(rows) + my_patients.PER_PAGE - 1) // my_patients.PER_PAGE)
+    page = min(page, pages)
+    return render_template(
+        "visits/mine.html", doctor=doctor, doctors=doctors, w=w,
+        presets=med_board.PRESETS, change=med_board.change,
+        now=my_patients.figures(doctor.id, w["from"], w["to"]),
+        before=my_patients.figures(doctor.id, w["prev_from"], w["prev_to"]),
+        children=len(my_patients.mine(doctor.id, seen)),
+        followups=rows[(page - 1) * my_patients.PER_PAGE:page * my_patients.PER_PAGE],
+        followups_total=len(rows), page=page, pages=pages, search=search,
+        months=months if months in my_patients.CHRONIC_MONTHS
+        else my_patients.DEFAULT_CHRONIC_MONTHS,
+        month_choices=my_patients.CHRONIC_MONTHS,
+        chronic=my_patients.chronic_unseen(doctor.id, months, seen=seen),
+        late=my_patients.late_vaccines(doctor.id, seen=seen),
+        top_dx=my_patients.top_diagnoses(doctor.id, w["from"], w["to"]),
+        top_rx=my_patients.top_drugs(doctor.id, w["from"], w["to"]))
+
+
+@visits_bp.route("/mine/called/<int:visit_id>", methods=["POST"])
+@module_required(MODULE)
+@capability_required("patient_medical")
+def mine_called(visit_id):
+    """"We rang them" on a follow-up — written down with the name, and it
+    shows for the rest of the day so the family is not rung twice."""
+    visit = db.get_or_404(Visit, visit_id)
+    ActivityLog.record("followup.called", user_id=current_user.id, entity="visit",
+                       entity_id=visit.id,
+                       detail=(request.form.get("note") or "").strip()[:200] or None,
+                       ip_address=client_ip())
+    db.session.commit()
+    back = {k: v for k, v in request.form.items() if k in ("doctor", "q", "page", "months",
+                                                           "preset", "from", "to") and v}
+    return redirect(url_for("visits.mine", **back) + "#followups")
+
+
+@visits_bp.route("/mine/followups.csv")
+@module_required(MODULE)
+@capability_required("patient_medical")
+def mine_followups_csv():
+    """The whole missed-follow-up list, for a phone round off-screen."""
+    import csv
+    import io
+
+    from flask import Response
+
+    from app.utils import my_patients
+
+    doctor, _ = _whose()
+    buf = io.StringIO()
+    out = csv.writer(buf)
+    out.writerow(["file", "patient", "phone", "last_visit", "due", "days_late", "state",
+                  "instructions"])
+    for r in my_patients.followups(doctor.id, request.args.get("q")):
+        v = r["visit"]
+        p = v.patient
+        out.writerow([p.patient_number, p.display_name(getattr(g, "lang", "ar")),
+                      p.contact_phone or "", v.visit_date.isoformat(),
+                      v.followup_due.isoformat() if v.followup_due else "", r["late"],
+                      r["state"], (v.followup_instructions or "").replace("\n", " ")])
+    ActivityLog.record("followup.export", user_id=current_user.id, entity="user",
+                       entity_id=doctor.id, ip_address=client_ip())
+    db.session.commit()
+    return Response("﻿" + buf.getvalue(), mimetype="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": "attachment; filename=followups.csv"})

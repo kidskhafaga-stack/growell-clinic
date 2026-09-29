@@ -1,6 +1,7 @@
 {# The boards, as tabs — each shown only to whoever may open it. #}
-{% set board_tabs = [('medical', 'reports.medical_board', True),
-                     ('management', 'reports.management_board', current_user.can('finance_manage'))] %}
+{% set board_tabs = [('medical', 'reports.medical_board', current_user.can_open('reports')),
+                     ('management', 'reports.management_board', current_user.can_open('reports') and current_user.can('finance_manage')),
+                     ('mine', 'visits.mine', current_user.can_open('visits') and current_user.can('patient_medical'))] %}
 {% if board_tabs|selectattr(2)|list|length > 1 %}
 <div class="mb-tabs" role="tablist" data-board-tabs>
   {% for key, endpoint, allowed in board_tabs if allowed %}

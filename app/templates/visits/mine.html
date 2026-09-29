@@ -1,0 +1,205 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import age_label with context %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('board_mine.title') }}{% endblock %}
+{% block page_heading %}{{ t('board_mine.title') }}{% endblock %}
+
+{# «مرضايا» — utils/my_patients. A work list, not a report about the doctor:
+   who was asked back and has not come, which child with a long-standing
+   problem has not been seen, whose vaccine is late. Every rule is read from
+   where it already lives. #}
+
+{% set board_extra = {'doctor': doctor.id} if doctors else {} %}
+{% set keep = dict(board_extra, **({'preset': w.preset} if w.preset else {'from': w['from'].isoformat(), 'to': w['to'].isoformat()})) %}
+
+{% macro delta(now_v, before_v, good_up=True) -%}
+  {%- set d = change(now_v, before_v) -%}
+  {%- if d is none -%}<span class="mb-d flat">—</span>
+  {%- elif d == 0 -%}<span class="mb-d flat">{{ t('board_med.same') }}</span>
+  {%- else -%}
+    {%- set good = (d > 0) if good_up else (d < 0) -%}
+    <span class="mb-d {{ 'up' if good else 'down' }}" title="{{ t('board_med.vs_before') }}"><bdi class="num" dir="ltr">{{ '▲' if d > 0 else '▼' }} {{ d|abs }}%</bdi></span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro who(p) -%}
+  <span class="mn-who"><a href="{{ url_for('patients.view', patient_id=p.id) }}"><b>{{ p.display_name(current_lang) }}</b></a>
+    <small><span class="mb-code" dir="ltr">{{ p.patient_number }}</span> · {{ age_label(p) }}</small></span>
+{%- endmacro %}
+
+{% block content %}
+<div class="gc-animate mb-top">
+  <div>
+    <h1 class="page-title"><i class="bi bi-person-heart"></i> {{ t('board_mine.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('board_mine.sub') }}</p>
+  </div>
+  {% set board_tab = 'mine' %}{% include "reports/_board_tabs.html" %}
+</div>
+
+{% if doctors %}
+<form method="get" class="mn-me" data-pick-doctor>
+  {% for k, v in keep.items() if k != 'doctor' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+  <label for="doctor">{{ t('board_med.doctor') }}</label>
+  <select class="input" id="doctor" name="doctor" onchange="this.form.submit()">
+    {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if d.id == doctor.id }}>{{ d.full_name }}</option>{% endfor %}
+  </select>
+  <noscript><button class="btn btn-outline btn-sm" type="submit">{{ t('board_med.show') }}</button></noscript>
+  <span class="hint" style="margin:0;">{{ t('board_mine.admin_picks') }}</span>
+</form>
+{% endif %}
+
+{% set board_endpoint = 'visits.mine' %}
+{% include "reports/_board_bar.html" %}
+
+<div class="mb-kpis gc-scale-in" data-board-kpis>
+  <div class="mb-kpi" data-kpi="children"><span class="l">{{ t('board_mine.children') }}</span>
+    <span class="v num">{{ children }}</span><span class="row"><small class="hint" style="margin:0;">{{ t('board_mine.children_hint') }}</small></span></div>
+  <div class="mb-kpi" data-kpi="cases"><span class="l">{{ t('board_mine.seen') }}</span>
+    <span class="v num">{{ now.cases }}</span><span class="row">{{ delta(now.cases, before.cases) }}<small class="hint num" style="margin:0;">{{ t('board_med.before_n', n=before.cases) }}</small></span></div>
+  <div class="mb-kpi" data-kpi="fresh"><span class="l">{{ t('board_med.fresh') }}</span>
+    <span class="v num">{{ now.fresh }}</span><span class="row">{{ delta(now.fresh, before.fresh) }}</span></div>
+  <div class="mb-kpi" data-kpi="back"><span class="l">{{ t('board_med.back7') }}</span>
+    <span class="v num">{{ '%.1f'|format(now.back_pct) ~ '%' if now.back_pct is not none else '—' }}</span>
+    <span class="row">{{ delta(now.back_pct, before.back_pct, False) }}</span></div>
+  <div class="mb-kpi" data-kpi="consult"><span class="l">{{ t('board_med.consult') }}</span>
+    <span class="v num">{{ t('board_med.minutes_n', n=now.consult|round|int) if now.consult is not none else '—' }}</span>
+    <span class="row">{{ delta(now.consult, before.consult) }}</span></div>
+  <div class="mb-kpi" data-kpi="wait"><span class="l">{{ t('board_mine.wait') }}</span>
+    <span class="v num">{{ t('board_med.minutes_n', n=now.wait|round|int) if now.wait is not none else '—' }}</span>
+    <span class="row">{{ delta(now.wait, before.wait, False) }}</span></div>
+  <div class="mb-kpi" data-kpi="no_show"><span class="l">{{ t('board_admin.no_show') }}</span>
+    <span class="v num">{{ '%.1f'|format(now.no_show_pct) ~ '%' if now.no_show_pct is not none else '—' }}</span>
+    <span class="row">{{ delta(now.no_show_pct, before.no_show_pct, False) }}</span></div>
+</div>
+
+{# ------------------------------------------------------------ follow-ups #}
+<div class="card gc-scale-in" id="followups" style="margin-bottom:14px;">
+  <h2 class="section-title mb-h">{{ t('board_mine.followups') }} <small class="hint">{{ t('board_mine.followups_hint') }}</small></h2>
+  <form method="get" class="mn-listbar" action="#followups">
+    {% for k, v in keep.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    <input class="input" type="search" name="q" value="{{ search }}" placeholder="{{ t('board_mine.search_ph') }}" aria-label="{{ t('board_mine.search_ph') }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-search"></i></button>
+    <span style="flex:1;"></span>
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.mine_followups_csv', q=search or None, **board_extra) }}" data-followups-csv><i class="bi bi-download"></i> CSV</a>
+  </form>
+  {% if followups %}
+  <div style="overflow-x:auto;"><table class="table" data-followups>
+    <thead><tr><th>{{ t('board_med.child') }}</th><th>{{ t('board_mine.last_visit') }}</th><th>{{ t('board_mine.due') }}</th><th>{{ t('board_mine.late') }}</th><th>{{ t('board_mine.why') }}</th><th>{{ t('board_mine.phone') }}</th><th></th></tr></thead>
+    <tbody>
+      {% for r in followups %}
+      {% set v = r.visit %}
+      <tr class="{{ 'mn-called' if r.called }}" data-visit="{{ v.id }}">
+        <td>{{ who(v.patient) }}</td>
+        <td class="num"><a href="{{ url_for('visits.view', visit_id=v.id) }}">{{ v.visit_date.isoformat() }}</a></td>
+        <td class="num">{{ v.followup_due.isoformat() if v.followup_due else '—' }}</td>
+        <td><span class="mn-late {{ 'l2' if r.late > 14 else 'l1' }}">{{ t('board_mine.days_n', n=r.late) }}</span>
+          {% if r.state == 'missed' %}<span class="mn-late l2" title="{{ t('board_mine.missed_hint') }}">{{ t('board_mine.missed_n', n=r.missed) }}</span>{% endif %}</td>
+        <td>{{ (v.followup_instructions or '')|truncate(60) or '—' }}</td>
+        <td class="num" dir="ltr">{{ v.patient.contact_phone or '—' }}</td>
+        <td>{% if r.called %}<span class="mn-done">{{ t('board_mine.called') }} ✓</span>{% else %}
+          <form method="post" action="{{ url_for('visits.mine_called', visit_id=v.id) }}" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% for k, val in keep.items() %}<input type="hidden" name="{{ k }}" value="{{ val }}">{% endfor %}
+            {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
+            <input type="hidden" name="page" value="{{ page }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit" data-call>{{ t('board_mine.we_called') }}</button>
+          </form>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody></table></div>
+  {% if pages > 1 %}
+  <div class="mb-pager">
+    <span class="num">{{ t('board_mine.showing', a=(page - 1) * 20 + 1, b=[page * 20, followups_total]|min, n=followups_total) }}</span>
+    {% if page > 1 %}<a href="{{ url_for('visits.mine', page=page - 1, q=search or None, **keep) }}#followups">{{ t('board_med.prev_page') }}</a>{% endif %}
+    {% if page < pages %}<a href="{{ url_for('visits.mine', page=page + 1, q=search or None, **keep) }}#followups">{{ t('board_med.next_page') }}</a>{% endif %}
+  </div>
+  {% endif %}
+  {% else %}<p class="hint" data-no-followups>{{ t('board_mine.no_followups_q' if search else 'board_mine.no_followups') }}</p>{% endif %}
+</div>
+
+<div class="mb-grid">
+  <div class="card gc-scale-in" id="chronic">
+    <h2 class="section-title mb-h">{{ t('board_mine.chronic') }}
+      <form method="get" action="#chronic" style="display:inline;margin:0;">
+        {% for k, v in keep.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+        <select class="input" name="months" onchange="this.form.submit()" aria-label="{{ t('board_mine.chronic') }}" style="width:auto;display:inline-block;">
+          {% for m in month_choices %}<option value="{{ m }}" {{ 'selected' if m == months }}>{{ t('board_mine.months_' ~ m) }}</option>{% endfor %}
+        </select></form></h2>
+    {% if chronic %}
+    <div style="overflow-x:auto;"><table class="table" data-chronic>
+      <thead><tr><th>{{ t('board_med.child') }}</th><th>{{ t('board_mine.problem') }}</th><th>{{ t('board_mine.last_visit') }}</th></tr></thead>
+      <tbody>
+        {% for r in chronic %}
+        <tr><td>{{ who(r.patient) }}</td><td>{{ r.problems|join('، ') }}</td>
+          <td class="num">{{ r.last.isoformat() }} <span class="mn-late {{ 'l2' if r.days > 365 else 'l1' }}">{{ t('board_mine.days_n', n=r.days) }}</span></td></tr>
+        {% endfor %}
+      </tbody></table></div>
+    {% else %}<p class="hint">{{ t('board_mine.no_chronic') }}</p>{% endif %}
+    <p class="hint">{{ t('board_mine.chronic_hint') }}</p>
+  </div>
+  <div class="card gc-scale-in">
+    <h2 class="section-title mb-h">{{ t('board_mine.late_vaccines') }}</h2>
+    {% if late %}
+    <div style="overflow-x:auto;"><table class="table" data-late-vaccines>
+      <thead><tr><th>{{ t('board_med.child') }}</th><th>{{ t('board_mine.vaccine') }}</th><th>{{ t('board_mine.was_due') }}</th></tr></thead>
+      <tbody>
+        {% for r in late[:30] %}
+        <tr><td>{{ who(r.patient) }}</td>
+          <td>{{ r.vaccine.display_name(current_lang) }} — {{ t('board_mine.dose_n', n=r.dose_number) }}</td>
+          <td class="num">{{ r.due.isoformat() if r.due else '—' }}</td></tr>
+        {% endfor %}
+      </tbody></table></div>
+    {% if late|length > 30 %}<p class="hint">{{ t('board_mine.more_late', n=late|length - 30) }}</p>{% endif %}
+    {% else %}<p class="hint">{{ t('board_mine.no_late') }}</p>{% endif %}
+    <p class="hint">{{ t('board_mine.late_hint') }}</p>
+  </div>
+</div>
+
+<div class="mb-grid">
+  <div class="card gc-scale-in">
+    <h2 class="section-title mb-h">{{ t('board_mine.my_dx') }}</h2>
+    {% if top_dx %}
+    {% set top = top_dx[0].n %}
+    <div class="mb-dx" data-my-dx>
+      {% for r in top_dx %}
+      <div class="mb-dxr" style="grid-template-columns:96px 1fr 52px;">
+        <span class="mb-code{{ ' muted' if not r.code }}" dir="ltr">{{ r.code or '—' }}{% if r.code %}<span class="mb-ver{{ ' v11' if r.version == '11' }}">ICD-{{ r.version }}</span>{% endif %}</span>
+        <span class="t"><small>{{ r.title }}</small><span class="mb-hbar"><span style="width:{{ (r.n * 100 / top)|round }}%"></span></span></span>
+        <b class="num" style="text-align:end;">{{ r.n }}</b></div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="hint">{{ t('board_med.no_coded') }}</p>{% endif %}
+  </div>
+  <div class="card gc-scale-in">
+    <h2 class="section-title mb-h">{{ t('board_mine.my_rx') }}</h2>
+    {% if top_rx %}
+    {% set top = top_rx[0].n %}
+    <div class="mb-dx" data-my-rx>
+      {% for r in top_rx %}
+      <div class="mb-dxr" style="grid-template-columns:1fr 52px;">
+        <span class="t"><small>{{ r.title }}</small><span class="mb-hbar"><span style="width:{{ (r.n * 100 / top)|round }}%;background:var(--mb-boy)"></span></span></span>
+        <b class="num" style="text-align:end;">{{ r.n }}</b></div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="hint">{{ t('board_mine.no_rx') }}</p>{% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block head %}
+{% include "reports/_board_style.html" %}
+<style>
+.mn-me{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:.88rem;}
+.mn-me select{width:auto;}
+.mn-listbar{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+.mn-listbar input[type=search]{flex:1 1 220px;max-width:340px;}
+.mn-who{display:flex;flex-direction:column;}
+.mn-who small{color:var(--muted);font-size:.75rem;}
+.mn-late{font-weight:700;padding:1px 8px;border-radius:999px;font-size:.78rem;white-space:nowrap;display:inline-block;}
+.mn-late.l1{background:rgba(183,121,31,.16);color:#b7791f;}
+.mn-late.l2{background:rgba(194,65,59,.14);color:#c2413b;}
+.mn-called{opacity:.55;}
+.mn-done{font-size:.82rem;color:#1e8a55;white-space:nowrap;}
+[data-followups] td{vertical-align:middle;}
+</style>
+{% endblock %}

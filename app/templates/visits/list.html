@@ -20,6 +20,10 @@
     {# The children a doctor asked back who have not been seen. Beside the
        results rack because it is the same kind of errand: something was
        started in a consultation and nobody has closed it. #}
+    {% if current_user.can('patient_medical') %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('visits.mine') }}" data-mine-link>
+      <i class="bi bi-person-heart"></i> {{ t('board_mine.title') }}</a>
+    {% endif %}
     <a class="btn btn-outline gc-press" href="{{ url_for('visits.followups') }}">
       <i class="bi bi-arrow-repeat"></i> {{ t('followup.outstanding_title') }}</a>
     {# نفس الرفّ بالظبط: ورقة راحت لمستشفى تانية ومحدّش قفل الدايرة. #}
