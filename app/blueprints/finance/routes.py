@@ -2177,6 +2177,9 @@ def cashier_poll():
     # message queue (campaigns included) without a separate scheduler.
     from app.utils import whatsapp as wa
     wa.maybe_dispatch()
+    # And the survey page outside the clinic: surveys out, answers in.
+    from app.utils import survey_outside
+    survey_outside.maybe_sync()
 
     on_date = _cashier_date()
     start, end = _clinic_day(on_date)

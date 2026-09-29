@@ -391,6 +391,20 @@ def register_commands(app):
             f"Dispatched {res['sent']} (skipped {res['skipped']}) "
             f"of {res['considered']} due.", fg="green")
 
+    @app.cli.command("survey-sync")
+    def survey_sync_cmd():
+        """Send waiting surveys to the page outside, and collect answers."""
+        from app.utils import survey_outside
+        if not survey_outside.configured():
+            click.secho("SURVEY_PAGE_URL / SURVEY_SYNC_KEY are not set in clinic.env.",
+                        fg="yellow")
+            return
+        res = survey_outside.sync()
+        if res["error"]:
+            click.secho(f"Survey sync failed: {res['error']}", fg="red")
+            raise SystemExit(1)
+        click.secho(f"Sent {res['pushed']}, collected {res['answered']}.", fg="green")
+
     @app.cli.command("archive-inactive")
     @click.option("--force", is_flag=True,
                   help="Run even when auto-archiving is disabled in settings.")

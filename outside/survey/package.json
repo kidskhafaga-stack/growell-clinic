@@ -1,0 +1,6 @@
+{
+  "name": "clinic-survey-page",
+  "private": true,
+  "description": "The clinic's survey page outside the clinic. No dependencies.",
+  "engines": { "node": ">=18" }
+}
