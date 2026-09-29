@@ -1848,6 +1848,7 @@
           {# A decision taken over WhatsApp is a real consultation — but the
              file must never read as though the child was seen in the room. #}
           {% if v.channel == 'whatsapp' %}<span class="badge badge--green" title="{{ t('teleconsult.decision_' ~ v.decision) if v.decision else '' }}"><i class="bi bi-whatsapp"></i> {{ t('teleconsult.channel_whatsapp') }}</span>{% endif %}
+          {% if v.channel == 'ward' %}<span class="badge badge--muted" data-ward-visit><i class="bi bi-hospital"></i> {{ t('stay_tests.ward_visit') }}</span>{% endif %}
           <span style="flex:1;">
             {% for dx in v.final_diagnoses() %}<span class="badge badge--green">{{ dx.title }}</span> {% else %}<span style="color:var(--muted);">{{ v.chief_complaint or '—' }}</span>{% endfor %}
           </span>

@@ -353,6 +353,19 @@ class VisitInvestigation(db.Model):
     invoice_item_id = db.Column(db.Integer, db.ForeignKey("invoice_items.id"),
                                 nullable=True, index=True)
 
+    # **The stay this was ordered for, when it was ordered from one.**
+    #
+    # «ليه مش بتطلب من ملف الإقامة؟» — because an order could only be written
+    # at a visit, and a child admitted straight to a bed, or a newborn from
+    # delivery, has none. Ordered from the stay, it carries the stay, and the
+    # stay's bill is where it is charged — never the outpatient desk, where it
+    # used to turn up as if the child had walked in for it.
+    #
+    # Nullable: every order written before this, and every order written at a
+    # clinic visit, belongs to no stay and behaves exactly as it always has.
+    admission_id = db.Column(db.Integer, db.ForeignKey("admissions.id"),
+                             nullable=True, index=True)
+
     # **The case this was ordered for, when it was ordered for one.**
     #
     # GAHAR SAS.06 (هـ) asks that the results of the *required* investigations

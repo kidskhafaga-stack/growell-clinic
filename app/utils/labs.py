@@ -105,6 +105,39 @@ def worklist(kind=LAB, state=None, limit=200):
                            VisitInvestigation.id).limit(limit).all())
 
 
+def beds_of(rows):
+    """``{patient_id: "unit · bed"}`` for the children on this list who are in
+    a bed right now — so whoever walks with the tubes knows where to walk.
+
+    One query for the whole list, not one per row: the rack is read all
+    morning, and a list of a hundred is a hundred children at most.
+    """
+    from sqlalchemy.orm import selectinload
+
+    from app.models.admission import Admission, BedStay
+    from app.models.place import Bed, Space
+
+    from app.utils.facility import module_enabled
+
+    ids = {r.patient_id for r in rows}
+    # A clinic with no beds asks the database nothing here.
+    if not ids or not module_enabled("beds"):
+        return {}
+    stays = (BedStay.query.join(Admission, BedStay.admission_id == Admission.id)
+             .options(selectinload(BedStay.bed).selectinload(Bed.space)
+                      .selectinload(Space.unit))
+             .filter(Admission.patient_id.in_(ids),
+                     Admission.discharged_at.is_(None),
+                     BedStay.until.is_(None)).all())
+    out = {}
+    for stay in stays:
+        bed = stay.bed
+        unit = bed.space.unit if bed and bed.space else None
+        out[stay.admission.patient_id] = " · ".join(
+            x for x in ((unit.name if unit else ""), (bed.name if bed else "")) if x)
+    return out
+
+
 def _ours():
     """The filter that keeps every room's list about its own work.
 
@@ -306,13 +339,19 @@ def _drawn_on(row):
     return local_date(getattr(row, "collected_at", None))
 
 
-def unbilled(patient_id=None, visit_id=None, patient_ids=None):
+def unbilled(patient_id=None, visit_id=None, patient_ids=None,
+             admission=None, outside_stays=False):
     """Tests that have been drawn and nobody has charged for.
 
     **Drawn, not merely ordered.** An order somebody wrote and then thought
     better of costs nothing; the clinic has spent something the moment the
     sample exists. That is also the moment a family can be told what it costs,
     which is the other half of not billing for what did not happen.
+
+    ``admission`` narrows to the tests that stay bills (:func:`of_stay`);
+    ``outside_stays`` drops the ones ordered from a stay — the desk's
+    question, so blood drawn at a child's bed on the stay's own order is not
+    charged at the outpatient till.
     """
     query = (VisitInvestigation.query
              .join(Investigation,
@@ -327,8 +366,42 @@ def unbilled(patient_id=None, visit_id=None, patient_ids=None):
     if patient_ids is not None:
         query = query.filter(
             VisitInvestigation.patient_id.in_(list(patient_ids)))
+    if admission is not None:
+        query = query.filter(of_stay(admission))
+    if outside_stays:
+        query = query.filter(VisitInvestigation.admission_id.is_(None))
     return query.order_by(VisitInvestigation.created_at,
                           VisitInvestigation.id).all()
+
+
+def of_stay(admission):
+    """The tests a stay bills, as a filter — read by the bill and the stay's
+    own list alike, so the two never disagree.
+
+    Two ways, and **only the first is new**:
+
+    * **ordered from the stay** (``admission_id``) — the stay's own door, and
+      the stay's bill is the only place those are charged;
+    * **ordered at the visit the stay began from** — the blood drawn in the
+      emergency room before anybody decided on a bed. The one way the bill
+      found tests before this, kept exactly as it was.
+
+    **What it deliberately does not take:** a test ordered on some other visit
+    while the child was in. That went to the outpatient desk before this
+    existed and still does — a running hospital's cashier may be collecting
+    those up front, and moving them would change how its desk works under it.
+    The stay's own order box is what makes that detour unnecessary.
+    """
+    from sqlalchemy import and_, false, or_
+
+    if admission is None:
+        return false()
+    ways = [VisitInvestigation.admission_id == admission.id]
+    if admission.visit_id:
+        ways.append(and_(VisitInvestigation.visit_id == admission.visit_id,
+                         or_(VisitInvestigation.admission_id.is_(None),
+                             VisitInvestigation.admission_id == admission.id)))
+    return or_(*ways)
 
 
 def line_for(row, lang="ar"):
@@ -347,17 +420,16 @@ def line_for(row, lang="ar"):
 def charge(admission, invoice, user=None, lang="ar"):
     """Put this stay's drawn-and-unbilled tests on its bill. Returns how many.
 
-    **Found through the stay's own encounter**, because that is the link that
-    exists: an order carries the visit it was written at, and an admission
-    carries the visit it began from. A stay that never had one has no lab
-    lines here rather than borrowing another visit's — the shape every other
-    missing price in this program takes.
+    **Every test the stay bills** (:func:`of_stay`): ordered from it, or at
+    the visit it began from. It used to be the second alone, so a stay that
+    began without a visit had no way to order a test that would reach its
+    bill at all.
     """
     from app.models.invoice import InvoiceItem
 
-    if admission is None or invoice is None or not admission.visit_id:
+    if admission is None or invoice is None:
         return 0
-    due = unbilled(visit_id=admission.visit_id)
+    due = unbilled(admission=admission)
     for row in due:
         service = row.investigation.service
         item = InvoiceItem(

@@ -299,8 +299,7 @@ def post(admission, user=None, upto=None, lang="ar"):
     due = outstanding(admission, upto)
     doses = drug_round.chargeable(admission)
     cases = theatres.unbilled(admission_id=admission.id)
-    tests = (labs.unbilled(visit_id=admission.visit_id)
-             if admission.visit_id else [])
+    tests = labs.unbilled(admission=admission)
     visits = round_billing.unbilled(admission_id=admission.id)
     if not due and not doses and not cases and not tests and not visits:
         return {"periods": 0, "doses": 0, "operations": 0, "tests": 0,

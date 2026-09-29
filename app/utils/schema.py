@@ -221,6 +221,9 @@ ADDITIONS = [
     ("visit_investigations", "confirmed_by", "INTEGER"),
     ("visit_investigations", "confirmed_at", "DATETIME"),
     ("visit_investigations", "laterality", "VARCHAR(8)"),
+    # The stay a test was ordered from. Empty on every older order, which is
+    # what they are: ordered at a visit, for no stay.
+    ("visit_investigations", "admission_id", "INTEGER"),
     ("prescription_investigations", "laterality", "VARCHAR(8)"),
     # `PCC.12` — «اتسأل عن احتياجاته ولا لأ». فاضي في كل ملف موجود، وده
     # الصح: محدّش سأل لسه.

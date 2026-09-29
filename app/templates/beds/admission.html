@@ -28,7 +28,7 @@
 {% set here_bed = admission.bed if admission.is_open else none %}
 <div class="stay" x-data="{
         inside: { nursing: 'care', pain: 'care', food: 'care', risks: 'care',
-                  medicines: 'treatment', lines: 'treatment',
+                  medicines: 'treatment', tests: 'treatment', lines: 'treatment',
                   blood: 'treatment', theatre: 'treatment',
                   restraint: 'safety', arrest: 'safety',
                   'discharge-summary': 'discharge', mrp: 'overview',
@@ -1244,6 +1244,139 @@
       <button class="btn btn-primary gc-press" type="submit">
         <i class="bi bi-plus-lg"></i> {{ t('meds.order') }}</button>
     </div>
+  </form>
+  {% endif %}
+</div>
+{# ---- tests and scans, ordered from the stay ----------------------------- #}
+{# «ليه مش بتطلب من ملف الإقامة؟» — there was no reason. An order could only be
+   written at a visit, so a child admitted straight to a bed had to have a
+   consultation invented to get a CBC, and a test ordered on a fresh visit
+   mid-stay went to the outpatient desk. The list is what this stay owns by
+   the rule its bill uses (`labs.of_stay`), so the two never disagree. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;scroll-margin-top:80px;" id="tests" data-stay-tests>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-eyedropper"></i> {{ t('stay_tests.title') }}
+    {% set waiting = stay_tests|selectattr('status', 'ne', 'resulted')|list %}
+    {% if waiting %}<span class="badge badge--warn" data-tests-waiting>{{ t('stay_tests.waiting_n', n=waiting|length) }}</span>{% endif %}
+  </h2>
+  {% if stay_tests %}
+  <ul style="list-style:none;padding:0;margin:0;display:grid;gap:6px;">
+    {% for x in stay_tests %}
+    <li data-stay-test="{{ x.id }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;">
+      <strong style="flex:1 1 200px;min-width:0;">{{ x.display_name(current_lang) }}
+        {%- if x.laterality %} · {{ t('orders.side_' ~ x.laterality) }}{% endif %}
+        {%- if x.request_notes %} <span style="color:var(--muted);font-weight:400;">— {{ x.request_notes }}</span>{% endif %}</strong>
+      <span class="badge badge--muted">{{ t('lab.kind_' ~ x.kind) if x.kind in ('lab', 'imaging') else t('rx.inv_diagnostic') }}</span>
+      {% if x.done_outside %}<span class="badge badge--muted" data-test-outside>
+        <i class="bi bi-box-arrow-up-right"></i> {{ t('rx.inv_outside_short') }}{% if x.outside_place %} · {{ x.outside_place }}{% endif %}</span>{% endif %}
+      {% if x.status == 'resulted' %}
+      <span class="badge badge--green" data-test-state="resulted">{{ t('stay_tests.resulted') }}</span>
+      {% if x.result_value is not none %}<span class="num" dir="ltr">{{ x.result_value }}{% if x.result_unit %} {{ x.result_unit }}{% endif %}</span>
+      {% elif x.result_text %}<span style="color:var(--muted);">{{ x.result_text|truncate(80) }}</span>{% endif %}
+      {% elif x.status == 'collected' %}
+      <span class="badge badge--warn" data-test-state="collected">{{ t('beds.map_st_collected') }}</span>
+      {% else %}
+      <span class="badge badge--warn" data-test-state="requested">{{ t('beds.map_st_requested') }}</span>
+      {% endif %}
+      <span class="hint" dir="ltr" style="margin:0;">{{ x.created_at|clinic_stamp }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('stay_tests.none') }}</p>
+  {% endif %}
+
+  {% if may_order and admission.is_open %}
+  {# Behind the stay's «doctor's orders» right (`medication_order`), like a
+     drug order. The name box is `gcPicker`, the clinic's one autocomplete;
+     picking a row carries whether the clinic does it here, so nobody is asked
+     a question the catalogue already answered. #}
+  <form method="post" style="margin-top:14px;" data-order-test
+        action="{{ url_for('beds.order_test', admission_id=admission.id) }}"
+        x-data="{
+          kind: 'lab', outside: false, invId: '', q: '',
+          picker: window.gcPicker({ url: '', minChars: 2 }),
+          init() {
+            {# Made here and not in the object above: the kind has to be read
+               off this component when the search runs, and only `this`
+               inside init() is the component. A plain function and not an
+               arrow on purpose: the CSRF sweep in `tests/test_csrf.py` reads
+               the form tag up to its first closing angle bracket, and an
+               arrow has one. #}
+            const self = this;
+            this.picker = window.gcPicker({
+              url: {{ url_for('beds.investigation_search')|tojson|forceescape }}, minChars: 2,
+              extra: function () { return 'kind=' + encodeURIComponent(self.kind); } });
+          },
+          pick(r) {
+            this.picker.close();
+            this.q = r.name; this.invId = r.id; this.kind = r.kind;
+            this.outside = !r.in_house;
+          }
+        }">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="investigation_id" :value="invId">
+    <input type="hidden" name="done_outside" :value="outside ? '1' : '0'">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <div class="form-row" style="margin-bottom:0;min-width:130px;">
+        <label for="test_kind">{{ t('rx.inv_kind') }}</label>
+        <select class="select" id="test_kind" name="kind" x-model="kind">
+          <option value="lab">{{ t('rx.inv_lab') }}</option>
+          <option value="imaging">{{ t('rx.inv_imaging') }}</option>
+          <option value="diagnostic">{{ t('rx.inv_diagnostic') }}</option>
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:220px;position:relative;">
+        <label for="test_name">{{ t('rx.inv_name') }}</label>
+        <input class="input" id="test_name" name="name" maxlength="200" required
+               autocomplete="off" x-model="q" placeholder="{{ t('rx.inv_search_ph') }}"
+               role="combobox" aria-autocomplete="list"
+               :aria-expanded="picker.open ? 'true' : 'false'"
+               x-on:input="invId = ''"
+               x-on:input.debounce.250ms="picker.q = q; picker.search()"
+               x-on:keydown.arrow-down.prevent="picker.move(1)"
+               x-on:keydown.arrow-up.prevent="picker.move(-1)"
+               x-on:keydown.escape="picker.close()"
+               x-on:blur="setTimeout(() => picker.close(), 150)">
+        <div class="gc-picker" x-show="picker.open" x-cloak role="listbox">
+          <template x-for="(r, idx) in picker.items" :key="idx">
+            <button type="button" class="gc-picker-item" role="option"
+                    :aria-selected="idx === picker.active ? 'true' : 'false'"
+                    x-on:mouseenter="picker.active = idx"
+                    x-on:click="pick(r)">
+              <span x-text="r.name"></span>
+              <span class="badge badge--muted" x-show="r.sample" x-text="r.sample"></span>
+              <span class="badge badge--muted" x-show="!r.in_house">{{ t('rx.inv_outside_short') }}</span>
+            </button>
+          </template>
+          <div class="gc-picker-empty" x-show="picker.searched && !picker.items.length">
+            {{ t('rx.no_inv_match') }}</div>
+        </div>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:140px;" x-show="kind === 'imaging'" x-cloak>
+        <label for="test_side">{{ t('orders.side') }}</label>
+        <select class="select" id="test_side" name="laterality">
+          <option value="">{{ t('orders.pick_side') }}</option>
+          {% for side in test_sides %}
+          <option value="{{ side }}">{{ t('orders.side_' ~ side) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:180px;">
+        <label for="test_notes">{{ t('visits.inv_request_notes') }}</label>
+        <input class="input" id="test_notes" name="notes" maxlength="255"
+               placeholder="{{ t('visits.inv_request_notes_ph') }}">
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:150px;">
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" x-model="outside" data-test-outside-box> {{ t('rx.inv_outside') }}</label>
+        <input class="input" name="outside_place" maxlength="160" x-show="outside" x-cloak
+               placeholder="{{ t('stay_tests.outside_place_ph') }}">
+      </div>
+      <button class="btn btn-primary gc-press" type="submit">
+        <i class="bi bi-plus-lg"></i> {{ t('stay_tests.order') }}</button>
+    </div>
+    <p class="hint" style="margin:8px 0 0;">{{ t('stay_tests.hint') }}</p>
   </form>
   {% endif %}
 </div>

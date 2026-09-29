@@ -9217,5 +9217,18 @@
     "last_failed": "The last attempt failed",
     "sync_now": "Sync now",
     "env_hint": "Put SURVEY_PAGE_URL and SURVEY_SYNC_KEY in clinic.env and restart the program — the steps are in outside/survey/README.md. Until then surveys go out with the program's own page, as before."
+  },
+  "stay_tests": {
+    "title": "Tests and scans",
+    "waiting_n": "Waiting: {n}",
+    "resulted": "Result in",
+    "none": "No tests or scans ordered for this stay yet.",
+    "order": "Order",
+    "ordered": "Ordered ✓ — it is on the lab list.",
+    "need_name": "Write the name of the test or scan.",
+    "closed": "This stay has ended — nothing new can be ordered on it.",
+    "outside_place_ph": "Where? e.g. … lab",
+    "hint": "Charged to the stay’s bill once the sample is drawn — not at the clinic desk.",
+    "ward_visit": "Ward encounter (stay)"
   }
 }
