@@ -41,7 +41,7 @@
   {% for k, v in keep.items() if k != 'doctor' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
   <label for="doctor">{{ t('board_med.doctor') }}</label>
   <select class="input" id="doctor" name="doctor" onchange="this.form.submit()">
-    {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if d.id == doctor.id }}>{{ d.full_name }}</option>{% endfor %}
+    {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if d.id == doctor.id }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
   </select>
   <noscript><button class="btn btn-outline btn-sm" type="submit">{{ t('board_med.show') }}</button></noscript>
   <span class="hint" style="margin:0;">{{ t('board_mine.admin_picks') }}</span>
