@@ -6260,7 +6260,21 @@
     "billed_by": "Charged by the",
     "basis_night": "night",
     "basis_hour": "hour",
-    "rate_from_room": "Same as the room"
+    "rate_from_room": "Same as the room",
+    "glass_title": "This unit is its team's",
+    "glass_sub": "This stay is in {unit}, which has its own team. You can open it by giving a reason — it is recorded with your name.",
+    "glass_reason": "Reason",
+    "glass_reason_ph": "e.g. night on-call, emergency call",
+    "glass_hint": "It stays open for 12 hours, and the manager sees every time it was opened.",
+    "glass_open": "Open",
+    "glass_need_reason": "Give a reason (5 characters at least).",
+    "glass_panel": "This unit is its team's. To see the case, open it and give a reason.",
+    "glass_log": "Who opened stays outside their unit (last 30 days)",
+    "team_only": "Unit team only",
+    "team_open": "Open to everyone (no team set)",
+    "team_n": "Unit team: {n}",
+    "team_saved": "Team saved.",
+    "team_hint": "Choose nobody and the unit stays open to everyone, as before. Admins always see every unit."
   },
   "dept": {
     "inside_n": "In now: {n}",
