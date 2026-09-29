@@ -50,7 +50,7 @@
         {% for v in d.cases %}
         <tr><td class="num">{{ v.visit_date.isoformat() }}</td>
           <td>{{ v.patient.display_name(current_lang) if v.patient else '—' }} <span class="mb-code" dir="ltr">{{ v.patient.patient_number if v.patient }}</span></td>
-          <td>{{ v.doctor.full_name if v.doctor else '—' }}</td>
+          <td>{{ v.doctor.display_name(current_lang) if v.doctor else '—' }}</td>
           <td><a href="{{ url_for('visits.view', visit_id=v.id) }}">{{ t('board_med.open_visit') }}</a></td></tr>
         {% endfor %}
       </tbody></table></div>
@@ -258,7 +258,7 @@
     <tbody>
       {% for r in doctors %}
       <tr>
-        <td><b>{{ r.doctor.full_name }}</b></td>
+        <td><b>{{ r.doctor.display_name(current_lang) }}</b></td>
         <td class="num" data-v="{{ r.cases }}">{{ r.cases }}</td>
         <td class="num" data-v="{{ r.patients }}">{{ r.patients }}</td>
         <td class="num" data-v="{{ r.fresh }}">{{ r.fresh }}</td>

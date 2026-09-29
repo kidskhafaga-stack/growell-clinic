@@ -120,6 +120,14 @@
         <span class="stay-chip" data-stay-length><i class="bi bi-hourglass-split"></i>
           {{ t('stay.length', d=stay_days, h=stay_hours) }}</span>
         {% endif %}
+        {# The guardian's signature on the rules of the stay (bed map). #}
+        {% if admission_consent %}
+        <a class="stay-chip" data-stay-consent="signed" href="{{ url_for('patients.print_consent', consent_id=admission_consent.id) }}" target="_blank">
+          <i class="bi bi-pen"></i> {{ t('beds.consent_chip_signed') }}</a>
+        {% elif admission.is_open %}
+        <a class="stay-chip stay-chip--warn" data-stay-consent="missing" href="{{ url_for('beds.admission_consent', admission_id=admission.id) }}">
+          <i class="bi bi-pen"></i> {{ t('beds.consent_chip_missing') }}</a>
+        {% endif %}
         <span class="stay-chip {{ '' if mrp_now else 'stay-chip--danger' }}" data-stay-mrp>
           <i class="bi bi-person-badge"></i>
           {{ mrp_now.doctor.display_name(current_lang) if mrp_now else t('mrp.nobody') }}</span>

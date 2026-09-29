@@ -1,0 +1,44 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% from "_pagination.html" import render_pagination with context %}
+{% block title %}{{ t('board_cs.answers_title') }}{% endblock %}
+{% block page_heading %}{{ t('board_cs.answers_title') }}{% endblock %}
+
+{# The families behind a number on the board. Paged like every list, and
+   the same rows as CSV — a board that cannot show who it counted is a
+   board nobody can check. #}
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title">{{ t('board_cs.answers_title') }}</h1>
+    <p class="page-sub num" style="margin:0;">{{ start.isoformat() }} → {{ last.isoformat() }}</p>
+  </div>
+  <div style="display:flex;gap:8px;">
+    {% set args = request.args.to_dict() %}{% set _ = args.pop('page', None) %}{% set _ = args.pop('format', None) %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.satisfaction', **args) }}"><i class="bi bi-arrow-{{ 'right' if direction == 'rtl' else 'left' }}"></i> {{ t('board_cs.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.satisfaction_answers', format='csv', **args) }}"><i class="bi bi-download"></i> CSV</a>
+  </div>
+</div>
+<div class="card gc-scale-in" style="padding:0;overflow-x:auto;">
+  {% if page.items %}
+  <table class="table" data-answers>
+    <thead><tr><th>{{ t('board_cs.col_date') }}</th><th>{{ t('board_cs.col_patient') }}</th><th>{{ t('board_cs.col_unit') }}</th><th>{{ t('board_cs.col_doctor') }}</th>
+      <th>{{ t('board_cs.medical') }}</th><th>{{ t('board_cs.service') }}</th><th>{{ t('board_cs.finance') }}</th><th>NPS</th><th>{{ t('board_cs.col_comment') }}</th></tr></thead>
+    <tbody>
+      {% for fb in page.items %}
+      <tr>
+        <td class="num" style="white-space:nowrap;">{{ fb.submitted_at.strftime('%Y-%m-%d') if fb.submitted_at }}</td>
+        <td style="white-space:nowrap;">{% if fb.patient %}<a href="{{ url_for('patients.view', patient_id=fb.patient.id) }}">{{ fb.patient.display_name(current_lang) }}</a>{% else %}—{% endif %}</td>
+        <td>{{ fb.cost_centre.display_name(current_lang) if fb.cost_centre else t('board_cs.outpatient') }}</td>
+        <td>{{ fb.doctor.display_name(current_lang) if fb.doctor else '—' }}</td>
+        <td class="num">{{ fb.doctor_rating or '—' }}</td><td class="num">{{ fb.service_rating or '—' }}</td>
+        <td class="num">{{ fb.finance_rating or '—' }}</td><td class="num">{{ fb.nps if fb.nps is not none else '—' }}</td>
+        <td dir="auto" style="min-width:24ch;">{{ fb.comment or '' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty-state"><i class="bi bi-inbox"></i> {{ t('board_cs.no_answers') }}</div>{% endif %}
+</div>
+{{ render_pagination(page) }}
+{% endblock %}

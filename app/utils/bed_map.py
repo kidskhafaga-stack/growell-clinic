@@ -94,6 +94,20 @@ def diagnoses_by_admission(admissions):
     return {aid: titles.get(vid, []) for aid, vid in visit_of.items()}
 
 
+def signed_admissions(admissions):
+    """The stays on the board whose guardian has signed the admission
+    consent — one query for the whole board."""
+    from app.models import Consent
+
+    ids = [a.id for a in admissions]
+    if not ids:
+        return set()
+    return {aid for (aid,) in db.session.query(Consent.admission_id)
+            .filter(Consent.admission_id.in_(ids),
+                    Consent.consent_type == "admission",
+                    Consent.signature_file.isnot(None)).all()}
+
+
 # ------------------------------------------------------------- the case ---
 def panel(admission):
     """The case behind a bed, for the side panel: what it is, what is being

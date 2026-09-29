@@ -180,7 +180,7 @@
     <tbody>
       {% for r in doctors %}
       <tr>
-        <td><a href="{{ url_for('reports.staff_statement', doctor_id=r.doctor.id, **dates) }}"><b>{{ r.doctor.full_name }}</b></a></td>
+        <td><a href="{{ url_for('reports.staff_statement', doctor_id=r.doctor.id, **dates) }}"><b>{{ r.doctor.display_name(current_lang) }}</b></a></td>
         <td class="num" data-v="{{ r.visits }}">{{ r.visits }}</td>
         <td class="num" data-v="{{ r.bills }}">{{ r.bills }}</td>
         <td class="num" data-v="{{ r.billed }}">{{ r.billed|money }}</td>
