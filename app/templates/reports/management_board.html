@@ -1,0 +1,235 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('board_admin.title') }}{% endblock %}
+{% block page_heading %}{{ t('board_admin.title') }}{% endblock %}
+
+{# The management board — utils/admin_board. The money is the journal's,
+   through the same cost-centre report the income statement adds up to, so
+   this page and that one cannot disagree. Every figure sits beside the same
+   stretch before it, except what is owed, which is today's. #}
+
+{% set q = {'from': w['from'].isoformat(), 'to': w['to'].isoformat()} if not w.preset else {'preset': w.preset} %}
+{% set dates = {'date_from': w['from'].isoformat(), 'date_to': w['to'].isoformat()} %}
+
+{% macro delta(now_v, before_v, good_up=True) -%}
+  {%- if now_v is none or not before_v -%}<span class="mb-d flat">—</span>
+  {%- else -%}
+    {%- set d = ((now_v - before_v) * 100 / (before_v|abs))|round|int -%}
+    {%- if d == 0 -%}<span class="mb-d flat">{{ t('board_med.same') }}</span>
+    {%- else -%}
+      {%- set good = (d > 0) if good_up else (d < 0) -%}
+      <span class="mb-d {{ 'up' if good else 'down' }}" title="{{ t('board_med.vs_before') }}"><bdi class="num" dir="ltr">{{ '▲' if d > 0 else '▼' }} {{ d|abs }}%</bdi></span>
+    {%- endif -%}
+  {%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+<div class="gc-animate mb-top">
+  <div>
+    <h1 class="page-title"><i class="bi bi-building"></i> {{ t('board_admin.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('board_admin.sub') }}</p>
+  </div>
+  {% set board_tab = 'management' %}{% include "reports/_board_tabs.html" %}
+</div>
+
+{% set board_endpoint = 'reports.management_board' %}
+{% include "reports/_board_bar.html" %}
+
+{# ------------------------------------------------------------ figures #}
+<div class="mb-kpis gc-scale-in" data-board-kpis>
+  {% for key, endpoint in (('revenue', 'reports.income'), ('collected', 'reports.financial'), ('net', 'reports.income')) %}
+  <a class="mb-kpi mb-link" data-kpi="{{ key }}" href="{{ url_for(endpoint, **dates) }}">
+    <span class="l">{{ t('board_admin.' ~ key) }}</span>
+    <span class="v num">{{ now[key]|money }}</span>
+    <span class="row">{{ delta(now[key], before[key]) }}<small class="hint num" style="margin:0;">{{ t('board_med.before_n', n=before[key]|money) }}</small></span>
+  </a>
+  {% endfor %}
+  <a class="mb-kpi mb-link" data-kpi="owed" href="{{ url_for('reports.ar_aging') }}">
+    <span class="l">{{ t('board_admin.owed') }}</span>
+    <span class="v num">{{ owed.total|money }}</span>
+    <span class="row"><small class="hint" style="margin:0;">{{ t('board_admin.owed_now') }}</small></span>
+  </a>
+  <div class="mb-kpi" data-kpi="visits">
+    <span class="l">{{ t('board_admin.visits') }}</span>
+    <span class="v num">{{ now.visits }}</span>
+    <span class="row">{{ delta(now.visits, before.visits) }}<small class="hint num" style="margin:0;">{{ t('board_med.before_n', n=before.visits) }}</small></span>
+  </div>
+  <div class="mb-kpi" data-kpi="per_bill">
+    <span class="l">{{ t('board_admin.per_bill') }}</span>
+    <span class="v num">{{ now.per_bill|money if now.per_bill is not none else '—' }}</span>
+    <span class="row">{{ delta(now.per_bill, before.per_bill) }}<small class="hint num" style="margin:0;">{{ t('board_admin.bills_n', n=now.bills) }}</small></span>
+  </div>
+</div>
+
+{# ---------------------------------------------------------- departments #}
+<div class="card gc-scale-in" id="dept" style="margin-bottom:14px;">
+  <h2 class="section-title mb-h">{{ t('board_admin.departments') }} <small class="hint">{{ t('board_admin.departments_hint') }}</small>
+    <a class="btn btn-outline btn-sm gc-press" style="margin-inline-start:auto;" href="{{ url_for('reports.cost_centres', **dates) }}"><i class="bi bi-diagram-3"></i> {{ t('cost_centres.title') }}</a></h2>
+  {% if departments %}
+  <div class="ab-depts" data-departments>
+    {% for d in departments %}
+    {% set cid = d.centre.id if d.centre else 0 %}
+    {% set open = open_centre and open_centre == cid %}
+    {% set m = d.margin %}
+    <a class="ab-dept" aria-expanded="{{ 'true' if open else 'false' }}" data-centre="{{ cid }}"
+       href="{{ url_for('reports.management_board', centre=None if open else cid, **q) }}#dept">
+      <span class="h"><b>{{ d.centre.display_name(current_lang) if d.centre else '—' }}</b>
+        {% if m is not none %}<span class="ab-margin {{ 'good' if m >= 40 else 'mid' if m >= 15 else 'low' }} num">{{ m|round|int }}%</span>{% endif %}</span>
+      <span class="money"><span>{{ t('board_admin.revenue') }} <b class="num">{{ d.revenue|money }}</b></span>{{ delta(d.revenue, d.before) }}</span>
+      <span class="ab-stack" style="width:{{ [18, d.bar]|max }}%" aria-hidden="true">
+        {% if d.revenue > 0 %}<span style="width:{{ [100, [0, d.contribution * 100 / d.revenue]|max]|min }}%;background:var(--mb-teal)"></span>{% endif %}
+        <span style="flex:1;background:var(--ab-cost)"></span></span>
+      <span class="load"><span>{{ t('board_admin.direct') }} <b class="num">{{ d.direct|money }}</b></span><span>{{ t('board_admin.left') }} <b class="num">{{ d.contribution|money }}</b></span></span>
+    </a>
+    {% endfor %}
+  </div>
+  {% set d = (departments|selectattr("centre")|selectattr("centre.id", "equalto", open_centre)|first) if open_centre else none %}
+  {% if d %}
+  <div class="ab-drawer" data-drawer>
+    <h3 style="grid-column:1/-1;margin:0;font-size:1rem;">{{ d.centre.display_name(current_lang) }}</h3>
+    <div><div class="ab-kv"><span>{{ t('board_admin.revenue') }}</span><b class="num">{{ d.revenue|money }}</b></div>
+      <div class="ab-kv"><span>{{ t('board_admin.of_it_doctors') }}</span><span class="num">{{ d.doctors|money }}</span></div>
+      <div class="ab-kv"><span>{{ t('board_admin.direct') }}</span><span class="num">{{ d.direct|money }}</span></div>
+      <div class="ab-kv"><span>{{ t('board_admin.left') }}</span><b class="num">{{ d.contribution|money }}</b></div></div>
+    <div><div class="ab-kv"><span>{{ t('board_admin.revenue_before') }}</span><span class="num">{{ d.before|money }}</span></div>
+      <div class="ab-kv"><span>{{ t('board_admin.direct_before') }}</span><span class="num">{{ d.before_direct|money }}</span></div>
+      {% for acc, amount in d.accounts[:6] %}<div class="ab-kv"><span>{{ acc.display_name(current_lang) }}</span><span class="num">{{ amount|money }}</span></div>{% endfor %}</div>
+    <div><p class="hint" style="margin:0 0 8px;">{{ t('board_admin.drawer_hint') }}</p>
+      <a class="mb-more" href="{{ url_for('reports.cost_centres', **dates) }}">{{ t('cost_centres.title') }} ←</a></div>
+  </div>
+  {% endif %}
+  <div class="mb-legend"><span><i style="background:var(--mb-teal)"></i>{{ t('board_admin.left') }}</span><span><i style="background:var(--ab-cost)"></i>{{ t('board_admin.direct') }}</span>
+    {% if report.shared_total %}<span>{{ t('board_admin.shared_line', amount=report.shared_total|money) }}</span>{% endif %}</div>
+  {% else %}<div class="empty-state"><i class="bi bi-diagram-3"></i> {{ t('board_admin.no_money') }}</div>{% endif %}
+</div>
+
+<div class="mb-grid">
+  <div class="card gc-scale-in">
+    <h2 class="section-title mb-h">{{ t('board_admin.trend') }} <small class="hint">{{ t('board_admin.by_' ~ step) }}</small></h2>
+    {% set n = trend|length %}
+    {% set peak = [1] %}{% for p in trend %}{% set _ = peak.append(p.revenue) %}{% set _ = peak.append(p.expenses) %}{% endfor %}
+    {% set top = (peak|max) * 1.1 %}
+    {% set W, H, L, R, T, B = 640, 230, 56, 12, 12, 26 %}
+    {% if trend|sum(attribute='revenue') or trend|sum(attribute='expenses') %}
+    <svg viewBox="0 0 {{ W }} {{ H }}" width="100%" role="img" aria-label="{{ t('board_admin.trend') }}" style="direction:ltr;" data-trend>
+      {% for k in range(5) %}
+        {% set v = top * k / 4 %}{% set y = T + (H - T - B) * (1 - v / top) %}
+        <line x1="{{ L }}" x2="{{ W - R }}" y1="{{ y }}" y2="{{ y }}" stroke="var(--line)"/>
+        <text x="{{ L - 6 }}" y="{{ y + 3 }}" text-anchor="end">{{ '{:,.0f}'.format(v) }}</text>
+      {% endfor %}
+      {% set xs = [] %}{% for p in trend %}{% set _ = xs.append(L + (W - L - R) * ((loop.index0 / (n - 1)) if n > 1 else 0.5)) %}{% endfor %}
+      {% set rev = [] %}{% set exp = [] %}
+      {% for p in trend %}
+        {% set _ = rev.append(xs[loop.index0]|round(1) ~ ',' ~ (T + (H - T - B) * (1 - p.revenue / top))|round(1)) %}
+        {% set _ = exp.append(xs[loop.index0]|round(1) ~ ',' ~ (T + (H - T - B) * (1 - p.expenses / top))|round(1)) %}
+      {% endfor %}
+      <polygon points="{{ xs[0]|round(1) }},{{ H - B }} {{ rev|join(' ') }} {{ xs[-1]|round(1) }},{{ H - B }}" fill="var(--mb-teal)" opacity=".12"/>
+      <polyline points="{{ rev|join(' ') }}" fill="none" stroke="var(--mb-teal)" stroke-width="2.2" stroke-linejoin="round"/>
+      <polyline points="{{ exp|join(' ') }}" fill="none" stroke="var(--ab-cost)" stroke-width="2" stroke-dasharray="5 4"/>
+      <circle cx="{{ rev[-1].split(',')[0] }}" cy="{{ rev[-1].split(',')[1] }}" r="4" fill="var(--mb-teal)"/>
+      {% for p in trend %}{% if loop.first or loop.last or loop.index0 == (n // 2) %}
+        <text x="{{ xs[loop.index0] }}" y="{{ H - 8 }}" text-anchor="{{ 'start' if loop.first else 'end' if loop.last else 'middle' }}">{{ p.start.strftime('%d/%m' if step != 'month' else '%m/%Y') }}</text>
+      {% endif %}{% endfor %}
+    </svg>
+    <div class="mb-legend"><span><i style="background:var(--mb-teal)"></i>{{ t('board_admin.revenue') }}</span><span><i style="background:var(--ab-cost)"></i>{{ t('board_admin.expenses') }}</span></div>
+    {% else %}<div class="empty-state"><i class="bi bi-graph-up"></i> {{ t('board_admin.no_money') }}</div>{% endif %}
+  </div>
+
+  <div class="card gc-scale-in">
+    <h2 class="section-title mb-h">{{ t('board_admin.how_paid') }}</h2>
+    {% set paid_total = methods|sum(attribute=1) %}
+    {% if paid_total > 0 %}
+    <div class="mb-mix" data-methods>
+      {% for m, amount in methods if amount > 0 %}<span class="ab-pay-{{ loop.index0 % 5 }}" style="width:{{ amount * 100 / paid_total }}%" title="{{ t('payment_methods.' ~ m) }}"></span>{% endfor %}
+    </div>
+    <div class="mb-legend">
+      {% for m, amount in methods if amount > 0 %}<span><i class="ab-pay-{{ loop.index0 % 5 }}"></i>{{ t('payment_methods.' ~ m) }} <b class="num">{{ (amount * 100 / paid_total)|round|int }}%</b></span>{% endfor %}
+    </div>
+    {% else %}<p class="hint">{{ t('board_admin.nothing_paid') }}</p>{% endif %}
+
+    <h2 class="section-title mb-h" style="margin-top:18px;">{{ t('board_admin.attention') }}</h2>
+    {% if attention %}
+    <div class="ab-watch" data-attention>
+      {% for a in attention %}
+      <div class="ab-w {{ a.level }}" data-watch="{{ a.key }}">
+        <b class="num">{% if a.key == 'shared' %}{{ a.value }}%{% elif a.key == 'unplaced' %}{{ a.value|money }}{% else %}{{ a.value }}{% endif %}</b>
+        <span>{{ t('board_admin.watch_' ~ a.key, amount=(a.amount|money) if a.amount is defined else '') }}</span>
+        <a href="{{ url_for(a.endpoint, **(dates if a.endpoint == 'reports.cost_centres' else {})) }}">←</a>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="hint">{{ t('board_admin.nothing_waits') }}</p>{% endif %}
+  </div>
+</div>
+
+{# --------------------------------------------------------------- doctors #}
+<div class="card gc-scale-in" id="doctors">
+  <h2 class="section-title mb-h">{{ t('board_med.doctors') }} <small class="hint">{{ t('board_med.doctors_hint') }}</small>
+    <a class="btn btn-outline btn-sm gc-press" style="margin-inline-start:auto;" href="{{ url_for('reports.staff', **dates) }}"><i class="bi bi-people"></i> {{ t('reports.staff') }}</a></h2>
+  {% if doctors %}
+  <div style="overflow-x:auto;"><table class="table mb-sortable" data-doctors>
+    <thead><tr>
+      <th scope="col">{{ t('board_med.doctor') }}</th>
+      <th scope="col" data-sort>{{ t('board_admin.visits') }}</th>
+      <th scope="col" data-sort>{{ t('board_admin.bills') }}</th>
+      <th scope="col" data-sort aria-sort="descending">{{ t('board_admin.billed') }}</th>
+      <th scope="col" data-sort>{{ t('board_admin.share') }}</th>
+      <th scope="col" data-sort>{{ t('board_admin.per_bill') }}</th>
+      <th scope="col" data-sort>{{ t('board_admin.no_show') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for r in doctors %}
+      <tr>
+        <td><a href="{{ url_for('reports.staff_statement', doctor_id=r.doctor.id, **dates) }}"><b>{{ r.doctor.display_name(current_lang) }}</b></a></td>
+        <td class="num" data-v="{{ r.visits }}">{{ r.visits }}</td>
+        <td class="num" data-v="{{ r.bills }}">{{ r.bills }}</td>
+        <td class="num" data-v="{{ r.billed }}">{{ r.billed|money }}</td>
+        <td class="num" data-v="{{ r.share }}">{{ r.share|money }}</td>
+        <td class="num" data-v="{{ r.per_bill if r.per_bill is not none else -1 }}">{{ r.per_bill|money if r.per_bill is not none else '—' }}</td>
+        <td class="num" data-v="{{ r.no_show_pct if r.no_show_pct is not none else -1 }}">{{ '%.1f'|format(r.no_show_pct) ~ '%' if r.no_show_pct is not none else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody></table></div>
+  {% else %}<p class="hint">{{ t('board_med.no_doctors') }}</p>{% endif %}
+  <p class="hint">{{ t('board_admin.doctors_foot') }}</p>
+</div>
+{% endblock %}
+
+{% block head %}
+{% include "reports/_board_style.html" %}
+<style>
+:root{--ab-cost:#d9645d;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--ab-cost:#ee837c;}}
+:root[data-theme="dark"]{--ab-cost:#ee837c;}
+.mb-link{text-decoration:none;color:inherit;}
+.mb-kpis .mb-kpi .v{font-size:1.2rem;white-space:nowrap;}
+.mb-kpi .row{flex-wrap:wrap;}
+.mb-link:hover{border-color:var(--green-600);}
+.ab-depts{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-bottom:10px;}
+.ab-dept{border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;gap:8px;text-decoration:none;color:inherit;}
+.ab-dept:hover{border-color:var(--green-600);}
+.ab-dept[aria-expanded="true"]{border-color:var(--green-600);box-shadow:0 0 0 3px rgba(15,154,168,.15);}
+.ab-dept .h,.ab-dept .money,.ab-dept .load{display:flex;justify-content:space-between;align-items:center;gap:6px;}
+.ab-dept .money,.ab-dept .load{font-size:.82rem;color:var(--muted);}
+.ab-dept .money b,.ab-dept .load b{color:var(--text,inherit);}
+.ab-margin{font-size:.76rem;font-weight:700;padding:1px 8px;border-radius:999px;}
+.ab-margin.good{background:rgba(30,138,85,.14);color:#1e8a55;}
+.ab-margin.mid{background:rgba(183,121,31,.16);color:#b7791f;}
+.ab-margin.low{background:rgba(194,65,59,.14);color:#c2413b;}
+.ab-stack{height:8px;border-radius:5px;background:var(--line);overflow:hidden;display:flex;}
+.ab-stack span{display:block;height:100%;}
+.ab-drawer{margin:0 0 10px;border:1px solid var(--green-600);border-radius:14px;padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;}
+.ab-kv{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed var(--line);padding:5px 0;font-size:.88rem;}
+.ab-kv:last-child{border:0;}
+.ab-watch{display:grid;gap:8px;}
+.ab-w{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px 10px;border-inline-start:4px solid #b7791f;}
+.ab-w.bad{border-inline-start-color:#c2413b;} .ab-w.info{border-inline-start-color:var(--mb-teal);}
+.ab-w b{min-width:56px;text-align:center;}
+.ab-w span{font-size:.86rem;}
+.ab-w a{margin-inline-start:auto;text-decoration:none;}
+.ab-pay-0{background:var(--mb-teal);} .ab-pay-1{background:var(--mb-boy);} .ab-pay-2{background:#8e6bc9;} .ab-pay-3{background:#b7791f;} .ab-pay-4{background:var(--muted);}
+svg[data-trend] text{fill:var(--muted);font-size:10.5px;}
+</style>
+{% endblock %}
+
+{% block scripts %}{% include "reports/_board_sort.html" %}{% endblock %}

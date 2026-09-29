@@ -1114,3 +1114,19 @@ def medical_board_cases():
     name = f"cases_{w['from']}_{w['to']}.csv"
     return Response("﻿" + buf.getvalue(), mimetype="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f"attachment; filename={name}"})
+
+
+# ================================================= the management board =====
+@reports_bp.route("/management")
+@module_required(MODULE)
+@capability_required("finance_manage")
+def management_board():
+    """The money and the work of each part of the clinic — see
+    ``utils/admin_board``. Behind the finance capability: it is the P&L."""
+    from app.utils import admin_board, med_board
+
+    w = _board_window()
+    return render_template("reports/management_board.html", w=w,
+                           presets=med_board.PRESETS,
+                           open_centre=request.args.get("centre", type=int),
+                           **admin_board.board(w))
