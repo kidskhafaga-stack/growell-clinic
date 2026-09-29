@@ -1,0 +1,28 @@
+{# Sort a board's table by the column pressed — numbers in data-v. #}
+<script>
+/* Sort the doctors' table by the column pressed — the numbers are in data-v. */
+(function () {
+  var table = document.querySelector('.mb-sortable');
+  if (!table) return;
+  var heads = table.querySelectorAll('th');
+  Array.prototype.forEach.call(heads, function (th, col) {
+    if (!th.hasAttribute('data-sort')) return;
+    th.tabIndex = 0;
+    function go() {
+      var down = th.getAttribute('aria-sort') !== 'descending';
+      Array.prototype.forEach.call(heads, function (h) { h.removeAttribute('aria-sort'); });
+      th.setAttribute('aria-sort', down ? 'descending' : 'ascending');
+      var body = table.tBodies[0];
+      var rows = Array.prototype.slice.call(body.rows);
+      rows.sort(function (a, b) {
+        var x = parseFloat(a.cells[col].getAttribute('data-v')) || 0;
+        var y = parseFloat(b.cells[col].getAttribute('data-v')) || 0;
+        return down ? y - x : x - y;
+      });
+      rows.forEach(function (r) { body.appendChild(r); });
+    }
+    th.addEventListener('click', go);
+    th.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  });
+})();
+</script>

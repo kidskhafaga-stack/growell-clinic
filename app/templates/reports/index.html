@@ -28,6 +28,9 @@
      exactly that. It sits among the reports because evidence 3 is «the
      hospital leaders are reported on the review's findings», and the leaders
      are already standing here. #}
+  {% if current_user.can('finance_manage') %}
+  {% set ns.cards = [('reports.management_board','building', t('board_admin.title'), t('board_admin.desc'),'edge-green')] + ns.cards %}
+  {% endif %}
   {% if current_user.is_admin %}
   {% set ns.cards = ns.cards + [('reports.record_review','clipboard-check',
        t('record_review.title'), t('record_review.desc'),'edge-blue')] %}
