@@ -76,8 +76,17 @@ def index():
                            period_days=bed_map.PERIOD_DAYS,
                            diagnoses=bed_map.diagnoses_by_admission(admissions),
                            signed=bed_map.signed_admissions(admissions),
+                           open_units=_open_units(units),
                            may_build=current_user.is_admin,
                            may_admit=current_user.can_access(MODULE))
+
+
+def _open_units(units):
+    """The units whose children this person sees by name on the map."""
+    from app.utils import unit_access
+    all_teams = unit_access.teams()
+    return {row["unit"].id for row in units
+            if unit_access.is_open_to(current_user, row["unit"].id, all_teams)}
 
 
 @beds_bp.route("/panel/<int:admission_id>")
@@ -87,7 +96,54 @@ def panel(admission_id):
     from app.utils import bed_map
 
     row = Admission.query.get_or_404(admission_id)
+    from app.utils import unit_access
+    if not unit_access.may_read(current_user, row):
+        return render_template("beds/_panel_closed.html", admission=row)
     return render_template("beds/_panel.html", p=bed_map.panel(row))
+
+
+def _glass(row):
+    """The stay's own team only — anybody else says why first. ``None`` when
+    this person may read it; the page that asks for a reason otherwise."""
+    from app.utils import unit_access
+    if unit_access.may_read(current_user, row):
+        return None
+    return render_template("beds/break_glass.html", admission=row,
+                           unit=unit_access.unit_of(row)), 403
+
+
+@beds_bp.route("/admission/<int:admission_id>/break-glass", methods=["POST"])
+@module_required(MODULE)
+def break_glass(admission_id):
+    """Open a stay in a unit that is not yours, by saying why. Written down
+    with the name, and good for a shift."""
+    from app.utils import unit_access
+
+    row = Admission.query.get_or_404(admission_id)
+    try:
+        unit_access.break_glass(current_user, row, request.form.get("reason"))
+    except ValueError:
+        flash(t("beds.glass_need_reason"), "error")
+        return redirect(url_for("beds.admission", admission_id=row.id))
+    db.session.commit()
+    return redirect(url_for("beds.admission", admission_id=row.id))
+
+
+@beds_bp.route("/unit/<int:unit_id>/team", methods=["POST"])
+@module_required(MODULE)
+def unit_team(unit_id):
+    """Who works in this unit. Nobody listed is the old way: open to all."""
+    from app.models import User
+    from app.utils import unit_access
+
+    _admin_only()
+    unit = db.get_or_404(Unit, unit_id)
+    ids = [i for i in request.form.getlist("user_id", type=int)
+           if db.session.get(User, i) is not None]
+    unit_access.set_team(unit, ids, by=current_user)
+    db.session.commit()
+    flash(t("beds.team_saved"), "success")
+    return redirect(url_for("beds.setup", _anchor=f"unit-{unit.id}"))
 
 
 @beds_bp.route("/admit-here", methods=["POST"])
@@ -135,7 +191,13 @@ def setup():
     reasons = lookups.options(REASON_DOMAIN)
     labels = {row.key: row.display_name(lang) for row in reasons}
 
+    from app.models import User
+    from app.utils import unit_access
+    staff = [u for u in User.query.filter_by(is_active=True)
+             .order_by(User.full_name).all() if u.can_access(MODULE)]
     return render_template("beds/setup.html",
+                           teams=unit_access.teams(), staff=staff,
+                           glass=unit_access.recent(),
                            # استعلام واحد للشاشة كلها، مش واحد لكل سرير.
                            closing=lambda place, _open=closures.open_by_place(): (
                                _open.get((closures.level(place), place.id))),
@@ -463,6 +525,9 @@ def admission_consent(admission_id):
     from app.utils.clock import local_now
 
     row = Admission.query.get_or_404(admission_id)
+    guard = _glass(row)
+    if guard is not None:
+        return guard
     back = url_for("beds.admission", admission_id=row.id)
     if request.method == "POST":
         name = (request.form.get("guardian_name") or "").strip()[:120]
@@ -500,6 +565,9 @@ def admission_consent(admission_id):
 def admission(admission_id):
     """One stay: where they are, where they have been, and how it ended."""
     row = Admission.query.get_or_404(admission_id)
+    guard = _glass(row)
+    if guard is not None:
+        return guard
     # Read once. The headline counts and the rows under them come off the same
     # list, so they cannot end up saying different things about one stay.
     risk_rows = risks.panel(row)

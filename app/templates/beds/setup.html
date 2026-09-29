@@ -239,6 +239,21 @@
     <i class="bi bi-info-circle"></i> {{ t('ward_wizard.refused_unit_has_used_beds') }}</p>
   {% endif %}
   <div style="margin:-4px 0 10px;">{{ closure_control('unit', row.unit) }}</div>
+  {# Its team. Nobody listed is the old way: every unit open to everyone
+     with the beds. List them, and the rest get in by giving a reason. #}
+  {% set team = teams.get(row.unit.id, []) %}
+  <details style="margin:-4px 0 10px;" data-unit-team="{{ row.unit.id }}">
+    <summary style="cursor:pointer;" class="hint"><i class="bi bi-people"></i>
+      {% if team %}{{ t('beds.team_n', n=team|length) }}{% else %}{{ t('beds.team_open') }}{% endif %}</summary>
+    <form method="post" action="{{ url_for('beds.unit_team', unit_id=row.unit.id) }}" style="display:grid;gap:8px;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="display:flex;flex-wrap:wrap;gap:6px 14px;">
+        {% for u in staff %}<label class="checkbox" style="margin:0;"><input type="checkbox" name="user_id" value="{{ u.id }}" {{ 'checked' if u.id in team }}> {{ u.display_name(current_lang) }} <span class="hint">({{ t('roles.' ~ u.role) }})</span></label>{% endfor %}
+      </div>
+      <p class="hint" style="margin:0;">{{ t('beds.team_hint') }}</p>
+      <div><button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+    </form>
+  </details>
 
   {# What a stay in this department costs, and whether it is sold by the
      night or by the hour. Emergency is by the hour: a child on a trolley for
@@ -446,5 +461,18 @@
 
 {% if not units %}
 <p class="hint">{{ t('beds.nothing_built') }}</p>
+{% endif %}
+{% if glass %}
+<div class="card gc-scale-in" style="margin-top:14px;" data-glass-log>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-shield-exclamation"></i> {{ t('beds.glass_log') }}</h2>
+  <table class="table"><tbody>
+    {% for g_ in glass %}
+    <tr><td class="num" style="white-space:nowrap;">{{ g_.at|clinic_stamp }}</td>
+      <td>{{ g_.user.display_name(current_lang) if g_.user }}</td>
+      <td><a href="{{ url_for('beds.admission', admission_id=g_.admission_id) }}">{{ g_.admission.patient.display_name(current_lang) if g_.admission }}</a></td>
+      <td>{{ g_.reason }}</td></tr>
+    {% endfor %}
+  </tbody></table>
+</div>
 {% endif %}
 {% endblock %}

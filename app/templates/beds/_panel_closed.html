@@ -1,0 +1,5 @@
+{# A stay in a unit with its own team, for somebody not on it. #}
+<div data-case-closed style="display:grid;gap:10px;">
+  <p style="margin:0;"><i class="bi bi-shield-lock"></i> {{ t('beds.glass_panel') }}</p>
+  <div><a class="btn btn-outline gc-press" href="{{ url_for('beds.admission', admission_id=admission.id) }}"><i class="bi bi-unlock"></i> {{ t('beds.glass_open') }}</a></div>
+</div>

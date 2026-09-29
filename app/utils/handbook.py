@@ -513,6 +513,17 @@ SECTIONS = [
              "with its own rules (visiting, companions…) in the consent "
              "wording settings. A bed whose consent is not signed yet is "
              "marked «awaiting signature»."),
+            ("<b>القسم لطاقمه:</b> من «تجهيز الأقسام» ← «طاقم القسم» تختار "
+             "الأطباء والتمريض بتوع كل قسم. اللي مش من الطاقم بيشوف في الخريطة "
+             "إن السرير مشغول بس، ولو محتاج يفتح الحالة (نبطشية، استدعاء) بيكتب "
+             "السبب، وبتفتحله ١٢ ساعة وبيتسجّل باسمه، والمدير بيشوف السجل تحت "
+             "في نفس الشاشة. القسم اللي مالوش طاقم بيفضل مفتوح للكل زي الأول.",
+             "<b>A unit kept to its team:</b> under «Units and beds» → «Unit "
+             "team», choose each unit's doctors and nurses. Anyone else sees on "
+             "the map that a bed is taken, and to open the case (on call, a "
+             "call to help) writes a reason — it opens for 12 hours under their "
+             "name, and the manager reads the log on the same screen. A unit "
+             "with no team stays open to everyone, as before."),
             ("<b>اسم اتكتب غلط بيتصلّح:</b> من «تجهيز الأقسام» زرار «تعديل» "
              "جنب كل قسم وحيّز وسرير — الاسم، ونوع الحيّز (غرفة/بارتشن) ونوع "
              "السرير (سرير/حضّانة/كبسولة). حتى لو نام فيه أطفال: الإقامة "
