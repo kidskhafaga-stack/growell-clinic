@@ -76,6 +76,14 @@ SYSTEM_TEMPLATE_TYPES = [
     # reply to an event — nothing happened, which is the point — so it is the
     # one the clinic sends rather than the program.
     "patient_recall",
+    # A complaint or a suggestion, written down: its number, and when to
+    # expect a call. Then what was found and done, with the link that asks
+    # whether that answered it. See app/utils/complaint_cases.py.
+    "complaint_received",
+    "complaint_answered",
+    # The link a family opens to write it themselves, when they would
+    # rather not say it to the person at the desk.
+    "complaint_invite",
 ]
 # Notification types the clinic manages centrally (each has one canonical
 # template with its own body/image/auto-or-manual toggle). Birthday is an
@@ -113,6 +121,10 @@ TEMPLATE_VARIABLES = {
     "rx_copy": ["patient", "first_name", "doctor", "clinic", "link"],
     "birthday": ["patient", "first_name", "clinic"],
     "feedback": ["patient", "first_name", "clinic", "doctor", "link"],
+    "complaint_received": ["patient", "first_name", "clinic", "number", "hours"],
+    "complaint_answered": ["patient", "first_name", "clinic", "number",
+                           "answer", "link"],
+    "complaint_invite": ["patient", "first_name", "clinic", "link"],
     "seasonal": ["patient", "first_name", "clinic"],
     "greeting": ["patient", "first_name", "clinic"],
     "custom": ["patient", "first_name", "clinic"],
@@ -197,6 +209,23 @@ TEMPLATE_DEFAULTS = {
     "birthday": (
         "كل سنة و{patient} طيب! 🎉\n"
         "عيلة {clinic} بتتمنالكم يوم سعيد وصحة دايمة. 🎂"
+    ),
+    # The number is the point: it is what the family quotes when they call,
+    # and what tells them this was written down rather than heard.
+    "complaint_received": (
+        "أهلاً {first_name}،\nكلامكم وصل لخدمة العملاء في {clinic} "
+        "واتسجّل برقم {number}.\n"
+        "هنتواصل معاكم خلال {hours} ساعة — ولو حبيتوا تسألوا، اذكروا الرقم ده."
+    ),
+    # The answer is customer service's own words about this case; the
+    # wrapper only says which case and asks whether it settled it.
+    "complaint_answered": (
+        "بخصوص رقم {number} في {clinic}:\n{answer}\n\n"
+        "يهمّنا نعرف: الرد ده حلّ اللي كان مضايقكم؟ قولولنا من هنا: {link}"
+    ),
+    "complaint_invite": (
+        "أهلاً {first_name}،\nلو عندكم شكوى أو اقتراح لـ{clinic}، تقدروا "
+        "تكتبوه بنفسكم من هنا وهيوصل لخدمة العملاء على طول:\n{link}"
     ),
     "feedback": (
         "شكراً لزيارتكم {clinic} 🌟\n"

@@ -1,0 +1,35 @@
+{% extends "shell.html" %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'complaints' %}
+{% block title %}{{ t('cmp.receipt_title') }} {{ case.number }}{% endblock %}
+{% block page_heading %}{{ t('cmp.receipt_title') }}{% endblock %}
+
+{# What the family walks away with: the number, and when to expect a call.
+   The number is the whole point — it is what they quote when they ring, and
+   what tells them this was written down rather than heard. #}
+{% block content %}
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('complaints.new') }}"><i class="bi bi-plus-lg"></i> {{ t('cmp.another') }}</a>
+  <div style="display:flex;gap:8px;">
+    {% if current_user.can('complaints_manage') %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('complaints.view', case_id=case.id) }}"><i class="bi bi-folder2-open"></i> {{ t('cmp.open_case') }}</a>
+    {% endif %}
+    <button class="btn btn-primary gc-press" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+  </div>
+</div>
+
+<div class="card gc-scale-in print-area" style="max-width:620px;">
+  {{ print_header(t('cmp.receipt_title')) }}
+  <div style="text-align:center;margin:8px 0 18px;">
+    <div class="hint" style="margin:0;">{{ t('cmp.your_number') }}</div>
+    <div class="num" data-case-number style="font-size:2rem;font-weight:700;letter-spacing:1px;">{{ case.number }}</div>
+    <div class="hint">{{ t('cmp.kind_' ~ case.kind) }} · <span class="num">{{ case.created_at.strftime('%Y-%m-%d %H:%M') }}</span></div>
+  </div>
+  <div style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;line-height:1.9;white-space:pre-wrap;">{{ case.description }}</div>
+  {% if case.kind != 'compliment' %}
+  <p style="margin-top:14px;">{{ t('cmp.receipt_promise', hours=hours, days=days) }}</p>
+  {% else %}
+  <p style="margin-top:14px;">{{ t('cmp.receipt_thanks') }}</p>
+  {% endif %}
+</div>
+{% endblock %}

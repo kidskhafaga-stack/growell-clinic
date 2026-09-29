@@ -2249,6 +2249,22 @@ SECTIONS = [
              "inbox as a complaint. It is never sent after a death or a "
              "transfer. <b>Leaving against advice</b> asks \"why?\" in one "
              "tap, from a list the clinic edits."),
+            ("<b>الشكاوى برقم ومتابعة:</b> أي حد شغال يسجّل شكوى من زرار "
+             "«سجّل شكوى» فوق، ويدّي العميل رقمها — أو يطبع الاستمارة الفاضية، "
+             "أو يبعتله لينك يكتبها بنفسه. الشكوى بتروح لخدمة العملاء "
+             "(صلاحية «متابعة الشكاوى»): يكلّموه، ويكتبوا لقينا إيه وعملنا إيه "
+             "وقلناله إيه، والرد بيوصله ومعاه لينك يقيّم الحل — لو قال ما "
+             "نفعش بتتفتح تاني لوحدها. والشكوى اللي عدّت مواعيد سياسة "
+             "المستشفى بتظهر متأخرة (معيار PCC.16).",
+             "<b>Complaints with a number and follow-up:</b> anyone on the "
+             "staff logs one from the «Log a complaint» button at the top "
+             "and hands the family its number — or prints the blank form, or "
+             "sends them a link to write it themselves. It goes to customer "
+             "service (the «Handle complaints» permission): they contact the "
+             "family, write what was found, what was done and what they were "
+             "told, and the answer reaches the family with a link to rate it "
+             "— a low rating reopens it by itself. A complaint past the "
+             "hospital's policy timeframes shows as late (PCC.16)."),
             ("<b>هب واحد</b> لكل الرسائل: قالب لكل نوع (تأكيد حجز، تذكير "
              "تطعيم، متابعة، استبيان…)، وتشغيل/إيقاف و<b>تلقائي أو يدوي</b> "
              "لكل نوع على حدة.",
@@ -2395,6 +2411,8 @@ CAPABILITY_LABELS = {
                         "Write off counting differences (admin only)"),
     "medication_order": ("كتابة أوامر الدواء للأطفال المنوّمين",
                          "Write drug orders for admitted children"),
+    "complaints_manage": ("متابعة الشكاوى والرد عليها وقفلها",
+                          "Handle, answer and close complaints"),
 }
 
 

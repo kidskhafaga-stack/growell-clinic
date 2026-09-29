@@ -1,0 +1,69 @@
+{% extends "shell.html" %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'complaints' %}
+{% block title %}{{ t('cmp.blank_title') }}{% endblock %}
+{% block page_heading %}{{ t('cmp.blank_title') }}{% endblock %}
+
+{# The paper form, empty. It also does PCC.16 (a) and (d): it tells the
+   family how to complain and how soon they will hear back. The number is
+   written on it when customer service enters it. #}
+{% block content %}
+<div class="no-print" style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:14px;">
+  <button class="btn btn-primary gc-press" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+</div>
+
+<div class="card print-area blank-form" data-blank-form>
+  {{ print_header(t('cmp.blank_title'), t('cmp.number') ~ ': ________________') }}
+
+  <p style="margin-top:0;">{{ t('cmp.blank_intro') }}</p>
+
+  <div class="bf-row">
+    <strong>{{ t('cmp.kind') }}:</strong>
+    {% for k in kinds %}<span class="bf-box"></span> {{ t('cmp.kind_' ~ k) }}&nbsp;&nbsp;{% endfor %}
+  </div>
+  <div class="bf-row">
+    <strong>{{ t('cmp.side') }}:</strong>
+    {% for s in sides %}<span class="bf-box"></span> {{ t('cmp.side_' ~ s) }}&nbsp;&nbsp;{% endfor %}
+  </div>
+  <div class="bf-row" style="line-height:2.2;">
+    <strong>{{ t('cmp.centre') }}:</strong>
+    {% for c in centres %}<span style="white-space:nowrap;"><span class="bf-box"></span> {{ c.display_name(current_lang) }}</span>&nbsp;&nbsp; {% endfor %}
+  </div>
+
+  <div class="bf-label">{{ t('cmp.description') }}</div>
+  {% for i in range(7) %}<div class="bf-line"></div>{% endfor %}
+  <div class="bf-label">{{ t('cmp.wanted') }}</div>
+  {% for i in range(2) %}<div class="bf-line"></div>{% endfor %}
+
+  <div class="bf-grid">
+    <div><div class="bf-label">{{ t('cmp.patient') }}</div><div class="bf-line"></div></div>
+    <div><div class="bf-label">{{ t('cmp.file_number') }}</div><div class="bf-line"></div></div>
+    <div><div class="bf-label">{{ t('cmp.contact_name') }}</div><div class="bf-line"></div></div>
+    <div><div class="bf-label">{{ t('cmp.contact_phone') }}</div><div class="bf-line"></div></div>
+    <div><div class="bf-label">{{ t('cmp.date') }}</div><div class="bf-line"></div></div>
+    <div><div class="bf-label">{{ t('cmp.signature') }}</div><div class="bf-line"></div></div>
+  </div>
+
+  <div class="bf-foot">
+    <div><span class="bf-box"></span> {{ t('cmp.anonymous') }} — {{ t('cmp.anonymous_paper') }}</div>
+    <div>{{ t('cmp.blank_promise', hours=hours, days=days) }}</div>
+  </div>
+
+  <div class="bf-office">
+    <strong>{{ t('cmp.office_use') }}</strong>
+    <span>{{ t('cmp.received_by') }}: ____________</span>
+    <span>{{ t('cmp.entered_as') }}: ____________</span>
+  </div>
+</div>
+
+<style>
+  .blank-form { max-width:780px; }
+  .bf-row { margin:8px 0; }
+  .bf-box { display:inline-block; width:13px; height:13px; border:1.5px solid #334; border-radius:3px; vertical-align:middle; }
+  .bf-label { margin-top:14px; font-weight:600; font-size:.92rem; }
+  .bf-line { border-bottom:1px solid #99a; height:28px; }
+  .bf-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 24px; }
+  .bf-foot { margin-top:18px; font-size:.86rem; display:grid; gap:6px; }
+  .bf-office { margin-top:18px; padding-top:10px; border-top:1px dashed #99a; display:flex; gap:24px; flex-wrap:wrap; font-size:.85rem; color:#556; }
+</style>
+{% endblock %}

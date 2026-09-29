@@ -233,6 +233,19 @@
          href="{{ url_for('messages.inbox_start', patient_id=patient.id) }}">
         <i class="bi bi-whatsapp"></i> {{ t('inbox.start') }}</a>
       {% endif %}
+      {# Anybody who works here may write down a complaint — the case then
+         goes to customer service. And a family who would rather write it
+         themselves gets a link. #}
+      <a class="btn btn-outline btn-sm gc-press" data-log-complaint
+         href="{{ url_for('complaints.new', patient_id=patient.id) }}">
+        <i class="bi bi-megaphone"></i> {{ t('cmp.register_btn') }}</a>
+      {% if patient.contact_phone %}
+      <form method="post" action="{{ url_for('complaints.invite', patient_id=patient.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline btn-sm gc-press" type="submit" style="width:100%;" data-complaint-invite>
+          <i class="bi bi-link-45deg"></i> {{ t('cmp.send_link') }}</button>
+      </form>
+      {% endif %}
       {% if patient.is_active %}
       <form method="post" action="{{ url_for('patients.archive_one', patient_id=patient.id) }}"
             onsubmit="return confirm('{{ t('archive.confirm_one') }}');">

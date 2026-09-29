@@ -245,6 +245,23 @@ def _compute():
     except Exception:  # noqa: BLE001
         pass
 
+    # Complaints waiting for somebody: new ones nobody has spoken to yet, and
+    # any past the clinic's timeframe. In the shared list — one count for the
+    # whole clinic, worked out with the rest — and shown only to whoever can
+    # handle them (``capability``).
+    try:
+        from app.utils.complaint_cases import open_counts
+
+        c = open_counts()
+        if c["attention"]:
+            items.append({"key": "complaints", "module": "dashboard",
+                          "capability": "complaints_manage", "icon": "megaphone",
+                          "severity": "danger" if c["late"] else "warning",
+                          "count": c["attention"], "endpoint": "complaints.index",
+                          "kwargs": {"view": "late"} if c["late"] else {}})
+    except Exception:  # noqa: BLE001
+        pass
+
     # A newer version of the program, as the last launch found it. Read from
     # what was stored rather than asked here: see `updates.remembered`. Under
     # `settings`, which is admin-only — updating is not a receptionist's
@@ -382,6 +399,10 @@ def get_notifications(user):
         pass
     for it in _all():
         if not user.can_access(it["module"]):
+            continue
+        # An alert for the holders of a capability, not of a module — the
+        # complaints book belongs to whoever handles complaints.
+        if it.get("capability") and not user.can(it["capability"]):
             continue
         seen = dismissed.get(it["key"])
         # Hide if dismissed today and nothing new has arrived since.

@@ -1,0 +1,47 @@
+{# Public: the family's view of their case, and their verdict on the answer. #}
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ direction }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ t('cmp.public_title') }} · {{ clinic }}</title>
+  {% include "feedback/_case_style.html" %}
+</head>
+<body>
+<main class="fb">
+  <div class="fb-head">
+    <div class="fb-badge">✉</div>
+    <h1>{{ clinic }}</h1>
+    {% if case %}<p>{{ t('cmp.public_number') }} <strong class="num" data-case-number>{{ case.number }}</strong></p>{% endif %}
+  </div>
+  {% if not case %}
+    <p class="thanks">{{ t('cmp.public_missing') }}</p>
+  {% else %}
+    <div class="ro-row"><span class="k">{{ t('cmp.status') }}</span><strong data-public-status>{{ t('cmp.pub_st_' ~ case.status) }}</strong></div>
+    {% if case.answer %}
+    <div class="said"><div class="k">{{ t('cmp.public_answer') }}</div><div style="white-space:pre-wrap;">{{ case.answer }}</div></div>
+    {% endif %}
+    {% if can_rate %}
+    <form method="post" data-verdict-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="q">
+        <label class="qlab">{{ t('cmp.public_q') }}</label>
+        <div class="rate" dir="ltr">
+          {% for n in range(5, 0, -1) %}
+          <input type="radio" id="s{{ n }}" name="stars" value="{{ n }}" required><label for="s{{ n }}" title="{{ n }}">★</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="q"><label class="qlab" for="c">{{ t('cmp.public_comment') }}</label>
+        <textarea id="c" class="fb-comment" name="comment" maxlength="2000"></textarea></div>
+      <button class="fb-btn" type="submit">{{ t('cmp.public_send') }}</button>
+    </form>
+    {% elif case.rated_at %}
+    <p class="thanks">{{ t('cmp.public_rated') }}</p>
+    {% elif case.status in ('new', 'in_progress') %}
+    <p class="thanks">{{ t('cmp.public_working') }}</p>
+    {% endif %}
+  {% endif %}
+</main>
+</body>
+</html>

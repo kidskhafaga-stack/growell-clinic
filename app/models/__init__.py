@@ -273,6 +273,7 @@ from app.models.message import (
     QuickReply,
 )
 from app.models.feedback import FEEDBACK_STATUSES, Feedback
+from app.models.complaint import Complaint, ComplaintEvent
 from app.models.store import (
     DOC_KINDS,
     DOC_PREFIXES,
@@ -649,6 +650,8 @@ __all__ = [
     "VACCINE_SCOPE",
     "Feedback",
     "FEEDBACK_STATUSES",
+    "Complaint",
+    "ComplaintEvent",
     "MedicalDevice",
     "DeviceMeasurement",
     "DeviceStudy",

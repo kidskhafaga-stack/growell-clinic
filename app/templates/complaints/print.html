@@ -1,0 +1,50 @@
+{% extends "shell.html" %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'complaints' %}
+{% block title %}{{ case.number }}{% endblock %}
+{% block page_heading %}{{ t('cmp.case') }} {{ case.number }}{% endblock %}
+
+{# The case on paper, for the quality file: everything the screen shows,
+   in order, with who did each step. #}
+{% block content %}
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('complaints.view', case_id=case.id) }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  <button class="btn btn-primary gc-press" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+</div>
+
+<div class="card print-area" style="max-width:820px;">
+  {{ print_header(t('cmp.case') ~ ' — ' ~ t('cmp.kind_' ~ case.kind), t('cmp.number') ~ ': <strong class="num">' ~ case.number ~ '</strong>') }}
+  <div class="info-grid" style="margin-bottom:14px;">
+    <div class="info-item"><div class="k">{{ t('cmp.opened_at') }}</div><div class="v num">{{ case.created_at.strftime('%Y-%m-%d %H:%M') }}</div></div>
+    <div class="info-item"><div class="k">{{ t('cmp.channel') }}</div><div class="v">{{ t('cmp.channel_' ~ case.channel) }}</div></div>
+    <div class="info-item"><div class="k">{{ t('cmp.who_short') }}</div><div class="v">{{ case.who(current_lang) or t('cmp.anonymous_short') }}</div></div>
+    <div class="info-item"><div class="k">{{ t('cmp.centre') }}</div><div class="v">{{ case.cost_centre.display_name(current_lang) if case.cost_centre else '—' }}</div></div>
+    <div class="info-item"><div class="k">{{ t('cmp.side') }}</div><div class="v">{{ t('cmp.side_' ~ case.side) if case.side else '—' }}</div></div>
+    <div class="info-item"><div class="k">{{ t('cmp.severity') }}</div><div class="v">{{ t('cmp.sev_' ~ case.severity) }}</div></div>
+    <div class="info-item"><div class="k">{{ t('cmp.status') }}</div><div class="v">{{ t('cmp.st_' ~ case.status) }}</div></div>
+    <div class="info-item"><div class="k">{{ t('cmp.owner') }}</div><div class="v">{{ case.owner.display_name(current_lang) if case.owner else '—' }}</div></div>
+  </div>
+  <h3>{{ t('cmp.they_said') }}</h3>
+  <div style="white-space:pre-wrap;border:1px solid var(--line);border-radius:10px;padding:10px 12px;">{{ case.description }}</div>
+  {% if case.wanted %}<p><strong>{{ t('cmp.wanted') }}:</strong> {{ case.wanted }}</p>{% endif %}
+  {% if case.answer %}
+  <h3>{{ t('cmp.the_answer') }}</h3>
+  {% if case.finding %}<p><strong>{{ t('cmp.finding') }}:</strong> {{ case.finding }}</p>{% endif %}
+  {% if case.action %}<p><strong>{{ t('cmp.action') }}:</strong> {{ case.action }}</p>{% endif %}
+  <p><strong>{{ t('cmp.answer') }}:</strong> {{ case.answer }}</p>
+  {% endif %}
+  {% if case.resolution_rating %}<p><strong>{{ t('cmp.verdict') }}:</strong> <span class="num">{{ case.resolution_rating }}/5</span>{% if case.resolution_comment %} — {{ case.resolution_comment }}{% endif %}</p>{% endif %}
+  <h3>{{ t('cmp.timeline') }}</h3>
+  <table class="table">
+    <tbody>
+      {% for e in case.events %}
+      <tr><td class="num" style="white-space:nowrap;">{{ e.at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ t('cmp.ev_' ~ e.kind) }}</td>
+        <td>{{ e.user.display_name(current_lang) if e.user else '' }}</td>
+        <td>{% if e.kind == 'message' %}{{ t('cmp.msg_' ~ e.text) if e.text }}{% elif e.text in ('rated', 'unsettled') %}{{ t('cmp.why_' ~ e.text) }}{% else %}{{ e.text or '' }}{% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
