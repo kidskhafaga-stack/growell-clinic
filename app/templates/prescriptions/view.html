@@ -62,6 +62,17 @@
 </div>
 {% endif %}
 
+{% if gaps %}
+<div class="card gc-scale-in no-print" data-rx-incomplete style="border:1px solid #f0d08a;background:#fff8e6;">
+  <h2 class="section-title" style="color:#8a5a00;"><i class="bi bi-list-check"></i> {{ t('rx.incomplete_title') }}</h2>
+  {% for item, missing in gaps %}
+  <div style="margin-bottom:4px;"><strong>{{ item.drug_name }}</strong> —
+    {% for key in missing %}<span class="badge badge--muted">{{ t('rx.gap_' ~ key) }}</span> {% endfor %}</div>
+  {% endfor %}
+  <p class="hint" style="margin:6px 0 0;">{{ t('rx.incomplete_hint') }}</p>
+</div>
+{% endif %}
+
 {% include "prescriptions/_paper.html" %}
 {% endblock %}
 

@@ -546,6 +546,24 @@ class PrescriptionItem(db.Model):
     # accident: leaving something *off* has to be a deliberate press.
     printed = db.Column(db.Boolean, default=True, nullable=False)
 
+    # ---- what GAHAR `MMS.11` (هـ) asks a complete line to carry ----------
+    # The form, the strength and the way in were in the catalogue all along
+    # and never reached the line, so the paper said "Augmentin" and left the
+    # pharmacist to guess which of four. **Copied from the drug when it is
+    # picked, never typed**: the doctor writes what they wrote before, and a
+    # drug edited in the catalogue next year does not rewrite a prescription
+    # that already left the building. A name typed with no catalogue entry
+    # behind it has none of the three, and says so rather than guessing.
+    form = db.Column(db.String(20))
+    strength = db.Column(db.String(60))
+    route = db.Column(db.String(20))
+    # A "when needed" line (the frequency reads «عند اللزوم») is not complete
+    # without **what for**, and how often at most — (هـ)(٩). Asked only on
+    # such a line: two boxes on every line would be two boxes on every line.
+    prn_reason = db.Column(db.String(160))
+    prn_min_hours = db.Column(db.Integer)      # not sooner than every … hours
+    prn_max_per_day = db.Column(db.Integer)    # and no more than … a day
+
     # ---- the counter ----------------------------------------------------
     # **What the pharmacy actually hands over**, which the program had no row
     # for: a prescription was written, printed, and that was the end of it as
