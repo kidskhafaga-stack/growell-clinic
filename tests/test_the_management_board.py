@@ -70,6 +70,8 @@ def test_what_is_owed_is_todays_and_the_overdue_wait_for_attention(books):
     from app.utils import admin_board
 
     _invoice(books, [("exam", 200, {})], number="OLD", on=local_today() - timedelta(days=45))
+    # A free visit owes nothing, however old and whatever its status says.
+    _invoice(books, [("exam", 0, {})], number="FREE", on=local_today() - timedelta(days=60))
     fresh = _invoice(books, [("exam", 200, {})], number="NEW")
     _pay(books, fresh, 150)
     with books["app"].app_context():
@@ -95,14 +97,25 @@ def test_a_doctor_is_their_own_lines(books):
         books["db"].session.add(surgeon)
         books["db"].session.commit()
         surgeon_id = surgeon.id
-    _invoice(books, [("exam", 200, {"commission_amount": 80}),
+    _invoice(books, [("exam", 250, {"commission_amount": 80, "discount_value": 50}),
                      ("nebul", 150, {"doctor_id": surgeon_id, "commission_amount": 75})],
              number="D1")
+    from datetime import time
+
+    from app.models import Appointment
+
     with books["app"].app_context():
+        for status in ("completed", "no_show", "completed", "completed"):
+            books["db"].session.add(Appointment(
+                patient_id=books["ids"]["child"], doctor_id=books["ids"]["doctor"],
+                appt_date=local_today(), appt_time=time(9, 0), status=status))
+        books["db"].session.commit()
         rows = {r["doctor"].id: r for r in admin_board.doctors(
             local_today() - timedelta(days=1), local_today())}
     mine = rows[books["ids"]["doctor"]]
+    # Billed is after the line's discount; one of four bookings not kept.
     assert (mine["billed"], mine["share"], mine["bills"], mine["visits"]) == (200.0, 80.0, 1, 1)
+    assert mine["no_show_pct"] == 25.0
     assert (rows[surgeon_id]["billed"], rows[surgeon_id]["share"]) == (150.0, 75.0)
 
 
@@ -121,6 +134,21 @@ def test_the_page_is_behind_the_finance_capability(books):
         f"/reports/management?preset=30&centre={centre}").get_data(as_text=True)
     assert "data-drawer" in opened
     assert books["sign_in"]("doc").get("/reports/management").status_code in (302, 403)
+    # Reports without the finance capability: the medical board, not this one.
+    from app.models import User
+    from app.models.role import Role
+
+    with books["app"].app_context():
+        books["db"].session.add(Role(name="director", label_ar="مدير طبي",
+                                     modules="dashboard,reports", capabilities=""))
+        person = User(username="dir", full_name="المدير الطبي", role="director", is_active=True)
+        person.set_password("secret")
+        books["db"].session.add(person)
+        books["db"].session.commit()
+    director = books["sign_in"]("dir")
+    assert director.get("/reports/medical").status_code == 200
+    assert director.get("/reports/management").status_code in (302, 403)
+    assert "/reports/management" not in director.get("/reports/").get_data(as_text=True)
     assert books["sign_in"]("desk").get("/reports/management").status_code in (302, 403)
     index = books["sign_in"]("acct").get("/reports/").get_data(as_text=True)
     assert "/reports/management" in index and "/reports/medical" in index
