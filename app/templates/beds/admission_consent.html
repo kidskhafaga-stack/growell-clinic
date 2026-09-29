@@ -1,0 +1,72 @@
+{% extends "shell.html" %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('beds.consent_title') }}{% endblock %}
+{% block page_heading %}{{ t('beds.consent_title') }}{% endblock %}
+
+{# The rules of the stay, read to the guardian at the bedside and signed on
+   the screen. Big type and a big pad: this is handed to a parent, often on a
+   tablet, often at night. #}
+{% block content %}
+{% set p = admission.patient %}
+{% set stay = admission.stays|selectattr('until', 'none')|list|first %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-pen"></i> {{ t('beds.consent_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ p.display_name(current_lang) }} · <span class="num">{{ p.patient_number }}</span>
+      {% if stay %} · {{ stay.bed.space.unit.name }} · {{ stay.bed.name }}{% endif %}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('beds.admission', admission_id=admission.id) }}"><i class="bi bi-folder2-open"></i> {{ t('beds.map_open_stay') }}</a>
+</div>
+
+{% if signed %}
+<div class="card gc-scale-in" data-consent-signed>
+  <p style="margin:0 0 8px;"><i class="bi bi-check2-circle" style="color:var(--green-600);"></i>
+    {{ t('beds.consent_done', name=signed.guardian_name) }}</p>
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.print_consent', consent_id=signed.id) }}" target="_blank"><i class="bi bi-printer"></i> {{ t('common.print') }}</a>
+</div>
+{% else %}
+<form method="post" class="card gc-scale-in" x-data="bedsidePad()" x-on:submit="put($event)" data-consent-form style="display:grid;gap:14px;max-width:760px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="drawn" x-ref="drawn">
+  <div style="font-size:1.08rem;line-height:2;border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--green-050,#f4faf7);" data-consent-text>{{ statement }}</div>
+  <label class="checkbox" style="font-size:1rem;"><input type="checkbox" name="read" value="1" required x-model="read"> {{ t('beds.consent_read') }}</label>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+    <div class="form-row" style="margin:0;"><label>{{ t('consent.guardian_name') }}</label>
+      <input class="input" name="guardian_name" value="{{ guardian.name }}" required maxlength="120"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('consent.guardian_relation') }}</label>
+      <select class="input" name="guardian_relation"><option value="">—</option>
+        {% for r in relations %}<option value="{{ r }}" {{ 'selected' if guardian.relation == r }}>{{ t('relations.' ~ r) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('consent.guardian_id_no') }}</label>
+      <input class="input" name="guardian_id_no" value="{{ guardian.id_no }}" maxlength="20" dir="ltr"></div>
+  </div>
+  <div>
+    <div class="hint" style="margin:0 0 6px;">{{ t('beds.consent_sign_here') }}</div>
+    <canvas x-ref="pad" width="720" height="220" data-pad
+            style="border:2px dashed var(--line);border-radius:12px;touch-action:none;width:100%;max-width:720px;background:#fff;"
+            x-on:pointerdown="start($event)" x-on:pointermove="move($event)"
+            x-on:pointerup="stop()" x-on:pointerleave="stop()"></canvas>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+      <button type="button" class="btn btn-outline gc-press" x-on:click="clear()">{{ t('consent.sig_clear') }}</button>
+      <button class="btn btn-primary gc-press" type="submit" :disabled="!drew || !read"><i class="bi bi-check2-circle"></i> {{ t('beds.consent_submit') }}</button>
+    </div>
+  </div>
+</form>
+<script>
+  // The same pad as the patient file's consents: pointer events, scaled to
+  // the canvas's real size, and nothing sent from an empty canvas.
+  function bedsidePad() {
+    return {
+      drew: false, read: false, drawing: false, ctx: null,
+      _ctx() { if (!this.ctx) { this.ctx = this.$refs.pad.getContext('2d'); this.ctx.lineWidth = 2.4; this.ctx.lineCap = 'round'; this.ctx.strokeStyle = '#111'; } return this.ctx; },
+      _at(ev) { const b = this.$refs.pad.getBoundingClientRect();
+        return { x: (ev.clientX - b.left) * (this.$refs.pad.width / b.width), y: (ev.clientY - b.top) * (this.$refs.pad.height / b.height) }; },
+      start(ev) { this.drawing = true; const p = this._at(ev); this._ctx().beginPath(); this._ctx().moveTo(p.x, p.y); },
+      move(ev) { if (!this.drawing) return; const p = this._at(ev); this._ctx().lineTo(p.x, p.y); this._ctx().stroke(); this.drew = true; },
+      stop() { this.drawing = false; },
+      clear() { this._ctx().clearRect(0, 0, this.$refs.pad.width, this.$refs.pad.height); this.drew = false; },
+      put(ev) { if (!this.drew) { ev.preventDefault(); return; } this.$refs.drawn.value = this.$refs.pad.toDataURL('image/png'); }
+    };
+  }
+</script>
+{% endif %}
+{% endblock %}

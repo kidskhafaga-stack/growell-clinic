@@ -75,6 +75,7 @@ def index():
                            occupancy=bed_map.occupancy(),
                            period_days=bed_map.PERIOD_DAYS,
                            diagnoses=bed_map.diagnoses_by_admission(admissions),
+                           signed=bed_map.signed_admissions(admissions),
                            may_build=current_user.is_admin,
                            may_admit=current_user.can_access(MODULE))
 
@@ -430,7 +431,68 @@ def admit(patient_id):
         return redirect(request.referrer or url_for("beds.index"))
     db.session.commit()
     flash(t("beds.admitted"), "success")
+    # From the map, straight on to the guardian's signature: they are at the
+    # bedside now, and the admission is not complete until they have signed.
+    if request.form.get("then") == "consent":
+        return redirect(url_for("beds.admission_consent", admission_id=admission.id))
     return redirect(url_for("beds.admission", admission_id=admission.id))
+
+
+def signed_admission_consent(admission_id):
+    """The signed admission consent for a stay, or ``None``."""
+    from app.models import Consent
+    return (Consent.query.filter(Consent.admission_id == admission_id,
+                                 Consent.consent_type == "admission",
+                                 Consent.signature_file.isnot(None))
+            .order_by(Consent.id.desc()).first())
+
+
+@beds_bp.route("/admission/<int:admission_id>/consent", methods=["GET", "POST"])
+@module_required(MODULE)
+def admission_consent(admission_id):
+    """The rules of the stay, read to the guardian and signed on the screen.
+
+    The consent machinery is the patient file's own (``utils/consent``): the
+    wording is the clinic's "admission" text (editable with the other
+    consents), stored on the row as it was read, and the drawn signature goes
+    through the same reader that decides from the bytes what it is. Nothing
+    is signed without the words having been confirmed as read.
+    """
+    from app.models import PARENT_RELATIONS
+    from app.utils import consent as consents
+    from app.utils.clock import local_now
+
+    row = Admission.query.get_or_404(admission_id)
+    back = url_for("beds.admission", admission_id=row.id)
+    if request.method == "POST":
+        name = (request.form.get("guardian_name") or "").strip()[:120]
+        if not name or not request.form.get("read"):
+            flash(t("beds.consent_need_read"), "error")
+            return redirect(request.url)
+        from app.blueprints.patients.routes import _a_signature
+        stored, kind = _a_signature()
+        if stored is None or kind != "drawn":
+            flash(t("beds.consent_need_signature"), "error")
+            return redirect(request.url)
+        relation = request.form.get("guardian_relation")
+        consent = consents.record(
+            row.patient, "admission", name,
+            relation=relation if relation in PARENT_RELATIONS else None,
+            id_no=(request.form.get("guardian_id_no") or "").strip()[:20] or None,
+            user_id=current_user.id)
+        consent.admission_id = row.id
+        consent.signature_file = stored
+        consent.signature_kind = kind
+        consent.signature_at = local_now().replace(tzinfo=None)
+        db.session.commit()
+        flash(t("beds.consent_signed"), "success")
+        return redirect(back)
+    return render_template(
+        "beds/admission_consent.html", admission=row,
+        signed=signed_admission_consent(row.id),
+        statement=consents.statement_for("admission"),
+        guardian=consents.default_guardian(row.patient),
+        relations=PARENT_RELATIONS)
 
 
 @beds_bp.route("/admission/<int:admission_id>")
@@ -455,6 +517,7 @@ def admission(admission_id):
         if row.admitted_at else None
     return render_template(
         "beds/admission.html", admission=row,
+        admission_consent=signed_admission_consent(row.id),
         stay_days=(span_hours // 24) if span_hours is not None else None,
         stay_hours=(span_hours % 24) if span_hours is not None else None,
         # `ACT.07` — مين ينفع يبقى مسؤول، من اللي العيادة مشغّلاهم.

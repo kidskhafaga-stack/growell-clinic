@@ -751,6 +751,9 @@ ADDITIONS = [
     ("admissions", "leave_note", "VARCHAR(255)"),
     ("emergency_visits", "leave_reason", "VARCHAR(40)"),
     ("emergency_visits", "leave_note", "VARCHAR(255)"),
+    # The stay an admission consent was signed for (bed map, the guardian's
+    # signature at the bedside). Empty on every consent written before.
+    ("consents", "admission_id", "INTEGER"),
 ]
 
 def apply_schema(report=None):
