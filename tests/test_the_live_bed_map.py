@@ -73,6 +73,39 @@ def test_the_rooms_of_a_unit_sit_side_by_side(hospital):
     assert '--beds:2;' in rooms[0] and all('--beds:1;' in r for r in rooms[1:])
 
 
+def test_the_map_fits_the_number_of_beds_and_the_screen(hospital):
+    """«تتلائم مع العدد وشكل الشاشة» — each unit says how wide its rooms are,
+    so small units pair up on a wide screen; a small unit is marked as one;
+    and a place with many beds is drawn with smaller cards."""
+    from app.models.place import Bed, Space, Unit
+
+    page = _map(hospital)
+    assert "data-units" in page and "bm-actions" in page
+    head, tail = page.split('data-unit="', 1)
+    card = head.rsplit("<div", 1)[1] + tail.split(">", 1)[0]
+    # The fixture's ward: two beds in one room.
+    assert "--b:2;" in card and "--s:1;" in card and "bm-unit--small" in card
+    assert 'class="bm-map" data-bed-map' in page
+    with hospital["app"].app_context():
+        big = Unit(name="الكبير", kind="ward")
+        hospital["db"].session.add(big)
+        hospital["db"].session.flush()
+        for r in range(5):
+            room = Space(unit_id=big.id, name=f"قاعة {r}", kind="bay")
+            hospital["db"].session.add(room)
+            hospital["db"].session.flush()
+            for n in range(9):
+                hospital["db"].session.add(Bed(space_id=room.id, name=f"{r}-{n}"))
+        hospital["db"].session.commit()
+        big_id = big.id
+    page = _map(hospital)
+    assert 'class="bm-map bm-map--dense" data-bed-map' in page
+    head, tail = page.split(f'data-unit="{big_id}"', 1)
+    card = head.rsplit("<div", 1)[1] + tail.split(">", 1)[0]
+    assert "--b:45;" in card and "--s:5;" in card
+    assert "bm-unit--small" not in card
+
+
 def test_a_unit_counted_by_the_hour_shows_hours(hospital):
     from app.models.place import Unit
 
