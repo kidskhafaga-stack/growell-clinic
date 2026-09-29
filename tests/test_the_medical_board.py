@@ -77,23 +77,30 @@ def test_diagnoses_are_counted_by_code_and_versions_are_never_merged(clinic):
     _seen(clinic, b, dx=[("J06.9", "10", "عدوى تنفسية", "final")])
     _seen(clinic, b, days_ago=1, dx=[("CA40.Z", "11", "التهاب رئوي", "final"),
                                      ("J18.9", "10", "التهاب رئوي", "secondary")])
+    # The same code under both versions is still two rows: which illness a
+    # code names depends on its version, and the program does not map them.
+    _seen(clinic, a, days_ago=3, dx=[("A09", "10", "نزلة", "final")])
+    _seen(clinic, b, days_ago=3, dx=[("A09", "11", "كود تاني", "final")])
     _seen(clinic, a, days_ago=2, dx=[(None, "10", "كحة  وسخونية", "working")])
     _seen(clinic, b, days_ago=2, dx=[("", "10", "كحة وسخونية", "working")])
     with clinic["app"].app_context():
         today = local_today()
         got = med_board.diagnoses(today - timedelta(days=6), today)
     coded = {(r["version"], r["code"]): r["n"] for r in got["coded"]}
-    assert coded == {("10", "J06.9"): 2, ("11", "CA40.Z"): 1, ("10", "J18.9"): 1}
+    assert coded == {("10", "J06.9"): 2, ("11", "CA40.Z"): 1, ("10", "J18.9"): 1,
+                     ("10", "A09"): 1, ("11", "A09"): 1}
     assert [(r["title"], r["n"]) for r in got["free"]] == [("كحة وسخونية", 2)]
-    assert got["total"] == 6 and got["free_share"] == 33
+    assert got["total"] == 8 and got["free_share"] == 25
 
 
 def test_what_rose_is_ordered_by_how_many_more(clinic):
     from app.utils.med_board import rising
 
     rows = [{"key": "a", "n": 2, "p": 1}, {"key": "b", "n": 30, "p": 20},
-            {"key": "c", "n": 5, "p": 5}, {"key": "d", "n": 1, "p": 3}]
-    assert [r["key"] for r in rising(rows)] == ["b", "a"]
+            {"key": "c", "n": 5, "p": 5}, {"key": "d", "n": 1, "p": 3},
+            {"key": "e", "n": 12, "p": 0}]
+    # e gained 12, b gained 10 though it is bigger, a gained 1.
+    assert [r["key"] for r in rising(rows)] == ["e", "b", "a"]
 
 
 def test_the_board_opens_with_its_figures_beside_the_period_before(clinic):
@@ -199,6 +206,9 @@ def test_the_wards_read_their_stays(hospital):
     again = _admit(hospital, kid, days_ago=6)            # back within 30 days
     _leave(hospital, again, days_ago=2, outcome="died")
     other = _bed_child(hospital, "تاني")
+    # Its last stay ended fifty days ago: coming back now is not a readmission.
+    long_ago = _admit(hospital, other, "د٢", days_ago=55)
+    _leave(hospital, long_ago, days_ago=50)
     _admit(hospital, other, "د٢", days_ago=1)
     with hospital["app"].app_context():
         today = local_today()
@@ -227,6 +237,8 @@ def test_triage_levels_are_the_hospitals_own_words(hospital):
     page = hospital["sign_in"]("boss").get("/reports/medical?preset=7").get_data(as_text=True)
     er = page.split("data-emergency")[1].split("</div>\n  </div>")[0]
     assert "ESI 2" in er and "أحمر" in er and "ما اتفرزش" in er
+    # Not triaged is its own row, after the levels that were written.
+    assert er.index("ما اتفرزش") > er.index("ESI 2") and er.index("ما اتفرزش") > er.index("أحمر")
     assert 'data-kpi="emergency"' in page
     # The death in the emergency department counts with the ward's.
     deaths = page.split('data-kpi="deaths"')[1][:400]
