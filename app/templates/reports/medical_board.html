@@ -1,0 +1,391 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('board_med.title') }}{% endblock %}
+{% block page_heading %}{{ t('board_med.title') }}{% endblock %}
+
+{# The medical board — utils/med_board. Every figure sits beside the same
+   stretch just before it; diagnoses are counted by their code with the ICD
+   version marked, and what was written without a code is counted by its
+   words. Names in a drill-down reach only whoever may open a child's file. #}
+
+{% set q = {'from': w['from'].isoformat(), 'to': w['to'].isoformat()} if not w.preset else {'preset': w.preset} %}
+
+{% macro delta(now_v, before_v, good_up=True) -%}
+  {%- set d = change(now_v, before_v) -%}
+  {%- if d is none -%}<span class="mb-d flat">—</span>
+  {%- elif d == 0 -%}<span class="mb-d flat">{{ t('board_med.same') }}</span>
+  {%- else -%}
+    {%- set good = (d > 0) if good_up else (d < 0) -%}
+    <span class="mb-d {{ 'up' if good else 'down' }}" title="{{ t('board_med.vs_before') }}"><bdi class="num" dir="ltr">{{ '▲' if d > 0 else '▼' }} {{ d|abs }}%</bdi></span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro ver(v) -%}<span class="mb-ver{{ ' v11' if v == '11' }}" dir="ltr">ICD-{{ v }}</span>{%- endmacro %}
+
+{% macro drill(d, q, place) %}
+<div class="mb-split" data-dx-detail>
+  <div class="mb-mini"><b>{{ t('board_med.by_age') }}</b>
+    {% set top = [1] + d.split.ages|map(attribute=1)|list %}{% set top = top|max %}
+    {% for b, n in d.split.ages %}
+    <div><span>{{ t('board_med.age_' ~ loop.index0) }}</span><span class="mb-hbar"><span style="width:{{ (n * 100 / top)|round }}%"></span></span><span class="num">{{ n }}</span></div>
+    {% endfor %}
+  </div>
+  <div class="mb-mini"><b>{{ t('board_med.by_sex') }}</b>
+    {% set all_n = [1, d.split.total]|max %}
+    {% for g in ('male', 'female') %}
+    {% set n = d.split.sexes.get(g, 0) %}
+    <div><span>{{ t('genders.' ~ g) }}</span><span class="mb-hbar"><span style="width:{{ (n * 100 / all_n)|round }}%;background:var(--mb-{{ 'boy' if g == 'male' else 'girl' }})"></span></span><span class="num">{{ n }}</span></div>
+    {% endfor %}
+  </div>
+  <div class="mb-cases">
+    {% if current_user.can('patient_medical') %}
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <b>{{ t('board_med.cases_list', n=d.total) }}</b>
+      <span style="flex:1;"></span>
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('reports.medical_board_cases', dx=d.key, **q) }}" data-cases-csv><i class="bi bi-download"></i> CSV</a>
+    </div>
+    <div style="overflow-x:auto;"><table data-cases>
+      <thead><tr><th>{{ t('board_med.date') }}</th><th>{{ t('board_med.child') }}</th><th>{{ t('board_med.doctor') }}</th><th></th></tr></thead>
+      <tbody>
+        {% for v in d.cases %}
+        <tr><td class="num">{{ v.visit_date.isoformat() }}</td>
+          <td>{{ v.patient.display_name(current_lang) if v.patient else '—' }} <span class="mb-code" dir="ltr">{{ v.patient.patient_number if v.patient }}</span></td>
+          <td>{{ v.doctor.full_name if v.doctor else '—' }}</td>
+          <td><a href="{{ url_for('visits.view', visit_id=v.id) }}">{{ t('board_med.open_visit') }}</a></td></tr>
+        {% endfor %}
+      </tbody></table></div>
+    {% set pages = ((d.total + d.per_page - 1) // d.per_page) %}
+    {% if pages > 1 %}
+    <div class="mb-pager">
+      <span class="num">{{ t('board_med.page_of', page=d.page, pages=pages) }}</span>
+      {% if d.page > 1 %}<a href="{{ url_for('reports.medical_board', dx=d.key, page=d.page - 1, place=place or None, **q) }}#dx">{{ t('board_med.prev_page') }}</a>{% endif %}
+      {% if d.page < pages %}<a href="{{ url_for('reports.medical_board', dx=d.key, page=d.page + 1, place=place or None, **q) }}#dx">{{ t('board_med.next_page') }}</a>{% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <p class="hint" style="margin:0;" data-cases-hidden>{{ t('board_med.cases_hidden', n=d.total) }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate mb-top">
+  <div>
+    <h1 class="page-title"><i class="bi bi-heart-pulse"></i> {{ t('board_med.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('board_med.sub') }}</p>
+  </div>
+</div>
+
+<form method="get" class="card gc-scale-in mb-bar" data-board-bar>
+  <div class="mb-chips" role="group" aria-label="{{ t('board_med.period') }}">
+    {% for p in presets %}
+    <a class="mb-chip" aria-pressed="{{ 'true' if w.preset == p else 'false' }}"
+       href="{{ url_for('reports.medical_board', preset=p, place=place or None) }}">{{ t('board_med.preset_' ~ p) }}</a>
+    {% endfor %}
+  </div>
+  <label>{{ t('board_med.from') }} <input class="input" type="date" name="from" value="{{ w['from'].isoformat() }}"></label>
+  <label>{{ t('board_med.to') }} <input class="input" type="date" name="to" value="{{ w['to'].isoformat() }}"></label>
+  {% if place %}<input type="hidden" name="place" value="{{ place }}">{% endif %}
+  <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('board_med.show') }}</button>
+  <span style="flex:1;"></span>
+  <span class="hint" style="margin:0;">{{ t('board_med.compared') }}
+    <bdi class="num" dir="ltr">{{ w.prev_from.isoformat() }} – {{ w.prev_to.isoformat() }}</bdi></span>
+</form>
+
+{# ------------------------------------------------------------ figures #}
+<div class="mb-kpis gc-scale-in" data-board-kpis>
+  {% set tiles = [('visits', 'visits', True), ('new_patients', 'new_patients', True), ('doses', 'doses', True)] %}
+  {% if on.beds %}{% set _ = tiles.append(('admissions', 'admissions', True)) %}{% endif %}
+  {% if on.emergency %}{% set _ = tiles.append(('emergency', 'emergency', True)) %}{% endif %}
+  {% if on.theatres %}{% set _ = tiles.append(('operations', 'operations', True)) %}{% endif %}
+  {% for key, label, up in tiles %}
+  <div class="mb-kpi" data-kpi="{{ key }}">
+    <span class="l">{{ t('board_med.' ~ label) }}</span>
+    <span class="v num">{{ now[key] }}</span>
+    <span class="row">{{ delta(now[key], before[key], up) }}<small class="hint num" style="margin:0;">{{ t('board_med.before_n', n=before[key]) }}</small></span>
+  </div>
+  {% endfor %}
+  {% if on.beds or on.emergency %}
+  <div class="mb-kpi" data-kpi="deaths">
+    <span class="l">{{ t('board_med.deaths') }}</span>
+    <span class="v num">{{ now.deaths }}
+      {% if now.discharges %}<small>({{ '%.1f'|format(now.deaths * 100 / now.discharges) }}% {{ t('board_med.of_discharges') }})</small>{% endif %}</span>
+    <span class="row">{{ delta(now.deaths, before.deaths, False) }}</span>
+  </div>
+  {% endif %}
+</div>
+
+<div class="mb-grid">
+  {# --------------------------------------------------------- diagnoses #}
+  <div class="card gc-scale-in" id="dx">
+    <h2 class="section-title mb-h">{{ t('board_med.top_dx') }} <small class="hint">{{ t('board_med.top_dx_hint') }}</small>
+      <a class="btn btn-outline btn-sm gc-press" style="margin-inline-start:auto;" href="{{ url_for('reports.medical_board_diagnoses', **q) }}"><i class="bi bi-download"></i> CSV</a></h2>
+    {% set coded = dx.coded if show_all else dx.coded[:15] %}
+    {% if coded %}
+    {% set top = coded[0].n %}
+    <div class="mb-dx" data-dx-coded>
+      {% for r in coded %}
+      {% set open = detail and detail.key == r.key %}
+      <a class="mb-dxr" aria-expanded="{{ 'true' if open else 'false' }}" data-dx-key="{{ r.key }}"
+         href="{{ url_for('reports.medical_board', dx=None if open else r.key, place=place or None, all='1' if show_all else None, **q) }}#dx">
+        <span class="mb-code" dir="ltr">{{ r.code }}{{ ver(r.version) }}</span>
+        <span class="t"><small>{{ r.title }}</small><span class="mb-hbar"><span style="width:{{ (r.n * 100 / top)|round }}%"></span></span></span>
+        <b class="num" style="text-align:end;">{{ r.n }}</b>{{ delta(r.n, r.p) }}</a>
+      {% if open %}{{ drill(detail, q, place) }}{% endif %}
+      {% endfor %}
+    </div>
+    {% if dx.coded|length > 15 and not show_all %}
+    <a class="mb-more" href="{{ url_for('reports.medical_board', all='1', place=place or None, **q) }}#dx">{{ t('board_med.show_all', n=dx.coded|length) }}</a>
+    {% endif %}
+    {% else %}<div class="empty-state"><i class="bi bi-clipboard2-pulse"></i> {{ t('board_med.no_coded') }}</div>{% endif %}
+
+    <h2 class="section-title mb-h" style="margin-top:18px;">{{ t('board_med.free') }}
+      {% if dx.free_share is not none %}<small class="hint" data-free-share>{{ t('board_med.free_share', n=dx.free_share) }}</small>{% endif %}</h2>
+    {% set free = dx.free if show_all else dx.free[:10] %}
+    {% if free %}
+    {% set top = (dx.coded[0].n if dx.coded else 0) or free[0].n %}
+    <div class="mb-dx" data-dx-free>
+      {% for r in free %}
+      {% set open = detail and detail.key == r.key %}
+      <a class="mb-dxr" aria-expanded="{{ 'true' if open else 'false' }}" data-dx-key="{{ r.key }}"
+         href="{{ url_for('reports.medical_board', dx=None if open else r.key, place=place or None, all='1' if show_all else None, **q) }}#dx">
+        <span class="mb-code muted">—</span>
+        <span class="t"><small>{{ r.title }}</small><span class="mb-hbar"><span style="width:{{ [100, (r.n * 100 / top)|round]|min }}%;background:var(--muted)"></span></span></span>
+        <b class="num" style="text-align:end;">{{ r.n }}</b>{{ delta(r.n, r.p) }}</a>
+      {% if open %}{{ drill(detail, q, place) }}{% endif %}
+      {% endfor %}
+    </div>
+    <p class="hint">{{ t('board_med.free_hint') }}</p>
+    {% else %}<p class="hint">{{ t('board_med.no_free') }}</p>{% endif %}
+  </div>
+
+  <div class="card gc-scale-in">
+    <h2 class="section-title mb-h">{{ t('board_med.rising') }}</h2>
+    {% if rising %}
+    <div class="mb-rise" data-rising>
+      {% for r in rising %}
+      <div><span>{% if r.code %}<span class="mb-code" dir="ltr">{{ r.code }}</span> {% endif %}{{ r.title }}</span>
+        <span><bdi class="num" dir="ltr">{{ r.p }} → {{ r.n }}</bdi> {{ delta(r.n, r.p) }}</span></div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="hint">{{ t('board_med.nothing_rose') }}</p>{% endif %}
+    <p class="hint">{{ t('board_med.rising_hint') }}</p>
+
+    <h2 class="section-title mb-h" style="margin-top:16px;">{{ t('board_med.ages') }}</h2>
+    {% set peaks = [] %}{% for b, m, f, o in ages %}{% set _ = peaks.append(m + f + o) %}{% endfor %}
+    {% set peak = [1, peaks|max]|max %}
+    {% set W, H, L, B, T = 360, 170, 10, 30, 14 %}
+    {% set bw = (W - L * 2) / ages|length %}
+    <svg viewBox="0 0 {{ W }} {{ H }}" width="100%" role="img" aria-label="{{ t('board_med.ages') }}" style="direction:ltr;" data-ages>
+      {% for b, m, f, o in ages %}
+        {% set x = L + loop.index0 * bw + bw * 0.2 %}{% set wd = bw * 0.6 %}
+        {% set hm = (H - B - T) * m / peak %}{% set hf = (H - B - T) * f / peak %}{% set ho = (H - B - T) * o / peak %}
+        <rect x="{{ x }}" y="{{ H - B - hm }}" width="{{ wd }}" height="{{ hm }}" rx="3" fill="var(--mb-boy)"/>
+        <rect x="{{ x }}" y="{{ H - B - hm - hf }}" width="{{ wd }}" height="{{ hf }}" rx="3" fill="var(--mb-girl)"/>
+        {% if ho %}<rect x="{{ x }}" y="{{ H - B - hm - hf - ho }}" width="{{ wd }}" height="{{ ho }}" rx="3" fill="var(--muted)"/>{% endif %}
+        <text x="{{ x + wd / 2 }}" y="{{ H - 12 }}" text-anchor="middle">{{ t('board_med.age_' ~ loop.index0) }}</text>
+        <text x="{{ x + wd / 2 }}" y="{{ H - B - hm - hf - ho - 4 }}" text-anchor="middle">{{ m + f + o }}</text>
+      {% endfor %}
+    </svg>
+    <div class="mb-legend"><span><i style="background:var(--mb-boy)"></i>{{ t('genders.male') }}</span><span><i style="background:var(--mb-girl)"></i>{{ t('genders.female') }}</span></div>
+    <p class="hint">{{ t('board_med.ages_hint') }}</p>
+  </div>
+</div>
+
+{# ---------------------------------------------------- inside + emergency #}
+{% if on.beds or on.emergency %}
+<div class="mb-grid">
+  {% if on.beds %}
+  <div class="card gc-scale-in">
+    <h2 class="section-title mb-h">{{ t('board_med.wards') }}</h2>
+    {% if wards %}
+    <div style="overflow-x:auto;"><table class="table" data-wards>
+      <thead><tr><th>{{ t('board_med.unit') }}</th><th>{{ t('board_med.admissions') }}</th><th>{{ t('board_med.alos') }}</th><th>{{ t('board_med.occupancy') }}</th><th>{{ t('board_med.deaths') }}</th><th>{{ t('board_med.readmit') }}</th></tr></thead>
+      <tbody>
+        {% for r in wards %}
+        <tr><td><b>{{ r.unit.name if r.unit else t('board_med.no_bed') }}</b></td>
+          <td class="num">{{ r.admissions }}</td>
+          <td class="num">{{ t('board_med.days_n', n='%.1f'|format(r.alos)) if r.alos is not none else '—' }}</td>
+          <td class="num">{% if r.occupancy is not none %}{{ r.occupancy }}%<span class="mb-occ"><span style="width:{{ [r.occupancy, 100]|min }}%"></span></span>{% else %}—{% endif %}</td>
+          <td class="num">{{ r.deaths }}</td>
+          <td class="num">{{ '%.1f'|format(r.readmit_pct) ~ '%' if r.readmit_pct is not none else '—' }}</td></tr>
+        {% endfor %}
+      </tbody></table></div>
+    {% else %}<p class="hint">{{ t('board_med.no_stays') }}</p>{% endif %}
+    <p class="hint">{{ t('board_med.wards_hint') }}</p>
+  </div>
+  {% endif %}
+  {% if on.emergency and er %}
+  <div class="card gc-scale-in" data-emergency>
+    <h2 class="section-title mb-h">{{ t('board_med.emergency') }} <small class="hint num">{{ er.total }}</small></h2>
+    {% if er.total %}
+    {% set top = [1] + er.levels|map(attribute=1)|list %}
+    {% set top = top|max %}
+    <div class="mb-mini">
+      {% for level, n in er.levels %}
+      <div><span>{{ level if level else t('board_med.not_triaged') }}</span><span class="mb-hbar"><span style="width:{{ (n * 100 / top)|round }}%"></span></span><span class="num">{{ n }}</span></div>
+      {% endfor %}
+    </div>
+    <p class="hint">{{ t('board_med.triage_hint') }}</p>
+    <h2 class="section-title mb-h" style="margin-top:14px;">{{ t('board_med.went') }}</h2>
+    <div class="mb-mix">
+      {% for key, n in er.dispositions if n %}<span class="mb-go-{{ key or 'open' }}" style="width:{{ n * 100 / er.total }}%" title="{{ t('board_med.go_' ~ (key or 'open')) }} {{ n }}"></span>{% endfor %}
+    </div>
+    <div class="mb-legend">
+      {% for key, n in er.dispositions if n %}<span><i class="mb-go-{{ key or 'open' }}"></i>{{ t('board_med.go_' ~ (key or 'open')) }} <b class="num">{{ n }}</b></span>{% endfor %}
+    </div>
+    {% else %}<p class="hint">{{ t('board_med.no_emergency') }}</p>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{# --------------------------------------------------------------- doctors #}
+<div class="card gc-scale-in" id="doctors">
+  <h2 class="section-title mb-h">{{ t('board_med.doctors') }} <small class="hint">{{ t('board_med.doctors_hint') }}</small></h2>
+  <form method="get" class="mb-docbar">
+    {% for k, v in q.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    <label for="place">{{ t('board_med.where') }}</label>
+    <select class="input" id="place" name="place" onchange="this.form.submit()">
+      <option value="">{{ t('board_med.everywhere') }}</option>
+      {% for key, label in places %}
+      <option value="{{ key }}" {{ 'selected' if key == place }}>{{ label.name if label else t('board_med.place_' ~ key) }}</option>
+      {% endfor %}
+    </select>
+    <noscript><button class="btn btn-outline btn-sm" type="submit">{{ t('board_med.show') }}</button></noscript>
+  </form>
+  {% if doctors %}
+  <div style="overflow-x:auto;"><table class="table mb-sortable" data-doctors>
+    <thead><tr>
+      <th scope="col">{{ t('board_med.doctor') }}</th>
+      <th scope="col" data-sort aria-sort="descending">{{ t('board_med.cases') }}</th>
+      <th scope="col" data-sort>{{ t('board_med.patients') }}</th>
+      <th scope="col" data-sort>{{ t('board_med.fresh') }}</th>
+      <th scope="col" data-sort>{{ t('board_med.consult') }}</th>
+      <th scope="col" data-sort>{{ t('board_med.back7') }}</th>
+      <th scope="col" data-sort>{{ t('board_med.nocode') }}</th>
+      {% if on.beds %}<th scope="col" data-sort>{{ t('board_med.admissions') }}</th><th scope="col" data-sort>{{ t('board_med.alos') }}</th>{% endif %}
+    </tr></thead>
+    <tbody>
+      {% for r in doctors %}
+      <tr>
+        <td><b>{{ r.doctor.full_name }}</b></td>
+        <td class="num" data-v="{{ r.cases }}">{{ r.cases }}</td>
+        <td class="num" data-v="{{ r.patients }}">{{ r.patients }}</td>
+        <td class="num" data-v="{{ r.fresh }}">{{ r.fresh }}</td>
+        <td class="num" data-v="{{ r.consult if r.consult is not none else -1 }}">{{ t('board_med.minutes_n', n=r.consult|round|int) if r.consult is not none else '—' }}</td>
+        <td class="num" data-v="{{ r.back_pct if r.back_pct is not none else -1 }}">{{ '%.1f'|format(r.back_pct) ~ '%' if r.back_pct is not none else '—' }}</td>
+        <td class="num" data-v="{{ r.nocode_pct if r.nocode_pct is not none else -1 }}">{{ '%.1f'|format(r.nocode_pct) ~ '%' if r.nocode_pct is not none else '—' }}</td>
+        {% if on.beds %}
+        <td class="num" data-v="{{ r.admissions or 0 }}">{{ r.admissions or 0 }}</td>
+        <td class="num" data-v="{{ r.alos if r.alos is not none else -1 }}">{{ t('board_med.days_n', n='%.1f'|format(r.alos)) if r.alos is not none else '—' }}</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody></table></div>
+  {% else %}<p class="hint">{{ t('board_med.no_doctors') }}</p>{% endif %}
+  <p class="hint">{{ t('board_med.doctors_foot') }}</p>
+</div>
+{% endblock %}
+
+
+{% block head %}
+<style>
+:root{--mb-boy:#3b82c4;--mb-girl:#d6598f;--mb-teal:var(--green-600,#0f9aa8);}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--mb-boy:#6aa9e0;--mb-girl:#ea86b1;}}
+:root[data-theme="dark"]{--mb-boy:#6aa9e0;--mb-girl:#ea86b1;}
+.num{font-variant-numeric:tabular-nums;}
+.mb-top{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+.mb-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:14px;}
+.mb-bar label{display:flex;flex-direction:column;gap:2px;font-size:.8rem;color:var(--muted);}
+.mb-chips{display:flex;gap:6px;flex-wrap:wrap;align-self:center;}
+.mb-chip{border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:.85rem;text-decoration:none;color:inherit;}
+.mb-chip[aria-pressed="true"]{border-color:var(--green-600);background:var(--green-50,rgba(15,154,168,.12));font-weight:600;}
+.mb-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;}
+.mb-kpi{background:var(--card,var(--surface));border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;gap:4px;}
+.mb-kpi .l{font-size:.8rem;color:var(--muted);}
+.mb-kpi .v{font-size:1.45rem;font-weight:700;line-height:1.2;}
+.mb-kpi .v small{font-size:.75rem;font-weight:400;color:var(--muted);}
+.mb-kpi .row{display:flex;justify-content:space-between;align-items:center;gap:6px;}
+.mb-d{font-size:.76rem;font-weight:700;padding:1px 7px;border-radius:999px;white-space:nowrap;}
+.mb-d.up{background:rgba(30,138,85,.14);color:#1e8a55;}
+.mb-d.down{background:rgba(194,65,59,.14);color:#c2413b;}
+.mb-d.flat{background:var(--line);color:var(--muted);}
+.mb-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:14px;margin-bottom:14px;align-items:start;}
+@media (max-width:900px){.mb-grid{grid-template-columns:1fr;}}
+.mb-grid>*{min-width:0;}
+[data-doctors] td:first-child{white-space:nowrap;}
+.mb-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:0;}
+.mb-h small{font-weight:400;}
+.mb-dx{display:grid;gap:2px;}
+.mb-dxr{display:grid;grid-template-columns:96px 1fr 52px 64px;gap:10px;align-items:center;padding:6px 8px;border-radius:10px;text-decoration:none;color:inherit;}
+.mb-dxr:hover{background:var(--line);}
+.mb-dxr[aria-expanded="true"]{background:rgba(15,154,168,.12);}
+.mb-dxr .t{display:grid;gap:3px;min-width:0;}
+.mb-dxr .t small{font-size:.86rem;overflow-wrap:anywhere;}
+@media (max-width:640px){.mb-dxr{grid-template-columns:80px 1fr 44px;}.mb-dxr .mb-d{display:none;}}
+.mb-code{font-family:ui-monospace,Consolas,monospace;font-size:.8rem;color:var(--green-700,#0b6f7a);}
+.mb-code.muted{color:var(--muted);}
+.mb-ver{font-size:.64rem;font-weight:700;padding:0 5px;border-radius:5px;background:var(--line);color:var(--muted);margin-inline-start:4px;display:inline-block;}
+.mb-ver.v11{background:#e8e1f6;color:#6a4fb0;}
+.mb-hbar{height:7px;border-radius:4px;background:var(--line);overflow:hidden;display:block;}
+.mb-hbar>span{display:block;height:100%;background:var(--mb-teal);}
+.mb-more{display:inline-block;margin-top:6px;font-size:.85rem;}
+.mb-split{display:grid;grid-template-columns:1fr 1fr;gap:14px;background:var(--line);border-radius:12px;padding:10px 12px;margin:2px 0 8px;}
+@media (max-width:640px){.mb-split{grid-template-columns:1fr;}}
+.mb-mini{display:grid;gap:4px;font-size:.82rem;}
+.mb-mini>div{display:grid;grid-template-columns:minmax(70px,auto) 1fr 40px;gap:6px;align-items:center;}
+.mb-cases{grid-column:1/-1;border-top:1px dashed var(--muted);padding-top:8px;font-size:.84rem;}
+.mb-cases table{width:100%;border-collapse:collapse;}
+.mb-cases th{text-align:start;color:var(--muted);font-weight:600;padding:3px 6px;}
+.mb-cases td{padding:4px 6px;border-top:1px solid var(--surface,#fff);}
+.mb-pager{display:flex;gap:10px;justify-content:flex-end;align-items:center;margin-top:6px;}
+.mb-rise{display:grid;gap:6px;}
+.mb-rise>div{display:flex;justify-content:space-between;gap:8px;font-size:.88rem;border-bottom:1px dashed var(--line);padding-bottom:5px;}
+.mb-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-top:6px;}
+.mb-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-inline-end:5px;vertical-align:middle;}
+svg[data-ages] text{fill:var(--muted);font-size:10.5px;}
+.mb-occ{display:inline-block;width:56px;height:7px;border-radius:4px;background:var(--line);vertical-align:middle;margin-inline-start:6px;overflow:hidden;}
+.mb-occ>span{display:block;height:100%;background:var(--mb-teal);}
+.mb-mix{display:flex;height:16px;border-radius:8px;overflow:hidden;margin:6px 0;}
+.mb-mix span{height:100%;}
+.mb-go-home{background:#1e8a55;} .mb-go-admitted{background:var(--mb-teal);} .mb-go-transferred{background:var(--mb-boy);}
+.mb-go-self_discharge{background:#b7791f;} .mb-go-left_unseen{background:#c2413b;} .mb-go-died{background:#15303a;} .mb-go-open{background:var(--line);}
+.mb-docbar{display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:.85rem;color:var(--muted);}
+.mb-docbar select{width:auto;}
+.mb-sortable th[data-sort]{cursor:pointer;user-select:none;white-space:nowrap;}
+.mb-sortable th[aria-sort="descending"]::after{content:" ▼";}
+.mb-sortable th[aria-sort="ascending"]::after{content:" ▲";}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* Sort the doctors' table by the column pressed — the numbers are in data-v. */
+(function () {
+  var table = document.querySelector('.mb-sortable');
+  if (!table) return;
+  var heads = table.querySelectorAll('th');
+  Array.prototype.forEach.call(heads, function (th, col) {
+    if (!th.hasAttribute('data-sort')) return;
+    th.tabIndex = 0;
+    function go() {
+      var down = th.getAttribute('aria-sort') !== 'descending';
+      Array.prototype.forEach.call(heads, function (h) { h.removeAttribute('aria-sort'); });
+      th.setAttribute('aria-sort', down ? 'descending' : 'ascending');
+      var body = table.tBodies[0];
+      var rows = Array.prototype.slice.call(body.rows);
+      rows.sort(function (a, b) {
+        var x = parseFloat(a.cells[col].getAttribute('data-v')) || 0;
+        var y = parseFloat(b.cells[col].getAttribute('data-v')) || 0;
+        return down ? y - x : x - y;
+      });
+      rows.forEach(function (r) { body.appendChild(r); });
+    }
+    th.addEventListener('click', go);
+    th.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  });
+})();
+</script>
+{% endblock %}

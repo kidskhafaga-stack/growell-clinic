@@ -11,6 +11,7 @@ from flask_login import current_user
 
 from app.blueprints.reports import reports_bp
 from app.models import (
+    ActivityLog,
     Appointment,
     Diagnosis,
     Invoice,
@@ -25,7 +26,7 @@ from app.models import (
 )
 from app.extensions import db
 from app.i18n import t
-from app.utils.decorators import admin_required, module_required
+from app.utils.decorators import admin_required, capability_required, module_required
 from app.utils.clock import local_today
 
 MODULE = "reports"
@@ -1010,3 +1011,106 @@ def _a_date(raw):
         return datetime.strptime(raw, "%Y-%m-%d").date()
     except ValueError:
         return None
+
+
+# ==================================================== the medical board =====
+def _board_window():
+    from app.utils import med_board
+
+    return med_board.window(request.args.get("from"), request.args.get("to"),
+                            request.args.get("preset"))
+
+
+@reports_bp.route("/medical")
+@module_required(MODULE)
+def medical_board():
+    """Counts and illnesses from one date to another, beside the same stretch
+    just before — see ``utils/med_board``. Names only reach whoever may open
+    a child's file; everybody else sees how many."""
+    from app.utils import med_board
+
+    w = _board_window()
+    on = med_board.parts()
+    now = med_board.counts(w["from"], w["to"], on)
+    before = med_board.counts(w["prev_from"], w["prev_to"], on)
+    dx = med_board.diagnoses(w["from"], w["to"])
+    dx_before = med_board.diagnoses(w["prev_from"], w["prev_to"])
+    med_board.with_before(dx["coded"], dx_before["coded"])
+    med_board.with_before(dx["free"], dx_before["free"])
+    show_all = request.args.get("all") == "1"
+
+    detail = None
+    key = (request.args.get("dx") or "").strip()
+    if key:
+        split = med_board.breakdown(w["from"], w["to"], key)
+        if split is not None:
+            detail = {"key": key, "split": split, "cases": [], "total": split["total"],
+                      "page": max(1, request.args.get("page", 1, type=int)),
+                      "per_page": med_board.CASES_PER_PAGE}
+            if current_user.can("patient_medical"):
+                detail["cases"], detail["total"] = med_board.cases(
+                    w["from"], w["to"], key, detail["page"])
+
+    place = (request.args.get("place") or "").strip()
+    choices = med_board.places(on)
+    if place not in {k for k, _ in choices}:
+        place = ""
+    return render_template(
+        "reports/medical_board.html", w=w, on=on, now=now, before=before,
+        change=med_board.change, dx=dx, show_all=show_all,
+        rising=med_board.rising(dx["coded"] + dx["free"]), detail=detail,
+        ages=med_board.ages(w["from"], w["to"]),
+        wards=med_board.wards(w["from"], w["to"]) if on["beds"] else [],
+        er=med_board.emergency(w["from"], w["to"]) if on["emergency"] else None,
+        doctors=med_board.doctors(w["from"], w["to"], place or None, on),
+        place=place, places=choices, presets=med_board.PRESETS,
+        buckets=med_board.AGE_BUCKETS)
+
+
+@reports_bp.route("/medical/diagnoses.csv")
+@module_required(MODULE)
+def medical_board_diagnoses():
+    """Every diagnosis row of the period with its count — no names in it."""
+    from app.utils import med_board
+
+    w = _board_window()
+    dx = med_board.diagnoses(w["from"], w["to"])
+    before = med_board.diagnoses(w["prev_from"], w["prev_to"])
+    med_board.with_before(dx["coded"], before["coded"])
+    med_board.with_before(dx["free"], before["free"])
+    buf = io.StringIO()
+    out = csv.writer(buf)
+    out.writerow(["icd_version", "code", "title", "cases", "cases_before"])
+    for row in dx["coded"]:
+        out.writerow([row["version"], row["code"], row["title"], row["n"], row["p"]])
+    for row in dx["free"]:
+        out.writerow(["", "", row["title"], row["n"], row["p"]])
+    name = f"diagnoses_{w['from']}_{w['to']}.csv"
+    return Response("﻿" + buf.getvalue(), mimetype="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f"attachment; filename={name}"})
+
+
+@reports_bp.route("/medical/cases.csv")
+@module_required(MODULE)
+@capability_required("patient_medical")
+def medical_board_cases():
+    """The visits behind one diagnosis row, for whoever may open the files."""
+    from app.utils import med_board
+
+    w = _board_window()
+    key = (request.args.get("dx") or "").strip()
+    buf = io.StringIO()
+    out = csv.writer(buf)
+    out.writerow(["date", "file", "patient", "gender", "doctor", "visit_id"])
+    for visit in med_board.all_cases(w["from"], w["to"], key):
+        p = visit.patient
+        out.writerow([visit.visit_date.isoformat(), p.patient_number if p else "",
+                      p.display_name(getattr(g, "lang", "ar")) if p else "",
+                      (p.gender if p else "") or "",
+                      visit.doctor.full_name if visit.doctor else "", visit.id])
+    ActivityLog.record("report.cases_export", user_id=current_user.id,
+                       entity="report", detail=f"{key} {w['from']}..{w['to']}")
+    db.session.commit()
+    name = f"cases_{w['from']}_{w['to']}.csv"
+    return Response("﻿" + buf.getvalue(), mimetype="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f"attachment; filename={name}"})
