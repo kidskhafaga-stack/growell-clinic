@@ -214,8 +214,10 @@ def test_turning_an_element_off_shows_in_the_test_print(clinic, flag, probe):
 def test_the_growth_block_appears_when_the_template_asks(clinic):
     on = _template(clinic, mode="white", show_growth=True)
     off = _template(clinic, mode="white", show_growth=False)
-    assert "87.0" in _print(clinic, on).get_data(as_text=True)
-    assert "87.0" not in _print(clinic, off).get_data(as_text=True)
+    # The head circumference: the height is on every paper now, beside the
+    # weight (`MMS.11` (هـ)(٢)), so it no longer tells the block apart.
+    assert "48.0" in _print(clinic, on).get_data(as_text=True)
+    assert "48.0" not in _print(clinic, off).get_data(as_text=True)
 
 
 # --- who can reach it -----------------------------------------------------

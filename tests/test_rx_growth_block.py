@@ -92,9 +92,18 @@ def test_the_off_by_default_list_is_what_makes_that_true(clinic):
 
 
 def test_an_ordinary_prescription_has_no_growth_block(clinic):
+    """No percentiles unasked. The height itself now rides beside the weight
+    on every paper — `MMS.11` (هـ)(٢) counts it with the demographics — so the
+    block is told apart by what only it prints."""
+    from app.i18n import t
+
     rx_id = _rx(clinic, weight_kg=12.0, height_cm=85.0)
     body = _paper(clinic, rx_id)
-    assert "85.0" not in body, "height printed on a template that never asked"
+    with clinic["app"].test_request_context():
+        growth_title = t("rx.growth")
+    assert f'bi-graph-up-arrow"></i> {growth_title}' not in body, (
+        "the growth block printed on a template that never asked")
+    assert "data-rx-height" in body and "85.0" in body
 
 
 # --- on, for the doctors who want it --------------------------------------
