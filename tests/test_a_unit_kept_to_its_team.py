@@ -65,13 +65,14 @@ def test_somebody_not_on_the_team_sees_a_bed_taken_not_who(team):
 
 
 def test_a_reason_opens_it_for_a_shift_and_is_written_down(team):
-    from app.models import ActivityLog
+    from app.models import ActivityLog, User
     from app.models.unit_staff import BreakGlass
 
     stay = _admit(team, _child(team, "نبطشية"))
     doc = team["sign_in"]("doc")
-    doc.post(f"/beds/admission/{stay}/break-glass", data={"reason": "  "})
-    assert doc.get(f"/beds/admission/{stay}").status_code == 403
+    for too_short in ("  ", "ليه"):
+        doc.post(f"/beds/admission/{stay}/break-glass", data={"reason": too_short})
+        assert doc.get(f"/beds/admission/{stay}").status_code == 403
     doc.post(f"/beds/admission/{stay}/break-glass", data={"reason": "نبطشية الليل"})
     assert doc.get(f"/beds/admission/{stay}").status_code == 200
     with team["app"].app_context():
@@ -79,6 +80,14 @@ def test_a_reason_opens_it_for_a_shift_and_is_written_down(team):
         assert (row.user_id, row.reason, row.unit_id) == (
             team["ids"]["doctor"], "نبطشية الليل", team["unit"])
         assert ActivityLog.query.filter_by(action="stay.break_glass").count() == 1
+        # One person's reason opens it for that person, not for the next.
+        other = User(username="other", full_name="د. تاني", role="doctor", is_active=True)
+        other.set_password("secret")
+        team["db"].session.add(other)
+        team["db"].session.commit()
+    assert team["sign_in"]("other").get(f"/beds/admission/{stay}").status_code == 403
+    with team["app"].app_context():
+        row = BreakGlass.query.one()
         row.at = datetime.utcnow() - timedelta(hours=13)
         team["db"].session.commit()
     assert doc.get(f"/beds/admission/{stay}").status_code == 403      # shift over
