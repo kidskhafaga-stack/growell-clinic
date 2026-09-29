@@ -483,6 +483,23 @@ SECTIONS = [
         "icon": "hospital",
         "title": ("الأسرّة والإقامة", "Beds and admissions"),
         "lines": [
+            ("<b>خريطة الأسرّة الحية:</b> كل سرير مرسوم بشكله — سرير، سرير "
+             "رعاية، حضّانة، كبسولة، ترولي — وجنب كل طفل التشخيص وعدّاد الإقامة "
+             "(ساعات في القسم اللي بيتحاسب بالساعة، وأيام في الباقي). فوق كل "
+             "قسم إشغاله دلوقتي وفي آخر ٣٠ يوم. دوس على سرير فيه طفل تشوف "
+             "التشخيص والعلاج الشغّال والتحاليل والأشعة المستنية واللي خلص، "
+             "ودوس على سرير فاضي تدخّل طفل برقم ملفه. والخريطة بتتحدّث "
+             "لوحدها. والقسم اللي مابقاش مستخدم يتقفل بسبب «مابقاش مستخدم» "
+             "ويختفي منها أول ما يفضى.",
+             "<b>The live bed map:</b> each bed drawn as what it is — bed, "
+             "ICU bed, incubator, capsule, trolley — with each child's "
+             "diagnosis and how long they have stayed (hours in a unit billed "
+             "by the hour, days elsewhere). Each unit shows how full it is now "
+             "and over the last 30 days. Tap a taken bed for the diagnosis, "
+             "current drugs, and the tests and imaging waiting or back; tap a "
+             "free one to admit a child by file number. It updates itself. A "
+             "unit no longer used is closed with the reason «No longer used» "
+             "and leaves the map once it is empty."),
             ("<b>اسم اتكتب غلط بيتصلّح:</b> من «تجهيز الأقسام» زرار «تعديل» "
              "جنب كل قسم وحيّز وسرير — الاسم، ونوع الحيّز (غرفة/بارتشن) ونوع "
              "السرير (سرير/حضّانة/كبسولة). حتى لو نام فيه أطفال: الإقامة "

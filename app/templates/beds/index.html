@@ -1,26 +1,62 @@
 {% extends "shell.html" %}
+{% from "beds/_shapes.html" import bed_shape %}
 {% set active_module = 'beds' %}
 {% block title %}{{ t('nav.beds') }}{% endblock %}
 {% block page_heading %}{{ t('nav.beds') }}{% endblock %}
 
 {% block content %}
 <style>
-  /* A bed is a tile, because a ward is read at a glance and a table of sixty
-     rows is not. Free and taken differ by fill, not only by a word: the
-     question this screen answers from across a room is "where is there
-     space". */
-  .bd-grid { display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); }
-  .bd { border:1px solid var(--line); border-radius:10px; padding:9px 11px; }
-  .bd--free { border-style:dashed; color:var(--muted); }
-  .bd--taken { background:var(--green-050); border-color:var(--green-100); }
-  .bd--off { background:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(127,127,127,.10) 6px,rgba(127,127,127,.10) 12px); }
-  .bd__name { font-weight:700; font-size:.86rem; }
-  .bd__who { font-size:.82rem; margin-top:3px; }
-  .bd__kind { font-size:.72rem; color:var(--muted); }
-  :root[data-theme="dark"] .bd--taken { background:#12301f; border-color:#1f5b37; }
+  /* A bed is drawn as what it is, because a ward is read at a glance and a
+     table of sixty rows is not. Free and taken differ by fill and outline,
+     not only by a word: the question this screen answers from across a room
+     is "where is there space". */
+  .bm-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .bm-tabs button { border:1px solid var(--line); background:var(--card); border-radius:999px; padding:6px 14px; font:inherit; font-size:.88rem; cursor:pointer; color:inherit; display:inline-flex; gap:6px; align-items:center; }
+  .bm-tabs button[aria-pressed="true"] { background:var(--green-700,#0b6f7a); border-color:var(--green-700,#0b6f7a); color:#fff; }
+  .bm-tabs .pct { font-size:.74rem; opacity:.85; }
+  .bm-head { display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; }
+  .bm-occ { display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:.82rem; color:var(--muted); }
+  .bm-meter { width:120px; height:8px; background:var(--green-050,#eef5f6); border-radius:999px; overflow:hidden; display:inline-block; vertical-align:middle; }
+  .bm-meter span { display:block; height:100%; background:var(--green-600,#12855f); border-radius:999px; transition:width .6s ease; }
+  .bm-space { border:1px solid var(--line); border-radius:14px; padding:10px; margin-top:12px; }
+  .bm-space--partition { border-style:dashed; }
+  .bm-space--bay { border-radius:22px; }
+  .bm-space__name { font-size:.82rem; color:var(--muted); margin-bottom:8px; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .bm-beds { display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(132px,1fr)); }
+  .bm-bed { position:relative; border:1.5px solid var(--line); border-radius:14px; background:var(--card); padding:8px; display:grid; gap:3px; align-content:start; text-align:center; cursor:pointer; transition:border-color .25s, transform .2s, background .4s; font:inherit; color:inherit; }
+  .bm-bed:hover { transform:translateY(-2px); border-color:var(--green-500,#20a07a); }
+  .bm-bed:focus-visible { outline:2px solid var(--green-600,#12855f); outline-offset:2px; }
+  .bm-bed--free { border-style:dashed; }
+  .bm-bed--taken { background:var(--green-050,#eaf6f1); border-color:var(--green-100,#bfe3d3); }
+  .bm-bed--off { background:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(127,127,127,.10) 6px,rgba(127,127,127,.10) 12px); cursor:default; opacity:.75; }
+  .bm-shape { width:72px; height:48px; margin:0 auto; display:block; }
+  .bm-shape .sl { stroke:currentColor; opacity:.55; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .bm-shape .sf { fill:var(--card); }
+  .bm-bed--taken .bm-shape .sf { fill:color-mix(in srgb, var(--green-600,#12855f) 22%, var(--card)); }
+  .bm-shape .kid { fill:var(--green-600,#12855f); }
+  .bm-bed__name { font-size:.74rem; color:var(--muted); }
+  .bm-bed__who { font-size:.84rem; font-weight:700; line-height:1.3; }
+  .bm-bed__dx { font-size:.72rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bm-bed__timer { font-size:.8rem; font-weight:700; color:var(--green-700,#0b6f7a); font-variant-numeric:tabular-nums; }
+  :root[data-theme="dark"] .bm-bed--taken { background:#12301f; border-color:#1f5b37; }
+  @media (prefers-reduced-motion: no-preference) {
+    .bm-bed--taken .kid { animation:bm-breathe 3.2s ease-in-out infinite; transform-origin:center; transform-box:fill-box; }
+    .bm-bed--just { animation:bm-arrive 1.8s ease-out; }
+  }
+  @keyframes bm-breathe { 50% { transform:scale(.8); opacity:.7; } }
+  @keyframes bm-arrive { 0% { box-shadow:0 0 0 0 rgba(18,133,95,.55); } 100% { box-shadow:0 0 0 14px rgba(18,133,95,0); } }
+  .bm-live { font-size:.78rem; color:var(--muted); display:inline-flex; gap:6px; align-items:center; }
+  .bm-live i { width:8px; height:8px; border-radius:50%; background:var(--green-600,#12855f); display:inline-block; }
+  @media (prefers-reduced-motion: no-preference) { .bm-live i { animation:bm-blink 2s infinite; } }
+  @keyframes bm-blink { 50% { opacity:.25; } }
+  .bm-scrim { position:fixed; inset:0; background:rgba(10,25,30,.35); z-index:40; }
+  .bm-drawer { position:fixed; top:0; bottom:0; inset-inline-end:0; width:min(460px,100%); background:var(--card); border-inline-start:1px solid var(--line); z-index:41; display:flex; flex-direction:column; box-shadow:0 0 30px rgba(0,0,0,.18); }
+  .bm-drawer header { padding:14px 16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center; }
+  .bm-drawer .body { padding:14px 16px; overflow:auto; flex:1; }
+  [hidden] { display:none !important; }
 </style>
 
-<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
   <div>
     <h1 class="page-title"><i class="bi bi-hospital"></i> {{ t('nav.beds') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('beds.board_sub') }}</p>
@@ -28,18 +64,16 @@
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     {# Counted from the open stays, like everything else here — never from a
        flag on a bed. #}
-    <span class="badge badge--green" dir="ltr">
-      {{ t('beds.free_n', n=counts.free) }}</span>
-    <span class="badge badge--muted" dir="ltr">
-      {{ t('beds.taken_n', n=counts.taken) }}</span>
+    <span class="bm-live" data-live-dot title="{{ t('beds.map_live_hint') }}"><i></i> {{ t('beds.map_live') }}</span>
+    <span class="badge badge--green" dir="ltr">{{ t('beds.free_n', n=counts.free) }}</span>
+    <span class="badge badge--muted" dir="ltr">{{ t('beds.taken_n', n=counts.taken) }}</span>
     {# The other half of a stay. The board says where every child is; the
        drug round says what they are owed, and a bed board with no way to
        reach it sends whoever is on hunting through the sidebar. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.drugs') }}">
       <i class="bi bi-capsule"></i> {{ t('meds.round') }}</a>
     {# The third half of a stay: what needs looking at *now* across every open
-       one. Three readers were written for these questions and had no screen
-       to call them — «بتعمل الشغل وتنسى تحط باب ليه». #}
+       one. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.watch') }}">
       <i class="bi bi-eye"></i> {{ t('watch.title') }}</a>
     {% if may_build %}
@@ -50,50 +84,80 @@
 </div>
 
 {% if units %}
+{% if units|length > 1 %}
+<div class="bm-tabs" role="group" aria-label="{{ t('beds.map_units') }}" data-unit-tabs>
+  <button type="button" data-tab="all" aria-pressed="true">{{ t('beds.map_all') }}</button>
+  {% for row in units %}
+  {% set total = row.taken + row.free %}
+  <button type="button" data-tab="{{ row.unit.id }}" aria-pressed="false">{{ row.unit.name }}
+    <span class="pct num">{{ (row.taken * 100 / total)|round|int if total else 0 }}%</span></button>
+  {% endfor %}
+</div>
+{% endif %}
+
 {% for row in units %}
-<div class="card gc-scale-in" style="margin-bottom:14px;">
-  <h2 class="section-title" style="margin-top:0;">
-    <i class="bi bi-buildings"></i> {{ row.unit.name }}
-    <span class="badge badge--muted">{{ t('beds.unit_' ~ row.unit.kind) }}</span>
-    {% if row.closed %}<span class="badge badge--warning" data-unit-closed>
-      <i class="bi bi-cone-striped"></i> {{ t('closures.closed_badge') }}</span>{% endif %}
-    <span class="hint" dir="ltr">{{ row.taken }} / {{ row.taken + row.free }}</span>
-  </h2>
+{% set total = row.taken + row.free %}
+{% set today = (row.taken * 100 / total)|round|int if total else 0 %}
+{% set period = occupancy.get(row.unit.id) %}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-unit="{{ row.unit.id }}">
+  <div class="bm-head">
+    <h2 class="section-title" style="margin:0;">
+      <i class="bi bi-buildings"></i> {{ row.unit.name }}
+      <span class="badge badge--muted">{{ t('beds.unit_' ~ row.unit.kind) }}</span>
+      {% if row.closed %}<span class="badge badge--warning" data-unit-closed>
+        <i class="bi bi-cone-striped"></i> {{ t('closures.closed_badge') }}</span>{% endif %}
+    </h2>
+    <div class="bm-occ" data-occupancy="{{ row.unit.id }}">
+      <span>{{ t('beds.map_today') }} <strong class="num" dir="ltr">{{ row.taken }} / {{ total }}</strong>
+        <span class="bm-meter"><span style="width:{{ today }}%"></span></span> <span class="num">{{ today }}%</span></span>
+      <span title="{{ t('beds.map_period_hint') }}">{{ t('beds.map_period', n=period_days) }}
+        <strong class="num" data-period="{{ row.unit.id }}">{{ (period ~ '%') if period is not none else '—' }}</strong></span>
+    </div>
+  </div>
 
   {% for block in row.spaces %}
-  <div style="margin-bottom:12px;">
-    <div class="hint" style="margin-bottom:5px;">
-      <i class="bi bi-door-closed"></i> {{ block.space.name }}
-      · {{ t('beds.space_' ~ block.space.kind) }}
-      {% if block.closed %}<span class="badge badge--warning" data-space-closed>
-        {{ t('closures.closed_badge') }}</span>{% endif %}
+  <div class="bm-space bm-space--{{ block.space.kind }}">
+    <div class="bm-space__name">
+      <i class="bi bi-{{ 'layout-split' if block.space.kind == 'partition' else ('grid-3x2' if block.space.kind == 'bay' else 'door-closed') }}"></i>
+      {{ block.space.name }} · {{ t('beds.space_' ~ block.space.kind) }}
+      {% if block.closed %}<span class="badge badge--warning" data-space-closed>{{ t('closures.closed_badge') }}</span>{% endif %}
       {% if block.space.is_isolation %}
-      <span class="alert-pill warn"><i class="bi bi-shield-exclamation"></i>
-        {{ t('beds.isolation') }}</span>
+      <span class="alert-pill warn"><i class="bi bi-shield-exclamation"></i> {{ t('beds.isolation') }}</span>
       {% endif %}
     </div>
     {% if block.beds %}
-    <div class="bd-grid">
+    <div class="bm-beds">
       {% for cell in block.beds %}
       {# One state per cell, worked out in `ward.board()` — a child wins,
          even inside a closed unit, because that is who somebody has to
          move. #}
-      <div class="bd bd--{{ cell.state }}">
-        <div class="bd__name">{{ cell.bed.name }}</div>
-        <div class="bd__kind">{{ t('beds.bed_' ~ cell.bed.kind) }}</div>
-        {% if cell.state == 'off' %}
-        <div class="bd__who">{{ t('closures.closed_badge') if (row.closed or block.closed)
-                                else t('beds.out_of_service') }}</div>
-        {% elif cell.patient %}
-        <div class="bd__who">
-          <a href="{{ url_for('beds.admission', admission_id=cell.stay.admission_id) }}">
-            {{ cell.patient.display_name(current_lang) }}</a></div>
-        <div class="bd__kind" dir="ltr">
-          {{ t('beds.since') }} {{ cell.stay.since|clinic_stamp }}</div>
-        {% else %}
-        <div class="bd__who">{{ t('beds.free') }}</div>
-        {% endif %}
+      {% set stay = cell.stay %}
+      {% if cell.state == 'taken' %}
+      {% set dx = diagnoses.get(stay.admission_id) or [] %}
+      <div role="button" tabindex="0" class="bm-bed bm-bed--taken" data-bed="{{ cell.bed.id }}"
+              data-panel="{{ url_for('beds.panel', admission_id=stay.admission_id) }}"
+              data-since="{{ stay.since.isoformat() }}Z" data-basis="{{ row.unit.billing_basis }}">
+        {{ bed_shape(cell.bed.kind, row.unit.kind, True) }}
+        <span class="bm-bed__name">{{ cell.bed.name }}</span>
+        <a class="bm-bed__who" href="{{ url_for('beds.admission', admission_id=stay.admission_id) }}">{{ cell.patient.display_name(current_lang) }}</a>
+        <span class="bm-bed__dx">{{ dx[0] if dx else (stay.admission.reason or '') }}</span>
+        <span class="bm-bed__timer" data-timer>{{ t('beds.since') }} {{ stay.since|clinic_stamp }}</span>
       </div>
+      {% elif cell.state == 'free' %}
+      <div role="button" tabindex="0" class="bm-bed bm-bed--free" data-bed="{{ cell.bed.id }}" data-free
+              data-bed-name="{{ row.unit.name }} · {{ cell.bed.name }}">
+        {{ bed_shape(cell.bed.kind, row.unit.kind, False) }}
+        <span class="bm-bed__name">{{ cell.bed.name }}</span>
+        <span class="bm-bed__who" style="color:var(--muted);font-weight:500;">{{ t('beds.free') }}</span>
+        <span class="bm-bed__dx">{{ t('beds.bed_' ~ cell.bed.kind) }}</span>
+      </div>
+      {% else %}
+      <div class="bm-bed bm-bed--off" data-bed="{{ cell.bed.id }}">
+        {{ bed_shape(cell.bed.kind, row.unit.kind, False) }}
+        <span class="bm-bed__name">{{ cell.bed.name }}</span>
+        <span class="bm-bed__dx">{{ t('closures.closed_badge') if (row.closed or block.closed) else t('beds.out_of_service') }}</span>
+      </div>
+      {% endif %}
       {% endfor %}
     </div>
     {% else %}
@@ -107,6 +171,119 @@
   {% endif %}
 </div>
 {% endfor %}
+
+{# The side panel: the case behind a taken bed, or the admission of a child
+   into a free one. #}
+<div class="bm-scrim" data-scrim hidden></div>
+<aside class="bm-drawer" data-drawer hidden aria-hidden="true">
+  <header><strong data-drawer-title></strong>
+    <button type="button" class="btn btn-outline btn-sm" data-drawer-close aria-label="{{ t('common.close') }}">✕</button></header>
+  <div class="body" data-drawer-body></div>
+</aside>
+<template data-admit-form>
+  <form method="post" action="{{ url_for('beds.admit_here') }}" style="display:grid;gap:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="bed_id" value="">
+    <div class="form-row" style="margin:0;"><label>{{ t('beds.map_file_number') }}</label>
+      <input class="input" name="patient_number" required dir="ltr" autocomplete="off"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('beds.map_reason') }}</label>
+      <input class="input" name="reason" maxlength="200"></div>
+    <p class="hint" style="margin:0;">{{ t('beds.map_admit_hint') }}</p>
+    <div><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-box-arrow-in-down"></i> {{ t('beds.map_admit') }}</button></div>
+  </form>
+</template>
+
+<script>
+(function () {
+  "use strict";
+  var L = {
+    hours: {{ t('beds.map_hours')|tojson }}, days: {{ t('beds.map_days')|tojson }},
+    admitTo: {{ t('beds.map_admit_to')|tojson }}, loading: {{ t('beds.map_loading')|tojson }}
+  };
+  // ---------------------------------------------------------------- timers
+  // Hours in a unit billed by the hour, days in one billed by the night.
+  function tick() {
+    var now = Date.now();
+    document.querySelectorAll('[data-since]').forEach(function (bed) {
+      var since = Date.parse(bed.getAttribute('data-since'));
+      if (isNaN(since)) return;
+      var hours = Math.max(now - since, 0) / 36e5, box = bed.querySelector('[data-timer]');
+      if (!box) return;
+      box.textContent = bed.getAttribute('data-basis') === 'hour'
+        ? L.hours.replace('{n}', hours.toFixed(1))
+        : L.days.replace('{n}', (hours / 24).toFixed(1));
+      if (now - since < 3 * 60 * 1000) bed.classList.add('bm-bed--just');
+    });
+  }
+  tick(); setInterval(tick, 30000);
+
+  // ------------------------------------------------------------ unit tabs
+  var tabs = document.querySelector('[data-unit-tabs]');
+  function show(which) {
+    document.querySelectorAll('[data-unit]').forEach(function (card) {
+      card.hidden = which !== 'all' && card.getAttribute('data-unit') !== which;
+    });
+    if (tabs) tabs.querySelectorAll('button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.getAttribute('data-tab') === which));
+    });
+    try { localStorage.setItem('bm-tab', which); } catch (e) {}
+  }
+  if (tabs) {
+    tabs.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-tab]'); if (b) show(b.getAttribute('data-tab'));
+    });
+    var kept = null;
+    try { kept = localStorage.getItem('bm-tab'); } catch (e) {}
+    if (kept && tabs.querySelector('[data-tab="' + kept + '"]')) show(kept);
+  }
+
+  // ------------------------------------------------------------ the panel
+  var drawer = document.querySelector('[data-drawer]'), scrim = document.querySelector('[data-scrim]');
+  var body = document.querySelector('[data-drawer-body]'), title = document.querySelector('[data-drawer-title]');
+  function open(heading) {
+    title.textContent = heading || '';
+    drawer.hidden = false; scrim.hidden = false; drawer.setAttribute('aria-hidden', 'false');
+    drawer.querySelector('[data-drawer-close]').focus();
+  }
+  function close() { drawer.hidden = true; scrim.hidden = true; drawer.setAttribute('aria-hidden', 'true'); }
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-drawer-close]') || e.target === scrim) return close();
+    var bed = e.target.closest('.bm-bed');
+    if (!bed || e.target.closest('a')) return;
+    if (bed.hasAttribute('data-panel')) {
+      body.textContent = L.loading; open(bed.querySelector('.bm-bed__name').textContent);
+      fetch(bed.getAttribute('data-panel'), { credentials: 'same-origin' })
+        .then(function (r) { return r.text(); })
+        .then(function (html) { body.innerHTML = html; });   // our own server-rendered fragment
+    } else if (bed.hasAttribute('data-free')) {
+      var form = document.querySelector('[data-admit-form]').content.cloneNode(true);
+      form.querySelector('[name=bed_id]').value = bed.getAttribute('data-bed');
+      body.textContent = ''; body.appendChild(form);
+      open(L.admitTo.replace('{bed}', bed.getAttribute('data-bed-name')));
+      body.querySelector('[name=patient_number]').focus();
+    }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') return close();
+    var bed = e.target.closest && e.target.closest('.bm-bed[role=button]');
+    if (bed && (e.key === 'Enter' || e.key === ' ') && e.target === bed) { e.preventDefault(); bed.click(); }
+  });
+
+  // ------------------------------------------------------------- live
+  // Asks every 20 seconds whether anything on the map changed, and reloads
+  // only when it did — never while the panel is open in someone's hands.
+  var fp = null;
+  function poll() {
+    fetch({{ url_for('main.live_fingerprint', kind='beds', ident=0)|tojson }}, { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        if (fp !== null && r.fp !== fp && drawer.hidden) location.reload();
+        fp = r.fp;
+      }).catch(function () {});
+  }
+  poll(); setInterval(poll, 20000);
+})();
+</script>
 
 {% else %}
 {# Not an empty screen: it says what to do first, because a ward with nothing
