@@ -36,7 +36,7 @@ def period(raw_from=None, raw_to=None, today=None):
     """``(start, end)`` datetimes — end exclusive — for a from/to pair of
     ``YYYY-MM-DD`` strings; the last 90 days when they are missing or
     wrong. ``to`` before ``from`` is swapped rather than refused."""
-    from app.utils.clock import local_today
+    from app.utils.clock import local_today, to_utc
 
     today = today or local_today()
 
@@ -50,8 +50,17 @@ def period(raw_from=None, raw_to=None, today=None):
     d_from = parse(raw_from) or (d_to - timedelta(days=89))
     if d_from > d_to:
         d_from, d_to = d_to, d_from
-    return (datetime.combine(d_from, datetime.min.time()),
-            datetime.combine(d_to + timedelta(days=1), datetime.min.time()))
+    # The clinic's midnights, as the UTC the rows are stored in — a parent
+    # who answered at 01:30 answered on the day the clinic's clock says.
+    return (to_utc(datetime.combine(d_from, datetime.min.time())),
+            to_utc(datetime.combine(d_to + timedelta(days=1), datetime.min.time())))
+
+
+def dates(start, end):
+    """The first and last day of a window, on the clinic's calendar."""
+    from app.utils.clock import local_date
+
+    return local_date(start), local_date(end) - timedelta(days=1)
 
 
 def previous(start, end):
@@ -148,6 +157,8 @@ def trend(start, end, centre_id=None):
     """Week by week from the start: the average of each side, over the
     answers that came back that week. A week with no answers has gaps, not
     zeros — nobody rated it, which is not the same as rating it nothing."""
+    from app.utils.clock import local_date
+
     rows, _ = _rows(start, end, centre_id)
     weeks = []
     cursor = start
@@ -155,7 +166,7 @@ def trend(start, end, centre_id=None):
         nxt = min(cursor + timedelta(days=7), end)
         inside = [r for r in rows if r.status == "submitted" and r.submitted_at
                   and cursor <= r.submitted_at < nxt]
-        weeks.append({"start": cursor.date(),
+        weeks.append({"start": local_date(cursor),
                       "count": len(inside),
                       **{side: _avg(getattr(r, COLUMN[side]) for r in inside)
                          for side in SIDES}})

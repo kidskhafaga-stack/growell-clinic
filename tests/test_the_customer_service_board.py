@@ -62,12 +62,15 @@ def _period(days=30):
 
 
 def test_a_period_is_two_dates_and_the_one_before_it(clinic):
-    from app.utils.cs_board import period, previous
+    from app.utils.clock import to_utc
+    from app.utils.cs_board import dates, period, previous
 
     with clinic["app"].app_context():
         start, end = period("2026-03-01", "2026-03-31")
-        assert (start, end) == (datetime(2026, 3, 1), datetime(2026, 4, 1))
-        assert previous(start, end) == (datetime(2026, 1, 29), datetime(2026, 3, 1))
+        # The clinic's midnights, stored as UTC like the rows they bound.
+        assert (start, end) == (to_utc(datetime(2026, 3, 1)), to_utc(datetime(2026, 4, 1)))
+        assert dates(start, end) == (date(2026, 3, 1), date(2026, 3, 31))
+        assert dates(*previous(start, end)) == (date(2026, 1, 29), date(2026, 2, 28))
         assert period("2026-03-31", "2026-03-01") == (start, end)      # swapped
         start, end = period("nonsense", None, today=date(2026, 9, 28))
         assert (end - start).days == 90
