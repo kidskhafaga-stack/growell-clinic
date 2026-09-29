@@ -82,6 +82,8 @@ def test_missed_follow_ups_are_the_latest_per_child_and_come_off_when_they_came(
     _visit(clinic, came, 30, due_in=7)
     soon = _child(clinic, "F3")
     _visit(clinic, soon, 2, due_in=10)                              # not due yet
+    later = _child(clinic, "F4")
+    _visit(clinic, later, 12, due_in=2)                             # 10 days late
     with clinic["app"].app_context():
         clinic["db"].session.add(Appointment(
             patient_id=came, doctor_id=clinic["ids"]["doctor"],
@@ -89,8 +91,9 @@ def test_missed_follow_ups_are_the_latest_per_child_and_come_off_when_they_came(
             status="completed"))
         clinic["db"].session.commit()
         rows = my_patients.followups(clinic["ids"]["doctor"])
+        # Longest late first.
         assert [(r["visit"].patient_id, r["late"], r["state"]) for r in rows] == [
-            (late, 15, "overdue")]
+            (late, 15, "overdue"), (later, 10, "overdue")]
         assert my_patients.followups(clinic["ids"]["doctor"], "F1")
         assert not my_patients.followups(clinic["ids"]["doctor"], "لا يوجد")
 
@@ -110,6 +113,15 @@ def test_we_called_is_written_down_and_quiets_the_row_for_today(clinic):
     assert "data-call" not in row and "mn-done" in row
     with clinic["app"].app_context():
         assert ActivityLog.query.filter_by(action="followup.called", entity_id=visit).count() == 1
+    # A call yesterday does not quiet the row today.
+    from datetime import datetime
+
+    with clinic["app"].app_context():
+        entry = ActivityLog.query.filter_by(action="followup.called", entity_id=visit).one()
+        entry.created_at = datetime.utcnow() - timedelta(days=2)
+        clinic["db"].session.commit()
+    row = doc.get("/visits/mine").get_data(as_text=True).split(f'data-visit="{visit}"')[1].split("</tr>")[0]
+    assert "data-call" in row
     csv = doc.get("/visits/mine/followups.csv").get_data(as_text=True)
     assert "C1" in csv and "overdue" in csv
 
@@ -122,8 +134,10 @@ def test_long_standing_problems_not_seen_for_the_months_the_doctor_picks(clinic)
     _visit(clinic, asthma, 200)
     recent = _child(clinic, "A2")
     _visit(clinic, recent, 30)
+    middle = _child(clinic, "A3")
+    _visit(clinic, middle, 100)
     with clinic["app"].app_context():
-        for pid, title in ((asthma, "ربو"), (recent, "صرع")):
+        for pid, title in ((asthma, "ربو"), (recent, "صرع"), (middle, "أنيميا")):
             clinic["db"].session.add(PatientProblem(patient_id=pid, title=title, status="active"))
         clinic["db"].session.add(PatientProblem(patient_id=asthma, title="قديمة",
                                                 status="resolved"))
@@ -131,9 +145,9 @@ def test_long_standing_problems_not_seen_for_the_months_the_doctor_picks(clinic)
         six = my_patients.chronic_unseen(clinic["ids"]["doctor"], 6)
         three = my_patients.chronic_unseen(clinic["ids"]["doctor"], 3)
         twelve = my_patients.chronic_unseen(clinic["ids"]["doctor"], 12)
-        junk = my_patients.chronic_unseen(clinic["ids"]["doctor"], 5)     # → 6
+        junk = my_patients.chronic_unseen(clinic["ids"]["doctor"], 2)     # → 6
     assert [(r["patient"].id, r["problems"]) for r in six] == [(asthma, ["ربو"])]
-    assert [r["patient"].id for r in three] == [asthma] and twelve == []
+    assert [r["patient"].id for r in three] == [asthma, middle] and twelve == []
     assert [r["patient"].id for r in junk] == [asthma]
 
 
@@ -167,4 +181,15 @@ def test_whose_list_it_is(clinic):
     boss = clinic["sign_in"]("boss").get(f"/visits/mine?doctor={other}").get_data(as_text=True)
     assert "طفل W1" in boss and "data-pick-doctor" in boss and "data-board-tabs" in boss
     assert clinic["sign_in"]("desk").get("/visits/mine").status_code in (302, 403)
+    from app.models import User
+    from app.models.role import Role
+
+    with clinic["app"].app_context():
+        clinic["db"].session.add(Role(name="clerk", label_ar="كاتب", modules="dashboard,visits",
+                                      capabilities=""))
+        person = User(username="clerk", full_name="كاتب", role="clerk", is_active=True)
+        person.set_password("secret")
+        clinic["db"].session.add(person)
+        clinic["db"].session.commit()
+    assert clinic["sign_in"]("clerk").get("/visits/mine").status_code in (302, 403)
     assert "data-mine-link" in clinic["sign_in"]("doc").get("/visits/").get_data(as_text=True)
