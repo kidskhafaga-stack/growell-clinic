@@ -391,6 +391,12 @@ def _apply_service_engine_fields(svc):
         # routinely need one.
         svc.post_op_instructions = (
             (request.form.get("post_op_instructions") or "").strip() or None)
+        # The drug and supplies used to give it: in the price, or beside it
+        # on the bill. Blank is «not said yet», charged separately.
+        from app.utils.emergency_orders import SUPPLIES_MODES
+
+        mode = (request.form.get("supplies_mode") or "").strip()
+        svc.supplies_mode = mode if mode in SUPPLIES_MODES else None
         raw_days = (request.form.get("followup_days") or "").strip()
         try:
             svc.followup_days = int(raw_days) if raw_days else None
@@ -2829,7 +2835,7 @@ def _worked_on(row):
     plain = getattr(row, "on_date", None)
     if plain is not None:
         return plain
-    for field in ("collected_at", "dispensed_at", "recorded_at"):
+    for field in ("collected_at", "dispensed_at", "recorded_at", "given_at"):
         moment = getattr(row, field, None)
         if moment is not None:
             return local_date(moment)
@@ -3028,6 +3034,30 @@ def _dispensed_lines(patient_id, lang):
             for line in _unbilled_dispensed(patient_id)]
 
 
+def _unbilled_emergency(patient_id):
+    """Treatment given in emergency to a child with no bed, not charged yet.
+    Empty when the emergency module is off."""
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("emergency"):
+        return []
+    from app.utils import emergency_orders
+
+    return _asked("emergency", patient_id,
+                  lambda: emergency_orders.unbilled(patient_id))
+
+
+def _emergency_lines(patient_id, lang):
+    """Those treatments as checkout lines — the service, and the drug or
+    supply beside it when the service does not include it
+    (`Service.supplies_mode`). The desk sees every line before it takes a
+    pound, and a line it removes is not charged."""
+    from app.utils import emergency_orders
+
+    return emergency_orders.checkout_lines(_unbilled_emergency(patient_id),
+                                           lang)
+
+
 def _operation_lines(patient_id, lang):
     """Those day cases as checkout lines — the surgery, and the anaesthetic.
 
@@ -3113,6 +3143,9 @@ def _patient_checkout_lines(patient, doctor_id, lang):
     # And the counter. A box that left our shelf is money and stock, and both
     # moved without anything recording it before this.
     lines.extend(_dispensed_lines(patient.id, lang))
+    # And emergency: the injection, the session, the dressing — given to a
+    # child with no bed, who pays at the desk on the way out.
+    lines.extend(_emergency_lines(patient.id, lang))
     return _cover_with_packages(patient.id, lines, lang)
 
 
@@ -3226,6 +3259,7 @@ def _checkout_lines(appt, lang):
     lines.extend(_operation_lines(appt.patient_id, lang))
     lines.extend(_test_lines(appt.patient_id, lang))
     lines.extend(_dispensed_lines(appt.patient_id, lang))
+    lines.extend(_emergency_lines(appt.patient_id, lang))
     return _cover_with_packages(appt.patient_id, lines, lang)
 
 
@@ -3419,6 +3453,13 @@ def _checkout_screen(appt, patient):
         rx_ids = request.form.getlist("line_rx_line_id")
         handed = {row.id: row for row in _unbilled_dispensed(patient_id)}
         billed_rx = {}          # invoice line -> the dispensed medicine
+        # Emergency treatment: the service line, and the drug or supply line
+        # beside it — each resolved from what is actually still unbilled.
+        er_ids = request.form.getlist("line_er_order_id")
+        er_item_ids = request.form.getlist("line_er_item_id")
+        er_open = {row.id: row for row in _unbilled_emergency(patient_id)}
+        billed_er = {}          # invoice line -> the treatment it charged
+        billed_er_item = {}     # invoice line -> the treatment's drug/supply
         # Packages, both directions: a line that *buys* one, and a line a
         # bought one *pays for*. Each resolved from what actually exists for
         # this patient, never from the posted number — one of them creates a
@@ -3496,6 +3537,14 @@ def _checkout_screen(appt, patient):
             handover = _row_for_line(handed, rx_ids, i)
             if handover is not None:
                 billed_rx[id(item)] = handover
+            given = _row_for_line(er_open, er_ids, i)
+            if given is not None:
+                billed_er[id(item)] = given
+            given_item = _row_for_line(er_open, er_item_ids, i)
+            if given_item is not None:
+                billed_er_item[id(item)] = given_item
+            if given is not None or given_item is not None:
+                cost_centres.stamp(item, "emergency")
             case = _case_for_line(cases, op_ids, i)
             gassed = _case_for_line(cases, anaes_ids, i)
             # Where the line's money belongs, when what it bills says so: a
@@ -3510,7 +3559,7 @@ def _checkout_screen(appt, patient):
             # invoice's own date already says so and writing it twice would
             # make "nobody recorded it" unreadable.
             item.service_date = _worked_on(
-                case or gassed or test or handover
+                case or gassed or test or handover or given or given_item
                 or _row_for_line(doctor_added, vs_ids, i))
             line_doctor = None
             if gassed is not None:
@@ -3577,6 +3626,16 @@ def _checkout_screen(appt, patient):
             handover = billed_rx.get(id(item))
             if handover is not None:
                 handover.invoice_item_id = item.id
+            given = billed_er.get(id(item))
+            if given is not None:
+                given.invoice_item_id = item.id
+            given_item = billed_er_item.get(id(item))
+            if given_item is not None:
+                given_item.item_invoice_item_id = item.id
+                # A drug with no service is charged on its own line, and that
+                # line is the treatment's charge.
+                if given_item.invoice_item_id is None and given_item.service_id is None:
+                    given_item.invoice_item_id = item.id
             # The session drawn above, pointed at the line that records it.
             use = drawn_packages.get(id(item))
             if use is not None:
@@ -3596,6 +3655,16 @@ def _checkout_screen(appt, patient):
 
             pharmacy.take_off_shelf(list(billed_rx.values()), invoice,
                                     user=current_user, lang=lang)
+        # And what the emergency treatments used leaves the shelf once, with
+        # the bill — charged on its own line or inside the service's price.
+        charged_er = {o.id: o for o in list(billed_er.values())
+                      + list(billed_er_item.values())}
+        if charged_er:
+            from app.utils import emergency_orders
+
+            emergency_orders.take_off_shelf(list(charged_er.values()),
+                                            invoice, user=current_user,
+                                            lang=lang)
         burned = 0
         for item in new_items:
             if item.service_id is None:

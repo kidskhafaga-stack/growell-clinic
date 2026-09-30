@@ -100,6 +100,10 @@
               {# And which handed-over medicine, so the box leaves the shelf
                  with the money and not on somebody's word afterwards. #}
               <input type="hidden" :name="'line_rx_line_id'" :value="l.rx_line_id || ''">
+              {# And which emergency treatment: the service it charges, or the
+                 drug or supply on a line of its own beside it. #}
+              <input type="hidden" :name="'line_er_order_id'" :value="l.er_order_id || ''">
+              <input type="hidden" :name="'line_er_item_id'" :value="l.er_item_id || ''">
               {# Which balance pays for this session, and which offer this line
                  buys. The first is why a zero line is kept at all; the second
                  is what turns a paid-for line into sessions the family can
@@ -415,7 +419,7 @@
       // dose_id / vs_id say what a line is paying for. They must survive this
       // mapping: dropped here, the line submits no claim and the dose it
       // charges for is never marked billed.
-      lines: initLines.map(l => ({service_id:l.service_id||'', description:l.description, unit_price:Number(l.unit_price)||0, quantity:l.quantity||1, no_commission:l.no_commission||'0', brand_id:l.brand_id||'', dose_id:l.dose_id||'', vs_id:l.vs_id||'', op_id:l.op_id||'', test_id:l.test_id||'', rx_line_id:l.rx_line_id||'', dose_number:l.dose_number||'', pkg_id:l.pkg_id||'', pkg_sale_id:l.pkg_sale_id||'', anaes_op_id:l.anaes_op_id||''})),
+      lines: initLines.map(l => ({service_id:l.service_id||'', description:l.description, unit_price:Number(l.unit_price)||0, quantity:l.quantity||1, no_commission:l.no_commission||'0', brand_id:l.brand_id||'', dose_id:l.dose_id||'', vs_id:l.vs_id||'', op_id:l.op_id||'', test_id:l.test_id||'', rx_line_id:l.rx_line_id||'', er_order_id:l.er_order_id||'', er_item_id:l.er_item_id||'', dose_number:l.dose_number||'', pkg_id:l.pkg_id||'', pkg_sale_id:l.pkg_sale_id||'', anaes_op_id:l.anaes_op_id||''})),
       addId: '', pkgId: '', discountId: '', autoAmt: Number(autoAmt) || 0,
       payments: [{amount:0, method:'cash'}],
       subtotal: 0, discountAmt: 0, total: 0, tendered: 0, paid: 0, remaining: 0, change: 0,

@@ -41,7 +41,14 @@
 
 {# ---- what is given -------------------------------------------------- #}
 <div class="card gc-scale-in" style="margin-bottom:16px;scroll-margin-top:80px;" id="orders" data-er-orders>
-  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-capsule"></i> {{ t('er_orders.given_title') }}</h2>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h2 class="section-title" style="margin:0;"><i class="bi bi-capsule"></i> {{ t('er_orders.given_title') }}</h2>
+    {% if may_collect and owed %}
+    <a class="btn btn-outline gc-press" data-to-collect
+       href="{{ url_for('finance.collect', patient_id=row.patient_id) }}">
+      <i class="bi bi-cash-coin"></i> {{ t('er_orders.collect', n=owed) }}</a>
+    {% endif %}
+  </div>
   {% if orders %}
   <div style="display:grid;gap:8px;">
     {% for o in orders %}
@@ -65,6 +72,7 @@
       </div>
       {% if o.state == 'given' %}
       <span class="badge badge--green" data-given>{{ t('er_orders.st_given') }} · <span dir="ltr">{{ o.given_at|clinic_stamp }}</span>{% if o.giver %} · {{ o.giver.display_name(current_lang) }}{% endif %}</span>
+      {% if o.billed %}<span class="badge badge--muted" data-billed>{{ t('er_orders.billed') }}</span>{% endif %}
       {% elif o.state == 'cancelled' %}
       <span class="badge badge--muted">{{ t('er_orders.st_cancelled') }}{% if o.cancel_reason %} · {{ o.cancel_reason }}{% endif %}</span>
       {% elif o.state == 'waiting_doctor' %}

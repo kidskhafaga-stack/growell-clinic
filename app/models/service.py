@@ -245,6 +245,17 @@ class Service(db.Model):
     needs_device = db.Column(db.Boolean, default=False, nullable=False)
     needs_report = db.Column(db.Boolean, default=False, nullable=False)
     needs_consumables = db.Column(db.Boolean, default=False, nullable=False)
+    # **The drug and the supplies used to give it: in the price, or on the
+    # bill beside it.** «فى حجات بتتحسب كده وحجات بتتحسب كده على حسب كل
+    # مستشفى» — so the hospital says, per service:
+    #   ``inclusive`` — one line; the drug and supplies leave the shelf and
+    #                   are not charged again;
+    #   ``separate``  — the service, and the drug and each supply on lines
+    #                   of their own.
+    # Empty is «nobody has said yet», and is charged as ``separate``: what
+    # was used is never silently given away. The services list says which
+    # are still unset.
+    supplies_mode = db.Column(db.String(10))
     needs_booking = db.Column(db.Boolean, default=False, nullable=False)
     needs_approval = db.Column(db.Boolean, default=False, nullable=False)
     can_standalone = db.Column(db.Boolean, default=True, nullable=False)      # sold without a consultation
