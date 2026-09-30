@@ -1,6 +1,7 @@
 {% extends "shell.html" %}
 {% from "_picker.html" import drug_list with context %}
 {% import "visits/_investigation_files.html" as inv_files with context %}
+{% import "labs/_values.html" as lab_values with context %}
 {% from "patients/_macros.html" import patient_avatar, age_label with context %}
 {% set active_module = 'visits' %}
 {% block title %}{{ t('visits.record_title') }}{% endblock %}
@@ -1101,6 +1102,9 @@
           {% endif %}
         </div>
         {{ inv_files.files_block(x, linkable_files) }}
+        {# Answered by the lab line by line. Empty on every clinic's order —
+           only the lab module writes these — so nothing here changes there. #}
+        {% if x.analytes_resulted %}{{ lab_values.table(x) }}{% endif %}
         <details style="margin-top:8px;" {{ 'open' if x.has_result else '' }}>
           <summary style="cursor:pointer;color:var(--green-800);font-size:0.9rem;"><i class="bi bi-pencil-square"></i> {{ t('visits.inv_result') }}</summary>
           <form method="post" action="{{ url_for('visits.result_investigation', inv_id=x.id) }}" style="margin-top:8px;">

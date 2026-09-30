@@ -1,0 +1,47 @@
+{# A result written analyte by analyte, as the doctor reads it.
+
+   Each value beside the range it was read against — the range **as it was
+   when the value was saved**, copied onto the value — and a flag only when
+   that range was approved. A draft reference says it is one; no range says
+   so; neither is ever shown as «normal». #}
+{% macro ref(v) -%}
+  {%- if v.ref_kind == 'note' -%}<span dir="auto">{{ v.ref_note or '' }}</span>
+  {%- elif v.ref_low is not none and v.ref_high is not none -%}{{ '%g'|format(v.ref_low) }} – {{ '%g'|format(v.ref_high) }}
+  {%- elif v.ref_high is not none -%}&lt; {{ '%g'|format(v.ref_high) }}
+  {%- elif v.ref_low is not none -%}&gt; {{ '%g'|format(v.ref_low) }}
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro flag_badge(flag) -%}
+  {%- if flag in ('critical_low', 'critical_high') -%}
+  <span class="badge badge--danger" data-flag="{{ flag }}"><i class="bi bi-exclamation-octagon"></i> {{ t('lab_result.flag_' ~ flag) }}</span>
+  {%- elif flag in ('low', 'high') -%}
+  <span class="badge badge--warn" data-flag="{{ flag }}">{{ t('lab_result.flag_' ~ flag) }}</span>
+  {%- elif flag == 'normal' -%}
+  <span class="badge badge--muted" data-flag="normal">{{ t('lab_result.flag_normal') }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro table(order) %}
+<div style="overflow-x:auto;" data-analyte-values="{{ order.id }}">
+  <table class="table" style="min-width:340px;font-variant-numeric:tabular-nums;">
+    <thead><tr>
+      <th>{{ t('lab_result.analyte') }}</th><th>{{ t('lab_result.value') }}</th>
+      <th>{{ t('lab_result.reference') }}</th></tr></thead>
+    <tbody>
+    {% for v in order.analyte_values if v.has_value %}
+    <tr data-value-flag="{{ v.flag or '' }}">
+      <td><span dir="ltr">{{ v.analyte.name }}</span></td>
+      {# The flag beside the value, not in a column of its own that a phone
+         scrolls out of sight. #}
+      <td><span dir="ltr"><strong>{{ v.shown() }}</strong>{% if v.unit %} <span class="hint" style="margin:0;">{{ v.unit }}</span>{% endif %}</span>
+        {% if v.flag %} {{ flag_badge(v.flag) }}{% endif %}</td>
+      <td dir="ltr" class="hint" style="margin:0;">
+        {% set r = ref(v) %}{% if r|trim %}{{ r }}{% if not v.range_approved %} <span class="badge badge--muted" dir="auto">{{ t('lab_import.draft_badge') }}</span>{% endif %}{% else %}—{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endmacro %}

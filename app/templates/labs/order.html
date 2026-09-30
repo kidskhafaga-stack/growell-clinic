@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "labs/_values.html" as lv with context %}
 {% set active_module = 'labs' %}
 {% block title %}{{ order.name }}{% endblock %}
 {% block page_heading %}{{ order.name }}{% endblock %}
@@ -49,7 +50,90 @@
   {% endif %}
 </div>
 
+{# ---- a critical value -------------------------------------------------- #}
+{% if order.critical_at %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border:2px solid var(--danger);" data-critical-box>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+    <div>
+      <strong style="color:var(--danger);"><i class="bi bi-exclamation-octagon"></i> {{ t('lab_result.critical_banner') }}</strong>
+      <div class="hint" style="margin:4px 0 0;">{{ order.critical_at|clinic_stamp }}
+      {% if order.critical_seen_at %}
+        · <span data-critical-read>{{ t('lab_result.read_by', who=order.critical_reader.display_name(current_lang) if order.critical_reader else '—', when=order.critical_seen_at|clinic_stamp) }}</span>
+      {% else %}
+        · <span data-critical-unread>{{ t('lab_result.not_read_yet') }}</span>
+      {% endif %}</div>
+    </div>
+    {% if not order.critical_seen_at and may_read %}
+    <form method="post" action="{{ url_for('labs.critical_read', order_id=order.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-primary gc-press" type="submit" data-critical-read-btn>
+        <i class="bi bi-check2-circle"></i> {{ t('lab_result.i_read_it') }}</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 {# ---- the answer -------------------------------------------------------- #}
+{% if lines %}
+{# **Line by line**, as the laboratory's report prints it. Each value is read
+   against this child's range — age on the day the sample was drawn, and sex
+   — and only an approved range calls one high or low. #}
+<div class="card gc-scale-in" data-by-analyte>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-clipboard-data"></i> {{ t('lab.result') }}</h2>
+  <p class="hint" style="margin:0 0 10px;">
+    {{ t('lab_result.for_child', days=age_days if age_days is not none else '—', sex=t('lab_import.sex_' ~ (order.patient.gender if order.patient.gender in ('male', 'female') else 'all'))) }}
+    {% if order.resulted_at %} · {{ order.resulted_at|clinic_stamp }}{% if order.resulter %} · {{ order.resulter.display_name(current_lang) }}{% endif %}{% endif %}
+    {% if late %} · <span class="badge badge--danger" data-late>{{ t('lab_result.late') }}</span>{% endif %}
+  </p>
+  <form method="post" action="{{ url_for('labs.result', order_id=order.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="overflow-x:auto;">
+      <table class="table" style="min-width:440px;font-variant-numeric:tabular-nums;">
+        <thead><tr>
+          <th>{{ t('lab_result.analyte') }}</th><th style="width:170px;">{{ t('lab_result.value') }}</th>
+          <th>{{ t('lab.unit') }}</th><th>{{ t('lab_result.reference') }}</th></tr></thead>
+        <tbody>
+        {% for line in lines %}
+        {% set a = line.analyte %}{% set v = line.row %}{% set rng = line.approved or line.draft %}
+        <tr data-line="{{ a.id }}">
+          <td><label for="a_{{ a.id }}" dir="ltr">{{ a.name }}</label>
+            {% if a.name_ar and a.name_ar != a.name %}<div class="hint" style="margin:0;">{{ a.name_ar }}</div>{% endif %}</td>
+          {# The flag sits under the box and not in a column of its own: on a
+             phone the table scrolls, and the column that scrolls away is the
+             one that says «critical». #}
+          <td><input class="input" id="a_{{ a.id }}" name="a_{{ a.id }}" dir="ltr" maxlength="120"
+                     inputmode="decimal" autocomplete="off"
+                     value="{{ v.shown() if v else '' }}">
+            {% if v and v.flag %}<div style="margin-top:4px;">{{ lv.flag_badge(v.flag) }}</div>{% endif %}</td>
+          <td dir="ltr" class="hint" style="margin:0;">{{ line.unit or '' }}</td>
+          <td dir="ltr" class="hint" style="margin:0;" data-ref="{{ 'approved' if line.approved else ('draft' if line.draft else 'none') }}">
+            {% if rng %}
+              {% if rng.kind == 'note' %}<span dir="auto">{{ rng.note or '' }}</span>
+              {% elif rng.low is not none and rng.high is not none %}{{ '%g'|format(rng.low) }} – {{ '%g'|format(rng.high) }}
+              {% elif rng.high is not none %}&lt; {{ '%g'|format(rng.high) }}
+              {% elif rng.low is not none %}&gt; {{ '%g'|format(rng.low) }}{% endif %}
+              {% if rng.kind == 'cutoff' %}<span class="badge badge--muted" dir="auto">{{ t('lab_import.cutoff') }}</span>{% endif %}
+              {% if not line.approved %}<span class="badge badge--muted" dir="auto" title="{{ t('lab_result.draft_hint') }}">{{ t('lab_import.draft_badge') }}</span>{% endif %}
+            {% else %}<span dir="auto">{{ t('lab_result.no_range') }}</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="form-row" style="margin-top:10px;">
+      <label for="result_text">{{ t('lab_result.comment') }}</label>
+      <textarea class="input" id="result_text" name="result_text" rows="3" dir="auto">{{ order.result_text or '' }}</textarea>
+    </div>
+    <p class="hint" style="margin:0 0 10px;"><i class="bi bi-info-circle"></i> {{ t('lab_result.how') }}</p>
+    <button class="btn btn-primary gc-press" type="submit" data-save-values>
+      <i class="bi bi-save"></i> {{ t('common.save') }}</button>
+  </form>
+  <p class="hint" style="margin-top:12px;">{{ t('lab.reading_is_the_doctors') }}</p>
+</div>
+{% else %}
 <div class="card gc-scale-in">
   <h2 class="section-title" style="margin-top:0;">
     <i class="bi bi-clipboard-data"></i> {{ t('lab.result') }}</h2>
@@ -98,4 +182,5 @@
 
   <p class="hint" style="margin-top:12px;">{{ t('lab.reading_is_the_doctors') }}</p>
 </div>
+{% endif %}
 {% endblock %}

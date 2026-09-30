@@ -3538,7 +3538,8 @@
     "unread_messages": "{count} patient messages need a reply",
     "results_arrived": "{count} results in, nobody has read them",
     "window_closing": "{count} conversations whose reply window is closing",
-    "no_contact": "{count} patient(s) with no contact number at all — not theirs, not a guardian's"
+    "no_contact": "{count} patient(s) with no contact number at all — not theirs, not a guardian's",
+    "lab_critical": "{count} critical lab value(s) waiting to be read"
   },
   "analytics": {
     "title": "Patient analytics",
@@ -9300,5 +9301,36 @@
     "tat": "Expected time",
     "tat_stat": "Urgent",
     "preparation": "Preparation"
+  },
+  "lab_result": {
+    "critical_saved": "{n} critical value(s) saved — the child's responsible doctor and the doctor on shift have been alerted. Phone the doctor as well.",
+    "only_a_doctor": "Only a doctor can confirm reading a critical value.",
+    "nothing_critical": "There is no critical value on this order.",
+    "read_saved": "Recorded that you read the critical value.",
+    "critical_title": "Critical values",
+    "critical_sub": "Results beyond the laboratory's critical limits that no doctor has yet said they read.",
+    "none_critical": "No critical values are waiting to be read.",
+    "for_you": "Yours",
+    "ordered_by": "Ordered by {who}",
+    "i_read_it": "I read it",
+    "critical_banner": "Critical value",
+    "read_by": "Read by {who} — {when}",
+    "not_read_yet": "No doctor has read it yet",
+    "critical_unread_short": "Critical — not read",
+    "abnormal_n": "{n} outside the usual range",
+    "late": "Past its turnaround time",
+    "for_child": "Ranges for age {days} days on the day of the sample · {sex}",
+    "analyte": "Analyte",
+    "value": "Value",
+    "reference": "Reference",
+    "no_range": "No range for this age",
+    "draft_hint": "Draft: shown as a reference only; it never calls a value high or low until the laboratory director approves it.",
+    "comment": "Laboratory comment",
+    "how": "Type the number as the analyser gave it, or words such as «Negative». Only a number is compared with the range. A blank box clears the value.",
+    "flag_normal": "Normal",
+    "flag_low": "Low",
+    "flag_high": "High",
+    "flag_critical_low": "Critical — low",
+    "flag_critical_high": "Critical — high"
   }
 }

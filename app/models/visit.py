@@ -382,6 +382,27 @@ class VisitInvestigation(db.Model):
     operation_id = db.Column(db.Integer, db.ForeignKey("operations.id"),
                              nullable=True, index=True)
 
+    # ---- a result written analyte by analyte ---------------------------
+    # The values themselves are `LabResultValue` rows (`models/lab_reference`),
+    # one per thing measured. These are what a list needs without reading
+    # them: a CBC answered as twelve numbers is answered, and a screen that
+    # asked `result_value` alone would call it empty.
+    #
+    # Written only by the lab module's result screen. A clinic's orders never
+    # have them, so every screen that reads `analytes_resulted` sees nothing
+    # there and behaves exactly as it did.
+    analytes_resulted = db.Column(db.Integer)
+    #: How many of them fell outside the **approved** range. Drafts never
+    #: count: until the laboratory approves a range it flags nothing.
+    abnormal_count = db.Column(db.Integer)
+    # **A critical value, and whether a doctor has read it.** Stamped when a
+    # value beyond the laboratory's critical limit is saved; the doctor who
+    # reads it says so, and until then it is on the bell of whoever answers
+    # for the child — see `utils/lab_results.critical_waiting`.
+    critical_at = db.Column(db.DateTime, index=True)
+    critical_seen_at = db.Column(db.DateTime)
+    critical_seen_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     visit = db.relationship("Visit", back_populates="investigations",
@@ -393,6 +414,7 @@ class VisitInvestigation(db.Model):
     investigation = db.relationship("Investigation")
     orderer = db.relationship("User", foreign_keys=[ordered_by])
     confirmer = db.relationship("User", foreign_keys=[confirmed_by])
+    critical_reader = db.relationship("User", foreign_keys=[critical_seen_by])
     operation = db.relationship("Operation", backref="investigations",
                                 foreign_keys=[operation_id])
 
@@ -400,7 +422,8 @@ class VisitInvestigation(db.Model):
     def has_result(self):
         return bool((self.result_text or "").strip()
                     or (self.result_comment or "").strip()
-                    or self.result_value is not None)
+                    or self.result_value is not None
+                    or self.analytes_resulted)
 
     @property
     def has_number(self):

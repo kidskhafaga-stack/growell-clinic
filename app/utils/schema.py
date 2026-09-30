@@ -233,6 +233,16 @@ ADDITIONS = [
     ("investigations", "tat_max", "INTEGER"),
     ("investigations", "tat_stat_min", "INTEGER"),
     ("investigations", "tat_stat_max", "INTEGER"),
+    # A result written analyte by analyte (`models/lab_reference.LabResultValue`):
+    # how many were written and how many fell outside the approved range, so
+    # a list can say so without reading the values; and a critical value's
+    # moment and who read it. Empty on every order written before, and on
+    # every clinic's — a clinic never writes values this way.
+    ("visit_investigations", "analytes_resulted", "INTEGER"),
+    ("visit_investigations", "abnormal_count", "INTEGER"),
+    ("visit_investigations", "critical_at", "DATETIME"),
+    ("visit_investigations", "critical_seen_at", "DATETIME"),
+    ("visit_investigations", "critical_seen_by", "INTEGER"),
     ("prescription_investigations", "laterality", "VARCHAR(8)"),
     # `PCC.12` — «اتسأل عن احتياجاته ولا لأ». فاضي في كل ملف موجود، وده
     # الصح: محدّش سأل لسه.
