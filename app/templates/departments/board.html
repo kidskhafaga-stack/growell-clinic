@@ -77,7 +77,7 @@
         <a href="{{ url_for('beds.admission', admission_id=row.admission.id) }}">
           {{ row.patient.display_name(current_lang) }}</a></div>
       <div class="hint">
-        {% if row.bed %}{{ row.bed.unit.name }} · {{ row.bed.name }}{% endif %}
+        {% if row.bed %}{{ row.bed.unit.display_name(current_lang) }} · {{ row.bed.display_name(current_lang) }}{% endif %}
         {% if row.bed and row.bed.is_isolation %}
         · <span class="alert-pill warn">{{ t('beds.isolation') }}</span>{% endif %}
       </div>
@@ -257,7 +257,7 @@
         <select class="select" name="bed_id">
           {% for option in free %}
           <option value="{{ option.id }}">
-            {{ option.unit.name }} · {{ option.space.name }} · {{ option.name }}</option>
+            {{ option.unit.display_name(current_lang) }} · {{ option.space.display_name(current_lang) }} · {{ option.display_name(current_lang) }}</option>
           {% endfor %}
         </select>
       </div>

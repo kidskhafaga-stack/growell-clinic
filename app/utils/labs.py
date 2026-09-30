@@ -129,13 +129,25 @@ def beds_of(rows):
              .filter(Admission.patient_id.in_(ids),
                      Admission.discharged_at.is_(None),
                      BedStay.until.is_(None)).all())
+    lang = _screen_lang()
     out = {}
     for stay in stays:
         bed = stay.bed
         unit = bed.space.unit if bed and bed.space else None
         out[stay.admission.patient_id] = " · ".join(
-            x for x in ((unit.name if unit else ""), (bed.name if bed else "")) if x)
+            x for x in ((unit.display_name(lang) if unit else ""),
+                        (bed.display_name(lang) if bed else "")) if x)
     return out
+
+
+def _screen_lang():
+    """The language of the screen asking, or Arabic outside a request."""
+    try:
+        from flask import g
+
+        return getattr(g, "lang", "ar") or "ar"
+    except RuntimeError:
+        return "ar"
 
 
 def _ours():

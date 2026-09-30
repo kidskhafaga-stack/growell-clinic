@@ -109,7 +109,7 @@
         {% if admission.is_open %}
           {% if here_bed %}
           <span class="stay-chip" data-stay-bed><i class="bi bi-geo-alt"></i>
-            {{ here_bed.unit.name }} · {{ here_bed.space.name }} · {{ here_bed.name }}</span>
+            {{ here_bed.unit.display_name(current_lang) }} · {{ here_bed.space.display_name(current_lang) }} · {{ here_bed.display_name(current_lang) }}</span>
           {% else %}
           <span class="stay-chip stay-chip--warn"><i class="bi bi-geo-alt"></i> {{ t('stay.no_bed') }}</span>
           {% endif %}
@@ -303,7 +303,7 @@
   {% set bed = admission.bed %}
   {% if bed %}
   <p style="margin:0 0 10px;">
-    <b>{{ bed.unit.name }}</b> · {{ bed.space.name }} · {{ bed.name }}
+    <b>{{ bed.unit.display_name(current_lang) }}</b> · {{ bed.space.display_name(current_lang) }} · {{ bed.display_name(current_lang) }}
     <span class="badge badge--muted">{{ t('beds.bed_' ~ bed.kind) }}</span>
     {% if bed.is_isolation %}
     <span class="alert-pill warn"><i class="bi bi-shield-exclamation"></i>
@@ -321,7 +321,7 @@
       <select class="select" id="bed_id" name="bed_id">
         {% for option in free %}
         <option value="{{ option.id }}">
-          {{ option.unit.name }} · {{ option.space.name }} · {{ option.name }}
+          {{ option.unit.display_name(current_lang) }} · {{ option.space.display_name(current_lang) }} · {{ option.display_name(current_lang) }}
           {% if option.is_isolation %}· {{ t('beds.isolation') }}{% endif %}</option>
         {% endfor %}
       </select>
@@ -362,7 +362,7 @@
     <tbody>
       {% for stay in admission.stays %}
       <tr>
-        <td>{{ stay.bed.unit.name }} · {{ stay.bed.space.name }} · {{ stay.bed.name }}</td>
+        <td>{{ stay.bed.unit.display_name(current_lang) }} · {{ stay.bed.space.display_name(current_lang) }} · {{ stay.bed.display_name(current_lang) }}</td>
         <td dir="ltr">{{ stay.since|clinic_stamp }}</td>
         <td dir="ltr">{{ stay.until|clinic_stamp if stay.until else '—' }}</td>
         <td>{{ stay.note or '—' }}</td>
@@ -480,7 +480,7 @@
       {% for row in due_nights %}
       <tr data-night data-basis="{{ row.basis }}">
         <td dir="ltr">{{ row.on }}</td>
-        <td>{% if row.bed %}{{ row.bed.unit.name }} · {{ row.bed.name }}{% endif %}</td>
+        <td>{% if row.bed %}{{ row.bed.unit.display_name(current_lang) }} · {{ row.bed.display_name(current_lang) }}{% endif %}</td>
         <td>{{ row.service.display_name(current_lang) }}</td>
         <td dir="ltr">
           {%- if row.basis == 'hour' %}{{ row.quantity }} × {% endif -%}

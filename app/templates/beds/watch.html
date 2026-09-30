@@ -68,7 +68,7 @@
           <a href="{{ url_for('beds.admission', admission_id=row.stay.id) }}">
             {{ row.stay.patient.display_name(current_lang) if row.stay.patient else '—' }}</a>
         </td>
-        <td>{{ row.stay.bed.name if row.stay.bed else '—' }}</td>
+        <td>{{ row.stay.bed.display_name(current_lang) if row.stay.bed else '—' }}</td>
         <td>
           {# الدم الأول: كيس ماشي ومحدّش بيشوفه بيحصل دلوقتي، والتقييم الناقص
              فجوة بتستنى. الاتنين محتاجين حد، بس مش بنفس السرعة. #}

@@ -41,7 +41,7 @@
 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
   {% for r in rooms %}
   <a class="btn {{ 'btn-primary' if r.id == unit.id else 'btn-outline' }} gc-press"
-     href="{{ url_for('theatres.recovery_equipment', unit=r.id) }}">{{ r.name }}</a>
+     href="{{ url_for('theatres.recovery_equipment', unit=r.id) }}">{{ r.display_name(current_lang) }}</a>
   {% endfor %}
 </div>
 {% endif %}
@@ -49,7 +49,7 @@
 {# ------------------------------------------- where this room stands -- #}
 <div class="card gc-scale-in" style="margin-bottom:14px;" data-room="{{ unit.id }}">
   <h2 class="section-title" style="margin:0 0 8px;font-size:1rem;">
-    <i class="bi bi-hospital"></i> {{ unit.name }}
+    <i class="bi bi-hospital"></i> {{ unit.display_name(current_lang) }}
     <span class="badge badge--muted">{{ t('pacu.beds_here', n=state.beds) }}</span></h2>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     {% for c in state.empty %}

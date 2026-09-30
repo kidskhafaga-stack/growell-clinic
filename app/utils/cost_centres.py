@@ -77,7 +77,7 @@ def centre(key):
             unit = None
         if unit is None:
             return None
-        row = CostCentre(key=key, name_ar=unit.name, name_en=unit.name,
+        row = CostCentre(key=key, name_ar=unit.name, name_en=unit.name_en or unit.name,
                          unit_id=unit.id, sort_order=100 + (unit.sort_order or 0))
     else:
         return None

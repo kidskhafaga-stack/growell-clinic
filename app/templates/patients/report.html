@@ -202,9 +202,9 @@
                printing only the last one says they were never in the first. #}
             <td>{% set ns = namespace(seen=[]) %}
               {%- for bed_stay in stay.stays if bed_stay.bed
-                    and bed_stay.bed.unit.name not in ns.seen %}
-              {%- set ns.seen = ns.seen + [bed_stay.bed.unit.name] %}
-              {{- bed_stay.bed.unit.name }}{% if not loop.last %} · {% endif %}
+                    and bed_stay.bed.unit.display_name(current_lang) not in ns.seen %}
+              {%- set ns.seen = ns.seen + [bed_stay.bed.unit.display_name(current_lang)] %}
+              {{- bed_stay.bed.unit.display_name(current_lang) }}{% if not loop.last %} · {% endif %}
               {%- endfor %}
               {%- if not ns.seen %}—{% endif %}</td>
             {# Still in is not an outcome — it is the absence of one, and a

@@ -201,8 +201,8 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <select class="select" name="bed_id" style="font-size:.82rem;">
             {% for bed in free_beds %}
-            <option value="{{ bed.id }}">{{ bed.unit.name }} · {{ bed.space.name }}
-              · {{ bed.name }}{% if bed.is_isolation %} · {{ t('beds.isolation') }}{% endif %}</option>
+            <option value="{{ bed.id }}">{{ bed.unit.display_name(current_lang) }} · {{ bed.space.display_name(current_lang) }}
+              · {{ bed.display_name(current_lang) }}{% if bed.is_isolation %} · {{ t('beds.isolation') }}{% endif %}</option>
             {% endfor %}
           </select>
           <input class="input" name="reason" maxlength="200"
@@ -1949,8 +1949,8 @@
              internal-movement record, not a detail. #}
           {% for bed_stay in stay.stays %}
           {% if bed_stay.bed %}
-          <span class="badge badge--muted">{{ bed_stay.bed.unit.name }} ·
-            {{ bed_stay.bed.space.name }} · {{ bed_stay.bed.name }}</span>
+          <span class="badge badge--muted">{{ bed_stay.bed.unit.display_name(current_lang) }} ·
+            {{ bed_stay.bed.space.display_name(current_lang) }} · {{ bed_stay.bed.display_name(current_lang) }}</span>
           {% endif %}
           {% endfor %}
           {% if stay.responsible_doctor %}

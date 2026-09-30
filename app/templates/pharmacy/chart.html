@@ -17,7 +17,7 @@
     <h1 class="page-title"><i class="bi bi-clipboard2-pulse"></i>
       {{ admission.patient.display_name(current_lang) }}</h1>
     <p class="page-sub" style="margin:0;">
-      {% if admission.bed %}{{ admission.bed.unit.name }} · {{ admission.bed.name }} · {% endif %}
+      {% if admission.bed %}{{ admission.bed.unit.display_name(current_lang) }} · {{ admission.bed.display_name(current_lang) }} · {% endif %}
       {% if safety and safety.weight %}<span dir="ltr">{{ safety.weight }} kg</span>{% endif %}
       {% if safety and safety.age_months %} · <span dir="ltr">{{ safety.age_months }}m</span>{% endif %}
     </p>
