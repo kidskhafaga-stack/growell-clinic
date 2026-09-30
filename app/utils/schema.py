@@ -783,6 +783,8 @@ ADDITIONS = [
     ("admissions", "leave_note", "VARCHAR(255)"),
     ("emergency_visits", "leave_reason", "VARCHAR(40)"),
     ("emergency_visits", "leave_note", "VARCHAR(255)"),
+    # الـ walk-in: جاي ينفّذ علاج بس. فاضي في كل حضور قديم.
+    ("emergency_visits", "treatment_only", "BOOLEAN"),
     # «ليه العربي فى الشاشة الانجليزي» — the place's name in English, beside
     # the one it has. Empty everywhere until the program's own names are
     # filled (`ward_plan.fill_english_names`) or somebody types one.

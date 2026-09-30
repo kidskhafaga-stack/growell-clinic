@@ -1,0 +1,320 @@
+{% extends "shell.html" %}
+{% set active_module = 'emergency' %}
+{% block title %}{{ row.patient.display_name(current_lang) }} — {{ t('er_orders.title') }}{% endblock %}
+{% block page_heading %}{{ t('er_orders.title') }}{% endblock %}
+
+{% block content %}
+<style>
+  .eo-row { border:1px solid var(--line); border-radius:12px; padding:10px 12px;
+            display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .eo-row.st-waiting_doctor { border-inline-start:5px solid var(--danger); }
+  .eo-row.st-ready { border-inline-start:5px solid #d97706; }
+  .eo-row.st-given { border-inline-start:5px solid var(--green-600); }
+  .eo-row.st-cancelled { opacity:.6; }
+  .eo-what { flex:1 1 240px; min-width:0; }
+  .eo-src { font-size:.85rem; color:var(--muted); }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-truck-front"></i>
+      <a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">{{ row.patient.display_name(current_lang) }}</a></h1>
+    <p class="page-sub" style="margin:0;">
+      <span dir="ltr">{{ row.arrived_at|clinic_stamp }}</span> · {{ t('emergency.arr_' ~ row.arrival) }}
+      · <span dir="ltr">{{ row.minutes }}′</span>
+      {% if row.treatment_only %} · <span class="badge badge--muted" data-walk-in>{{ t('er_orders.walk_in') }}</span>{% endif %}
+      {% if row.level %} · <span class="badge {{ 'badge--danger' if row.urgent else 'badge--muted' }}">{{ row.level }}</span>
+      {% else %} · <span class="hint" style="margin:0;">{{ t('emergency.not_triaged') }}</span>{% endif %}
+      {% if not row.is_open %} · <span class="badge badge--muted" data-left>{{ t('emergency.disp_' ~ row.disposition) if row.disposition else t('er_orders.left') }}</span>{% endif %}
+    </p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('emergency.register') }}">
+    <i class="bi bi-list-ul"></i> {{ t('emergency.register_title') }}</a>
+</div>
+
+{% if missing %}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-gaps>
+  <span class="hint" style="margin:0;">{{ t('er_orders.still_missing') }}</span>
+  {% for gap in missing %}<span class="badge badge--warn" data-missing="{{ gap }}">{{ t('emergency.item_' ~ gap) }}</span> {% endfor %}
+</div>
+{% endif %}
+
+{# ---- what is given -------------------------------------------------- #}
+<div class="card gc-scale-in" style="margin-bottom:16px;scroll-margin-top:80px;" id="orders" data-er-orders>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-capsule"></i> {{ t('er_orders.given_title') }}</h2>
+  {% if orders %}
+  <div style="display:grid;gap:8px;">
+    {% for o in orders %}
+    <div class="eo-row st-{{ o.state }}" data-order="{{ o.id }}" data-state="{{ o.state }}">
+      <div class="eo-what">
+        <strong>{{ o.name }}</strong>
+        {% if o.dose %} · <span dir="auto">{{ o.dose }}</span>{% endif %}
+        {% if o.route %} · {{ t('meds.route_' ~ o.route) }}{% endif %}
+        {% if o.service and o.service.name != o.name %} · <span class="badge badge--muted">{{ o.service.name }}</span>{% endif %}
+        {% if o.store_item %} · <span class="hint" style="margin:0;">{{ o.store_item.display_name(current_lang) }} × {{ o.units }}</span>{% endif %}
+        <div class="eo-src" data-source="{{ o.source }}">
+          {% if o.source == 'ours' %}{{ t('er_orders.src_ours', who=o.prescriber.display_name(current_lang) if o.prescriber else '—') }}
+          {% elif o.source == 'hospital_rx' %}{{ t('er_orders.src_hospital', who=o.prescriber.display_name(current_lang) if o.prescriber else '—') }}
+            {% if o.confirmed_at %} · <span data-confirmed>{{ t('er_orders.confirmed_by_them') }}</span>
+            {% elif o.awaiting_confirmation %} · <span data-awaiting-confirmation>{{ t('er_orders.awaiting_confirmation') }}</span>{% endif %}
+          {% else %}{{ t('er_orders.src_outside', who=o.outside_doctor) }}
+            {% if o.approved_at %} · <span data-approved>{{ t('er_orders.approved_by', who=o.approver.display_name(current_lang) if o.approver else '—') }}</span>{% endif %}
+          {% endif %}
+          {% if o.note %} · <span dir="auto">{{ o.note }}</span>{% endif %}
+        </div>
+      </div>
+      {% if o.state == 'given' %}
+      <span class="badge badge--green" data-given>{{ t('er_orders.st_given') }} · <span dir="ltr">{{ o.given_at|clinic_stamp }}</span>{% if o.giver %} · {{ o.giver.display_name(current_lang) }}{% endif %}</span>
+      {% elif o.state == 'cancelled' %}
+      <span class="badge badge--muted">{{ t('er_orders.st_cancelled') }}{% if o.cancel_reason %} · {{ o.cancel_reason }}{% endif %}</span>
+      {% elif o.state == 'waiting_doctor' %}
+      <span class="badge badge--danger">{{ t('er_orders.st_waiting_doctor') }}</span>
+      {% if may_order and is_doctor %}
+      <form method="post" action="{{ url_for('emergency.approve_order', order_id=o.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-primary gc-press" type="submit" data-approve>
+          <i class="bi bi-check2-square"></i> {{ t('er_orders.approve', who=o.outside_doctor) }}</button>
+      </form>
+      {% endif %}
+      {% else %}
+      <form method="post" action="{{ url_for('emergency.give_order', order_id=o.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-primary gc-press" type="submit" data-give>
+          <i class="bi bi-check2-circle"></i> {{ t('er_orders.give') }}</button>
+      </form>
+      {% endif %}
+      {% if o.awaiting_confirmation and o.prescriber_id == current_user.id %}
+      <form method="post" action="{{ url_for('emergency.confirm_order', order_id=o.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="back" value="attendance">
+        <button class="btn btn-sm btn-outline gc-press" type="submit" data-confirm>{{ t('er_orders.its_mine') }}</button>
+      </form>
+      {% endif %}
+      {% if o.state in ('ready', 'waiting_doctor') %}
+      <form method="post" action="{{ url_for('emergency.cancel_order', order_id=o.id) }}"
+            style="display:flex;gap:6px;align-items:center;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="input" name="reason" maxlength="200" style="max-width:150px;"
+               placeholder="{{ t('er_orders.cancel_why') }}">
+        <button class="btn btn-sm btn-outline gc-press" type="submit" data-cancel>{{ t('er_orders.cancel') }}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('er_orders.none') }}</p>
+  {% endif %}
+
+  {% if row.is_open %}
+  {# **Whose word it is, first.** One of ours writing; a paper from one of
+     our doctors, given now in their name; or a paper from outside, which no
+     one gives until a doctor of ours has seen the child. #}
+  <form method="post" style="margin-top:14px;display:grid;gap:10px;" data-write-order
+        action="{{ url_for('emergency.write_order', attendance_id=row.id) }}"
+        x-data="{
+          source: {{ ('ours' if may_order and is_doctor else 'hospital_rx')|tojson|forceescape }},
+          q: '', drugId: '',
+          picker: window.gcPicker({ url: {{ url_for('emergency.drug_search')|tojson|forceescape }}, minChars: 2 }),
+          pick(r) {
+            this.picker.close();
+            this.q = r.name || r.trade || '';
+            this.drugId = r.id || '';
+            if (r.dose && !this.$refs.dose.value) this.$refs.dose.value = r.dose;
+          }
+        }">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="drug_id" :value="drugId">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;" role="radiogroup" aria-label="{{ t('er_orders.whose') }}">
+      {% if may_order and is_doctor %}
+      <label style="display:flex;gap:6px;align-items:center;"><input type="radio" name="source" value="ours" x-model="source"> {{ t('er_orders.src_pick_ours') }}</label>
+      {% endif %}
+      <label style="display:flex;gap:6px;align-items:center;"><input type="radio" name="source" value="hospital_rx" x-model="source"> {{ t('er_orders.src_pick_hospital') }}</label>
+      <label style="display:flex;gap:6px;align-items:center;"><input type="radio" name="source" value="outside_rx" x-model="source"> {{ t('er_orders.src_pick_outside') }}</label>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <div class="form-row" style="margin-bottom:0;min-width:200px;" x-show="source === 'hospital_rx'">
+        <label for="prescriber_id">{{ t('er_orders.which_doctor') }}</label>
+        <select class="select" id="prescriber_id" name="prescriber_id" data-prescriber>
+          <option value="">—</option>
+          {% for d in doctors %}<option value="{{ d.id }}">{{ d.display_name(current_lang) }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:200px;" x-show="source === 'outside_rx'" x-cloak>
+        <label for="outside_doctor">{{ t('er_orders.outside_doctor') }}</label>
+        <input class="input" id="outside_doctor" name="outside_doctor" maxlength="120"
+               placeholder="{{ t('er_orders.outside_doctor_ph') }}">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:220px;position:relative;">
+        <label for="eo_name">{{ t('er_orders.drug') }}</label>
+        <input class="input" id="eo_name" name="name" maxlength="200" autocomplete="off"
+               x-model="q" role="combobox" aria-autocomplete="list"
+               :aria-expanded="picker.open ? 'true' : 'false'"
+               x-on:input.debounce.250ms="drugId = ''; picker.q = q; picker.search()"
+               x-on:keydown.arrow-down.prevent="picker.move(1)"
+               x-on:keydown.arrow-up.prevent="picker.move(-1)"
+               x-on:keydown.escape="picker.close()"
+               x-on:blur="setTimeout(function () { picker.close(); }, 150)">
+        <div class="gc-picker" x-show="picker.open" x-cloak role="listbox">
+          <template x-for="(r, idx) in picker.items" :key="idx">
+            <button type="button" class="gc-picker-item" role="option"
+                    :aria-selected="idx === picker.active ? 'true' : 'false'"
+                    x-on:mouseenter="picker.active = idx" x-on:click="pick(r)">
+              <span x-text="r.trade"></span>
+              <span class="badge badge--muted" x-text="r.generic"></span>
+            </button>
+          </template>
+        </div>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:120px;">
+        <label for="eo_dose">{{ t('meds.dose') }}</label>
+        <input class="input" id="eo_dose" name="dose" maxlength="80" x-ref="dose">
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:120px;">
+        <label for="eo_route">{{ t('meds.route') }}</label>
+        <select class="select" id="eo_route" name="route">
+          <option value="">—</option>
+          {% for way in routes %}<option value="{{ way }}">{{ t('meds.route_' ~ way) }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:180px;">
+        <label for="eo_service">{{ t('er_orders.service') }}</label>
+        <select class="select" id="eo_service" name="service_id" data-service>
+          <option value="">—</option>
+          {% for s in services %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:200px;">
+        <label for="eo_item">{{ t('meds.from_store') }}</label>
+        <select class="select" id="eo_item" name="store_item_id" data-store-item>
+          <option value="">{{ t('meds.no_store_item') }}</option>
+          {% for stocked in store_items %}
+          <option value="{{ stocked.id }}">{{ stocked.display_name(current_lang) }}{% if stocked.unit %} ({{ stocked.unit }}){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;width:90px;">
+        <label for="eo_units">{{ t('er_orders.units') }}</label>
+        <input class="input" type="number" min="1" max="99" value="1" id="eo_units" name="units" dir="ltr">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:220px;">
+        <label for="eo_note">{{ t('er_orders.note') }}</label>
+        <input class="input" id="eo_note" name="note" maxlength="255">
+      </div>
+      <button class="btn btn-primary gc-press" type="submit" data-write>
+        <i class="bi bi-plus-lg"></i> {{ t('er_orders.write') }}</button>
+    </div>
+    <p class="hint" style="margin:0;" x-show="source === 'outside_rx'" x-cloak data-outside-hint>
+      <i class="bi bi-info-circle"></i> {{ t('er_orders.outside_hint') }}</p>
+  </form>
+  {% endif %}
+</div>
+
+{# ---- tests and scans ------------------------------------------------- #}
+<div class="card gc-scale-in" style="margin-bottom:16px;scroll-margin-top:80px;" id="tests" data-er-tests>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-eyedropper"></i> {{ t('stay_tests.title') }}</h2>
+  {% if tests %}
+  <ul style="list-style:none;padding:0;margin:0;display:grid;gap:6px;">
+    {% for x in tests %}
+    <li data-er-test="{{ x.id }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;">
+      <strong style="flex:1 1 200px;min-width:0;">{{ x.display_name(current_lang) }}</strong>
+      {% if x.done_outside %}<span class="badge badge--muted"><i class="bi bi-box-arrow-up-right"></i> {{ t('rx.inv_outside_short') }}</span>{% endif %}
+      {% if x.status == 'resulted' %}<span class="badge badge--green">{{ t('stay_tests.resulted') }}</span>
+      {% if x.result_value is not none %}<span class="num" dir="ltr">{{ x.result_value }}{% if x.result_unit %} {{ x.result_unit }}{% endif %}</span>{% endif %}
+      {% elif x.status == 'collected' %}<span class="badge badge--warn">{{ t('beds.map_st_collected') }}</span>
+      {% else %}<span class="badge badge--warn">{{ t('beds.map_st_requested') }}</span>{% endif %}
+      <span class="hint" dir="ltr" style="margin:0;">{{ x.created_at|clinic_stamp }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('er_orders.no_tests') }}</p>
+  {% endif %}
+
+  {% if may_order and row.is_open %}
+  <form method="post" style="margin-top:14px;" data-er-order-test
+        action="{{ url_for('emergency.order_test', attendance_id=row.id) }}"
+        x-data="{
+          kind: 'lab', outside: false, invId: '', q: '',
+          picker: window.gcPicker({ url: '', minChars: 2 }),
+          init() {
+            const self = this;
+            this.picker = window.gcPicker({
+              url: {{ url_for('emergency.investigation_search')|tojson|forceescape }}, minChars: 2,
+              extra: function () { return 'kind=' + encodeURIComponent(self.kind); } });
+          },
+          pick(r) {
+            this.picker.close();
+            this.q = r.name; this.invId = r.id; this.kind = r.kind;
+            this.outside = !r.in_house;
+          }
+        }">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="investigation_id" :value="invId">
+    <input type="hidden" name="done_outside" :value="outside ? '1' : '0'">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <div class="form-row" style="margin-bottom:0;min-width:130px;">
+        <label for="er_test_kind">{{ t('rx.inv_kind') }}</label>
+        <select class="select" id="er_test_kind" name="kind" x-model="kind">
+          <option value="lab">{{ t('rx.inv_lab') }}</option>
+          <option value="imaging">{{ t('rx.inv_imaging') }}</option>
+          <option value="diagnostic">{{ t('rx.inv_diagnostic') }}</option>
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:220px;position:relative;">
+        <label for="er_test_name">{{ t('rx.inv_name') }}</label>
+        <input class="input" id="er_test_name" name="name" maxlength="200" autocomplete="off"
+               x-model="q" role="combobox" aria-autocomplete="list"
+               :aria-expanded="picker.open ? 'true' : 'false'"
+               x-on:input.debounce.250ms="invId = ''; picker.q = q; picker.search()"
+               x-on:keydown.arrow-down.prevent="picker.move(1)"
+               x-on:keydown.arrow-up.prevent="picker.move(-1)"
+               x-on:keydown.escape="picker.close()"
+               x-on:blur="setTimeout(function () { picker.close(); }, 150)">
+        <div class="gc-picker" x-show="picker.open" x-cloak role="listbox">
+          <template x-for="(r, idx) in picker.items" :key="idx">
+            <button type="button" class="gc-picker-item" role="option"
+                    :aria-selected="idx === picker.active ? 'true' : 'false'"
+                    x-on:mouseenter="picker.active = idx" x-on:click="pick(r)">
+              <span x-text="r.name"></span>
+            </button>
+          </template>
+        </div>
+      </div>
+      <label style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
+        <input type="checkbox" x-model="outside"> {{ t('rx.inv_outside_short') }}</label>
+      <button class="btn btn-primary gc-press" type="submit">
+        <i class="bi bi-plus-lg"></i> {{ t('stay_tests.order') }}</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+
+{# ---- leaving --------------------------------------------------------- #}
+{% if row.is_open %}
+<div class="card gc-scale-in" data-er-depart>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-door-open"></i> {{ t('emergency.depart') }}</h2>
+  <form method="post" action="{{ url_for('emergency.depart', visit_id=row.id) }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"
+        x-data="{ d: {{ dispositions[0]|tojson|forceescape }} }">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select class="select" name="disposition" style="max-width:150px;" x-model="d">
+      {% for d in dispositions %}<option value="{{ d }}">{{ t('emergency.disp_' ~ d) }}</option>{% endfor %}
+    </select>
+    <input class="input" name="condition" style="max-width:180px;" placeholder="{{ t('emergency.condition_ph') }}">
+    <input class="input" name="followup" style="max-width:200px;" placeholder="{{ t('emergency.followup_ph') }}">
+    <select class="select" name="leave_reason" style="max-width:160px;" aria-label="{{ t('leave.why') }}"
+            x-show="{{ asked_on|list|tojson|forceescape }}.includes(d)" x-cloak>
+      <option value="">{{ t('leave.why') }}</option>
+      {% for r in leave_reasons %}<option value="{{ r.key }}">{{ r.display_name(current_lang) }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('emergency.save_depart') }}</button>
+  </form>
+  <p class="hint" style="margin:8px 0 0;">{{ t('er_orders.admit_hint') }}</p>
+</div>
+{% endif %}
+{% endblock %}

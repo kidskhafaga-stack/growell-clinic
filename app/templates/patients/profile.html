@@ -1848,7 +1848,7 @@
           {# A decision taken over WhatsApp is a real consultation — but the
              file must never read as though the child was seen in the room. #}
           {% if v.channel == 'whatsapp' %}<span class="badge badge--green" title="{{ t('teleconsult.decision_' ~ v.decision) if v.decision else '' }}"><i class="bi bi-whatsapp"></i> {{ t('teleconsult.channel_whatsapp') }}</span>{% endif %}
-          {% if v.channel == 'ward' %}<span class="badge badge--muted" data-ward-visit><i class="bi bi-hospital"></i> {{ t('stay_tests.ward_visit') }}</span>{% endif %}
+          {% if v.channel == 'ward' %}<span class="badge badge--muted" data-ward-visit><i class="bi bi-hospital"></i> {{ t('stay_tests.ward_visit') }}</span>{% endif %}{% if v.channel == 'emergency' %}<span class="badge badge--muted" data-er-visit><i class="bi bi-truck-front"></i> {{ t('er_orders.er_visit') }}</span>{% endif %}
           <span style="flex:1;">
             {% for dx in v.final_diagnoses() %}<span class="badge badge--green">{{ dx.title }}</span> {% else %}<span style="color:var(--muted);">{{ v.chief_complaint or '—' }}</span>{% endfor %}
           </span>
@@ -2563,7 +2563,7 @@
         <div class="card" style="padding:12px;grid-column:1/-1;"
              data-emergency-visit="{{ row.id }}">
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-            <strong dir="ltr">{{ row.arrived_at.strftime('%Y-%m-%d %H:%M') }}</strong>
+            <a href="{{ url_for('emergency.attendance', attendance_id=row.id) }}" data-to-attendance><strong dir="ltr">{{ row.arrived_at|clinic_stamp }}</strong></a>
             <span class="hint">{{ t('emergency.arr_' ~ row.arrival) }}</span>
             {% if row.level %}
             <span class="badge {{ 'badge--danger' if row.urgent else 'badge--muted' }}"
