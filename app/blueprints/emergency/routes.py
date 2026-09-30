@@ -267,13 +267,21 @@ def attendance(attendance_id):
     from app.utils import emergency as er
     from app.utils import emergency_orders as eo
 
+    from app.utils.facility import module_enabled
+
     row = db.get_or_404(EmergencyVisit, attendance_id)
+    orders = eo.for_attendance(row)
     services = (Service.query.filter(Service.is_active.is_(True))
                 .filter(~Service.service_type.in_(
                     ("consultation", "followup", "vaccination")))
                 .order_by(Service.name).all())
     return render_template(
-        "emergency/attendance.html", row=row, orders=eo.for_attendance(row),
+        "emergency/attendance.html", row=row, orders=orders,
+        # The desk's door, for whoever may take the money: what was given
+        # waits there as lines to check before anything is charged.
+        may_collect=module_enabled("finance") and (
+            current_user.can_access("finance") or current_user.can("cashier")),
+        owed=len(eo.unbilled(row.patient_id)),
         tests=eo.tests_for(row), missing=er.missing(row),
         doctors=eo.doctors(), services=services,
         store_items=_shelf(), routes=ROUTES, sources=SOURCES,

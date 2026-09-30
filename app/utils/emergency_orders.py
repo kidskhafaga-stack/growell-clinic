@@ -265,3 +265,119 @@ def tests_for(attendance):
             .filter_by(visit_id=attendance.visit_id)
             .order_by(VisitInvestigation.created_at.desc(),
                       VisitInvestigation.id.desc()).all())
+
+
+# ------------------------------------------------------------- the bill ---
+# «وطريقة الحساب ... وهل يقدر يعمل مراجعة قبل الحساب حاجه اتصرفت عليه
+# بالغلط». What was given is offered at the desk as lines the cashier sees
+# and can take off before a pound changes hands — the same door every other
+# charge in this program comes through. Only what was **given** is owed.
+
+INCLUSIVE, SEPARATE = "inclusive", "separate"
+SUPPLIES_MODES = (INCLUSIVE, SEPARATE)
+
+
+def includes_supplies(service):
+    """Whether this service's price already includes the drug and supplies
+    used to give it. Unset is not inclusive: nothing used is given away
+    because nobody said."""
+    return bool(service is not None
+                and getattr(service, "supplies_mode", None) == INCLUSIVE)
+
+
+def _owes_service(order):
+    return order.service_id is not None and order.invoice_item_id is None
+
+
+def _owes_item(order):
+    return (order.store_item_id is not None
+            and not includes_supplies(order.service)
+            and order.item_invoice_item_id is None)
+
+
+def unbilled(patient_id=None):
+    """Given, not cancelled, and something on it still to be charged."""
+    query = EmergencyOrder.query.filter(
+        EmergencyOrder.given_at.isnot(None),
+        EmergencyOrder.cancelled_at.is_(None))
+    if patient_id is not None:
+        query = query.filter(EmergencyOrder.patient_id == patient_id)
+    rows = query.order_by(EmergencyOrder.given_at, EmergencyOrder.id).all()
+    return [o for o in rows if _owes_service(o) or _owes_item(o)]
+
+
+def _when(order):
+    from app.utils.clock import to_local
+
+    return to_local(order.given_at).strftime("%Y-%m-%d %H:%M")
+
+
+def checkout_lines(orders, lang="ar"):
+    """The desk's lines for these treatments.
+
+    The service at its price, marked as that treatment's charge; the drug or
+    supply on a line of its own when the service does not include it — or
+    when there is no service at all. Priced from the shelf and carrying no
+    commission: nobody's percentage rides on the vial.
+    """
+    lines = []
+    for o in orders:
+        what = o.name + (f" · {o.dose}" if o.dose else "")
+        if _owes_service(o):
+            svc = o.service
+            price = (svc.price_for(o.prescriber) if o.prescriber is not None
+                     else svc.price) or 0
+            label = svc.display_name(lang) if hasattr(svc, "display_name") else svc.name
+            lines.append({
+                "service_id": svc.id,
+                "description": f"{label} — {what} ({_when(o)})"[:200],
+                "unit_price": price, "quantity": 1,
+                "er_order_id": o.id})
+        if _owes_item(o):
+            item = o.store_item
+            name = (item.display_name(lang) if hasattr(item, "display_name")
+                    else item.name)
+            lines.append({
+                "service_id": "",
+                "description": f"{name} — {what} ({_when(o)})"[:200],
+                "unit_price": getattr(item, "sell_price", 0) or 0,
+                "quantity": max(1, int(o.units or 1)),
+                "no_commission": "1",
+                "er_item_id": o.id})
+    return lines
+
+
+def take_off_shelf(orders, invoice, user=None, lang="ar"):
+    """What these treatments used leaves the stock, once each, under the
+    invoice's issue document — charged on its own line or inside the
+    service's price alike: a vial used is a vial gone.
+
+    Never refused for want of stock, for the reason the ward's doses are
+    not: it was given, and the count is the store's to reconcile.
+    """
+    from app.models import StockMovement
+    from app.utils import cost_centres
+    from app.utils.costing import issue_unit_cost
+    from app.utils.store_docs import open_document
+
+    rows = [o for o in (orders or [])
+            if o.store_item is not None and o.stock_movement_id is None]
+    if not rows or invoice is None:
+        return 0
+    centre = cost_centres.centre_id("emergency")
+    document = getattr(invoice, "_iss_doc", None)
+    for o in rows:
+        if document is None:
+            document = open_document("issue", reference=invoice.invoice_number)
+        movement = StockMovement(
+            item_id=o.store_item_id, kind="out",
+            qty=-abs(max(1, int(o.units or 1))),
+            reason=f"{o.name} — {_when(o)}"[:160],
+            unit_cost=issue_unit_cost(o.store_item),
+            cost_centre_id=centre,
+            created_by=getattr(user, "id", None), document_id=document.id)
+        db.session.add(movement)
+        db.session.flush()
+        o.stock_movement_id = movement.id
+    invoice._iss_doc = document
+    return len(rows)

@@ -94,8 +94,16 @@ class EmergencyOrder(db.Model):
                            nullable=False, index=True)
 
     #: The bill line it went onto, once charged — asking twice charges once.
+    #: The service's line when there is a service; otherwise the drug's.
     invoice_item_id = db.Column(db.Integer, db.ForeignKey("invoice_items.id"),
                                 index=True)
+    #: The drug or supply on a line of its own beside the service, when the
+    #: service does not include it (`Service.supplies_mode`).
+    item_invoice_item_id = db.Column(db.Integer,
+                                     db.ForeignKey("invoice_items.id"))
+    #: What it took off the shelf, once — whether or not it was charged.
+    stock_movement_id = db.Column(db.Integer,
+                                  db.ForeignKey("stock_movements.id"))
 
     emergency_visit = db.relationship("EmergencyVisit",
                                       backref="orders")
@@ -118,6 +126,10 @@ class EmergencyOrder(db.Model):
         if self.source == OUTSIDE_RX and self.approved_at is None:
             return "waiting_doctor"
         return "ready"
+
+    @property
+    def billed(self):
+        return self.invoice_item_id is not None
 
     @property
     def may_give(self):

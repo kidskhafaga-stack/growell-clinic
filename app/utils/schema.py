@@ -456,6 +456,13 @@ ADDITIONS = [
     ("services", "needs_device", "BOOLEAN DEFAULT 0"),
     ("services", "needs_report", "BOOLEAN DEFAULT 0"),
     ("services", "needs_consumables", "BOOLEAN DEFAULT 0"),
+    # Whether a service's price includes the drug and supplies used to give
+    # it. Empty on every service: «not said yet», charged separately.
+    ("services", "supplies_mode", "VARCHAR(10)"),
+    # The emergency line's drug or supply, once charged — its own line when
+    # the service does not include it — and the stock it took.
+    ("emergency_orders", "item_invoice_item_id", "INTEGER"),
+    ("emergency_orders", "stock_movement_id", "INTEGER"),
     ("services", "needs_booking", "BOOLEAN DEFAULT 0"),
     ("services", "needs_approval", "BOOLEAN DEFAULT 0"),
     ("services", "can_standalone", "BOOLEAN DEFAULT 1"),
