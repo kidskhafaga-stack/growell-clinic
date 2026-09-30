@@ -14,7 +14,12 @@
 {% block content %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
   <h1 class="page-title">{{ t('rx.catalogue') }}</h1>
-  <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.index') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('rx.title') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    {# The tests and scans a doctor orders from — the clinic's list, like
+       this one. #}
+    <a class="btn btn-outline gc-press" data-to-investigations href="{{ url_for('prescriptions.investigations') }}"><i class="bi bi-clipboard2-pulse"></i> {{ t('inv_list.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.index') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('rx.title') }}</a>
+  </div>
 </div>
 
 {# Searching starts over from page 1 — carrying the old page number into a new

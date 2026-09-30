@@ -1,0 +1,517 @@
+{
+ "_about": "The starter list of tests and scans a new clinic is given, loaded once into the clinic's own catalogue (utils/investigations.seed_investigations). Data, not code: after that the list is the clinic's to add to, rename or hide. `code` is what the specialty panels (specialty_panels.json) find a test by — keep it when editing this file.",
+ "investigations": [
+  {
+   "code": null,
+   "name_ar": "صورة دم كاملة",
+   "name_en": "CBC",
+   "kind": "lab",
+   "category": "أمراض الدم",
+   "unit": null
+  },
+  {
+   "code": null,
+   "name_ar": "بروتين سي التفاعلي",
+   "name_en": "CRP",
+   "kind": "lab",
+   "category": "التهابات",
+   "unit": "mg/L"
+  },
+  {
+   "code": null,
+   "name_ar": "سرعة الترسيب",
+   "name_en": "ESR",
+   "kind": "lab",
+   "category": "التهابات",
+   "unit": "mm/hr"
+  },
+  {
+   "code": null,
+   "name_ar": "تحليل بول كامل",
+   "name_en": "Urine Analysis",
+   "kind": "lab",
+   "category": "بول/كلى",
+   "unit": null
+  },
+  {
+   "code": null,
+   "name_ar": "مزرعة بول",
+   "name_en": "Urine Culture",
+   "kind": "lab",
+   "category": "بول/كلى",
+   "unit": null
+  },
+  {
+   "code": null,
+   "name_ar": "تحليل براز",
+   "name_en": "Stool Analysis",
+   "kind": "lab",
+   "category": "جهاز هضمي",
+   "unit": null
+  },
+  {
+   "code": "fbs",
+   "name_ar": "سكر صائم",
+   "name_en": "Fasting Blood Sugar",
+   "kind": "lab",
+   "category": "سكر",
+   "unit": "mg/dL"
+  },
+  {
+   "code": null,
+   "name_ar": "سكر عشوائي",
+   "name_en": "Random Blood Sugar",
+   "kind": "lab",
+   "category": "سكر",
+   "unit": "mg/dL"
+  },
+  {
+   "code": "lft",
+   "name_ar": "وظائف كبد",
+   "name_en": "Liver Function Tests",
+   "kind": "lab",
+   "category": "كبد",
+   "unit": null
+  },
+  {
+   "code": "kft",
+   "name_ar": "وظائف كلى",
+   "name_en": "Kidney Function Tests",
+   "kind": "lab",
+   "category": "كلى",
+   "unit": null
+  },
+  {
+   "code": null,
+   "name_ar": "أملاح (صوديوم/بوتاسيوم)",
+   "name_en": "Electrolytes (Na/K)",
+   "kind": "lab",
+   "category": "أملاح",
+   "unit": "mmol/L"
+  },
+  {
+   "code": null,
+   "name_ar": "كالسيوم",
+   "name_en": "Serum Calcium",
+   "kind": "lab",
+   "category": "أملاح",
+   "unit": "mg/dL"
+  },
+  {
+   "code": "vit_d",
+   "name_ar": "فيتامين د",
+   "name_en": "Vitamin D (25-OH)",
+   "kind": "lab",
+   "category": "فيتامينات",
+   "unit": "ng/mL"
+  },
+  {
+   "code": "ferritin",
+   "name_ar": "مخزون الحديد (فيريتين)",
+   "name_en": "Ferritin",
+   "kind": "lab",
+   "category": "أمراض الدم",
+   "unit": "ng/mL"
+  },
+  {
+   "code": "tft",
+   "name_ar": "وظائف الغدة الدرقية",
+   "name_en": "Thyroid Function (TSH/FT4)",
+   "kind": "lab",
+   "category": "غدد",
+   "unit": null
+  },
+  {
+   "code": "hb",
+   "name_ar": "نسبة الهيموجلوبين",
+   "name_en": "Hemoglobin",
+   "kind": "lab",
+   "category": "أمراض الدم",
+   "unit": "g/dL"
+  },
+  {
+   "code": null,
+   "name_ar": "زرع دم",
+   "name_en": "Blood Culture",
+   "kind": "lab",
+   "category": "التهابات",
+   "unit": null
+  },
+  {
+   "code": null,
+   "name_ar": "تحليل حلق (مزرعة)",
+   "name_en": "Throat Swab Culture",
+   "kind": "lab",
+   "category": "التهابات",
+   "unit": null
+  },
+  {
+   "code": "hba1c",
+   "name_ar": "السكر التراكمي HbA1c",
+   "name_en": "HbA1c",
+   "kind": "lab",
+   "category": "سكر",
+   "unit": "%"
+  },
+  {
+   "code": "igf1",
+   "name_ar": "عامل النمو IGF-1",
+   "name_en": "IGF-1",
+   "kind": "lab",
+   "category": "غدد",
+   "unit": "ng/mL"
+  },
+  {
+   "code": "microalbumin",
+   "name_ar": "ميكروألبيومين البول",
+   "name_en": "Urine Microalbumin",
+   "kind": "lab",
+   "category": "بول/كلى",
+   "unit": "mg/g"
+  },
+  {
+   "code": "lipid",
+   "name_ar": "الدهون الكاملة",
+   "name_en": "Lipid Profile",
+   "kind": "lab",
+   "category": "قلب",
+   "unit": "mg/dL"
+  },
+  {
+   "code": "celiac_abs",
+   "name_ar": "أجسام السيلياك TTG",
+   "name_en": "Coeliac Antibodies (tTG)",
+   "kind": "lab",
+   "category": "جهاز هضمي",
+   "unit": "U/mL"
+  },
+  {
+   "code": "ntprobnp",
+   "name_ar": "NT-proBNP",
+   "name_en": "NT-proBNP",
+   "kind": "lab",
+   "category": "قلب",
+   "unit": "pg/mL"
+  },
+  {
+   "code": "inr",
+   "name_ar": "زمن البروثرومبين INR",
+   "name_en": "INR",
+   "kind": "lab",
+   "category": "تجلط",
+   "unit": null
+  },
+  {
+   "code": "asot",
+   "name_ar": "ASOT",
+   "name_en": "ASOT",
+   "kind": "lab",
+   "category": "التهابات",
+   "unit": "IU/mL"
+  },
+  {
+   "code": "ige",
+   "name_ar": "IgE الكلي",
+   "name_en": "Total IgE",
+   "kind": "lab",
+   "category": "حساسية",
+   "unit": "IU/mL"
+  },
+  {
+   "code": "eosinophils",
+   "name_ar": "الحمضات في صورة الدم",
+   "name_en": "Eosinophil Count",
+   "kind": "lab",
+   "category": "حساسية",
+   "unit": "cells/µL"
+  },
+  {
+   "code": "sweat_test",
+   "name_ar": "اختبار العرق",
+   "name_en": "Sweat Chloride Test",
+   "kind": "lab",
+   "category": "صدر",
+   "unit": "mmol/L"
+  },
+  {
+   "code": "drug_level",
+   "name_ar": "مستوى الدواء في الدم",
+   "name_en": "Serum Drug Level",
+   "kind": "lab",
+   "category": "أعصاب",
+   "unit": "µg/mL"
+  },
+  {
+   "code": "sodium",
+   "name_ar": "الصوديوم",
+   "name_en": "Serum Sodium",
+   "kind": "lab",
+   "category": "أملاح",
+   "unit": "mmol/L"
+  },
+  {
+   "code": "creatinine",
+   "name_ar": "الكرياتينين",
+   "name_en": "Serum Creatinine",
+   "kind": "lab",
+   "category": "كلى",
+   "unit": "mg/dL"
+  },
+  {
+   "code": "egfr",
+   "name_ar": "معدل الترشيح الكبيبي eGFR",
+   "name_en": "eGFR",
+   "kind": "lab",
+   "category": "كلى",
+   "unit": "mL/min/1.73m²"
+  },
+  {
+   "code": "albumin",
+   "name_ar": "الألبيومين",
+   "name_en": "Serum Albumin",
+   "kind": "lab",
+   "category": "كبد",
+   "unit": "g/dL"
+  },
+  {
+   "code": "urine_pcr",
+   "name_ar": "بروتين/كرياتينين البول",
+   "name_en": "Urine Protein/Creatinine Ratio",
+   "kind": "lab",
+   "category": "بول/كلى",
+   "unit": "mg/mg"
+  },
+  {
+   "code": "calprotectin",
+   "name_ar": "الكالبروتكتين في البراز",
+   "name_en": "Faecal Calprotectin",
+   "kind": "lab",
+   "category": "جهاز هضمي",
+   "unit": "µg/g"
+  },
+  {
+   "code": "platelets",
+   "name_ar": "الصفائح",
+   "name_en": "Platelet Count",
+   "kind": "lab",
+   "category": "أمراض الدم",
+   "unit": "×10³/µL"
+  },
+  {
+   "code": "t2_star",
+   "name_ar": "T2* للقلب والكبد",
+   "name_en": "Cardiac & Hepatic T2*",
+   "kind": "lab",
+   "category": "أمراض الدم",
+   "unit": "ms"
+  },
+  {
+   "code": "bilirubin",
+   "name_ar": "الصفراء (البيليروبين)",
+   "name_en": "Serum Bilirubin",
+   "kind": "lab",
+   "category": "حديثي الولادة",
+   "unit": "mg/dL"
+  },
+  {
+   "code": "phosphorus",
+   "name_ar": "الفوسفور",
+   "name_en": "Serum Phosphorus",
+   "kind": "lab",
+   "category": "أملاح",
+   "unit": "mg/dL"
+  },
+  {
+   "code": "crp",
+   "name_ar": "بروتين سي التفاعلي (CRP)",
+   "name_en": "C-Reactive Protein",
+   "kind": "lab",
+   "category": "التهابات",
+   "unit": "mg/L"
+  },
+  {
+   "code": "esr",
+   "name_ar": "سرعة الترسيب (ESR)",
+   "name_en": "ESR",
+   "kind": "lab",
+   "category": "التهابات",
+   "unit": "mm/hr"
+  },
+  {
+   "code": "cbc",
+   "name_ar": "صورة دم كاملة (CBC)",
+   "name_en": "Complete Blood Count",
+   "kind": "lab",
+   "category": "أمراض الدم",
+   "unit": null
+  },
+  {
+   "code": "anc",
+   "name_ar": "العدلات المطلقة ANC",
+   "name_en": "Absolute Neutrophil Count",
+   "kind": "lab",
+   "category": "أمراض الدم",
+   "unit": "cells/µL"
+  },
+  {
+   "code": "ana",
+   "name_ar": "الأجسام المضادة للنواة ANA",
+   "name_en": "Antinuclear Antibodies",
+   "kind": "lab",
+   "category": "روماتيزم",
+   "unit": null
+  },
+  {
+   "code": "immunoglobulins",
+   "name_ar": "الغلوبولينات المناعية IgG/IgA/IgM",
+   "name_en": "Immunoglobulins",
+   "kind": "lab",
+   "category": "مناعة",
+   "unit": "mg/dL"
+  },
+  {
+   "code": "lymphocyte_subsets",
+   "name_ar": "تحت مجموعات اللمفاويات",
+   "name_en": "Lymphocyte Subsets",
+   "kind": "lab",
+   "category": "مناعة",
+   "unit": "cells/µL"
+  },
+  {
+   "code": "ammonia",
+   "name_ar": "الأمونيا",
+   "name_en": "Serum Ammonia",
+   "kind": "lab",
+   "category": "أيض",
+   "unit": "µmol/L"
+  },
+  {
+   "code": "lactate",
+   "name_ar": "اللاكتات",
+   "name_en": "Serum Lactate",
+   "kind": "lab",
+   "category": "أيض",
+   "unit": "mmol/L"
+  },
+  {
+   "code": "blood_culture",
+   "name_ar": "زرع دم (مزرعة)",
+   "name_en": "Blood Culture",
+   "kind": "lab",
+   "category": "التهابات",
+   "unit": null
+  },
+  {
+   "code": "urine_culture",
+   "name_ar": "مزرعة بول (زرع)",
+   "name_en": "Urine Culture",
+   "kind": "lab",
+   "category": "بول/كلى",
+   "unit": null
+  },
+  {
+   "code": "vit_b12",
+   "name_ar": "فيتامين ب١٢",
+   "name_en": "Vitamin B12",
+   "kind": "lab",
+   "category": "فيتامينات",
+   "unit": "pg/mL"
+  },
+  {
+   "code": null,
+   "name_ar": "أشعة صدر",
+   "name_en": "Chest X-ray",
+   "kind": "imaging",
+   "category": "أشعة عادية",
+   "unit": null
+  },
+  {
+   "code": null,
+   "name_ar": "أشعة بطن",
+   "name_en": "Abdominal X-ray",
+   "kind": "imaging",
+   "category": "أشعة عادية",
+   "unit": null
+  },
+  {
+   "code": null,
+   "name_ar": "أشعة مقطعية على المخ",
+   "name_en": "Brain CT",
+   "kind": "imaging",
+   "category": "مقطعية",
+   "unit": null
+  },
+  {
+   "code": null,
+   "name_ar": "رنين مغناطيسي على المخ",
+   "name_en": "Brain MRI",
+   "kind": "imaging",
+   "category": "رنين",
+   "unit": null
+  },
+  {
+   "code": null,
+   "name_ar": "أشعة على عظام",
+   "name_en": "Bone X-ray",
+   "kind": "imaging",
+   "category": "أشعة عادية",
+   "unit": null
+  },
+  {
+   "code": null,
+   "name_ar": "أشعة بانوراما للأسنان",
+   "name_en": "Panoramic Dental X-ray",
+   "kind": "imaging",
+   "category": "أسنان",
+   "unit": null
+  },
+  {
+   "code": null,
+   "name_ar": "موجات صوتية على البطن",
+   "name_en": "Abdominal Ultrasound",
+   "kind": "diagnostic",
+   "category": "سونار",
+   "unit": null
+  },
+  {
+   "code": null,
+   "name_ar": "موجات صوتية على المخ",
+   "name_en": "Cranial Ultrasound",
+   "kind": "diagnostic",
+   "category": "سونار",
+   "unit": null
+  },
+  {
+   "code": null,
+   "name_ar": "موجات صوتية على الكلى",
+   "name_en": "Renal Ultrasound",
+   "kind": "diagnostic",
+   "category": "سونار",
+   "unit": null
+  },
+  {
+   "code": null,
+   "name_ar": "إيكو على القلب",
+   "name_en": "Echocardiography",
+   "kind": "diagnostic",
+   "category": "قلب",
+   "unit": null
+  },
+  {
+   "code": null,
+   "name_ar": "رسم قلب (ECG)",
+   "name_en": "ECG",
+   "kind": "diagnostic",
+   "category": "قلب",
+   "unit": null
+  },
+  {
+   "code": null,
+   "name_ar": "رسم مخ (EEG)",
+   "name_en": "EEG",
+   "kind": "diagnostic",
+   "category": "مخ وأعصاب",
+   "unit": null
+  }
+ ]
+}

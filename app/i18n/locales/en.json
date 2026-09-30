@@ -9400,5 +9400,32 @@
     "mine_title": "Given in your name",
     "none_mine": "No prescriptions in your name waiting for confirmation.",
     "no_tests": "No tests or scans ordered for this attendance yet."
+  },
+  "inv_list": {
+    "title": "Tests and scans",
+    "sub": "The list a doctor orders from. The clinic's own, like its drugs: add, rename, or hide what you do not use.",
+    "lab_list": "The lab's full list",
+    "search": "Name, English name or code",
+    "all_kinds": "All kinds",
+    "add": "Add a test or scan",
+    "name_ar": "Name",
+    "name_en": "English name",
+    "kind": "Kind",
+    "category": "Category",
+    "unit": "Unit",
+    "kind_lab": "Lab test",
+    "kind_imaging": "Imaging",
+    "kind_diagnostic": "Diagnostic study",
+    "none": "Nothing matches.",
+    "hidden": "Hidden",
+    "shown": "Shown to doctors",
+    "hide": "Hide",
+    "code_hint": "The code the specialty panels find this test by — it stays the same if you rename it.",
+    "used_hint": "Ordered before on a child's file — it can only be hidden, so the old order keeps its name.",
+    "need_name": "Type the test's name.",
+    "added": "Added.",
+    "saved": "Saved.",
+    "deleted": "Deleted.",
+    "hidden_instead": "This test was ordered before — it was hidden instead of deleted, and the old orders keep its name."
   }
 }

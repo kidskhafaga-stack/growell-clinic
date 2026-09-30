@@ -1521,3 +1521,126 @@ def _qr_svg(url, scale=3):
     buf = io.BytesIO()
     segno.make(url, error="m").save(buf, kind="svg", scale=scale, border=0)
     return buf.getvalue().decode("utf-8")
+
+
+# ------------------------------------------------ the clinic's tests list ---
+# «ما تخليها زي الادوية فى العيادة يضيف اسماء التحاليل لو ملقهاش». The list
+# a doctor orders from is the clinic's, like its drugs: loaded once from the
+# starter file, and from then on added to at the visit, and renamed, hidden
+# or removed here. A clinic with the lab module has the lab's fuller list
+# (`labs.tests`) as well; this one is for everybody.
+
+@prescriptions_bp.route("/investigations")
+@admin_required
+def investigations():
+    from app.models import Investigation
+    from app.models.prescription import INVESTIGATION_KINDS
+    from app.utils.facility import module_enabled
+
+    q = (request.args.get("q") or "").strip()
+    kind = (request.args.get("kind") or "").strip()
+    query = Investigation.query
+    if q:
+        like = f"%{q}%"
+        query = query.filter(or_(Investigation.name_ar.ilike(like),
+                                 Investigation.name_en.ilike(like),
+                                 Investigation.code.ilike(like)))
+    if kind in INVESTIGATION_KINDS:
+        query = query.filter(Investigation.kind == kind)
+    from sqlalchemy import case
+
+    # Tests first, then scans, then the other studies — the order a doctor
+    # thinks of them in, not the alphabet's.
+    by_kind = case({k: i for i, k in enumerate(INVESTIGATION_KINDS)},
+                   value=Investigation.kind, else_=len(INVESTIGATION_KINDS))
+    pagination = paginate(query.order_by(Investigation.is_active.desc(),
+                                         by_kind, Investigation.name_ar))
+    return render_template("prescriptions/investigations.html",
+                           rows=pagination.items, pagination=pagination,
+                           q=q, kind=kind, kinds=INVESTIGATION_KINDS,
+                           used=_investigations_in_use(
+                               [r.id for r in pagination.items]),
+                           has_lab=module_enabled("labs"))
+
+
+def _investigations_in_use(ids):
+    """The catalogue rows some order points at — those are hidden, never
+    deleted: an order on a child's file keeps the test it was written for."""
+    from app.models import PrescriptionInvestigation, VisitInvestigation
+
+    if not ids:
+        return set()
+    used = {i for (i,) in db.session.query(VisitInvestigation.investigation_id)
+            .filter(VisitInvestigation.investigation_id.in_(ids)).distinct()}
+    used |= {i for (i,) in db.session.query(
+        PrescriptionInvestigation.investigation_id)
+        .filter(PrescriptionInvestigation.investigation_id.in_(ids)).distinct()}
+    return used
+
+
+def _investigation_fields(row):
+    from app.models.prescription import INVESTIGATION_KINDS
+
+    name = (request.form.get("name_ar") or "").strip()[:160]
+    if not name:
+        return False
+    row.name_ar = name
+    row.name_en = (request.form.get("name_en") or "").strip()[:160] or None
+    kind = (request.form.get("kind") or "").strip()
+    if kind in INVESTIGATION_KINDS:
+        row.kind = kind
+    row.category = (request.form.get("category") or "").strip()[:80] or None
+    row.unit = (request.form.get("unit") or "").strip()[:20] or None
+    return True
+
+
+@prescriptions_bp.route("/investigations/new", methods=["POST"])
+@admin_required
+def investigation_new():
+    from app.models import Investigation
+
+    row = Investigation(kind="lab", is_active=True)
+    if not _investigation_fields(row):
+        flash(t("inv_list.need_name"), "error")
+        return redirect(url_for("prescriptions.investigations"))
+    db.session.add(row)
+    db.session.commit()
+    flash(t("inv_list.added"), "success")
+    return redirect(url_for("prescriptions.investigations"))
+
+
+@prescriptions_bp.route("/investigations/<int:inv_id>/edit", methods=["POST"])
+@admin_required
+def investigation_edit(inv_id):
+    from app.models import Investigation
+
+    row = db.get_or_404(Investigation, inv_id)
+    if not _investigation_fields(row):
+        db.session.rollback()
+        flash(t("inv_list.need_name"), "error")
+        return redirect(url_for("prescriptions.investigations"))
+    # Hidden, not gone: a doctor stops finding it, and every order ever
+    # written for it keeps its name.
+    row.is_active = request.form.get("is_active") == "1"
+    db.session.commit()
+    flash(t("inv_list.saved"), "success")
+    return redirect(request.referrer or url_for("prescriptions.investigations"))
+
+
+@prescriptions_bp.route("/investigations/<int:inv_id>/delete", methods=["POST"])
+@admin_required
+def investigation_delete(inv_id):
+    """Removed only if nothing was ever ordered under it; otherwise hidden,
+    and said so."""
+    from app.models import Investigation
+
+    row = db.get_or_404(Investigation, inv_id)
+    if row.id in _investigations_in_use([row.id]) or row.analyte_links:
+        row.is_active = False
+        db.session.commit()
+        flash(t("inv_list.hidden_instead"), "warning")
+        return redirect(url_for("prescriptions.investigations"))
+    db.session.delete(row)
+    db.session.commit()
+    flash(t("inv_list.deleted"), "success")
+    return redirect(url_for("prescriptions.investigations"))
