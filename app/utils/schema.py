@@ -785,6 +785,12 @@ ADDITIONS = [
     ("emergency_visits", "leave_note", "VARCHAR(255)"),
     # الـ walk-in: جاي ينفّذ علاج بس. فاضي في كل حضور قديم.
     ("emergency_visits", "treatment_only", "BOOLEAN"),
+    # «ليه العربي فى الشاشة الانجليزي» — the place's name in English, beside
+    # the one it has. Empty everywhere until the program's own names are
+    # filled (`ward_plan.fill_english_names`) or somebody types one.
+    ("care_units", "name_en", "VARCHAR(80)"),
+    ("care_spaces", "name_en", "VARCHAR(60)"),
+    ("care_beds", "name_en", "VARCHAR(40)"),
     # The stay an admission consent was signed for (bed map, the guardian's
     # signature at the bedside). Empty on every consent written before.
     ("consents", "admission_id", "INTEGER"),
@@ -896,6 +902,20 @@ def apply_schema(report=None):
         db.session.commit()
         if filled and report:
             report(f"  ~ vaccine_brands: filled the facts on {filled}")
+    except Exception:  # noqa: BLE001 — never blocks an upgrade
+        db.session.rollback()
+
+    # «ليه العربي فى الشاشة الانجليزي» — the names the ward wizard wrote,
+    # in English beside them. Only a name that is exactly the program's own
+    # («العناية المركزة», «سرير 3») and only where no English is set: a
+    # name somebody typed is theirs, and the program does not translate it.
+    try:
+        from app.utils.ward_plan import fill_english_names
+
+        filled = fill_english_names()
+        db.session.commit()
+        if filled and report:
+            report(f"  ~ places: gave {filled} the English of the program's own name")
     except Exception:  # noqa: BLE001 — never blocks an upgrade
         db.session.rollback()
 

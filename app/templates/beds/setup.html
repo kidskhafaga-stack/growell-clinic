@@ -76,6 +76,9 @@
     <div class="form-row" style="margin:0;min-width:160px;">
       <label for="rn-{{ level }}-{{ place.id }}">{{ t('beds.name') }}</label>
       <input class="input" id="rn-{{ level }}-{{ place.id }}" name="name" value="{{ place.name }}" required maxlength="80"></div>
+    <div class="form-row" style="margin:0;min-width:160px;">
+      <label for="rne-{{ level }}-{{ place.id }}">{{ t('places.name_en') }}</label>
+      <input class="input" id="rne-{{ level }}-{{ place.id }}" name="name_en" value="{{ place.name_en or '' }}" maxlength="80" dir="ltr"></div>
     {% if kinds %}
     <div class="form-row" style="margin:0;min-width:140px;">
       <label for="rk-{{ level }}-{{ place.id }}">{{ t('beds.kind') }}</label>
@@ -163,6 +166,10 @@
       <label for="unit_name">{{ t('beds.name') }}</label>
       <input class="input" id="unit_name" name="name" maxlength="80" required>
     </div>
+    <div class="form-row" style="margin-bottom:0;min-width:180px;">
+      <label for="unit_name_en">{{ t('places.name_en') }}</label>
+      <input class="input" id="unit_name_en" name="name_en" maxlength="80" dir="ltr">
+    </div>
     <div class="form-row" style="margin-bottom:0;min-width:170px;">
       <label for="unit_kind">{{ t('beds.kind') }}</label>
       <select class="select" id="unit_kind" name="kind">
@@ -189,7 +196,7 @@
     {% for stay in stays %}
     <li><a href="{{ url_for('beds.admission', admission_id=stay.admission_id) }}">
       {{ stay.admission.patient.display_name(current_lang) }}</a>
-      · {{ stay.bed.name if stay.bed else '' }}
+      · {{ stay.bed.display_name(current_lang) if stay.bed else '' }}
       · {{ reason_label(closure.reason) }}</li>
     {% endfor %}
     {% endfor %}
@@ -227,7 +234,7 @@
 {% if folded %}
 <details class="card" style="margin-bottom:8px;padding:10px 14px;" data-retired-unit="{{ row.unit.id }}">
   <summary style="cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-    <b>{{ row.unit.name }}</b>
+    <b>{{ row.unit.display_name(current_lang) }}</b>
     <span class="badge badge--muted">{{ t('beds.unit_' ~ row.unit.kind) }}</span>
     {% set live = closing(row.unit) %}
     {% if live %}<span class="hint" style="margin:0;">{{ t('closures.since') }}
@@ -239,7 +246,7 @@
 <div class="card gc-scale-in" style="margin-bottom:14px;">
 {% endif %}
   <h2 class="section-title" style="margin-top:0;">
-    {{ row.unit.name }}
+    {{ row.unit.display_name(current_lang) }}
     <span class="badge badge--muted">{{ t('beds.unit_' ~ row.unit.kind) }}</span>
     {# **زرار بيرفض كل مرة أسوأ من زرار مش موجود** — بيعلّم اللي قدام
        الشاشة إن الأزرار بتكدب. فالسؤال بيتسأل قبل الرسم. #}
@@ -319,7 +326,7 @@
   {% for block in row.spaces %}
   <div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px;">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
-      <b>{{ block.space.name }}</b>
+      <b>{{ block.space.display_name(current_lang) }}</b>
       <span class="badge badge--muted">{{ t('beds.space_' ~ block.space.kind) }}</span>
       {{ rename_control('space', block.space, space_kinds) }}
       {% if space_deletable(block.space) %}
@@ -365,7 +372,7 @@
       <tbody>
       {% for cell in block.beds %}
       <tr>
-        <td>{{ cell.bed.name }}</td>
+        <td>{{ cell.bed.display_name(current_lang) }}</td>
         <td>{{ t('beds.bed_' ~ cell.bed.kind) }}</td>
         <td>
           {% if cell.state == 'taken' %}

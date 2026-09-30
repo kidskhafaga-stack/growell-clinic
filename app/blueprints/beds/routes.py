@@ -341,6 +341,8 @@ def add_unit():
         flash(t("beds.name_and_kind"), "error")
         return redirect(url_for("beds.setup"))
     db.session.add(Unit(name=name, kind=kind,
+                        name_en=(request.form.get("name_en") or "").strip()[:80]
+                        or None,
                         # Emergency is charged by the hour and a ward by the
                         # night. A preset, editable from this same screen —
                         # what it buys is that nobody has to know that before
@@ -522,6 +524,10 @@ def rename_place():
     limit = {Unit: 80, Space: 60, Bed: 40}[type(place)]
     old = place.name
     place.name = name[:limit]
+    # The English name beside it, when the form sends one: blank clears it,
+    # and the screen in English then shows the one name there is.
+    if "name_en" in request.form:
+        place.name_en = (request.form.get("name_en") or "").strip()[:limit] or None
     kind = (request.form.get("kind") or "").strip()
     kinds = {Space: SPACE_KINDS, Bed: BED_KINDS}.get(type(place), ())
     if kind in kinds:
@@ -533,7 +539,7 @@ def rename_place():
         if centre is not None and centre.name_ar == old:
             centre.name_ar = place.name
             if centre.name_en in (None, old):
-                centre.name_en = place.name
+                centre.name_en = place.name_en or place.name
     ActivityLog.record("place.rename", user_id=current_user.id,
                        entity=type(place).__name__.lower(), entity_id=place.id,
                        detail=f"{old} -> {place.name}"[:250],
@@ -2132,9 +2138,21 @@ def _ward_names():
     **البرنامج ما بيخترعش أسامي عربية في الكود** — كلها مفاتيح ترجمة،
     زي أي كلمة تانية على الشاشة.
     """
+    from app.utils.ward_plan import named
+
+    # Arabic in `name` and English in `name_en`, whichever language the
+    # person running the wizard happened to have on — «ليه العربي فى الشاشة
+    # الانجليزي»: a name written once in one language showed in both.
     def name(key, number=None):
-        label = t(f"ward_wizard.name_{key.replace('.', '_')}")
-        return f"{label} {number}" if number else label
+        return named(key, number, "ar")
+    return name
+
+
+def _ward_names_en():
+    from app.utils.ward_plan import named
+
+    def name(key, number=None):
+        return named(key, number, "en")
     return name
 
 
@@ -2148,7 +2166,7 @@ def build_ward():
     _admin_only()
     answers = {key: request.form.get(key) for key in request.form}
     caps = facility.capabilities()
-    made = ward_plan.build(caps, answers, _ward_names())
+    made = ward_plan.build(caps, answers, _ward_names(), _ward_names_en())
     if not any(made.values()):
         flash(t("ward_wizard.nothing_to_build"), "warning")
         return redirect(url_for("beds.setup"))

@@ -53,7 +53,7 @@
         <a href="{{ url_for('beds.admission', admission_id=row.admission.id) }}">
           {{ row.patient.display_name(current_lang) }}</a></span>
       {% if row.bed %}
-      <span class="hint">{{ row.bed.unit.name }} · {{ row.bed.name }}</span>
+      <span class="hint">{{ row.bed.unit.display_name(current_lang) }} · {{ row.bed.display_name(current_lang) }}</span>
       {% endif %}
       {% if row.late %}
       <span class="alert-pill danger" data-late>

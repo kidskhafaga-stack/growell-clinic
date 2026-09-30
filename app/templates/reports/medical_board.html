@@ -192,7 +192,7 @@
       <thead><tr><th>{{ t('board_med.unit') }}</th><th>{{ t('board_med.admissions') }}</th><th>{{ t('board_med.alos') }}</th><th>{{ t('board_med.occupancy') }}</th><th>{{ t('board_med.deaths') }}</th><th>{{ t('board_med.readmit') }}</th></tr></thead>
       <tbody>
         {% for r in wards %}
-        <tr><td><b>{{ r.unit.name if r.unit else t('board_med.no_bed') }}</b></td>
+        <tr><td><b>{{ r.unit.display_name(current_lang) if r.unit else t('board_med.no_bed') }}</b></td>
           <td class="num">{{ r.admissions }}</td>
           <td class="num">{{ t('board_med.days_n', n='%.1f'|format(r.alos)) if r.alos is not none else '—' }}</td>
           <td class="num">{% if r.occupancy is not none %}{{ r.occupancy }}%<span class="mb-occ"><span style="width:{{ [r.occupancy, 100]|min }}%"></span></span>{% else %}—{% endif %}</td>

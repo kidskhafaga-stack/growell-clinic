@@ -65,6 +65,11 @@ class Unit(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), nullable=False)
+    # The English name, when there is one. «ليه العربي فى الشاشة الانجليزي»:
+    # a name is written once, and a screen in English went on showing the
+    # Arabic. Empty means «nobody gave one» — the screen then shows the one
+    # name there is, exactly as before.
+    name_en = db.Column(db.String(80))
     kind = db.Column(db.String(16), nullable=False, index=True)
     sort_order = db.Column(db.Integer, default=0, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
@@ -98,6 +103,12 @@ class Unit(db.Model):
     spaces = db.relationship("Space", back_populates="unit",
                              order_by="Space.sort_order, Space.id")
 
+    def display_name(self, lang="ar"):
+        """The name in the screen's language, or the one name there is."""
+        if lang == "en" and (self.name_en or "").strip():
+            return self.name_en
+        return self.name
+
     def __repr__(self):
         return f"<Unit {self.name} ({self.kind})>"
 
@@ -111,6 +122,11 @@ class Space(db.Model):
     unit_id = db.Column(db.Integer, db.ForeignKey("care_units.id"),
                         nullable=False, index=True)
     name = db.Column(db.String(60), nullable=False)
+    # The English name, when there is one. «ليه العربي فى الشاشة الانجليزي»:
+    # a name is written once, and a screen in English went on showing the
+    # Arabic. Empty means «nobody gave one» — the screen then shows the one
+    # name there is, exactly as before.
+    name_en = db.Column(db.String(60))
     kind = db.Column(db.String(16), nullable=False, default="room")
 
     # Asked at the moment an infectious child is coming in, which is never a
@@ -137,6 +153,12 @@ class Space(db.Model):
     beds = db.relationship("Bed", back_populates="space",
                            order_by="Bed.sort_order, Bed.id")
 
+    def display_name(self, lang="ar"):
+        """The name in the screen's language, or the one name there is."""
+        if lang == "en" and (self.name_en or "").strip():
+            return self.name_en
+        return self.name
+
     def __repr__(self):
         return f"<Space {self.name} ({self.kind})>"
 
@@ -150,6 +172,11 @@ class Bed(db.Model):
     space_id = db.Column(db.Integer, db.ForeignKey("care_spaces.id"),
                          nullable=False, index=True)
     name = db.Column(db.String(40), nullable=False)
+    # The English name, when there is one. «ليه العربي فى الشاشة الانجليزي»:
+    # a name is written once, and a screen in English went on showing the
+    # Arabic. Empty means «nobody gave one» — the screen then shows the one
+    # name there is, exactly as before.
+    name_en = db.Column(db.String(40))
     kind = db.Column(db.String(16), nullable=False, default="bed")
     sort_order = db.Column(db.Integer, default=0, nullable=False)
 
@@ -180,6 +207,12 @@ class Bed(db.Model):
         here. See the module docstring: a bed in an open bay cannot isolate
         anybody however it is labelled."""
         return bool(self.space and self.space.is_isolation)
+
+    def display_name(self, lang="ar"):
+        """The name in the screen's language, or the one name there is."""
+        if lang == "en" and (self.name_en or "").strip():
+            return self.name_en
+        return self.name
 
     def __repr__(self):
         return f"<Bed {self.name} ({self.kind})>"

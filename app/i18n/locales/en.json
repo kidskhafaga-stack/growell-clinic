@@ -8628,7 +8628,8 @@
   "places": {
     "edit": "Edit",
     "need_name": "Write the name.",
-    "renamed": "Name saved."
+    "renamed": "Name saved.",
+    "name_en": "Name in English (optional)"
   },
   "leave": {
     "why": "Why is the family leaving?",

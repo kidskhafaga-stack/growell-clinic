@@ -13,7 +13,7 @@
   <div>
     <h1 class="page-title"><i class="bi bi-pen"></i> {{ t('beds.consent_title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ p.display_name(current_lang) }} · <span class="num">{{ p.patient_number }}</span>
-      {% if stay %} · {{ stay.bed.space.unit.name }} · {{ stay.bed.name }}{% endif %}</p>
+      {% if stay %} · {{ stay.bed.space.unit.display_name(current_lang) }} · {{ stay.bed.display_name(current_lang) }}{% endif %}</p>
   </div>
   <a class="btn btn-outline gc-press" href="{{ url_for('beds.admission', admission_id=admission.id) }}"><i class="bi bi-folder2-open"></i> {{ t('beds.map_open_stay') }}</a>
 </div>
