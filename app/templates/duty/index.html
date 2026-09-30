@@ -37,7 +37,7 @@
         <td dir="ltr">{{ d.on_date }}</td>
         <td>{{ d.slot.name if d.slot else '—' }}</td>
         <td>{{ d.doctor.display_name(current_lang) if d.doctor else '—' }}</td>
-        <td>{{ d.unit.name if d.unit else t('duty.no_unit') }}</td>
+        <td>{{ d.unit.display_name(current_lang) if d.unit else t('duty.no_unit') }}</td>
         {% if may_edit %}
         <td style="display:flex;gap:6px;">
           <form method="post" action="{{ url_for('duty.happened', duty_id=d.id) }}">
@@ -122,7 +122,7 @@
             <span class="status-badge {{ 'st-completed' if d.status=='worked' else ('st-no_show' if d.status=='absent' else 'st-waiting') }}">
               {{ d.doctor.display_name(current_lang) if d.doctor else '—' }}
             </span>
-            {% if d.unit %}<small class="muted">{{ d.unit.name }}</small>{% endif %}
+            {% if d.unit %}<small class="muted">{{ d.unit.display_name(current_lang) }}</small>{% endif %}
             {% if may_edit and d.status == 'rostered' %}
             <div style="display:flex;gap:4px;margin-top:4px;">
               <form method="post" action="{{ url_for('duty.happened', duty_id=d.id) }}">

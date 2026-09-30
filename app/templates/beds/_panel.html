@@ -6,7 +6,7 @@
   <div>
     <div style="font-size:1.05rem;font-weight:700;">{{ p.patient.display_name(current_lang) }}</div>
     <div class="hint" style="margin:0;"><span class="num">{{ p.patient.patient_number }}</span>
-      {% if p.bed %} · {{ p.bed.space.unit.name }} · {{ p.bed.name }}{% endif %}</div>
+      {% if p.bed %} · {{ p.bed.space.unit.display_name(current_lang) }} · {{ p.bed.display_name(current_lang) }}{% endif %}</div>
     <div class="hint" style="margin:2px 0 0;">{{ t('beds.since') }} <span class="num">{{ a.admitted_at|clinic_stamp }}</span>
       {% if a.doctor %} · {{ a.doctor.display_name(current_lang) }}{% endif %}</div>
   </div>

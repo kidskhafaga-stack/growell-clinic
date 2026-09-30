@@ -9,7 +9,7 @@
 {% block content %}
 <div class="card gc-scale-in" style="max-width:620px;" data-break-glass>
   <h2 class="section-title" style="margin-top:0;"><i class="bi bi-shield-lock"></i> {{ t('beds.glass_title') }}</h2>
-  <p>{{ t('beds.glass_sub', unit=unit.name if unit else '') }}</p>
+  <p>{{ t('beds.glass_sub', unit=unit.display_name(current_lang) if unit else '') }}</p>
   <form method="post" action="{{ url_for('beds.break_glass', admission_id=admission.id) }}" style="display:grid;gap:10px;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row" style="margin:0;"><label>{{ t('beds.glass_reason') }}</label>

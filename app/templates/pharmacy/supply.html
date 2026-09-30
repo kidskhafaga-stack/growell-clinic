@@ -47,7 +47,7 @@
         <a href="{{ url_for('pharmacy.chart', admission_id=row.admission.id) }}">
           {{ row.patient.display_name(current_lang) }}</a></span>
       {% if row.bed %}
-      <span class="hint">{{ row.bed.unit.name }} · {{ row.bed.name }}</span>{% endif %}
+      <span class="hint">{{ row.bed.unit.display_name(current_lang) }} · {{ row.bed.display_name(current_lang) }}</span>{% endif %}
       <span class="badge badge--muted">{{ t('cpharm.n_to_make', n=row.left) }}</span>
     </div>
 

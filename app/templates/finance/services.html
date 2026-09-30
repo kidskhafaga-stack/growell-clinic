@@ -506,6 +506,9 @@
                 {% if s[f] %}<span class="badge badge--muted">{{ t('services.f_' ~ f) }}</span>{% endif %}
               {% endfor %}
               {% if not s.can_standalone %}<span class="badge badge--muted">{{ t('services.needs_visit') }}</span>{% endif %}
+              {% if s.supplies_mode == 'inclusive' %}<span class="badge badge--muted" data-supplies="inclusive">{{ t('services.supplies_inclusive_short') }}</span>
+              {% elif s.supplies_mode == 'separate' %}<span class="badge badge--muted" data-supplies="separate">{{ t('services.supplies_separate_short') }}</span>
+              {% elif s.service_type in ('procedure', 'session') %}<span class="badge badge--warn" data-supplies="unset">{{ t('services.supplies_unset_short') }}</span>{% endif %}
               {% if s.device %}<span class="badge badge--role"><i class="bi bi-hdd-stack"></i> {{ s.device.display_name(current_lang) }}</span>{% endif %}
               {% if s.duration_minutes %}<span class="badge badge--muted">{{ s.duration_minutes }} {{ t('shifts.minutes') }}</span>{% endif %}
             </td>
@@ -596,6 +599,15 @@
                       {% endfor %}
                     </select>
                     <span class="hint">{{ t('services.visit_type_hint') }}</span></div>
+                  {# «فى حجات بتتحسب كده وحجات بتتحسب كده على حسب كل مستشفى»
+                     — the hospital says, per service. #}
+                  <div class="form-row"><label>{{ t('services.supplies_mode') }}</label>
+                    <select class="select" name="supplies_mode" data-supplies-mode>
+                      <option value="">— {{ t('services.supplies_unset') }} —</option>
+                      <option value="inclusive" {{ 'selected' if s.supplies_mode == 'inclusive' else '' }}>{{ t('services.supplies_inclusive') }}</option>
+                      <option value="separate" {{ 'selected' if s.supplies_mode == 'separate' else '' }}>{{ t('services.supplies_separate') }}</option>
+                    </select>
+                    <span class="hint">{{ t('services.supplies_hint') }}</span></div>
                 </div>
                 <div style="font-weight:600;color:var(--muted);font-size:.78rem;margin:8px 0 4px;">{{ t('services.workflow') }}</div>
                 <div style="display:flex;gap:14px;flex-wrap:wrap;">

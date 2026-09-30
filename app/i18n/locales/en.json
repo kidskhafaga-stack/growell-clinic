@@ -1801,7 +1801,15 @@
     "section_saved": "Sections saved",
     "section_deleted": "Section deleted",
     "section_system": "A built-in section cannot be deleted — switch it off or rename it",
-    "section_in_use": "{n} services are under this section. Move them first."
+    "section_in_use": "{n} services are under this section. Move them first.",
+    "supplies_mode": "Drug and supplies",
+    "supplies_unset": "Not set yet (charged separately)",
+    "supplies_inclusive": "Included in the price",
+    "supplies_separate": "Charged on their own lines",
+    "supplies_hint": "In emergency: whether an injection or a session includes the drug and supplies in its price, or each goes on the bill as its own line. Stock is taken either way.",
+    "supplies_inclusive_short": "Drug included",
+    "supplies_separate_short": "Drug separate",
+    "supplies_unset_short": "Drug: not set yet"
   },
   "commission_types": {
     "none": "None",
@@ -8628,7 +8636,8 @@
   "places": {
     "edit": "Edit",
     "need_name": "Write the name.",
-    "renamed": "Name saved."
+    "renamed": "Name saved.",
+    "name_en": "Name in English (optional)"
   },
   "leave": {
     "why": "Why is the family leaving?",
@@ -9399,7 +9408,9 @@
     "none_outside": "No outside prescriptions waiting.",
     "mine_title": "Given in your name",
     "none_mine": "No prescriptions in your name waiting for confirmation.",
-    "no_tests": "No tests or scans ordered for this attendance yet."
+    "no_tests": "No tests or scans ordered for this attendance yet.",
+    "billed": "Billed",
+    "collect": "Collect at the desk ({n})"
   },
   "inv_list": {
     "title": "Tests and scans",

@@ -551,7 +551,7 @@ def seed_ward(patients=None, caps=None):
         ward_plan.field("nicu", "cots"): "2",
         ward_plan.field("ward", "rooms"): "4",
         ward_plan.field("ward", "beds_per_room"): "2",
-    }, name)
+    }, name, lambda key, number=None: ward_plan.named(key, number, "en"))
     db.session.flush()
 
     # وطفلين داخلين، علشان اللوحة ما تبقاش فاضية وهي بتتعرض.

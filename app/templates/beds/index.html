@@ -157,7 +157,7 @@
   <button type="button" data-tab="all" aria-pressed="true">{{ t('beds.map_all') }}</button>
   {% for row in units %}
   {% set total = row.taken + row.free %}
-  <button type="button" data-tab="{{ row.unit.id }}" aria-pressed="false">{{ row.unit.name }}
+  <button type="button" data-tab="{{ row.unit.id }}" aria-pressed="false">{{ row.unit.display_name(current_lang) }}
     <span class="pct num">{{ (row.taken * 100 / total)|round|int if total else 0 }}%</span></button>
   {% endfor %}
 </div>
@@ -172,7 +172,7 @@
 <div class="card gc-scale-in{{ ' bm-unit--small' if wide.b <= 6 }}" data-unit="{{ row.unit.id }}" style="--b:{{ [wide.b, 2]|max }};--s:{{ [row.spaces|length, 1]|max }};">
   <div class="bm-head">
     <h2 class="section-title" style="margin:0;">
-      <i class="bi bi-buildings"></i> {{ row.unit.name }}
+      <i class="bi bi-buildings"></i> {{ row.unit.display_name(current_lang) }}
       <span class="badge badge--muted">{{ t('beds.unit_' ~ row.unit.kind) }}</span>
       {% if row.closed %}<span class="badge badge--warning" data-unit-closed>
         <i class="bi bi-cone-striped"></i> {{ t('closures.closed_badge') }}</span>{% endif %}
@@ -190,7 +190,7 @@
   <div class="bm-space bm-space--{{ block.space.kind }}" style="--beds:{{ [block.beds|length, 1 if block.beds else 2]|max }};">
     <div class="bm-space__name">
       <i class="bi bi-{{ 'layout-split' if block.space.kind == 'partition' else ('grid-3x2' if block.space.kind == 'bay' else 'door-closed') }}"></i>
-      <span>{{ block.space.name }} · {{ t('beds.space_' ~ block.space.kind) }}</span>
+      <span>{{ block.space.display_name(current_lang) }} · {{ t('beds.space_' ~ block.space.kind) }}</span>
       {% if block.closed %}<span class="badge badge--warning" data-space-closed>{{ t('closures.closed_badge') }}</span>{% endif %}
       {% if block.space.is_isolation %}
       <span class="alert-pill warn"><i class="bi bi-shield-exclamation"></i> {{ t('beds.isolation') }}</span>
@@ -209,7 +209,7 @@
               data-panel="{{ url_for('beds.panel', admission_id=stay.admission_id) }}"
               data-since="{{ stay.since.isoformat() }}Z" data-basis="{{ row.unit.billing_basis }}">
         {{ bed_shape(cell.bed.kind, row.unit.kind, True) }}
-        <span class="bm-bed__name">{{ cell.bed.name }}</span>
+        <span class="bm-bed__name">{{ cell.bed.display_name(current_lang) }}</span>
         {% if row.unit.id in open_units %}
         <a class="bm-bed__who" href="{{ url_for('beds.admission', admission_id=stay.admission_id) }}">{{ cell.patient.display_name(current_lang) }}</a>
         <span class="bm-bed__dx">{{ dx[0] if dx else (stay.admission.reason or '') }}</span>
@@ -222,16 +222,16 @@
       </div>
       {% elif cell.state == 'free' %}
       <div role="button" tabindex="0" class="bm-bed bm-bed--free" data-bed="{{ cell.bed.id }}" data-free
-              data-bed-name="{{ row.unit.name }} · {{ cell.bed.name }}">
+              data-bed-name="{{ row.unit.display_name(current_lang) }} · {{ cell.bed.display_name(current_lang) }}">
         {{ bed_shape(cell.bed.kind, row.unit.kind, False) }}
-        <span class="bm-bed__name">{{ cell.bed.name }}</span>
+        <span class="bm-bed__name">{{ cell.bed.display_name(current_lang) }}</span>
         <span class="bm-bed__who" style="color:var(--muted);font-weight:500;">{{ t('beds.free') }}</span>
         <span class="bm-bed__dx">{{ t('beds.bed_' ~ cell.bed.kind) }}</span>
       </div>
       {% else %}
       <div class="bm-bed bm-bed--off" data-bed="{{ cell.bed.id }}">
         {{ bed_shape(cell.bed.kind, row.unit.kind, False) }}
-        <span class="bm-bed__name">{{ cell.bed.name }}</span>
+        <span class="bm-bed__name">{{ cell.bed.display_name(current_lang) }}</span>
         <span class="bm-bed__dx">{{ t('closures.closed_badge') if (row.closed or block.closed) else t('beds.out_of_service') }}</span>
       </div>
       {% endif %}

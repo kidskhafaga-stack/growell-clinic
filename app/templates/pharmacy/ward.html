@@ -61,7 +61,7 @@
         <a href="{{ url_for('pharmacy.chart', admission_id=row.admission.id) }}">
           {{ row.patient.display_name(current_lang) }}</a></div>
       <div class="hint">
-        {% if row.bed %}{{ row.bed.unit.name }} · {{ row.bed.name }}{% endif %}
+        {% if row.bed %}{{ row.bed.unit.display_name(current_lang) }} · {{ row.bed.display_name(current_lang) }}{% endif %}
         · {{ t('cpharm.n_drugs', n=row.drugs) }}
       </div>
     </div>
