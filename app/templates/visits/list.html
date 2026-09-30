@@ -81,7 +81,7 @@
             <div class="num">{{ v.patient.patient_number }}</div></div></div></td>
         <td>{{ v.visit_date.strftime('%Y-%m-%d') }}
           {% if v.channel == 'whatsapp' %}<span class="badge badge--green" title="{{ t('teleconsult.decision_' ~ v.decision) if v.decision else '' }}"><i class="bi bi-whatsapp"></i> {{ t('teleconsult.channel_whatsapp') }}</span>{% endif %}
-          {% if v.channel == 'ward' %}<span class="badge badge--muted" data-ward-visit><i class="bi bi-hospital"></i> {{ t('stay_tests.ward_visit') }}</span>{% endif %}</td>
+          {% if v.channel == 'ward' %}<span class="badge badge--muted" data-ward-visit><i class="bi bi-hospital"></i> {{ t('stay_tests.ward_visit') }}</span>{% endif %}{% if v.channel == 'emergency' %}<span class="badge badge--muted" data-er-visit><i class="bi bi-truck-front"></i> {{ t('er_orders.er_visit') }}</span>{% endif %}</td>
         <td>{{ v.doctor.display_name(current_lang) }}</td>
         <td>{% for dx in v.final_diagnoses() %}<span class="badge badge--green">{{ dx.title }}</span> {% else %}<span style="color:var(--muted);">—</span>{% endfor %}</td>
         <td><span class="status-badge {{ 'st-completed' if v.is_completed else 'st-in_progress' }}">{{ t('visits.completed_status') if v.is_completed else t('visits.open') }}</span>
