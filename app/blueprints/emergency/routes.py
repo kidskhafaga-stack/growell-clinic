@@ -18,7 +18,8 @@ screen surfaces them rather than growing a third way to end a stay.
 
 Opt-in, and off until a clinic says it runs an emergency.
 """
-from flask import redirect, render_template, request, url_for
+from flask import (abort, flash, g, jsonify, redirect, render_template,
+                   request, url_for)
 from flask_login import current_user
 
 from app.blueprints import department_screen
@@ -28,7 +29,7 @@ from app.i18n import t
 from app.models.admission import Admission
 from app.models.emergency_visit import ARRIVALS, DISPOSITIONS
 from app.utils import beds as ward
-from app.utils.decorators import module_required
+from app.utils.decorators import capability_required, module_required
 
 MODULE = "emergency"
 KIND = "emergency"
@@ -63,9 +64,16 @@ def register():
     مكانها: هي بتقول «الأسرّة فيها مين»، وده بيقول «القسم فيه مين».
     """
     from app.utils import emergency as er
+    from app.utils import emergency_orders as eo
 
+    open_visits = er.open_visits()
     return render_template("emergency/register.html",
-                           open_visits=er.open_visits(),
+                           open_visits=open_visits,
+                           order_states=eo.states_by_attendance(
+                               [r.id for r in open_visits]),
+                           mine_to_confirm=len(
+                               eo.awaiting_confirmation(current_user)),
+                           outside_waiting=len(eo.waiting_doctor()),
                            untriaged=er.untriaged(),
                            incomplete=er.incomplete_departed(),
                            dispositions=DISPOSITIONS, arrivals=ARRIVALS,
@@ -83,13 +91,17 @@ def arrive():
     if patient is None:
         return _back(t("emergency.no_patient"), "error")
     try:
-        er.arrive(patient, user=current_user,
-                  arrival=(request.form.get("arrival") or "").strip() or None)
+        row = er.arrive(patient, user=current_user,
+                        arrival=(request.form.get("arrival") or "").strip() or None,
+                        treatment_only=bool(request.form.get("treatment_only")))
     except ValueError:
         db.session.rollback()
         return _back(t("emergency.not_saved"), "error")
     db.session.commit()
-    return _back(t("emergency.arrived_msg"), "success")
+    flash(t("emergency.arrived_msg"), "success")
+    # Straight to the child's own page: the next thing anybody does is
+    # write what they came for.
+    return redirect(url_for("emergency.attendance", attendance_id=row.id))
 
 
 @emergency_bp.route("/triage/<int:visit_id>", methods=["POST"])
@@ -192,7 +204,291 @@ def decide(admission_id):
 
 
 def _back(message, level):
-    from flask import flash
-
     flash(message, level)
     return redirect(url_for("emergency.index"))
+
+
+# ============================================ the child with no bed ======
+# «الناس الى داخله الطوارئ تنفذ علاج معين ومش هتاخد اقامة». One page per
+# attendance: what was written, on whose word, what was given — and the
+# tests. The rules live in `utils/emergency_orders`; these are its doors.
+
+@emergency_bp.route("/patient-search")
+@module_required(MODULE)
+def patient_search():
+    """The arrival box's search — name, file number, national id or phone,
+    by the rule every patient list uses. Its own address so an unrelated
+    module switched off never empties it."""
+    from app.models import Patient
+    from app.utils.patients import apply_patient_search
+
+    query = (request.args.get("q") or "").strip()
+    if len(query) < 2:
+        return jsonify([])
+    rows = (apply_patient_search(
+        Patient.query.filter(Patient.is_active.is_(True)), query)
+        .limit(10).all())
+    lang = getattr(g, "lang", "ar")
+    return jsonify([{"id": p.id, "name": p.display_name(lang),
+                     "file": p.patient_number} for p in rows])
+
+
+@emergency_bp.route("/drug-search")
+@module_required(MODULE)
+def drug_search():
+    """The drug box — the one search the prescription writer uses."""
+    from app.utils.drug_search import search_drugs
+
+    return jsonify(search_drugs(request.args.get("q"),
+                                lang=getattr(g, "lang", "ar"), limit=12))
+
+
+@emergency_bp.route("/investigation-search")
+@module_required(MODULE)
+def investigation_search():
+    """The test box — the catalogue, active tests only."""
+    from app.utils.stay_orders import search
+
+    kind = (request.args.get("kind") or "").strip() or None
+    lang = getattr(g, "lang", "ar")
+    return jsonify([{"id": x.id, "name": x.display_name(lang), "kind": x.kind,
+                     "in_house": x.in_house is not False}
+                    for x in search(request.args.get("q"), kind)])
+
+
+@emergency_bp.route("/attendance/<int:attendance_id>")
+@module_required(MODULE)
+def attendance(attendance_id):
+    """One child in emergency: what was written for them and what was
+    given."""
+    from app.models import EmergencyVisit, Service
+    from app.models.emergency_order import SOURCES
+    from app.models.medication import ROUTES
+    from app.utils import emergency as er
+    from app.utils import emergency_orders as eo
+
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    services = (Service.query.filter(Service.is_active.is_(True))
+                .filter(~Service.service_type.in_(
+                    ("consultation", "followup", "vaccination")))
+                .order_by(Service.name).all())
+    return render_template(
+        "emergency/attendance.html", row=row, orders=eo.for_attendance(row),
+        tests=eo.tests_for(row), missing=er.missing(row),
+        doctors=eo.doctors(), services=services,
+        store_items=_shelf(), routes=ROUTES, sources=SOURCES,
+        may_order=current_user.can("medication_order"),
+        is_doctor=eo.is_doctor(current_user),
+        dispositions=DISPOSITIONS, leave_reasons=_reasons(),
+        asked_on=_asked_on())
+
+
+def _shelf():
+    """What the store holds that a dose could come off — drugs first."""
+    from app.models import StoreItem
+
+    return (StoreItem.query.filter(StoreItem.is_active.is_(True))
+            .order_by((StoreItem.item_type != "drug"), StoreItem.name).all())
+
+
+def _to_attendance(row_id):
+    return redirect(url_for("emergency.attendance", attendance_id=row_id)
+                    + "#orders")
+
+
+@emergency_bp.route("/attendance/<int:attendance_id>/order", methods=["POST"])
+@module_required(MODULE)
+def write_order(attendance_id):
+    """Write what to give — our doctor's order, or a paper somebody brought.
+
+    Anybody in the department may enter a paper; only a doctor with the
+    order right writes one of our own. Which of the two it is, is the
+    ``source`` on the form.
+    """
+    from app.models import (Drug, EmergencyVisit, Service, StoreItem,
+                            User)
+    from app.models.emergency_order import OURS
+    from app.utils import emergency_orders as eo
+
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    source = (request.form.get("source") or OURS).strip()
+    if source == OURS and not current_user.can("medication_order"):
+        abort(403, description=t("auth.no_permission"))
+
+    def pick(model, field):
+        wanted = request.form.get(field, type=int)
+        return db.session.get(model, wanted) if wanted else None
+
+    try:
+        eo.write(row, current_user, source=source,
+                 name=request.form.get("name"), drug=pick(Drug, "drug_id"),
+                 service=pick(Service, "service_id"),
+                 dose=request.form.get("dose"),
+                 route=(request.form.get("route") or "").strip() or None,
+                 store_item=pick(StoreItem, "store_item_id"),
+                 units=request.form.get("units", type=int),
+                 note=request.form.get("note"),
+                 prescriber=pick(User, "prescriber_id"),
+                 outside_doctor=request.form.get("outside_doctor"))
+    except eo.Closed:
+        db.session.rollback()
+        flash(t("er_orders.closed"), "error")
+        return _to_attendance(row.id)
+    except eo.NotADoctor:
+        db.session.rollback()
+        flash(t("er_orders.needs_our_doctor"), "error")
+        return _to_attendance(row.id)
+    except ValueError as why:
+        db.session.rollback()
+        flash(t({"no name": "er_orders.needs_name",
+                 "no outside doctor": "er_orders.needs_outside_doctor"}.get(
+                     str(why), "er_orders.refused")), "error")
+        return _to_attendance(row.id)
+    db.session.commit()
+    _refresh_bell()
+    flash(t("er_orders.written"), "success")
+    return _to_attendance(row.id)
+
+
+def _order_or_404(order_id):
+    from app.models import EmergencyOrder
+
+    return db.get_or_404(EmergencyOrder, order_id)
+
+
+@emergency_bp.route("/order/<int:order_id>/approve", methods=["POST"])
+@module_required(MODULE)
+@capability_required("medication_order")
+def approve_order(order_id):
+    """Our doctor saw the child and agrees to the outside paper."""
+    from app.utils import emergency_orders as eo
+
+    order = _order_or_404(order_id)
+    try:
+        eo.approve(order, current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("er_orders.refused"), "error")
+        return _to_attendance(order.emergency_visit_id)
+    db.session.commit()
+    flash(t("er_orders.approved"), "success")
+    return _to_attendance(order.emergency_visit_id)
+
+
+@emergency_bp.route("/order/<int:order_id>/give", methods=["POST"])
+@module_required(MODULE)
+def give_order(order_id):
+    """Given — by whoever stood at the child. Not behind the order right:
+    giving is the nurse's act."""
+    from app.utils import emergency_orders as eo
+
+    order = _order_or_404(order_id)
+    try:
+        eo.give(order, current_user)
+    except ValueError as why:
+        db.session.rollback()
+        flash(t("er_orders.needs_approval" if str(why) == "waiting_doctor"
+                else "er_orders.refused"), "error")
+        return _to_attendance(order.emergency_visit_id)
+    db.session.commit()
+    flash(t("er_orders.given"), "success")
+    return _to_attendance(order.emergency_visit_id)
+
+
+@emergency_bp.route("/order/<int:order_id>/cancel", methods=["POST"])
+@module_required(MODULE)
+def cancel_order(order_id):
+    from app.utils import emergency_orders as eo
+
+    order = _order_or_404(order_id)
+    try:
+        eo.cancel(order, current_user, reason=request.form.get("reason"))
+    except ValueError:
+        db.session.rollback()
+        flash(t("er_orders.refused"), "error")
+        return _to_attendance(order.emergency_visit_id)
+    db.session.commit()
+    _refresh_bell()
+    flash(t("er_orders.cancelled"), "success")
+    return _to_attendance(order.emergency_visit_id)
+
+
+@emergency_bp.route("/order/<int:order_id>/confirm", methods=["POST"])
+@module_required(MODULE)
+def confirm_order(order_id):
+    """The doctor on the paper says it is theirs."""
+    from app.utils import emergency_orders as eo
+
+    order = _order_or_404(order_id)
+    try:
+        eo.confirm(order, current_user)
+    except eo.NotADoctor:
+        db.session.rollback()
+        abort(403, description=t("er_orders.not_your_paper"))
+    except ValueError:
+        db.session.rollback()
+        flash(t("er_orders.refused"), "error")
+        return redirect(url_for("emergency.confirmations"))
+    db.session.commit()
+    _refresh_bell()
+    flash(t("er_orders.confirmed"), "success")
+    if request.form.get("back") == "attendance":
+        return _to_attendance(order.emergency_visit_id)
+    return redirect(url_for("emergency.confirmations"))
+
+
+@emergency_bp.route("/confirmations")
+@module_required(MODULE)
+def confirmations():
+    """Papers given in my name while I was in the building, and the outside
+    papers waiting for a doctor."""
+    from app.utils import emergency_orders as eo
+
+    return render_template(
+        "emergency/confirmations.html",
+        mine=eo.awaiting_confirmation(current_user),
+        outside=eo.waiting_doctor(),
+        may_order=current_user.can("medication_order"))
+
+
+@emergency_bp.route("/attendance/<int:attendance_id>/test", methods=["POST"])
+@module_required(MODULE)
+@capability_required("medication_order")
+def order_test(attendance_id):
+    """A test or scan for a child in emergency — behind the order right,
+    like the stay's."""
+    from app.models import EmergencyVisit, Investigation
+    from app.utils import emergency_orders as eo
+
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    wanted = request.form.get("investigation_id", type=int)
+    investigation = db.session.get(Investigation, wanted) if wanted else None
+    outside = request.form.get("done_outside")
+    try:
+        eo.order_test(row, current_user, investigation=investigation,
+                      name=request.form.get("name"),
+                      kind=request.form.get("kind"),
+                      notes=request.form.get("notes"),
+                      outside=(outside == "1") if outside in ("0", "1")
+                      else None)
+    except eo.Closed:
+        db.session.rollback()
+        flash(t("er_orders.closed"), "error")
+        return _to_attendance(row.id)
+    except ValueError:
+        db.session.rollback()
+        flash(t("er_orders.needs_name"), "error")
+        return _to_attendance(row.id)
+    db.session.commit()
+    flash(t("stay_tests.ordered"), "success")
+    return redirect(url_for("emergency.attendance", attendance_id=row.id)
+                    + "#tests")
+
+
+def _refresh_bell():
+    try:
+        from app.utils.notifications import invalidate
+
+        invalidate()
+    except Exception:  # noqa: BLE001
+        pass

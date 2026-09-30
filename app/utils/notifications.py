@@ -416,6 +416,33 @@ def get_notifications(user):
                                "endpoint": "labs.critical", "kwargs": {}})
     except Exception:  # noqa: BLE001 — the bell never breaks a page
         pass
+    # **Emergency papers**, per person: one given in my name while I was in
+    # the building, and — for the doctors who may approve — an outside paper
+    # no doctor of ours has seen yet. Neither is dismissed from here: they go
+    # when somebody confirms or approves them on the child's page.
+    try:
+        from app.utils.facility import module_enabled
+
+        if module_enabled("emergency") and user.can_access("emergency"):
+            from app.utils import emergency_orders as eo
+
+            mine = len(eo.awaiting_confirmation(user))
+            if mine:
+                out.insert(0, {"key": "er_confirm", "module": "emergency",
+                               "icon": "file-earmark-medical",
+                               "severity": "warning", "count": mine,
+                               "endpoint": "emergency.confirmations",
+                               "kwargs": {}})
+            if user.can("medication_order") and eo.is_doctor(user):
+                outside = len(eo.waiting_doctor())
+                if outside:
+                    out.insert(0, {"key": "er_outside", "module": "emergency",
+                                   "icon": "hourglass-split",
+                                   "severity": "danger", "count": outside,
+                                   "endpoint": "emergency.confirmations",
+                                   "kwargs": {}})
+    except Exception:  # noqa: BLE001 — the bell never breaks a page
+        pass
     for it in _all():
         if not user.can_access(it["module"]):
             continue

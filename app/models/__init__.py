@@ -75,6 +75,7 @@ from app.models.patient_education import (METHODS, PatientEducation,
                                           REQUIRED_TOPICS, TOPICS)
 from app.models.emergency_visit import (ARRIVALS, DISPOSITIONS,
                                         EmergencyVisit)
+from app.models.emergency_order import EmergencyOrder
 from app.models.restraint import KINDS as RESTRAINT_KINDS, Restraint
 from app.models.sedation import (DISPOSITIONS as SEDATION_DISPOSITIONS,
                                  KINDS as SEDATION_KINDS,
@@ -383,6 +384,7 @@ __all__ = [
     "GOAL_PROGRESS",
     "PatientEducation",
     "EmergencyVisit",
+    "EmergencyOrder",
     "Restraint",
     "RESTRAINT_KINDS",
     "SedationRecord",

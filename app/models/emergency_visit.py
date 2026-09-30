@@ -92,6 +92,10 @@ class EmergencyVisit(db.Model):
     triage_note = db.Column(db.Text)
 
     # --- البنود v و vii و viii ---
+    # **جاي ينفّذ علاج بس** — الـ walk-in: طفل داخل الطوارئ بروشتة، حقنة
+    # أو جلسة، ومش هياخد إقامة. `None` = محدّش قال؛ الحضور العادي بيفضل
+    # زي ما هو.
+    treatment_only = db.Column(db.Boolean)
     disposition = db.Column(db.String(20), index=True)
     # Why the family left before the doctor was done — self-discharge or
     # left unseen — as on a stay (``utils/leave_reasons``). NULL otherwise.

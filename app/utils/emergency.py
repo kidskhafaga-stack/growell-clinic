@@ -90,6 +90,19 @@ def _has_care(visit_id):
             is not None)
 
 
+def _given_here(row):
+    """البند iii برضه — علاج اتدّى في القسم لطفل من غير سرير
+    (`EmergencyOrder`). حقنة اتدّت هي «الرعاية اللي اتقدّمت» بالظبط."""
+    from app.models import EmergencyOrder
+
+    if row is None or row.id is None:
+        return False
+    return (EmergencyOrder.query
+            .filter(EmergencyOrder.emergency_visit_id == row.id,
+                    EmergencyOrder.given_at.isnot(None))
+            .first() is not None)
+
+
 def _has_diagnosis(row):
     """البند vi — التشخيص أو الخلاصة عند انتهاء العلاج.
 
@@ -125,7 +138,7 @@ def missing(row):
         gaps.append("triage")
     if not _has_assessment(row.visit_id):
         gaps.append("assessment")
-    if not _has_care(row.visit_id):
+    if not (_has_care(row.visit_id) or _given_here(row)):
         gaps.append("care")
     if not _has_diagnosis(row):
         gaps.append("diagnosis")
@@ -163,7 +176,8 @@ def incomplete_departed(limit=200):
     return [{"visit": r, "missing": missing(r)} for r in rows if missing(r)]
 
 
-def arrive(patient, user=None, arrival=None, visit=None, at=None):
+def arrive(patient, user=None, arrival=None, visit=None, at=None,
+           treatment_only=None):
     """طفل وصل القسم. المتصل بيعمل commit.
 
     **ومحتاج سرير؟ لأ.** ده السطر اللي الشغلانة دي كلها عليه: `beds.admit`
@@ -178,7 +192,8 @@ def arrive(patient, user=None, arrival=None, visit=None, at=None):
     row = EmergencyVisit(patient_id=patient.id, arrival=how,
                          visit_id=getattr(visit, "id", None),
                          by_id=getattr(user, "id", None),
-                         arrived_at=at)
+                         arrived_at=at,
+                         treatment_only=True if treatment_only else None)
     if at is None:
         # العمود ليه default؛ تمريره `None` صراحةً بيشغّله برضه، بس
         # السطر ده مكتوب علشان يبان إن ده مقصود.

@@ -45,6 +45,10 @@
     <div class="info-item" data-ward-visit><div class="k">{{ t('visits.channel') }}</div>
       <div class="v"><i class="bi bi-hospital"></i> {{ t('stay_tests.ward_visit') }}</div></div>
     {% endif %}
+    {% if visit.channel == 'emergency' %}
+    <div class="info-item" data-er-visit><div class="k">{{ t('visits.channel') }}</div>
+      <div class="v"><i class="bi bi-truck-front"></i> {{ t('er_orders.er_visit') }}</div></div>
+    {% endif %}
     {% if visit.channel == 'whatsapp' %}
     <div class="info-item"><div class="k">{{ t('visits.channel') }}</div>
       <div class="v"><i class="bi bi-whatsapp"></i> {{ t('teleconsult.channel_whatsapp') }}</div></div>

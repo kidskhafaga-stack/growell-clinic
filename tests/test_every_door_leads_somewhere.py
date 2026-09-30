@@ -323,7 +323,6 @@ KNOWN_ORPHAN_WRITERS = {
     "appointments.delete",
     "appointments.waitlist_add",
     "appointments.walk_in",
-    "emergency.arrive",
     "finance.expense_edit",
     "growth.api_calculate",
     "patients.flag_raise",

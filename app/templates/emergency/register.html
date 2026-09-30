@@ -9,8 +9,66 @@
     <h1 class="page-title">{{ t('emergency.register_title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('emergency.register_sub') }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('emergency.index') }}">
-    <i class="bi bi-hospital"></i> {{ t('emergency.board') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    {# Papers waiting: an outside one for any doctor, and the ones given in
+       my name for me. Always here, so none waiting is seen to be none. #}
+    <a class="btn btn-outline gc-press" data-to-confirmations
+       href="{{ url_for('emergency.confirmations') }}">
+      <i class="bi bi-file-earmark-medical"></i> {{ t('er_orders.papers') }}
+      {% if outside_waiting %}<span class="badge badge--danger" data-outside-waiting>{{ outside_waiting }}</span>{% endif %}
+      {% if mine_to_confirm %}<span class="badge badge--warn" data-mine-to-confirm>{{ mine_to_confirm }}</span>{% endif %}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('emergency.index') }}">
+      <i class="bi bi-hospital"></i> {{ t('emergency.board') }}</a>
+  </div>
+</div>
+
+{# **وصل طفل.** ما بيحتاجش سرير — أغلب اللي بيدخلوا الطوارئ بيتعالجوا
+   ويمشوا من غير واحد. والـ walk-in اللي جاي ينفّذ روشتة بيتعلّم هنا بدوسة. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" data-arrive-form>
+  <form method="post" action="{{ url_for('emergency.arrive') }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;"
+        x-data="{
+          q: '', pid: '',
+          picker: window.gcPicker({ url: {{ url_for('emergency.patient_search')|tojson|forceescape }}, minChars: 2 }),
+          pick(r) { this.picker.close(); this.q = r.name + ' · ' + r.file; this.pid = r.id; }
+        }">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="patient_id" :value="pid">
+    <div class="form-row" style="margin-bottom:0;flex:1;min-width:240px;position:relative;">
+      <label for="er_patient">{{ t('er_orders.who_arrived') }}</label>
+      <input class="input" id="er_patient" autocomplete="off" x-model="q" required
+             placeholder="{{ t('er_orders.find_child') }}"
+             role="combobox" aria-autocomplete="list"
+             :aria-expanded="picker.open ? 'true' : 'false'"
+             x-on:input.debounce.250ms="pid = ''; picker.q = q; picker.search()"
+             x-on:keydown.arrow-down.prevent="picker.move(1)"
+             x-on:keydown.arrow-up.prevent="picker.move(-1)"
+             x-on:keydown.escape="picker.close()"
+             x-on:blur="setTimeout(function () { picker.close(); }, 150)">
+      <div class="gc-picker" x-show="picker.open" x-cloak role="listbox">
+        <template x-for="(r, idx) in picker.items" :key="idx">
+          <button type="button" class="gc-picker-item" role="option"
+                  :aria-selected="idx === picker.active ? 'true' : 'false'"
+                  x-on:mouseenter="picker.active = idx" x-on:click="pick(r)">
+            <span x-text="r.name"></span>
+            <span class="badge badge--muted" dir="ltr" x-text="r.file"></span>
+          </button>
+        </template>
+      </div>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:140px;">
+      <label for="er_arrival">{{ t('er_orders.how_arrived') }}</label>
+      <select class="select" id="er_arrival" name="arrival">
+        {% for a in arrivals %}<option value="{{ a }}">{{ t('emergency.arr_' ~ a) }}</option>{% endfor %}
+      </select>
+    </div>
+    <label style="display:flex;gap:6px;align-items:center;margin-bottom:8px;" data-treatment-only>
+      <input type="checkbox" name="treatment_only" value="1"> {{ t('er_orders.treatment_only') }}</label>
+    <button class="btn btn-primary gc-press" type="submit" :disabled="!pid">
+      <i class="bi bi-box-arrow-in-right"></i> {{ t('er_orders.arrived_btn') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('patients.create') }}">
+      <i class="bi bi-person-plus"></i> {{ t('er_orders.new_child') }}</a>
+  </form>
 </div>
 
 {# اللي وصل ومحدّش فرزه. أول حاجة على الشاشة لأنها أول حاجة بتتعمل —
@@ -36,7 +94,7 @@
       <tr data-untriaged-row="{{ row.id }}">
         <td><a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
           {{ row.patient.display_name(current_lang) if row.patient else '—' }}</a></td>
-        <td dir="ltr">{{ row.arrived_at.strftime('%H:%M') }}</td>
+        <td dir="ltr">{{ row.arrived_at|clinic_time }}</td>
         <td><span class="badge badge--danger" dir="ltr">{{ row.minutes }}′</span></td>
         <td>
           <form method="post" action="{{ url_for('emergency.triage', visit_id=row.id) }}"
@@ -85,9 +143,13 @@
     <tbody>
       {% for row in open_visits %}
       <tr data-open-row="{{ row.id }}">
-        <td><a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
-          {{ row.patient.display_name(current_lang) if row.patient else '—' }}</a></td>
-        <td dir="ltr">{{ row.arrived_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td><a href="{{ url_for('emergency.attendance', attendance_id=row.id) }}" data-to-attendance>
+          {{ row.patient.display_name(current_lang) if row.patient else '—' }}</a>
+          {% if row.treatment_only %}<span class="badge badge--muted" data-walk-in>{{ t('er_orders.walk_in') }}</span>{% endif %}
+          {% set st = order_states.get(row.id) or {} %}
+          {% if st.get('waiting_doctor') %}<span class="badge badge--danger" data-waiting-doctor>{{ t('er_orders.waiting_doctor_n', n=st.waiting_doctor) }}</span>{% endif %}
+          {% if st.get('ready') %}<span class="badge badge--warn" data-ready>{{ t('er_orders.ready_n', n=st.ready) }}</span>{% endif %}</td>
+        <td dir="ltr">{{ row.arrived_at|clinic_stamp }}</td>
         <td dir="ltr">{{ row.minutes }}′</td>
         <td>
           {% if row.level %}
@@ -156,7 +218,7 @@
       <tr data-incomplete-row="{{ item.visit.id }}">
         <td><a href="{{ url_for('patients.view', patient_id=item.visit.patient_id) }}">
           {{ item.visit.patient.display_name(current_lang) if item.visit.patient else '—' }}</a></td>
-        <td dir="ltr">{{ item.visit.departed_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td dir="ltr">{{ item.visit.departed_at|clinic_stamp }}</td>
         <td>
           {% for gap in item.missing %}
           <span class="badge badge--warning" data-missing="{{ gap }}">{{ t('emergency.item_' ~ gap) }}</span>

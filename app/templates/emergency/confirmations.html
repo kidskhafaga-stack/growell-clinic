@@ -1,0 +1,63 @@
+{% extends "shell.html" %}
+{% set active_module = 'emergency' %}
+{% block title %}{{ t('er_orders.papers') }}{% endblock %}
+{% block page_heading %}{{ t('er_orders.papers') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-file-earmark-medical"></i> {{ t('er_orders.papers') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('er_orders.papers_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('emergency.register') }}">
+    <i class="bi bi-list-ul"></i> {{ t('emergency.register_title') }}</a>
+</div>
+
+{# From outside, waiting for any doctor of ours to see the child. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" data-outside-list>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-hourglass-split"></i> {{ t('er_orders.outside_waiting') }}</h2>
+  {% if outside %}
+  <div style="display:grid;gap:8px;">
+    {% for o in outside %}
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:8px 10px;border:1px solid var(--line);border-inline-start:5px solid var(--danger);border-radius:10px;" data-outside-order="{{ o.id }}">
+      <div style="flex:1 1 240px;min-width:0;">
+        <a href="{{ url_for('emergency.attendance', attendance_id=o.emergency_visit_id) }}#orders"><strong>{{ o.patient.display_name(current_lang) }}</strong></a>
+        · {{ o.name }}{% if o.dose %} · <span dir="auto">{{ o.dose }}</span>{% endif %}
+        <div class="hint" style="margin:0;">{{ t('er_orders.src_outside', who=o.outside_doctor) }} · <span dir="ltr">{{ o.created_at|clinic_stamp }}</span></div>
+      </div>
+      <a class="btn btn-sm btn-primary gc-press" href="{{ url_for('emergency.attendance', attendance_id=o.emergency_visit_id) }}#orders">{{ t('er_orders.see_child') }}</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;" data-none-outside>{{ t('er_orders.none_outside') }}</p>
+  {% endif %}
+</div>
+
+{# Given in my name while I was in the building. #}
+<div class="card gc-scale-in" data-mine-list>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-person-check"></i> {{ t('er_orders.mine_title') }}</h2>
+  {% if mine %}
+  <div style="display:grid;gap:8px;">
+    {% for o in mine %}
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;" data-mine-order="{{ o.id }}">
+      <div style="flex:1 1 240px;min-width:0;">
+        <a href="{{ url_for('emergency.attendance', attendance_id=o.emergency_visit_id) }}#orders"><strong>{{ o.patient.display_name(current_lang) }}</strong></a>
+        · {{ o.name }}{% if o.dose %} · <span dir="auto">{{ o.dose }}</span>{% endif %}
+        <div class="hint" style="margin:0;">
+          {% if o.given_at %}{{ t('er_orders.st_given') }} · <span dir="ltr">{{ o.given_at|clinic_stamp }}</span>{% else %}{{ t('er_orders.st_ready') }}{% endif %}
+          {% if o.enterer %} · {{ o.enterer.display_name(current_lang) }}{% endif %}</div>
+      </div>
+      <form method="post" action="{{ url_for('emergency.confirm_order', order_id=o.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-primary gc-press" type="submit" data-confirm>
+          <i class="bi bi-check2"></i> {{ t('er_orders.its_mine') }}</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;" data-none-mine>{{ t('er_orders.none_mine') }}</p>
+  {% endif %}
+</div>
+{% endblock %}
