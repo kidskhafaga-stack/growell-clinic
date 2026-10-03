@@ -7175,7 +7175,11 @@
     "change_service": "Change the service",
     "change_service_hint": "Pick what the visit actually was; the program says which way the money goes.",
     "pick_service": "Service",
-    "checking": "Working it out…"
+    "checking": "Working it out…",
+    "failed": "Could not work it out just now — try again.",
+    "search": "Search for the service…",
+    "no_match": "No service by that name.",
+    "type_more": "There are more — type part of the name."
   },
   "popup": {
     "refund_title": "A refund on your work",
@@ -9458,6 +9462,27 @@
     "saved": "Saved.",
     "deleted": "Deleted.",
     "hidden_instead": "This test was ordered before — it was hidden instead of deleted, and the old orders keep its name."
+  },
+  "waiting": {
+    "title": "Waiting on:",
+    "triage": "Waiting for triage",
+    "approval": "Outside prescription waiting for a doctor",
+    "doctor": "Nothing written for them yet",
+    "treatment": "Written, not given yet",
+    "reassess": "Session over — needs reassessing",
+    "sample": "Waiting for a sample",
+    "imaging": "Waiting for a scan/study",
+    "result": "Waiting for a result",
+    "decision": "Waiting for the doctor's decision or discharge prescription",
+    "for_n": "{n} min",
+    "over_limit": "Over the limit ({h}h {m}m)",
+    "bedless_title": "In the department without a bed ({n})",
+    "session_running": "{name} — {n} min left",
+    "limit_saved": "Stay limit saved.",
+    "limit_hours": "Stay limit: hours",
+    "limit_minutes": "and minutes",
+    "limit_save": "Save limit",
+    "limit_hint": "A child here longer than this is marked red on the live screen. Blank = no limit and no alert."
   },
   "device_board": {
     "sub": "Echo, ultrasound, spirometry, ECG and EEG — ordered from the clinic, the emergency or the wards and not yet done. Today's bookings first.",

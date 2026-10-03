@@ -99,6 +99,12 @@ class Unit(db.Model):
     # emergency is charged by the hour and every bed on a ward by the night.
     billing_basis = db.Column(db.String(8), default="night", nullable=False)
 
+    # **How long a child should be here before somebody asks why.** In
+    # minutes, the department's own figure — «خلي الوقت فيها فى اعدادات»:
+    # four hours in one emergency, six in another, and a ward none at all.
+    # Empty is «no limit set», and nothing is ever flagged for time.
+    max_stay_minutes = db.Column(db.Integer)
+
     rate_service = db.relationship("Service", foreign_keys=[rate_service_id])
     spaces = db.relationship("Space", back_populates="unit",
                              order_by="Space.sort_order, Space.id")

@@ -59,7 +59,7 @@
      express that, which cuts the booking loose from its money. #}
   {% if current_user.can_collect and p.state not in ['none', 'free'] %}
     <button type="button" class="btn btn-outline btn-sm gc-press svcfix-btn"
-            x-on:click="openFix({{ appt.id }})">
+            x-on:click="openFix({{ appt.id }}, {{ appt.doctor_id or 'null' }})">
       <i class="bi bi-arrow-left-right"></i> {{ t('svcfix.change_service') }}</button>
   {% endif %}
   {% if current_user.can_collect %}
@@ -407,10 +407,16 @@
     </tr></thead>
     <tbody>
       {% for a in appointments %}
-      <tr data-search="{{ (a.patient.full_name ~ ' ' ~ (a.patient.full_name_en or '') ~ ' ' ~ a.patient.patient_number ~ ' ' ~ (a.patient.contact_phone or ''))|lower }}"
+      <tr data-search="{{ (a.patient.full_name ~ ' ' ~ (a.patient.full_name_en or '') ~ ' ' ~ a.patient.patient_number ~ ' ' ~ (a.patient.contact_phone or '') ~ ' ' ~ ((doctor_tags.get(a.doctor_id) or {}).get('name') or ''))|lower }}"
           x-show="!listQ || $el.dataset.search.includes(listQ.toLowerCase())">
         <td style="color:var(--muted);">{{ loop.index }}</td>
         <td><strong>{{ a.time_label }}</strong>
+          {# The whole clinic's day: whose patient this is, on the row. #}
+          {% if doctor_tags %}
+          {% set dt = doctor_tags.get(a.doctor_id) %}
+          <div><span class="doc-tag doc-tone-{{ dt.tone if dt else 'x' }}" data-doctor-tag="{{ a.doctor_id }}">
+            <i class="bi bi-person-badge"></i> {{ dt.name if dt else (a.doctor.display_name(current_lang) if a.doctor else '—') }}</span></div>
+          {% endif %}
           {% if a.is_walk_in %}<div><span class="type-tag tt-red">{{ t('appointments.walk_in_flag') }}</span></div>{% endif %}
         </td>
         <td>
@@ -512,6 +518,24 @@
   .svcfix-refund { background:#fef2f2; color:#b91c1c; }
   .svcfix-collect { background:#fff7ed; color:#9a3412; }
   .svcfix-nothing, .svcfix-settled { background:#f0fdf4; color:#15803d; }
+  .svcfix-failed { background:#fef2f2; color:#b91c1c; }
+  .svcfix-chosen { margin-bottom:6px; padding:6px 10px; border-radius:8px; background:var(--green-050); font-weight:700; }
+  .svcfix-list { max-height:260px; overflow-y:auto; border:1px solid var(--line); border-radius:10px; margin-top:6px; }
+  .svcfix-group { position:sticky; top:0; padding:6px 10px; font-size:.75rem; font-weight:700; color:var(--green-700); background:var(--green-050); }
+  .svcfix-opt { display:flex; justify-content:space-between; gap:10px; width:100%; padding:8px 10px; border:0; border-bottom:1px solid var(--line); background:transparent; color:inherit; font:inherit; text-align:start; cursor:pointer; }
+  .svcfix-opt:hover, .svcfix-opt:focus-visible, .svcfix-opt.on { background:var(--green-050); }
+  .svcfix-opt.on { font-weight:700; }
+  .svcfix-price { color:var(--muted); font-variant-numeric:tabular-nums; }
+  /* One tone per doctor on the whole-clinic board — soft, so the row is
+     still about the child. */
+  .doc-tag { display:inline-flex; align-items:center; gap:4px; margin-top:4px; padding:1px 8px; border-radius:999px; font-size:.72rem; font-weight:600; white-space:nowrap; border:1px solid transparent; }
+  .doc-tone-0 { background:#e0f2fe; color:#075985; border-color:#bae6fd; }
+  .doc-tone-1 { background:#fce7f3; color:#9d174d; border-color:#fbcfe8; }
+  .doc-tone-2 { background:#ede9fe; color:#5b21b6; border-color:#ddd6fe; }
+  .doc-tone-3 { background:#fef3c7; color:#92400e; border-color:#fde68a; }
+  .doc-tone-4 { background:#dcfce7; color:#166534; border-color:#bbf7d0; }
+  .doc-tone-5 { background:#ffedd5; color:#9a3412; border-color:#fed7aa; }
+  .doc-tone-x { background:var(--green-050); color:var(--muted); }
   .pay-held-btn { margin-top:4px; display:inline-flex; color:var(--danger); border-color:var(--danger); }
   .pay-paid{background:#dcfce7;color:#15803d;} .pay-partial{background:#fef9c3;color:#a16207;}
   .pay-unpaid{background:#fee2e2;color:#b91c1c;} .pay-none{background:#eef2f6;color:#64748b;}
@@ -529,6 +553,20 @@
 
 {% block scripts %}
 <script>
+// The change-service search: ``{mine: [...], other: [...], more: bool}``.
+// ``marked`` is this doctor's service ids, or null when nobody has said.
+function fixGroups(services, marked, q, cap) {
+  q = (q || '').trim().toLowerCase();
+  const hit = q ? services.filter(function (s) {
+    return s.name.toLowerCase().indexOf(q) !== -1;
+  }) : services;
+  const mine = [], other = [];
+  hit.forEach(function (s) {
+    (marked && marked.indexOf(s.id) !== -1 ? mine : other).push(s);
+  });
+  return { mine: mine.slice(0, cap), other: other.slice(0, cap),
+           more: mine.length > cap || other.length > cap };
+}
 function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId,
                fixAskUrl, fixDoUrl) {
   return {
@@ -538,7 +576,12 @@ function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId,
     // would keep working until somebody moved the route, and then fail with
     // nothing on the screen to say why.
     fixAskUrl, fixDoUrl,
-    fixUrl(template, id) { return template.replace(/\/0(\?|$)/, '/' + id + '$1'); },
+    // The placeholder is a whole path segment — `/appointments/0/service-
+    // proposal` — so it is matched as one, whatever follows it. It used to
+    // look for `/0` only at the very end, which these two never are: the
+    // swap silently did nothing, every ask went to appointment 0, and the
+    // modal sat there saying nothing at all.
+    fixUrl(template, id) { return template.replace(/\/0(?=\/|\?|$)/, '/' + id); },
     // Pre-fill the doctor: the board's filtered doctor, else the only doctor
     // in the clinic (so a single-doctor clinic never has to pick one).
     defaultDoctorId() { return this.boardDoctorId ? String(this.boardDoctorId)
@@ -605,10 +648,31 @@ function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId,
         status: 'cancelled', cancel_reason: this.cancel.reason });
     },
     // The visit that turned out different ----------------------------------
-    fix: { id: null, serviceId: '', says: '', verdict: '', ok: false, loading: false },
-    openFix(id) {
-      this.fix = { id, serviceId: '', says: '', verdict: '', ok: false, loading: false };
+    fix: { id: null, doctorId: null, q: '', serviceId: '', serviceName: '',
+           says: '', verdict: '', ok: false, loading: false },
+    // Every service the desk may pick, once, for the search below.
+    fixServices: {{ fix_services | tojson }},
+    openFix(id, doctorId) {
+      this.fix = { id, doctorId: doctorId ? String(doctorId) : null, q: '',
+                   serviceId: '', serviceName: '', says: '', verdict: '',
+                   ok: false, loading: false };
       this.modal = 'svcfix';
+    },
+    // **Searched, and what this doctor does first.** A list is fine at a
+    // dozen services and useless at a hospital's thousands, so it is a search
+    // box with the matches under it — the appointment's own doctor's services
+    // under «بيقدمها», then everything else. Capped, so typing narrows it
+    // rather than the screen scrolling forever. A doctor nobody has marked
+    // shows one plain list, as before.
+    fixGroups() {
+      return fixGroups(this.fixServices, this.marks[this.fix.doctorId] || null,
+                       this.fix.q, 40);
+    },
+    pickFix(s) {
+      this.fix.serviceId = String(s.id);
+      this.fix.serviceName = s.name;
+      this.fix.q = '';
+      this.askFix();
     },
     async askFix() {
       // Asked before anything is changed, so the desk agrees to a figure it
@@ -626,7 +690,11 @@ function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId,
         this.fix.says = d.says || d.message || '';
         this.fix.verdict = d.verdict || '';
       } catch (e) {
-        this.fix.says = ''; this.fix.ok = false;
+        // Said, not swallowed: a modal that goes quiet when the answer does
+        // not come is exactly how the broken address went unnoticed.
+        this.fix.says = {{ t('svcfix.failed') | tojson }};
+        this.fix.verdict = 'failed';
+        this.fix.ok = false;
       }
       this.fix.loading = false;
     },

@@ -179,6 +179,7 @@ def index():
         if candidate is not None and candidate.appt_date == on_date:
             just_booked = candidate
 
+    services = _bookable_services()
     return render_template(
         "appointments/board.html",
         just_booked=just_booked,
@@ -200,10 +201,38 @@ def index():
         flags=flags,
         fin=fin,
         breakdown=breakdown,
-        bookable_services=_bookable_services(),
+        bookable_services=services,
+        fix_services=_fix_services(services),
         doctor_marks=_doctor_marks(),
         doctor_locked=bool(locked),
+        doctor_tags=_doctor_tags(doctors) if not doctor_id else {},
     )
+
+
+def _fix_services(services):
+    """The services as plain rows for the change-service search."""
+    lang = getattr(g, "lang", "ar")
+    return [{"id": s.id, "name": s.display_name(lang),
+             "price": float(s.price) if s.price else 0} for s in services]
+
+
+#: How many tones the doctor tags cycle through — see ``.doc-tag`` in the board.
+DOCTOR_TONES = 6
+
+
+def _doctor_tags(doctors):
+    """``{doctor_id: {"name", "tone"}}`` for the whole-clinic board.
+
+    «لما نجيب الكل يبقى واضح اسم الطبيب». Looking at everyone's day, a row
+    with no doctor on it answers the wrong half of the question — so each row
+    carries its doctor's name, in a tone that stays the same for that doctor
+    all day (it follows the doctor's place in the list, not the row's), so
+    the eye can follow one doctor down the table. Read from the list the
+    board already loaded: no query per row.
+    """
+    lang = getattr(g, "lang", "ar")
+    return {d.id: {"name": d.display_name(lang), "tone": i % DOCTOR_TONES}
+            for i, d in enumerate(doctors)}
 
 
 def _finance_summary(doctor_id, on_date):
