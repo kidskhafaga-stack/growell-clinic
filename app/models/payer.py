@@ -260,7 +260,8 @@ class PayerContract(db.Model):
             clone.rules.append(PayerContractRule(
                 setting=r.setting, scope=r.scope, service_id=r.service_id,
                 category=r.category, coverage_type=r.coverage_type,
-                coverage_value=r.coverage_value, excluded=r.excluded))
+                coverage_value=r.coverage_value, excluded=r.excluded,
+                needs_approval=r.needs_approval))
         for r in self.rates:
             clone.rates.append(PayerContractRate(
                 service_id=r.service_id, special_price=r.special_price,
@@ -364,6 +365,10 @@ class PayerContractRule(db.Model):
     coverage_type = db.Column(db.String(10), default="percent", nullable=False)
     coverage_value = db.Column(db.Float, default=0)
     excluded = db.Column(db.Boolean, default=False, nullable=False)
+    # «لازم موافقات على حجات معينة لان دي بتتبعت مع المطالبات». A line this
+    # rule decides is covered only with the payer's prior approval on file;
+    # without it the line is flagged and its bill waits out of the claim.
+    needs_approval = db.Column(db.Boolean)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     contract = db.relationship("PayerContract", back_populates="rules")
@@ -380,6 +385,57 @@ class PayerContractRule(db.Model):
 
     def __repr__(self):
         return f"<PayerContractRule {self.setting}/{self.scope}>"
+
+
+#: Where a prior approval stands.
+APPROVAL_STATES = ("requested", "approved", "rejected")
+
+
+class InsuranceApproval(db.Model):
+    """A payer's prior approval for an item — «موافقة».
+
+    Asked for before the item (or while the child is in), answered by the
+    payer with a number, an amount and a date it holds until. The number
+    travels with the claim: every bill line it covers carries it
+    (`InvoiceItem.approval_id`), and a line that needed one and has none
+    keeps its bill out of the claim until it arrives.
+    """
+    __tablename__ = "insurance_approvals"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"),
+                           nullable=False, index=True)
+    payer_id = db.Column(db.Integer, db.ForeignKey("payer_entities.id"),
+                         nullable=False, index=True)
+    # The stay it was asked for — an approval for an admission covers what
+    # the stay needs, not one line.
+    admission_id = db.Column(db.Integer, db.ForeignKey("admissions.id"))
+    # What it is for: one service, or (with no service) everything the stay
+    # needs that asks for approval.
+    service_id = db.Column(db.Integer, db.ForeignKey("services.id"))
+    description = db.Column(db.String(200))
+    estimate = db.Column(db.Float)
+    status = db.Column(db.String(10), default="requested", nullable=False, index=True)
+    approval_number = db.Column(db.String(60))
+    approved_amount = db.Column(db.Float)
+    valid_until = db.Column(db.Date)
+    note = db.Column(db.String(255))
+    requested_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    requested_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    decided_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    decided_at = db.Column(db.DateTime)
+
+    patient = db.relationship("Patient")
+    payer = db.relationship("PayerEntity")
+    service = db.relationship("Service")
+
+    def holds_on(self, day):
+        """Approved, and still in force on ``day``."""
+        return (self.status == "approved"
+                and (self.valid_until is None or day is None or day <= self.valid_until))
+
+    def __repr__(self):
+        return f"<InsuranceApproval {self.approval_number or self.id} {self.status}>"
 
 
 class PatientCoverage(db.Model):

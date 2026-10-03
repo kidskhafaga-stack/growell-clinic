@@ -39,7 +39,8 @@
           {% else %}{{ t('contracts.scope_all') }}{% endif %}</td>
       <td>{% if r.excluded %}<span class="badge badge--danger">{{ t('contracts.rule_excluded') }}</span>
           {% elif r.coverage_type == 'percent' %}<span dir="ltr">{{ r.coverage_value|round(2) }}%</span>
-          {% else %}{{ r.coverage_value|money }}{% endif %}</td>
+          {% else %}{{ r.coverage_value|money }}{% endif %}
+          {% if r.needs_approval %} <span class="badge badge--warn" data-needs-approval><i class="bi bi-patch-check"></i> {{ t('contracts.rule_needs_approval') }}</span>{% endif %}</td>
       <td style="text-align:end;">
         <form method="post" action="{{ url_for('finance.contract_rule_delete', rule_id=r.id) }}" style="margin:0;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -75,6 +76,8 @@
       </select></div>
     <label style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
       <input type="checkbox" name="excluded" value="1" x-model="excluded"> {{ t('contracts.rule_excluded') }}</label>
+    <label style="display:flex;gap:6px;align-items:center;margin-bottom:8px;" x-show="!excluded">
+      <input type="checkbox" name="needs_approval" value="1"> {{ t('contracts.rule_needs_approval') }}</label>
     <div class="form-row" style="margin:0;width:120px;" x-show="!excluded"><label>{{ t('coverage.coverage_type') }}</label>
       <select class="select" name="coverage_type">
         {% for ct in coverage_types %}<option value="{{ ct }}">{{ t('coverage.t_' ~ ct) }}</option>{% endfor %}

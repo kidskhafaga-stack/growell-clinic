@@ -232,6 +232,7 @@ from app.models.payer import (
     PayerType,
     PayerContractRate,
     PayerContractRule,
+    InsuranceApproval,
     PayerEntity,
     PayerServiceRate,
 )
@@ -601,6 +602,7 @@ __all__ = [
     "PayerType",
     "PayerContractRate",
     "PayerContractRule",
+    "InsuranceApproval",
     "PatientCoverage",
     "PAYER_TYPES",
     "COVERAGE_TYPES",

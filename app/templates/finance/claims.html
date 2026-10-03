@@ -8,6 +8,7 @@
   <h1 class="page-title">{{ t('claims.title') }}</h1>
   <div style="display:flex;gap:8px;">
     <a class="btn btn-outline gc-press" href="{{ url_for('finance.payers') }}"><i class="bi bi-building"></i> {{ t('claims.manage_entities') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.approvals') }}" data-to-approvals><i class="bi bi-patch-check"></i> {{ t('approvals.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('finance.index') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
   </div>
 </div>

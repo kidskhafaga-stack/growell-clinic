@@ -2591,7 +2591,8 @@
     "rule_need_category": "Pick the category.",
     "rule_need_value": "Type the cover (a percentage from 1 to 100).",
     "rule_saved": "Coverage rule saved.",
-    "rule_deleted": "Rule deleted."
+    "rule_deleted": "Rule deleted.",
+    "rule_needs_approval": "Needs prior approval"
   },
   "reports": {
     "title": "Reports",
@@ -9621,5 +9622,35 @@
     "consumables": "Consumables",
     "tat_hint": "Time in minutes (30-60), or 2 hours, or 1-2 days.",
     "tat_unreadable": "Could not read the time «{v}» — write it in minutes, e.g. 30-60."
+  },
+  "approvals": {
+    "title": "Prior approvals",
+    "sub": "Approvals the payer must give before certain items — the number travels with the claim. A line that needs one and has none keeps its bill out of the claim until it arrives.",
+    "waiting_title": "{n} lines waiting for approval",
+    "ask": "Request / record approval",
+    "new": "Request an approval",
+    "patient_number": "Patient file number",
+    "whole_stay": "The whole stay",
+    "estimate": "Estimate",
+    "description": "Description",
+    "request": "Request",
+    "all": "All",
+    "state_requested": "Requested",
+    "state_approved": "Approved",
+    "state_rejected": "Refused",
+    "none": "No approvals.",
+    "until": "until",
+    "record_answer": "Record the payer's answer",
+    "number": "Approval no.",
+    "amount": "Approved amount",
+    "approve": "Approved",
+    "reject": "Refused",
+    "need_patient_payer": "Pick the patient and the payer.",
+    "requested": "Approval requested.",
+    "need_number": "Type the approval number.",
+    "approved": "Approval recorded and linked to {n} lines.",
+    "rejected": "Refusal recorded.",
+    "missing": "Needs approval",
+    "to_claims": "Claims"
   }
 }
