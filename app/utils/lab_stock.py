@@ -80,7 +80,13 @@ def take(order, user=None):
 
     if order is None or order.consumed_at is not None or order.kind != "lab":
         return 0
+    # Run somewhere else, nothing of ours was used — a result the doctor
+    # types at the next visit from an outside lab's paper takes no strip.
+    if order.done_outside:
+        return 0
     test = order.investigation
+    if test is not None and test.in_house is False:
+        return 0
     rows = [c for c in (getattr(test, "lab_consumables", None) or [])
             if c.store_item_id and (c.quantity or 0) > 0]
     warehouse = store()

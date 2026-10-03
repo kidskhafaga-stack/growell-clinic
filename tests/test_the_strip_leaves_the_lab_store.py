@@ -129,3 +129,22 @@ def test_only_the_admin_sets_the_store_and_the_figures(lab):
     with lab["app"].app_context():
         assert lab_stock.store() is None
         assert lab["db"].session.get(Investigation, lab["ids"]["sugar"]).cost is None
+
+
+def test_a_result_from_an_outside_lab_takes_nothing(lab):
+    """The doctor types the outside lab's paper at the next visit: nothing of
+    ours was used."""
+    from app.models import VisitInvestigation
+
+    boss = lab["sign_in"]("boss")
+    boss.post("/labs/store", data={"warehouse_id": str(lab["ids"]["store"])})
+    _list(lab, boss)
+    with lab["app"].app_context():
+        row = lab["db"].session.get(VisitInvestigation, lab["ids"]["order"])
+        row.done_outside = True
+        lab["db"].session.commit()
+    boss.post(f"/visits/investigations/{lab['ids']['order']}/result",
+              data={"result_text": "سكر 95", "result_comment": ""})
+    with lab["app"].app_context():
+        assert lab["db"].session.get(VisitInvestigation, lab["ids"]["order"]).status == "resulted"
+    assert _out(lab) == []
