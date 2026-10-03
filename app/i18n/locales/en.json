@@ -9442,5 +9442,26 @@
     "saved": "Saved.",
     "deleted": "Deleted.",
     "hidden_instead": "This test was ordered before — it was hidden instead of deleted, and the old orders keep its name."
+  },
+  "waiting": {
+    "title": "Waiting on:",
+    "triage": "Waiting for triage",
+    "approval": "Outside prescription waiting for a doctor",
+    "doctor": "Nothing written for them yet",
+    "treatment": "Written, not given yet",
+    "reassess": "Session over — needs reassessing",
+    "sample": "Waiting for a sample",
+    "imaging": "Waiting for a scan/study",
+    "result": "Waiting for a result",
+    "decision": "Waiting for the doctor's decision or discharge prescription",
+    "for_n": "{n} min",
+    "over_limit": "Over the limit ({h}h {m}m)",
+    "bedless_title": "In the department without a bed ({n})",
+    "session_running": "{name} — {n} min left",
+    "limit_saved": "Stay limit saved.",
+    "limit_hours": "Stay limit: hours",
+    "limit_minutes": "and minutes",
+    "limit_save": "Save limit",
+    "limit_hint": "A child here longer than this is marked red on the live screen. Blank = no limit and no alert."
   }
 }

@@ -18,7 +18,7 @@ from flask_login import current_user
 from app.models.admission import OUTCOMES
 from app.models.round_note import ROUND_TRENDS
 from app.utils import beds as place
-from app.utils import department
+from app.utils import department, waiting_on
 
 
 def render(module, kind, **extra):
@@ -29,7 +29,10 @@ def render(module, kind, **extra):
              .order_by(Unit.sort_order, Unit.id).all())
     return render_template(
         "departments/board.html",
-        kind=kind, module=module, rows=department.live(kind), units=units,
+        kind=kind, module=module, units=units,
+        # And what each child is waiting on — tests, scans, time over the
+        # unit's own limit (`utils/waiting_on`).
+        rows=waiting_on.for_stays(department.live(kind)),
         # Where a child goes when they are moved: offered from the board
         # itself, because the alternative is telling somebody to open the bed
         # setup, remember the child's name, and start again.

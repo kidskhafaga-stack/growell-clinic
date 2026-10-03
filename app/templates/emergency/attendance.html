@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "_waiting.html" as waits with context %}
 {% set active_module = 'emergency' %}
 {% block title %}{{ row.patient.display_name(current_lang) }} — {{ t('er_orders.title') }}{% endblock %}
 {% block page_heading %}{{ t('er_orders.title') }}{% endblock %}
@@ -31,6 +32,25 @@
   <a class="btn btn-outline gc-press" href="{{ url_for('emergency.register') }}">
     <i class="bi bi-list-ul"></i> {{ t('emergency.register_title') }}</a>
 </div>
+
+{# **Whose move it is.** Read off what was written and done — nobody types
+   it — with a countdown while a timed treatment runs. #}
+{% if (waiting and (waiting['items'] or waiting.over)) or session %}
+<div class="card gc-scale-in" style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;" data-waiting-box>
+  <strong>{{ t('waiting.title') }}</strong>
+  {{ waits.chips(waiting) }}
+  {% if session %}
+  {% set done = ((session.total - session.left) / session.total * 100)|round|int %}
+  <span class="alert-pill ok" data-session title="{{ session.name }}">
+    <svg width="22" height="22" viewBox="0 0 36 36" aria-hidden="true" style="flex:none;">
+      <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="5"></circle>
+      <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" stroke-width="5"
+              stroke-dasharray="{{ (done * 0.9425)|round(1) }} 94.25" transform="rotate(-90 18 18)"></circle>
+    </svg>
+    <i class="bi bi-wind"></i> {{ t('waiting.session_running', name=session.name, n=session.left) }}</span>
+  {% endif %}
+</div>
+{% endif %}
 
 {% if missing %}
 <div class="card gc-scale-in" style="margin-bottom:14px;" data-gaps>

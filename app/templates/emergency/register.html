@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "_waiting.html" as waits with context %}
 {% set active_module = 'emergency' %}
 {% block title %}{{ t('emergency.register_title') }}{% endblock %}
 {% block page_heading %}{{ t('emergency.register_title') }}{% endblock %}
@@ -148,7 +149,10 @@
           {% if row.treatment_only %}<span class="badge badge--muted" data-walk-in>{{ t('er_orders.walk_in') }}</span>{% endif %}
           {% set st = order_states.get(row.id) or {} %}
           {% if st.get('waiting_doctor') %}<span class="badge badge--danger" data-waiting-doctor>{{ t('er_orders.waiting_doctor_n', n=st.waiting_doctor) }}</span>{% endif %}
-          {% if st.get('ready') %}<span class="badge badge--warn" data-ready>{{ t('er_orders.ready_n', n=st.ready) }}</span>{% endif %}</td>
+          {% if st.get('ready') %}<span class="badge badge--warn" data-ready>{{ t('er_orders.ready_n', n=st.ready) }}</span>{% endif %}
+          {% set w = waiting.get(row.id) %}
+          {% if w and w.top %}<div style="margin-top:4px;">{{ waits.chip(w.top) }}</div>{% endif %}
+          {% if w and w.over %}<div style="margin-top:4px;"><span class="alert-pill danger" data-over-limit><i class="bi bi-alarm"></i> {{ t('waiting.over_limit', h=(w.limit // 60), m=(w.limit % 60)) }}</span></div>{% endif %}</td>
         <td dir="ltr">{{ row.arrived_at|clinic_stamp }}</td>
         <td dir="ltr">{{ row.minutes }}′</td>
         <td>

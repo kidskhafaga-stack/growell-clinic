@@ -456,6 +456,9 @@ ADDITIONS = [
     ("services", "needs_device", "BOOLEAN DEFAULT 0"),
     ("services", "needs_report", "BOOLEAN DEFAULT 0"),
     ("services", "needs_consumables", "BOOLEAN DEFAULT 0"),
+    # A department's own «too long here» figure, in minutes. Empty on every
+    # unit: no limit, nothing flagged.
+    ("care_units", "max_stay_minutes", "INTEGER"),
     # Whether a service's price includes the drug and supplies used to give
     # it. Empty on every service: «not said yet», charged separately.
     ("services", "supplies_mode", "VARCHAR(10)"),

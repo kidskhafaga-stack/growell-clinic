@@ -1,0 +1,20 @@
+{# What a child is waiting on — a shape and a word and how long, side by side.
+   «عايز الشاشة تبقى فيها اشكال تصف المعنى جنب الكلام». See utils/waiting_on. #}
+{% macro chip(item) -%}
+  <span class="alert-pill {{ 'danger' if item.late or item.kind in ('triage', 'approval') else ('ok' if item.kind == 'decision' else 'warn') }}"
+        data-waiting="{{ item.kind }}" title="{{ item.detail or '' }}">
+    <i class="bi bi-{{ item.icon }}"></i>
+    {{ t('waiting.' ~ item.kind) }}{% if item.detail %} · <span dir="auto">{{ item.detail }}</span>{% endif %}
+    <span class="hint" style="margin:0;" dir="ltr">{{ t('waiting.for_n', n=item.minutes) }}</span>
+  </span>
+{%- endmacro %}
+
+{% macro chips(w, skip=()) -%}
+  {% if w %}
+  {% for item in w['items'] if item.kind not in skip %}{{ chip(item) }} {% endfor %}
+  {% if w.over %}
+  <span class="alert-pill danger" data-over-limit>
+    <i class="bi bi-alarm"></i> {{ t('waiting.over_limit', h=(w.limit // 60), m=(w.limit % 60)) }}</span>
+  {% endif %}
+  {% endif %}
+{%- endmacro %}
