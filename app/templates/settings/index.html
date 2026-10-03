@@ -551,6 +551,15 @@
       <label for="refund_approval_required" style="margin:0;font-weight:400;">{{ t('settings.refund_approval_required') }}</label>
     </div>
     <p class="hint">{{ t('settings.refund_approval_required_hint') }}</p>
+    <div class="form-row" data-patient-credit-mode>
+      <label for="patient_credit_mode">{{ t('credit.setting') }}</label>
+      <select class="select" id="patient_credit_mode" name="patient_credit_mode">
+        {% for v in ['', 'on', 'off'] %}
+        <option value="{{ v }}" {{ 'selected' if (values.get('patient_credit_mode') or '') == v else '' }}>{{ t('credit.mode_' ~ (v or 'auto')) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <p class="hint">{{ t('credit.setting_hint') }}</p>
     <div class="form-row checkbox" data-arrive-on-payment>
       <input type="checkbox" id="arrive_on_payment" name="arrive_on_payment" value="1"
              {{ 'checked' if values.get('arrive_on_payment','1') != '0' else '' }}>

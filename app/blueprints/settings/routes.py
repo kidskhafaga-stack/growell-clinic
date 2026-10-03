@@ -36,6 +36,10 @@ TEXT_KEYS = [
     # always does. Zero makes every refund wait, which is how it behaved
     # before there was a line between them.
     "refund_no_approval_under",
+    # The patient's own account (deposits, money held for a family): blank
+    # follows the facility — on for a hospital or a dental clinic — and
+    # «on» / «off» is the clinic's own word. `app/utils/patient_credit`.
+    "patient_credit_mode",
     # Where the clinic is. Needed wherever a stored UTC moment has to be
     # compared with a time a person typed (see app/utils/clock.py).
     "clinic_timezone",

@@ -2171,6 +2171,19 @@ SECTIONS = [
              "مطالبة بالفترة لكل جهة وتتابع تحصيلها.",
              "The member's discount stays <b>claimable from the payer</b>; "
              "print a per-period claim per payer and track its collection."),
+            ("<b>حساب المريض الدائن</b>: الدفعة المقدّمة للإقامة، أو فلوس "
+             "أكتر من خطة الأسنان، بتتحفظ على حساب المريض (من ملفه ← "
+             "الحسابات، أو من صفحة الإقامة). منه تتسدّد فواتيره بزرار "
+             "«سداد من الرصيد»، واللي يفضل يترد له. النقدي بيدخل الوردية، "
+             "والسداد من الرصيد ما بيتعدّش في الدرج تاني. مفعّل تلقائي في "
+             "المستشفى والأسنان، ويتفتح أو يتقفل من السياسات.",
+             "<b>Patient account</b>: a stay deposit, or more than a dental "
+             "plan's bill, is held on the patient's account (patient file → "
+             "finance, or the stay's page). It pays their bills with «Pay "
+             "from account», and what is left is handed back. Cash enters "
+             "the shift; paying from the account is not counted in the "
+             "drawer again. On by itself for a hospital or a dental clinic, "
+             "and switched in the policies."),
         ],
     },
     {

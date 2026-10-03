@@ -658,6 +658,12 @@ def view(patient_id):
         "paid": round(sum(i.paid for i in invoices), 2),
         "balance": round(sum(i.balance for i in invoices), 2),
     }
+    # What the clinic holds for the family on their own account — shown
+    # where the clinic uses it, and always where there is some.
+    from app.utils import patient_credit as _credit
+
+    fin["held"] = _credit.balance(patient.id)
+    fin["credit_shown"] = _credit.shown_for(patient.id, fin["held"])
     from app.utils import consent as _consent_utils
     from app.utils.consent import all_statements
     # Device studies — echo, audiometry, ECG, spirometry. They were in three

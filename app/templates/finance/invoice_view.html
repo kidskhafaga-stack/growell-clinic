@@ -357,6 +357,28 @@
   </script>
   {% endif %}
 
+  {# What the family already holds with the clinic — a deposit, a stay paid
+     ahead. Offered only where there is some and the bill still owes; the
+     amount defaults to whichever is less. #}
+  {% if credit_held > 0 and invoice.balance > 0 and invoice.status != 'refunded' %}
+  <form method="post" action="{{ url_for('finance.invoice_from_credit', invoice_id=invoice.id) }}"
+        class="form-grid" style="align-items:end;margin-top:12px;" data-from-credit>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="invoice">
+    <div class="form-row"><label>{{ t('credit.pay_from', held=credit_held|money) }}</label>
+      <input class="input" type="number" step="0.01" min="0" name="amount"
+             value="{{ [credit_held, invoice.balance]|min }}"></div>
+    <div class="form-row" style="justify-content:end;">
+      <button class="btn btn-outline btn-sm gc-press" type="submit">
+        <i class="bi bi-piggy-bank"></i> {{ t('credit.pay_from_button') }}</button></div>
+  </form>
+  {% endif %}
+  {% if credit_shown and invoice.patient_id %}
+  <p class="hint" style="margin:8px 0 0;">
+    <a href="{{ url_for('finance.patient_account', patient_id=invoice.patient_id) }}" data-credit-link>
+      <i class="bi bi-piggy-bank"></i> {{ t('credit.title') }}: {{ credit_held|money }}</a></p>
+  {% endif %}
+
   {% if invoice.paid > 0 %}
   <details style="margin-top:12px;">
     <summary style="cursor:pointer;color:var(--danger);font-size:0.9rem;"><i class="bi bi-arrow-return-left"></i> {{ t('invoices.refund') }}</summary>

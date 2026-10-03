@@ -174,6 +174,22 @@
       <i class="bi bi-cash"></i> {{ t('dental.take') }}</button>
   </form>
   {% endif %}
+  {# The family's own account — a payment ahead of the plan, or more than
+     its bill, is kept there and pays this bill from it. #}
+  {% if credit_shown and current_user.can_collect %}
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;" data-dental-credit>
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.patient_account', patient_id=plan.patient_id) }}">
+      <i class="bi bi-piggy-bank"></i> {{ t('credit.title') }}: {{ credit_held|money }}</a>
+    {% if credit_held > 0 and plan.invoice.balance > 0 %}
+    <form method="post" action="{{ url_for('finance.invoice_from_credit', invoice_id=plan.invoice.id) }}" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="invoice">
+      <button class="btn btn-outline btn-sm gc-press" type="submit" data-dental-from-credit>
+        {{ t('credit.pay_amount', amount=([credit_held, plan.invoice.balance]|min)|money) }}</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
 </div>
 {% endif %}
 {% endblock %}

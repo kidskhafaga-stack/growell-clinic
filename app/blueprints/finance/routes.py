@@ -2007,6 +2007,18 @@ def _drawer_summary(on_date):
             by_method[p.method] += amt
             if p.method == "cash":
                 cash_in += amt
+    # Cash taken on a patient's account, and balances handed back: in and
+    # out of the same drawer, though on no bill.
+    from app.models import PatientCredit
+
+    for row in PatientCredit.query.filter(
+            PatientCredit.created_at >= start, PatientCredit.created_at <= end,
+            PatientCredit.method == "cash",
+            PatientCredit.kind.in_(("in", "refund"))).all():
+        if row.kind == "in":
+            cash_in += row.amount or 0
+        else:
+            cash_out += row.amount or 0
     drawer = CashDrawerDay.query.filter_by(drawer_date=on_date).first()
     opening_float = drawer.opening_float if drawer else 0
     cash_collected = round(cash_in - cash_out, 2)
@@ -4338,7 +4350,19 @@ def invoice_view(invoice_id):
         # here are their own nets added up, never a second figure.
         **_bill_shape(invoice),
         **_online_pay_card(invoice),
+        **_credit_card(invoice),
     )
+
+
+def _credit_card(invoice):
+    """What the family holds on their own account, for the bill's screen."""
+    from app.utils import patient_credit
+
+    if invoice.patient_id is None:
+        return {"credit_held": 0.0, "credit_shown": False}
+    held = patient_credit.balance(invoice.patient_id)
+    return {"credit_held": held,
+            "credit_shown": patient_credit.shown_for(invoice.patient_id, held)}
 
 
 def _online_pay_card(invoice):
@@ -4597,6 +4621,160 @@ def invoice_refund(invoice_id):
     _post_journal_safe("payment", refund_pay)
     flash(t("invoices.refund_added"), "success")
     return redirect(_after_refund(invoice))
+
+
+# ---------------------------------------------------------------------------
+# The patient's own account — deposits, a stay paid ahead, what is left over
+# ---------------------------------------------------------------------------
+def _credit_back(patient_id, invoice=None):
+    """Back to the screen the desk started from: the stay, the bill, or the
+    account itself. Chosen from a fixed list, never a posted address."""
+    where = (request.form.get("next") or "").strip()
+    if where.startswith("admission:"):
+        try:
+            return url_for("beds.admission", admission_id=int(where.split(":", 1)[1]))
+        except (TypeError, ValueError):
+            pass
+    if where == "invoice" and invoice is not None:
+        return url_for("finance.invoice_view", invoice_id=invoice.id)
+    return url_for("finance.patient_account", patient_id=patient_id)
+
+
+def _credit_refused(err):
+    flash(t("credit.err_" + str(err)), "danger")
+
+
+@finance_bp.route("/patient/<int:patient_id>/account")
+@cashier_access
+def patient_account(patient_id):
+    """What the clinic holds for this family, line by line, and the bills it
+    can pay."""
+    from app.utils import patient_credit
+
+    patient = db.get_or_404(Patient, patient_id)
+    held = patient_credit.balance(patient.id)
+    open_bills = [i for i in (Invoice.query.filter_by(patient_id=patient.id)
+                              .filter(Invoice.status != "refunded")
+                              .order_by(Invoice.invoice_date.desc(),
+                                        Invoice.id.desc()).all())
+                  if i.balance > 0]
+    return render_template(
+        "finance/patient_account.html", patient=patient, held=held,
+        rows=patient_credit.rows(patient.id), open_bills=open_bills,
+        methods=PAYMENT_METHODS, tills=_till_choices(),
+        enabled=patient_credit.enabled())
+
+
+@finance_bp.route("/patient/<int:patient_id>/account/take", methods=["POST"])
+@cashier_access
+def credit_take(patient_id):
+    """Money received on the family's account — a deposit before a stay, a
+    payment ahead of a plan."""
+    from app.utils import patient_credit
+    from app.utils.clock import local_today
+
+    patient = db.get_or_404(Patient, patient_id)
+    back = redirect(_credit_back(patient.id))
+    if _period_blocked(local_today()):
+        return back
+    method = (request.form.get("method") or "cash").strip()
+    if _shift_gate_blocked([method]):
+        flash(t("shifts.gate_blocked"), "warning")
+        return back
+    admission_id = request.form.get("admission_id", type=int)
+    if admission_id:
+        from app.models import Admission
+
+        stay = db.session.get(Admission, admission_id)
+        admission_id = stay.id if stay is not None \
+            and stay.patient_id == patient.id else None
+    till = _till_for(method, request.form.get("account_id", type=int))
+    try:
+        row = patient_credit.take(
+            patient, request.form.get("amount"), method, current_user,
+            shift_id=_current_shift_id(),
+            account_id=till.id if till else None, admission_id=admission_id,
+            note=request.form.get("note"))
+    except patient_credit.CreditError as err:
+        db.session.rollback()
+        _credit_refused(err)
+        return back
+    ActivityLog.record("credit.in", user_id=current_user.id, entity="patient",
+                       entity_id=patient.id, detail=f"{row.amount}",
+                       ip_address=client_ip())
+    db.session.commit()
+    patient_credit.post(row, user_id=current_user.id)
+    flash(t("credit.taken", amount=format_money(row.amount)), "success")
+    _till_notice([method])
+    return back
+
+
+@finance_bp.route("/invoices/<int:invoice_id>/from-credit", methods=["POST"])
+@cashier_access
+def invoice_from_credit(invoice_id):
+    """Pay this bill from what the family holds."""
+    from app.utils import patient_credit
+
+    invoice = db.get_or_404(Invoice, invoice_id)
+    back = redirect(_credit_back(invoice.patient_id, invoice))
+    if _period_blocked(invoice.invoice_date):
+        return back
+    try:
+        payment = patient_credit.apply_to(
+            invoice, (request.form.get("amount") or "").strip() or None,
+            current_user)
+    except patient_credit.CreditError as err:
+        db.session.rollback()
+        _credit_refused(err)
+        return back
+    ActivityLog.record("credit.applied", user_id=current_user.id,
+                       entity="invoice", entity_id=invoice.id,
+                       detail=f"{invoice.invoice_number}:{payment.amount}",
+                       ip_address=client_ip())
+    db.session.commit()
+    patient_credit.post_applied(payment, user_id=current_user.id)
+    flash(t("credit.applied", amount=format_money(payment.amount)), "success")
+    return back
+
+
+@finance_bp.route("/patient/<int:patient_id>/account/give-back", methods=["POST"])
+@cashier_access
+def credit_give_back(patient_id):
+    """Hand back what is left. The same rule as a refund on a bill: unless
+    the clinic turned the sign-off off, it is a manager's to do."""
+    from app.utils import patient_credit
+    from app.utils.clock import local_today
+
+    patient = db.get_or_404(Patient, patient_id)
+    back = redirect(_credit_back(patient.id))
+    if Setting.get("refund_approval_required", "1") != "0" \
+            and not current_user.is_admin:
+        _credit_refused("needs_manager")
+        return back
+    if _period_blocked(local_today()):
+        return back
+    method = (request.form.get("method") or "cash").strip()
+    if _shift_gate_blocked([method]):
+        flash(t("shifts.gate_blocked"), "warning")
+        return back
+    till = _till_for(method, request.form.get("account_id", type=int))
+    try:
+        row = patient_credit.give_back(
+            patient, request.form.get("amount"), method, current_user,
+            shift_id=_current_shift_id(),
+            account_id=till.id if till else None,
+            note=request.form.get("note"))
+    except patient_credit.CreditError as err:
+        db.session.rollback()
+        _credit_refused(err)
+        return back
+    ActivityLog.record("credit.refund", user_id=current_user.id,
+                       entity="patient", entity_id=patient.id,
+                       detail=f"-{row.amount}", ip_address=client_ip())
+    db.session.commit()
+    patient_credit.post(row, user_id=current_user.id)
+    flash(t("credit.given_back", amount=format_money(row.amount)), "success")
+    return back
 
 
 @finance_bp.route("/invoices/<int:invoice_id>/item/add", methods=["POST"])

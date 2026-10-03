@@ -89,6 +89,14 @@
          a doctor's share. It was always subtracted from the expected figure
          and never shown, so the three rows did not add up on screen and a
          cashier reading them had no way to see why. #}
+      {# Deposits taken on a patient's account and balances handed back.
+         On no bill, in the drawer all the same — shown only where there
+         were any, so a clinic without the account reads the rows it had. #}
+      {% set on_account = shift.credit_cash %}
+      {% if on_account %}
+      <tr data-shift-credit><td>{{ t('credit.on_account_cash') }}</td>
+        <td style="text-align:end;" dir="ltr">{{ '%+.2f'|format(on_account) }}</td></tr>
+      {% endif %}
       <tr><td>{{ t('cashier.cash_paid_out') }}</td>
         <td style="text-align:end;">−{{ shift.cash_paid_out }}</td></tr>
       <tr style="font-weight:700;"><td>{{ t('cashier.expected_cash') }}</td><td style="text-align:end;">{{ shift.expected_cash }}</td></tr>

@@ -3073,6 +3073,11 @@
         <div class="stat-card edge-blue"><div class="value">{{ fin.total }}</div><div class="label">{{ t('invoices.total') }}</div></div>
         <div class="stat-card edge-green"><div class="value">{{ fin.paid }}</div><div class="label">{{ t('invoices.paid') }}</div></div>
         <div class="stat-card {{ 'edge-red' if fin.balance > 0 else 'edge-green' }}"><div class="value">{{ fin.balance }}</div><div class="label">{{ t('invoices.balance') }}</div></div>
+        {% if fin.credit_shown and current_user.can_collect %}
+        <a class="stat-card edge-green" style="text-decoration:none;color:inherit;" data-profile-credit
+           href="{{ url_for('finance.patient_account', patient_id=patient.id) }}">
+          <div class="value">{{ fin.held }}</div><div class="label"><i class="bi bi-piggy-bank"></i> {{ t('credit.held') }}</div></a>
+        {% endif %}
       </div>
       {% if packages %}
       {# Courses paid for up front. A balance in *sessions*, not in money —

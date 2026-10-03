@@ -30,7 +30,7 @@ from werkzeug.routing import BuildError
 from app.blueprints.beds import beds_bp
 from app.extensions import db
 from app.i18n import t
-from app.models import Patient, Visit
+from app.models import PAYMENT_METHODS, Patient, Visit
 from app.models.admission import OUTCOMES, Admission
 from app.models.blood import PRODUCTS as BLOOD_PRODUCTS
 from app.models.blood import URGENCIES as BLOOD_URGENCIES
@@ -668,6 +668,19 @@ def admission_consent(admission_id):
         relations=PARENT_RELATIONS)
 
 
+def _stay_money(row):
+    """The family's deposit against what the stay has come to — for the
+    people who take money; nothing for everybody else."""
+    from app.utils import patient_credit
+
+    if not getattr(current_user, "can_collect", False):
+        return {"stay_money": None}
+    money = patient_credit.for_stay(row)
+    if not patient_credit.shown_for(row.patient_id, money["held"]):
+        return {"stay_money": None}
+    return {"stay_money": money, "pay_methods": PAYMENT_METHODS}
+
+
 @beds_bp.route("/admission/<int:admission_id>")
 @module_required(MODULE)
 def admission(admission_id):
@@ -758,6 +771,9 @@ def admission(admission_id):
         arrests=_cpr.for_patient(row.patient_id, limit=10),
         resus_outcomes=RESUS_OUTCOMES,
         risk_panel=risk_rows,
+        # الدفعة المقدّمة: اللي الأهل دفعوه مقدّم، قصاد اللي الإقامة وصلت له.
+        # بس للي بيقبض فلوس — الممرضة مش محتاجاها على الشاشة.
+        **_stay_money(row),
         risk_unassessed=risks.unassessed(risk_rows),
         risk_bare=risks.without_plan(risk_rows),
         discharge_summary=summary.for_admission(row),

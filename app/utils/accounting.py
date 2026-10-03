@@ -33,6 +33,10 @@ CHART = [
     ("2000", "الخصوم", "Liabilities", "liability", None),
     ("2010", "الموردون", "Suppliers (AP)", "liability", "2000"),
     ("2020", "ضرائب مستحقة", "Taxes payable", "liability", "2000"),
+    # Money the clinic holds for a family — deposits, a stay paid ahead,
+    # what is left over. Theirs until it is used on their bill or given back
+    # (`app/models/patient_credit.py`).
+    ("2030", "أرصدة دائنة للمرضى", "Patient credit balances", "liability", "2000"),
     ("3000", "حقوق الملكية", "Equity", "equity", None),
     ("3010", "رأس المال / أرباح مرحّلة", "Capital / retained earnings", "equity", "3000"),
     ("4000", "الإيرادات", "Revenue", "revenue", None),
@@ -305,7 +309,9 @@ def post_payment(payment, user_id=None):
     if not payment or (payment.amount or 0) <= 0:
         return None
     number = payment.invoice.invoice_number if payment.invoice else ""
-    code = till_code(payment)
+    # Paid from the family's own account: no till moved. What the clinic
+    # held for them (2030) is what pays the bill.
+    code = ("2030" if payment.method == "credit" else till_code(payment))
     if getattr(payment, "kind", "payment") == "refund":
         lines = [("1030", payment.amount, 0, number),
                  (code, 0, payment.amount, number)]
