@@ -93,12 +93,37 @@
     <h3 style="margin:0 0 6px;"><i class="bi bi-arrow-left-right"></i> {{ t('svcfix.change_service') }}</h3>
     <p class="hint" style="margin:0 0 14px;">{{ t('svcfix.change_service_hint') }}</p>
     <div class="form-row"><label>{{ t('svcfix.pick_service') }}</label>
-      <select class="input" x-model="fix.serviceId" x-on:change="askFix()">
-        <option value="">—</option>
-        {% for svc in bookable_services %}
-        <option value="{{ svc.id }}">{{ svc.name }}{% if svc.price %} · {{ svc.price }}{% endif %}</option>
-        {% endfor %}
-      </select></div>
+      <div class="svcfix-chosen" x-show="fix.serviceName" x-cloak data-svcfix-chosen>
+        <i class="bi bi-check2-circle"></i> <span x-text="fix.serviceName"></span></div>
+      <div style="position:relative;">
+        <i class="bi bi-search" style="position:absolute;inset-inline-start:10px;top:50%;transform:translateY(-50%);color:var(--muted);"></i>
+        <input class="input" x-model="fix.q" data-svcfix-search autocomplete="off"
+               placeholder="{{ t('svcfix.search') }}" style="padding-inline-start:32px;">
+      </div>
+      <div class="svcfix-list" data-svcfix-list>
+        <template x-if="fixGroups().mine.length">
+          <div class="svcfix-group"><i class="bi bi-person-check"></i> {{ t('doctors.provides') }}</div>
+        </template>
+        <template x-for="s in fixGroups().mine" :key="'m' + s.id">
+          <button type="button" class="svcfix-opt" :class="String(s.id) === fix.serviceId && 'on'"
+                  x-on:click="pickFix(s)">
+            <span x-text="s.name"></span><span class="svcfix-price" dir="ltr" x-text="s.price || ''"></span></button>
+        </template>
+        <template x-if="fixGroups().mine.length && fixGroups().other.length">
+          <div class="svcfix-group">{{ t('doctors.other_services') }}</div>
+        </template>
+        <template x-for="s in fixGroups().other" :key="'o' + s.id">
+          <button type="button" class="svcfix-opt" :class="String(s.id) === fix.serviceId && 'on'"
+                  x-on:click="pickFix(s)">
+            <span x-text="s.name"></span><span class="svcfix-price" dir="ltr" x-text="s.price || ''"></span></button>
+        </template>
+        <template x-if="!fixGroups().mine.length && !fixGroups().other.length">
+          <div class="hint" style="padding:8px;">{{ t('svcfix.no_match') }}</div>
+        </template>
+        <template x-if="fixGroups().more">
+          <div class="hint" style="padding:6px 8px;">{{ t('svcfix.type_more') }}</div>
+        </template>
+      </div></div>
     <template x-if="fix.loading">
       <div class="hint"><i class="bi bi-hourglass-split"></i> {{ t('svcfix.checking') }}</div>
     </template>
