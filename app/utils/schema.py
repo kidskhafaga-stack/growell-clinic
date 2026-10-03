@@ -808,7 +808,62 @@ ADDITIONS = [
     # discounts (`InvoiceItem.payer_amount`). Empty on every line billed
     # before; those read as they always did.
     ("invoice_items", "payer_amount", "FLOAT"),
+    # «رسم المخ الى بيحتاج حجز ونوم» — a device study booked for a day and an
+    # hour, with what the family must do before it. Empty on every order.
+    ("visit_investigations", "booked_for", "DATETIME"),
+    ("visit_investigations", "booking_note", "VARCHAR(160)"),
+    ("visit_investigations", "booked_by", "INTEGER"),
+    # Which device performs a diagnostic test, and whether it is booked
+    # rather than done on the spot. Empty on every test until the clinic says.
+    ("investigations", "device_id", "INTEGER"),
+    ("investigations", "needs_booking", "BOOLEAN"),
+    # The order a device study answers, and the stay it was done on — a study
+    # at a bedside is not a clinic visit. Empty on every study already kept.
+    ("device_studies", "order_id", "INTEGER"),
+    ("device_studies", "admission_id", "INTEGER"),
+    # «مش مفتوح ان المعمل يدخلها او يغيراها بايده» — a range typed on the
+    # test's own page, and the approved row a hand correction stands in for.
+    # Empty on every imported row; see `utils/lab_hand.py`.
+    ("lab_ranges", "manual", "BOOLEAN DEFAULT 0"),
+    ("lab_ranges", "replaces_id", "INTEGER"),
+    ("lab_ranges", "entered_by", "INTEGER"),
+    # «توقيف تحليل» said in words: why, when and by whom. Empty on every
+    # test stopped before by unticking «شغّال».
+    ("investigations", "stopped_reason", "VARCHAR(200)"),
+    ("investigations", "stopped_at", "DATETIME"),
+    ("investigations", "stopped_by", "INTEGER"),
+    # What one run of a test costs the lab, typed by the lab — beside the
+    # price it is charged at. And when an order's consumables left the lab's
+    # store, so a result typed, cleared and typed again takes them once.
+    ("investigations", "cost", "FLOAT"),
+    ("visit_investigations", "consumed_at", "DATETIME"),
 ]
+
+SPLIT_IMAGING_KEY = "split_done:imaging"
+
+
+def split_imaging_from_labs():
+    """Radiology out of the lab, once. Returns whether anything ran.
+
+    Where the lab was on, radiology is switched on; every role whose modules
+    list the lab gains radiology. Never run twice — a clinic that later
+    switches radiology off has said so, and an upgrade must not undo it.
+    """
+    from app.models import Setting
+    from app.models.role import Role
+
+    if Setting.get(SPLIT_IMAGING_KEY) == "1":
+        return False
+    if Setting.get("mod_enabled:labs") == "1":
+        Setting.set("mod_enabled:imaging", "1")
+    for role in Role.query.all():
+        mods = [m.strip() for m in (role.modules or "").split(",") if m.strip()]
+        if "labs" in mods and "imaging" not in mods:
+            mods.insert(mods.index("labs") + 1, "imaging")
+            role.modules = ",".join(mods)
+    Setting.set(SPLIT_IMAGING_KEY, "1")
+    return True
+
 
 def apply_schema(report=None):
     """Create missing tables and add missing columns. Returns the count added.
@@ -945,6 +1000,31 @@ def apply_schema(report=None):
         moved = move_diagnostics_out_of_radiology()
         if moved and report:
             report(f"  ~ investigations: moved {moved} out of radiology")
+    except Exception:  # noqa: BLE001 — never blocks an upgrade
+        db.session.rollback()
+
+    # «المعمل مديول لواحده والاشعة مديول». Radiology lived under `labs` and
+    # is a module of its own now; once, every copy with the lab on gets it
+    # on, and every role that held the lab holds it too — the films a clinic
+    # saw yesterday must still be there today.
+    # The device board's door, for a clinic that already does these studies:
+    # it said so in the wizard, or one has been ordered.
+    try:
+        from app.utils import device_board
+        from app.utils.facility import offers
+
+        if (any(offers(c) for c in device_board.CAPABILITIES)
+                or device_board.waiting_count()):
+            device_board.mark_used()
+            db.session.commit()
+    except Exception:  # noqa: BLE001 — never blocks an upgrade
+        db.session.rollback()
+
+    try:
+        if split_imaging_from_labs():
+            db.session.commit()
+            if report:
+                report("  ~ modules: radiology split out of the lab")
     except Exception:  # noqa: BLE001 — never blocks an upgrade
         db.session.rollback()
 

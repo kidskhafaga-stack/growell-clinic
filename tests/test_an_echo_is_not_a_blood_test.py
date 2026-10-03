@@ -408,27 +408,15 @@ def test_the_two_rooms_do_not_read_each_others_lists(three_rooms):
 
 
 def test_each_room_has_its_own_screen(three_rooms):
+    """Radiology is a module of its own; the echo is a device study, on the
+    board beside the visit (``tests/test_a_study_booked_and_answered.py``)."""
     with three_rooms["app"].app_context():
         client = three_rooms["sign_in"]()
         xray = client.get("/imaging/").get_data(as_text=True)
-        studies = client.get("/imaging/diagnostics").get_data(as_text=True)
+        studies = client.get("/visits/studies/board").get_data(as_text=True)
 
     assert "أشعة صدر" in xray and "إيكو قلب ECHO" not in xray
     assert "إيكو قلب ECHO" in studies and "أشعة صدر" not in studies
-
-
-def test_each_room_carries_a_door_to_the_other_with_its_count(three_rooms):
-    """Splitting a list must never be the thing that makes an order go
-    quiet."""
-    with three_rooms["app"].app_context():
-        client = three_rooms["sign_in"]()
-        xray = client.get("/imaging/").get_data(as_text=True)
-        studies = client.get("/imaging/diagnostics").get_data(as_text=True)
-
-    for html in (xray, studies):
-        assert "data-to-other" in html
-        marker = html.split("data-to-other", 1)[1][:420]
-        assert ">1<" in marker, "the door does not say how many are waiting"
 
 
 def test_the_rack_has_a_door_to_both(three_rooms):
@@ -462,7 +450,7 @@ def test_done_lands_back_in_the_room_it_was_pressed_in(three_rooms):
         answer = three_rooms["sign_in"]().post(
             "/imaging/order/%s/performed" % three_rooms["ids"]["echo"])
 
-    assert "/imaging/diagnostics" in answer.headers.get("Location", "")
+    assert "/visits/studies/board" in answer.headers.get("Location", "")
 
 
 # ------------------------------- what a third value costs, paid explicitly --

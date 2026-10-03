@@ -73,6 +73,17 @@ MODULES = [
     # a screen for: the sample, and the person who runs it. Its own module and
     # opt-in, because a clinic that sends its tests out has no bench.
     "labs",
+    # **Radiology — its own module, not a corner of the lab.** «المعمل مديول
+    # لواحده والاشعة مديول». Films, panoramic, CT and MRI are taken and
+    # reported by the X-ray room, which is not the bench and is not in every
+    # building that has one. Split out of `labs` after both had lived under
+    # it; every copy that had the lab on gets this on as well, once, on
+    # upgrade (`schema.split_imaging_from_labs`), so no scan goes quiet.
+    #
+    # The echo, the sonar, the spirometer, the ECG and the EEG are **not**
+    # here: they are device studies, done in any clinic and at any bedside,
+    # and they live with the visit (`visits.device_board`).
+    "imaging",
     # The counter. Not the writing — the prescription writer has existed for
     # years and the dose and interaction checks with it. This is the act
     # underneath: somebody reviews the paper, takes the box off the shelf and
@@ -134,6 +145,7 @@ MODULE_ICONS = {
     "ward": "buildings",
     "theatres": "scissors",
     "labs": "eyedropper",
+    "imaging": "radioactive",
     "pharmacy": "prescription2",
     "duty": "calendar-week",
     "prescriptions": "capsule",
@@ -175,6 +187,8 @@ ROLE_PERMISSIONS = {
         # They order the tests; seeing where one has got to is the same
         # question as "has anybody been to draw this child's blood".
         "labs",
+        # And the films they ordered, now that radiology is its own module.
+        "imaging",
         # The rota — reading it, which is what "who is on tonight" is. What a
         # night pays and who is put on it stay admin-only inside the screen.
         "duty",
@@ -207,6 +221,8 @@ ROLE_PERMISSIONS = {
         # Whoever walks to the bed with the tube. A clinic with a lab
         # technician of its own makes a role for them — roles are data.
         "labs",
+        # They had the films under `labs`; the split must not take them away.
+        "imaging",
         # Nursing works the same nights, and "who is on with me" is the
         # question the rota exists to answer.
         "duty",

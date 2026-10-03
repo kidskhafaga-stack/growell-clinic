@@ -256,6 +256,21 @@
       {% elif x.status == 'collected' %}<span class="badge badge--warn">{{ t('beds.map_st_collected') }}</span>
       {% else %}<span class="badge badge--warn">{{ t('beds.map_st_requested') }}</span>{% endif %}
       <span class="hint" dir="ltr" style="margin:0;">{{ x.created_at|clinic_stamp }}</span>
+      {# A study done at the trolley — an ECG above all — is marked done here,
+         not on another room's list. The report goes on the order screen. #}
+      {% if x.kind in ('imaging', 'diagnostic') and not x.done_outside and row.is_open %}
+        {% if x.status == 'requested' %}
+        <form method="post" style="margin:0;" data-er-test-done="{{ x.id }}"
+              action="{{ url_for('emergency.test_done', attendance_id=row.id, test_id=x.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm btn-outline gc-press" type="submit">
+            <i class="bi bi-check2-circle"></i> {{ t('studies.done_now') }}</button>
+        </form>
+        {% elif x.status == 'collected' and current_user.can_access('labs') and module_enabled('labs') %}
+        <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('labs.order', order_id=x.id) }}">
+          <i class="bi bi-pencil"></i> {{ t('studies.write_report') }}</a>
+        {% endif %}
+      {% endif %}
     </li>
     {% endfor %}
   </ul>

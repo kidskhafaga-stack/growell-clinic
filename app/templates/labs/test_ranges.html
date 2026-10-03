@@ -3,7 +3,45 @@
 {% block title %}{{ test.display_name(current_lang) }}{% endblock %}
 {% block page_heading %}{{ t('lab_import.ranges_title') }}{% endblock %}
 
+{# The figures of one band, for adding and for correcting. The age is typed
+   the way the sheet writes it and read by the same reader. #}
+{% macro range_fields(r=None) %}
+  <div class="rng-grid">
+    <div class="form-row"><label>{{ t('lab_import.age') }}</label>
+      <input class="input" name="age" maxlength="60" dir="ltr" required
+             value="{{ r.age_label if r and r.age_label else '' }}" placeholder="{{ t('lab_hand.age_ph') }}"></div>
+    <div class="form-row"><label>{{ t('lab_import.sex') }}</label>
+      <select class="select" name="sex">
+        {% for one in ('all', 'male', 'female') %}
+        <option value="{{ one }}" {{ 'selected' if r and r.sex == one else '' }}>{{ t('lab_import.sex_' ~ one) }}</option>
+        {% endfor %}</select></div>
+    <div class="form-row"><label>{{ t('lab_hand.kind') }}</label>
+      <select class="select" name="kind">
+        {% for one in ('interval', 'cutoff', 'note') %}
+        <option value="{{ one }}" {{ 'selected' if r and r.kind == one else '' }}>{{ t('lab_hand.kind_' ~ one) }}</option>
+        {% endfor %}</select></div>
+    <div class="form-row"><label>{{ t('lab_hand.low') }}</label>
+      <input class="input" name="low" inputmode="decimal" dir="ltr" value="{{ r.low if r and r.low is not none else '' }}"></div>
+    <div class="form-row"><label>{{ t('lab_hand.high') }}</label>
+      <input class="input" name="high" inputmode="decimal" dir="ltr" value="{{ r.high if r and r.high is not none else '' }}"></div>
+    <div class="form-row"><label>{{ t('lab_hand.critical_low') }}</label>
+      <input class="input" name="critical_low" inputmode="decimal" dir="ltr" value="{{ r.critical_low if r and r.critical_low is not none else '' }}"></div>
+    <div class="form-row"><label>{{ t('lab_hand.critical_high') }}</label>
+      <input class="input" name="critical_high" inputmode="decimal" dir="ltr" value="{{ r.critical_high if r and r.critical_high is not none else '' }}"></div>
+    <div class="form-row rng-wide"><label>{{ t('lab_hand.note') }}</label>
+      <input class="input" name="note" maxlength="255" value="{{ r.note if r and r.note else '' }}"></div>
+    <div class="form-row rng-wide"><label>{{ t('lab_import.source') }}</label>
+      <input class="input" name="source" maxlength="160" value="{{ r.source if r and r.source else '' }}" placeholder="{{ t('lab_hand.source_ph') }}"></div>
+  </div>
+{% endmacro %}
+
 {% block content %}
+<style>
+  .rng-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:8px 10px; }
+  .rng-grid .form-row { margin-bottom:0; }
+  .rng-grid .rng-wide { grid-column:span 2; }
+  .rng-hand summary { cursor:pointer; color:var(--green-700); font-weight:600; }
+</style>
 {% set links = test.analyte_links %}
 {% set drafts = [] %}
 {% for link in links %}{% for r in link.analyte.ranges if not r.approved %}{% set _ = drafts.append(r) %}{% endfor %}{% endfor %}
@@ -42,14 +80,161 @@
   {% endif %}
 </div>
 
+{# **The steps, in the order the program needs them** — «اضافة واحد لواحد
+   بالخطوات المطلوبة». Each says whether it is done and leads to its box. #}
+{% if test.kind == 'lab' %}
+{% set has_ranges = [] %}
+{% for link in links %}{% if link.analyte.ranges %}{% set _ = has_ranges.append(1) %}{% endif %}{% endfor %}
+{% set steps = [
+  ('name', true, '#'),
+  ('sample', test.sample_type and test.tube, '#details'),
+  ('components', links|length > 0 and has_ranges|length > 0, '#components'),
+  ('approved', links|length > 0 and not drafts and has_ranges|length > 0, '#components'),
+  ('price', test.service_id and test.cost is not none, '#money'),
+  ('consumables', test.lab_consumables|length > 0, '#money'),
+] %}
+<ol class="lab-steps gc-animate" data-steps>
+  {% for key, done, anchor in steps %}
+  <li class="{{ 'done' if done else '' }}" data-step="{{ key }}" data-done="{{ '1' if done else '0' }}">
+    <a href="{{ anchor }}"><i class="bi bi-{{ 'check-circle-fill' if done else 'circle' }}"></i> {{ t('lab_steps.' ~ key) }}</a></li>
+  {% endfor %}
+</ol>
+<style>
+  .lab-steps { list-style:none; display:flex; flex-wrap:wrap; gap:6px; padding:0; margin:0 0 14px; counter-reset:s; }
+  .lab-steps li { counter-increment:s; }
+  .lab-steps a { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px;
+                 border:1px solid var(--line); background:var(--card); color:inherit; text-decoration:none; font-size:.85rem; }
+  .lab-steps a::before { content:counter(s); font-weight:700; color:var(--muted); }
+  .lab-steps li.done a { border-color:var(--green-600); color:var(--green-700); }
+</style>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;scroll-margin-top:80px;" id="details" data-details>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-droplet"></i> {{ t('lab_steps.sample') }}</h2>
+  <form method="post" action="{{ url_for('labs.test_details', test_id=test.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="rng-grid">
+      <div class="form-row"><label>{{ t('lab.sample_type') }}</label>
+        <input class="input" name="sample_type" maxlength="40" value="{{ test.sample_type or '' }}"></div>
+      <div class="form-row"><label>{{ t('lab_import.tube') }}</label>
+        <input class="input" name="tube" maxlength="60" value="{{ test.tube or '' }}"></div>
+      <div class="form-row"><label>{{ t('lab_import.tat') }}</label>
+        <input class="input" name="tat" maxlength="40" dir="ltr" placeholder="30-60"
+               value="{% if test.tat_min %}{{ test.tat_min }}{% if test.tat_max and test.tat_max != test.tat_min %}-{{ test.tat_max }}{% endif %}{% endif %}"></div>
+      <div class="form-row"><label>{{ t('lab_import.tat_stat') }}</label>
+        <input class="input" name="tat_stat" maxlength="40" dir="ltr" placeholder="15-30"
+               value="{% if test.tat_stat_min %}{{ test.tat_stat_min }}{% if test.tat_stat_max and test.tat_stat_max != test.tat_stat_min %}-{{ test.tat_stat_max }}{% endif %}{% endif %}"></div>
+      <div class="form-row rng-wide"><label>{{ t('lab_import.preparation') }}</label>
+        <input class="input" name="preparation" maxlength="255" value="{{ test.preparation or '' }}"></div>
+    </div>
+    <p class="hint" style="margin:6px 0;">{{ t('lab_steps.tat_hint') }}</p>
+    <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+</div>
+{% endif %}
+
+{# «توقيف تحليل» said in words, with why. Out of the search for new orders;
+   every order and result already written stays. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-stop-box>
+  {% if test.is_active %}
+  <form method="post" action="{{ url_for('labs.stop_test', test_id=test.id) }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;flex:1;min-width:220px;">
+      <label for="stop_reason">{{ t('lab_hand.stop_reason') }}</label>
+      <input class="input" id="stop_reason" name="reason" maxlength="200" required
+             placeholder="{{ t('lab_hand.stop_ph') }}"></div>
+    <button class="btn btn-outline gc-press" type="submit" style="color:var(--danger);border-color:var(--danger);">
+      <i class="bi bi-pause-circle"></i> {{ t('lab_hand.stop') }}</button>
+  </form>
+  {% else %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;" data-stopped>
+    <span class="badge badge--danger"><i class="bi bi-pause-circle"></i> {{ t('lab_hand.stopped_badge') }}</span>
+    <span class="hint" style="margin:0;flex:1;">{{ test.stopped_reason or t('lab_hand.stopped_no_reason') }}
+      {% if test.stopped_at %} · <span dir="ltr">{{ test.stopped_at|clinic_stamp }}</span>{% endif %}</span>
+    <form method="post" action="{{ url_for('labs.resume_test', test_id=test.id) }}" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-play-circle"></i> {{ t('lab_hand.resume') }}</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+{# ---- price, cost, and what one run uses -------------------------------- #}
+{% if test.kind == 'lab' %}
+<div class="card gc-scale-in" style="margin-bottom:14px;scroll-margin-top:80px;" id="money" data-money>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-cash-coin"></i> {{ t('lab_stock.title') }}</h2>
+  <div class="hint" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;">
+    <span>{{ t('lab_stock.price') }}: <strong>{% if test.service %}{{ test.service.display_name(current_lang) }} · <span dir="ltr">{{ test.service.price|money }}</span>{% else %}{{ t('lab_stock.not_charged') }}{% endif %}</strong></span>
+    <span>{{ t('lab_stock.used_cost') }}: <strong dir="ltr">{{ used_cost|money if used_cost is not none else '—' }}</strong></span>
+    <span>{{ t('lab_stock.store') }}: <strong>{{ lab_store.display_name(current_lang) if lab_store else t('lab_stock.no_store') }}</strong></span>
+  </div>
+  {% if double_taken %}
+  <p class="alert-pill warn" style="margin:0 0 10px;" data-double-taken>
+    <i class="bi bi-exclamation-triangle"></i> {{ t('lab_stock.double_taken') }}</p>
+  {% endif %}
+  <form method="post" action="{{ url_for('labs.test_money', test_id=test.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="max-width:220px;">
+      <label for="cost">{{ t('lab_stock.cost') }}</label>
+      <input class="input" id="cost" name="cost" inputmode="decimal" dir="ltr"
+             value="{{ test.cost if test.cost is not none else '' }}"></div>
+    <label style="display:block;margin:6px 0 4px;font-weight:600;">{{ t('lab_stock.consumables') }}</label>
+    {% set listed = test.lab_consumables %}
+    {% for i in range(listed|length + 3) %}
+    {% set c = listed[i] if i < listed|length else none %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;" data-consumable-row>
+      <select class="select" name="item_id" style="flex:1;min-width:200px;">
+        <option value="">—</option>
+        {% for it in store_items %}
+        <option value="{{ it.id }}" {{ 'selected' if c and c.store_item_id == it.id else '' }}>{{ it.display_name(current_lang) }}{% if it.unit %} ({{ it.unit }}){% endif %}</option>
+        {% endfor %}
+      </select>
+      <input class="input" name="qty" type="number" min="0" max="999" dir="ltr" style="width:90px;"
+             value="{{ c.quantity if c else 1 }}" aria-label="{{ t('lab_stock.per_run') }}">
+    </div>
+    {% endfor %}
+    <p class="hint" style="margin:4px 0 8px;">{{ t('lab_stock.taken_hint') }}</p>
+    <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% if test.kind == 'lab' %}
+<div class="card gc-scale-in" style="margin-bottom:14px;scroll-margin-top:80px;" id="components" data-add-analyte>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-plus-lg"></i> {{ t('lab_hand.add_analyte') }}</h2>
+  <form method="post" action="{{ url_for('labs.add_analyte', test_id=test.id) }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;flex:1;min-width:180px;">
+      <label>{{ t('lab_hand.analyte_name') }}</label>
+      <input class="input" name="name" maxlength="160" dir="ltr" required placeholder="Hemoglobin"></div>
+    <div class="form-row" style="margin-bottom:0;min-width:160px;">
+      <label>{{ t('lab_hand.analyte_name_ar') }}</label>
+      <input class="input" name="name_ar" maxlength="160"></div>
+    <div class="form-row" style="margin-bottom:0;width:120px;">
+      <label>{{ t('lab.unit') }}</label>
+      <input class="input" name="unit" maxlength="30" dir="ltr" placeholder="g/dL"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+  </form>
+  <p class="hint" style="margin:8px 0 0;">{{ t('lab_hand.analyte_hint') }}</p>
+</div>
+{% endif %}
+
 {% if not links %}
 <div class="card gc-scale-in"><p class="hint" style="margin:0;">{{ t('lab_import.no_analytes') }}</p></div>
 {% endif %}
 {% for link in links %}
 {% set a = link.analyte %}
 <div class="card gc-scale-in" style="margin-bottom:12px;" data-analyte="{{ a.id }}">
-  <h2 class="section-title" style="margin-top:0;">
-    <span dir="ltr">{{ a.name }}</span>{% if a.unit %} <span class="badge badge--muted" dir="ltr">{{ a.unit }}</span>{% endif %}</h2>
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">
+  <h2 class="section-title" style="margin:0;">
+    <span dir="ltr">{{ a.name }}</span>{% if a.name_ar %} · {{ a.name_ar }}{% endif %}{% if a.unit %} <span class="badge badge--muted" dir="ltr">{{ a.unit }}</span>{% endif %}</h2>
+  <form method="post" style="margin:0;" action="{{ url_for('labs.remove_analyte', test_id=test.id, analyte_id=a.id) }}" data-remove-analyte="{{ a.id }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-sm btn-outline gc-press" type="submit" title="{{ t('lab_hand.remove_analyte_hint') }}">
+      <i class="bi bi-x-lg"></i> {{ t('lab_hand.remove_analyte') }}</button>
+  </form>
+  </div>
   {% if not a.ranges %}
   <p class="hint" style="margin:0;" data-no-range>{{ t('lab_import.no_range') }}</p>
   {% else %}
@@ -58,7 +243,7 @@
       <thead><tr>
         <th>{{ t('lab_import.age') }}</th><th>{{ t('lab_import.sex') }}</th>
         <th>{{ t('lab_import.range') }}</th><th>{{ t('lab_import.critical') }}</th>
-        <th>{{ t('lab_import.source') }}</th><th></th></tr></thead>
+        <th>{{ t('lab_import.source') }}</th><th></th><th></th></tr></thead>
       <tbody>
       {% for r in a.ranges %}
       <tr data-range="{{ r.id }}" data-state="{{ 'approved' if r.approved else 'draft' }}">
@@ -73,13 +258,41 @@
         </td>
         <td dir="ltr" class="num">{% if r.critical_low is not none or r.critical_high is not none %}{{ r.critical_low if r.critical_low is not none else '' }} / {{ r.critical_high if r.critical_high is not none else '' }}{% else %}—{% endif %}</td>
         <td>{% if r.source_url and r.source_url.startswith('http') %}<a href="{{ r.source_url }}" target="_blank" rel="noopener noreferrer" dir="ltr">{{ r.source or r.source_url }}</a>{% else %}<span dir="ltr">{{ r.source or '—' }}</span>{% endif %}</td>
-        <td>{% if r.approved %}<span class="badge badge--green">{{ t('lab_import.approved_badge') }}</span>{% else %}<span class="badge badge--warn">{{ t('lab_import.draft_badge') }}</span>{% endif %}</td>
+        <td>{% if r.approved %}<span class="badge badge--green">{{ t('lab_import.approved_badge') }}</span>{% else %}<span class="badge badge--warn">{{ t('lab_import.draft_badge') }}</span>{% endif %}
+          {% if r.manual %}<span class="badge badge--muted" data-manual>{{ t('lab_hand.by_hand') }}</span>{% endif %}
+          {% if r.replaces_id %}<span class="badge badge--muted" data-replaces="{{ r.replaces_id }}">{{ t('lab_hand.replaces') }}</span>{% endif %}</td>
+        <td style="min-width:120px;">
+          <details class="rng-hand" data-correct="{{ r.id }}">
+            <summary>{{ t('lab_hand.correct') }}</summary>
+            <form method="post" action="{{ url_for('labs.correct_range', test_id=test.id, range_id=r.id) }}" style="margin-top:8px;min-width:280px;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              {{ range_fields(r) }}
+              {% if r.approved %}<p class="hint" style="margin:6px 0;">{{ t('lab_hand.correct_approved_hint') }}</p>{% endif %}
+              <button class="btn btn-sm btn-primary gc-press" type="submit" style="margin-top:6px;">{{ t('common.save') }}</button>
+            </form>
+          </details>
+          {% if not r.approved %}
+          <form method="post" style="margin:4px 0 0;" action="{{ url_for('labs.drop_range', test_id=test.id, range_id=r.id) }}" data-drop="{{ r.id }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline gc-press" type="submit"><i class="bi bi-trash"></i> {{ t('lab_hand.drop') }}</button>
+          </form>
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
       </tbody>
     </table>
   </div>
   {% endif %}
+  <details class="rng-hand" style="margin-top:10px;" data-add-range="{{ a.id }}">
+    <summary><i class="bi bi-plus-lg"></i> {{ t('lab_hand.add_range') }}</summary>
+    <form method="post" action="{{ url_for('labs.add_range', test_id=test.id, analyte_id=a.id) }}" style="margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {{ range_fields() }}
+      <p class="hint" style="margin:6px 0;">{{ t('lab_hand.draft_hint') }}</p>
+      <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('common.add') }}</button>
+    </form>
+  </details>
 </div>
 {% endfor %}
 {% endblock %}

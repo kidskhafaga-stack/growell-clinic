@@ -102,6 +102,19 @@
             <span>{{ t('nav.' ~ module) }}</span>
             <span class="nav-tip">{{ t('nav.' ~ module) }}</span>
           </a>
+          {# **The device studies** — the echo, the sonar, the spirometer, the
+             ECG and the EEG — sit with the visit, because any clinic may do
+             them and any bedside may need one. The door shows only where the
+             clinic said it does one of them, or one is waiting: a clinic that
+             does none sees exactly the menu it had. #}
+          {% if module == 'visits' and device_board_shown() %}
+          <a class="nav-item gc-press {{ 'active' if active_module == 'device_board' else '' }}"
+             href="{{ url_for('visits.device_board') }}" data-nav-devices>
+            <i class="bi bi-activity"></i>
+            <span>{{ t('nav.diagnostics') }}</span>
+            <span class="nav-tip">{{ t('nav.diagnostics') }}</span>
+          </a>
+          {% endif %}
         {% endif %}
       {% endfor %}
       {# A doctor's own screen. Not a module — it is one person's view of work

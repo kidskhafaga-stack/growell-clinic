@@ -11,14 +11,15 @@ code and a collection time onto a study that has neither.
 Filtering them out of the lab and stopping there would have been worse: an
 order nobody can see is an order nobody does. So they get this.
 
-**It rides the `labs` module rather than bringing its own.**
+**Radiology is a module of its own** — «المعمل مديول لواحده والاشعة مديول».
+It rode `labs` for a while, so that no clinic lost its outstanding scans on
+the day it appeared; it is split out now, and the upgrade switches it on
+wherever the lab was on and gives it to every role that held the lab
+(`schema.split_imaging_from_labs`), so nothing goes quiet.
 
-That is deliberate and it is the safer of the two. A new module is *off* until
-somebody switches it on — that is what `OPT_IN_MODULES` is for — so shipping
-one here would have turned imaging off for every clinic already running, and
-their outstanding scans would have vanished from the program on upgrade. Which
-is the exact failure this screen exists to undo. The module is «this place
-handles investigations»; the screens are two because the **jobs** are two.
+**And the echo, the sonar, the ECG and the EEG are not here.** They are device
+studies, done in any clinic room and at any bedside, and they have their own
+board beside the visit (`visits.device_board`).
 """
 from datetime import datetime
 
@@ -32,8 +33,8 @@ from app.models import VisitInvestigation
 from app.utils import labs as bench
 from app.utils.decorators import module_required
 
-#: The same module as the lab. See the note at the top of this file.
-MODULE = "labs"
+#: Radiology's own module. See the note at the top of this file.
+MODULE = "imaging"
 
 
 def _room(kind, endpoint):
@@ -67,19 +68,6 @@ def index():
     return _room(bench.IMAGING, "imaging.index")
 
 
-@imaging_bp.route("/diagnostics")
-@module_required(MODULE)
-def diagnostics():
-    """The studies the treating team does itself.
-
-    A sonar, an echo, an ECG, an EEG. **Not radiology**, and asked for that
-    way: «الاشعة العادية غير الايكو واللترا سونت وال eeg و ال ECG». They are
-    done in the clinic room, in cardiology, in neurophysiology — by people who
-    never open the X-ray list.
-    """
-    return _room(bench.DIAGNOSTIC, "imaging.diagnostics")
-
-
 @imaging_bp.route("/order/<int:order_id>/performed", methods=["POST"])
 @module_required(MODULE)
 def performed(order_id):
@@ -106,5 +94,5 @@ def performed(order_id):
 
 def _back_to(row):
     """The room this order belongs to, so «done» lands where it was pressed."""
-    return ("imaging.diagnostics" if row.kind == bench.DIAGNOSTIC
+    return ("visits.device_board" if row.kind == bench.DIAGNOSTIC
             else "imaging.index")

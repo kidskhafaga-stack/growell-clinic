@@ -542,7 +542,17 @@ def module_licensed(module):
     ``facility.module_enabled``.
     """
     allowed = licensed_modules()
-    return allowed is None or module in allowed
+    if allowed is None or module in allowed:
+        return True
+    # A module split out of another after licences were issued is licensed
+    # wherever its parent is: radiology lived under `labs`, and a licence
+    # signed before the split names only `labs`.
+    parent = SPLIT_FROM.get(module)
+    return bool(parent and parent in allowed)
+
+
+#: Modules that were split out of another, and the one they came from.
+SPLIT_FROM = {"imaging": "labs"}
 
 
 def install(raw):

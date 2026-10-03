@@ -13,9 +13,15 @@
     <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
 </div>
 
+{# The order this study answers, when it came from the device board. #}
+{% if order %}
+<div class="alert-pill ok" style="margin-bottom:12px;display:inline-flex;gap:6px;" data-answers-order="{{ order.id }}">
+  <i class="bi bi-link-45deg"></i> {{ t('device_board.answers', name=order.display_name(current_lang)) }}</div>
+{% endif %}
 <!-- Pick device -->
 <div class="card gc-scale-in" style="margin-bottom:16px;">
   <form method="get" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+    {% if order %}<input type="hidden" name="order_id" value="{{ order.id }}">{% endif %}
     <div class="form-row" style="margin:0;min-width:240px;">
       <label>{{ t('study.device') }}</label>
       <select class="select" name="device_id" onchange="this.form.submit()">
@@ -30,7 +36,7 @@
 
 {% if device %}
 {% if device.measurements %}
-<form method="post" action="{{ url_for('visits.study_new', patient_id=patient.id, device_id=device.id, visit_id=visit_id or None) }}">
+<form method="post" action="{{ url_for('visits.study_new', patient_id=patient.id, device_id=device.id, visit_id=visit_id or None, order_id=order.id if order else None) }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="card gc-scale-in" style="margin-bottom:16px;">
     <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:end;">
