@@ -808,6 +808,12 @@ ADDITIONS = [
     # discounts (`InvoiceItem.payer_amount`). Empty on every line billed
     # before; those read as they always did.
     ("invoice_items", "payer_amount", "FLOAT"),
+    # Prior approvals (`utils/approvals.py`): which rule asks for one, and on
+    # each bill line the approval it is covered under or the flag that it has
+    # none. Empty on everything before.
+    ("payer_contract_rules", "needs_approval", "BOOLEAN"),
+    ("invoice_items", "approval_id", "INTEGER"),
+    ("invoice_items", "approval_needed", "BOOLEAN"),
     # «رسم المخ الى بيحتاج حجز ونوم» — a device study booked for a day and an
     # hour, with what the family must do before it. Empty on every order.
     ("visit_investigations", "booked_for", "DATETIME"),

@@ -165,6 +165,11 @@ class Invoice(db.Model):
         return round(sum(i.discount_amount for i in self.items), 2)
 
     @property
+    def waiting_approval(self):
+        """The lines that need the payer's approval and have none yet."""
+        return [i for i in self.items if i.approval_needed]
+
+    @property
     def payer_total(self):
         """What the payer is claimed for on this bill.
 
@@ -495,8 +500,14 @@ class InvoiceItem(db.Model):
     # line it looks at, 0 where the payer pays nothing; empty on every line
     # billed before it existed, which keep reading as they did.
     payer_amount = db.Column(db.Float)
+    # The payer's prior approval this line is covered under, and — when the
+    # contract asks for one and none is on file — a flag that holds the bill
+    # out of the claim until it arrives (`utils/approvals.py`).
+    approval_id = db.Column(db.Integer, db.ForeignKey("insurance_approvals.id"))
+    approval_needed = db.Column(db.Boolean)
 
     invoice = db.relationship("Invoice", back_populates="items")
+    approval = db.relationship("InsuranceApproval")
     service = db.relationship("Service")
     doctor = db.relationship("User", foreign_keys=[doctor_id])
     cost_centre = db.relationship("CostCentre")

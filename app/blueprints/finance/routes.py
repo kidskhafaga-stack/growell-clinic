@@ -5217,6 +5217,7 @@ def contract_rule_add(contract_id):
             return redirect(back)
         rule.category = category
     rule.excluded = request.form.get("excluded") == "1"
+    rule.needs_approval = request.form.get("needs_approval") == "1"
     if not rule.excluded:
         ctype = request.form.get("coverage_type")
         value = request.form.get("coverage_value", type=float)
@@ -5235,6 +5236,87 @@ def contract_rule_add(contract_id):
     db.session.commit()
     flash(t("contracts.rule_saved"), "success")
     return redirect(back)
+
+
+# ------------------------------------------------------ prior approvals --
+@finance_bp.route("/approvals", methods=["GET", "POST"])
+@module_required(MODULE)
+def approvals():
+    """Prior approvals: asked for, and the payer's answer — «لازم موافقات على
+    حجات معينة لان دي بتتبعت مع المطالبات». See `utils/approvals.py`."""
+    from app.models import InsuranceApproval, InvoiceItem, PatientCoverage
+    from app.models.payer import APPROVAL_STATES
+
+    if request.method == "POST":
+        patient = None
+        number = (request.form.get("patient_number") or "").strip()
+        if request.form.get("patient_id", type=int):
+            patient = db.session.get(Patient, request.form.get("patient_id", type=int))
+        elif number:
+            patient = Patient.query.filter_by(patient_number=number).first()
+        payer = db.session.get(PayerEntity, request.form.get("payer_id", type=int) or 0)
+        if patient is None or payer is None:
+            flash(t("approvals.need_patient_payer"), "danger")
+            return redirect(url_for("finance.approvals"))
+        row = InsuranceApproval(
+            patient_id=patient.id, payer_id=payer.id,
+            admission_id=request.form.get("admission_id", type=int) or None,
+            service_id=request.form.get("service_id", type=int) or None,
+            description=(request.form.get("description") or "").strip()[:200] or None,
+            estimate=request.form.get("estimate", type=float),
+            note=(request.form.get("note") or "").strip()[:255] or None,
+            requested_by=current_user.id)
+        db.session.add(row)
+        db.session.commit()
+        flash(t("approvals.requested"), "success")
+        return redirect(url_for("finance.approvals") + f"#a{row.id}")
+
+    state = request.args.get("state")
+    query = InsuranceApproval.query
+    if state in APPROVAL_STATES:
+        query = query.filter(InsuranceApproval.status == state)
+    rows = query.order_by(InsuranceApproval.id.desc()).limit(200).all()
+    # Asked for from a flagged bill line: the child, the payer, the service,
+    # the amount and the stay are already known.
+    item = db.session.get(InvoiceItem, request.args.get("item", type=int) or 0)
+    waiting = (InvoiceItem.query.filter(InvoiceItem.approval_needed.is_(True))
+               .order_by(InvoiceItem.id.desc()).limit(100).all())
+    return render_template(
+        "finance/approvals.html", rows=rows, state=state, states=APPROVAL_STATES,
+        item=item, waiting=waiting,
+        payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
+        services=Service.query.filter_by(is_active=True).order_by(Service.name).all())
+
+
+@finance_bp.route("/approvals/<int:approval_id>/decide", methods=["POST"])
+@module_required(MODULE)
+def approval_decide(approval_id):
+    """The payer's answer: approved with its number, amount and date — which
+    links it to every bill line that was waiting for it — or refused."""
+    from app.models import InsuranceApproval
+    from app.utils import approvals as ap
+
+    row = db.get_or_404(InsuranceApproval, approval_id)
+    approved = request.form.get("decision") == "approved"
+    number = (request.form.get("approval_number") or "").strip()
+    if approved and not number:
+        flash(t("approvals.need_number"), "danger")
+        return redirect(url_for("finance.approvals") + f"#a{row.id}")
+    raw = (request.form.get("valid_until") or "").strip()
+    try:
+        until = datetime.strptime(raw, "%Y-%m-%d").date() if raw else None
+    except ValueError:
+        until = None
+    linked = ap.decide(row, approved, current_user, number=number,
+                       amount=request.form.get("approved_amount", type=float),
+                       valid_until=until, note=request.form.get("note"))
+    ActivityLog.record("approval." + row.status, user_id=current_user.id,
+                       entity="insurance_approval", entity_id=row.id,
+                       detail=row.approval_number or "", ip_address=client_ip())
+    db.session.commit()
+    flash(t("approvals.approved", n=linked) if approved else t("approvals.rejected"),
+          "success" if approved else "warning")
+    return redirect(url_for("finance.approvals") + f"#a{row.id}")
 
 
 @finance_bp.route("/contract/rule/<int:rule_id>/delete", methods=["POST"])
@@ -5351,8 +5433,11 @@ def _claimable_invoices(payer_id, date_from, date_to):
         q = q.filter(Invoice.invoice_date >= date_from)
     if date_to:
         q = q.filter(Invoice.invoice_date <= date_to)
+    # A bill with a line that needs the payer's approval and has none waits
+    # out of the claim — sent without it, the line is refused (`approvals`).
     return [i for i in q.order_by(Invoice.invoice_date, Invoice.id).all()
-            if i.payer_total > 0 and i.id not in taken]
+            if i.payer_total > 0 and i.id not in taken
+            and not i.waiting_approval]
 
 
 @finance_bp.route("/claims/create", methods=["POST"])

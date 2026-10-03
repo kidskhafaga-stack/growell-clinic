@@ -119,6 +119,11 @@ def apply_coverage(invoice, patient, warn=None, then=None):
             item.discount_value = covered
             item.discount_is_percent = False
             item.payer_amount = covered
+            # A contract may cover this only with the payer's approval on
+            # file — the line carries its number, or is flagged and its bill
+            # waits out of the claim (`utils/approvals`).
+            from app.utils import approvals
+            approvals.mark(item, invoice, payer, setting)
             if item.service is not None:
                 # **On the price of the line, not on what is left for the
                 # family to pay.**

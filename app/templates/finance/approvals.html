@@ -1,0 +1,108 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('approvals.title') }}{% endblock %}
+{% block page_heading %}{{ t('approvals.title') }}{% endblock %}
+
+{% block content %}
+{# Prior approvals — asked for, and the payer's answer. A bill line that
+   needed one and has none is listed first: its bill waits out of the claim
+   until the number arrives. See `app/utils/approvals.py`. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-patch-check"></i> {{ t('approvals.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('approvals.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.claims') }}"><i class="bi bi-send"></i> {{ t('approvals.to_claims') }}</a>
+</div>
+
+{% if waiting %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--danger);" data-waiting-lines>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-exclamation-triangle"></i> {{ t('approvals.waiting_title', n=waiting|length) }}</h2>
+  <ul style="list-style:none;padding:0;margin:0;display:grid;gap:6px;">
+    {% for it in waiting %}
+    <li style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;" data-waiting-line="{{ it.id }}">
+      <a href="{{ url_for('finance.invoice_view', invoice_id=it.invoice_id) }}" dir="ltr">{{ it.invoice.invoice_number }}</a>
+      · {{ it.invoice.patient.display_name(current_lang) if it.invoice.patient else '' }}
+      · <strong>{{ it.description }}</strong> · {{ (it.payer_amount or 0)|money }}
+      <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('finance.approvals', item=it.id) }}#new">{{ t('approvals.ask') }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;scroll-margin-top:80px;" id="new">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-plus-lg"></i> {{ t('approvals.new') }}</h2>
+  <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if item %}
+    <input type="hidden" name="patient_id" value="{{ item.invoice.patient_id }}">
+    <input type="hidden" name="admission_id" value="{{ item.invoice.admission_id or '' }}">
+    <div class="hint" style="flex-basis:100%;margin:0;" data-prefilled>
+      {{ item.invoice.patient.display_name(current_lang) }} · {{ item.description }}</div>
+    {% else %}
+    <div class="form-row" style="margin:0;min-width:150px;"><label>{{ t('approvals.patient_number') }}</label>
+      <input class="input" name="patient_number" dir="ltr" required></div>
+    {% endif %}
+    <div class="form-row" style="margin:0;min-width:170px;"><label>{{ t('claims.payer') }}</label>
+      <select class="select" name="payer_id">
+        {% for p in payers %}<option value="{{ p.id }}" {{ 'selected' if item and item.invoice.payer_id == p.id else '' }}>{{ p.display_name(current_lang) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row" style="margin:0;min-width:180px;"><label>{{ t('invoices.service') }}</label>
+      <select class="select" name="service_id">
+        <option value="">{{ t('approvals.whole_stay') }}</option>
+        {% for s in services %}<option value="{{ s.id }}" {{ 'selected' if item and item.service_id == s.id else '' }}>{{ s.display_name(current_lang) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row" style="margin:0;width:120px;"><label>{{ t('approvals.estimate') }}</label>
+      <input class="input" type="number" step="0.01" min="0" name="estimate" value="{{ item.gross if item else '' }}"></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label>{{ t('approvals.description') }}</label>
+      <input class="input" name="description" maxlength="200" value="{{ item.description if item else '' }}"></div>
+    <button class="btn btn-primary gc-press" type="submit">{{ t('approvals.request') }}</button>
+  </form>
+</div>
+
+<nav style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+  <a class="btn btn-sm {{ 'btn-primary' if not state else 'btn-outline' }}" href="{{ url_for('finance.approvals') }}">{{ t('approvals.all') }}</a>
+  {% for s in states %}
+  <a class="btn btn-sm {{ 'btn-primary' if state == s else 'btn-outline' }}" href="{{ url_for('finance.approvals', state=s) }}">{{ t('approvals.state_' ~ s) }}</a>
+  {% endfor %}
+</nav>
+
+{% if not rows %}
+<div class="card gc-scale-in"><p class="hint" style="margin:0;">{{ t('approvals.none') }}</p></div>
+{% else %}
+<div class="card gc-scale-in">
+  {% for a in rows %}
+  <div id="a{{ a.id }}" data-approval="{{ a.id }}" data-state="{{ a.status }}"
+       style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 0;border-top:1px dashed var(--line);">
+    <div style="flex:1;min-width:220px;">
+      <strong>{{ a.patient.display_name(current_lang) if a.patient else '' }}</strong>
+      · {{ a.payer.display_name(current_lang) if a.payer else '' }}
+      <div class="hint" style="margin:0;">{{ a.service.display_name(current_lang) if a.service else t('approvals.whole_stay') }}
+        {% if a.description %} · {{ a.description }}{% endif %}
+        {% if a.estimate %} · {{ t('approvals.estimate') }} {{ a.estimate|money }}{% endif %}</div>
+    </div>
+    <span class="badge {{ 'badge--green' if a.status == 'approved' else ('badge--danger' if a.status == 'rejected' else 'badge--warn') }}">{{ t('approvals.state_' ~ a.status) }}</span>
+    {% if a.status == 'approved' %}
+    <span class="hint" style="margin:0;"><span dir="ltr">{{ a.approval_number }}</span>
+      {% if a.approved_amount %} · {{ a.approved_amount|money }}{% endif %}
+      {% if a.valid_until %} · {{ t('approvals.until') }} <span dir="ltr">{{ a.valid_until }}</span>{% endif %}</span>
+    {% elif a.status == 'requested' %}
+    <details>
+      <summary class="btn btn-sm btn-outline">{{ t('approvals.record_answer') }}</summary>
+      <form method="post" action="{{ url_for('finance.approval_decide', approval_id=a.id) }}"
+            style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-top:6px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="input" name="approval_number" dir="ltr" placeholder="{{ t('approvals.number') }}" style="width:150px;">
+        <input class="input" type="number" step="0.01" min="0" name="approved_amount" placeholder="{{ t('approvals.amount') }}" style="width:120px;">
+        <input class="input" type="date" name="valid_until" style="width:150px;" aria-label="{{ t('approvals.until') }}">
+        <button class="btn btn-sm btn-primary" type="submit" name="decision" value="approved">{{ t('approvals.approve') }}</button>
+        <button class="btn btn-sm btn-outline" type="submit" name="decision" value="rejected">{{ t('approvals.reject') }}</button>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

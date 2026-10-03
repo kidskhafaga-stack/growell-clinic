@@ -190,7 +190,13 @@
     <tbody>
       {% for it in invoice.items %}
       <tr>
-        <td>{{ it.description }}</td>
+        <td>{{ it.description }}
+          {% if it.approval_needed %}
+          <div data-approval-missing="{{ it.id }}"><span class="badge badge--danger"><i class="bi bi-exclamation-triangle"></i> {{ t('approvals.missing') }}</span>
+            <a class="no-print" href="{{ url_for('finance.approvals', item=it.id) }}#new">{{ t('approvals.ask') }}</a></div>
+          {% elif it.approval_id %}
+          <div><span class="badge badge--green" data-approval-number><i class="bi bi-patch-check"></i> {{ t('approvals.number') }} <span dir="ltr">{{ it.approval.approval_number if it.approval else '' }}</span></span></div>
+          {% endif %}</td>
         <td>{{ it.unit_price|money }}</td>
         <td>{{ it.quantity }}</td>
         <td>{{ it.discount_amount }}{% if it.discount_is_percent %} <span style="color:var(--muted);">({{ it.discount_value }}%)</span>{% endif %}</td>
