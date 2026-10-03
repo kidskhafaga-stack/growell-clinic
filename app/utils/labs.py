@@ -334,6 +334,10 @@ def settle(row, user=None, at=None):
         row.status = RESULTED
         row.resulted_at = at or datetime.utcnow()
         row.resulted_by = getattr(user, "id", None)
+        # What the run used leaves the lab's store, once per order — and
+        # nothing at all unless the lab has chosen its store (`lab_stock`).
+        from app.utils import lab_stock
+        lab_stock.take(row, user=user)
     else:
         # Cleared back out. It falls back to where the sample says it is, not
         # to `requested` — the blood was still drawn, and sending somebody to

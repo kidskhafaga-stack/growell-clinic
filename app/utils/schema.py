@@ -812,6 +812,11 @@ ADDITIONS = [
     ("investigations", "stopped_reason", "VARCHAR(200)"),
     ("investigations", "stopped_at", "DATETIME"),
     ("investigations", "stopped_by", "INTEGER"),
+    # What one run of a test costs the lab, typed by the lab — beside the
+    # price it is charged at. And when an order's consumables left the lab's
+    # store, so a result typed, cleared and typed again takes them once.
+    ("investigations", "cost", "FLOAT"),
+    ("visit_investigations", "consumed_at", "DATETIME"),
 ]
 
 def apply_schema(report=None):

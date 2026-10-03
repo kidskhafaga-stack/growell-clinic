@@ -401,6 +401,9 @@ class Investigation(db.Model):
     stopped_reason = db.Column(db.String(200))
     stopped_at = db.Column(db.DateTime)
     stopped_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # What one run costs the lab (reagents, strips, its share of the
+    # machine), typed by the lab. The price is the service it is charged as.
+    cost = db.Column(db.Float)
 
     # The unit this test is reported in, so nobody types "%" beside every
     # HbA1c for the rest of the clinic's life. A unit is a fact about the

@@ -402,6 +402,9 @@ class VisitInvestigation(db.Model):
     critical_at = db.Column(db.DateTime, index=True)
     critical_seen_at = db.Column(db.DateTime)
     critical_seen_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # When this order's consumables left the lab's store (`utils/lab_stock`).
+    # Once per order: a result cleared and typed again is the same run.
+    consumed_at = db.Column(db.DateTime)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 

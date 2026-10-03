@@ -107,6 +107,46 @@
   {% endif %}
 </div>
 
+{# ---- price, cost, and what one run uses -------------------------------- #}
+{% if test.kind == 'lab' %}
+<div class="card gc-scale-in" style="margin-bottom:14px;scroll-margin-top:80px;" id="money" data-money>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-cash-coin"></i> {{ t('lab_stock.title') }}</h2>
+  <div class="hint" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;">
+    <span>{{ t('lab_stock.price') }}: <strong>{% if test.service %}{{ test.service.display_name(current_lang) }} · <span dir="ltr">{{ test.service.price|money }}</span>{% else %}{{ t('lab_stock.not_charged') }}{% endif %}</strong></span>
+    <span>{{ t('lab_stock.used_cost') }}: <strong dir="ltr">{{ used_cost|money if used_cost is not none else '—' }}</strong></span>
+    <span>{{ t('lab_stock.store') }}: <strong>{{ lab_store.display_name(current_lang) if lab_store else t('lab_stock.no_store') }}</strong></span>
+  </div>
+  {% if double_taken %}
+  <p class="alert-pill warn" style="margin:0 0 10px;" data-double-taken>
+    <i class="bi bi-exclamation-triangle"></i> {{ t('lab_stock.double_taken') }}</p>
+  {% endif %}
+  <form method="post" action="{{ url_for('labs.test_money', test_id=test.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="max-width:220px;">
+      <label for="cost">{{ t('lab_stock.cost') }}</label>
+      <input class="input" id="cost" name="cost" inputmode="decimal" dir="ltr"
+             value="{{ test.cost if test.cost is not none else '' }}"></div>
+    <label style="display:block;margin:6px 0 4px;font-weight:600;">{{ t('lab_stock.consumables') }}</label>
+    {% set listed = test.lab_consumables %}
+    {% for i in range(listed|length + 3) %}
+    {% set c = listed[i] if i < listed|length else none %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;" data-consumable-row>
+      <select class="select" name="item_id" style="flex:1;min-width:200px;">
+        <option value="">—</option>
+        {% for it in store_items %}
+        <option value="{{ it.id }}" {{ 'selected' if c and c.store_item_id == it.id else '' }}>{{ it.display_name(current_lang) }}{% if it.unit %} ({{ it.unit }}){% endif %}</option>
+        {% endfor %}
+      </select>
+      <input class="input" name="qty" type="number" min="0" max="999" dir="ltr" style="width:90px;"
+             value="{{ c.quantity if c else 1 }}" aria-label="{{ t('lab_stock.per_run') }}">
+    </div>
+    {% endfor %}
+    <p class="hint" style="margin:4px 0 8px;">{{ t('lab_stock.taken_hint') }}</p>
+    <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+</div>
+{% endif %}
+
 {% if test.kind == 'lab' %}
 <div class="card gc-scale-in" style="margin-bottom:14px;" data-add-analyte>
   <h2 class="section-title" style="margin-top:0;"><i class="bi bi-plus-lg"></i> {{ t('lab_hand.add_analyte') }}</h2>

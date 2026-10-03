@@ -298,8 +298,8 @@ from app.models.discount import (DISCOUNT_TYPES, VACCINE_SCOPE,
                                  DiscountMember, NamedDiscount)
 from app.models.cost_centre import CostCentre
 from app.models.lab_reference import (RANGE_KINDS, RANGE_SEXES, LabAnalyte,
-                                       LabRange, LabResultValue,
-                                       LabTestAnalyte)
+                                       LabConsumable, LabRange,
+                                       LabResultValue, LabTestAnalyte)
 from app.models.unit_staff import BreakGlass, UnitStaff
 from app.models.accounting import (
     ACCOUNT_TYPES,
@@ -675,6 +675,7 @@ __all__ = [
     "JournalLine",
     "ACCOUNT_TYPES",
     "LabAnalyte",
+    "LabConsumable",
     "LabTestAnalyte",
     "LabRange",
     "LabResultValue",

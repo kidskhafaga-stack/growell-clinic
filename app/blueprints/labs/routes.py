@@ -234,8 +234,22 @@ def tests():
         q=q, category=category, categories=categories, page=page,
         pages=max(1, -(-total // PAGE)), total=total,
         reference=_reference_state(rows),
+        warehouses=_warehouses(), lab_store=_lab_store(),
         services=(Service.query.filter(Service.is_active.is_(True))
                   .order_by(Service.name).all()))
+
+
+def _warehouses():
+    from app.models import Warehouse
+
+    return (Warehouse.query.filter(Warehouse.is_active.is_(True))
+            .order_by(Warehouse.name).all())
+
+
+def _lab_store():
+    from app.utils import lab_stock
+
+    return lab_stock.store()
 
 
 def _reference_state(rows):
@@ -388,8 +402,17 @@ def test_ranges(test_id):
     """What one test measures, and every range the laboratory has given for
     each — with where it came from and whether it is approved."""
     _admin_only()
+    from app.models import StoreItem
+    from app.utils import lab_stock
+
     row = db.get_or_404(Investigation, test_id)
-    return render_template("labs/test_ranges.html", test=row)
+    return render_template(
+        "labs/test_ranges.html", test=row,
+        store_items=(StoreItem.query.filter(StoreItem.is_active.is_(True))
+                     .order_by(StoreItem.name).all()),
+        lab_store=lab_stock.store(),
+        used_cost=lab_stock.consumables_cost(row),
+        double_taken=lab_stock.double_taken(row))
 
 
 @labs_bp.route("/tests/<int:test_id>/approve", methods=["POST"])
@@ -507,6 +530,45 @@ def stop_test(test_id):
 @module_required(MODULE)
 def resume_test(test_id):
     return _hand(test_id, lambda row, hand: hand.resume(row), "lab_hand.resumed")
+
+
+@labs_bp.route("/tests/<int:test_id>/money", methods=["POST"])
+@module_required(MODULE)
+def test_money(test_id):
+    """What one run costs the lab, and what it uses from the lab's store —
+    «علشان التحليل يتسعّر سعر وتكلفة وكل حاجه»."""
+    from app.utils import lab_stock
+    from app.utils.lab_import import _number
+
+    _admin_only()
+    row = db.get_or_404(Investigation, test_id)
+    cost = _number(request.form.get("cost"))
+    row.cost = cost if cost is not None and cost >= 0 else None
+    items = request.form.getlist("item_id")
+    qtys = request.form.getlist("qty")
+    pairs = []
+    for i, raw in enumerate(items):
+        if str(raw).strip().isdigit():
+            qty = qtys[i] if i < len(qtys) else "1"
+            pairs.append((int(raw), int(qty) if str(qty).strip().isdigit() else 0))
+    lab_stock.set_consumables(row, pairs)
+    db.session.commit()
+    flash(t("lab_stock.saved"), "success")
+    return redirect(url_for("labs.test_ranges", test_id=row.id) + "#money")
+
+
+@labs_bp.route("/store", methods=["POST"])
+@module_required(MODULE)
+def lab_store():
+    """Which store the lab draws its strips and reagents from. None chosen,
+    nothing is ever taken."""
+    from app.utils import lab_stock
+
+    _admin_only()
+    lab_stock.set_store(request.form.get("warehouse_id", type=int))
+    db.session.commit()
+    flash(t("lab_stock.store_saved"), "success")
+    return redirect(url_for("labs.tests"))
 
 
 @labs_bp.route("/tests/add", methods=["POST"])

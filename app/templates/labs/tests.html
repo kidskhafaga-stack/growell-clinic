@@ -21,6 +21,25 @@
   </div>
 </div>
 
+{# **The lab's store.** Where a test's strips and reagents are taken from
+   when it is run. None chosen, nothing is ever taken — a clinic that has
+   not set this up sees exactly what it saw before. #}
+<form method="post" action="{{ url_for('labs.lab_store') }}" class="card gc-scale-in" data-lab-store
+      style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="form-row" style="margin-bottom:0;min-width:220px;flex:1;">
+    <label for="warehouse_id"><i class="bi bi-box-seam"></i> {{ t('lab_stock.store') }}</label>
+    <select class="select" id="warehouse_id" name="warehouse_id">
+      <option value="">{{ t('lab_stock.no_store') }}</option>
+      {% for w in warehouses %}
+      <option value="{{ w.id }}" {{ 'selected' if lab_store and lab_store.id == w.id else '' }}>{{ w.display_name(current_lang) }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+  <p class="hint" style="margin:0;flex-basis:100%;">{{ t('lab_stock.store_hint') }}</p>
+</form>
+
 {# A laboratory's list is hundreds long: searched, and a page at a time. #}
 <form method="get" action="{{ url_for('labs.tests') }}" class="card gc-scale-in"
       style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;" data-lab-search>
