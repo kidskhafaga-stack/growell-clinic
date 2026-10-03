@@ -47,7 +47,7 @@
         <td>{{ inv.patient.display_name(current_lang) }}</td>
         <td dir="ltr">{{ inv.coverage_card or '—' }}{% if inv.coverage_expiry %}<br><span style="color:var(--muted);font-size:0.75rem;">{{ inv.coverage_expiry }}</span>{% endif %}</td>
         <td>{{ inv.subtotal|money }}</td>
-        <td><strong style="color:var(--green-700);">{{ inv.discount_total|money }}</strong></td>
+        <td><strong style="color:var(--green-700);">{{ inv.payer_total|money }}</strong></td>
         <td>{{ inv.total|money }}</td>
       </tr>
       {% endfor %}

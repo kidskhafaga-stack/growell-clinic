@@ -804,6 +804,10 @@ ADDITIONS = [
     # The stay an admission consent was signed for (bed map, the guardian's
     # signature at the bedside). Empty on every consent written before.
     ("consents", "admission_id", "INTEGER"),
+    # What the payer pays on each line, kept apart from the cashier's own
+    # discounts (`InvoiceItem.payer_amount`). Empty on every line billed
+    # before; those read as they always did.
+    ("invoice_items", "payer_amount", "FLOAT"),
     # «رسم المخ الى بيحتاج حجز ونوم» — a device study booked for a day and an
     # hour, with what the family must do before it. Empty on every order.
     ("visit_investigations", "booked_for", "DATETIME"),
