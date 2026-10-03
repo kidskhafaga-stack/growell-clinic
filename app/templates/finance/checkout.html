@@ -6,6 +6,7 @@
 {% block content %}
 <div class="gc-animate" style="max-width:760px;margin:0 auto;"
      x-data='checkout({{ lines|tojson }}, {{ payment_methods|tojson }}, {{ suggested_amount or 0 }}, {{ (vaccine_offers_json or [])|tojson }}, {{ ({"id": vaccine_fee.id, "name": vaccine_fee.display_name(current_lang), "price": vaccine_fee.price or 0} if vaccine_fee else None)|tojson }})'>
+  {% set hold_patient_id = patient.id %}{% include "_hold_banner.html" %}
   <div style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
     <div>
       <h1 class="page-title"><i class="bi bi-cash-coin"></i> {{ t('checkout.title') }}</h1>

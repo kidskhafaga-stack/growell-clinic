@@ -97,6 +97,19 @@ SECTIONS = [
              "<b>Archive</b>: a patient inactive for years is archived — out "
              "of the lists and search, and back with one click when they "
              "return."),
+            ("<b>إيقاف ملف لحين موافقة</b>: من ملف المريض ← «سجّل تنبيه مالي» — "
+             "السبب مشكلة في الحساب أو مشكلة مع الأهل، و«منع مؤقت» بيوقف الحجز "
+             "والتنويم المخطط لحد ما المدير المالي أو المدير المناوب (صلاحية "
+             "«المدير المناوب» من المستخدمين) يوافق، وموافقته بتتسجّل باسمه. "
+             "<b>الطوارئ عمرها ما بتتوقف</b> — التنبيه بيظهر بس. قايمة "
+             "«الملفات الموقوفة» من المرضى، وتنبيه في الجرس للي منهم موجود النهارده.",
+             "<b>A file on hold until a manager says</b>: patient file → «raise a "
+             "financial note» — the account or the family; a hold stops bookings "
+             "and planned admissions until the finance manager or the manager on "
+             "duty (the «manager on duty» capability, under Users) says go ahead, "
+             "recorded by name. <b>The emergency is never held</b> — the note "
+             "only shows. «Files on hold» under Patients, and a bell for the "
+             "ones here today."),
             ("<b>تحليل المرضى</b>: التوزيع بالنوع والعمر والفئة.",
              "<b>Patient analytics</b>: distribution by sex, age and "
              "category."),
@@ -2171,6 +2184,22 @@ SECTIONS = [
              "مطالبة بالفترة لكل جهة وتتابع تحصيلها.",
              "The member's discount stays <b>claimable from the payer</b>; "
              "print a per-period claim per payer and track its collection."),
+            ("<b>عقد جديد من تاريخ</b>: من العقد القديم ← «نسخة جديدة» بالتواريخ "
+             "الجديدة (وممكن «زوّد كل الأسعار بنسبة» في نفس الخطوة) — بيشتغل لوحده "
+             "يوم ما يبدأ. على شاشة أسعاره: زيادة على خدمة أو قسم أو الكل مع "
+             "التقريب، أو نزّل الشيت Excel وعدّله وارفعه؛ الاتنين بيوروك التغييرات "
+             "(سعر اتغيّر، بقى متغطي، طلع من العقد) قبل الحفظ. التذكير قبل الانتهاء "
+             "بعدد أيام من الإعدادات، والعقد اللي انتهى من غير تجديد وأعضاؤه "
+             "كارتهم ساري بيتنبّه عليه بالأحمر.",
+             "<b>A new contract from a date</b>: from the old contract → «new "
+             "copy» with the new dates (optionally «raise every price by» in the "
+             "same step) — it bills by itself from its first day. On its rates "
+             "screen: a raise on a service, a category or everything with "
+             "rounding, or download the Excel sheet, edit and upload it; both "
+             "show the changes (price changed, now covered, out of the contract) "
+             "before saving. The reminder comes the number of days set in "
+             "Settings, and a contract that ended with no renewal while members "
+             "still hold cards is flagged in red."),
             ("<b>نصيب الأسرة وسقوف الجهة</b> على شاشة أسعار العقد: مبلغ ثابت "
              "على الأسرة في كل فاتورة لكل قسم، وأقصى ما الجهة تدفعه في الفاتورة "
              "وفي ليلة السرير (الغرفة الخاصة فرقها على الأسرة)، والتحمّل وسقف "

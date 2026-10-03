@@ -822,6 +822,9 @@ ADDITIONS = [
     ("invoice_items", "cover_note", "VARCHAR(16)"),
     ("invoice_items", "cover_cut", "FLOAT"),
     ("invoices", "deductible_taken", "FLOAT"),
+    # Why a file is on hold: the account, or the family (`models/patient_flag`).
+    # Empty on every flag raised before, which read as account ones.
+    ("patient_flags", "kind", "VARCHAR(10)"),
     # «رسم المخ الى بيحتاج حجز ونوم» — a device study booked for a day and an
     # hour, with what the family must do before it. Empty on every order.
     ("visit_investigations", "booked_for", "DATETIME"),

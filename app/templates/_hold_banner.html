@@ -1,0 +1,14 @@
+{# A file on hold — the account or the family — shown where the care and the
+   money happen. Staff only, never printed (`models/patient_flag`). On the
+   emergency it is a warning and nothing more: the child is treated first. #}
+{% set hold = patient_hold(hold_patient_id) %}
+{% if hold %}
+<div class="card no-print gc-scale-in" data-hold-banner="{{ hold.level }}"
+     style="margin-bottom:12px;border-inline-start:4px solid {{ 'var(--danger)' if hold.level == 'block' else '#d97706' }};">
+  <b style="color:{{ 'var(--danger)' if hold.level == 'block' else '#b45309' }};">
+    <i class="bi bi-exclamation-octagon"></i> {{ t('flags.title') }} — {{ t('flags.' ~ hold.level) }}
+    · {{ t('flags.kind_' ~ (hold.kind or 'account')) }}</b>
+  <div style="line-height:1.9;margin-top:4px;" dir="auto">{{ hold.reason }}</div>
+  <div class="hint" style="margin:0;">{{ t('flags.who_lifts') }}{% if hold_emergency %} · {{ t('flags.emergency_goes_on') }}{% endif %} · {{ t('flags.staff_only') }}</div>
+</div>
+{% endif %}

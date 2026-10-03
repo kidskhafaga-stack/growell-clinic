@@ -5036,7 +5036,18 @@ def payers():
         coverage_types=COVERAGE_TYPES,
         services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
         cash_payer=cash_payer(),
+        # How long each contract has left, whether its renewal is ready,
+        # and the one that lapsed with members still carrying cards.
+        renewal_state=_renewal_state(),
     )
+
+
+def _renewal_state():
+    from app.utils import contract_renewal as renewal
+    from app.utils.clock import local_today
+
+    today, days = local_today(), renewal.remind_days()
+    return lambda contract: renewal.state(contract, today, days)
 
 
 def _all_payer_types():
@@ -5615,9 +5626,127 @@ def contract_copy(contract_id):
         start_date=_parse_date_arg2(request.form.get("start_date")),
         end_date=_parse_date_arg2(request.form.get("end_date")))
     db.session.add(clone)
+    db.session.flush()
+    # «زوّد كل الأسعار كذا %» in the same step — the renewal's list starts
+    # from last year's prices raised, and is fine-tuned on its own screen.
+    raise_by = (request.form.get("raise_percent") or "").strip().replace(",", ".")
+    if raise_by:
+        from app.utils import contract_renewal as renewal
+
+        try:
+            percent = float(raise_by)
+        except ValueError:
+            percent = None
+        if percent:
+            services = _contract_services()
+            step = request.form.get("step", type=int)
+            renewal.apply(clone, services, renewal.raised(
+                clone, services, [("all", "percent", percent)],
+                step if step in renewal.ROUNDINGS else 1))
     db.session.commit()
     flash(t("contracts.copied").replace("{n}", str(len(clone.rates))), "success")
     return redirect(url_for("finance.contract_rates", contract_id=clone.id))
+
+
+# ---------------------------------------------------------------------------
+# A renewal's prices: a raise, or a sheet — previewed, then saved
+# ---------------------------------------------------------------------------
+def _contract_services():
+    return Service.query.filter_by(is_active=True).order_by(Service.name).all()
+
+
+def _preview(contract, services, proposal, source, unknown=(), bad=()):
+    """What would change, and the one button that writes it — the whole
+    proposed list posted to the contract's own save (`contract_rates`)."""
+    from app.utils import contract_renewal as renewal
+
+    before = renewal.current(contract, services)
+    rows = renewal.diff(services, before, proposal)
+    return render_template(
+        "finance/contract_preview.html", contract=contract, payer=contract.payer,
+        rows=rows, proposal=proposal, services=services, source=source,
+        unknown=list(unknown), bad=list(bad),
+        counts={k: sum(1 for r in rows if r["kind"] == k)
+                for k in ("changed", "added", "removed")})
+
+
+@finance_bp.route("/contract/<int:contract_id>/adjust", methods=["POST"])
+@module_required(MODULE)
+def contract_adjust(contract_id):
+    """«هزود 20% على الكشف، 30% على كذا» — by service, category or
+    everything; shown before anything is saved."""
+    from app.models import PayerContract
+    from app.models.service import SERVICE_CATEGORIES
+    from app.utils import contract_renewal as renewal
+
+    c = db.get_or_404(PayerContract, contract_id)
+    services = _contract_services()
+    rules = []
+    for target, kind, raw in zip(request.form.getlist("target"),
+                                 request.form.getlist("kind"),
+                                 request.form.getlist("value")):
+        raw = (raw or "").strip().replace(",", ".")
+        if not raw:
+            continue
+        try:
+            value = float(raw)
+        except ValueError:
+            continue
+        ok = (target == "all"
+              or (target.startswith("cat:") and target[4:] in SERVICE_CATEGORIES)
+              or (target.startswith("svc:") and target[4:].isdigit()))
+        if ok and kind in ("percent", "amount"):
+            rules.append((target, kind, value))
+    if not rules:
+        flash(t("renewal.no_rules"), "warning")
+        return redirect(url_for("finance.contract_rates", contract_id=c.id) + "#adjust")
+    step = request.form.get("step", type=int)
+    step = step if step in renewal.ROUNDINGS else 1
+    return _preview(c, services, renewal.raised(c, services, rules, step), "adjust")
+
+
+@finance_bp.route("/contract/<int:contract_id>/sheet")
+@module_required(MODULE)
+def contract_sheet(contract_id):
+    """The contract's list as a sheet to edit in Excel."""
+    from io import BytesIO
+
+    from flask import send_file
+
+    from app.models import PayerContract
+    from app.utils import contract_renewal as renewal
+
+    c = db.get_or_404(PayerContract, contract_id)
+    book = renewal.export(c, _contract_services(), t, getattr(g, "lang", "ar"))
+    buf = BytesIO()
+    book.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True, download_name=f"contract_{c.number or c.id}.xlsx")
+
+
+@finance_bp.route("/contract/<int:contract_id>/sheet", methods=["POST"])
+@module_required(MODULE)
+def contract_sheet_upload(contract_id):
+    """The sheet back, edited — shown as a list of changes before saving."""
+    from app.models import PayerContract
+    from app.utils import contract_renewal as renewal
+
+    c = db.get_or_404(PayerContract, contract_id)
+    upload = request.files.get("sheet")
+    back = redirect(url_for("finance.contract_rates", contract_id=c.id) + "#adjust")
+    if upload is None or not upload.filename:
+        flash(t("renewal.no_file"), "warning")
+        return back
+    services = _contract_services()
+    try:
+        proposal, unknown, bad = renewal.read(c, services, upload.stream, t,
+                                              getattr(g, "lang", "ar"))
+    except Exception:  # noqa: BLE001 - not a workbook, or not one we can read
+        flash(t("renewal.bad_file"), "danger")
+        return back
+    return _preview(c, services, proposal, "sheet", unknown, bad)
 
 
 def _parse_date_arg2(raw):

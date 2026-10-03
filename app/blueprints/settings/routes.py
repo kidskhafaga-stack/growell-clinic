@@ -36,6 +36,9 @@ TEXT_KEYS = [
     # always does. Zero makes every refund wait, which is how it behaved
     # before there was a line between them.
     "refund_no_approval_under",
+    # How many days before a contract ends the program starts reminding.
+    # Blank is the built-in 30 (`utils/contract_renewal.remind_days`).
+    "contract_remind_days",
     # The patient's own account (deposits, money held for a family): blank
     # follows the facility — on for a hospital or a dental clinic — and
     # «on» / «off» is the clinic's own word. `app/utils/patient_credit`.

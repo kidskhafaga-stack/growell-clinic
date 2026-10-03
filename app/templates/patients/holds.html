@@ -1,0 +1,45 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('flags.holds_title') }}{% endblock %}
+{% block page_heading %}{{ t('flags.holds_title') }}{% endblock %}
+
+{% block content %}
+{# Every open financial note, holds first. A note between staff — never
+   printed, never shown to a family (`models/patient_flag`). #}
+<div class="gc-animate" style="margin-bottom:16px;">
+  <h1 class="page-title"><i class="bi bi-exclamation-octagon"></i> {{ t('flags.holds_title') }}</h1>
+  <p class="page-sub" style="margin:0;">{{ t('flags.holds_sub') }}</p>
+</div>
+<div class="card gc-scale-in">
+  {% if rows %}
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:640px;" data-holds>
+    <thead><tr><th>{{ t('patients.full_name') }}</th><th>{{ t('flags.level') }}</th>
+      <th>{{ t('flags.kind') }}</th><th>{{ t('flags.reason') }}</th><th></th></tr></thead>
+    <tbody>
+      {% for f in rows %}
+      <tr data-hold="{{ f.patient_id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=f.patient_id) }}">{{ f.patient.display_name(current_lang) if f.patient else f.patient_id }}</a>
+          {% if f.patient_id in today %}<span class="badge badge--danger" data-hold-today><i class="bi bi-calendar-event"></i> {{ t('flags.today') }}</span>{% endif %}</td>
+        <td><span class="badge {{ 'badge--danger' if f.level == 'block' else 'badge--warn' }}">{{ t('flags.' ~ f.level) }}</span></td>
+        <td>{{ t('flags.kind_' ~ (f.kind or 'account')) }}</td>
+        <td dir="auto">{{ f.reason }}
+          <div class="hint" style="margin:0;">{{ f.raiser.display_name(current_lang) if f.raiser else '—' }} · <span dir="ltr">{{ f.raised_at.strftime('%Y-%m-%d') }}</span></div></td>
+        <td style="text-align:end;">
+          {% if may_lift %}
+          <form method="post" action="{{ url_for('patients.flag_clear', patient_id=f.patient_id) }}" style="display:flex;gap:6px;justify-content:flex-end;margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="input" name="clear_reason" style="max-width:170px;" placeholder="{{ t('flags.clear_reason') }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('flags.clear') }}</button>
+          </form>
+          {% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('flags.no_holds') }}</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('renewal.preview_title') }}{% endblock %}
+{% block page_heading %}{{ t('renewal.preview_title') }}{% endblock %}
+
+{% macro cover(row) -%}
+  {%- if row[1] == 'none' -%}<span class="badge badge--muted">{{ t('coverage.not_covered') }}</span>
+  {%- elif row[1] == 'percent' -%}<span dir="ltr">{{ row[2]|round(2) }}%</span>
+  {%- else -%}{{ row[2]|money }}{%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+{# What a raise or an uploaded sheet would change — nothing is written until
+   the button at the bottom, which posts the whole proposed list to the
+   contract's own save. `utils/contract_renewal`. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-eye"></i> {{ t('renewal.preview_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ payer.display_name(current_lang) }}
+      · <span dir="ltr">{{ contract.number or ('#' ~ contract.id) }}</span>
+      · <span dir="ltr">{{ contract.start_date or '…' }} → {{ contract.end_date or '…' }}</span>
+      · {{ t('renewal.from_' ~ source) }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.contract_rates', contract_id=contract.id) }}">
+    <i class="bi bi-x-lg"></i> {{ t('common.cancel') }}</a>
+</div>
+
+<div class="stat-grid stat-grid--compact" style="margin-bottom:14px;" data-preview-counts>
+  <div class="stat-card edge-blue"><div class="value">{{ counts.changed }}</div><div class="label">{{ t('renewal.kind_changed') }}</div></div>
+  <div class="stat-card edge-green"><div class="value">{{ counts.added }}</div><div class="label">{{ t('renewal.kind_added') }}</div></div>
+  <div class="stat-card edge-red"><div class="value">{{ counts.removed }}</div><div class="label">{{ t('renewal.kind_removed') }}</div></div>
+</div>
+
+{% if unknown or bad %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--danger);" data-preview-skipped>
+  {% if unknown %}<p style="margin:0 0 6px;">{{ t('renewal.unknown_rows', rows=unknown|join(', ')) }}</p>{% endif %}
+  {% if bad %}<p style="margin:0;">{{ t('renewal.bad_rows', rows=bad|join(', ')) }}</p>{% endif %}
+</div>
+{% endif %}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  {% if rows %}
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:640px;" data-preview-rows>
+    <thead><tr><th>{{ t('invoices.service') }}</th><th></th>
+      <th>{{ t('contracts.special_price') }}</th><th>{{ t('coverage.coverage_value') }}</th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr data-preview-row="{{ r.kind }}">
+        <td><strong>{{ r.service.display_name(current_lang) }}</strong>
+          {% if r.service.code %}<span class="badge badge--muted" dir="ltr">{{ r.service.code }}</span>{% endif %}</td>
+        <td><span class="badge {{ {'changed': 'badge--role', 'added': 'badge--green', 'removed': 'badge--danger'}[r.kind] }}">{{ t('renewal.kind_' ~ r.kind) }}</span></td>
+        <td dir="ltr">{{ r.before[0]|money if r.before[0] is not none else '—' }} → <strong>{{ r.after[0]|money if r.after[0] is not none else '—' }}</strong></td>
+        <td>{{ cover(r.before) }} → <strong>{{ cover(r.after) }}</strong></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;" data-preview-nothing>{{ t('renewal.nothing_changes') }}</p>
+  {% endif %}
+</div>
+
+{% if rows %}
+<form method="post" action="{{ url_for('finance.contract_rates', contract_id=contract.id) }}" data-preview-confirm>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% for s in services %}{% set p = proposal[s.id] %}
+  <input type="hidden" name="price_{{ s.id }}" value="{{ p[0] if p[0] is not none else '' }}">
+  <input type="hidden" name="type_{{ s.id }}" value="{{ p[1] }}">
+  <input type="hidden" name="value_{{ s.id }}" value="{{ p[2] if p[1] != 'none' else '' }}">
+  {% endfor %}
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('renewal.confirm', n=rows|length) }}</button>
+</form>
+{% endif %}
+{% endblock %}

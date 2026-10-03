@@ -61,7 +61,7 @@
       <div>
         <b style="color:{{ 'var(--danger)' if payment_flag.level == 'block' else '#b45309' }};">
           <i class="bi bi-cash-stack"></i> {{ t('flags.title') }} —
-          {{ t('flags.' ~ payment_flag.level) }}</b>
+          {{ t('flags.' ~ payment_flag.level) }} · {{ t('flags.kind_' ~ (payment_flag.kind or 'account')) }}</b>
         <div style="line-height:1.9;margin-top:4px;">{{ payment_flag.reason }}</div>
         <div class="hint">
           {{ t('flags.raised_by')
@@ -82,6 +82,30 @@
     </div>
   </div>
   {% endif %}
+
+  {# Raising one — or changing the one there is (warn → hold). Anybody who
+     meets it may write it; lifting it is the finance manager's or the
+     manager on duty's. Staff only, never printed. #}
+  <details class="no-print" style="margin-bottom:12px;" data-flag-raise>
+    <summary class="hint" style="cursor:pointer;"><i class="bi bi-exclamation-octagon"></i>
+      {{ t('flags.raise') if not payment_flag else t('flags.change') }}</summary>
+    <form method="post" action="{{ url_for('patients.flag_raise', patient_id=patient.id) }}"
+          style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;min-width:150px;"><label>{{ t('flags.kind') }}</label>
+        <select class="select" name="kind">
+          {% for k in ['account', 'family'] %}<option value="{{ k }}" {{ 'selected' if payment_flag and payment_flag.kind == k else '' }}>{{ t('flags.kind_' ~ k) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row" style="margin:0;min-width:150px;"><label>{{ t('flags.level') }}</label>
+        <select class="select" name="level">
+          {% for l in ['warn', 'block'] %}<option value="{{ l }}" {{ 'selected' if payment_flag and payment_flag.level == l else '' }}>{{ t('flags.' ~ l) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row" style="margin:0;flex:1;min-width:220px;"><label>{{ t('flags.reason') }} *</label>
+        <input class="input" name="reason" required maxlength="500" value="{{ payment_flag.reason if payment_flag else '' }}"></div>
+      <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+      <p class="hint" style="flex-basis:100%;margin:0;">{{ t('flags.block_means') }} · {{ t('flags.staff_only') }}</p>
+    </form>
+  </details>
 
   <!-- Prominent, animated safety banner: allergies / chronic / growth concern -->
   {% if current_user.can('patient_medical') and (patient.allergies or patient.chronic_diseases or growth_alert or implants_in) %}

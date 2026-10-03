@@ -82,7 +82,15 @@ def index():
                            signed=bed_map.signed_admissions(admissions),
                            open_units=_open_units(units),
                            may_build=current_user.is_admin,
-                           may_admit=current_user.can_access(MODULE))
+                           may_admit=current_user.can_access(MODULE),
+                           # Whoever may let a file on hold be admitted.
+                           may_override_hold=_may_override_hold())
+
+
+def _may_override_hold():
+    from app.utils import patient_flags as flags
+
+    return flags.can_clear(current_user)
 
 
 def _open_units(units):
@@ -577,6 +585,23 @@ def admit(patient_id):
     and a button being pressed.
     """
     patient = Patient.query.get_or_404(patient_id)
+    # **A file on hold waits for a manager — a planned admission only.** The
+    # finance manager or the manager on duty says go ahead on this admission,
+    # and that is recorded with their name. A child coming up from the
+    # emergency is never held: the hold shows on the stay, and the care goes
+    # on (`patient_flags.blocks_admission`).
+    from app.models import ActivityLog
+    from app.utils import patient_flags as flags
+    from app.utils.decorators import client_ip
+
+    if flags.blocks_admission(patient.id):
+        if not (request.form.get("flag_override") == "1"
+                and flags.can_clear(current_user)):
+            flash(t("flags.blocked_admission"), "error")
+            return redirect(request.referrer or url_for("beds.index"))
+        ActivityLog.record("admission.flag_override", user_id=current_user.id,
+                           entity="patient", entity_id=patient.id,
+                           ip_address=client_ip())
     bed = Bed.query.get(request.form.get("bed_id", type=int))
     visit = (Visit.query
              .filter(Visit.patient_id == patient.id, Visit.status == "open")

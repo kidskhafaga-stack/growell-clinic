@@ -309,6 +309,12 @@
     <div class="form-row" style="margin:0;"><label>{{ t('beds.map_reason') }}</label>
       <input class="input" name="reason" maxlength="200"></div>
     <p class="hint" style="margin:0;">{{ t('beds.map_admit_hint') }} {{ t('beds.consent_next') }}</p>
+    {# A file on hold waits for the finance manager or the manager on duty —
+       a planned admission only; one from the emergency is never held. #}
+    {% if may_override_hold %}
+    <label style="display:flex;gap:6px;align-items:center;margin:0;" data-admit-override>
+      <input type="checkbox" name="flag_override" value="1"> {{ t('flags.override_admission') }}</label>
+    {% endif %}
     <div><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-box-arrow-in-down"></i> {{ t('beds.map_admit') }}</button></div>
   </form>
 </template>

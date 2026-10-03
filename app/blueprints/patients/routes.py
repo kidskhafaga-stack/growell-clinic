@@ -146,6 +146,20 @@ def index():
     )
 
 
+# ------------------------------------------------------- files on hold ----
+@patients_bp.route("/holds")
+@module_required(MODULE)
+def holds():
+    """Every open financial note — holds first — and the ones with a booking
+    today or a bed now marked, for the finance manager and the manager on
+    duty."""
+    from app.utils import patient_flags as flags
+
+    return render_template("patients/holds.html", rows=flags.open_holds(),
+                           today=flags.held_today(),
+                           may_lift=flags.can_clear(current_user))
+
+
 # ------------------------------------------------------- phone worklist ----
 @patients_bp.route("/phones")
 @module_required(MODULE)
@@ -403,7 +417,8 @@ def flag_raise(patient_id):
     patient = db.get_or_404(Patient, patient_id)
     level = (request.form.get("level") or "warn").strip()
     reason = (request.form.get("reason") or "").strip()
-    flag = flags.raise_flag(patient.id, level, reason, user_id=current_user.id)
+    flag = flags.raise_flag(patient.id, level, reason, user_id=current_user.id,
+                            kind=(request.form.get("kind") or "account").strip())
     if flag is None:
         flash(t("flags.need_reason"), "danger")
         return redirect(request.referrer
