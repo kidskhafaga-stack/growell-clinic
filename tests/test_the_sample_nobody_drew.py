@@ -581,7 +581,7 @@ def test_the_rack_shows_both_jobs_and_how_long_each_has_waited(lab):
 
     page = lab["sign_in"]("boss").get("/labs/")
 
-    assert b'data-count="to_collect"' in page.data
+    assert b'data-tally="to_collect"' in page.data
     assert b"data-needs-sample" in page.data
     assert b"data-sample" in page.data
     assert b"data-waited" in page.data

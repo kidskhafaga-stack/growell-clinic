@@ -241,6 +241,7 @@ def create_app(config_name="default"):
         "ward": "ward.index",
         "theatres": "theatres.index",
         "labs": "labs.index",
+        "imaging": "imaging.index",
         "pharmacy": "pharmacy.index",
         "duty": "duty.index",
         "prescriptions": "prescriptions.index",
@@ -258,6 +259,10 @@ def create_app(config_name="default"):
 
     from app.utils.version import app_version
 
+    def _device_board_shown():
+        from app.utils.device_board import shown
+        return shown()
+
     @app.context_processor
     def inject_navigation():
         from app.models import Setting
@@ -267,6 +272,7 @@ def create_app(config_name="default"):
             "MODULE_ICONS": MODULE_ICONS,
             "MODULE_ENDPOINTS": module_endpoints,
             "module_enabled": module_enabled,
+            "device_board_shown": _device_board_shown,
             "clinic_name": app.config.get("CLINIC_NAME", "PediaPro"),
             "now_date": local_today().isoformat(),
             "now_weekday": datetime.utcnow().weekday(),

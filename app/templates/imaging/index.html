@@ -1,12 +1,8 @@
 {% extends "shell.html" %}
-{% set active_module = 'labs' %}
-{# One template, two rooms. The words follow the room because the words are
-   the whole point: a film is taken in radiology, an echo is done by the team
-   that ordered it, and a screen calling both «الأشعة» is the same category
-   error one room along from the one that put an echo on the lab bench. #}
-{% set room = 'nav.imaging' if kind == 'imaging' else 'nav.diagnostics' %}
-{% block title %}{{ t(room) }}{% endblock %}
-{% block page_heading %}{{ t(room) }}{% endblock %}
+{% set active_module = 'imaging' %}
+{% set room = 'nav.imaging' %}
+{% block title %}{{ t('nav.imaging') }}{% endblock %}
+{% block page_heading %}{{ t('nav.imaging') }}{% endblock %}
 
 {% block content %}
 <style>
@@ -37,25 +33,20 @@
     {# The same two jobs as the bench, in this room's own words: what has not
        been done, and what has been done and is waiting for a report. #}
     <a class="badge {{ 'badge--muted' if state != 'requested' else '' }}"
-       style="text-decoration:none;" data-count="to_do"
+       style="text-decoration:none;" data-tally="to_do"
        href="{{ url_for(endpoint, state='requested') }}">
       {{ t('imaging.to_do', n=counts.to_collect) }}</a>
     <a class="badge {{ 'badge--muted' if state != 'collected' else '' }}"
-       style="text-decoration:none;" data-count="to_report"
+       style="text-decoration:none;" data-tally="to_report"
        href="{{ url_for(endpoint, state='collected') }}">
       {{ t('imaging.to_report', n=counts.to_run) }}</a>
     <a class="btn btn-outline gc-press{{ ' btn-primary' if not state else '' }}"
        href="{{ url_for(endpoint) }}">{{ t('lab.everything') }}</a>
-    {# The other room, with its count. Splitting the list must never be the
-       thing that makes an order go quiet. #}
-    <a class="btn btn-outline gc-press" data-to-other
-       href="{{ url_for('imaging.diagnostics' if other_kind == 'diagnostic' else 'imaging.index') }}">
-      <i class="bi bi-{{ 'activity' if other_kind == 'diagnostic' else 'radioactive' }}"></i>
-      {{ t('nav.diagnostics' if other_kind == 'diagnostic' else 'nav.imaging') }}
-      {% if other_open %}<span class="badge">{{ other_open }}</span>{% endif %}</a>
+    {% if module_enabled('labs') and current_user.can_access('labs') %}
     <a class="btn btn-outline gc-press" data-to-lab
        href="{{ url_for('labs.index') }}">
       <i class="bi bi-eyedropper"></i> {{ t('nav.labs') }}</a>
+    {% endif %}
   </div>
 </div>
 

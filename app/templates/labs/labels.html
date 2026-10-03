@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ direction }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ t('lab.labels_title') }}</title>
+  {# The tube label: whose blood, which test, which tube, and the number as a
+     barcode the bench's reader opens the order with. Sized like the store's
+     labels (50×30 mm thermal) so one printer serves both. #}
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    body { font-family: "Segoe UI", Tahoma, sans-serif; background: #f1f5f9; padding: 20px; color: #0f172a; }
+    .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+    .btn { border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; padding: 8px 16px;
+           cursor: pointer; font-size: 0.95rem; color: inherit; }
+    .btn-primary { background: #15803d; border-color: #15803d; color: #fff; }
+    .sheet { display: flex; flex-wrap: wrap; gap: 4mm; }
+    .label { width: 50mm; height: 30mm; background: #fff; border: 1px dashed #cbd5e1;
+             border-radius: 2mm; padding: 1.2mm 2mm; display: flex; flex-direction: column;
+             justify-content: space-between; overflow: hidden; }
+    .label .who { display: flex; justify-content: space-between; gap: 2mm; font-size: 7.5pt; font-weight: 700;
+                  white-space: nowrap; overflow: hidden; }
+    .label .who .num { font-family: monospace; font-weight: 400; }
+    .label .what { font-size: 7pt; line-height: 1.15; max-height: 6mm; overflow: hidden; }
+    .label .tube { font-size: 6.5pt; color: #334155; }
+    .label svg { width: 46mm; height: 8mm; align-self: center; }
+    .label .code { display: flex; justify-content: space-between; font-size: 7pt; }
+    .label .code b { font-family: monospace; letter-spacing: 1px; }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .toolbar { display: none; }
+      .label { border: none; page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="window.print()">{{ t('common.print') }}</button>
+    <a class="btn" href="{{ url_for('labs.index') }}">{{ t('common.back') }}</a>
+  </div>
+  <div class="sheet">
+    {% for row in rows %}
+    <div class="label" data-label="{{ row.id }}">
+      <div class="who"><span dir="auto">{{ row.patient.display_name(current_lang) }}</span>
+        <span class="num" dir="ltr">{{ row.patient.patient_number }}</span></div>
+      <div class="what" dir="auto">{{ row.display_name(current_lang) }}</div>
+      {% if row.investigation and (row.investigation.tube or row.investigation.sample_type) %}
+      <div class="tube">{{ row.investigation.tube or '' }}{% if row.investigation.tube and row.investigation.sample_type %} · {% endif %}{{ row.investigation.sample_type or '' }}</div>
+      {% endif %}
+      {{ bars[row.id] | safe }}
+      <div class="code"><b dir="ltr">{{ row.sample_code }}</b>
+        <span dir="ltr">{{ row.created_at|clinic_stamp }}</span></div>
+    </div>
+    {% endfor %}
+  </div>
+</body>
+</html>

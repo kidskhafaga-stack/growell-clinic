@@ -29,7 +29,21 @@
     {% if order.collector %} · {{ order.collector.display_name(current_lang) }}{% endif %}
   </p>
   {% else %}
-  <p class="hint">{{ t('lab.no_sample_yet') }}</p>
+  <p class="hint">{{ t('lab.no_sample_yet') }}
+    {% if order.sample_code %} · {{ t('lab.label_printed') }} <span dir="ltr" data-label-code>{{ order.sample_code }}</span>{% endif %}</p>
+  {% endif %}
+  {# A tube that already has its number: the same label again, read only —
+     a label torn at the bedside is reprinted, not renumbered. #}
+  {% if order.kind == 'lab' and order.sample_code %}
+  <a class="btn btn-sm btn-outline gc-press" style="margin:0 0 10px;" data-reprint
+     href="{{ url_for('labs.labels', ids=order.id) }}">
+    <i class="bi bi-printer"></i> {{ t('lab.reprint_label') }}</a>
+  {% elif order.kind == 'lab' and order.status != 'resulted' %}
+  <form method="post" style="margin:0 0 10px;" action="{{ url_for('labs.label', order_id=order.id) }}" data-print-label>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">
+      <i class="bi bi-upc-scan"></i> {{ t('lab.print_label') }}</button>
+  </form>
   {% endif %}
 
   {% if order.status != 'resulted' %}

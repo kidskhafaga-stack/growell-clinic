@@ -7,6 +7,7 @@ appointment and mirrors growth measurements into growth_records.
 from datetime import datetime
 
 from flask import (
+    abort,
     flash,
     g,
     jsonify,
@@ -2132,11 +2133,24 @@ def study_new(patient_id):
 
     from app.models import DeviceStudy, DeviceStudyValue, MedicalDevice
 
+    from app.models import VisitInvestigation
+    from app.utils import device_board
+
     patient = db.get_or_404(Patient, patient_id)
     devices = (MedicalDevice.query.filter_by(is_active=True)
                .order_by(MedicalDevice.name).all())
+    # **The order this study answers**, when it came from the device board —
+    # a study ordered in a visit, the emergency or on a ward round. Its device
+    # is the one the clinic set on the test, unless somebody picks another.
+    order_id = request.values.get("order_id", type=int)
+    order = db.session.get(VisitInvestigation, order_id) if order_id else None
+    if order is not None and (order.patient_id != patient.id
+                              or order.kind != "diagnostic"):
+        order = None
     device_id = request.values.get("device_id", type=int)
     device = db.session.get(MedicalDevice, device_id) if device_id else None
+    if device is None and order is not None:
+        device = device_board.device_for(order)
 
     if request.method == "POST" and device is not None:
         try:
@@ -2144,8 +2158,11 @@ def study_new(patient_id):
                                  "%Y-%m-%d").date()
         except ValueError:
             sdate = local_today()
-        # Attach to the visit it was opened from, else the patient's open one.
+        # Attach to the visit it was opened from, else the order's own visit,
+        # else the patient's open one.
         visit_id = request.values.get("visit_id", type=int)
+        if not visit_id and order is not None:
+            visit_id = order.visit_id
         open_visit = db.session.get(Visit, visit_id) if visit_id else None
         if open_visit is None or open_visit.patient_id != patient.id:
             open_visit = (Visit.query.filter_by(patient_id=patient.id, status="open")
@@ -2169,6 +2186,9 @@ def study_new(patient_id):
                 normal_low=m.normal_low, normal_high=m.normal_high,
                 flag=m.flag(raw)))
         db.session.add(study)
+        db.session.flush()
+        if order is not None:
+            device_board.answer(order, study, user=current_user)
         # Running a device costs money: the study charges its device's service
         # on the visit (once), and the cashier collects it like any other
         # procedure. Nothing is charged twice if the doctor already added it.
@@ -2183,9 +2203,77 @@ def study_new(patient_id):
         return redirect(url_for("visits.study_view", study_id=study.id))
 
     return render_template("visits/study_new.html", patient=patient,
-                           devices=devices, device=device,
+                           devices=devices, device=device, order=order,
                            visit_id=request.values.get("visit_id", type=int),
                            today=local_today().isoformat())
+
+
+# ======================================== the device studies board =========
+@visits_bp.route("/studies/board")
+@module_required(MODULE)
+def device_board():
+    """Every device study ordered and not yet answered — a visit's, the
+    emergency's, a ward's — with today's bookings first. See
+    `app/utils/device_board.py`."""
+    from app.utils import device_board as board
+    from app.utils import labs as bench
+
+    rows = board.rows()
+    return render_template("visits/device_board.html", rows=rows,
+                           beds=bench.beds_of(rows), bench=bench,
+                           board=board, now=datetime.utcnow())
+
+
+@visits_bp.route("/studies/order/<int:order_id>/book", methods=["POST"])
+@module_required(MODULE)
+def device_book(order_id):
+    """Book a study for a day and an hour, with what to do before it — or
+    clear the booking."""
+    from app.models import VisitInvestigation
+    from app.utils import device_board as board
+    from app.utils.clock import to_utc
+
+    order = db.get_or_404(VisitInvestigation, order_id)
+    when = None
+    if request.form.get("clear") != "1":
+        try:
+            local = datetime.strptime(
+                f"{request.form.get('date', '').strip()} "
+                f"{request.form.get('time', '').strip()}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            flash(t("device_board.need_when"), "error")
+            return redirect(url_for("visits.device_board"))
+        when = to_utc(local)
+    try:
+        board.book(order, when, request.form.get("note"), user=current_user)
+    except ValueError:
+        db.session.rollback()
+        abort(404)
+    db.session.commit()
+    flash(t("device_board.booked" if when else "device_board.unbooked"), "success")
+    return redirect(url_for("visits.device_board"))
+
+
+@visits_bp.route("/studies/order/<int:order_id>/done", methods=["POST"])
+@module_required(MODULE)
+def device_done(order_id):
+    """The study was done; its report is written next. Same event as the
+    emergency's «اتعمل دلوقتي» — `performed_at`, never a sample time."""
+    from app.models import VisitInvestigation
+    from app.utils import labs as bench
+
+    order = db.get_or_404(VisitInvestigation, order_id)
+    if order.kind != "diagnostic":
+        abort(404)
+    try:
+        bench.perform(order, user=current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("imaging.already_reported"), "warning")
+        return redirect(url_for("visits.device_board"))
+    db.session.commit()
+    flash(t("imaging.marked_done"), "success")
+    return redirect(url_for("visits.device_board"))
 
 
 @visits_bp.route("/studies/<int:study_id>")

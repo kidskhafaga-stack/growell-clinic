@@ -395,6 +395,21 @@ class Investigation(db.Model):
     # `done_outside` from the start, so it prints, stays on the file, and
     # never joins a rack nobody in this building is going to work through.
     in_house = db.Column(db.Boolean, default=True, nullable=False)
+    # For a diagnostic test: the device it is done on, so recording it opens
+    # that device's template; and whether it is booked rather than done on
+    # the spot (a sleep EEG). Empty until the clinic says.
+    device_id = db.Column(db.Integer, db.ForeignKey("medical_devices.id"))
+    needs_booking = db.Column(db.Boolean)
+    device = db.relationship("MedicalDevice")
+    # «توقيف تحليل» — why it was stopped, when, by whom. Only written by the
+    # stop button on the test's page; ``is_active`` stays the one switch the
+    # rest of the program reads.
+    stopped_reason = db.Column(db.String(200))
+    stopped_at = db.Column(db.DateTime)
+    stopped_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # What one run costs the lab (reagents, strips, its share of the
+    # machine), typed by the lab. The price is the service it is charged as.
+    cost = db.Column(db.Float)
 
     # The unit this test is reported in, so nobody types "%" beside every
     # HbA1c for the rest of the clinic's life. A unit is a fact about the

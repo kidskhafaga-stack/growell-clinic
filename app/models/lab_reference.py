@@ -126,6 +126,13 @@ class LabRange(db.Model):
     # to flag a result. Approving is the laboratory director's act.
     approved_at = db.Column(db.DateTime, index=True)
     approved_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # **Typed by hand on the test's page**, not read from a sheet. A hand row
+    # is a draft like any other until approved; what differs is what its
+    # approval replaces — only the row it corrects (``replaces_id``), never
+    # every approved band of the analyte the way a new sheet does.
+    manual = db.Column(db.Boolean, default=False)
+    replaces_id = db.Column(db.Integer, db.ForeignKey("lab_ranges.id"))
+    entered_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     analyte = db.relationship("LabAnalyte", back_populates="ranges")
@@ -222,3 +229,31 @@ class LabResultValue(db.Model):
 
     def __repr__(self):
         return f"<LabResultValue {self.order_id}:{self.analyte_id} {self.shown()}>"
+
+
+class LabConsumable(db.Model):
+    """A store item one run of a test uses — a strip, a reagent, a tube.
+
+    «غالباً بيبقى بيخصم برده مستهلكات». Taken off the lab's store **when the
+    result is entered**, not when the bill is printed: the strip is used
+    whether or not the family has paid, and a test the clinic does not bill
+    separately uses it just the same. See ``utils/lab_stock.py``.
+    """
+    __tablename__ = "lab_consumables"
+    __table_args__ = (
+        db.UniqueConstraint("investigation_id", "store_item_id",
+                            name="uq_lab_consumable"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    investigation_id = db.Column(db.Integer, db.ForeignKey("investigations.id"),
+                                 nullable=False, index=True)
+    store_item_id = db.Column(db.Integer, db.ForeignKey("store_items.id"),
+                              nullable=False, index=True)
+    quantity = db.Column(db.Integer, default=1, nullable=False)  # per run
+
+    investigation = db.relationship(
+        "Investigation", backref=db.backref("lab_consumables",
+                                            cascade="all, delete-orphan"))
+    item = db.relationship("StoreItem")
+

@@ -109,6 +109,73 @@ def collect(order_id):
     return redirect(request.referrer or url_for("labs.index"))
 
 
+@labs_bp.route("/order/<int:order_id>/label", methods=["POST"])
+@module_required(MODULE)
+def label(order_id):
+    """Write the tube's number (if it has none) and open its label to print.
+
+    A POST because it writes the number; the label page itself only reads.
+    """
+    row = db.get_or_404(VisitInvestigation, order_id)
+    try:
+        bench.label_code(row)
+    except ValueError:
+        db.session.rollback()
+        flash(t("lab.no_tube"), "warning")
+        return redirect(request.referrer or url_for("labs.index"))
+    db.session.commit()
+    return redirect(url_for("labs.labels", ids=str(row.id)))
+
+
+@labs_bp.route("/patient/<int:patient_id>/labels", methods=["POST"])
+@module_required(MODULE)
+def patient_labels(patient_id):
+    """Every tube this child is waiting to have drawn, on one sheet — the
+    nurse walks to the bed once, not once per test."""
+    rows = [r for r in bench.worklist(kind=bench.LAB, state=bench.REQUESTED)
+            if r.patient_id == patient_id]
+    if not rows:
+        flash(t("lab.nothing_to_draw"), "info")
+        return redirect(request.referrer or url_for("labs.index"))
+    for r in rows:
+        bench.label_code(r)
+    db.session.commit()
+    return redirect(url_for("labs.labels", ids=",".join(str(r.id) for r in rows)))
+
+
+@labs_bp.route("/labels")
+@module_required(MODULE)
+def labels():
+    """The tube labels, sized for a 50×30 mm label printer. Read only: an
+    order with no number yet is left off rather than numbered by a GET."""
+    from app.utils.barcode39 import svg
+
+    ids = [int(x) for x in (request.args.get("ids") or "").split(",")
+           if x.strip().isdigit()][:60]
+    rows = (VisitInvestigation.query
+            .filter(VisitInvestigation.id.in_(ids),
+                    VisitInvestigation.kind == bench.LAB,
+                    VisitInvestigation.sample_code.isnot(None))
+            .order_by(VisitInvestigation.id).all()) if ids else []
+    if not rows:
+        abort(404)
+    return render_template("labs/labels.html", rows=rows,
+                           bars={r.id: svg(r.sample_code) for r in rows})
+
+
+@labs_bp.route("/scan")
+@module_required(MODULE)
+def scan():
+    """A barcode reader's input: the tube's code, then Enter. Opens the order
+    it belongs to — to mark it drawn, or to write its result."""
+    code = (request.args.get("code") or "").strip()
+    row = bench.by_code(code)
+    if row is None:
+        flash(t("lab.scan_unknown", code=code[:24]), "warning")
+        return redirect(url_for("labs.index"))
+    return redirect(url_for("labs.order", order_id=row.id))
+
+
 @labs_bp.route("/order/<int:order_id>/result", methods=["POST"])
 @module_required(MODULE)
 def result(order_id):
@@ -214,6 +281,12 @@ def tests():
     q = (request.args.get("q") or "").strip()
     category = (request.args.get("category") or "").strip()
     page = max(1, request.args.get("page", type=int) or 1)
+    # **A tab per kind.** The list held blood tests, films and echoes in one
+    # column, each with a sample box and a unit box — which is how an echo
+    # came to read like a blood test («شايف اشعة الايكو … انها تحليل؟»).
+    kind = request.args.get("kind")
+    if kind not in INVESTIGATION_KINDS:
+        kind = "lab"
     query = Investigation.query
     if q:
         like = f"%{q}%"
@@ -223,6 +296,11 @@ def tests():
                                  Investigation.code.ilike(like)))
     if category:
         query = query.filter(Investigation.category == category)
+    # Counted per kind *after* the search, so a search that found the echo
+    # under the other tab says so on that tab.
+    per_kind = dict(query.with_entities(Investigation.kind, db.func.count())
+                    .group_by(Investigation.kind).all())
+    query = query.filter(Investigation.kind == kind)
     total = query.count()
     rows = (query.order_by(Investigation.kind, Investigation.name_ar)
             .offset((page - 1) * PAGE).limit(PAGE).all())
@@ -231,11 +309,34 @@ def tests():
                   .distinct().order_by(Investigation.category).all()]
     return render_template(
         "labs/tests.html", rows=rows, kinds=INVESTIGATION_KINDS,
+        kind=kind, per_kind=per_kind,
         q=q, category=category, categories=categories, page=page,
         pages=max(1, -(-total // PAGE)), total=total,
         reference=_reference_state(rows),
+        warehouses=_warehouses(), lab_store=_lab_store(),
         services=(Service.query.filter(Service.is_active.is_(True))
-                  .order_by(Service.name).all()))
+                  .order_by(Service.name).all()),
+        devices=_devices() if kind == "diagnostic" else [])
+
+
+def _devices():
+    from app.models import MedicalDevice
+
+    return (MedicalDevice.query.filter(MedicalDevice.is_active.is_(True))
+            .order_by(MedicalDevice.name).all())
+
+
+def _warehouses():
+    from app.models import Warehouse
+
+    return (Warehouse.query.filter(Warehouse.is_active.is_(True))
+            .order_by(Warehouse.name).all())
+
+
+def _lab_store():
+    from app.utils import lab_stock
+
+    return lab_stock.store()
 
 
 def _reference_state(rows):
@@ -359,7 +460,29 @@ def _import_apply(token):
     db.session.commit()
     lab_import.forget(token)
     flash(t("lab_import.done", **counts), "success")
+    if counts.get("priced") or counts.get("unmatched"):
+        flash(t("lab_import.done_money", priced=counts.get("priced", 0),
+                unmatched=counts.get("unmatched", 0)),
+              "warning" if counts.get("unmatched") else "success")
     return redirect(url_for("labs.tests"))
+
+
+@labs_bp.route("/tests/template")
+@module_required(MODULE)
+def tests_template():
+    """An empty sheet with every column the import reads, each header noting
+    what goes in it — «انزال نموذج تضاف بشكل كامل وترفع»."""
+    _admin_only()
+    import io
+
+    from flask import send_file
+
+    from app.utils import lab_import
+
+    return send_file(io.BytesIO(lab_import.template()),
+                     mimetype="application/vnd.openxmlformats-officedocument."
+                              "spreadsheetml.sheet",
+                     as_attachment=True, download_name="lab_tests_template.xlsx")
 
 
 @labs_bp.route("/tests/export")
@@ -388,8 +511,17 @@ def test_ranges(test_id):
     """What one test measures, and every range the laboratory has given for
     each — with where it came from and whether it is approved."""
     _admin_only()
+    from app.models import StoreItem
+    from app.utils import lab_stock
+
     row = db.get_or_404(Investigation, test_id)
-    return render_template("labs/test_ranges.html", test=row)
+    return render_template(
+        "labs/test_ranges.html", test=row,
+        store_items=(StoreItem.query.filter(StoreItem.is_active.is_(True))
+                     .order_by(StoreItem.name).all()),
+        lab_store=lab_stock.store(),
+        used_cost=lab_stock.consumables_cost(row),
+        double_taken=lab_stock.double_taken(row))
 
 
 @labs_bp.route("/tests/<int:test_id>/approve", methods=["POST"])
@@ -412,6 +544,168 @@ def approve_ranges(test_id):
     return redirect(url_for("labs.test_ranges", test_id=row.id))
 
 
+# ------------------------------------------- by hand, on the test's page --
+# «مش مفتوح ان المعمل يدخلها او يغيراها بايده؟». Each of these writes a draft
+# or a link; nothing here judges a result until the approve button above.
+# See `app/utils/lab_hand.py`.
+
+def _hand(test_id, work, done_key):
+    from app.utils import lab_hand
+
+    _admin_only()
+    row = db.get_or_404(Investigation, test_id)
+    try:
+        work(row, lab_hand)
+    except lab_hand.Refused as why:
+        db.session.rollback()
+        flash(t(why.key), "error")
+        return redirect(url_for("labs.test_ranges", test_id=row.id))
+    db.session.commit()
+    flash(t(done_key), "success")
+    return redirect(url_for("labs.test_ranges", test_id=row.id))
+
+
+def _range_of(test, range_id):
+    """A range that belongs to one of this test's analytes, or 404."""
+    from app.models import LabRange
+
+    rng = db.get_or_404(LabRange, range_id)
+    if rng.analyte_id not in {link.analyte_id for link in test.analyte_links}:
+        abort(404)
+    return rng
+
+
+@labs_bp.route("/tests/<int:test_id>/analytes", methods=["POST"])
+@module_required(MODULE)
+def add_analyte(test_id):
+    return _hand(test_id, lambda row, hand: hand.add_analyte(
+        row, request.form.get("name"), request.form.get("name_ar"),
+        request.form.get("unit")), "lab_hand.analyte_added")
+
+
+@labs_bp.route("/tests/<int:test_id>/analytes/<int:analyte_id>/remove",
+               methods=["POST"])
+@module_required(MODULE)
+def remove_analyte(test_id, analyte_id):
+    return _hand(test_id, lambda row, hand: hand.remove_analyte(row, analyte_id),
+                 "lab_hand.analyte_removed")
+
+
+@labs_bp.route("/tests/<int:test_id>/analytes/<int:analyte_id>/range",
+               methods=["POST"])
+@module_required(MODULE)
+def add_range(test_id, analyte_id):
+    from app.models import LabAnalyte
+
+    def work(row, hand):
+        if analyte_id not in {link.analyte_id for link in row.analyte_links}:
+            abort(404)
+        hand.add_range(db.get_or_404(LabAnalyte, analyte_id), request.form,
+                       current_user)
+    return _hand(test_id, work, "lab_hand.range_added")
+
+
+@labs_bp.route("/tests/<int:test_id>/ranges/<int:range_id>", methods=["POST"])
+@module_required(MODULE)
+def correct_range(test_id, range_id):
+    return _hand(test_id, lambda row, hand: hand.correct_range(
+        _range_of(row, range_id), request.form, current_user),
+        "lab_hand.range_corrected")
+
+
+@labs_bp.route("/tests/<int:test_id>/ranges/<int:range_id>/drop",
+               methods=["POST"])
+@module_required(MODULE)
+def drop_range(test_id, range_id):
+    return _hand(test_id, lambda row, hand: hand.drop_draft(
+        _range_of(row, range_id)), "lab_hand.draft_dropped")
+
+
+@labs_bp.route("/tests/<int:test_id>/stop", methods=["POST"])
+@module_required(MODULE)
+def stop_test(test_id):
+    from app.models import ActivityLog
+    from app.utils.decorators import client_ip
+
+    def work(row, hand):
+        hand.stop(row, request.form.get("reason"), current_user)
+        ActivityLog.record("lab.test_stopped", user_id=current_user.id,
+                           entity="investigation", entity_id=row.id,
+                           detail=row.stopped_reason, ip_address=client_ip())
+    return _hand(test_id, work, "lab_hand.stopped")
+
+
+@labs_bp.route("/tests/<int:test_id>/resume", methods=["POST"])
+@module_required(MODULE)
+def resume_test(test_id):
+    return _hand(test_id, lambda row, hand: hand.resume(row), "lab_hand.resumed")
+
+
+@labs_bp.route("/tests/<int:test_id>/details", methods=["POST"])
+@module_required(MODULE)
+def test_details(test_id):
+    """The sample, the tube, the expected time and the preparation — step two
+    of defining a test. Times are read the way the sheet writes them."""
+    from app.utils.lab_import import minutes
+
+    _admin_only()
+    row = db.get_or_404(Investigation, test_id)
+    row.sample_type = (request.form.get("sample_type") or "").strip()[:40] or None
+    row.tube = (request.form.get("tube") or "").strip()[:60] or None
+    row.preparation = (request.form.get("preparation") or "").strip()[:255] or None
+    for field, low, high in (("tat", "tat_min", "tat_max"),
+                             ("tat_stat", "tat_stat_min", "tat_stat_max")):
+        raw = (request.form.get(field) or "").strip()
+        span = minutes(raw) if raw else None
+        if raw and span is None:
+            flash(t("lab_steps.tat_unreadable", v=raw[:40]), "error")
+            return redirect(url_for("labs.test_ranges", test_id=row.id) + "#details")
+        setattr(row, low, span[0] if span else None)
+        setattr(row, high, span[1] if span else None)
+    db.session.commit()
+    flash(t("lab.test_saved"), "success")
+    return redirect(url_for("labs.test_ranges", test_id=row.id) + "#details")
+
+
+@labs_bp.route("/tests/<int:test_id>/money", methods=["POST"])
+@module_required(MODULE)
+def test_money(test_id):
+    """What one run costs the lab, and what it uses from the lab's store —
+    «علشان التحليل يتسعّر سعر وتكلفة وكل حاجه»."""
+    from app.utils import lab_stock
+    from app.utils.lab_import import _number
+
+    _admin_only()
+    row = db.get_or_404(Investigation, test_id)
+    cost = _number(request.form.get("cost"))
+    row.cost = cost if cost is not None and cost >= 0 else None
+    items = request.form.getlist("item_id")
+    qtys = request.form.getlist("qty")
+    pairs = []
+    for i, raw in enumerate(items):
+        if str(raw).strip().isdigit():
+            qty = qtys[i] if i < len(qtys) else "1"
+            pairs.append((int(raw), int(qty) if str(qty).strip().isdigit() else 0))
+    lab_stock.set_consumables(row, pairs)
+    db.session.commit()
+    flash(t("lab_stock.saved"), "success")
+    return redirect(url_for("labs.test_ranges", test_id=row.id) + "#money")
+
+
+@labs_bp.route("/store", methods=["POST"])
+@module_required(MODULE)
+def lab_store():
+    """Which store the lab draws its strips and reagents from. None chosen,
+    nothing is ever taken."""
+    from app.utils import lab_stock
+
+    _admin_only()
+    lab_stock.set_store(request.form.get("warehouse_id", type=int))
+    db.session.commit()
+    flash(t("lab_stock.store_saved"), "success")
+    return redirect(url_for("labs.tests"))
+
+
 @labs_bp.route("/tests/add", methods=["POST"])
 @module_required(MODULE)
 def add_test():
@@ -421,20 +715,31 @@ def add_test():
         flash(t("lab.need_name"), "error")
         return redirect(url_for("labs.tests"))
     kind = request.form.get("kind")
-    db.session.add(Investigation(
+    kind = kind if kind in INVESTIGATION_KINDS else "lab"
+    # A scan has no sample and no unit — the add form hides both for it, and
+    # anything that arrives anyway is not kept.
+    is_lab = kind == "lab"
+    row = Investigation(
         name_ar=name,
         name_en=(request.form.get("name_en") or "").strip()[:160] or None,
-        kind=kind if kind in INVESTIGATION_KINDS else "lab",
-        unit=(request.form.get("unit") or "").strip()[:20] or None,
-        sample_type=(request.form.get("sample_type") or "").strip()[:40] or None,
+        kind=kind,
+        unit=((request.form.get("unit") or "").strip()[:20] or None) if is_lab else None,
+        sample_type=((request.form.get("sample_type") or "").strip()[:40] or None)
+        if is_lab else None,
         # Ticked by default on the add form, so a clinic that never touches
         # this box builds a catalogue of things it does — which is what a
         # catalogue has always meant here.
         in_house=request.form.get("in_house") == "1",
-        service_id=request.form.get("service_id", type=int)))
+        service_id=request.form.get("service_id", type=int))
+    db.session.add(row)
     db.session.commit()
     flash(t("lab.test_added"), "success")
-    return redirect(url_for("labs.tests"))
+    # **Step by step from here** — «اضافة واحد لواحد بالخطوات المطلوبة». A
+    # lab test lands on its own page, where the steps it still needs are
+    # listed in order; a scan has nothing more to define.
+    if row.kind == "lab":
+        return redirect(url_for("labs.test_ranges", test_id=row.id))
+    return redirect(url_for("labs.tests", kind=kind))
 
 
 @labs_bp.route("/tests/<int:test_id>", methods=["POST"])
@@ -449,8 +754,16 @@ def edit_test(test_id):
     if name:
         row.name_ar = name
     row.name_en = (request.form.get("name_en") or "").strip()[:160] or None
-    row.unit = (request.form.get("unit") or "").strip()[:20] or None
-    row.sample_type = (request.form.get("sample_type") or "").strip()[:40] or None
+    # A scan's row has no sample box and no unit box, so a save from it must
+    # not read their absence as «cleared».
+    if row.kind == "lab":
+        row.unit = (request.form.get("unit") or "").strip()[:20] or None
+        row.sample_type = (request.form.get("sample_type") or "").strip()[:40] or None
+    elif row.kind == "diagnostic":
+        # The device it is done on — recording it opens that device's
+        # template — and whether it is booked rather than done on the spot.
+        row.device_id = request.form.get("device_id", type=int) or None
+        row.needs_booking = request.form.get("needs_booking") == "1"
     # Cleared on purpose when the box is empty: a clinic that stops charging
     # for a test has to be able to say so, and an empty select means nobody
     # rather than "leave it as it was".
@@ -463,7 +776,7 @@ def edit_test(test_id):
     row.in_house = request.form.get("in_house") == "1"
     db.session.commit()
     flash(t("lab.test_saved"), "success")
-    return redirect(url_for("labs.tests"))
+    return redirect(url_for("labs.tests", kind=row.kind))
 
 
 def _admin_only():
