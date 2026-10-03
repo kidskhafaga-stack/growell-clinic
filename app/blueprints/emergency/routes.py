@@ -38,8 +38,19 @@ KIND = "emergency"
 @emergency_bp.route("/")
 @module_required(MODULE)
 def index():
-    """Who is in the department, worst first."""
-    return department_screen.render(MODULE, KIND)
+    """Who is in the department, worst first — in a bed, and without one.
+
+    The children with no bed are the department too: «هو قاعد وملهوش علاج»
+    is asked about the child on a chair as much as the one on a trolley. So
+    the live board lists them above the beds, each with what they wait on.
+    """
+    from app.utils import emergency as er
+    from app.utils import waiting_on
+
+    bedless = [a for a in er.open_visits() if a.admission_id is None]
+    return department_screen.render(
+        MODULE, KIND, attendances=bedless,
+        attendance_waiting=waiting_on.for_attendances(bedless))
 
 
 def _reasons():
@@ -66,9 +77,12 @@ def register():
     from app.utils import emergency as er
     from app.utils import emergency_orders as eo
 
+    from app.utils import waiting_on
+
     open_visits = er.open_visits()
     return render_template("emergency/register.html",
                            open_visits=open_visits,
+                           waiting=waiting_on.for_attendances(open_visits),
                            order_states=eo.states_by_attendance(
                                [r.id for r in open_visits]),
                            mine_to_confirm=len(
@@ -269,14 +283,19 @@ def attendance(attendance_id):
 
     from app.utils.facility import module_enabled
 
+    from app.utils import waiting_on
+
     row = db.get_or_404(EmergencyVisit, attendance_id)
     orders = eo.for_attendance(row)
+    waiting = waiting_on.for_attendances([row]).get(row.id)
+    session = waiting_on.running_session(orders)
     services = (Service.query.filter(Service.is_active.is_(True))
                 .filter(~Service.service_type.in_(
                     ("consultation", "followup", "vaccination")))
                 .order_by(Service.name).all())
     return render_template(
         "emergency/attendance.html", row=row, orders=orders,
+        waiting=waiting, session=session,
         # The desk's door, for whoever may take the money: what was given
         # waits there as lines to check before anything is charged.
         may_collect=module_enabled("finance") and (

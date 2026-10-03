@@ -430,6 +430,23 @@ def set_rate():
     return redirect(url_for("beds.setup"))
 
 
+@beds_bp.route("/unit/<int:unit_id>/max-stay", methods=["POST"])
+@module_required(MODULE)
+def unit_max_stay(unit_id):
+    """How long a child should be in this department before the screen asks
+    why — the department's own figure, in hours and minutes. Blank clears it:
+    no limit, nothing flagged."""
+    _admin_only()
+    unit = Unit.query.get_or_404(unit_id)
+    hours = request.form.get("hours", type=int) or 0
+    minutes = request.form.get("minutes", type=int) or 0
+    total = max(0, hours) * 60 + max(0, minutes)
+    unit.max_stay_minutes = total or None
+    db.session.commit()
+    flash(t("waiting.limit_saved"), "success")
+    return redirect(url_for("beds.setup"))
+
+
 # ------------------------------------------------- closing for maintenance --
 #: القسم والحيّز والسرير — نفس الفورم للتلاتة، والمستوى جاي مع الطلب.
 _LEVELS = {"unit": Unit, "space": Space, "bed": Bed}

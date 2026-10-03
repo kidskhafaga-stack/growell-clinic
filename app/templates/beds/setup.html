@@ -323,6 +323,25 @@
     <span class="hint" style="align-self:center;">{{ t('beds.rate_hint') }}</span>
   </form>
 
+  {# «المريض الى عدى الحد فى الطوارئ ده مهم وخلي الوقت فيها فى اعدادات» —
+     the department's own figure; empty means no limit and no flag. #}
+  {% set limit = row.unit.max_stay_minutes or 0 %}
+  <form method="post" action="{{ url_for('beds.unit_max_stay', unit_id=row.unit.id) }}"
+        style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:10px;" data-max-stay>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;width:110px;">
+      <label for="msh{{ row.unit.id }}">{{ t('waiting.limit_hours') }}</label>
+      <input class="input" type="number" min="0" max="240" id="msh{{ row.unit.id }}" name="hours" dir="ltr"
+             value="{{ (limit // 60) if limit else '' }}"></div>
+    <div class="form-row" style="margin-bottom:0;width:110px;">
+      <label for="msm{{ row.unit.id }}">{{ t('waiting.limit_minutes') }}</label>
+      <input class="input" type="number" min="0" max="59" id="msm{{ row.unit.id }}" name="minutes" dir="ltr"
+             value="{{ (limit % 60) if limit else '' }}"></div>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">
+      <i class="bi bi-alarm"></i> {{ t('waiting.limit_save') }}</button>
+    <span class="hint" style="align-self:center;">{{ t('waiting.limit_hint') }}</span>
+  </form>
+
   {% for block in row.spaces %}
   <div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px;">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">

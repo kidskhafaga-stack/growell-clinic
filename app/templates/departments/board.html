@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "_waiting.html" as waits with context %}
 {% set active_module = module %}
 {% block title %}{{ t('nav.' ~ module) }}{% endblock %}
 {% block page_heading %}{{ t('nav.' ~ module) }}{% endblock %}
@@ -50,6 +51,32 @@
     {% endif %}
   </div>
 </div>
+
+{# **The children with no bed.** Emergency only: most of the department sits
+   on a chair, is treated and goes home, and the beds below never list them.
+   Each with what they are waiting on and for how long. #}
+{% if attendances is defined and attendances %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" data-bedless>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-person-walking"></i> {{ t('waiting.bedless_title', n=attendances|length) }}</h2>
+  {% for a in attendances %}
+  {% set w = attendance_waiting.get(a.id) %}
+  <div class="dept-row {{ 'lv-urgent' if (w and (w.over or (w.top and w.top.kind in ('triage', 'approval', 'doctor')))) else 'lv-watch' if (w and w.top and w.top.kind != 'decision') else 'lv-steady' }}"
+       data-bedless-row="{{ a.id }}">
+    <div class="dept-row__who">
+      <div class="dept-name"><a href="{{ url_for('emergency.attendance', attendance_id=a.id) }}">{{ a.patient.display_name(current_lang) }}</a>
+        {% if a.treatment_only %}<span class="badge badge--muted">{{ t('er_orders.walk_in') }}</span>{% endif %}</div>
+      <div class="hint" dir="ltr">{{ t('dept.here_for', n=a.minutes) }} · {{ a.arrived_at|clinic_stamp }}</div>
+      {% if a.level %}<div class="hint"><span class="badge {{ 'badge--danger' if a.urgent else 'badge--muted' }}">{{ a.level }}</span></div>{% endif %}
+    </div>
+    <div class="dept-row__reads">{{ waits.chips(w) }}</div>
+    <div class="dept-row__act">
+      <a class="btn btn-sm btn-primary gc-press" href="{{ url_for('emergency.attendance', attendance_id=a.id) }}">
+        <i class="bi bi-box-arrow-in-right"></i> {{ t('lab.open') }}</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 
 {% if not units %}
 {# The department is switched on and nothing has been built. Said plainly,
@@ -138,6 +165,10 @@
         {% if row.drugs.late %}{{ t('meds.n_late', n=row.drugs.late) }}
         {% else %}{{ t('meds.n_due', n=row.drugs.due) }}{% endif %}</a>
       {% endif %}
+
+      {# What this child is waiting on besides the drugs above — a sample,
+         a result, a scan — and time past the unit's own limit. #}
+      {{ waits.chips(row.waiting, skip=('treatment',)) }}
 
       {% if row.last %}
       <span class="reads" dir="ltr">
