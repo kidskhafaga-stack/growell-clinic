@@ -801,6 +801,17 @@ ADDITIONS = [
     # The stay an admission consent was signed for (bed map, the guardian's
     # signature at the bedside). Empty on every consent written before.
     ("consents", "admission_id", "INTEGER"),
+    # «مش مفتوح ان المعمل يدخلها او يغيراها بايده» — a range typed on the
+    # test's own page, and the approved row a hand correction stands in for.
+    # Empty on every imported row; see `utils/lab_hand.py`.
+    ("lab_ranges", "manual", "BOOLEAN DEFAULT 0"),
+    ("lab_ranges", "replaces_id", "INTEGER"),
+    ("lab_ranges", "entered_by", "INTEGER"),
+    # «توقيف تحليل» said in words: why, when and by whom. Empty on every
+    # test stopped before by unticking «شغّال».
+    ("investigations", "stopped_reason", "VARCHAR(200)"),
+    ("investigations", "stopped_at", "DATETIME"),
+    ("investigations", "stopped_by", "INTEGER"),
 ]
 
 def apply_schema(report=None):

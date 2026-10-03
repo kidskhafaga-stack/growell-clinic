@@ -412,6 +412,103 @@ def approve_ranges(test_id):
     return redirect(url_for("labs.test_ranges", test_id=row.id))
 
 
+# ------------------------------------------- by hand, on the test's page --
+# «مش مفتوح ان المعمل يدخلها او يغيراها بايده؟». Each of these writes a draft
+# or a link; nothing here judges a result until the approve button above.
+# See `app/utils/lab_hand.py`.
+
+def _hand(test_id, work, done_key):
+    from app.utils import lab_hand
+
+    _admin_only()
+    row = db.get_or_404(Investigation, test_id)
+    try:
+        work(row, lab_hand)
+    except lab_hand.Refused as why:
+        db.session.rollback()
+        flash(t(why.key), "error")
+        return redirect(url_for("labs.test_ranges", test_id=row.id))
+    db.session.commit()
+    flash(t(done_key), "success")
+    return redirect(url_for("labs.test_ranges", test_id=row.id))
+
+
+def _range_of(test, range_id):
+    """A range that belongs to one of this test's analytes, or 404."""
+    from app.models import LabRange
+
+    rng = db.get_or_404(LabRange, range_id)
+    if rng.analyte_id not in {link.analyte_id for link in test.analyte_links}:
+        abort(404)
+    return rng
+
+
+@labs_bp.route("/tests/<int:test_id>/analytes", methods=["POST"])
+@module_required(MODULE)
+def add_analyte(test_id):
+    return _hand(test_id, lambda row, hand: hand.add_analyte(
+        row, request.form.get("name"), request.form.get("name_ar"),
+        request.form.get("unit")), "lab_hand.analyte_added")
+
+
+@labs_bp.route("/tests/<int:test_id>/analytes/<int:analyte_id>/remove",
+               methods=["POST"])
+@module_required(MODULE)
+def remove_analyte(test_id, analyte_id):
+    return _hand(test_id, lambda row, hand: hand.remove_analyte(row, analyte_id),
+                 "lab_hand.analyte_removed")
+
+
+@labs_bp.route("/tests/<int:test_id>/analytes/<int:analyte_id>/range",
+               methods=["POST"])
+@module_required(MODULE)
+def add_range(test_id, analyte_id):
+    from app.models import LabAnalyte
+
+    def work(row, hand):
+        if analyte_id not in {link.analyte_id for link in row.analyte_links}:
+            abort(404)
+        hand.add_range(db.get_or_404(LabAnalyte, analyte_id), request.form,
+                       current_user)
+    return _hand(test_id, work, "lab_hand.range_added")
+
+
+@labs_bp.route("/tests/<int:test_id>/ranges/<int:range_id>", methods=["POST"])
+@module_required(MODULE)
+def correct_range(test_id, range_id):
+    return _hand(test_id, lambda row, hand: hand.correct_range(
+        _range_of(row, range_id), request.form, current_user),
+        "lab_hand.range_corrected")
+
+
+@labs_bp.route("/tests/<int:test_id>/ranges/<int:range_id>/drop",
+               methods=["POST"])
+@module_required(MODULE)
+def drop_range(test_id, range_id):
+    return _hand(test_id, lambda row, hand: hand.drop_draft(
+        _range_of(row, range_id)), "lab_hand.draft_dropped")
+
+
+@labs_bp.route("/tests/<int:test_id>/stop", methods=["POST"])
+@module_required(MODULE)
+def stop_test(test_id):
+    from app.models import ActivityLog
+    from app.utils.decorators import client_ip
+
+    def work(row, hand):
+        hand.stop(row, request.form.get("reason"), current_user)
+        ActivityLog.record("lab.test_stopped", user_id=current_user.id,
+                           entity="investigation", entity_id=row.id,
+                           detail=row.stopped_reason, ip_address=client_ip())
+    return _hand(test_id, work, "lab_hand.stopped")
+
+
+@labs_bp.route("/tests/<int:test_id>/resume", methods=["POST"])
+@module_required(MODULE)
+def resume_test(test_id):
+    return _hand(test_id, lambda row, hand: hand.resume(row), "lab_hand.resumed")
+
+
 @labs_bp.route("/tests/add", methods=["POST"])
 @module_required(MODULE)
 def add_test():

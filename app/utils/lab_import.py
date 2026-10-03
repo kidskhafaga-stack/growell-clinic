@@ -837,26 +837,14 @@ def _fill_blanks(target, test):
 def approve_test(investigation, user):
     """The laboratory's director approves the ranges of one test's analytes.
 
-    Where an analyte has drafts, they replace whatever was approved before —
-    that is what a new sheet from the laboratory means. Returns how many rows
-    are now approved.
+    Where an analyte has drafts from a sheet, they replace whatever was
+    approved before — that is what a new sheet from the laboratory means. A
+    range typed by hand replaces only the row it corrects. One rule, kept in
+    `lab_hand.approve`. Returns how many rows are now approved.
     """
-    from app.models import LabRange
+    from app.utils import lab_hand
 
-    now = datetime.utcnow()
-    done = 0
-    for link in investigation.analyte_links:
-        drafts = [r for r in link.analyte.ranges if not r.approved]
-        if not drafts:
-            continue
-        for old in [r for r in link.analyte.ranges if r.approved]:
-            db.session.delete(old)
-        for row in drafts:
-            row.approved_at = now
-            row.approved_by = getattr(user, "id", None)
-            done += 1
-    db.session.flush()
-    return done
+    return lab_hand.approve(investigation, user)
 
 
 # ----------------------------------------------------------------- export ---

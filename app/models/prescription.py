@@ -395,6 +395,12 @@ class Investigation(db.Model):
     # `done_outside` from the start, so it prints, stays on the file, and
     # never joins a rack nobody in this building is going to work through.
     in_house = db.Column(db.Boolean, default=True, nullable=False)
+    # «توقيف تحليل» — why it was stopped, when, by whom. Only written by the
+    # stop button on the test's page; ``is_active`` stays the one switch the
+    # rest of the program reads.
+    stopped_reason = db.Column(db.String(200))
+    stopped_at = db.Column(db.DateTime)
+    stopped_by = db.Column(db.Integer, db.ForeignKey("users.id"))
 
     # The unit this test is reported in, so nobody types "%" beside every
     # HbA1c for the rest of the clinic's life. A unit is a fact about the
