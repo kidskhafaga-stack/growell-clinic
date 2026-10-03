@@ -33,7 +33,7 @@ ALWAYS_ON = {"dashboard", "settings", "users"}
 # So the default runs the other way here: nothing until somebody says so.
 OPT_IN_MODULES = {"dentistry", "panels", "observations", "beds",
                   "emergency", "nicu", "icu", "ward", "theatres", "labs",
-                  "pharmacy", "duty"}
+                  "imaging", "pharmacy", "duty"}
 
 # Modules an admin may turn on/off.
 TOGGLEABLE_MODULES = [m for m in MODULES if m not in ALWAYS_ON]
@@ -121,8 +121,12 @@ CAPABILITY_MODULES = {
     "home_care": {"visits"},
     "ecg": {"visits"}, "echo": {"visits"}, "eeg": {"visits"},
     "spirometry": {"visits"}, "audiology": {"visits"}, "vision_screening": {"visits"},
-    "ultrasound": {"visits", "inventory"}, "xray": {"visits", "inventory"},
-    "ct": {"visits", "inventory"}, "mri": {"visits", "inventory"},
+    # The sonar is a device study, like the echo: done in the clinic room.
+    # Films, CT and MRI are radiology's, which is a module of its own.
+    "ultrasound": {"visits", "inventory"},
+    "xray": {"visits", "inventory", "imaging"},
+    "ct": {"visits", "inventory", "imaging"},
+    "mri": {"visits", "inventory", "imaging"},
     # A lab of its own means a bench of its own: the rack, the sample and the
     # result belong to whoever runs it. A clinic that *sends* its tests out
     # ticks nothing here and keeps ordering from the visit screen exactly as
@@ -267,7 +271,16 @@ def module_enabled(module):
     # queries on every screen in the program.
     switches = Setting.group("mod_enabled")
     if module in OPT_IN_MODULES:
-        return switches.get(f"mod_enabled:{module}") == "1"
+        value = switches.get(f"mod_enabled:{module}")
+        if value is None:
+            # A module split out of another follows its parent until somebody
+            # sets it: radiology was part of the lab, and a copy that has not
+            # yet run the upgrade's one-time split must not lose its films.
+            from app.utils.licensing import SPLIT_FROM
+            parent = SPLIT_FROM.get(module)
+            if parent:
+                value = switches.get(f"mod_enabled:{parent}")
+        return value == "1"
     if not is_configured():
         return True
     return switches.get(f"mod_enabled:{module}") != "0"
@@ -296,6 +309,12 @@ def apply_facility(type_key, facility_name, caps, modules):
         numbering.adopt_clinic_name()
     clean_caps = [c for c in caps if c in CAPABILITY_MODULES]
     Setting.set("facility_capabilities", json.dumps(clean_caps))
+    # A clinic that does an echo, a sonar, a spirometry, an ECG or an EEG gets
+    # the device board's door. Never taken away here: studies already ordered
+    # still need it.
+    from app.utils import device_board
+    if any(c in device_board.CAPABILITIES for c in clean_caps):
+        device_board.mark_used()
     wanted = set(modules)
     for m in TOGGLEABLE_MODULES:
         Setting.set(f"mod_enabled:{m}", "1" if m in wanted else "0")

@@ -395,6 +395,12 @@ class Investigation(db.Model):
     # `done_outside` from the start, so it prints, stays on the file, and
     # never joins a rack nobody in this building is going to work through.
     in_house = db.Column(db.Boolean, default=True, nullable=False)
+    # For a diagnostic test: the device it is done on, so recording it opens
+    # that device's template; and whether it is booked rather than done on
+    # the spot (a sleep EEG). Empty until the clinic says.
+    device_id = db.Column(db.Integer, db.ForeignKey("medical_devices.id"))
+    needs_booking = db.Column(db.Boolean)
+    device = db.relationship("MedicalDevice")
 
     # The unit this test is reported in, so nobody types "%" beside every
     # HbA1c for the rest of the clinic's life. A unit is a fact about the

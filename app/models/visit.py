@@ -402,6 +402,11 @@ class VisitInvestigation(db.Model):
     critical_at = db.Column(db.DateTime, index=True)
     critical_seen_at = db.Column(db.DateTime)
     critical_seen_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # A device study booked for a day and hour — «بيحتاج حجز ونوم» — and what
+    # the family has to do before it. Empty for everything done on the spot.
+    booked_for = db.Column(db.DateTime)
+    booking_note = db.Column(db.String(160))
+    booked_by = db.Column(db.Integer, db.ForeignKey("users.id"))
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -587,3 +592,16 @@ class VisitMedication(db.Model):
 
     def __repr__(self):
         return f"<VisitMedication {self.name}>"
+
+
+# «الاجهزة … ممكن تبقى فى عيادة وممكن تجرى فى الاقسام الداخلية» — the first
+# device study ordered, from anywhere, opens the device board's door in the
+# menu (`utils/device_board.py`). One listener, so no ordering screen has to
+# remember.
+@db.event.listens_for(VisitInvestigation, "after_insert")
+def _device_study_ordered(mapper, connection, target):
+    if getattr(target, "kind", None) == "diagnostic":
+        from app.utils.device_board import note_on
+
+        note_on(connection)
+

@@ -45,41 +45,56 @@ def catalogue(clinic):
     return clinic
 
 
-def test_the_menu_has_a_door_to_the_studies(catalogue):
+def test_radiology_is_its_own_module_with_its_own_door(catalogue):
+    """«المعمل مديول لواحده والاشعة مديول». It follows the lab until somebody
+    sets it, so a copy that had the films under the lab still has them."""
     page = catalogue["sign_in"]("boss").get("/labs/").get_data(as_text=True)
-    assert "data-nav-studies" in page and 'href="/imaging/"' in page
-    studies = catalogue["sign_in"]("boss").get("/imaging/").get_data(as_text=True)
-    # Lit as the place it is, not as the lab.
-    assert re.search(r'class="nav-item gc-press active"\s+href="/imaging/"', studies)
-    assert not re.search(r'class="nav-item gc-press active"\s+href="/labs/"', studies)
+    assert re.search(r'href="/imaging/"', page)
+    films = catalogue["sign_in"]("boss").get("/imaging/").get_data(as_text=True)
+    assert re.search(r'class="nav-item gc-press active"\s+href="/imaging/"', films)
+    assert not re.search(r'class="nav-item gc-press active"\s+href="/labs/"', films)
 
 
-def test_no_door_where_the_lab_is_switched_off(catalogue):
+def test_radiology_switched_off_on_its_own_leaves_the_lab(catalogue):
     from app.models import Setting
 
     with catalogue["app"].app_context():
-        Setting.set("mod_enabled:labs", "0")
+        Setting.set("mod_enabled:imaging", "0")
         catalogue["db"].session.commit()
-    page = catalogue["sign_in"]("boss").get("/").get_data(as_text=True)
-    assert "data-nav-studies" not in page
+    client = catalogue["sign_in"]("boss")
+    assert client.get("/imaging/").status_code in (302, 403, 404)
+    lab = client.get("/labs/").get_data(as_text=True)
+    assert lab and 'href="/imaging/"' not in lab
 
 
-def test_one_screen_a_tab_per_room_each_with_its_count(catalogue):
-    from app.models import Patient, User, VisitInvestigation
+def test_the_split_runs_once_and_keeps_every_role_that_had_the_lab(catalogue):
+    from app.models import Setting
+    from app.models.role import Role
+    from app.utils.schema import split_imaging_from_labs
 
     with catalogue["app"].app_context():
         db = catalogue["db"]
-        child = db.session.get(Patient, catalogue["ids"]["child"])
-        doc = db.session.get(User, catalogue["ids"]["doctor"])
-        db.session.add(VisitInvestigation(visit_id=catalogue["ids"]["visit"],
-                                          patient_id=child.id, kind="diagnostic",
-                                          name="إيكو قلب", ordered_by=doc.id,
-                                          status="requested"))
+        db.session.add(Role(name="tech", modules="dashboard,labs,patients"))
+        db.session.add(Role(name="front", modules="dashboard,patients"))
         db.session.commit()
-    page = catalogue["sign_in"]("boss").get("/imaging/").get_data(as_text=True)
-    assert 'data-tab="imaging"' in page and 'data-tab="diagnostic"' in page
-    tab = page.split('data-tab="diagnostic"', 1)[1][:300]
-    assert '<span class="badge">1</span>' in tab, "the other room's work went quiet"
+        assert split_imaging_from_labs() is True
+        db.session.commit()
+        assert Setting.get("mod_enabled:imaging") == "1"
+        assert Role.query.filter_by(name="tech").one().modules == "dashboard,labs,imaging,patients"
+        assert Role.query.filter_by(name="front").one().modules == "dashboard,patients"
+        # A clinic that later switches radiology off is not overruled.
+        Setting.set("mod_enabled:imaging", "0")
+        assert split_imaging_from_labs() is False
+        assert Setting.get("mod_enabled:imaging") == "0"
+
+
+def test_a_licence_that_names_the_lab_covers_radiology(catalogue, monkeypatch):
+    from app.utils import licensing
+
+    monkeypatch.setattr(licensing, "licensed_modules", lambda: {"labs", "visits"})
+    assert licensing.module_licensed("imaging") is True
+    monkeypatch.setattr(licensing, "licensed_modules", lambda: {"visits"})
+    assert licensing.module_licensed("imaging") is False
 
 
 def test_the_tests_list_has_a_tab_per_kind(catalogue):
@@ -101,7 +116,8 @@ def test_a_study_has_no_sample_box_and_saving_it_keeps_what_was_there(catalogue)
     page = client.get("/labs/tests?kind=diagnostic").get_data(as_text=True)
     form = page.split(f'data-test="{catalogue["ids"]["echo"]}"', 1)[1].split("</form>", 1)[0]
     assert 'name="unit"' not in form and 'name="sample_type"' not in form
-    assert "data-no-sample" in form
+    # A device study shows its device and booking instead (device board).
+    assert "data-device-pick" in form and "data-needs-booking-box" in form
     client.post(f"/labs/tests/{catalogue['ids']['echo']}",
                 data={"name_ar": "إيكو على القلب", "is_active": "1", "in_house": "1"})
     with catalogue["app"].app_context():

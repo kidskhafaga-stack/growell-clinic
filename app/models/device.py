@@ -128,6 +128,13 @@ class DeviceStudy(db.Model):
     device_id = db.Column(db.Integer, db.ForeignKey("medical_devices.id"),
                           nullable=False, index=True)
     visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=True)
+    # The order this study answers, when it was ordered — from a visit, the
+    # emergency, or a ward round — and the stay it was done on, when it was
+    # done at a bedside rather than in a clinic room.
+    order_id = db.Column(db.Integer, db.ForeignKey("visit_investigations.id"),
+                         nullable=True, index=True)
+    admission_id = db.Column(db.Integer, db.ForeignKey("admissions.id"),
+                             nullable=True)
     study_date = db.Column(db.Date, default=date.today, nullable=False, index=True)
     performed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     conclusion = db.Column(db.Text)

@@ -149,6 +149,20 @@
       <input class="input" name="sample_type" maxlength="40"
              value="{{ row.sample_type or '' }}">
     </div>
+    {% elif row.kind == 'diagnostic' %}
+    {# A device study: the device it is done on, and whether it is booked. #}
+    <div class="form-row" style="margin-bottom:0;min-width:170px;">
+      <label>{{ t('study.device') }}</label>
+      <select class="select" name="device_id" data-device-pick>
+        <option value="">—</option>
+        {% for d in devices %}
+        <option value="{{ d.id }}" {{ 'selected' if row.device_id == d.id else '' }}>{{ d.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <label class="hint" style="min-width:110px;">
+      <input type="checkbox" name="needs_booking" value="1" data-needs-booking-box
+             {{ 'checked' if row.needs_booking else '' }}> {{ t('device_board.needs_booking') }}</label>
     {% else %}
     <span class="hint" style="align-self:center;margin:0;" data-no-sample>
       <i class="bi bi-info-circle"></i>

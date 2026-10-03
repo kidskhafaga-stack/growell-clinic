@@ -314,7 +314,15 @@ def tests():
         pages=max(1, -(-total // PAGE)), total=total,
         reference=_reference_state(rows),
         services=(Service.query.filter(Service.is_active.is_(True))
-                  .order_by(Service.name).all()))
+                  .order_by(Service.name).all()),
+        devices=_devices() if kind == "diagnostic" else [])
+
+
+def _devices():
+    from app.models import MedicalDevice
+
+    return (MedicalDevice.query.filter(MedicalDevice.is_active.is_(True))
+            .order_by(MedicalDevice.name).all())
 
 
 def _reference_state(rows):
@@ -538,6 +546,11 @@ def edit_test(test_id):
     if row.kind == "lab":
         row.unit = (request.form.get("unit") or "").strip()[:20] or None
         row.sample_type = (request.form.get("sample_type") or "").strip()[:40] or None
+    elif row.kind == "diagnostic":
+        # The device it is done on — recording it opens that device's
+        # template — and whether it is booked rather than done on the spot.
+        row.device_id = request.form.get("device_id", type=int) or None
+        row.needs_booking = request.form.get("needs_booking") == "1"
     # Cleared on purpose when the box is empty: a clinic that stops charging
     # for a test has to be able to say so, and an empty select means nobody
     # rather than "leave it as it was".

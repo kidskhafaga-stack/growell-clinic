@@ -9458,5 +9458,20 @@
     "saved": "Saved.",
     "deleted": "Deleted.",
     "hidden_instead": "This test was ordered before — it was hidden instead of deleted, and the old orders keep its name."
+  },
+  "device_board": {
+    "sub": "Echo, ultrasound, spirometry, ECG and EEG — ordered from the clinic, the emergency or the wards and not yet done. Today's bookings first.",
+    "nothing": "No device studies are waiting.",
+    "needs_booking": "Booked",
+    "book": "Book",
+    "rebook": "Change booking",
+    "unbook": "Cancel booking",
+    "note_ph": "Preparation — e.g. stays up late the night before",
+    "record": "Record the result",
+    "need_when": "Pick the day and the time.",
+    "booked": "Study booked.",
+    "unbooked": "Booking cancelled.",
+    "recorded": "{device} study recorded.",
+    "answers": "This result answers the order: {name}"
   }
 }

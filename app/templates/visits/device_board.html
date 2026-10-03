@@ -1,0 +1,95 @@
+{% extends "shell.html" %}
+{% set active_module = 'device_board' %}
+{% block title %}{{ t('nav.diagnostics') }}{% endblock %}
+{% block page_heading %}{{ t('nav.diagnostics') }}{% endblock %}
+
+{% block content %}
+{# **The device studies, wherever the child is.** An echo, a sonar, a
+   spirometry, an ECG, an EEG — not the lab and not radiology: done in a
+   clinic room or at a bedside. Today's bookings first, by time; then what
+   has not been booked, longest waiting first; then later bookings. See
+   `app/utils/device_board.py`. #}
+<style>
+  .db-row { border:1px solid var(--line); border-radius:12px; padding:11px 13px; margin-bottom:9px;
+            display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .db-row.st-requested { border-inline-start:5px solid #d97706; }
+  .db-row.st-collected { border-inline-start:5px solid var(--green-600); }
+  .db-row.booked-today { border-inline-start:5px solid #2563eb; }
+  .db-who { min-width:200px; flex:1; }
+  .db-name { font-weight:600; }
+  .db-book summary { cursor:pointer; color:var(--green-700); font-weight:600; font-size:.85rem; }
+  .db-book form { display:flex; gap:6px; flex-wrap:wrap; align-items:end; margin-top:6px; }
+</style>
+
+<div class="gc-animate" style="margin-bottom:16px;">
+  <h1 class="page-title"><i class="bi bi-activity"></i> {{ t('nav.diagnostics') }}</h1>
+  <p class="page-sub" style="margin:0;">{{ t('device_board.sub') }}</p>
+</div>
+
+{% if not rows %}
+<div class="card gc-scale-in"><p class="hint" style="margin:0;">{{ t('device_board.nothing') }}</p></div>
+{% else %}
+<div class="card gc-scale-in">
+  {% for row in rows %}
+  {% set test = row.investigation %}
+  {% set booked_today = board.booked_today(row, now) %}
+  <div class="db-row st-{{ row.status }}{{ ' booked-today' if booked_today else '' }}" data-device-order="{{ row.id }}">
+    <div class="db-who">
+      <div class="db-name">{{ row.display_name(current_lang) }}
+        {% if test and test.needs_booking %}<span class="badge badge--muted" data-needs-booking><i class="bi bi-calendar-event"></i> {{ t('device_board.needs_booking') }}</span>{% endif %}</div>
+      <div class="hint">
+        <a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">{{ row.patient.display_name(current_lang) }}</a>
+        {% if beds.get(row.patient_id) %} · <span class="badge badge--muted" data-device-bed><i class="bi bi-hospital"></i> {{ beds[row.patient_id] }}</span>{% endif %}
+        {% if test and test.preparation %} · <span data-preparation>{{ test.preparation }}</span>{% endif %}
+        {% if row.request_notes %} · {{ row.request_notes }}{% endif %}
+      </div>
+    </div>
+
+    {% if row.booked_for %}
+    <span class="alert-pill {{ 'warn' if booked_today else 'ok' }}" data-booked>
+      <i class="bi bi-calendar-check"></i> <span dir="ltr">{{ row.booked_for|clinic_stamp }}</span>
+      {% if row.booking_note %} · {{ row.booking_note }}{% endif %}</span>
+    {% elif row.status == 'collected' %}
+    <span class="alert-pill ok"><i class="bi bi-check2"></i> {{ t('imaging.done_on') }}</span>
+    {% else %}
+    <span class="hint" dir="ltr" style="margin:0;">{{ t('lab.waiting_n', n=bench.waiting_minutes(row, now)) }}</span>
+    {% endif %}
+
+    {% if row.status == 'requested' %}
+    <details class="db-book" data-book="{{ row.id }}">
+      <summary>{{ t('device_board.book') if not row.booked_for else t('device_board.rebook') }}</summary>
+      <form method="post" action="{{ url_for('visits.device_book', order_id=row.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="input" type="date" name="date" required style="width:150px;">
+        <input class="input" type="time" name="time" required style="width:110px;">
+        <input class="input" name="note" maxlength="160" style="min-width:180px;flex:1;"
+               placeholder="{{ t('device_board.note_ph') }}" value="{{ row.booking_note or (test.preparation if test and test.preparation else '') }}">
+        <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+      </form>
+      {% if row.booked_for %}
+      <form method="post" action="{{ url_for('visits.device_book', order_id=row.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="clear" value="1">
+        <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('device_board.unbook') }}</button>
+      </form>
+      {% endif %}
+    </details>
+    {% endif %}
+
+    {% if row.status == 'requested' %}
+    <form method="post" style="margin:0;" action="{{ url_for('visits.device_done', order_id=row.id) }}" data-device-done="{{ row.id }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('imaging.mark_done') }}</button>
+    </form>
+    {% endif %}
+    {# Recording it opens the device's own template, and the study answers
+       the order. #}
+    <a class="btn btn-sm btn-primary gc-press" data-record="{{ row.id }}"
+       href="{{ url_for('visits.study_new', patient_id=row.patient_id, order_id=row.id,
+                        device_id=(test.device_id if test and test.device_id else None)) }}">
+      <i class="bi bi-clipboard2-pulse"></i> {{ t('device_board.record') }}</a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -53,14 +53,20 @@
        sight of its outstanding scans on upgrade. So the link lives where the
        person who used to see those scans in this very list will look for
        them, and the count comes with it so nothing goes quiet. #}
+    {# Radiology is its own module now, and the device studies sit with the
+       visit; each door shows only where that place is open to this person. #}
+    {% if module_enabled('imaging') and current_user.can_access('imaging') %}
     <a class="btn btn-outline gc-press" data-to-imaging
        href="{{ url_for('imaging.index') }}">
       <i class="bi bi-radioactive"></i> {{ t('nav.imaging') }}
       {% if imaging_open %}<span class="badge">{{ imaging_open }}</span>{% endif %}</a>
+    {% endif %}
+    {% if diagnostic_open and current_user.can_access('visits') %}
     <a class="btn btn-outline gc-press" data-to-diagnostics
-       href="{{ url_for('imaging.diagnostics') }}">
+       href="{{ url_for('visits.device_board') }}">
       <i class="bi bi-activity"></i> {{ t('nav.diagnostics') }}
-      {% if diagnostic_open %}<span class="badge">{{ diagnostic_open }}</span>{% endif %}</a>
+      <span class="badge">{{ diagnostic_open }}</span></a>
+    {% endif %}
     {% if may_build %}
     <a class="btn btn-outline gc-press" href="{{ url_for('labs.tests') }}">
       <i class="bi bi-list-check"></i> {{ t('lab.tests') }}</a>
