@@ -144,7 +144,8 @@ def take_deposit(plan, amount, method="cash", user_id=None, shift_id=None,
     invoice = plan.invoice
     # Never more than the bill. Change handed back at the counter is
     # `tendered`, which is a different column and a different fact; money
-    # taken beyond what is owed is a credit this program has nowhere to keep.
+    # beyond what is owed belongs on the family's own account
+    # (`app/utils/patient_credit`), never on this bill.
     if amount > invoice.balance + 0.009:
         raise DentalMoneyError("over_balance")
 

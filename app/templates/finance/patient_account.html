@@ -1,0 +1,130 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('credit.title') }}{% endblock %}
+{% block page_heading %}{{ t('credit.title') }}{% endblock %}
+
+{% block content %}
+{# The family's own account — what the clinic holds for them, line by line.
+   See `app/models/patient_credit.py`. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-piggy-bank"></i> {{ t('credit.title') }}</h1>
+    <p class="page-sub" style="margin:0;">
+      <a href="{{ url_for('patients.view', patient_id=patient.id) }}">{{ patient.display_name(current_lang) }}</a>
+      · <span dir="ltr">{{ patient.patient_number }}</span></p>
+  </div>
+  <div class="stat-card {{ 'edge-green' if held > 0 else 'edge-blue' }}" style="min-width:180px;" data-credit-held="{{ held }}">
+    <div class="value">{{ held|money }}</div><div class="label">{{ t('credit.held') }}</div></div>
+</div>
+
+{% if not enabled %}
+<p class="hint" data-credit-off>{{ t('credit.off_but_held') }}</p>
+{% endif %}
+
+{% if held > 0 and open_bills %}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-credit-bills>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-receipt"></i> {{ t('credit.open_bills') }}</h2>
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr><th>{{ t('invoices.number') }}</th><th>{{ t('invoices.date') }}</th>
+      <th>{{ t('invoices.balance') }}</th><th></th></tr></thead>
+    <tbody>
+      {% for inv in open_bills %}
+      <tr>
+        <td dir="ltr"><a href="{{ url_for('finance.invoice_view', invoice_id=inv.id) }}">{{ inv.invoice_number }}</a></td>
+        <td dir="ltr">{{ inv.invoice_date }}</td>
+        <td>{{ inv.balance|money }}</td>
+        <td style="text-align:end;">
+          <form method="post" action="{{ url_for('finance.invoice_from_credit', invoice_id=inv.id) }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit" data-apply-bill="{{ inv.id }}">
+              <i class="bi bi-piggy-bank"></i> {{ t('credit.pay_amount', amount=([held, inv.balance]|min)|money) }}</button>
+          </form></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px;">
+  <div class="card gc-scale-in" style="margin:0;">
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-plus-circle"></i> {{ t('credit.take') }}</h2>
+    <form method="post" action="{{ url_for('finance.credit_take', patient_id=patient.id) }}" data-credit-take>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('invoices.amount') }} *</label>
+          <input class="input" type="number" step="0.01" min="0.01" name="amount" required></div>
+        <div class="form-row"><label>{{ t('invoices.method') }}</label>
+          <select class="select" name="method">{% for m in methods %}<option value="{{ m }}">{{ t('payment_methods.' ~ m) }}</option>{% endfor %}</select></div>
+        {% if tills %}
+        <div class="form-row"><label>{{ t('tills.choose') }}</label>
+          <select class="select" name="account_id">
+            <option value="">{{ t('tills.default_for_method') }}</option>
+            {% for till in tills %}<option value="{{ till.id }}">{{ till.name }}</option>{% endfor %}
+          </select></div>
+        {% endif %}
+        <div class="form-row"><label>{{ t('credit.note') }}</label><input class="input" name="note" maxlength="200"></div>
+      </div>
+      <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('credit.take_button') }}</button>
+    </form>
+  </div>
+
+  {% if held > 0 %}
+  <div class="card gc-scale-in" style="margin:0;">
+    <h2 class="section-title" style="margin-top:0;color:var(--danger);"><i class="bi bi-arrow-return-left"></i> {{ t('credit.give_back') }}</h2>
+    <form method="post" action="{{ url_for('finance.credit_give_back', patient_id=patient.id) }}" data-credit-give-back>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <p class="hint" style="margin-top:0;">{{ t('credit.give_back_hint') }}</p>
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('invoices.amount') }} *</label>
+          <input class="input" type="number" step="0.01" min="0.01" max="{{ held }}" name="amount" value="{{ held }}" required></div>
+        <div class="form-row"><label>{{ t('invoices.method') }}</label>
+          <select class="select" name="method">{% for m in methods %}<option value="{{ m }}">{{ t('payment_methods.' ~ m) }}</option>{% endfor %}</select></div>
+        {% if tills %}
+        <div class="form-row"><label>{{ t('tills.choose') }}</label>
+          <select class="select" name="account_id">
+            <option value="">{{ t('tills.default_for_method') }}</option>
+            {% for till in tills %}<option value="{{ till.id }}">{{ till.name }}</option>{% endfor %}
+          </select></div>
+        {% endif %}
+        <div class="form-row"><label>{{ t('credit.note') }}</label><input class="input" name="note" maxlength="200"></div>
+      </div>
+      <button class="btn btn-outline btn-sm gc-press" type="submit" style="color:var(--danger);border-color:var(--danger);">
+        <i class="bi bi-arrow-return-left"></i> {{ t('credit.give_back_button') }}</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-list-ul"></i> {{ t('credit.lines') }}</h2>
+  {% if rows %}
+  <div style="overflow-x:auto;">
+  <table class="table" data-credit-lines>
+    <thead><tr><th>{{ t('invoices.date') }}</th><th>{{ t('credit.what') }}</th>
+      <th>{{ t('invoices.method') }}</th><th style="text-align:end;">{{ t('invoices.amount') }}</th>
+      <th>{{ t('invoices.received_by') }}</th></tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr data-credit-line="{{ row.kind }}">
+        <td dir="ltr" style="white-space:nowrap;">{{ row.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ t('credit.kind_' ~ row.kind) }}
+          {% if row.invoice %} · <a href="{{ url_for('finance.invoice_view', invoice_id=row.invoice_id) }}" dir="ltr">{{ row.invoice.invoice_number }}</a>{% endif %}
+          {% if row.admission_id %} · <a href="{{ url_for('beds.admission', admission_id=row.admission_id) }}">{{ t('credit.for_stay') }}</a>{% endif %}
+          {% if row.note %}<div class="hint" style="margin:0;" dir="auto">{{ row.note }}</div>{% endif %}</td>
+        <td>{{ t('payment_methods.' ~ row.method) if row.method else '—' }}</td>
+        <td style="text-align:end;font-weight:600;color:{{ 'var(--green-700)' if row.kind == 'in' else 'var(--danger)' }};" dir="ltr">
+          {{ '%+.2f'|format(row.signed) }}</td>
+        <td>{{ row.creator.display_name(current_lang) if row.creator else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('credit.no_lines') }}</p>
+  {% endif %}
+</div>
+{% endblock %}

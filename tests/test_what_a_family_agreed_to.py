@@ -28,12 +28,18 @@ import pytest
 
 @pytest.fixture
 def dental(clinic):
-    """A clinic that has said it is a dental clinic."""
-    from app.models import Setting
+    """A clinic that has said it is a dental clinic, with the desk's shift
+    open — cash goes into the drawer only inside one, at the dental desk as
+    at the till."""
+    from app.models import CashierShift, Setting
 
     with clinic["app"].app_context():
         Setting.set("mod_enabled:dentistry", "1")
+        shift = CashierShift(status="open", opening_float=0,
+                             opened_by=clinic["ids"]["admin"])
+        clinic["db"].session.add(shift)
         clinic["db"].session.commit()
+        clinic["ids"]["shift"] = shift.id
     return clinic
 
 
@@ -189,9 +195,10 @@ def test_the_family_account_shows_it(dental, boss):
 
 
 def test_more_than_the_bill_is_refused(dental, boss):
-    """Money taken beyond what is owed is a credit this program has nowhere
-    to keep, so it is refused at the door rather than stored somewhere it
-    would later be wrong."""
+    """Not on the plan's bill: money beyond what it owes is refused there.
+    It has a home now — the family's own account
+    (`tests/test_money_the_clinic_holds_for_a_family.py`) — and the refusal
+    says so where the account is on; the bill itself is never overpaid."""
     plan_id = _plan(dental)
     boss.post(f"/dentistry/plan/{plan_id}/accept", follow_redirects=True)
     boss.post(f"/dentistry/plan/{plan_id}/deposit",
@@ -305,3 +312,46 @@ def test_the_money_refuses_even_when_called_directly(clinic):
             dental_money.accept(plan)
         with pytest.raises(dental_money.DentalMoneyError):
             dental_money.take_deposit(plan, 100)
+
+
+# ------------------------------------------------- the drawer and the books --
+def test_a_cash_deposit_is_in_the_shift_and_in_the_journal(dental, boss):
+    """It was in the drawer and nowhere else: no shift, no till, no entry —
+    the cashier closed «over» by exactly the deposits, and the ledger heard of
+    it only when somebody posted it from the gaps list."""
+    from app.models import CashierShift, JournalEntry, Payment
+    from app.utils import accounting
+
+    with dental["app"].app_context():
+        accounting.ensure_seeded()
+        before = dental["db"].session.get(CashierShift, dental["ids"]["shift"]).expected_cash
+    plan_id = _plan(dental)
+    boss.post(f"/dentistry/plan/{plan_id}/accept", follow_redirects=True)
+    boss.post(f"/dentistry/plan/{plan_id}/deposit",
+              data={"amount": "400", "method": "cash"}, follow_redirects=True)
+    with dental["app"].app_context():
+        pay = Payment.query.one()
+        assert pay.shift_id == dental["ids"]["shift"]
+        after = dental["db"].session.get(CashierShift, dental["ids"]["shift"]).expected_cash
+        assert round(after - before, 2) == 400.0
+        assert JournalEntry.query.filter_by(source_type="payment",
+                                            source_id=pay.id).count() == 1
+
+
+def test_a_cash_deposit_with_no_shift_open_is_refused_like_the_till(dental, boss):
+    from app.models import CashierShift, Payment
+
+    with dental["app"].app_context():
+        dental["db"].session.get(CashierShift, dental["ids"]["shift"]).status = "closed"
+        dental["db"].session.commit()
+    plan_id = _plan(dental)
+    boss.post(f"/dentistry/plan/{plan_id}/accept", follow_redirects=True)
+    boss.post(f"/dentistry/plan/{plan_id}/deposit",
+              data={"amount": "400", "method": "cash"}, follow_redirects=True)
+    with dental["app"].app_context():
+        assert Payment.query.count() == 0
+    # A card payment never touches the drawer, so it is not refused.
+    boss.post(f"/dentistry/plan/{plan_id}/deposit",
+              data={"amount": "400", "method": "card"}, follow_redirects=True)
+    with dental["app"].app_context():
+        assert [p.shift_id for p in Payment.query.all()] == [None]

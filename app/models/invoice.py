@@ -805,10 +805,19 @@ class CashierShift(db.Model):
         return out
 
     @property
+    def credit_cash(self):
+        """Cash the patient account moved through this drawer — deposits
+        taken in, less balances handed back (`app/utils/patient_credit`).
+        Not a payment on any bill, and in the drawer all the same."""
+        from app.utils.patient_credit import cash_by_shift
+
+        return cash_by_shift([self.id]).get(self.id, 0.0)
+
+    @property
     def expected_cash(self):
         """What the drawer should hold: float + cash in − cash out."""
         return round((self.opening_float or 0) + self.cash_collected
-                     - self.cash_paid_out, 2)
+                     + self.credit_cash - self.cash_paid_out, 2)
 
     @property
     def variance(self):

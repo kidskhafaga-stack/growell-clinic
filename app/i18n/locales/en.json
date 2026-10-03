@@ -165,7 +165,8 @@
     "open_chart": "Open the tooth chart",
     "teeth_recorded": "Teeth recorded",
     "needs_work": "Needing work",
-    "no_plans": "No treatment plan yet — open the chart and record the findings first."
+    "no_plans": "No treatment plan yet — open the chart and record the findings first.",
+    "err_over_balance_credit": "More than the plan's bill still owes — take the rest on the patient account (the «Patient account» button below)."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -2025,7 +2026,8 @@
     "instapay": "InstaPay",
     "transfer": "Transfer",
     "wallet": "Wallet",
-    "online": "Online (gateway)"
+    "online": "Online (gateway)",
+    "credit": "From patient account"
   },
   "statements": {
     "title": "Doctor account statement",
@@ -5253,7 +5255,9 @@
     "settle_late": "Settlement overdue",
     "waiting_days": "waiting {days} days",
     "settle_now": "Settle",
-    "settle_suggest_hint": "These figures are a filled-in suggestion. Check them against the bank statement before recording — the statement is the authority on what arrived and what the machine kept."
+    "settle_suggest_hint": "These figures are a filled-in suggestion. Check them against the bank statement before recording — the statement is the authority on what arrived and what the machine kept.",
+    "mv_credit_in": "Patient deposit",
+    "mv_credit_out": "Patient balance handed back"
   },
   "recon": {
     "title": "Bank reconciliation",
@@ -9652,5 +9656,51 @@
     "rejected": "Refusal recorded.",
     "missing": "Needs approval",
     "to_claims": "Claims"
+  },
+  "credit": {
+    "title": "Patient account",
+    "held": "Held for the patient",
+    "take": "Take money on account",
+    "take_button": "Receive",
+    "take_deposit": "Take a deposit",
+    "note": "Note",
+    "give_back": "Hand the balance back",
+    "give_back_hint": "The money leaves the till. Where the clinic requires refund approval, only a manager can hand it back.",
+    "give_back_button": "Hand back",
+    "open_bills": "Bills still owing",
+    "pay_amount": "Pay {amount} from the account",
+    "pay_from": "Pay from the patient account (holding {held})",
+    "pay_from_button": "Pay from account",
+    "lines": "Account lines",
+    "what": "What",
+    "kind_in": "Received on account",
+    "kind_applied": "Used on a bill",
+    "kind_refund": "Handed back",
+    "for_stay": "for the stay",
+    "no_lines": "Nothing on the account yet.",
+    "off_but_held": "The patient account is switched off here, but this patient holds a balance, so it stays shown until it is used or handed back.",
+    "stay_title": "Stay deposit",
+    "deposited": "Deposited for the stay",
+    "charged": "Stay bill so far",
+    "top_up": "The balance no longer covers what the stay owes — {amount} more is needed",
+    "open_account": "Patient account",
+    "on_account_cash": "Cash on patient accounts (in − handed back)",
+    "taken": "{amount} received on the patient account",
+    "applied": "{amount} paid from the patient account",
+    "given_back": "{amount} handed back to the patient",
+    "err_bad_amount": "That amount is not valid",
+    "err_bad_method": "Unknown payment method",
+    "err_no_patient": "This bill has no patient",
+    "err_closed": "This bill was closed by a refund",
+    "err_nothing_held": "The patient holds no balance",
+    "err_nothing_owed": "The bill is fully paid",
+    "err_over_held": "More than the patient holds",
+    "err_over_owed": "More than the bill still owes",
+    "err_needs_manager": "Handing a balance back needs a manager — refund approval is on",
+    "setting": "Patient account (deposits)",
+    "mode_auto": "Automatic — on for a hospital or a dental clinic",
+    "mode_on": "On",
+    "mode_off": "Off",
+    "setting_hint": "Money taken before the care (a stay deposit, a dental payment larger than the plan) is held on the patient's account, pays their bills, or is handed back. A patient who holds a balance always sees it, even with the account switched off."
   }
 }

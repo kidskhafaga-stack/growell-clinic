@@ -93,6 +93,24 @@ def movements(account, since=None, upto=None, limit=None):
                     if payment.invoice and payment.invoice.patient else ""),
             "id": payment.id,
         })
+    # Money on a patient's own account: a deposit into this till, a balance
+    # handed back out of it. On no bill, and in the till all the same.
+    from app.models import PatientCredit
+
+    for row in _scoped(
+            PatientCredit.query.filter(PatientCredit.account_id == account.id,
+                                       PatientCredit.kind.in_(("in", "refund"))),
+            PatientCredit.created_at, since, upto).all():
+        inflow = row.kind == "in"
+        rows.append({
+            "at": row.created_at,
+            "kind": "credit_in" if inflow else "credit_out",
+            "amount": (row.amount or 0) * (1 if inflow else -1),
+            "method": row.method,
+            "label": row.note or "",
+            "who": row.patient.display_name("ar") if row.patient else "",
+            "id": row.id,
+        })
     for expense in _scoped(Expense.query.filter(Expense.account_id == account.id),
                            Expense.expense_date, since, upto).all():
         rows.append({

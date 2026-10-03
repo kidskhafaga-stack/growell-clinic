@@ -247,7 +247,18 @@ def plan(plan_id):
         if from_tooth else {},
         services=(Service.query.filter_by(is_active=True)
                   .order_by(Service.name).all()),
-        minimum=minimum_deposit(row.total))
+        minimum=minimum_deposit(row.total),
+        # What the family holds on their own account: money paid ahead of a
+        # plan, or more than the plan's bill — kept there, never refused.
+        **_credit_for(row.patient_id))
+
+
+def _credit_for(patient_id):
+    from app.utils import patient_credit
+
+    held = patient_credit.balance(patient_id)
+    return {"credit_held": held,
+            "credit_shown": patient_credit.shown_for(patient_id, held)}
 
 
 @dentistry_bp.route("/plan/<int:plan_id>/item", methods=["POST"])
@@ -314,23 +325,50 @@ def plan_accept(plan_id):
 @dentistry_bp.route("/plan/<int:plan_id>/deposit", methods=["POST"])
 @module_required(MODULE)
 def plan_deposit(plan_id):
-    """Take money against an accepted plan."""
-    from app.models import TreatmentPlan
-    from app.utils import dental_money
+    """Take money against an accepted plan.
+
+    **The same desk rules as any payment at the till.** It used to record
+    the payment with no shift and no till and never post it: the cash sat in
+    the drawer while the shift did not expect it, so the cashier closed
+    «over» by exactly the deposits, and the ledger heard of it only when
+    somebody posted it from the gaps list. Now it is booked the way
+    ``finance.invoice_payment`` books money — the open shift, the till, the
+    shift gate for cash, and the journal after the commit.
+    """
+    from app.blueprints.finance.routes import (_current_shift_id,
+                                               _shift_gate_blocked, _till_for)
+    from app.models import PAYMENT_METHODS, TreatmentPlan
+    from app.utils import billing, dental_money
 
     row = db.get_or_404(TreatmentPlan, plan_id)
     if not current_user.can_collect:
         abort(403)
+    method = (request.form.get("method") or "cash").strip()
+    method = method if method in PAYMENT_METHODS else "cash"
+    # Cash goes into the drawer only inside an open shift — the till's own
+    # rule, and only for cash: a card payment never touches the drawer.
+    if _shift_gate_blocked([method]):
+        flash(t("shifts.gate_blocked"), "warning")
+        return redirect(url_for("dentistry.plan", plan_id=row.id))
+    till = _till_for(method, request.form.get("account_id", type=int))
     try:
-        dental_money.take_deposit(
-            row, request.form.get("amount"),
-            method=(request.form.get("method") or "cash"),
-            user_id=current_user.id)
+        payment = dental_money.take_deposit(
+            row, request.form.get("amount"), method=method,
+            user_id=current_user.id, shift_id=_current_shift_id(),
+            account_id=till.id if till else None)
     except dental_money.DentalMoneyError as exc:
         db.session.rollback()
-        flash(t(f"dental.err_{exc}"), "danger")
+        # More than the plan's bill: the rest has a home now — the family's
+        # own account — and the screen says where, instead of only «no».
+        from app.utils import patient_credit
+
+        if str(exc) == "over_balance" and patient_credit.enabled():
+            flash(t("dental.err_over_balance_credit"), "warning")
+        else:
+            flash(t(f"dental.err_{exc}"), "danger")
         return redirect(url_for("dentistry.plan", plan_id=row.id))
     db.session.commit()
+    billing.post_to_ledger("payment", payment, user_id=current_user.id)
     flash(t("dental.deposit_taken"), "success")
     return redirect(url_for("dentistry.plan", plan_id=row.id))
 
