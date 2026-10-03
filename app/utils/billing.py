@@ -97,7 +97,15 @@ def apply_coverage(invoice, patient, warn=None, then=None):
         warn("contracts.none_active_warn")
         return
 
+    # Which department this bill is for — a contract may cover the emergency,
+    # the ward and the incubators differently (`utils/care_setting`).
+    from app.utils.care_setting import of_invoice
+    setting = of_invoice(invoice)
+
     for item in invoice.items:
+        # Every line is given a payer figure, 0 where the payer pays nothing,
+        # so the claim reads the cover and never a cashier's discount.
+        item.payer_amount = 0.0
         if not item.service_id or (item.discount_value or 0) > 0:
             continue  # keep manual discounts; skip free-text lines
         # Contract tariff (سعر تعاقدي): members are billed at the contract's
@@ -105,10 +113,12 @@ def apply_coverage(invoice, patient, warn=None, then=None):
         tariff = payer.tariff(item.service, invoice.invoice_date)
         if tariff is not None:
             item.unit_price = tariff
-        covered = payer.covers(item.service, item.gross, invoice.invoice_date)
+        covered = payer.covers(item.service, item.gross, invoice.invoice_date,
+                               setting=setting)
         if covered > 0:
             item.discount_value = covered
             item.discount_is_percent = False
+            item.payer_amount = covered
             if item.service is not None:
                 # **On the price of the line, not on what is left for the
                 # family to pay.**

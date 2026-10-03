@@ -149,14 +149,14 @@ def closing_soon(within=14, payer_id=None, today=None):
 
     rows = []
     for invoice in query.all():
-        if invoice.id in taken or invoice.discount_total <= 0:
+        if invoice.id in taken or invoice.payer_total <= 0:
             continue
         left = days_to_file(invoice, today)
         if left is None or left > within:
             continue
         rows.append({"invoice": invoice, "days": left,
                      "due": filing_due(invoice),
-                     "amount": round(invoice.discount_total, 2)})
+                     "amount": round(invoice.payer_total, 2)})
     rows.sort(key=lambda r: r["days"])
     return rows
 

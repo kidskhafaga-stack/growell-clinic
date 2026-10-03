@@ -804,6 +804,10 @@ ADDITIONS = [
     # The stay an admission consent was signed for (bed map, the guardian's
     # signature at the bedside). Empty on every consent written before.
     ("consents", "admission_id", "INTEGER"),
+    # What the payer pays on each line, kept apart from the cashier's own
+    # discounts (`InvoiceItem.payer_amount`). Empty on every line billed
+    # before; those read as they always did.
+    ("invoice_items", "payer_amount", "FLOAT"),
 ]
 
 def apply_schema(report=None):

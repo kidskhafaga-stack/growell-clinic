@@ -165,6 +165,22 @@ class Invoice(db.Model):
         return round(sum(i.discount_amount for i in self.items), 2)
 
     @property
+    def payer_total(self):
+        """What the payer is claimed for on this bill.
+
+        The cover written per line (`InvoiceItem.payer_amount`) — never a
+        cashier's discount. An invoice billed before cover was kept apart has
+        no figure on any line and reads as it always did, the discount total,
+        so nothing already claimed changes.
+        """
+        if not self.payer_id:
+            return 0.0
+        kept = [i for i in self.items if i.payer_amount is not None]
+        if not kept:
+            return round(self.discount_total or 0, 2)
+        return round(sum(min(i.payer_amount or 0, i.gross) for i in kept), 2)
+
+    @property
     def total(self):
         return round(sum(i.net for i in self.items), 2)
 
@@ -471,6 +487,14 @@ class InvoiceItem(db.Model):
     # Kept once set, so the answer does not move when the rules do.
     cost_centre_id = db.Column(db.Integer, db.ForeignKey("cost_centres.id"),
                                nullable=True, index=True)
+    # **What the payer pays on this line, kept apart from every other
+    # discount.** Cover was stored only as the line's discount, and the claim
+    # was the invoice's discount total — so a cashier's own discount on
+    # another line went to the insurer too (a 200 cover and a 30 courtesy
+    # discount claimed as 230). Written by `billing.apply_coverage` on every
+    # line it looks at, 0 where the payer pays nothing; empty on every line
+    # billed before it existed, which keep reading as they did.
+    payer_amount = db.Column(db.Float)
 
     invoice = db.relationship("Invoice", back_populates="items")
     service = db.relationship("Service")

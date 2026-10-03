@@ -5176,10 +5176,78 @@ def contract_rates(contract_id):
         flash(t("contracts.rates_saved"), "success")
         return redirect(url_for("finance.contract_rates", contract_id=c.id))
 
+    from app.models.service import SERVICE_CATEGORIES
+    from app.utils.care_setting import SETTINGS
+
     return render_template("finance/contract_rates.html", contract=c,
                            payer=c.payer, services=services,
                            rates={r.service_id: r for r in c.rates},
-                           coverage_types=COVERAGE_TYPES)
+                           coverage_types=COVERAGE_TYPES,
+                           settings=SETTINGS, categories=SERVICE_CATEGORIES)
+
+
+@finance_bp.route("/contract/<int:contract_id>/rules", methods=["POST"])
+@module_required(MODULE)
+def contract_rule_add(contract_id):
+    """A coverage rule by department — «حسب كل عقد ايه الى داخل على العقد
+    وايه الى المريض بيحاسب عنده». One service, a whole category, or
+    everything else in a department; a share, an amount, or not covered."""
+    from app.models import PayerContract, PayerContractRule
+    from app.utils.care_setting import SETTINGS
+    from app.models.service import SERVICE_CATEGORIES
+
+    c = db.get_or_404(PayerContract, contract_id)
+    back = url_for("finance.contract_rates", contract_id=c.id) + "#rules"
+    setting = request.form.get("setting") or "any"
+    scope = request.form.get("scope") or "all"
+    if setting not in ("any",) + tuple(SETTINGS) or scope not in ("service", "category", "all"):
+        flash(t("contracts.rule_bad"), "danger")
+        return redirect(back)
+    rule = PayerContractRule(contract_id=c.id, setting=setting, scope=scope)
+    if scope == "service":
+        svc = db.session.get(Service, request.form.get("service_id", type=int) or 0)
+        if svc is None:
+            flash(t("contracts.rule_need_service"), "danger")
+            return redirect(back)
+        rule.service_id = svc.id
+    elif scope == "category":
+        category = request.form.get("category")
+        if category not in SERVICE_CATEGORIES:
+            flash(t("contracts.rule_need_category"), "danger")
+            return redirect(back)
+        rule.category = category
+    rule.excluded = request.form.get("excluded") == "1"
+    if not rule.excluded:
+        ctype = request.form.get("coverage_type")
+        value = request.form.get("coverage_value", type=float)
+        if ctype not in COVERAGE_TYPES or value is None or value <= 0 \
+                or (ctype == "percent" and value > 100):
+            flash(t("contracts.rule_need_value"), "danger")
+            return redirect(back)
+        rule.coverage_type, rule.coverage_value = ctype, value
+    # One rule per department and subject: a second one replaces the first,
+    # so the screen never holds two answers to the same question.
+    for old in list(c.rules):
+        if (old.setting, old.scope, old.service_id, old.category) == (
+                rule.setting, rule.scope, rule.service_id, rule.category):
+            db.session.delete(old)
+    db.session.add(rule)
+    db.session.commit()
+    flash(t("contracts.rule_saved"), "success")
+    return redirect(back)
+
+
+@finance_bp.route("/contract/rule/<int:rule_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def contract_rule_delete(rule_id):
+    from app.models import PayerContractRule
+
+    rule = db.get_or_404(PayerContractRule, rule_id)
+    contract_id = rule.contract_id
+    db.session.delete(rule)
+    db.session.commit()
+    flash(t("contracts.rule_deleted"), "success")
+    return redirect(url_for("finance.contract_rates", contract_id=contract_id) + "#rules")
 
 
 @finance_bp.route("/contract/<int:contract_id>/copy", methods=["POST"])
@@ -5242,7 +5310,7 @@ def claims():
         if date_to:
             q = q.filter(Invoice.invoice_date <= date_to)
         invs = q.all()
-        claim = round(sum(i.discount_total for i in invs), 2)
+        claim = round(sum(i.payer_total for i in invs), 2)
         rows.append({"entity": entity, "count": len(invs), "claim": claim})
     claim_docs = Claim.query.order_by(Claim.id.desc()).limit(50).all()
     # The two things the agreement says and the screen could not: what is
@@ -5284,7 +5352,7 @@ def _claimable_invoices(payer_id, date_from, date_to):
     if date_to:
         q = q.filter(Invoice.invoice_date <= date_to)
     return [i for i in q.order_by(Invoice.invoice_date, Invoice.id).all()
-            if i.discount_total > 0 and i.id not in taken]
+            if i.payer_total > 0 and i.id not in taken]
 
 
 @finance_bp.route("/claims/create", methods=["POST"])
@@ -5314,7 +5382,7 @@ def claim_create():
                   date_from=date_from, date_to=date_to,
                   created_by=current_user.id)
     for inv in invoices:
-        claim.items.append(ClaimItem(invoice_id=inv.id, amount=inv.discount_total))
+        claim.items.append(ClaimItem(invoice_id=inv.id, amount=inv.payer_total))
     claim.total_amount = round(sum(it.amount for it in claim.items), 2)
     db.session.add(claim)
     ActivityLog.record("claim.create", user_id=current_user.id, entity="claim",
@@ -5402,12 +5470,12 @@ def claim_detail(payer_id):
     if date_to:
         q = q.filter(Invoice.invoice_date <= date_to)
     invoices = q.order_by(Invoice.invoice_date, Invoice.id).all()
-    total_claim = round(sum(i.discount_total for i in invoices), 2)
+    total_claim = round(sum(i.payer_total for i in invoices), 2)
     claimable = _claimable_invoices(entity.id, date_from, date_to)
     return render_template("finance/claim_detail.html", entity=entity,
                            invoices=invoices, total_claim=total_claim,
                            claimable_count=len(claimable),
-                           claimable_total=round(sum(i.discount_total
+                           claimable_total=round(sum(i.payer_total
                                                      for i in claimable), 2),
                            date_from=date_from, date_to=date_to)
 

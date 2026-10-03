@@ -31,15 +31,14 @@ from app.extensions import db
 def payer_billed(invoice):
     """What the payer was billed on this invoice — 0 when there is no payer.
 
-    Cover is stored as a line discount, so this is the invoice's discount
-    total. That is not a tidy definition, but it is **the same one the claim
-    builder uses**, and a doctor's "waiting on the insurer" that disagreed
-    with the claim the insurer was actually sent would be worse than an
-    untidy one.
+    The cover kept per line (`Invoice.payer_total`) — **the same figure the
+    claim builder uses**, because a doctor's "waiting on the insurer" that
+    disagreed with the claim the insurer was actually sent would be worse
+    than no figure.
     """
     if invoice is None or not invoice.payer_id:
         return 0.0
-    return round(invoice.discount_total or 0, 2)
+    return round(invoice.payer_total or 0, 2)
 
 
 def payer_paid(invoice):

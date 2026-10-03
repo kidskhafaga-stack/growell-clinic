@@ -247,7 +247,7 @@
     <span class="badge badge--role"><i class="bi bi-building"></i> {{ t('claims.payer') }}: {{ invoice.payer.display_name(current_lang) }}</span>
     {% if invoice.coverage_card %}<span class="badge badge--muted">{{ t('coverage.card') }}: <span dir="ltr">{{ invoice.coverage_card }}</span></span>{% endif %}
     {% if invoice.coverage_expiry %}<span class="badge badge--muted">{{ t('coverage.expiry') }}: <span dir="ltr">{{ invoice.coverage_expiry }}</span></span>{% endif %}
-    <span class="badge badge--green">{{ t('claims.claimable') }}: {{ invoice.discount_total }}</span>
+    <span class="badge badge--green">{{ t('claims.claimable') }}: {{ invoice.payer_total }}</span>
   </div>
   {% endif %}
 </div>
@@ -263,7 +263,7 @@
         <option value="">{{ t('claims.no_payer') }}</option>
         {% for p in payers %}<option value="{{ p.id }}" {{ 'selected' if invoice.payer_id == p.id else '' }}>{{ p.display_name(current_lang) }} ({{ p.discount_percent }}%)</option>{% endfor %}
       </select></div>
-    <p class="hint">{{ t('claims.claimable') }}: <strong>{{ invoice.discount_total }}</strong></p>
+    <p class="hint">{{ t('claims.claimable') }}: <strong>{{ invoice.payer_total }}</strong></p>
     <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
   </form>
 </details>

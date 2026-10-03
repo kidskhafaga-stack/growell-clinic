@@ -97,7 +97,7 @@ class PayerEntity(db.Model):
             return None
         return sorted(live, key=lambda c: c.start_date or date.min, reverse=True)[0]
 
-    def covers(self, service, amount, on_date=None):
+    def covers(self, service, amount, on_date=None, setting=None):
         """Amount this entity covers for ``service`` on a line of ``amount``.
 
         Option (ب): a service with no rule is NOT covered (patient pays full).
@@ -113,11 +113,21 @@ class PayerEntity(db.Model):
             contract = self.active_contract(on_date)
             if contract is None:
                 return 0.0
+            # **A hospital contract decides by department.** A rule for this
+            # department and this service wins; then the contract's own
+            # price-list row (which holds in every department, as it always
+            # has); then the rules by service, category and «everything
+            # else». A contract with no rules reads exactly as before.
+            rule = contract.rule_for(service, setting)
+            if rule is not None and rule.setting != "any" and rule.scope == "service":
+                return rule.cover(amount)
             if contract.rates:
                 rate = next((r for r in contract.rates
                              if r.service_id == service.id), None)
-                if rate is None:
-                    return 0.0      # contract list is authoritative when present
+            if rate is None and rule is not None:
+                return rule.cover(amount)
+            if rate is None and (contract.rates or contract.rules):
+                return 0.0      # contract list is authoritative when present
         if rate is None:
             rate = next((r for r in self.service_rates
                          if r.service_id == service.id), None)
@@ -210,6 +220,29 @@ class PayerContract(db.Model):
     rates = db.relationship("PayerContractRate", back_populates="contract",
                             cascade="all, delete-orphan")
 
+    rules = db.relationship("PayerContractRule", back_populates="contract",
+                            cascade="all, delete-orphan",
+                            order_by="PayerContractRule.id")
+
+    def rule_for(self, service, setting=None):
+        """The coverage rule that decides ``service`` in ``setting`` — the
+        most specific one: this department before any department, a named
+        service before its category before «everything else»."""
+        if service is None or not self.rules:
+            return None
+        settings = ([setting] if setting else []) + ["any"]
+        for scope in ("service", "category", "all"):
+            for where in settings:
+                for r in self.rules:
+                    if r.setting != where or r.scope != scope:
+                        continue
+                    if scope == "service" and r.service_id != service.id:
+                        continue
+                    if scope == "category" and r.category != service.category:
+                        continue
+                    return r
+        return None
+
     def copy_to(self, number=None, start_date=None, end_date=None):
         """A new (unsaved) contract for the same payer carrying a full copy of
         this contract's price list — the renewal workflow: copy, adjust prices,
@@ -223,6 +256,11 @@ class PayerContract(db.Model):
             # contract rolls over, which is the one day nobody is looking.
             filing_days=self.filing_days, payment_days=self.payment_days,
             cycle_day=self.cycle_day)
+        for r in self.rules:
+            clone.rules.append(PayerContractRule(
+                setting=r.setting, scope=r.scope, service_id=r.service_id,
+                category=r.category, coverage_type=r.coverage_type,
+                coverage_value=r.coverage_value, excluded=r.excluded))
         for r in self.rates:
             clone.rates.append(PayerContractRate(
                 service_id=r.service_id, special_price=r.special_price,
@@ -300,6 +338,48 @@ class PayerContractRate(db.Model):
 
     def __repr__(self):
         return f"<ContractRate c={self.contract_id} svc={self.service_id}>"
+
+
+class PayerContractRule(db.Model):
+    """What a contract covers in one department — «حسب كل عقد ايه الى داخل
+    على العقد وايه الى المريض بيحاسب عنده».
+
+    A rule names a department (``setting``, or ``any``) and what it is about:
+    one service, a whole category (every lab test, every film), or
+    «everything else» in that department. It covers a percentage or a fixed
+    amount of the line, or nothing at all (``excluded`` — the family pays).
+    The most specific rule decides (`PayerContract.rule_for`).
+    """
+    __tablename__ = "payer_contract_rules"
+
+    id = db.Column(db.Integer, primary_key=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("payer_contracts.id"),
+                            nullable=False, index=True)
+    # `utils.care_setting.SETTINGS`, or "any".
+    setting = db.Column(db.String(12), default="any", nullable=False)
+    # "service" · "category" · "all"
+    scope = db.Column(db.String(10), default="all", nullable=False)
+    service_id = db.Column(db.Integer, db.ForeignKey("services.id"))
+    category = db.Column(db.String(30))
+    coverage_type = db.Column(db.String(10), default="percent", nullable=False)
+    coverage_value = db.Column(db.Float, default=0)
+    excluded = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    contract = db.relationship("PayerContract", back_populates="rules")
+    service = db.relationship("Service")
+
+    def cover(self, amount):
+        """What the payer pays of a line of ``amount`` under this rule."""
+        amount = max(amount or 0, 0)
+        if self.excluded:
+            return 0.0
+        if self.coverage_type == "percent":
+            return round(amount * (self.coverage_value or 0) / 100.0, 2)
+        return round(min(self.coverage_value or 0, amount), 2)
+
+    def __repr__(self):
+        return f"<PayerContractRule {self.setting}/{self.scope}>"
 
 
 class PatientCoverage(db.Model):
