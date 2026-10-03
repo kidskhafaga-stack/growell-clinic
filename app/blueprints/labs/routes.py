@@ -109,6 +109,73 @@ def collect(order_id):
     return redirect(request.referrer or url_for("labs.index"))
 
 
+@labs_bp.route("/order/<int:order_id>/label", methods=["POST"])
+@module_required(MODULE)
+def label(order_id):
+    """Write the tube's number (if it has none) and open its label to print.
+
+    A POST because it writes the number; the label page itself only reads.
+    """
+    row = db.get_or_404(VisitInvestigation, order_id)
+    try:
+        bench.label_code(row)
+    except ValueError:
+        db.session.rollback()
+        flash(t("lab.no_tube"), "warning")
+        return redirect(request.referrer or url_for("labs.index"))
+    db.session.commit()
+    return redirect(url_for("labs.labels", ids=str(row.id)))
+
+
+@labs_bp.route("/patient/<int:patient_id>/labels", methods=["POST"])
+@module_required(MODULE)
+def patient_labels(patient_id):
+    """Every tube this child is waiting to have drawn, on one sheet — the
+    nurse walks to the bed once, not once per test."""
+    rows = [r for r in bench.worklist(kind=bench.LAB, state=bench.REQUESTED)
+            if r.patient_id == patient_id]
+    if not rows:
+        flash(t("lab.nothing_to_draw"), "info")
+        return redirect(request.referrer or url_for("labs.index"))
+    for r in rows:
+        bench.label_code(r)
+    db.session.commit()
+    return redirect(url_for("labs.labels", ids=",".join(str(r.id) for r in rows)))
+
+
+@labs_bp.route("/labels")
+@module_required(MODULE)
+def labels():
+    """The tube labels, sized for a 50×30 mm label printer. Read only: an
+    order with no number yet is left off rather than numbered by a GET."""
+    from app.utils.barcode39 import svg
+
+    ids = [int(x) for x in (request.args.get("ids") or "").split(",")
+           if x.strip().isdigit()][:60]
+    rows = (VisitInvestigation.query
+            .filter(VisitInvestigation.id.in_(ids),
+                    VisitInvestigation.kind == bench.LAB,
+                    VisitInvestigation.sample_code.isnot(None))
+            .order_by(VisitInvestigation.id).all()) if ids else []
+    if not rows:
+        abort(404)
+    return render_template("labs/labels.html", rows=rows,
+                           bars={r.id: svg(r.sample_code) for r in rows})
+
+
+@labs_bp.route("/scan")
+@module_required(MODULE)
+def scan():
+    """A barcode reader's input: the tube's code, then Enter. Opens the order
+    it belongs to — to mark it drawn, or to write its result."""
+    code = (request.args.get("code") or "").strip()
+    row = bench.by_code(code)
+    if row is None:
+        flash(t("lab.scan_unknown", code=code[:24]), "warning")
+        return redirect(url_for("labs.index"))
+    return redirect(url_for("labs.order", order_id=row.id))
+
+
 @labs_bp.route("/order/<int:order_id>/result", methods=["POST"])
 @module_required(MODULE)
 def result(order_id):

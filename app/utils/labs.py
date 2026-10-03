@@ -241,9 +241,43 @@ def collect(row, user=None, code=None, at=None):
         raise ValueError("already resulted")
     row.collected_at = at or datetime.utcnow()
     row.collected_by = getattr(user, "id", None)
-    row.sample_code = (code or "").strip()[:24] or sample_code(row)
+    # A code typed at the bench wins; otherwise the one already on the label,
+    # so the tube and the record keep the same number; otherwise a fresh one.
+    row.sample_code = ((code or "").strip()[:24] or row.sample_code
+                       or sample_code(row))
     row.status = COLLECTED
     return row
+
+
+def label_code(row):
+    """The number for the tube **before** the needle — «ليه مش بيولد رقم
+    العينة؟ ويقدر يطبعها وتتقرا بالباركود؟».
+
+    The code used to be written only when «the sample was taken» was pressed,
+    so there was nothing to stick on the tube while drawing it. Now printing
+    the label writes it, and :func:`collect` keeps it. Kept if already there:
+    a label printed twice is the same tube. Only a lab order has a tube.
+    """
+    if row is None or row.kind in ROOMS:
+        raise ValueError("this order has no sample")
+    if not row.sample_code:
+        row.sample_code = sample_code(row)
+    return row.sample_code
+
+
+def by_code(code):
+    """The order a scanned tube belongs to, or ``None``.
+
+    A barcode reader types the code and presses Enter; Code 39 reads back in
+    capitals, and the codes are digits and dashes, so case and the spaces a
+    hand-typed code picks up are ignored.
+    """
+    code = (code or "").strip().upper()
+    if not code:
+        return None
+    return (VisitInvestigation.query
+            .filter(db.func.upper(VisitInvestigation.sample_code) == code)
+            .order_by(VisitInvestigation.id.desc()).first())
 
 
 def perform(row, user=None, at=None):

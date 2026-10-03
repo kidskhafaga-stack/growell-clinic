@@ -68,6 +68,17 @@
   </div>
 </div>
 
+{# **Scan to open.** A barcode reader types the tube's code and presses
+   Enter; this box is focused on arrival so the bench scans without touching
+   the mouse. #}
+<form method="get" action="{{ url_for('labs.scan') }}" class="card gc-scale-in" data-scan
+      style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+  <i class="bi bi-upc-scan" style="font-size:1.3rem;color:var(--green-700);"></i>
+  <input class="input" name="code" maxlength="40" dir="ltr" autocomplete="off" autofocus
+         placeholder="{{ t('lab.scan_ph') }}" style="flex:1;min-width:200px;" aria-label="{{ t('lab.scan_ph') }}">
+  <button class="btn btn-outline gc-press" type="submit">{{ t('lab.scan_open') }}</button>
+</form>
+
 {% if not rows %}
 {# "Nothing is waiting" is a real and good answer, and has to read as one
    rather than as a module that failed to load. #}
@@ -98,7 +109,20 @@
       <i class="bi bi-upc"></i> <span dir="ltr">{{ row.sample_code }}</span></span>
     {% else %}
     <span class="alert-pill warn" data-needs-sample>
-      <i class="bi bi-droplet"></i> {{ t('lab.needs_sample') }}</span>
+      <i class="bi bi-droplet"></i> {{ t('lab.needs_sample') }}
+      {% if row.sample_code %} · <span dir="ltr" data-label-code>{{ row.sample_code }}</span>{% endif %}</span>
+    {# The label before the needle: one for this tube, or every tube this
+       child is waiting for on one sheet. #}
+    <form method="post" style="margin:0;" action="{{ url_for('labs.label', order_id=row.id) }}" data-print-label>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit" title="{{ t('lab.print_label') }}">
+        <i class="bi bi-upc-scan"></i> {{ t('lab.print_label') }}</button>
+    </form>
+    <form method="post" style="margin:0;" action="{{ url_for('labs.patient_labels', patient_id=row.patient_id) }}" data-print-child>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit" title="{{ t('lab.print_child_labels') }}">
+        <i class="bi bi-printer"></i></button>
+    </form>
     {% endif %}
 
     {# How long it has been sitting there. The one number this screen is read

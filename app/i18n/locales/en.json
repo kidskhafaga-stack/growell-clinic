@@ -6875,7 +6875,17 @@
     "state_resulted": "Resulted",
     "n_charged": "{n} tests put on the bill",
     "in_house": "We do it here",
-    "kind_diagnostic": "Diagnostic study"
+    "kind_diagnostic": "Diagnostic study",
+    "print_label": "Print label",
+    "print_child_labels": "Print every label for this child",
+    "labels_title": "Sample labels",
+    "no_tube": "That order has no tube — it is not a lab test.",
+    "nothing_to_draw": "No samples are waiting to be drawn for this child.",
+    "scan_ph": "Scan the tube's barcode or type the sample number",
+    "scan_open": "Open",
+    "scan_unknown": "No sample numbered {code}.",
+    "label_printed": "label printed as",
+    "reprint_label": "Reprint the label"
   },
   "pharm": {
     "sub": "The queue: who is waiting, and what for",
