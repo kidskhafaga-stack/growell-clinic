@@ -214,6 +214,12 @@ def tests():
     q = (request.args.get("q") or "").strip()
     category = (request.args.get("category") or "").strip()
     page = max(1, request.args.get("page", type=int) or 1)
+    # **A tab per kind.** The list held blood tests, films and echoes in one
+    # column, each with a sample box and a unit box — which is how an echo
+    # came to read like a blood test («شايف اشعة الايكو … انها تحليل؟»).
+    kind = request.args.get("kind")
+    if kind not in INVESTIGATION_KINDS:
+        kind = "lab"
     query = Investigation.query
     if q:
         like = f"%{q}%"
@@ -223,6 +229,11 @@ def tests():
                                  Investigation.code.ilike(like)))
     if category:
         query = query.filter(Investigation.category == category)
+    # Counted per kind *after* the search, so a search that found the echo
+    # under the other tab says so on that tab.
+    per_kind = dict(query.with_entities(Investigation.kind, db.func.count())
+                    .group_by(Investigation.kind).all())
+    query = query.filter(Investigation.kind == kind)
     total = query.count()
     rows = (query.order_by(Investigation.kind, Investigation.name_ar)
             .offset((page - 1) * PAGE).limit(PAGE).all())
@@ -231,6 +242,7 @@ def tests():
                   .distinct().order_by(Investigation.category).all()]
     return render_template(
         "labs/tests.html", rows=rows, kinds=INVESTIGATION_KINDS,
+        kind=kind, per_kind=per_kind,
         q=q, category=category, categories=categories, page=page,
         pages=max(1, -(-total // PAGE)), total=total,
         reference=_reference_state(rows),
@@ -421,12 +433,17 @@ def add_test():
         flash(t("lab.need_name"), "error")
         return redirect(url_for("labs.tests"))
     kind = request.form.get("kind")
+    kind = kind if kind in INVESTIGATION_KINDS else "lab"
+    # A scan has no sample and no unit — the add form hides both for it, and
+    # anything that arrives anyway is not kept.
+    is_lab = kind == "lab"
     db.session.add(Investigation(
         name_ar=name,
         name_en=(request.form.get("name_en") or "").strip()[:160] or None,
-        kind=kind if kind in INVESTIGATION_KINDS else "lab",
-        unit=(request.form.get("unit") or "").strip()[:20] or None,
-        sample_type=(request.form.get("sample_type") or "").strip()[:40] or None,
+        kind=kind,
+        unit=((request.form.get("unit") or "").strip()[:20] or None) if is_lab else None,
+        sample_type=((request.form.get("sample_type") or "").strip()[:40] or None)
+        if is_lab else None,
         # Ticked by default on the add form, so a clinic that never touches
         # this box builds a catalogue of things it does — which is what a
         # catalogue has always meant here.
@@ -434,7 +451,7 @@ def add_test():
         service_id=request.form.get("service_id", type=int)))
     db.session.commit()
     flash(t("lab.test_added"), "success")
-    return redirect(url_for("labs.tests"))
+    return redirect(url_for("labs.tests", kind=kind))
 
 
 @labs_bp.route("/tests/<int:test_id>", methods=["POST"])
@@ -449,8 +466,11 @@ def edit_test(test_id):
     if name:
         row.name_ar = name
     row.name_en = (request.form.get("name_en") or "").strip()[:160] or None
-    row.unit = (request.form.get("unit") or "").strip()[:20] or None
-    row.sample_type = (request.form.get("sample_type") or "").strip()[:40] or None
+    # A scan's row has no sample box and no unit box, so a save from it must
+    # not read their absence as «cleared».
+    if row.kind == "lab":
+        row.unit = (request.form.get("unit") or "").strip()[:20] or None
+        row.sample_type = (request.form.get("sample_type") or "").strip()[:40] or None
     # Cleared on purpose when the box is empty: a clinic that stops charging
     # for a test has to be able to say so, and an empty select means nobody
     # rather than "leave it as it was".
@@ -463,7 +483,7 @@ def edit_test(test_id):
     row.in_house = request.form.get("in_house") == "1"
     db.session.commit()
     flash(t("lab.test_saved"), "success")
-    return redirect(url_for("labs.tests"))
+    return redirect(url_for("labs.tests", kind=row.kind))
 
 
 def _admin_only():

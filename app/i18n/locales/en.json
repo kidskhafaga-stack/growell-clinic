@@ -198,7 +198,8 @@
     "pharmacy": "Pharmacy",
     "duty": "Duty rota",
     "diagnostics": "Diagnostic studies",
-    "imaging": "Imaging"
+    "imaging": "Imaging",
+    "studies": "Imaging & diagnostics"
   },
   "auth": {
     "login": "Login",
@@ -5290,7 +5291,13 @@
     "device": "Device",
     "conclusion": "Conclusion",
     "by": "Performed by",
-    "none": "No studies recorded for this child yet."
+    "none": "No studies recorded for this child yet.",
+    "what_imaging": "X-ray · dental panoramic · CT · MRI",
+    "what_diagnostic": "Echo · ultrasound · EEG · ECG",
+    "tab_lab": "Lab tests",
+    "tab_imaging": "Imaging",
+    "tab_diagnostic": "Diagnostic studies",
+    "no_sample": "No sample and no unit — done in {room}."
   },
   "live": {
     "changed": "This page has changed — somebody recorded something new.",
@@ -6865,7 +6872,8 @@
     "state_collected": "Sample drawn",
     "state_resulted": "Resulted",
     "n_charged": "{n} tests put on the bill",
-    "in_house": "We do it here"
+    "in_house": "We do it here",
+    "kind_diagnostic": "Diagnostic study"
   },
   "pharm": {
     "sub": "The queue: who is waiting, and what for",

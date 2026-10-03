@@ -1,12 +1,12 @@
 {% extends "shell.html" %}
-{% set active_module = 'labs' %}
+{% set active_module = 'imaging' %}
 {# One template, two rooms. The words follow the room because the words are
    the whole point: a film is taken in radiology, an echo is done by the team
    that ordered it, and a screen calling both «الأشعة» is the same category
    error one room along from the one that put an echo on the lab bench. #}
 {% set room = 'nav.imaging' if kind == 'imaging' else 'nav.diagnostics' %}
-{% block title %}{{ t(room) }}{% endblock %}
-{% block page_heading %}{{ t(room) }}{% endblock %}
+{% block title %}{{ t('nav.studies') }} · {{ t(room) }}{% endblock %}
+{% block page_heading %}{{ t('nav.studies') }}{% endblock %}
 
 {% block content %}
 <style>
@@ -23,7 +23,32 @@
   .im-row__who { min-width:190px; flex:1; }
   .im-name { font-weight:600; }
   .im-waited { font-variant-numeric: tabular-nums; }
+  .studies-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .studies-tab { flex:1; min-width:220px; display:flex; flex-wrap:wrap; align-items:center; gap:6px;
+                 padding:10px 14px; border:1px solid var(--line); border-radius:12px;
+                 background:var(--card); color:inherit; text-decoration:none; font-weight:700; }
+  .studies-tab.on { border-color:var(--green-600); box-shadow:inset 0 -3px 0 var(--green-600); }
+  .studies-tab__what { flex-basis:100%; font-weight:400; font-size:.78rem; color:var(--muted); }
 </style>
+
+{# **One place, two rooms.** «يبقى مكان واحد»: the films and the studies sit
+   under one door in the menu, and each room keeps its own list — the person
+   on the X-ray machine and the person doing echoes are not each other's
+   cover. The other room's tab carries its count, so moving screens is never
+   what makes an order go quiet. #}
+<nav class="studies-tabs gc-animate" data-studies-tabs>
+  {% for one, ep, icon in (('imaging', 'imaging.index', 'radioactive'),
+                           ('diagnostic', 'imaging.diagnostics', 'activity')) %}
+  {% set open_n = (counts.to_collect + counts.to_run) if one == kind else other_open %}
+  <a class="studies-tab{{ ' on' if one == kind else '' }}" href="{{ url_for(ep) }}"
+     {% if one != kind %}data-to-other{% endif %} data-tab="{{ one }}">
+    <i class="bi bi-{{ icon }}"></i>
+    {{ t('nav.imaging' if one == 'imaging' else 'nav.diagnostics') }}
+    {% if open_n %}<span class="badge">{{ open_n }}</span>{% endif %}
+    <span class="studies-tab__what">{{ t('studies.what_' ~ one) }}</span>
+  </a>
+  {% endfor %}
+</nav>
 
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
@@ -37,22 +62,15 @@
     {# The same two jobs as the bench, in this room's own words: what has not
        been done, and what has been done and is waiting for a report. #}
     <a class="badge {{ 'badge--muted' if state != 'requested' else '' }}"
-       style="text-decoration:none;" data-count="to_do"
+       style="text-decoration:none;" data-tally="to_do"
        href="{{ url_for(endpoint, state='requested') }}">
       {{ t('imaging.to_do', n=counts.to_collect) }}</a>
     <a class="badge {{ 'badge--muted' if state != 'collected' else '' }}"
-       style="text-decoration:none;" data-count="to_report"
+       style="text-decoration:none;" data-tally="to_report"
        href="{{ url_for(endpoint, state='collected') }}">
       {{ t('imaging.to_report', n=counts.to_run) }}</a>
     <a class="btn btn-outline gc-press{{ ' btn-primary' if not state else '' }}"
        href="{{ url_for(endpoint) }}">{{ t('lab.everything') }}</a>
-    {# The other room, with its count. Splitting the list must never be the
-       thing that makes an order go quiet. #}
-    <a class="btn btn-outline gc-press" data-to-other
-       href="{{ url_for('imaging.diagnostics' if other_kind == 'diagnostic' else 'imaging.index') }}">
-      <i class="bi bi-{{ 'activity' if other_kind == 'diagnostic' else 'radioactive' }}"></i>
-      {{ t('nav.diagnostics' if other_kind == 'diagnostic' else 'nav.imaging') }}
-      {% if other_open %}<span class="badge">{{ other_open }}</span>{% endif %}</a>
     <a class="btn btn-outline gc-press" data-to-lab
        href="{{ url_for('labs.index') }}">
       <i class="bi bi-eyedropper"></i> {{ t('nav.labs') }}</a>

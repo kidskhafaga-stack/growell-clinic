@@ -102,6 +102,19 @@
             <span>{{ t('nav.' ~ module) }}</span>
             <span class="nav-tip">{{ t('nav.' ~ module) }}</span>
           </a>
+          {# **The studies have a door of their own** — «الاشعة ازاي داخله فى
+             المعمل». Not a module of their own: a new module starts switched
+             off, and outstanding scans would vanish from every clinic on
+             upgrade (the reason is at the top of `imaging/routes.py`). So it
+             rides `labs`, and is said in the menu as the place it is. #}
+          {% if module == 'labs' %}
+          <a class="nav-item gc-press {{ 'active' if active_module == 'imaging' else '' }}"
+             href="{{ url_for('imaging.index') }}" data-nav-studies>
+            <i class="bi bi-activity"></i>
+            <span>{{ t('nav.studies') }}</span>
+            <span class="nav-tip">{{ t('nav.studies') }}</span>
+          </a>
+          {% endif %}
         {% endif %}
       {% endfor %}
       {# A doctor's own screen. Not a module — it is one person's view of work
