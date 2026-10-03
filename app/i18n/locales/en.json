@@ -7155,7 +7155,11 @@
     "change_service": "Change the service",
     "change_service_hint": "Pick what the visit actually was; the program says which way the money goes.",
     "pick_service": "Service",
-    "checking": "Working it out…"
+    "checking": "Working it out…",
+    "failed": "Could not work it out just now — try again.",
+    "search": "Search for the service…",
+    "no_match": "No service by that name.",
+    "type_more": "There are more — type part of the name."
   },
   "popup": {
     "refund_title": "A refund on your work",
