@@ -407,6 +407,9 @@ class VisitInvestigation(db.Model):
     booked_for = db.Column(db.DateTime)
     booking_note = db.Column(db.String(160))
     booked_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # When this order's consumables left the lab's store (`utils/lab_stock`).
+    # Once per order: a result cleared and typed again is the same run.
+    consumed_at = db.Column(db.DateTime)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 

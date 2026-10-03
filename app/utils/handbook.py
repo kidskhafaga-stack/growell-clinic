@@ -1123,6 +1123,38 @@ SECTIONS = [
         ],
     },
     {
+        # «المعمل مديول لواحده والاشعة مديول». Opt-in like the lab, and
+        # switched on once on upgrade wherever the lab was on.
+        "key": "imaging",
+        "module": "imaging",
+        "icon": "radioactive",
+        "title": ("الأشعة", "Radiology"),
+        "lines": [
+            ("<b>الأشعة مديول لوحدها، مش جزء من المعمل.</b> الأشعة العادية "
+             "والبانوراما والمقطعية والرنين بتتعمل وبيتكتب تقريرها في غرفة "
+             "الأشعة، ومش كل مكان فيه معمل فيه أشعة. أي عيادة كان المعمل "
+             "شغّال عندها، الأشعة اشتغلت عندها لوحدها مع التحديث.",
+             "<b>Radiology is its own module, not part of the lab.</b> Films, "
+             "panoramic, CT and MRI are taken and reported in the X-ray room, "
+             "and not every place with a lab has one. Wherever the lab was on, "
+             "radiology was switched on with the update."),
+            ("<b>القايمة شغلانتين: لسه ماتعملتش، واتعملت ومستنية تقرير.</b> "
+             "«اتعملت» بتسجّل وقت الأشعة نفسها — مفيش رقم عينة على أشعة. "
+             "والتقرير بيتكتب على شاشة الطلب، ويرجع للطبيب في صندوق النتايج.",
+             "<b>The list is two jobs: not done yet, and done and awaiting a "
+             "report.</b> «Done» records when the film was taken — a film has "
+             "no sample number. The report is written on the order screen and "
+             "reaches the doctor in the results inbox."),
+            ("<b>الإيكو والسونار ورسم القلب ورسم المخ وقياس التنفس مش هنا.</b> "
+             "دول دراسات أجهزة بتتعمل في أي عيادة وجنب أي سرير، وليهم شاشة "
+             "«الفحوصات التشخيصية» جنب الكشف، بالحجز وقالب كل جهاز.",
+             "<b>Echo, ultrasound, ECG, EEG and spirometry are not here.</b> "
+             "They are device studies, done in any clinic and at any bedside, "
+             "with their own «Diagnostic studies» board beside the visit — "
+             "bookings and each device's template."),
+        ],
+    },
+    {
         # Opt-in: a clinic whose families fill their prescriptions outside has
         # no counter, and the prescription writer never depended on this.
         "key": "pharmacy",

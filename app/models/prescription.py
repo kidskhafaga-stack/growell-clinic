@@ -401,6 +401,15 @@ class Investigation(db.Model):
     device_id = db.Column(db.Integer, db.ForeignKey("medical_devices.id"))
     needs_booking = db.Column(db.Boolean)
     device = db.relationship("MedicalDevice")
+    # «توقيف تحليل» — why it was stopped, when, by whom. Only written by the
+    # stop button on the test's page; ``is_active`` stays the one switch the
+    # rest of the program reads.
+    stopped_reason = db.Column(db.String(200))
+    stopped_at = db.Column(db.DateTime)
+    stopped_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # What one run costs the lab (reagents, strips, its share of the
+    # machine), typed by the lab. The price is the service it is charged as.
+    cost = db.Column(db.Float)
 
     # The unit this test is reported in, so nobody types "%" beside every
     # HbA1c for the rest of the clinic's life. A unit is a fact about the

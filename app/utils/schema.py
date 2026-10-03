@@ -817,6 +817,22 @@ ADDITIONS = [
     # at a bedside is not a clinic visit. Empty on every study already kept.
     ("device_studies", "order_id", "INTEGER"),
     ("device_studies", "admission_id", "INTEGER"),
+    # «مش مفتوح ان المعمل يدخلها او يغيراها بايده» — a range typed on the
+    # test's own page, and the approved row a hand correction stands in for.
+    # Empty on every imported row; see `utils/lab_hand.py`.
+    ("lab_ranges", "manual", "BOOLEAN DEFAULT 0"),
+    ("lab_ranges", "replaces_id", "INTEGER"),
+    ("lab_ranges", "entered_by", "INTEGER"),
+    # «توقيف تحليل» said in words: why, when and by whom. Empty on every
+    # test stopped before by unticking «شغّال».
+    ("investigations", "stopped_reason", "VARCHAR(200)"),
+    ("investigations", "stopped_at", "DATETIME"),
+    ("investigations", "stopped_by", "INTEGER"),
+    # What one run of a test costs the lab, typed by the lab — beside the
+    # price it is charged at. And when an order's consumables left the lab's
+    # store, so a result typed, cleared and typed again takes them once.
+    ("investigations", "cost", "FLOAT"),
+    ("visit_investigations", "consumed_at", "DATETIME"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"
