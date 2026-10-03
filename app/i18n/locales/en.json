@@ -9311,7 +9311,9 @@
     "tube": "Tube",
     "tat": "Expected time",
     "tat_stat": "Urgent",
-    "preparation": "Preparation"
+    "preparation": "Preparation",
+    "template": "Empty template",
+    "done_money": "{priced} tests took their price from the sheet · {unmatched} consumables are not in the store (left out — add them to the store first)."
   },
   "lab_result": {
     "critical_saved": "{n} critical value(s) saved — the child's responsible doctor and the doctor on shift have been alerted. Phone the doctor as well.",
@@ -9501,5 +9503,35 @@
     "double_taken": "This test's price service carries consumables too, which the till takes at billing — they would be taken twice. Keep them in one place.",
     "saved": "Price and consumables saved.",
     "store_saved": "Lab store saved."
+  },
+  "lab_tpl": {
+    "test": "The test's English name, as the laboratory writes it — one row per component or range.",
+    "name_ar": "The Arabic name the doctor will see.",
+    "aliases": "Other names to search by, separated by ;",
+    "component": "What is measured (for a test with more than one figure). Leave empty for a one-figure test.",
+    "unit": "The component's unit, e.g. g/dL.",
+    "age": "The age, e.g. 6-23 months, <1 year or all.",
+    "sex": "Male, Female or All.",
+    "low": "Low limit — from the laboratory's reference only.",
+    "high": "High limit — from the laboratory's reference only.",
+    "ref_type": "interval for a usual range, cutoff for a guideline figure, note for words.",
+    "critical": "The critical value the laboratory set — leave empty if none.",
+    "tube": "Tube colour.",
+    "tat": "Expected time in minutes, or 2 hours, or 1-2 days.",
+    "where": "In-house if done here, Outsourced if sent out.",
+    "price": "The test's price — only given to a test with none; never changes an existing price.",
+    "cost": "Cost of one run to the lab.",
+    "consumable": "The store item's name or code — one row per item under the same test name.",
+    "consumable_qty": "How much of the item one run uses."
+  },
+  "lab_steps": {
+    "name": "Name and kind",
+    "sample": "Sample, tube and time",
+    "components": "Components and ranges",
+    "approved": "Ranges approved",
+    "price": "Price and cost",
+    "consumables": "Consumables",
+    "tat_hint": "Time in minutes (30-60), or 2 hours, or 1-2 days.",
+    "tat_unreadable": "Could not read the time «{v}» — write it in minutes, e.g. 30-60."
   }
 }

@@ -373,7 +373,29 @@ def _import_apply(token):
     db.session.commit()
     lab_import.forget(token)
     flash(t("lab_import.done", **counts), "success")
+    if counts.get("priced") or counts.get("unmatched"):
+        flash(t("lab_import.done_money", priced=counts.get("priced", 0),
+                unmatched=counts.get("unmatched", 0)),
+              "warning" if counts.get("unmatched") else "success")
     return redirect(url_for("labs.tests"))
+
+
+@labs_bp.route("/tests/template")
+@module_required(MODULE)
+def tests_template():
+    """An empty sheet with every column the import reads, each header noting
+    what goes in it — «انزال نموذج تضاف بشكل كامل وترفع»."""
+    _admin_only()
+    import io
+
+    from flask import send_file
+
+    from app.utils import lab_import
+
+    return send_file(io.BytesIO(lab_import.template()),
+                     mimetype="application/vnd.openxmlformats-officedocument."
+                              "spreadsheetml.sheet",
+                     as_attachment=True, download_name="lab_tests_template.xlsx")
 
 
 @labs_bp.route("/tests/export")
@@ -532,6 +554,32 @@ def resume_test(test_id):
     return _hand(test_id, lambda row, hand: hand.resume(row), "lab_hand.resumed")
 
 
+@labs_bp.route("/tests/<int:test_id>/details", methods=["POST"])
+@module_required(MODULE)
+def test_details(test_id):
+    """The sample, the tube, the expected time and the preparation — step two
+    of defining a test. Times are read the way the sheet writes them."""
+    from app.utils.lab_import import minutes
+
+    _admin_only()
+    row = db.get_or_404(Investigation, test_id)
+    row.sample_type = (request.form.get("sample_type") or "").strip()[:40] or None
+    row.tube = (request.form.get("tube") or "").strip()[:60] or None
+    row.preparation = (request.form.get("preparation") or "").strip()[:255] or None
+    for field, low, high in (("tat", "tat_min", "tat_max"),
+                             ("tat_stat", "tat_stat_min", "tat_stat_max")):
+        raw = (request.form.get(field) or "").strip()
+        span = minutes(raw) if raw else None
+        if raw and span is None:
+            flash(t("lab_steps.tat_unreadable", v=raw[:40]), "error")
+            return redirect(url_for("labs.test_ranges", test_id=row.id) + "#details")
+        setattr(row, low, span[0] if span else None)
+        setattr(row, high, span[1] if span else None)
+    db.session.commit()
+    flash(t("lab.test_saved"), "success")
+    return redirect(url_for("labs.test_ranges", test_id=row.id) + "#details")
+
+
 @labs_bp.route("/tests/<int:test_id>/money", methods=["POST"])
 @module_required(MODULE)
 def test_money(test_id):
@@ -580,7 +628,7 @@ def add_test():
         flash(t("lab.need_name"), "error")
         return redirect(url_for("labs.tests"))
     kind = request.form.get("kind")
-    db.session.add(Investigation(
+    row = Investigation(
         name_ar=name,
         name_en=(request.form.get("name_en") or "").strip()[:160] or None,
         kind=kind if kind in INVESTIGATION_KINDS else "lab",
@@ -590,9 +638,15 @@ def add_test():
         # this box builds a catalogue of things it does — which is what a
         # catalogue has always meant here.
         in_house=request.form.get("in_house") == "1",
-        service_id=request.form.get("service_id", type=int)))
+        service_id=request.form.get("service_id", type=int))
+    db.session.add(row)
     db.session.commit()
     flash(t("lab.test_added"), "success")
+    # **Step by step from here** — «اضافة واحد لواحد بالخطوات المطلوبة». A
+    # lab test lands on its own page, where the steps it still needs are
+    # listed in order; a scan has nothing more to define.
+    if row.kind == "lab":
+        return redirect(url_for("labs.test_ranges", test_id=row.id))
     return redirect(url_for("labs.tests"))
 
 

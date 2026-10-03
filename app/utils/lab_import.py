@@ -68,6 +68,13 @@ HEADERS = {
     "source": ("source", "المصدر"),
     "source_url": ("source url", "رابط المصدر"),
     "note": ("notes", "clinical / reference notes", "ملاحظات"),
+    # «علشان التحليل يتسعّر سعر وتكلفة وكل حاجه» — the money columns. A price
+    # only ever gives a price to a test that has none; it never changes one.
+    "price": ("price", "test price", "السعر", "سعر التحليل"),
+    "cost": ("cost", "test cost", "التكلفة", "تكلفة التحليل"),
+    "consumable": ("consumable", "consumables", "المستهلك", "المستهلكات"),
+    "consumable_qty": ("consumable qty", "consumable quantity", "qty per test",
+                       "كمية المستهلك", "الكمية"),
 }
 _HEADER_OF = {alias: key for key, names in HEADERS.items() for alias in names}
 
@@ -488,6 +495,7 @@ def _blank_test(name):
             "parts_missing": False,
             "specimen": "", "tube": "", "tat": None, "tat_stat": None,
             "in_house": None, "preparation": "", "analytes": [],
+            "price": None, "cost": None, "consumables": [],
             "label": _text(name)}
 
 
@@ -502,6 +510,17 @@ def _test_facts(test, values):
             test[field] = minutes(values.get(source))
     if test["in_house"] is None:
         test["in_house"] = _where(values.get("where"))
+    for field in ("price", "cost"):
+        figure = _number(values.get(field))
+        if test.get(field) is None and figure is not None and figure >= 0:
+            test[field] = figure
+    item = _text(values.get("consumable"))
+    if item:
+        qty = _number(values.get("consumable_qty"))
+        qty = int(qty) if qty is not None and qty > 0 else 1
+        known = [c[0] for c in test.setdefault("consumables", [])]
+        if item not in known:
+            test["consumables"].append([item, qty])
 
 
 def _gaps(analytes):
@@ -717,7 +736,8 @@ def apply(plan, links, user=None, show_new=True):
     from app.models import (Investigation, LabAnalyte, LabRange,
                             LabTestAnalyte)
 
-    counts = {"linked": 0, "created": 0, "analytes": 0, "ranges": 0}
+    counts = {"linked": 0, "created": 0, "analytes": 0, "ranges": 0,
+              "priced": 0, "unmatched": 0}
     analyte_ids = {}
     by_name, by_alias = {}, {}
     for row in LabAnalyte.query.all():
@@ -793,6 +813,7 @@ def apply(plan, links, user=None, show_new=True):
             counts["created"] += 1
         for target in targets:
             _fill_blanks(target, test)
+            _fill_money(target, test, counts)
             have = {link.analyte_id for link in target.analyte_links}
             place = len(have)
             for akey in test["analytes"]:
@@ -833,6 +854,47 @@ def _fill_blanks(target, test):
         target.in_house = test["in_house"]
 
 
+def _fill_money(target, test, counts):
+    """The money columns, by the same rule as everything else here: only what
+    is empty is filled.
+
+    * a **price** gives a test with no price service one of its own, at that
+      price — it never changes the price of a service the test already has;
+    * a **cost** fills an empty cost;
+    * **consumables** fill a test that lists none, matched to the store by
+      name or item code. A name the store does not know is counted and left
+      out, never created: a store item is the store's to define.
+    """
+    from app.models import LabConsumable, Service, StoreItem
+
+    price = test.get("price")
+    if price is not None and target.service_id is None:
+        service = Service(name=(target.name_ar or target.name_en or "")[:120],
+                          category="lab", service_type="diagnostic",
+                          price=price, is_active=True)
+        db.session.add(service)
+        db.session.flush()
+        target.service_id = service.id
+        counts["priced"] += 1
+    if target.cost is None and test.get("cost") is not None:
+        target.cost = test["cost"]
+    wanted = test.get("consumables") or []
+    if wanted and not target.lab_consumables:
+        for name, qty in wanted:
+            item = (StoreItem.query.filter(
+                db.or_(db.func.lower(StoreItem.name) == name.lower(),
+                       db.func.lower(StoreItem.item_code) == name.lower()))
+                .first())
+            if item is None:
+                counts["unmatched"] += 1
+                continue
+            if any(c.store_item_id == item.id for c in target.lab_consumables):
+                continue
+            target.lab_consumables.append(LabConsumable(
+                store_item_id=item.id, quantity=min(int(qty or 1), 999)))
+        db.session.flush()
+
+
 # ---------------------------------------------------------------- approve ---
 def approve_test(investigation, user):
     """The laboratory's director approves the ranges of one test's analytes.
@@ -854,7 +916,8 @@ EXPORT_COLUMNS = ("Test Name", "Arabic Test Name", "Search Aliases", "Category",
                   "Critical High", "Specimen Type", "Tube Color",
                   "Expected TAT (Routine)", "Expected TAT (STAT)",
                   "Performed In / Outsourced", "Preparation", "Source",
-                  "Source URL", "Status")
+                  "Source URL", "Status", "Price", "Cost", "Consumable",
+                  "Consumable Qty")
 
 
 def export(rows):
@@ -885,6 +948,9 @@ def export(rows):
                 span(test.tat_min, test.tat_max),
                 span(test.tat_stat_min, test.tat_stat_max), where,
                 test.preparation or ""]
+        price = test.service.price if test.service is not None else None
+        money = ["" if price is None else price,
+                 "" if test.cost is None else test.cost, "", ""]
         links = list(test.analyte_links) or [None]
         for link in links:
             analyte = link.analyte if link else None
@@ -894,7 +960,7 @@ def export(rows):
                                       (test.name_en or test.name_ar),
                                       (analyte.unit if analyte else test.unit) or "",
                                       "", "", "", "", "", "", ""] + tail +
-                             ["", "", ""])
+                             ["", "", ""] + money)
                 continue
             for r in ranges:
                 sheet.append(facts + [
@@ -905,7 +971,57 @@ def export(rows):
                     r.critical_low if r.critical_low is not None else "",
                     r.critical_high if r.critical_high is not None else ""]
                     + tail + [r.source or "", r.source_url or "",
-                              "approved" if r.approved else "draft"])
+                              "approved" if r.approved else "draft"] + money)
+        # One line per consumable, under the same test name.
+        for c in getattr(test, "lab_consumables", None) or []:
+            if c.item is None:
+                continue
+            line = [""] * len(EXPORT_COLUMNS)
+            line[0], line[1] = test.name_en or test.name_ar, test.name_ar
+            line[-2] = c.item.item_code or c.item.name
+            line[-1] = c.quantity or 1
+            sheet.append(line)
+    out = io.BytesIO()
+    book.save(out)
+    return out.getvalue()
+
+
+#: What each column takes, said on the empty template as a note on its
+#: header — **not** as a sample row, which would be read back in as a test,
+#: and not as sample figures, which would be clinical numbers nobody gave.
+TEMPLATE_NOTES = {
+    "Test Name": "lab_tpl.test", "Arabic Test Name": "lab_tpl.name_ar",
+    "Search Aliases": "lab_tpl.aliases", "Component": "lab_tpl.component",
+    "Unit": "lab_tpl.unit", "Age From": "lab_tpl.age", "Sex": "lab_tpl.sex",
+    "Reference Low": "lab_tpl.low", "Reference High": "lab_tpl.high",
+    "Reference Type": "lab_tpl.ref_type", "Critical Low": "lab_tpl.critical",
+    "Critical High": "lab_tpl.critical", "Tube Color": "lab_tpl.tube",
+    "Expected TAT (Routine)": "lab_tpl.tat", "Expected TAT (STAT)": "lab_tpl.tat",
+    "Performed In / Outsourced": "lab_tpl.where", "Price": "lab_tpl.price",
+    "Cost": "lab_tpl.cost", "Consumable": "lab_tpl.consumable",
+    "Consumable Qty": "lab_tpl.consumable_qty",
+}
+
+
+def template():
+    """An empty sheet with every column ``read`` understands, each header
+    carrying a note that says what goes in it."""
+    import io
+
+    import openpyxl
+    from openpyxl.comments import Comment
+
+    from app.i18n import t
+
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.title = "Laboratory_Tests"
+    sheet.append(EXPORT_COLUMNS)
+    for cell in sheet[1]:
+        note = TEMPLATE_NOTES.get(cell.value)
+        if note:
+            cell.comment = Comment(t(note), "PediaPro")
+        sheet.column_dimensions[cell.column_letter].width = max(14, len(str(cell.value)) + 2)
     out = io.BytesIO()
     book.save(out)
     return out.getvalue()
