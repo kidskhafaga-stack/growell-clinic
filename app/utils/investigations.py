@@ -1,4 +1,5 @@
-"""Seed a starter catalogue of common paediatric lab tests and imaging studies.
+"""Seed a starter catalogue of common paediatric lab tests and imaging studies
+from a data file (`data/starter_investigations.json`).
 
 Idempotent: only inserts entries whose code (or, for the older codeless rows,
 whose Arabic name) is not already present. Doctors pick from these — with a
@@ -31,102 +32,37 @@ third group — plaque index, decayed-tooth count, intraocular pressure, squint
 angle, visual acuity — because those are specialty-panel measurements, and
 `series.curves_for` has drawn panel readings since the panels existed.
 """
+import json
+import os
+
 from app.extensions import db
 from app.models import Investigation
 
-# (code, name_ar, name_en, kind, category, unit)
-#
-# `code` is `None` for the entries that predate it having a meaning: nothing in
-# the program refers to a urine culture by key, and inventing keys for the sake
-# of symmetry would suggest a promise of stability nobody needs.
-COMMON_INVESTIGATIONS = [
-    # --- Lab tests (تحاليل) ---
-    (None, "صورة دم كاملة", "CBC", "lab", "أمراض الدم", None),
-    (None, "بروتين سي التفاعلي", "CRP", "lab", "التهابات", "mg/L"),
-    (None, "سرعة الترسيب", "ESR", "lab", "التهابات", "mm/hr"),
-    (None, "تحليل بول كامل", "Urine Analysis", "lab", "بول/كلى", None),
-    (None, "مزرعة بول", "Urine Culture", "lab", "بول/كلى", None),
-    (None, "تحليل براز", "Stool Analysis", "lab", "جهاز هضمي", None),
-    ("fbs", "سكر صائم", "Fasting Blood Sugar", "lab", "سكر", "mg/dL"),
-    (None, "سكر عشوائي", "Random Blood Sugar", "lab", "سكر", "mg/dL"),
-    ("lft", "وظائف كبد", "Liver Function Tests", "lab", "كبد", None),
-    ("kft", "وظائف كلى", "Kidney Function Tests", "lab", "كلى", None),
-    (None, "أملاح (صوديوم/بوتاسيوم)", "Electrolytes (Na/K)", "lab", "أملاح", "mmol/L"),
-    (None, "كالسيوم", "Serum Calcium", "lab", "أملاح", "mg/dL"),
-    ("vit_d", "فيتامين د", "Vitamin D (25-OH)", "lab", "فيتامينات", "ng/mL"),
-    ("ferritin", "مخزون الحديد (فيريتين)", "Ferritin", "lab", "أمراض الدم", "ng/mL"),
-    ("tft", "وظائف الغدة الدرقية", "Thyroid Function (TSH/FT4)", "lab", "غدد", None),
-    ("hb", "نسبة الهيموجلوبين", "Hemoglobin", "lab", "أمراض الدم", "g/dL"),
-    (None, "زرع دم", "Blood Culture", "lab", "التهابات", None),
-    (None, "تحليل حلق (مزرعة)", "Throat Swab Culture", "lab", "التهابات", None),
+#: Where the starter list lives. **Data, not code** — «متخليهاش فى الكود
+#: بالنسبة للعيادة»: the same shape the drug register has had since it
+#: existed (`data/egypt_drugs.json.gz`). Loaded once into the clinic's own
+#: catalogue, and from then on the list is the clinic's — to add to from the
+#: visit screen, and to rename or hide from its own list
+#: (`prescriptions.investigations`).
+STARTER_FILE = os.path.abspath(os.path.join(
+    os.path.dirname(__file__), "..", "data", "starter_investigations.json"))
 
-    # --- What the specialties asked to see as a curve -------------------
-    # Added because every one of these was being typed by hand, and a
-    # hand-typed test is a test whose curve splits on spelling.
-    ("hba1c", "السكر التراكمي HbA1c", "HbA1c", "lab", "سكر", "%"),
-    ("igf1", "عامل النمو IGF-1", "IGF-1", "lab", "غدد", "ng/mL"),
-    ("microalbumin", "ميكروألبيومين البول", "Urine Microalbumin", "lab", "بول/كلى", "mg/g"),
-    ("lipid", "الدهون الكاملة", "Lipid Profile", "lab", "قلب", "mg/dL"),
-    ("celiac_abs", "أجسام السيلياك TTG", "Coeliac Antibodies (tTG)", "lab", "جهاز هضمي", "U/mL"),
-    ("ntprobnp", "NT-proBNP", "NT-proBNP", "lab", "قلب", "pg/mL"),
-    ("inr", "زمن البروثرومبين INR", "INR", "lab", "تجلط", None),
-    ("asot", "ASOT", "ASOT", "lab", "التهابات", "IU/mL"),
-    ("ige", "IgE الكلي", "Total IgE", "lab", "حساسية", "IU/mL"),
-    ("eosinophils", "الحمضات في صورة الدم", "Eosinophil Count", "lab", "حساسية", "cells/µL"),
-    ("sweat_test", "اختبار العرق", "Sweat Chloride Test", "lab", "صدر", "mmol/L"),
-    ("drug_level", "مستوى الدواء في الدم", "Serum Drug Level", "lab", "أعصاب", "µg/mL"),
-    ("sodium", "الصوديوم", "Serum Sodium", "lab", "أملاح", "mmol/L"),
-    ("creatinine", "الكرياتينين", "Serum Creatinine", "lab", "كلى", "mg/dL"),
-    ("egfr", "معدل الترشيح الكبيبي eGFR", "eGFR", "lab", "كلى", "mL/min/1.73m²"),
-    ("albumin", "الألبيومين", "Serum Albumin", "lab", "كبد", "g/dL"),
-    ("urine_pcr", "بروتين/كرياتينين البول", "Urine Protein/Creatinine Ratio", "lab", "بول/كلى", "mg/mg"),
-    ("calprotectin", "الكالبروتكتين في البراز", "Faecal Calprotectin", "lab", "جهاز هضمي", "µg/g"),
-    ("platelets", "الصفائح", "Platelet Count", "lab", "أمراض الدم", "×10³/µL"),
-    ("t2_star", "T2* للقلب والكبد", "Cardiac & Hepatic T2*", "lab", "أمراض الدم", "ms"),
-    ("bilirubin", "الصفراء (البيليروبين)", "Serum Bilirubin", "lab", "حديثي الولادة", "mg/dL"),
-    ("phosphorus", "الفوسفور", "Serum Phosphorus", "lab", "أملاح", "mg/dL"),
 
-    # --- What the proposed specialties follow ---------------------------
-    # Added with the nine panels that are not in the survey; see the
-    # `_source` note on each of those in specialty_panels.json.
-    ("crp", "بروتين سي التفاعلي (CRP)", "C-Reactive Protein", "lab", "التهابات", "mg/L"),
-    ("esr", "سرعة الترسيب (ESR)", "ESR", "lab", "التهابات", "mm/hr"),
-    ("cbc", "صورة دم كاملة (CBC)", "Complete Blood Count", "lab", "أمراض الدم", None),
-    ("anc", "العدلات المطلقة ANC", "Absolute Neutrophil Count", "lab", "أمراض الدم", "cells/µL"),
-    ("ana", "الأجسام المضادة للنواة ANA", "Antinuclear Antibodies", "lab", "روماتيزم", None),
-    ("immunoglobulins", "الغلوبولينات المناعية IgG/IgA/IgM", "Immunoglobulins", "lab", "مناعة", "mg/dL"),
-    ("lymphocyte_subsets", "تحت مجموعات اللمفاويات", "Lymphocyte Subsets", "lab", "مناعة", "cells/µL"),
-    ("ammonia", "الأمونيا", "Serum Ammonia", "lab", "أيض", "µmol/L"),
-    ("lactate", "اللاكتات", "Serum Lactate", "lab", "أيض", "mmol/L"),
-    ("blood_culture", "زرع دم (مزرعة)", "Blood Culture", "lab", "التهابات", None),
-    ("urine_culture", "مزرعة بول (زرع)", "Urine Culture", "lab", "بول/كلى", None),
-    ("vit_b12", "فيتامين ب١٢", "Vitamin B12", "lab", "فيتامينات", "pg/mL"),
+def _load_starter():
+    """``[(code, name_ar, name_en, kind, category, unit)]`` from the file.
 
-    # --- Radiology (الأشعة) — taken and reported by the radiology room ---
-    (None, "أشعة صدر", "Chest X-ray", "imaging", "أشعة عادية", None),
-    (None, "أشعة بطن", "Abdominal X-ray", "imaging", "أشعة عادية", None),
-    (None, "أشعة مقطعية على المخ", "Brain CT", "imaging", "مقطعية", None),
-    (None, "رنين مغناطيسي على المخ", "Brain MRI", "imaging", "رنين", None),
-    (None, "أشعة على عظام", "Bone X-ray", "imaging", "أشعة عادية", None),
-    (None, "أشعة بانوراما للأسنان", "Panoramic Dental X-ray", "imaging", "أسنان", None),
+    ``code`` is empty for the entries that predate it having a meaning:
+    nothing in the program refers to a urine culture by key. Where there is
+    one, it is what a specialty panel finds the test by.
+    """
+    with open(STARTER_FILE, encoding="utf-8") as fh:
+        rows = json.load(fh)["investigations"]
+    return [(r.get("code") or None, r["name_ar"], r.get("name_en") or None,
+             r.get("kind") or "lab", r.get("category") or None,
+             r.get("unit") or None) for r in rows]
 
-    # --- Diagnostic studies (الفحوصات التشخيصية) ------------------------
-    #
-    # **A different room, not a lesser kind.** A sonar, an echo, an ECG and an
-    # EEG are done by the treating team — the clinic room, cardiology,
-    # neurophysiology — not by radiology, and the person who works the X-ray
-    # list is not the person who works these. Asked for in those words:
-    # «الاشعة العادية غير الايكو واللترا سونت وال eeg و ال ECG».
-    (None, "موجات صوتية على البطن", "Abdominal Ultrasound", "diagnostic", "سونار", None),
-    (None, "موجات صوتية على المخ", "Cranial Ultrasound", "diagnostic", "سونار", None),
-    (None, "موجات صوتية على الكلى", "Renal Ultrasound", "diagnostic", "سونار", None),
-    (None, "إيكو على القلب", "Echocardiography", "diagnostic", "قلب", None),
-    # **These two were in no catalogue at all**, so a doctor who wanted one
-    # had to free-type it and it reached no worklist under a name anything
-    # could group by.
-    (None, "رسم قلب (ECG)", "ECG", "diagnostic", "قلب", None),
-    (None, "رسم مخ (EEG)", "EEG", "diagnostic", "مخ وأعصاب", None),
-]
+
+COMMON_INVESTIGATIONS = _load_starter()
 
 #: The seeded categories that belong to each room, for the one-time move of a
 #: clinic's existing rows. **Only the program's own words are moved**: a
@@ -179,8 +115,27 @@ def move_diagnostics_out_of_radiology():
     return len(rows)
 
 
+#: The starter entries this clinic has been given, by key. Kept so an entry
+#: is given **once**: one the clinic deleted is not brought back by the next
+#: update, because the list is theirs now.
+SEEN_KEY = "starter_investigations_seen"
+
+
+def _key(code, name_ar):
+    return f"code:{code}" if code else f"name:{name_ar}"
+
+
+def _seen():
+    from app.models import Setting
+
+    try:
+        return set(json.loads(Setting.get(SEEN_KEY) or "[]"))
+    except (TypeError, ValueError):
+        return set()
+
+
 def seed_investigations():
-    """Idempotently load the common investigations catalogue.
+    """Load the starter list into the clinic's catalogue. Idempotent.
 
     Matched on the code where there is one and on the Arabic name where there
     is not. Both, because this runs on clinics that already have the older
@@ -190,9 +145,17 @@ def seed_investigations():
 
     A row that exists but has no code **is given one** rather than duplicated,
     which is what lets an upgraded clinic's history join the panels.
+
+    **Each entry is given once.** Once the clinic has it — made here, or found
+    already there — it is the clinic's: renamed, re-united, hidden or deleted,
+    the next update leaves it as the clinic left it.
     """
+    from app.models import Setting
+
+    seen = _seen()
     created = adopted = 0
     for code, name_ar, name_en, kind, category, unit in COMMON_INVESTIGATIONS:
+        key = _key(code, name_ar)
         row = None
         if code:
             row = Investigation.query.filter_by(code=code).first()
@@ -208,12 +171,18 @@ def seed_investigations():
                 adopted += 1
             if unit and not row.unit:
                 row.unit = unit
+            seen.add(key)
+            continue
+        if key in seen:
+            # Given before and gone since: the clinic deleted it.
             continue
 
         db.session.add(Investigation(
             code=code, name_ar=name_ar, name_en=name_en, kind=kind,
             category=category, unit=unit, is_active=True,
         ))
+        seen.add(key)
         created += 1
+    Setting.set(SEEN_KEY, json.dumps(sorted(seen), ensure_ascii=False))
     db.session.commit()
     return created

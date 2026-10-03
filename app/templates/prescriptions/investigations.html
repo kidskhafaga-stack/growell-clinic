@@ -1,0 +1,107 @@
+{% extends "shell.html" %}
+{% from "_pagination.html" import render_pagination with context %}
+{% set active_module = 'prescriptions' %}
+{% block title %}{{ t('inv_list.title') }}{% endblock %}
+{% block page_heading %}{{ t('inv_list.title') }}{% endblock %}
+
+{% macro kind_select(name, current='lab') %}
+  <select class="select" name="{{ name }}">
+    {% for k in kinds %}<option value="{{ k }}" {{ 'selected' if current == k else '' }}>{{ t('inv_list.kind_' ~ k) }}</option>{% endfor %}
+  </select>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-clipboard2-pulse"></i> {{ t('inv_list.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('inv_list.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    {% if has_lab %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('labs.tests') }}" data-to-lab-list>
+      <i class="bi bi-eyedropper"></i> {{ t('inv_list.lab_list') }}</a>
+    {% endif %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.drugs') }}">
+      <i class="bi bi-capsule"></i> {{ t('rx.catalogue') }}</a>
+  </div>
+</div>
+
+<form method="get" class="gc-animate" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
+  <input class="input" name="q" value="{{ q }}" placeholder="{{ t('inv_list.search') }}" style="max-width:320px;">
+  <select class="select" name="kind" style="max-width:170px;">
+    <option value="">{{ t('inv_list.all_kinds') }}</option>
+    {% for k in kinds %}<option value="{{ k }}" {{ 'selected' if kind == k else '' }}>{{ t('inv_list.kind_' ~ k) }}</option>{% endfor %}
+  </select>
+  <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-search"></i></button>
+  {% if q or kind %}<a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.investigations') }}">{{ t('common.reset') }}</a>{% endif %}
+</form>
+
+<details class="card gc-scale-in" style="margin-bottom:14px;" data-inv-add>
+  <summary class="section-title" style="cursor:pointer;margin:0;"><i class="bi bi-plus-circle"></i> {{ t('inv_list.add') }}</summary>
+  <form method="post" action="{{ url_for('prescriptions.investigation_new') }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;min-width:200px;flex:1;"><label for="inv_ar">{{ t('inv_list.name_ar') }}</label>
+      <input class="input" id="inv_ar" name="name_ar" maxlength="160" required></div>
+    <div class="form-row" style="margin:0;min-width:180px;"><label for="inv_en">{{ t('inv_list.name_en') }}</label>
+      <input class="input" id="inv_en" name="name_en" maxlength="160" dir="ltr"></div>
+    <div class="form-row" style="margin:0;min-width:140px;"><label>{{ t('inv_list.kind') }}</label>{{ kind_select('kind') }}</div>
+    <div class="form-row" style="margin:0;min-width:140px;"><label for="inv_cat">{{ t('inv_list.category') }}</label>
+      <input class="input" id="inv_cat" name="category" maxlength="80"></div>
+    <div class="form-row" style="margin:0;width:110px;"><label for="inv_unit">{{ t('inv_list.unit') }}</label>
+      <input class="input" id="inv_unit" name="unit" maxlength="20" dir="ltr"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+  </form>
+</details>
+
+<div class="card gc-scale-in" id="gc-results" style="padding:0;overflow:hidden;">
+  {% if not rows %}
+  <p class="hint" style="margin:0;padding:18px;">{{ t('inv_list.none') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('inv_list.name_ar') }}</th><th>{{ t('inv_list.name_en') }}</th>
+      <th>{{ t('inv_list.kind') }}</th><th>{{ t('inv_list.category') }}</th>
+      <th>{{ t('inv_list.unit') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr data-inv="{{ r.id }}"{% if not r.is_active %} style="opacity:.6;"{% endif %}>
+      <td><strong>{{ r.name_ar }}</strong>
+        {% if not r.is_active %} <span class="badge badge--muted" data-hidden>{{ t('inv_list.hidden') }}</span>{% endif %}
+        {% if r.code %} <span class="badge badge--muted" dir="ltr" title="{{ t('inv_list.code_hint') }}">{{ r.code }}</span>{% endif %}</td>
+      <td dir="ltr">{{ r.name_en or '' }}</td>
+      <td>{{ t('inv_list.kind_' ~ r.kind) if r.kind in kinds else r.kind }}</td>
+      <td>{{ r.category or '' }}</td>
+      <td dir="ltr">{{ r.unit or '' }}</td>
+      <td style="white-space:nowrap;">
+        <details style="display:inline-block;">
+          <summary class="btn btn-sm btn-outline gc-press" style="list-style:none;"><i class="bi bi-pencil"></i> {{ t('common.edit') }}</summary>
+          <form method="post" action="{{ url_for('prescriptions.investigation_edit', inv_id=r.id) }}"
+                style="display:grid;gap:6px;margin-top:6px;min-width:240px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="input" name="name_ar" value="{{ r.name_ar }}" maxlength="160" required aria-label="{{ t('inv_list.name_ar') }}">
+            <input class="input" name="name_en" value="{{ r.name_en or '' }}" maxlength="160" dir="ltr" aria-label="{{ t('inv_list.name_en') }}">
+            {{ kind_select('kind', r.kind) }}
+            <input class="input" name="category" value="{{ r.category or '' }}" maxlength="80" aria-label="{{ t('inv_list.category') }}">
+            <input class="input" name="unit" value="{{ r.unit or '' }}" maxlength="20" dir="ltr" aria-label="{{ t('inv_list.unit') }}">
+            <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" name="is_active" value="1" {{ 'checked' if r.is_active }}> {{ t('inv_list.shown') }}</label>
+            <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+          </form>
+        </details>
+        <form method="post" action="{{ url_for('prescriptions.investigation_delete', inv_id=r.id) }}" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm btn-outline gc-press" type="submit" data-inv-delete
+                  title="{{ t('inv_list.used_hint') if r.id in used else '' }}">
+            {{ t('inv_list.hide') if r.id in used else t('common.delete') }}</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+{{ render_pagination(pagination) }}
+{% endblock %}
