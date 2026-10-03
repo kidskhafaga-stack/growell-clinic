@@ -493,6 +493,42 @@ def order_test(attendance_id):
                     + "#tests")
 
 
+@emergency_bp.route("/attendance/<int:attendance_id>/test/<int:test_id>/done",
+                    methods=["POST"])
+@module_required(MODULE)
+def test_done(attendance_id, test_id):
+    """**Done at the bedside, now** — «رسم القلب بيتعمل على طول فى الطوارئ».
+
+    An ECG in emergency is done by whoever is at the trolley, minutes after it
+    is asked for; sending them to another room's list to say so is a trip
+    nobody makes, and the order then sits «not done» on two screens. So the
+    study is marked done here, the same event the studies' own screen writes
+    (`performed_at`, never a sample time), and its report is written on the
+    order screen like any other.
+
+    Only the room's kinds, and only this child's own orders.
+    """
+    from app.models import EmergencyVisit, VisitInvestigation
+    from app.utils import labs as bench
+
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    test = db.get_or_404(VisitInvestigation, test_id)
+    if row.visit_id is None or test.visit_id != row.visit_id:
+        abort(404)
+    try:
+        bench.perform(test, user=current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("imaging.not_a_scan") if test.kind not in bench.ROOMS
+              else t("imaging.already_reported"), "warning")
+        return redirect(url_for("emergency.attendance", attendance_id=row.id)
+                        + "#tests")
+    db.session.commit()
+    flash(t("imaging.marked_done"), "success")
+    return redirect(url_for("emergency.attendance", attendance_id=row.id)
+                    + "#tests")
+
+
 def _refresh_bell():
     try:
         from app.utils.notifications import invalidate

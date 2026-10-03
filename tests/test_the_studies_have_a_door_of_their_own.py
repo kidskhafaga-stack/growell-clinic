@@ -151,3 +151,70 @@ def test_no_badge_is_handed_to_the_number_animation_without_a_number():
                 if not (value.startswith("{{") or re.fullmatch(r"-?\d+(\.\d+)?", value)):
                     bad.append(f"{name}: {value}")
     assert not bad, bad
+
+
+# ------------------------------------------- the ECG done at the trolley --
+def _er_with_study(clinic, kind="diagnostic", name="رسم قلب"):
+    from datetime import datetime, timedelta
+
+    from app.models import Patient, Setting, User
+    from app.utils import emergency as util
+    from app.utils import emergency_orders as eo
+
+    with clinic["app"].app_context():
+        db = clinic["db"]
+        Setting.set("mod_enabled:emergency", "1")
+        child = db.session.get(Patient, clinic["ids"]["child"])
+        row = util.arrive(child, at=datetime.utcnow() - timedelta(minutes=10))
+        db.session.flush()
+        test = eo.order_test(row, db.session.get(User, clinic["ids"]["doctor"]),
+                             name=name, kind=kind)
+        db.session.commit()
+        return row.id, test.id
+
+
+def test_an_ecg_in_emergency_is_marked_done_where_it_was_done(catalogue):
+    from app.models import VisitInvestigation
+
+    attendance, test = _er_with_study(catalogue)
+    client = catalogue["sign_in"]("doc")
+    page = client.get(f"/emergency/attendance/{attendance}").get_data(as_text=True)
+    assert f'data-er-test-done="{test}"' in page
+    answer = client.post(f"/emergency/attendance/{attendance}/test/{test}/done")
+    assert answer.headers["Location"].endswith(f"/emergency/attendance/{attendance}#tests")
+    with catalogue["app"].app_context():
+        row = catalogue["db"].session.get(VisitInvestigation, test)
+        assert row.performed_at is not None and row.collected_at is None
+        assert row.sample_code is None and row.status == "collected"
+    page = client.get(f"/emergency/attendance/{attendance}").get_data(as_text=True)
+    assert f'data-er-test-done="{test}"' not in page
+    assert f"/labs/order/{test}" in page, "nowhere to write the report"
+
+
+def test_a_blood_test_has_no_done_now_and_cannot_be_forced(catalogue):
+    from app.models import VisitInvestigation
+
+    attendance, test = _er_with_study(catalogue, kind="lab", name="صورة دم")
+    client = catalogue["sign_in"]("doc")
+    page = client.get(f"/emergency/attendance/{attendance}").get_data(as_text=True)
+    assert f'data-er-test-done="{test}"' not in page
+    client.post(f"/emergency/attendance/{attendance}/test/{test}/done")
+    with catalogue["app"].app_context():
+        row = catalogue["db"].session.get(VisitInvestigation, test)
+        assert row.performed_at is None and row.status == "requested"
+
+
+def test_another_childs_order_is_not_reached_through_this_page(catalogue):
+    from app.models import VisitInvestigation
+
+    attendance, _ = _er_with_study(catalogue)
+    with catalogue["app"].app_context():
+        db = catalogue["db"]
+        other = VisitInvestigation(visit_id=catalogue["ids"]["visit"], patient_id=catalogue["ids"]["child"],
+                                   kind="diagnostic", name="إيكو", status="requested")
+        db.session.add(other)
+        db.session.commit()
+        other_id = other.id
+    answer = catalogue["sign_in"]("doc").post(
+        f"/emergency/attendance/{attendance}/test/{other_id}/done")
+    assert answer.status_code == 404

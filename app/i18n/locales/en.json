@@ -5297,7 +5297,9 @@
     "tab_lab": "Lab tests",
     "tab_imaging": "Imaging",
     "tab_diagnostic": "Diagnostic studies",
-    "no_sample": "No sample and no unit — done in {room}."
+    "no_sample": "No sample and no unit — done in {room}.",
+    "done_now": "Done now",
+    "write_report": "Write the report"
   },
   "live": {
     "changed": "This page has changed — somebody recorded something new.",
