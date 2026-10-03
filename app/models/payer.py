@@ -214,6 +214,18 @@ class PayerContract(db.Model):
     # on next month's batch".
     cycle_day = db.Column(db.Integer)
 
+    # --- what the family carries over a year («ايه الى المريض بيحاسب عنده») --
+    # Per member, over the contract's period (its start and end dates; the
+    # calendar year when it has none). Empty is the switch, as above: no
+    # figure, nothing changes on any bill (`utils/contract_terms`).
+    #
+    # The first this much of what the contract would cover, each year, is
+    # the family's.
+    deductible_year = db.Column(db.Float)
+    # The most the payer pays for one member in that year; past it the
+    # family pays.
+    ceiling_year = db.Column(db.Float)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     payer = db.relationship("PayerEntity", back_populates="contracts")
@@ -223,6 +235,22 @@ class PayerContract(db.Model):
     rules = db.relationship("PayerContractRule", back_populates="contract",
                             cascade="all, delete-orphan",
                             order_by="PayerContractRule.id")
+    terms = db.relationship("PayerContractTerm", back_populates="contract",
+                            cascade="all, delete-orphan",
+                            order_by="PayerContractTerm.id")
+
+    def term_for(self, setting=None):
+        """The family's share and the ceilings for ``setting`` — that
+        department's own row, else the one for every department."""
+        rows = {t.setting: t for t in self.terms}
+        return rows.get(setting) or rows.get("any")
+
+    def year_window(self, on_date):
+        """``(start, end)`` of the year a deductible and a yearly ceiling
+        count over: the contract's own period, else the calendar year."""
+        if self.start_date and self.end_date:
+            return self.start_date, self.end_date
+        return date(on_date.year, 1, 1), date(on_date.year, 12, 31)
 
     def rule_for(self, service, setting=None):
         """The coverage rule that decides ``service`` in ``setting`` — the
@@ -255,7 +283,12 @@ class PayerContract(db.Model):
             # them here would silently switch the deadlines off on the day a
             # contract rolls over, which is the one day nobody is looking.
             filing_days=self.filing_days, payment_days=self.payment_days,
-            cycle_day=self.cycle_day)
+            cycle_day=self.cycle_day,
+            deductible_year=self.deductible_year, ceiling_year=self.ceiling_year)
+        for t in self.terms:
+            clone.terms.append(PayerContractTerm(
+                setting=t.setting, copay_amount=t.copay_amount,
+                ceiling_case=t.ceiling_case, night_ceiling=t.night_ceiling))
         for r in self.rules:
             clone.rules.append(PayerContractRule(
                 setting=r.setting, scope=r.scope, service_id=r.service_id,
@@ -385,6 +418,39 @@ class PayerContractRule(db.Model):
 
     def __repr__(self):
         return f"<PayerContractRule {self.setting}/{self.scope}>"
+
+
+class PayerContractTerm(db.Model):
+    """What the family pays and where the payer stops, in one department.
+
+    Asked as *«ايه الى داخل على العقد وايه الى المريض بيحاسب عنده»*. The
+    rules above say what share of a line the payer covers; these say what
+    the agreement takes back from that cover, per bill:
+
+    * ``copay_amount`` — a fixed sum the family pays on each bill (a visit,
+      an emergency attendance, a stay);
+    * ``ceiling_case`` — the most the payer pays for one bill;
+    * ``night_ceiling`` — the most it pays for one night's bed: the contract
+      pays a ward bed, and a private room is the difference.
+
+    Every figure is the hospital's own, typed from its agreement, and empty
+    means no limit. One row per department, or ``any`` for every department.
+    """
+    __tablename__ = "payer_contract_terms"
+
+    id = db.Column(db.Integer, primary_key=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("payer_contracts.id"),
+                            nullable=False, index=True)
+    setting = db.Column(db.String(12), default="any", nullable=False)
+    copay_amount = db.Column(db.Float)
+    ceiling_case = db.Column(db.Float)
+    night_ceiling = db.Column(db.Float)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    contract = db.relationship("PayerContract", back_populates="terms")
+
+    def __repr__(self):
+        return f"<PayerContractTerm {self.setting}>"
 
 
 #: Where a prior approval stands.

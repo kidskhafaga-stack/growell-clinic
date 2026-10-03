@@ -2171,6 +2171,17 @@ SECTIONS = [
              "مطالبة بالفترة لكل جهة وتتابع تحصيلها.",
              "The member's discount stays <b>claimable from the payer</b>; "
              "print a per-period claim per payer and track its collection."),
+            ("<b>نصيب الأسرة وسقوف الجهة</b> على شاشة أسعار العقد: مبلغ ثابت "
+             "على الأسرة في كل فاتورة لكل قسم، وأقصى ما الجهة تدفعه في الفاتورة "
+             "وفي ليلة السرير (الغرفة الخاصة فرقها على الأسرة)، والتحمّل وسقف "
+             "السنة للعضو. كل سطر في الفاتورة بيقول ليه الأسرة بتدفعه، "
+             "والمطالبة بتاخد اللي على الجهة بعد الشروط دي بس.",
+             "<b>Family share and payer ceilings</b> on the contract's rates "
+             "screen: a fixed family share per bill in each department, the "
+             "most the payer pays per bill and per bed night (a private room's "
+             "difference is the family's), and the member's yearly deductible "
+             "and ceiling. Each bill line says why the family pays it, and "
+             "the claim takes only what the payer owes after these terms."),
             ("<b>حساب المريض الدائن</b>: الدفعة المقدّمة للإقامة، أو فلوس "
              "أكتر من خطة الأسنان، بتتحفظ على حساب المريض (من ملفه ← "
              "الحسابات، أو من صفحة الإقامة). منه تتسدّد فواتيره بزرار "

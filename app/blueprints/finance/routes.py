@@ -5510,6 +5510,91 @@ def contract_rule_delete(rule_id):
     return redirect(url_for("finance.contract_rates", contract_id=contract_id) + "#rules")
 
 
+def _limit(name):
+    """A typed limit: a number above zero, or ``None`` for «no limit».
+    ``False`` when what was typed is not one."""
+    raw = (request.form.get(name) or "").strip().replace(",", ".")
+    if not raw:
+        return None
+    try:
+        value = round(float(raw), 2)
+    except ValueError:
+        return False
+    return value if value > 0 else (None if value == 0 else False)
+
+
+@finance_bp.route("/contract/<int:contract_id>/terms", methods=["POST"])
+@module_required(MODULE)
+def contract_term_save(contract_id):
+    """The family's share and the payer's ceilings in one department — a
+    fixed sum per bill, the most per bill, the most per night's bed. Every
+    box empty takes the department's row away."""
+    from app.models import PayerContract, PayerContractTerm
+    from app.utils.care_setting import SETTINGS
+
+    c = db.get_or_404(PayerContract, contract_id)
+    back = url_for("finance.contract_rates", contract_id=c.id) + "#terms"
+    setting = request.form.get("setting") or "any"
+    if setting not in ("any",) + tuple(SETTINGS):
+        flash(t("contracts.rule_bad"), "danger")
+        return redirect(back)
+    figures = {k: _limit(k) for k in ("copay_amount", "ceiling_case", "night_ceiling")}
+    if any(v is False for v in figures.values()):
+        flash(t("limits.terms_bad"), "danger")
+        return redirect(back)
+    row = next((r for r in c.terms if r.setting == setting), None)
+    if all(v is None for v in figures.values()):
+        if row is not None:
+            db.session.delete(row)
+    else:
+        if row is None:
+            row = PayerContractTerm(contract_id=c.id, setting=setting)
+            db.session.add(row)
+        for key, value in figures.items():
+            setattr(row, key, value)
+    ActivityLog.record("contract.terms", user_id=current_user.id,
+                       entity="payer_contract", entity_id=c.id,
+                       detail=f"{setting}:{figures}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("limits.terms_saved"), "success")
+    return redirect(back)
+
+
+@finance_bp.route("/contract/terms/<int:term_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def contract_term_delete(term_id):
+    from app.models import PayerContractTerm
+
+    row = db.get_or_404(PayerContractTerm, term_id)
+    contract_id = row.contract_id
+    db.session.delete(row)
+    db.session.commit()
+    flash(t("limits.terms_saved"), "success")
+    return redirect(url_for("finance.contract_rates", contract_id=contract_id) + "#terms")
+
+
+@finance_bp.route("/contract/<int:contract_id>/year", methods=["POST"])
+@module_required(MODULE)
+def contract_year_save(contract_id):
+    """What the family carries over the contract's year: the deductible, and
+    the most the payer pays for one member."""
+    from app.models import PayerContract
+
+    c = db.get_or_404(PayerContract, contract_id)
+    back = url_for("finance.contract_rates", contract_id=c.id) + "#terms"
+    deductible, ceiling = _limit("deductible_year"), _limit("ceiling_year")
+    if deductible is False or ceiling is False:
+        flash(t("limits.terms_bad"), "danger")
+        return redirect(back)
+    c.deductible_year, c.ceiling_year = deductible, ceiling
+    ActivityLog.record("contract.year", user_id=current_user.id,
+                       entity="payer_contract", entity_id=c.id,
+                       detail=f"{deductible}/{ceiling}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("limits.terms_saved"), "success")
+    return redirect(back)
+
+
 @finance_bp.route("/contract/<int:contract_id>/copy", methods=["POST"])
 @module_required(MODULE)
 def contract_copy(contract_id):

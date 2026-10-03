@@ -9702,5 +9702,23 @@
     "mode_on": "On",
     "mode_off": "Off",
     "setting_hint": "Money taken before the care (a stay deposit, a dental payment larger than the plan) is held on the patient's account, pays their bills, or is handed back. A patient who holds a balance always sees it, even with the account switched off."
+  },
+  "limits": {
+    "title": "Family share and payer ceilings",
+    "hint": "What the contract takes back from its cover: a fixed sum the family pays on each bill, and the most the payer pays per bill and per night. Every figure comes from the agreement itself; an empty box means no limit.",
+    "deductible_year": "Yearly deductible",
+    "ceiling_year": "Most the payer pays in a year",
+    "year_hint": "Per member, over the contract's period (or the calendar year when the contract has no start and end date). Deductible: the first this much of what the contract would cover is the family's.",
+    "copay_amount": "Fixed family share per bill",
+    "ceiling_case": "Most the payer pays per bill",
+    "night_ceiling": "Most the payer pays per bed night",
+    "terms_bad": "Not a valid figure — type a number above zero or leave the box empty",
+    "terms_saved": "Contract terms saved",
+    "note_not_covered": "Not on the contract",
+    "note_excluded": "Excluded in this department",
+    "note_deductible": "Yearly deductible",
+    "note_copay": "Fixed family share",
+    "note_room_ceiling": "Room difference over the nightly ceiling",
+    "note_over_ceiling": "Over the payer's ceiling"
   }
 }
