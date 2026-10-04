@@ -910,6 +910,9 @@ ADDITIONS = [
     ("visit_investigations", "delay_told_to", "VARCHAR(120)"),
     ("visit_investigations", "delay_told_by", "INTEGER"),
     ("visit_investigations", "delay_reason", "VARCHAR(200)"),
+    # GAHAR DAS.24 — the point-of-care meter a bedside reading was taken on.
+    # Empty on every reading already charted.
+    ("observations", "poct_device_id", "INTEGER"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

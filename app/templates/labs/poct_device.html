@@ -1,0 +1,77 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ device.name }}{% endblock %}
+{% block page_heading %}{{ t('lab_poct.title') }}{% endblock %}
+
+{% block content %}
+{# One point-of-care device: who may use it, its controls, its readings. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-phone"></i> {{ device.name }}</h1>
+    <p class="page-sub" style="margin:0;">{{ device.location or '' }}{% if device.tests %} · {{ device.tests }}{% endif %}
+      {% if state == 'failed' %}<span class="badge badge--danger">{{ t('lab_poct.st_failed') }}</span>{% elif state == 'overdue' %}<span class="badge badge--danger">{{ t('lab_poct.st_overdue') }}</span>{% elif state == 'ok' %}<span class="badge badge--green">{{ t('lab_poct.st_ok') }}</span>{% endif %}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.poct') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('lab_poct.title') }}</a>
+</div>
+
+{% if may_build %}
+<form method="post" action="{{ url_for('labs.poct_device_save', device_id=device.id) }}" class="card gc-scale-in" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% include "labs/_poct_fields.html" %}
+  <label class="hint" style="margin:0;"><input type="hidden" name="is_active" value="0"><input type="checkbox" name="is_active" value="1" {{ 'checked' if device.is_active else '' }}> {{ t('lab.in_use') }}</label>
+  <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+</form>
+{% endif %}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-operators>
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_poct.operators') }}</h2>
+  {% if not device.operators %}<p class="hint" style="margin:0 0 8px;">{{ t('lab_poct.no_operators') }}</p>{% endif %}
+  <ul style="margin:0 0 8px;padding-inline-start:18px;">
+  {% for o in device.operators %}<li data-operator="{{ o.user_id }}">{{ o.user.display_name(current_lang) if o.user else '—' }}{% if o.trained_on %} · {{ t('lab_poct.trained', d=o.trained_on.isoformat()) }}{% endif %}{% if o.competent_until %} · {{ t('lab_poct.until', d=o.competent_until.isoformat()) }}{% endif %}</li>{% endfor %}
+  </ul>
+  {% if may_build %}
+  <form method="post" action="{{ url_for('labs.poct_operator', device_id=device.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;min-width:180px;"><label for="op_user">{{ t('lab_poct.operator') }}</label>
+      <select class="select" id="op_user" name="user_id" required><option value="">—</option>{% for u in staff %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;min-width:140px;"><label for="op_trained">{{ t('lab_poct.f_trained') }}</label><input class="input" type="date" id="op_trained" name="trained_on"></div>
+    <div class="form-row" style="margin:0;min-width:140px;"><label for="op_until">{{ t('lab_poct.f_until') }}</label><input class="input" type="date" id="op_until" name="competent_until"></div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('lab_reception.add') }}</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;overflow-x:auto;" data-poct-qc>
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_poct.qc') }}</h2>
+  <form method="post" action="{{ url_for('labs.poct_qc', device_id=device.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px;" data-poct-qc-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;min-width:100px;"><label for="pq_level">{{ t('lab_quality.f_level') }}</label><input class="input" id="pq_level" name="level" maxlength="40"></div>
+    <div class="form-row" style="margin:0;min-width:120px;"><label for="pq_result">{{ t('lab_poct.result') }}</label><input class="input" id="pq_result" name="result" required maxlength="80" dir="ltr"></div>
+    <div class="form-row" style="margin:0;min-width:120px;"><label for="pq_passed">{{ t('lab_quality.judgement') }}</label>
+      <select class="select" id="pq_passed" name="passed"><option value="1">{{ t('lab_quality.passed') }}</option><option value="0">{{ t('lab_quality.failed') }}</option></select></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label for="pq_action">{{ t('lab_quality.action') }}</label><input class="input" id="pq_action" name="action" maxlength="255"></div>
+    <button class="btn btn-primary gc-press" type="submit">{{ t('lab_quality.record') }}</button>
+  </form>
+  {% if checks %}
+  <table class="table" style="min-width:520px;">
+    <thead><tr><th>{{ t('lab_reception.col_when') }}</th><th>{{ t('lab_quality.f_level') }}</th><th>{{ t('lab_poct.result') }}</th><th>{{ t('lab_quality.judgement') }}</th><th>{{ t('lab_quality.action') }}</th></tr></thead>
+    <tbody>{% for c in checks %}
+    <tr data-poct-check="{{ c.id }}"><td>{{ c.run_at|clinic_stamp }}{% if c.runner %}<div class="hint">{{ c.runner.display_name(current_lang) }}</div>{% endif %}</td>
+      <td>{{ c.level or '—' }}</td><td dir="ltr">{{ c.result }}</td>
+      <td>{% if c.passed %}<span class="badge badge--green">{{ t('lab_quality.passed') }}</span>{% else %}<span class="badge badge--danger">{{ t('lab_quality.failed') }}</span>{% endif %}</td>
+      <td>{% if c.action %}<span dir="auto">{{ c.action }}</span>{% elif not c.passed %}
+        <form method="post" action="{{ url_for('labs.poct_qc_action', check_id=c.id) }}" style="display:flex;gap:6px;margin:0;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="input" name="action" required maxlength="255" aria-label="{{ t('lab_quality.action') }}" style="min-width:150px;"><button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button></form>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" data-poct-readings>
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_poct.readings') }}</h2>
+  {% if not readings %}<p class="hint" style="margin:0;">{{ t('lab_poct.no_readings') }}</p>{% endif %}
+  {% for r in readings %}<div style="display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:6px 0;" data-poct-reading="{{ r.id }}">
+    <span>{{ r.taken_at|clinic_stamp }}</span><a href="{{ url_for('patients.view', patient_id=r.patient_id) }}">{{ r.patient.display_name(current_lang) }}</a>
+    <strong dir="ltr">{{ r.glucose_mgdl }} mg/dL</strong>{% if r.recorder %}<span class="hint" style="margin:0;">{{ r.recorder.display_name(current_lang) }}</span>{% endif %}</div>{% endfor %}
+</div>
+{% endblock %}

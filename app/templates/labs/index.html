@@ -66,6 +66,10 @@
     <a class="btn btn-outline gc-press{{ ' lb-critical' if qc_failures else '' }}" data-to-quality href="{{ url_for('labs.quality') }}">
       <i class="bi bi-graph-up"></i> {{ t('lab_quality.title') }}
       {% if qc_failures %}<span class="badge badge--danger" data-qc-failures>{{ qc_failures }}</span>{% endif %}</a>
+    {# Point-of-care devices (GAHAR DAS.24) — a failed or overdue control in red. #}
+    <a class="btn btn-outline gc-press{{ ' lb-critical' if poct_attention else '' }}" data-to-poct href="{{ url_for('labs.poct') }}">
+      <i class="bi bi-phone"></i> {{ t('lab_poct.title') }}
+      {% if poct_attention %}<span class="badge badge--danger" data-poct-attention>{{ poct_attention }}</span>{% endif %}</a>
     <a class="btn btn-outline gc-press" data-to-turnaround href="{{ url_for('labs.turnaround') }}">
       <i class="bi bi-stopwatch"></i> {{ t('lab_tat.title') }}</a>
     {# The refused tubes, a register of their own (GAHAR DAS.15). #}

@@ -165,6 +165,9 @@ class Observation(db.Model):
     pain_score = db.Column(db.Integer)          # 0–10, the faces/numeric scale
     oxygen_support = db.Column(db.String(12))
     note = db.Column(db.String(255))
+    # The point-of-care meter a bedside glucose was read on (GAHAR DAS.24),
+    # when the hospital keeps its devices. Empty everywhere else.
+    poct_device_id = db.Column(db.Integer, db.ForeignKey("poct_devices.id"))
 
     patient = db.relationship("Patient", backref="observations")
     visit = db.relationship("Visit", backref="observations")

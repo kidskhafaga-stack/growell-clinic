@@ -66,6 +66,7 @@ def index():
                            sent_labs=bool(_sendout().laboratories()),
                            expired_lots=_reagents().expired_on_shelf(),
                            qc_failures=_quality().failed_without_action(),
+                           poct_attention=_poct_util().needing_attention(),
                            at_door=request.args.get("receive") == "1",
                            # Where the child is, when they are in a bed: the
                            # sample is drawn at the bed, not at the desk.
@@ -783,6 +784,139 @@ def eqa_grade(round_id):
     return redirect(url_for("labs.eqa"))
 
 
+# ---------------------------------------------------- point-of-care testing --
+def _may_run_poct_setup():
+    from app.utils import lab_poct
+
+    boss = lab_poct.supervisor()
+    return current_user.is_admin or (boss is not None and boss.id == current_user.id)
+
+
+@labs_bp.route("/poct")
+@module_required(MODULE)
+def poct():
+    """Every point-of-care device, where it is, who supervises (DAS.24)."""
+    from app.models import PoctDevice, User
+    from app.utils import lab_poct
+
+    devices = PoctDevice.query.order_by(PoctDevice.is_active.desc(),
+                                        PoctDevice.name).all()
+    staff = (User.query.filter(User.is_active.is_(True))
+             .order_by(User.full_name).all())
+    return render_template("labs/poct.html", devices=devices, staff=staff,
+                           supervisor=lab_poct.supervisor(),
+                           qc_state=lab_poct.qc_state,
+                           may_build=_may_run_poct_setup(),
+                           is_admin=current_user.is_admin)
+
+
+@labs_bp.route("/poct/supervisor", methods=["POST"])
+@module_required(MODULE)
+def poct_supervisor():
+    from app.utils import lab_poct
+
+    _admin_only()
+    lab_poct.set_supervisor(request.form.get("user_id", type=int))
+    db.session.commit()
+    flash(t("lab_poct.supervisor_saved"), "success")
+    return redirect(url_for("labs.poct"))
+
+
+@labs_bp.route("/poct/devices", methods=["POST"])
+@labs_bp.route("/poct/device/<int:device_id>/save", methods=["POST"])
+@module_required(MODULE)
+def poct_device_save(device_id=None):
+    from app.models import PoctDevice
+    from app.utils import lab_poct
+
+    if not _may_run_poct_setup():
+        abort(403, description=t("auth.no_permission"))
+    row = db.get_or_404(PoctDevice, device_id) if device_id else None
+    try:
+        row = lab_poct.save_device(request.form, row)
+    except lab_poct.PoctError as err:
+        db.session.rollback()
+        flash(t(f"lab_poct.err_{err}"), "error")
+        return redirect(url_for("labs.poct"))
+    db.session.commit()
+    flash(t("lab_poct.device_saved"), "success")
+    return redirect(url_for("labs.poct_device", device_id=row.id))
+
+
+@labs_bp.route("/poct/device/<int:device_id>")
+@module_required(MODULE)
+def poct_device(device_id):
+    """One device: its trained operators, its controls, its readings."""
+    from app.models import PoctDevice, User
+    from app.utils import lab_poct
+
+    row = db.get_or_404(PoctDevice, device_id)
+    staff = (User.query.filter(User.is_active.is_(True))
+             .order_by(User.full_name).all())
+    return render_template("labs/poct_device.html", device=row, staff=staff,
+                           checks=list(reversed(row.checks))[:40],
+                           readings=lab_poct.readings(row),
+                           state=lab_poct.qc_state(row),
+                           may_build=_may_run_poct_setup())
+
+
+@labs_bp.route("/poct/device/<int:device_id>/operators", methods=["POST"])
+@module_required(MODULE)
+def poct_operator(device_id):
+    from app.models import PoctDevice
+    from app.utils import lab_poct
+
+    if not _may_run_poct_setup():
+        abort(403, description=t("auth.no_permission"))
+    row = db.get_or_404(PoctDevice, device_id)
+    try:
+        lab_poct.add_operator(row, request.form)
+    except lab_poct.PoctError as err:
+        db.session.rollback()
+        flash(t(f"lab_poct.err_{err}"), "error")
+        return redirect(url_for("labs.poct_device", device_id=row.id))
+    db.session.commit()
+    flash(t("lab_poct.operator_saved"), "success")
+    return redirect(url_for("labs.poct_device", device_id=row.id))
+
+
+@labs_bp.route("/poct/device/<int:device_id>/qc", methods=["POST"])
+@module_required(MODULE)
+def poct_qc(device_id):
+    from app.models import PoctDevice
+    from app.utils import lab_poct
+
+    row = db.get_or_404(PoctDevice, device_id)
+    try:
+        check = lab_poct.record_qc(row, request.form, user=current_user)
+    except lab_poct.PoctError as err:
+        db.session.rollback()
+        flash(t(f"lab_poct.err_{err}"), "error")
+        return redirect(url_for("labs.poct_device", device_id=row.id))
+    db.session.commit()
+    flash(t("lab_poct.qc_ok") if check.passed else t("lab_poct.qc_failed"),
+          "success" if check.passed else "warning")
+    return redirect(url_for("labs.poct_device", device_id=row.id))
+
+
+@labs_bp.route("/poct/qc/<int:check_id>/action", methods=["POST"])
+@module_required(MODULE)
+def poct_qc_action(check_id):
+    from app.models import PoctQc
+    from app.utils import lab_poct
+
+    check = db.get_or_404(PoctQc, check_id)
+    try:
+        lab_poct.qc_action(check, request.form.get("action"))
+    except lab_poct.PoctError as err:
+        db.session.rollback()
+        flash(t(f"lab_poct.err_{err}"), "error")
+        return redirect(url_for("labs.poct_device", device_id=check.device_id))
+    db.session.commit()
+    flash(t("lab_quality.action_saved"), "success")
+    return redirect(url_for("labs.poct_device", device_id=check.device_id))
+
+
 @labs_bp.route("/rejections")
 @module_required(MODULE)
 def rejections():
@@ -1046,6 +1180,12 @@ def tests():
         reject_reasons=_reception().reasons() if kind == "lab" else [],
         release_required=_release().required(),
         referral_labs=_sendout().laboratories() if kind == "lab" else [])
+
+
+def _poct_util():
+    from app.utils import lab_poct
+
+    return lab_poct
 
 
 def _quality():

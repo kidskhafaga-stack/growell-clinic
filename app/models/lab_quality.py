@@ -100,3 +100,60 @@ class EqaRound(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     reviewer = db.relationship("User", foreign_keys=[reviewed_by])
+
+
+class PoctDevice(db.Model):
+    """A point-of-care device and where it is — GAHAR DAS.24 دليل ٣."""
+    __tablename__ = "poct_devices"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(160), nullable=False)
+    kind = db.Column(db.String(80))
+    serial = db.Column(db.String(80))
+    location = db.Column(db.String(120))
+    tests = db.Column(db.String(200))
+    # How often the laboratory says its controls are run, in days — its own
+    # figure; until it writes one, nothing is called overdue.
+    qc_every_days = db.Column(db.Integer)
+    responsible_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    responsible = db.relationship("User")
+    operators = db.relationship("PoctOperator", back_populates="device",
+                                cascade="all, delete-orphan")
+    checks = db.relationship("PoctQc", back_populates="device",
+                             order_by="PoctQc.run_at", cascade="all, delete-orphan")
+
+
+class PoctOperator(db.Model):
+    """Somebody trained and competent to use one device — DAS.24 دليل ٢."""
+    __tablename__ = "poct_operators"
+
+    id = db.Column(db.Integer, primary_key=True)
+    device_id = db.Column(db.Integer, db.ForeignKey("poct_devices.id"),
+                          nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    trained_on = db.Column(db.Date)
+    competent_until = db.Column(db.Date)
+
+    device = db.relationship("PoctDevice", back_populates="operators")
+    user = db.relationship("User")
+
+
+class PoctQc(db.Model):
+    """A control run on a point-of-care device — DAS.24 دليل ٥."""
+    __tablename__ = "poct_qc"
+
+    id = db.Column(db.Integer, primary_key=True)
+    device_id = db.Column(db.Integer, db.ForeignKey("poct_devices.id"),
+                          nullable=False, index=True)
+    run_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    run_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    level = db.Column(db.String(40))
+    result = db.Column(db.String(80))
+    passed = db.Column(db.Boolean, nullable=False, default=True)
+    action = db.Column(db.String(255))
+
+    device = db.relationship("PoctDevice", back_populates="checks")
+    runner = db.relationship("User")

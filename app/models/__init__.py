@@ -309,7 +309,8 @@ from app.models.lab_reference import (RANGE_KINDS, RANGE_SEXES, LabAnalyte,
                                        ReagentLot, ReferralLab,
                                        SampleRejection)
 from app.models.unit_staff import BreakGlass, UnitStaff
-from app.models.lab_quality import EqaRound, QcMaterial, QcReview, QcRun
+from app.models.lab_quality import (EqaRound, PoctDevice, PoctOperator, PoctQc,
+                                    QcMaterial, QcReview, QcRun)
 from app.models.accounting import (
     ACCOUNT_TYPES,
     PERIOD_STATUSES,
@@ -703,6 +704,9 @@ __all__ = [
     "QcRun",
     "QcReview",
     "EqaRound",
+    "PoctDevice",
+    "PoctOperator",
+    "PoctQc",
     "RANGE_KINDS",
     "RANGE_SEXES",
 ]
