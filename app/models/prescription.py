@@ -410,6 +410,14 @@ class Investigation(db.Model):
     # What one run costs the lab (reagents, strips, its share of the
     # machine), typed by the lab. The price is the service it is charged as.
     cost = db.Column(db.Float)
+    # For a scan: what kind of machine — whether it gives the child ionising
+    # radiation is read from this (`utils/radiation.IONISING`) — and the
+    # hospital's own reference level for the dose it should not usually
+    # pass, in the dose measure it names. Empty: no reference, no alert.
+    modality = db.Column(db.String(10))
+    dose_ref_kind = db.Column(db.String(10))
+    dose_ref_value = db.Column(db.Float)
+    dose_ref_unit = db.Column(db.String(12))
 
     # The unit this test is reported in, so nobody types "%" beside every
     # HbA1c for the rest of the clinic's life. A unit is a fact about the

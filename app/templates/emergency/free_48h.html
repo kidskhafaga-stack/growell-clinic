@@ -1,0 +1,49 @@
+{% extends "shell.html" %}
+{% set active_module = 'emergency' %}
+{% block title %}{{ t('er_pay.free_title') }}{% endblock %}
+{% block page_heading %}{{ t('er_pay.free_title') }}{% endblock %}
+
+{% block content %}
+{# The urgent attendances of a period and what their first 48 hours were
+   billed — free by decree 1063/2014, listed so they can be claimed from
+   whoever pays them (`utils/er_pay_first.free_48h`). #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-shield-plus"></i> {{ t('er_pay.free_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('er_pay.free_sub') }}</p>
+  </div>
+  <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <div class="form-row" style="margin:0;"><label>{{ t('radiation.from') }}</label>
+      <input class="input" type="date" name="from" value="{{ date_from.isoformat() }}"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('radiation.to') }}</label>
+      <input class="input" type="date" name="to" value="{{ date_to.isoformat() }}"></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i></button>
+  </form>
+</div>
+<div class="stat-grid stat-grid--compact" style="margin-bottom:14px;">
+  <div class="stat-card edge-blue"><div class="value">{{ rows|length }}</div><div class="label">{{ t('er_pay.free_cases') }}</div></div>
+  <div class="stat-card edge-green"><div class="value">{{ total|money }}</div><div class="label">{{ t('er_pay.free_billed') }}</div></div>
+</div>
+<div class="card gc-scale-in">
+  {% if rows %}
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:600px;" data-free-rows>
+    <thead><tr><th>{{ t('er_pay.arrived') }}</th><th>{{ t('patients.full_name') }}</th>
+      <th>{{ t('er_pay.level') }}</th><th>{{ t('er_pay.free_billed') }}</th></tr></thead>
+    <tbody>
+      {% for r in rows %}{% set a = r.attendance %}
+      <tr data-free-row="{{ a.id }}">
+        <td dir="ltr">{{ a.arrived_at|clinic_stamp }}</td>
+        <td><a href="{{ url_for('emergency.attendance', attendance_id=a.id) }}">{{ a.patient.display_name(current_lang) }}</a></td>
+        <td dir="auto">{{ a.level or '—' }}</td>
+        <td>{{ r.billed|money }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('er_pay.free_none') }}</p>
+  {% endif %}
+</div>
+{% endblock %}

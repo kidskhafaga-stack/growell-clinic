@@ -402,6 +402,29 @@ class VisitInvestigation(db.Model):
     critical_at = db.Column(db.DateTime, index=True)
     critical_seen_at = db.Column(db.DateTime)
     critical_seen_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # The lab's own two acts on a critical value (`utils/lab_critical`):
+    # marking a result critical by hand — a positive culture has no number to
+    # cross a limit — with the reason; and telling a doctor: who, how, when,
+    # by whom, and whether they read it back.
+    critical_manual = db.Column(db.String(200))
+    critical_called_at = db.Column(db.DateTime)
+    critical_called_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    critical_called_to = db.Column(db.String(120))
+    critical_call_method = db.Column(db.String(12))
+    critical_read_back = db.Column(db.Boolean)
+    # **What a scan gave the child** — the dose the machine reported and the
+    # contrast that went in (`utils/radiation`). Empty for everything else,
+    # and for every scan recorded before this existed.
+    dose_kind = db.Column(db.String(10))
+    dose_value = db.Column(db.Float)
+    # The unit the machine printed it in (`utils/radiation.MEASURES`).
+    dose_unit = db.Column(db.String(12))
+    contrast_agent = db.Column(db.String(80))
+    contrast_route = db.Column(db.String(10))
+    contrast_ml = db.Column(db.Float)
+    contrast_reaction = db.Column(db.String(10))
+    contrast_note = db.Column(db.String(200))
+    exposure_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     # A device study booked for a day and hour — «بيحتاج حجز ونوم» — and what
     # the family has to do before it. Empty for everything done on the spot.
     booked_for = db.Column(db.DateTime)
@@ -423,6 +446,8 @@ class VisitInvestigation(db.Model):
     orderer = db.relationship("User", foreign_keys=[ordered_by])
     confirmer = db.relationship("User", foreign_keys=[confirmed_by])
     critical_reader = db.relationship("User", foreign_keys=[critical_seen_by])
+    critical_caller = db.relationship("User", foreign_keys=[critical_called_by])
+    exposure_writer = db.relationship("User", foreign_keys=[exposure_by])
     operation = db.relationship("Operation", backref="investigations",
                                 foreign_keys=[operation_id])
 

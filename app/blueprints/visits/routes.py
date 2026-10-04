@@ -2170,7 +2170,9 @@ def study_new(patient_id):
         study = DeviceStudy(
             patient_id=patient.id, device_id=device.id,
             visit_id=open_visit.id if open_visit else None, study_date=sdate,
-            performed_by=current_user.id,
+            # «دول بيتموا بطبيب» — the doctor who did the study, chosen on
+            # the form; whoever typed it in when no doctor was chosen.
+            performed_by=_study_doctor(),
             conclusion=(request.form.get("conclusion") or "").strip() or None,
             notes=(request.form.get("notes") or "").strip() or None)
         for m in device.measurements:
@@ -2205,7 +2207,23 @@ def study_new(patient_id):
     return render_template("visits/study_new.html", patient=patient,
                            devices=devices, device=device, order=order,
                            visit_id=request.values.get("visit_id", type=int),
-                           today=local_today().isoformat())
+                           today=local_today().isoformat(),
+                           study_doctors=_study_doctors())
+
+
+def _study_doctors():
+    """Who may be named as having done a device study: the doctors."""
+    return (User.query.filter(User.is_active.is_(True),
+                              db.or_(User.role == "doctor", User.is_practitioner.is_(True)))
+            .order_by(User.full_name).all())
+
+
+def _study_doctor():
+    """The doctor chosen on the form, if they are one; else whoever saved it."""
+    chosen = request.form.get("performed_by", type=int)
+    if chosen and any(u.id == chosen for u in _study_doctors()):
+        return chosen
+    return current_user.id
 
 
 # ======================================== the device studies board =========
@@ -2221,7 +2239,27 @@ def device_board():
     rows = board.rows()
     return render_template("visits/device_board.html", rows=rows,
                            beds=bench.beds_of(rows), bench=bench,
-                           board=board, now=datetime.utcnow())
+                           board=board, now=datetime.utcnow(),
+                           # Never a blank page: what was done lately, and —
+                           # when nothing waits — why, in the clinic's terms.
+                           **board.context())
+
+
+@visits_bp.route("/studies/start")
+@module_required(MODULE)
+def device_start():
+    """A study with no order — the child in front of the echo now: found by
+    their file number, and the study's form opened for them."""
+    from app.models import Patient
+
+    number = (request.args.get("number") or "").strip()
+    patient = (Patient.query.filter(db.or_(Patient.patient_number == number,
+                                           Patient.reference_number == number))
+               .first() if number else None)
+    if patient is None:
+        flash(t("device_board.no_such_file", number=number[:30]), "warning")
+        return redirect(url_for("visits.device_board"))
+    return redirect(url_for("visits.study_new", patient_id=patient.id))
 
 
 @visits_bp.route("/studies/order/<int:order_id>/book", methods=["POST"])

@@ -100,6 +100,9 @@ TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled"
                # Money taken at the desk for today's booking marks it arrived.
                "arrive_on_payment",
                "require_shift_to_collect",
+               # «Pay first» in emergency — a child triaged non-urgent only,
+               # never an urgent or untriaged one (`utils/er_pay_first`).
+               "er_pay_first",
                # Whether the program looks for a newer version when it starts.
                # It only ever *says*; updating stays a decision somebody makes
                # in update.bat. One anonymous request to GitHub carrying no

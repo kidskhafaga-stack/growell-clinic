@@ -825,6 +825,30 @@ ADDITIONS = [
     # Why a file is on hold: the account, or the family (`models/patient_flag`).
     # Empty on every flag raised before, which read as account ones.
     ("patient_flags", "kind", "VARCHAR(10)"),
+    # The lab's critical-value acts, and what a scan gave the child
+    # (`utils/lab_critical`, `utils/radiation`). All empty until written.
+    ("visit_investigations", "critical_manual", "VARCHAR(200)"),
+    ("visit_investigations", "critical_called_at", "DATETIME"),
+    ("visit_investigations", "critical_called_by", "INTEGER"),
+    ("visit_investigations", "critical_called_to", "VARCHAR(120)"),
+    ("visit_investigations", "critical_call_method", "VARCHAR(12)"),
+    ("visit_investigations", "critical_read_back", "BOOLEAN"),
+    ("visit_investigations", "dose_kind", "VARCHAR(10)"),
+    ("visit_investigations", "dose_value", "FLOAT"),
+    ("visit_investigations", "contrast_agent", "VARCHAR(80)"),
+    ("visit_investigations", "contrast_route", "VARCHAR(10)"),
+    ("visit_investigations", "contrast_ml", "FLOAT"),
+    ("visit_investigations", "contrast_reaction", "VARCHAR(10)"),
+    ("visit_investigations", "contrast_note", "VARCHAR(200)"),
+    ("visit_investigations", "exposure_by", "INTEGER"),
+    ("investigations", "modality", "VARCHAR(10)"),
+    ("investigations", "dose_ref_kind", "VARCHAR(10)"),
+    ("investigations", "dose_ref_value", "FLOAT"),
+    ("investigations", "dose_ref_unit", "VARCHAR(12)"),
+    ("visit_investigations", "dose_unit", "VARCHAR(12)"),
+    # «Paid, go ahead» on a non-urgent emergency child (`utils/er_pay_first`).
+    ("emergency_visits", "pay_cleared_at", "DATETIME"),
+    ("emergency_visits", "pay_cleared_by", "INTEGER"),
     # «رسم المخ الى بيحتاج حجز ونوم» — a device study booked for a day and an
     # hour, with what the family must do before it. Empty on every order.
     ("visit_investigations", "booked_for", "DATETIME"),

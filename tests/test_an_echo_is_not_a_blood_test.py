@@ -259,33 +259,19 @@ def test_the_imaging_screen_lists_the_scan_and_not_the_blood(rack):
     assert "صورة دم كاملة" not in html
 
 
-def test_there_is_a_door_to_it_from_the_rack(rack):
-    """**An order nobody can see is an order nobody does.** Filtering the
-    scans out of the lab and stopping there would have been the worse bug, so
-    the link — and the count — sit where the person who used to see them in
-    that list will look."""
+def test_the_lab_screen_is_the_labs_alone(rack):
+    """«وليه فى شورت كات للاشعات؟ فى المعمل مش مطلوبه … الفني هيحتار».
+    The scans were once reachable only from the rack; radiology has its own
+    entry in the menu now, so the technician's screen carries no door to it —
+    and radiology's carries none back."""
     with rack["app"].app_context():
-        html = rack["sign_in"]().get("/labs/").get_data(as_text=True)
+        client = rack["sign_in"]()
+        lab = client.get("/labs/").get_data(as_text=True)
+        films = client.get("/imaging/").get_data(as_text=True)
 
-    assert "data-to-imaging" in html, "the scans have no door"
-    assert "/imaging/" in html
-
-
-def test_the_door_carries_the_count_so_nothing_goes_quiet(rack):
-    """One outstanding echo, said on the lab screen even though the lab
-    screen no longer lists it."""
-    with rack["app"].app_context():
-        html = rack["sign_in"]().get("/labs/").get_data(as_text=True)
-
-    marker = html.split("data-to-imaging", 1)[1][:400]
-    assert ">1<" in marker, "the door does not say how many are waiting"
-
-
-def test_and_a_door_back(rack):
-    with rack["app"].app_context():
-        html = rack["sign_in"]().get("/imaging/").get_data(as_text=True)
-
-    assert "data-to-lab" in html
+    assert "data-to-imaging" not in lab and "data-to-diagnostics" not in lab
+    assert "data-to-lab" not in films
+    assert 'href="/imaging/"' in lab, "radiology has no entry in the menu"
 
 
 def test_the_scan_screen_offers_done_not_drawn(rack):
@@ -417,14 +403,6 @@ def test_each_room_has_its_own_screen(three_rooms):
 
     assert "أشعة صدر" in xray and "إيكو قلب ECHO" not in xray
     assert "إيكو قلب ECHO" in studies and "أشعة صدر" not in studies
-
-
-def test_the_rack_has_a_door_to_both(three_rooms):
-    with three_rooms["app"].app_context():
-        html = three_rooms["sign_in"]().get("/labs/").get_data(as_text=True)
-
-    assert "data-to-imaging" in html
-    assert "data-to-diagnostics" in html
 
 
 def test_a_study_is_performed_not_drawn_either(three_rooms):

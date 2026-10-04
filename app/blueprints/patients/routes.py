@@ -146,6 +146,15 @@ def index():
     )
 
 
+def _exposure(patient):
+    """What the child's scans gave them — for the medical file only."""
+    if not current_user.can("patient_medical"):
+        return None
+    from app.utils import radiation
+
+    return radiation.summary(patient.id)
+
+
 # ------------------------------------------------------- files on hold ----
 @patients_bp.route("/holds")
 @module_required(MODULE)
@@ -733,6 +742,7 @@ def view(patient_id):
         vaccine_plan=vaccine_plan,
         vaccine_next=vaccine_next,
         studies=patient_studies(patient, getattr(g, "lang", "ar")),
+        exposure=_exposure(patient),
         # Whether this clinic owns a machine at all. **A tab has to earn its
         # place**: «فحوصات الأجهزة» on the file of a single-doctor clinic with
         # no echo and no spirometer is furniture, and the same rule already

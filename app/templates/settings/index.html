@@ -597,6 +597,12 @@
       <label for="require_shift_to_collect" style="margin:0;font-weight:400;">{{ t('settings.require_shift_to_collect') }}</label>
     </div>
     <p class="hint">{{ t('settings.require_shift_to_collect_hint') }}</p>
+    <div class="form-row checkbox" data-er-pay-first>
+      <input type="checkbox" id="er_pay_first" name="er_pay_first" value="1"
+             {{ 'checked' if values.get('er_pay_first','0') == '1' else '' }}>
+      <label for="er_pay_first" style="margin:0;font-weight:400;">{{ t('er_pay.setting') }}</label>
+    </div>
+    <p class="hint">{{ t('er_pay.setting_hint') }}</p>
     <hr style="border:none;border-top:1px solid var(--line);margin:16px 0;">
     <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-lock"></i> {{ t('settings.login_security') }}</h3>
     <p class="hint" style="margin-top:-6px;">{{ t('settings.login_security_hint') }}</p>

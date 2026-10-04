@@ -30,6 +30,17 @@
         · {{ row.critical_at|clinic_stamp }}
         {% if row.orderer %} · {{ t('lab_result.ordered_by', who=row.orderer.display_name(current_lang)) }}{% endif %}
       </div>
+      {# Whether the lab has told anybody yet — the line the chase is about. #}
+      <div style="margin-top:4px;">
+        {% if row.critical_called_at %}
+        <span class="badge badge--green" data-called><i class="bi bi-telephone-outbound"></i>
+          {{ t('lab_critical.called_short', who=row.critical_called_to, when=row.critical_called_at|clinic_stamp) }}</span>
+        {% else %}
+        <a class="badge badge--danger" href="{{ url_for('labs.order', order_id=row.id) }}#critical" data-not-called>
+          <i class="bi bi-telephone-x"></i> {{ t('lab_critical.not_called') }}</a>
+        {% endif %}
+        {% if row.critical_manual %}<span class="badge badge--muted">{{ t('lab_critical.marked_by_lab') }}</span>{% endif %}
+      </div>
     </div>
     {% if may_read %}
     <form method="post" action="{{ url_for('labs.critical_read', order_id=row.id) }}">

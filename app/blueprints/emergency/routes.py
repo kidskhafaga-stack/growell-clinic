@@ -296,6 +296,8 @@ def attendance(attendance_id):
     return render_template(
         "emergency/attendance.html", row=row, orders=orders,
         waiting=waiting, session=session,
+        # «Pay first» for a child triaged non-urgent (`utils/er_pay_first`).
+        pay_waits=_pay_waits(row),
         # The desk's door, for whoever may take the money: what was given
         # waits there as lines to check before anything is charged.
         may_collect=module_enabled("finance") and (
@@ -410,6 +412,14 @@ def give_order(order_id):
     from app.utils import emergency_orders as eo
 
     order = _order_or_404(order_id)
+    # A child triaged non-urgent where the hospital asks for payment first:
+    # the treatment waits for the desk. Never an urgent or untriaged child
+    # (`utils/er_pay_first`).
+    from app.utils import er_pay_first
+
+    if er_pay_first.waits(order.emergency_visit):
+        flash(t("er_pay.waiting"), "warning")
+        return _to_attendance(order.emergency_visit_id)
     try:
         eo.give(order, current_user)
     except ValueError as why:
@@ -534,6 +544,11 @@ def test_done(attendance_id, test_id):
     test = db.get_or_404(VisitInvestigation, test_id)
     if row.visit_id is None or test.visit_id != row.visit_id:
         abort(404)
+    from app.utils import er_pay_first
+
+    if er_pay_first.waits(row):
+        flash(t("er_pay.waiting"), "warning")
+        return redirect(url_for("emergency.attendance", attendance_id=row.id))
     try:
         bench.perform(test, user=current_user)
     except ValueError:
@@ -555,3 +570,54 @@ def _refresh_bell():
         invalidate()
     except Exception:  # noqa: BLE001
         pass
+
+
+# ---------------------------------------------------------------------------
+# «Pay first» for a non-urgent child — and the urgent ones' first 48 hours
+# ---------------------------------------------------------------------------
+def _pay_waits(row):
+    from app.utils import er_pay_first
+
+    return er_pay_first.waits(row)
+
+
+@emergency_bp.route("/attendance/<int:attendance_id>/paid", methods=["POST"])
+@module_required(MODULE)
+def pay_clear(attendance_id):
+    """The desk took the money: the treatment goes ahead. Whoever takes
+    money may say it (`utils/er_pay_first`)."""
+    from app.models import ActivityLog, EmergencyVisit
+    from app.utils import er_pay_first
+    from app.utils.decorators import client_ip
+
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    if not current_user.can_collect:
+        abort(403)
+    er_pay_first.clear(row, current_user)
+    ActivityLog.record("emergency.pay_cleared", user_id=current_user.id,
+                       entity="emergency_visit", entity_id=row.id,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("er_pay.cleared"), "success")
+    return redirect(url_for("emergency.attendance", attendance_id=row.id))
+
+
+@emergency_bp.route("/free-48h")
+@module_required(MODULE)
+def free_48h():
+    """The urgent attendances of a period and what their first 48 hours were
+    billed — decree 1063/2014 makes them free, to be claimed from whoever
+    pays them."""
+    from datetime import timedelta
+
+    from app.utils import er_pay_first
+    from app.utils.appointments import parse_date_arg
+    from app.utils.clock import local_today
+
+    today = local_today()
+    date_to = parse_date_arg(request.args.get("to"), default=today)
+    date_from = parse_date_arg(request.args.get("from"), default=date_to - timedelta(days=30))
+    rows = er_pay_first.free_48h(date_from, date_to)
+    return render_template("emergency/free_48h.html", rows=rows,
+                           date_from=date_from, date_to=date_to,
+                           total=round(sum(r["billed"] for r in rows), 2))

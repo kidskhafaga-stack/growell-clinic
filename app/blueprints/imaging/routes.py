@@ -89,6 +89,8 @@ def performed(order_id):
         return redirect(url_for(_back_to(row)))
     db.session.commit()
     flash(t("imaging.marked_done"), "success")
+    if request.form.get("back") == "order" and row.kind == bench.IMAGING:
+        return redirect(url_for("imaging.order", order_id=row.id))
     return redirect(url_for(_back_to(row)))
 
 
@@ -96,3 +98,111 @@ def _back_to(row):
     """The room this order belongs to, so «done» lands where it was pressed."""
     return ("visits.device_board" if row.kind == bench.DIAGNOSTIC
             else "imaging.index")
+
+
+# ---------------------------------------------------------------------------
+# One scan: the report, the dose and the contrast — radiology's own page
+# ---------------------------------------------------------------------------
+def _scan(order_id):
+    row = db.get_or_404(VisitInvestigation, order_id)
+    if row.kind != bench.IMAGING:
+        from flask import abort
+
+        abort(404)
+    return row
+
+
+@imaging_bp.route("/order/<int:order_id>")
+@module_required(MODULE)
+def order(order_id):
+    """One scan: what was asked, the child's earlier doses and contrast —
+    before this one is done — and the boxes for the report and for what this
+    one gave (`utils/radiation`)."""
+    from app.utils import radiation
+
+    row = _scan(order_id)
+    return render_template(
+        "imaging/order.html", order=row, bench=bench, radiation=radiation,
+        before=radiation.summary(row.patient_id, exclude_id=row.id),
+        over=radiation.over_reference(row), ionising=radiation.ionising(row))
+
+
+@imaging_bp.route("/order/<int:order_id>/report", methods=["POST"])
+@module_required(MODULE)
+def report(order_id):
+    """The report: what was seen, and the impression."""
+    row = _scan(order_id)
+    bench.record(row, text=request.form.get("result_text") or "",
+                 comment=request.form.get("result_comment") or "",
+                 user=current_user)
+    db.session.commit()
+    flash(t("imaging.reported") if row.status == bench.RESULTED
+          else t("lab.result_cleared"), "success")
+    return redirect(url_for("imaging.order", order_id=row.id))
+
+
+@imaging_bp.route("/order/<int:order_id>/exposure", methods=["POST"])
+@module_required(MODULE)
+def exposure(order_id):
+    """What this scan gave the child: the dose the machine reported, and the
+    contrast — agent, route, amount, and how the child took it."""
+    from app.models import ActivityLog
+    from app.utils import radiation
+
+    row = _scan(order_id)
+    try:
+        radiation.save(row, request.form, current_user)
+    except radiation.ExposureError as err:
+        db.session.rollback()
+        flash(t(f"radiation.err_{err}"), "error")
+        return redirect(url_for("imaging.order", order_id=row.id))
+    ActivityLog.record("imaging.exposure", user_id=current_user.id,
+                       entity="visit_investigation", entity_id=row.id,
+                       detail=f"{row.dose_kind}:{row.dose_value}/{row.contrast_agent or ''}")
+    db.session.commit()
+    flash(t("radiation.saved"), "success")
+    if radiation.over_reference(row):
+        flash(t("radiation.over_reference"), "warning")
+    return redirect(url_for("imaging.order", order_id=row.id))
+
+
+@imaging_bp.route("/doses")
+@module_required(MODULE)
+def doses():
+    """What the children received in a period — scans above the hospital's
+    reference level and contrast reactions first: where a review starts."""
+    from datetime import timedelta
+
+    from app.utils import radiation
+    from app.utils.clock import local_today
+    from app.utils.appointments import parse_date_arg
+
+    today = local_today()
+    date_to = parse_date_arg(request.args.get("to"), default=today)
+    date_from = parse_date_arg(request.args.get("from"), default=date_to - timedelta(days=30))
+    rows = radiation.report(date_from, date_to)
+    return render_template("imaging/doses.html", rows=rows, radiation=radiation,
+                           date_from=date_from, date_to=date_to,
+                           over=sum(1 for r in rows if radiation.over_reference(r)),
+                           reactions=sum(1 for r in rows if r.contrast_reaction
+                                         in ("mild", "moderate", "severe")))
+
+
+@imaging_bp.route("/dose-units", methods=["POST"])
+@module_required(MODULE)
+def dose_units():
+    """The units this hospital's machines print each measure in."""
+    from flask import abort
+
+    from app.models import Setting
+    from app.utils import radiation
+
+    if not current_user.is_admin:
+        abort(403)
+    for kind, units in radiation.MEASURES.items():
+        unit = (request.form.get(f"unit_{kind}") or "").strip()
+        if unit in units:
+            Setting.set(f"dose_unit:{kind}", unit)
+    db.session.commit()
+    flash(t("radiation.units_saved"), "success")
+    return redirect(url_for("imaging.doses"))

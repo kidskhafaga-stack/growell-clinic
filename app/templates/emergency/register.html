@@ -18,6 +18,10 @@
       <i class="bi bi-file-earmark-medical"></i> {{ t('er_orders.papers') }}
       {% if outside_waiting %}<span class="badge badge--danger" data-outside-waiting>{{ outside_waiting }}</span>{% endif %}
       {% if mine_to_confirm %}<span class="badge badge--warn" data-mine-to-confirm>{{ mine_to_confirm }}</span>{% endif %}</a>
+    {# The urgent attendances and their first 48 hours — free by decree
+       1063/2014, listed to be claimed. #}
+    <a class="btn btn-outline gc-press" data-to-free-48h href="{{ url_for('emergency.free_48h') }}">
+      <i class="bi bi-shield-plus"></i> {{ t('er_pay.free_title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('emergency.index') }}">
       <i class="bi bi-hospital"></i> {{ t('emergency.board') }}</a>
   </div>

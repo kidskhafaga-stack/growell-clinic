@@ -217,9 +217,11 @@ def save(order, entries, user=None, text=None, at=None):
     if critical and order.critical_at is None:
         order.critical_at = now
         order.critical_seen_at = order.critical_seen_by = None
-    elif not critical:
+    elif not critical and not order.critical_manual:
         # Corrected — a typo, not a child in danger. The stamp goes with it,
-        # and the activity log keeps that it was ever there.
+        # and the activity log keeps that it was ever there. One the lab
+        # marked critical by hand stays: no number decided it, and no number
+        # takes it away (`utils/lab_critical`).
         order.critical_at = order.critical_seen_at = None
         order.critical_seen_by = None
 

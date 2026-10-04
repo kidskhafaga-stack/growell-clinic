@@ -797,6 +797,21 @@ SECTIONS = [
         "icon": "thermometer-half",
         "title": ("الطوارئ", "Emergency"),
         "lines": [
+            ("<b>«ادفع الأول وبعدين يتنفذ»</b> (من الإعدادات ← السياسات، مقفول "
+             "افتراضياً): للحالة اللي اتفرزت <b>غير عاجلة</b> بس — الطبيب بيكتب "
+             "عادي، والإعطاء والعمل مستنيين الخزنة لحد «اتدفع — يكمل». الحالة "
+             "العاجلة أو اللي لسه ما اتفرزتش <b>عمرها ما بتستنى</b>، وإعادة الفرز "
+             "عاجل بتشيل الانتظار فوراً (قرار 1063 لسنة 2014). «الحالات الحرجة — "
+             "أول 48 ساعة» من سجل الطوارئ: الحالات العاجلة واللي اتحاسب عليه في "
+             "أول 48 ساعة للمطالبة بيه.",
+             "<b>«Pay first, then it is done»</b> (Settings → Policies, off by "
+             "default): only for a child triaged <b>non-urgent</b> — the doctor "
+             "writes as always, and giving and doing wait for the desk's «Paid — "
+             "go ahead». An urgent or not-yet-triaged child <b>never waits</b>, "
+             "and re-triaging urgent lifts the wait at once (decree 1063 of "
+             "2014). «Urgent cases — first 48 hours» from the register: the "
+             "urgent attendances and what their first 48 hours were billed, to "
+             "be claimed."),
             ("<b>الشاشة بتجاوب على سؤال واحد: مين الأول.</b> لوحة الأسرّة "
              "بترسم المكان وبتقول مين فيه؛ الطوارئ بتتقرا بالعكس — الأسوأ "
              "فوق. والترتيب أربع حاجات بالترتيب ده: طفل محدش قاسه من ساعة ما "
@@ -1058,6 +1073,17 @@ SECTIONS = [
         "icon": "eyedropper",
         "title": ("المعمل", "The lab"),
         "lines": [
+            ("<b>القيم الحرجة</b>: حدودها لكل تحليل من شاشة نطاقاته، والنتيجة "
+             "اللي تعدّيها بتتعلّم لوحدها. النتيجة اللي ملهاش رقم (مزرعة إيجابية) "
+             "الفني يعلّمها حرجة بسبب مكتوب. وعلى الطلب «سجّل الإبلاغ»: اتبلّغ مين، "
+             "إزاي، وإمتى، وهل الطبيب كرّر القيمة. قايمة القيم الحرجة بتقول مين "
+             "اتبلّغ ومين لسه.",
+             "<b>Critical values</b>: each test's limits on its ranges screen, "
+             "and a result past them is flagged by itself. A result with no "
+             "number (a positive culture) the technician marks critical, with "
+             "the reason. On the order, «record the call»: who was told, how, "
+             "when, and whether the doctor read the value back. The critical "
+             "list says who was told and who not yet."),
             ("<b>الطلب والقراية كانوا موجودين، والنص الناقص هو اللي المستشفى "
              "بتعيش فيه.</b> الطلب من شاشة الكشف شغّال من زمان، والنتيجة "
              "بترجع للطبيب في صندوق النتايج، والمنحنى بيترسم من الرقم. اللي "
@@ -1143,6 +1169,24 @@ SECTIONS = [
         "icon": "radioactive",
         "title": ("الأشعة", "Radiology"),
         "lines": [
+            ("<b>صفحة الأشعة الخاصة بيها</b>: الأشعة بتتفتح على صفحة الأشعة (مش "
+             "صفحة المعمل)، وعليها التقرير — الوصف والانطباع — و<b>الجرعة والصبغة</b>: "
+             "الجرعة زي ما الجهاز طلّعها (DLP / CTDIvol / DAP / mSv / وقت الفلورو)، "
+             "والصبغة: اسمها وطريقتها وكميتها ورد فعل الطفل. قبل أي أشعة جديدة "
+             "الصفحة بتوري اللي الطفل اتعرّض له قبل كده، ورد الفعل السابق للصبغة "
+             "بالأحمر، وملف الطفل بيجمّع الجرعات (كل مقياس لوحده — ما بيتجمعوش "
+             "على بعض). الحد المرجعي لكل أشعة المستشفى بتحطّه في قايمة التحاليل "
+             "والأشعات، واللي فوقه بيظهر الأول في «مراجعة الجرعات والصبغة».",
+             "<b>Radiology's own page</b>: a scan opens on radiology's page (not "
+             "the lab's), with the report — findings and impression — and the "
+             "<b>dose and contrast</b>: the dose as the machine reported it "
+             "(DLP / CTDIvol / DAP / mSv / fluoroscopy time), and the contrast's "
+             "name, route, amount and the child's reaction. Before any new scan "
+             "the page shows what the child had before, and an earlier contrast "
+             "reaction in red; the child's file adds the doses up (each measure "
+             "on its own — never summed together). The hospital sets each scan's "
+             "reference level in the tests list, and scans above it come first "
+             "in «Dose and contrast review»."),
             ("<b>الأشعة مديول لوحدها، مش جزء من المعمل.</b> الأشعة العادية "
              "والبانوراما والمقطعية والرنين بتتعمل وبيتكتب تقريرها في غرفة "
              "الأشعة، ومش كل مكان فيه معمل فيه أشعة. أي عيادة كان المعمل "
