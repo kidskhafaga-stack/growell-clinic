@@ -72,6 +72,10 @@
 </form>
 {% endif %}
 
+{% if kind == 'lab' %}
+<p style="margin:0 0 14px;"><a class="btn btn-outline gc-press" data-to-referral-labs href="{{ url_for('labs.referral_labs') }}"><i class="bi bi-building"></i> {{ t('lab_sendout.labs_title') }}</a></p>
+{% endif %}
+
 {# **Why a tube is turned away** — the laboratory's acceptance criteria are
    its policy (GAHAR DAS.15 أ), so the list starts empty and is its own. #}
 {% if kind == 'lab' %}
@@ -273,6 +277,16 @@
       <input type="checkbox" name="in_house" value="1" data-in-house
              {{ 'checked' if row.in_house is not false else '' }}>
       {{ t('lab.in_house') }}</label>
+    {# Drawn here and sent by the lab to its referral laboratory (DAS.13). #}
+    {% if row.kind == 'lab' and referral_labs %}
+    <div class="form-row" style="margin-bottom:0;min-width:160px;" data-referral-lab>
+      <label>{{ t('lab_sendout.sent_to_label') }}</label>
+      <select class="select" name="referral_lab_id">
+        <option value="">{{ t('lab_sendout.not_sent') }}</option>
+        {% for l in referral_labs %}<option value="{{ l.id }}" {{ 'selected' if row.referral_lab_id == l.id else '' }}>{{ l.name }}</option>{% endfor %}
+      </select>
+    </div>
+    {% endif %}
     {# Filed under the wrong room? Moved here, with its open orders. #}
     <div class="form-row" style="margin-bottom:0;min-width:130px;" data-move-kind>
       <label>{{ t('lab.move_kind') }}</label>

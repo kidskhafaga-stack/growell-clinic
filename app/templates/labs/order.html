@@ -109,6 +109,34 @@
   </div>
   {% endif %}
 
+  {# ---- sent to a referral laboratory (GAHAR DAS.13 / DAS.15 د) ---- #}
+  {% if order.sent_at %}
+  <p style="margin:10px 0 0;" data-sent>
+    <i class="bi bi-truck"></i>
+    {{ t('lab_sendout.sent_line', lab=order.sent_lab.name if order.sent_lab else '—', when=order.sent_at|clinic_stamp, batch=order.sent_batch or '—') }}
+    {% if order.returned_at %} · <span class="badge badge--green" data-returned>{{ t('lab_sendout.back_at', when=order.returned_at|clinic_stamp) }}</span>
+    {% elif sent_late %} · <span class="badge badge--danger" data-sent-late>{{ t('lab_sendout.late') }}</span>{% endif %}
+    {% if order.sent_batch %} · <a href="{{ url_for('labs.send_batch', code=order.sent_batch) }}">{{ t('lab_sendout.manifest') }}</a>{% endif %}
+  </p>
+  {% if order.status != 'resulted' %}
+  <form method="post" action="{{ url_for('labs.recall', order_id=order.id) }}" style="margin:6px 0 0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-sm btn-outline gc-press" type="submit" data-recall>{{ t('lab_sendout.recall') }}</button>
+  </form>
+  {% endif %}
+  {% elif order.kind == 'lab' and order.status == 'collected' and referral_labs %}
+  <form method="post" action="{{ url_for('labs.send_out_post') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;" data-send-one>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="order_id" value="{{ order.id }}">
+    <input type="hidden" name="back_order" value="{{ order.id }}">
+    <div class="form-row" style="margin:0;min-width:200px;"><label for="send_lab">{{ t('lab_sendout.send_to') }}</label>
+      <select class="select" id="send_lab" name="lab_id">
+        {% for l in referral_labs %}<option value="{{ l.id }}" {{ 'selected' if order.investigation and order.investigation.referral_lab_id == l.id else '' }}>{{ l.name }}</option>{% endfor %}
+      </select></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-truck"></i> {{ t('lab_sendout.send') }}</button>
+  </form>
+  {% endif %}
+
   {# Tubes refused before this one — each kept with its number. #}
   {% if order.rejections %}
   <ul class="hint" style="margin:10px 0 0;padding-inline-start:18px;" data-refused-before>

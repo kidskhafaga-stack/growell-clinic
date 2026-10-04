@@ -63,6 +63,7 @@ def index():
                            reason_label=lab_reception.reason_label,
                            urgent_open=bench.urgent_count(bench.LAB),
                            to_release=_release().waiting_count(),
+                           sent_labs=bool(_sendout().laboratories()),
                            at_door=request.args.get("receive") == "1",
                            # Where the child is, when they are in a bed: the
                            # sample is drawn at the bed, not at the desk.
@@ -96,6 +97,8 @@ def order(order_id):
                            reasons=lab_reception.reasons(),
                            release_required=_release().required(),
                            may_release=_release().may_release(current_user),
+                           referral_labs=_sendout().laboratories(),
+                           sent_late=_sendout().late(row),
                            reason_label=lab_reception.reason_label,
                            lines=lines, late=lab_results.late(row),
                            age_days=lab_results.age_days(
@@ -348,6 +351,130 @@ def report():
     return render_template("labs/report.html", patient=patient, rows=rows,
                            required=lab_release.required(),
                            printed_at=local_now())
+
+
+# ------------------------------------------- sent to a referral laboratory --
+@labs_bp.route("/send-out")
+@module_required(MODULE)
+def send_out():
+    """Samples to send, and samples out — GAHAR DAS.13 / DAS.15 (د)."""
+    from app.utils import lab_sendout
+
+    rows = lab_sendout.to_send()
+    out = lab_sendout.out_now()
+    return render_template("labs/send_out.html", rows=rows, out=out,
+                           labs=lab_sendout.laboratories(),
+                           late=lab_sendout.late, now=datetime.utcnow(),
+                           beds=bench.beds_of(rows + out))
+
+
+@labs_bp.route("/send-out", methods=["POST"])
+@module_required(MODULE)
+def send_out_post():
+    """Send the ticked samples to one laboratory, on one numbered batch."""
+    from app.models import ActivityLog, ReferralLab
+    from app.utils import lab_sendout
+
+    ids = [int(x) for x in request.form.getlist("order_id") if x.isdigit()]
+    orders = [db.session.get(VisitInvestigation, i) for i in ids]
+    lab = db.session.get(ReferralLab, request.form.get("lab_id", type=int) or 0)
+    try:
+        code = lab_sendout.send(orders, lab, user=current_user)
+    except lab_sendout.SendError as err:
+        db.session.rollback()
+        flash(t(f"lab_sendout.err_{err}"), "error")
+        back = request.form.get("back_order", type=int)
+        return redirect(url_for("labs.order", order_id=back) if back
+                        else url_for("labs.send_out"))
+    ActivityLog.record("lab.sent_out", user_id=current_user.id,
+                       detail=f"{code} → {lab.name} ({len(orders)})"[:250])
+    db.session.commit()
+    flash(t("lab_sendout.sent", code=code, n=len(orders)), "success")
+    return redirect(url_for("labs.send_batch", code=code))
+
+
+@labs_bp.route("/send-out/batch/<code>")
+@module_required(MODULE)
+def send_batch(code):
+    """The batch's manifest — what goes in the box, to print and sign."""
+    from app.utils import lab_sendout
+    from app.utils.clock import local_now
+
+    rows = lab_sendout.batch(code)
+    if not rows:
+        abort(404)
+    return render_template("labs/send_batch.html", rows=rows, code=code,
+                           lab=rows[0].sent_lab, printed_at=local_now())
+
+
+@labs_bp.route("/order/<int:order_id>/recall", methods=["POST"])
+@module_required(MODULE)
+def recall(order_id):
+    """Marked sent by mistake — taken back before its result came."""
+    from app.utils import lab_sendout
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    try:
+        lab_sendout.recall(row)
+    except lab_sendout.SendError as err:
+        db.session.rollback()
+        flash(t(f"lab_sendout.err_{err}"), "error")
+        return redirect(url_for("labs.order", order_id=row.id))
+    db.session.commit()
+    flash(t("lab_sendout.recalled"), "success")
+    return redirect(url_for("labs.order", order_id=row.id))
+
+
+@labs_bp.route("/send-out/register")
+@module_required(MODULE)
+def send_register():
+    """What went where in a period, what came back, what is late, and the
+    turnaround each laboratory kept — the evaluation DAS.13 (ب) asks for."""
+    from datetime import timedelta
+
+    from app.utils import lab_sendout
+    from app.utils.clock import local_today
+
+    end = _day(request.args.get("to")) or local_today()
+    start = _day(request.args.get("from")) or (end - timedelta(days=30))
+    if start > end:
+        start, end = end, start
+    rows, per_lab = lab_sendout.register(start, end)
+    return render_template("labs/send_register.html", rows=rows, per_lab=per_lab,
+                           start=start, end=end, late=lab_sendout.late,
+                           now=datetime.utcnow())
+
+
+@labs_bp.route("/referral-labs")
+@module_required(MODULE)
+def referral_labs():
+    """The laboratories this one sends to, with their agreements."""
+    from app.utils import lab_sendout
+
+    return render_template("labs/referral_labs.html",
+                           labs=lab_sendout.laboratories(active_only=False),
+                           state=lab_sendout.agreement_state,
+                           may_build=current_user.is_admin)
+
+
+@labs_bp.route("/referral-labs", methods=["POST"])
+@labs_bp.route("/referral-labs/<int:lab_id>", methods=["POST"])
+@module_required(MODULE)
+def referral_lab_save(lab_id=None):
+    from app.models import ReferralLab
+    from app.utils import lab_sendout
+
+    _admin_only()
+    row = db.get_or_404(ReferralLab, lab_id) if lab_id else None
+    try:
+        lab_sendout.save_laboratory(request.form, row)
+    except lab_sendout.SendError as err:
+        db.session.rollback()
+        flash(t(f"lab_sendout.err_{err}"), "error")
+        return redirect(url_for("labs.referral_labs"))
+    db.session.commit()
+    flash(t("lab_sendout.lab_saved"), "success")
+    return redirect(url_for("labs.referral_labs"))
 
 
 @labs_bp.route("/rejections")
@@ -611,7 +738,14 @@ def tests():
         modalities=_radiation().MODALITIES, dose_measures=_radiation().measures(),
         radiation_base=_radiation().base_unit,
         reject_reasons=_reception().reasons() if kind == "lab" else [],
-        release_required=_release().required())
+        release_required=_release().required(),
+        referral_labs=_sendout().laboratories() if kind == "lab" else [])
+
+
+def _sendout():
+    from app.utils import lab_sendout
+
+    return lab_sendout
 
 
 def _release():
@@ -1117,6 +1251,12 @@ def edit_test(test_id):
     # search, because the *order* is written here whoever performs it. All
     # this decides is whether the order joins this building's own worklist.
     row.in_house = request.form.get("in_house") == "1"
+    if row.kind == "lab" and "referral_lab_id" in request.form:
+        from app.models import ReferralLab
+
+        wanted = request.form.get("referral_lab_id", type=int)
+        row.referral_lab_id = (wanted if wanted and db.session.get(ReferralLab, wanted)
+                               else None)
     _move_kind(row, request.form.get("move_kind"))
     db.session.commit()
     flash(t("lab.test_saved"), "success")

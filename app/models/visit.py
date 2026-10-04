@@ -451,6 +451,16 @@ class VisitInvestigation(db.Model):
     # again after it was verified is unverified until somebody looks again.
     verified_at = db.Column(db.DateTime)
     verified_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # DAS.13 دليل ٥ / DAS.15 (د): a sample drawn here and sent to a referral
+    # laboratory — where, when, by whom, on which batch, and when its result
+    # came back (`utils/lab_sendout`). Not `done_outside`: that is an order
+    # the family takes elsewhere and the bench never touches; this one the
+    # lab drew, labelled and shipped, and its result returns to the lab.
+    sent_lab_id = db.Column(db.Integer, db.ForeignKey("referral_labs.id"))
+    sent_at = db.Column(db.DateTime, index=True)
+    sent_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    sent_batch = db.Column(db.String(24), index=True)
+    returned_at = db.Column(db.DateTime)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -468,6 +478,8 @@ class VisitInvestigation(db.Model):
     exposure_writer = db.relationship("User", foreign_keys=[exposure_by])
     receiver = db.relationship("User", foreign_keys=[received_by])
     verifier = db.relationship("User", foreign_keys=[verified_by])
+    sent_lab = db.relationship("ReferralLab", foreign_keys=[sent_lab_id])
+    sender = db.relationship("User", foreign_keys=[sent_by])
     operation = db.relationship("Operation", backref="investigations",
                                 foreign_keys=[operation_id])
 

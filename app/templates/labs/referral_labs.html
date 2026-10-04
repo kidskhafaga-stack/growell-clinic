@@ -1,0 +1,48 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_sendout.labs_title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_sendout.labs_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR DAS.13 — the laboratories this one refers to: the accreditation as
+   stated, the turnaround the agreement promises, the date it runs to, and
+   the last evaluation. The signed agreement itself stays on paper. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-building"></i> {{ t('lab_sendout.labs_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lab_sendout.labs_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.send_out') }}"><i class="bi bi-truck"></i> {{ t('lab_sendout.title') }}</a>
+</div>
+
+{% macro fields(l) %}
+  <div class="form-row" style="margin:0;flex:2;min-width:180px;"><label>{{ t('lab_sendout.f_name') }}</label><input class="input" name="name" required maxlength="160" value="{{ l.name if l else '' }}"></div>
+  <div class="form-row" style="margin:0;flex:2;min-width:180px;"><label>{{ t('lab_sendout.f_accreditation') }}</label><input class="input" name="accreditation" maxlength="160" value="{{ (l.accreditation or '') if l else '' }}"></div>
+  <div class="form-row" style="margin:0;min-width:110px;"><label>{{ t('lab_sendout.f_tat') }}</label><input class="input" type="number" min="1" name="tat_days" dir="ltr" value="{{ (l.tat_days or '') if l else '' }}"></div>
+  <div class="form-row" style="margin:0;min-width:150px;"><label>{{ t('lab_sendout.f_until') }}</label><input class="input" type="date" name="agreement_until" value="{{ l.agreement_until.isoformat() if l and l.agreement_until else '' }}"></div>
+  <div class="form-row" style="margin:0;flex:1;min-width:160px;"><label>{{ t('lab_sendout.f_contact') }}</label><input class="input" name="contact" maxlength="160" value="{{ (l.contact or '') if l else '' }}"></div>
+  <div class="form-row" style="margin:0;min-width:150px;"><label>{{ t('lab_sendout.f_evaluated') }}</label><input class="input" type="date" name="evaluated_on" value="{{ l.evaluated_on.isoformat() if l and l.evaluated_on else '' }}"></div>
+  <div class="form-row" style="margin:0;flex:2;min-width:200px;"><label>{{ t('lab_sendout.f_evaluation') }}</label><input class="input" name="evaluation_note" maxlength="255" value="{{ (l.evaluation_note or '') if l else '' }}"></div>
+{% endmacro %}
+
+{% if not labs %}<div class="card gc-scale-in" style="margin-bottom:14px;"><p class="hint" style="margin:0;" data-no-referral-labs>{{ t('lab_sendout.no_labs') }}</p></div>{% endif %}
+{% for l in labs %}
+{% set st = state(l) %}
+<form method="post" action="{{ url_for('labs.referral_lab_save', lab_id=l.id) }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:10px;" data-referral-lab-row="{{ l.id }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {{ fields(l) }}
+  <label class="hint" style="margin:0;"><input type="hidden" name="is_active" value="0"><input type="checkbox" name="is_active" value="1" {{ 'checked' if l.is_active else '' }}> {{ t('lab.in_use') }}</label>
+  {% if st == 'lapsed' %}<span class="badge badge--danger" data-agreement="lapsed">{{ t('lab_sendout.agreement_lapsed') }}</span>
+  {% elif st == 'ending' %}<span class="badge badge--warn" data-agreement="ending">{{ t('lab_sendout.agreement_ending') }}</span>{% endif %}
+  {% if may_build %}<button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button>{% endif %}
+</form>
+{% endfor %}
+{% if may_build %}
+<form method="post" action="{{ url_for('labs.referral_lab_save') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;" data-referral-lab-new>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin:0;flex-basis:100%;">{{ t('lab_sendout.new_lab') }}</h2>
+  {{ fields(none) }}
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('lab_reception.add') }}</button>
+</form>
+{% endif %}
+{% endblock %}

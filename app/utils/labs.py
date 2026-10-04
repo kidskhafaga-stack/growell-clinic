@@ -190,6 +190,11 @@ def goes_outside(investigation, asked=None):
         return bool(asked)
     if investigation is None:
         return False
+    # A test the lab sends to its referral laboratory is drawn **here** —
+    # it is the lab's to draw and ship (GAHAR DAS.13), not the family's to
+    # take elsewhere.
+    if getattr(investigation, "referral_lab_id", None):
+        return False
     return investigation.in_house is False
 
 
@@ -385,6 +390,9 @@ def settle(row, user=None, at=None):
     # A result written again is a result nobody has released yet (GAHAR
     # DAS.20 ب): the release was of the words that were there before.
     row.verified_at = row.verified_by = None
+    # A sample sent out has come back when its result is written.
+    if getattr(row, "sent_at", None) is not None:
+        row.returned_at = (at or datetime.utcnow()) if row.has_result else None
     if row.has_result:
         row.status = RESULTED
         row.resulted_at = at or datetime.utcnow()

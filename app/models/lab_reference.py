@@ -299,3 +299,35 @@ class SampleRejection(db.Model):
 
     def __repr__(self):
         return f"<SampleRejection {self.order_id} {self.reason_key or self.reason_text}>"
+
+
+class ReferralLab(db.Model):
+    """A laboratory this one sends samples to — GAHAR DAS.13.
+
+    The standard asks for the agreement itself (scope, accreditation, sample
+    requirements, turnaround time, reporting, disputes, validity) as a signed
+    paper, and for the referral laboratory to be evaluated on its quality,
+    turnaround time and reporting. What the program holds is what is used
+    every day and what lapses: the name, the accreditation as stated, the
+    turnaround the agreement promises, the date the agreement runs to, and
+    the last evaluation — the turnaround it actually kept is measured from
+    the samples themselves (`utils/lab_sendout`).
+    """
+    __tablename__ = "referral_labs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(160), nullable=False)
+    accreditation = db.Column(db.String(160))
+    contact = db.Column(db.String(160))
+    # The turnaround the agreement promises, in days — and only that: a
+    # sample is called late against the laboratory's own word, never ours.
+    tat_days = db.Column(db.Integer)
+    agreement_until = db.Column(db.Date)
+    evaluated_on = db.Column(db.Date)
+    evaluation_note = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<ReferralLab {self.name}>"
+

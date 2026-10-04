@@ -896,6 +896,14 @@ ADDITIONS = [
     # switches verification on.
     ("visit_investigations", "verified_at", "DATETIME"),
     ("visit_investigations", "verified_by", "INTEGER"),
+    # GAHAR DAS.13/15 (د) — a sample sent to a referral laboratory, and the
+    # laboratory a test is sent to. Empty on everything already written.
+    ("visit_investigations", "sent_lab_id", "INTEGER"),
+    ("visit_investigations", "sent_at", "DATETIME"),
+    ("visit_investigations", "sent_by", "INTEGER"),
+    ("visit_investigations", "sent_batch", "VARCHAR(24)"),
+    ("visit_investigations", "returned_at", "DATETIME"),
+    ("investigations", "referral_lab_id", "INTEGER"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

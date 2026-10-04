@@ -467,6 +467,10 @@ class Investigation(db.Model):
     tat_max = db.Column(db.Integer)
     tat_stat_min = db.Column(db.Integer)
     tat_stat_max = db.Column(db.Integer)
+    # The referral laboratory this test is sent to (GAHAR DAS.13). Set, the
+    # test is drawn here and shipped by the lab — on the bench's worklist,
+    # not handed to the family (`labs.goes_outside`).
+    referral_lab_id = db.Column(db.Integer, db.ForeignKey("referral_labs.id"))
 
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name_ar

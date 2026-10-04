@@ -50,6 +50,12 @@
     <a class="btn btn-outline gc-press" data-to-verify href="{{ url_for('labs.to_verify') }}">
       <i class="bi bi-patch-check"></i> {{ t('lab_release.to_verify') }} <span class="badge badge--warn">{{ to_release }}</span></a>
     {% endif %}
+    {# Samples for a referral laboratory (GAHAR DAS.13). Always here once the
+       lab has one, so an empty list is seen to be empty. #}
+    {% if sent_labs %}
+    <a class="btn btn-outline gc-press" data-to-send-out href="{{ url_for('labs.send_out') }}">
+      <i class="bi bi-truck"></i> {{ t('lab_sendout.title') }}</a>
+    {% endif %}
     {# The refused tubes, a register of their own (GAHAR DAS.15). #}
     <a class="btn btn-outline gc-press" data-to-rejections href="{{ url_for('labs.rejections') }}">
       <i class="bi bi-x-octagon"></i> {{ t('lab_reception.register_title') }}</a>
@@ -114,6 +120,9 @@
     {% if row.status == 'collected' %}
     <span class="alert-pill ok" data-sample>
       <i class="bi bi-upc"></i> <span dir="ltr">{{ row.sample_code }}</span></span>
+    {% if row.sent_at %}
+    <span class="alert-pill warn" data-sent><i class="bi bi-truck"></i> {{ t('lab_sendout.sent_to', lab=row.sent_lab.name if row.sent_lab else '—') }}</span>
+    {% endif %}
     {% if row.received_at %}
     <span class="hint" data-received><i class="bi bi-box-arrow-in-down"></i> {{ t('lab_reception.received_at', when=row.received_at|clinic_stamp) }}</span>
     {% else %}
