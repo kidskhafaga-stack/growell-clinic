@@ -412,6 +412,9 @@ class VisitInvestigation(db.Model):
     critical_called_to = db.Column(db.String(120))
     critical_call_method = db.Column(db.String(12))
     critical_read_back = db.Column(db.Boolean)
+    # ICD.19 (ج-٦): «any difficulties encountered in notifications» — the
+    # doctor did not answer, was called three times, was in theatre.
+    critical_difficulty = db.Column(db.String(200))
     # **What a scan gave the child** — the dose the machine reported and the
     # contrast that went in (`utils/radiation`). Empty for everything else,
     # and for every scan recorded before this existed.

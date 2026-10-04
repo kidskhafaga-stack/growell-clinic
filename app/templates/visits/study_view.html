@@ -88,4 +88,13 @@
   <p style="white-space:pre-wrap;color:var(--muted);">{{ study.notes }}</p>{% endif %}
 </div>
 {% endif %}
+
+{# A critical finding on the study's order (GAHAR ICD.19 / GSR.03) — an
+   echo or an ECG can carry one too. Only when the study answers an order. #}
+{% if order %}
+<div id="critical" style="margin-top:16px;">
+{% set critical_back = 'study:' ~ study.id %}
+{% include "labs/_critical_box.html" %}
+</div>
+{% endif %}
 {% endblock %}

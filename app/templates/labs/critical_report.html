@@ -1,0 +1,63 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_critical.report_title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_critical.report_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ICD.19 دليل ٣ و٤ — every critical result in a period, each with
+   the six things its notification records, and the figures the hospital
+   monitors; told late only against the hospital's own timeframe. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-journal-text"></i> {{ t('lab_critical.report_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lab_critical.report_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.critical') }}"><i class="bi bi-exclamation-octagon"></i> {{ t('lab_result.critical_title') }}</a>
+</div>
+
+<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;">
+  <form method="get" action="{{ url_for('labs.critical_report') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;flex:2;min-width:280px;">
+    <div class="form-row" style="margin:0;"><label for="from">{{ t('lab_reception.from') }}</label><input class="input" type="date" id="from" name="from" value="{{ start.isoformat() }}"></div>
+    <div class="form-row" style="margin:0;"><label for="to">{{ t('lab_reception.to') }}</label><input class="input" type="date" id="to" name="to" value="{{ end.isoformat() }}"></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('lab_reception.show') }}</button>
+  </form>
+  <form method="post" action="{{ url_for('labs.critical_timeframe') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;flex:1;min-width:240px;" data-critical-timeframe>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;flex:1;"><label for="tf">{{ t('lab_critical.timeframe') }}</label>
+      <input class="input" type="number" min="1" id="tf" name="minutes" dir="ltr" value="{{ timeframe or '' }}" {{ '' if may_build else 'disabled' }} placeholder="{{ t('lab_critical.timeframe_none') }}"></div>
+    {% if may_build %}<button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>{% endif %}
+  </form>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;display:flex;gap:18px;flex-wrap:wrap;font-variant-numeric:tabular-nums;" data-critical-sums>
+  <span>{{ t('lab_critical.s_total') }}: <strong>{{ sums.total }}</strong></span>
+  <span>{{ t('lab_critical.s_called') }}: <strong>{{ sums.called }}</strong></span>
+  <span>{{ t('lab_critical.s_late') }}: <strong>{{ sums.late if timeframe else '—' }}</strong></span>
+  <span>{{ t('lab_critical.s_no_read_back') }}: <strong>{{ sums.no_read_back }}</strong></span>
+  <span>{{ t('lab_critical.s_difficulty') }}: <strong>{{ sums.difficulty }}</strong></span>
+  <span>{{ t('lab_critical.s_read') }}: <strong>{{ sums.read }}</strong></span>
+</div>
+
+{% if not rows %}<div class="card gc-scale-in"><p class="hint" style="margin:0;" data-none>{{ t('lab_critical.none_in_period') }}</p></div>{% else %}
+<div class="card gc-scale-in" style="overflow-x:auto;">
+  <table class="table" style="min-width:820px;">
+    <thead><tr><th>{{ t('lab_reception.col_when') }}</th><th>{{ t('lab_reception.col_test') }}</th><th>{{ t('lab_reception.col_patient') }}</th>
+      <th>{{ t('lab_critical.c_called') }}</th><th>{{ t('lab_critical.c_minutes') }}</th><th>{{ t('lab_critical.read_back') }}</th><th>{{ t('lab_critical.difficulty') }}</th><th>{{ t('lab_critical.c_read') }}</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr data-critical-report-row="{{ r.id }}">
+      <td>{{ r.critical_at|clinic_stamp }}</td>
+      <td>{{ r.display_name(current_lang) }}{% if r.kind != 'lab' %} <span class="badge badge--muted">{{ t('lab_critical.kind_' ~ r.kind) }}</span>{% endif %}</td>
+      <td>{{ r.patient.display_name(current_lang) }}</td>
+      <td>{% if r.critical_called_at %}{{ r.critical_called_to }} · {{ t('lab_critical.method_' ~ r.critical_call_method) }}{% if r.critical_caller %}<div class="hint">{{ r.critical_caller.display_name(current_lang) }}</div>{% endif %}{% else %}<span class="badge badge--danger">{{ t('lab_critical.not_called') }}</span>{% endif %}</td>
+      <td dir="ltr">{% set m = minutes(r) %}{{ m if m is not none else '—' }}{% if late(r) %} <span class="badge badge--danger">{{ t('lab_critical.call_late') }}</span>{% endif %}</td>
+      <td>{% if r.critical_called_at %}{{ t('lab_critical.read_back_yes') if r.critical_read_back else t('lab_critical.read_back_no') }}{% else %}—{% endif %}</td>
+      <td dir="auto">{{ r.critical_difficulty or '—' }}</td>
+      <td>{% if r.critical_seen_at %}{{ r.critical_reader.display_name(current_lang) if r.critical_reader else '' }} · {{ r.critical_seen_at|clinic_stamp }}{% else %}<span class="badge badge--warn">{{ t('lab_result.not_read_yet') }}</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

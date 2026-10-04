@@ -37,6 +37,46 @@ from app.utils.decorators import module_required
 MODULE = "labs"
 
 
+def _critical_door(view):
+    """Critical results belong to the rooms that answer an order — the lab,
+    radiology and the device studies — and to the doctors they are for
+    (GAHAR ICD.19). So the critical screens open, wherever the lab or the
+    radiology module is on, for whoever works in either and for any doctor.
+    With neither on they are not there at all, as before."""
+    from functools import wraps
+
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        from flask import current_app
+
+        if not current_user.is_authenticated:
+            return current_app.login_manager.unauthorized()
+        from app.utils import lab_critical
+
+        rooms = lab_critical.rooms_on()
+        if not rooms:
+            abort(404)
+        if not (any(current_user.can_access(m) for m in rooms)
+                or lab_results.reads_results(current_user)):
+            abort(403, description=t("auth.no_permission"))
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def _critical_back(row):
+    """Back to the page the critical box was on: the list, a film's page,
+    a device study's page, or the lab order."""
+    back = request.form.get("back") or ""
+    if back == "list":
+        return url_for("labs.critical")
+    if back == "imaging":
+        return url_for("imaging.order", order_id=row.id)
+    if back.startswith("study:") and back[6:].isdigit():
+        return url_for("visits.study_view", study_id=int(back[6:]))
+    return url_for("labs.order", order_id=row.id)
+
+
 @labs_bp.route("/")
 @module_required(MODULE)
 def index():
@@ -103,6 +143,7 @@ def order(order_id):
                            referral_labs=_sendout().laboratories(),
                            sent_late=_sendout().late(row),
                            was_late=_tat().was_late(row), took=_tat().minutes(row),
+                           critical_late=_critical().late_call(row),
                            reason_label=lab_reception.reason_label,
                            lines=lines, late=lab_results.late(row),
                            age_days=lab_results.age_days(
@@ -1036,20 +1077,23 @@ def _result_by_analyte(row):
 
 
 @labs_bp.route("/critical")
-@module_required(MODULE)
+@_critical_door
 def critical():
     """Critical values nobody has read yet — the lab's list to chase, and a
     doctor's own at the top."""
     rows = lab_results.all_waiting()
     mine = set(lab_results.critical_for(current_user))
     rows.sort(key=lambda r: (r.id not in mine, r.critical_at))
+    from app.utils import lab_critical
+
     return render_template("labs/critical.html", rows=rows, mine=mine,
                            beds=bench.beds_of(rows), now=datetime.utcnow(),
-                           may_read=lab_results.reads_results(current_user))
+                           may_read=lab_results.reads_results(current_user),
+                           late_call=lab_critical.late_call)
 
 
 @labs_bp.route("/order/<int:order_id>/critical-read", methods=["POST"])
-@module_required(MODULE)
+@_critical_door
 def critical_read(order_id):
     """A doctor has read the critical value on this order."""
     from app.models import ActivityLog
@@ -1061,18 +1105,16 @@ def critical_read(order_id):
         abort(403, description=t("lab_result.only_a_doctor"))
     except ValueError:
         flash(t("lab_result.nothing_critical"), "error")
-        return redirect(url_for("labs.order", order_id=row.id))
+        return redirect(_critical_back(row))
     ActivityLog.record("lab.critical_read", user_id=current_user.id,
                        entity="visit_investigation", entity_id=row.id)
     db.session.commit()
     flash(t("lab_result.read_saved"), "success")
-    if request.form.get("back") == "list":
-        return redirect(url_for("labs.critical"))
-    return redirect(url_for("labs.order", order_id=row.id))
+    return redirect(_critical_back(row))
 
 
 @labs_bp.route("/order/<int:order_id>/critical-mark", methods=["POST"])
-@module_required(MODULE)
+@_critical_door
 def critical_mark(order_id):
     """The technician says this result is critical — one with no number to
     cross a limit (`utils/lab_critical`)."""
@@ -1085,29 +1127,29 @@ def critical_mark(order_id):
     except lab_critical.CriticalError as err:
         db.session.rollback()
         flash(t(f"lab_critical.err_{err}"), "error")
-        return redirect(url_for("labs.order", order_id=row.id))
+        return redirect(_critical_back(row))
     ActivityLog.record("lab.critical_mark", user_id=current_user.id,
                        entity="visit_investigation", entity_id=row.id,
                        detail=row.critical_manual)
     db.session.commit()
     flash(t("lab_critical.marked"), "warning")
-    return redirect(url_for("labs.order", order_id=row.id))
+    return redirect(_critical_back(row))
 
 
 @labs_bp.route("/order/<int:order_id>/critical-call", methods=["POST"])
-@module_required(MODULE)
+@_critical_door
 def critical_call(order_id):
     """The lab told a doctor: whom, how, and whether it was read back."""
     from app.models import ActivityLog
     from app.utils import lab_critical
 
     row = db.get_or_404(VisitInvestigation, order_id)
-    back = (url_for("labs.critical") if request.form.get("back") == "list"
-            else url_for("labs.order", order_id=row.id))
+    back = _critical_back(row)
     try:
         lab_critical.call(row, request.form.get("called_to"),
                           request.form.get("method"),
-                          request.form.get("read_back") == "1", current_user)
+                          request.form.get("read_back") == "1", current_user,
+                          difficulty=request.form.get("difficulty"))
     except lab_critical.CriticalError as err:
         db.session.rollback()
         flash(t(f"lab_critical.err_{err}"), "error")
@@ -1118,6 +1160,44 @@ def critical_call(order_id):
     db.session.commit()
     flash(t("lab_critical.called"), "success")
     return redirect(back)
+
+
+@labs_bp.route("/critical/report")
+@_critical_door
+def critical_report():
+    """Every critical result in a period — told, in time, read back, the
+    difficulties, read by a doctor: what the hospital monitors (ICD.19 دليل ٤)."""
+    from datetime import timedelta
+
+    from app.utils import lab_critical
+    from app.utils.clock import local_today
+
+    end = _day(request.args.get("to")) or local_today()
+    start = _day(request.args.get("from")) or (end - timedelta(days=30))
+    if start > end:
+        start, end = end, start
+    rows, sums = lab_critical.report(start, end)
+    return render_template("labs/critical_report.html", rows=rows, sums=sums,
+                           start=start, end=end, timeframe=lab_critical.timeframe(),
+                           late=lab_critical.late_call,
+                           minutes=lab_critical.minutes_to_call,
+                           may_build=current_user.is_admin)
+
+
+@labs_bp.route("/critical/timeframe", methods=["POST"])
+@_critical_door
+def critical_timeframe():
+    """The hospital's minutes from a critical result to telling a doctor."""
+    from app.models import ActivityLog, Setting
+    from app.utils import lab_critical
+
+    _admin_only()
+    raw = (request.form.get("minutes") or "").strip()
+    Setting.set(lab_critical.TIMEFRAME_SETTING, raw if raw.isdigit() and int(raw) > 0 else "")
+    ActivityLog.record("lab.critical_timeframe", user_id=current_user.id, detail=raw[:10])
+    db.session.commit()
+    flash(t("lab_critical.timeframe_saved"), "success")
+    return redirect(url_for("labs.critical_report"))
 
 
 # ------------------------------------------------------------- the tests ---
@@ -1198,6 +1278,12 @@ def _reagents():
     from app.utils import lab_reagents
 
     return lab_reagents
+
+
+def _critical():
+    from app.utils import lab_critical
+
+    return lab_critical
 
 
 def _tat():
