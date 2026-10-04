@@ -65,6 +65,7 @@ def index():
                            to_release=_release().waiting_count(),
                            sent_labs=bool(_sendout().laboratories()),
                            expired_lots=_reagents().expired_on_shelf(),
+                           qc_failures=_quality().failed_without_action(),
                            at_door=request.args.get("receive") == "1",
                            # Where the child is, when they are in a bed: the
                            # sample is drawn at the bed, not at the desk.
@@ -604,6 +605,184 @@ def reagent_act(lot_id, action):
     return redirect(url_for("labs.reagents"))
 
 
+# --------------------------------------------------------- quality control --
+@labs_bp.route("/quality")
+@module_required(MODULE)
+def quality():
+    """Internal quality control: the controls, the rules, the monthly
+    review (GAHAR DAS.18) — and the door to external quality (DAS.19)."""
+    from app.models import LabAnalyte, QcMaterial
+    from app.utils import lab_quality
+
+    materials = QcMaterial.query.order_by(QcMaterial.is_active.desc(),
+                                          QcMaterial.name).all()
+    return render_template("labs/quality.html", materials=materials,
+                           analytes=LabAnalyte.query.order_by(LabAnalyte.name).all(),
+                           rules=lab_quality.RULES, chosen=lab_quality.chosen_rules(),
+                           months=lab_quality.months(),
+                           may_review=lab_quality.may_review(current_user),
+                           may_build=current_user.is_admin,
+                           open_failures=lab_quality.failed_without_action())
+
+
+@labs_bp.route("/quality/materials", methods=["POST"])
+@module_required(MODULE)
+def qc_material_add():
+    from app.utils import lab_quality
+
+    if not lab_quality.may_review(current_user):
+        abort(403, description=t("auth.no_permission"))
+    try:
+        row = lab_quality.save_material(request.form)
+    except lab_quality.QualityError as err:
+        db.session.rollback()
+        flash(t(f"lab_quality.err_{err}"), "error")
+        return redirect(url_for("labs.quality"))
+    db.session.commit()
+    flash(t("lab_quality.material_saved"), "success")
+    return redirect(url_for("labs.qc_material", material_id=row.id))
+
+
+@labs_bp.route("/quality/material/<int:material_id>")
+@module_required(MODULE)
+def qc_material(material_id):
+    """One control: its Levey-Jennings chart, its runs, and the box for
+    today's value."""
+    from app.models import QcMaterial
+    from app.utils import lab_quality
+
+    row = db.get_or_404(QcMaterial, material_id)
+    return render_template("labs/qc_material.html", material=row,
+                           points=lab_quality.chart(row),
+                           runs=list(reversed(row.runs))[:60],
+                           chosen=lab_quality.chosen_rules(),
+                           z=lab_quality.z)
+
+
+@labs_bp.route("/quality/material/<int:material_id>/run", methods=["POST"])
+@module_required(MODULE)
+def qc_run(material_id):
+    from app.models import QcMaterial
+    from app.utils import lab_quality
+
+    row = db.get_or_404(QcMaterial, material_id)
+    try:
+        run = lab_quality.record_run(row, request.form.get("value"), user=current_user,
+                                     accepted=request.form.get("accepted") != "0",
+                                     action=request.form.get("action"))
+    except lab_quality.QualityError as err:
+        db.session.rollback()
+        flash(t(f"lab_quality.err_{err}"), "error")
+        return redirect(url_for("labs.qc_material", material_id=row.id))
+    db.session.commit()
+    flash(t("lab_quality.run_ok") if run.accepted else t("lab_quality.run_failed"),
+          "success" if run.accepted else "warning")
+    return redirect(url_for("labs.qc_material", material_id=row.id))
+
+
+@labs_bp.route("/quality/run/<int:run_id>/action", methods=["POST"])
+@module_required(MODULE)
+def qc_action(run_id):
+    from app.models import QcRun
+    from app.utils import lab_quality
+
+    run = db.get_or_404(QcRun, run_id)
+    try:
+        lab_quality.add_action(run, request.form.get("action"))
+    except lab_quality.QualityError as err:
+        db.session.rollback()
+        flash(t(f"lab_quality.err_{err}"), "error")
+        return redirect(url_for("labs.qc_material", material_id=run.material_id))
+    db.session.commit()
+    flash(t("lab_quality.action_saved"), "success")
+    return redirect(url_for("labs.qc_material", material_id=run.material_id))
+
+
+@labs_bp.route("/quality/rules", methods=["POST"])
+@module_required(MODULE)
+def qc_rules():
+    """Which rules reject a control run — the laboratory's policy."""
+    from app.models import ActivityLog
+    from app.utils import lab_quality
+
+    _admin_only()
+    lab_quality.set_rules(request.form.getlist("rule"))
+    ActivityLog.record("lab.qc_rules", user_id=current_user.id,
+                       detail=",".join(lab_quality.chosen_rules()))
+    db.session.commit()
+    flash(t("lab_quality.rules_saved"), "success")
+    return redirect(url_for("labs.quality"))
+
+
+@labs_bp.route("/quality/review", methods=["POST"])
+@module_required(MODULE)
+def qc_review():
+    """A month of control data reviewed by somebody authorized."""
+    from app.utils import lab_quality
+
+    try:
+        lab_quality.review(request.form.get("month"), current_user,
+                           note=request.form.get("note"))
+    except lab_quality.QualityError as err:
+        db.session.rollback()
+        flash(t(f"lab_quality.err_{err}"), "error")
+        return redirect(url_for("labs.quality"))
+    db.session.commit()
+    flash(t("lab_quality.reviewed"), "success")
+    return redirect(url_for("labs.quality"))
+
+
+@labs_bp.route("/eqa")
+@module_required(MODULE)
+def eqa():
+    """External quality rounds and inter-laboratory comparisons (DAS.19)."""
+    from app.utils import lab_quality
+
+    return render_template("labs/eqa.html", rounds=lab_quality.rounds(),
+                           outcomes=lab_quality.EQA_OUTCOMES,
+                           may_review=lab_quality.may_review(current_user))
+
+
+@labs_bp.route("/eqa", methods=["POST"])
+@labs_bp.route("/eqa/<int:round_id>", methods=["POST"])
+@module_required(MODULE)
+def eqa_save(round_id=None):
+    from app.models import EqaRound
+    from app.utils import lab_quality
+
+    row = db.get_or_404(EqaRound, round_id) if round_id else None
+    try:
+        lab_quality.save_round(request.form, user=current_user, row=row)
+    except lab_quality.QualityError as err:
+        db.session.rollback()
+        flash(t(f"lab_quality.err_{err}"), "error")
+        return redirect(url_for("labs.eqa"))
+    db.session.commit()
+    flash(t("lab_quality.round_saved"), "success")
+    return redirect(url_for("labs.eqa"))
+
+
+@labs_bp.route("/eqa/<int:round_id>/grade", methods=["POST"])
+@module_required(MODULE)
+def eqa_grade(round_id):
+    from app.models import EqaRound
+    from app.utils import lab_quality
+
+    row = db.get_or_404(EqaRound, round_id)
+    try:
+        lab_quality.grade_round(row, request.form.get("outcome"),
+                                note=request.form.get("grade_note"),
+                                remedial=request.form.get("remedial_action"),
+                                user=current_user)
+    except lab_quality.QualityError as err:
+        db.session.rollback()
+        flash(t(f"lab_quality.err_{err}"), "error")
+        return redirect(url_for("labs.eqa"))
+    db.session.commit()
+    flash(t("lab_quality.graded"), "success")
+    return redirect(url_for("labs.eqa"))
+
+
 @labs_bp.route("/rejections")
 @module_required(MODULE)
 def rejections():
@@ -867,6 +1046,12 @@ def tests():
         reject_reasons=_reception().reasons() if kind == "lab" else [],
         release_required=_release().required(),
         referral_labs=_sendout().laboratories() if kind == "lab" else [])
+
+
+def _quality():
+    from app.utils import lab_quality
+
+    return lab_quality
 
 
 def _reagents():
