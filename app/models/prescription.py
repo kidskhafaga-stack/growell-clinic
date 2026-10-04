@@ -417,6 +417,7 @@ class Investigation(db.Model):
     modality = db.Column(db.String(10))
     dose_ref_kind = db.Column(db.String(10))
     dose_ref_value = db.Column(db.Float)
+    dose_ref_unit = db.Column(db.String(12))
 
     # The unit this test is reported in, so nobody types "%" beside every
     # HbA1c for the rest of the clinic's life. A unit is a fact about the

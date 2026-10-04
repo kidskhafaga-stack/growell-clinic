@@ -378,7 +378,8 @@ def tests():
         services=(Service.query.filter(Service.is_active.is_(True))
                   .order_by(Service.name).all()),
         devices=_devices() if kind == "diagnostic" else [],
-        modalities=_radiation().MODALITIES, dose_kinds=_radiation().DOSE_KINDS)
+        modalities=_radiation().MODALITIES, dose_measures=_radiation().measures(),
+        radiation_base=_radiation().base_unit)
 
 
 def _move_kind(row, kind):
@@ -857,11 +858,11 @@ def edit_test(test_id):
         modality = (request.form.get("modality") or "").strip()
         row.modality = modality if modality in radiation.MODALITIES else None
         ref = request.form.get("dose_ref_value", type=float)
-        kind = (request.form.get("dose_ref_kind") or "").strip()
-        if ref and ref > 0 and kind in radiation.DOSE_KINDS:
-            row.dose_ref_value, row.dose_ref_kind = ref, kind
+        kind, unit = radiation.parse_measure(request.form.get("dose_ref_measure"))
+        if ref and ref > 0 and kind:
+            row.dose_ref_value, row.dose_ref_kind, row.dose_ref_unit = ref, kind, unit
         else:
-            row.dose_ref_value = row.dose_ref_kind = None
+            row.dose_ref_value = row.dose_ref_kind = row.dose_ref_unit = None
     # Cleared on purpose when the box is empty: a clinic that stops charging
     # for a test has to be able to say so, and an empty select means nobody
     # rather than "leave it as it was".

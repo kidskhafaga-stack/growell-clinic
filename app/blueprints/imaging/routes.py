@@ -186,3 +186,23 @@ def doses():
                            over=sum(1 for r in rows if radiation.over_reference(r)),
                            reactions=sum(1 for r in rows if r.contrast_reaction
                                          in ("mild", "moderate", "severe")))
+
+
+@imaging_bp.route("/dose-units", methods=["POST"])
+@module_required(MODULE)
+def dose_units():
+    """The units this hospital's machines print each measure in."""
+    from flask import abort
+
+    from app.models import Setting
+    from app.utils import radiation
+
+    if not current_user.is_admin:
+        abort(403)
+    for kind, units in radiation.MEASURES.items():
+        unit = (request.form.get(f"unit_{kind}") or "").strip()
+        if unit in units:
+            Setting.set(f"dose_unit:{kind}", unit)
+    db.session.commit()
+    flash(t("radiation.units_saved"), "success")
+    return redirect(url_for("imaging.doses"))

@@ -40,7 +40,7 @@
         <td dir="ltr">{{ (r.performed_at or r.created_at)|clinic_stamp }}</td>
         <td><a href="{{ url_for('patients.view', patient_id=r.patient_id) }}">{{ r.patient.display_name(current_lang) }}</a></td>
         <td><a href="{{ url_for('imaging.order', order_id=r.id) }}">{{ r.name }}</a></td>
-        <td>{% if r.dose_value is not none %}<span dir="ltr">{{ r.dose_value }} {{ t('radiation.unit_' ~ r.dose_kind) }}</span>
+        <td>{% if r.dose_value is not none %}<span dir="ltr">{{ t('radiation.kind_' ~ r.dose_kind) }} {{ r.dose_value }} {{ t('radiation.u_' ~ (r.dose_unit or radiation.base_unit(r.dose_kind))) }}</span>
           {% if above %}<span class="badge badge--danger">{{ t('radiation.above_reference') }}</span>{% endif %}{% else %}—{% endif %}</td>
         <td>{% if r.contrast_agent %}<span dir="auto">{{ r.contrast_agent }}</span>
           {% if r.contrast_reaction in ('mild', 'moderate', 'severe') %}<span class="badge badge--danger">{{ t('radiation.reaction_' ~ r.contrast_reaction) }}</span>{% endif %}{% else %}—{% endif %}</td>
@@ -53,4 +53,24 @@
   <p class="hint" style="margin:0;">{{ t('radiation.nothing_in_period') }}</p>
   {% endif %}
 </div>
+
+{# The units this hospital's machines print each measure in — the form
+   offers them first and the totals are shown in them. The factors between
+   units are the units' own (`utils/radiation.MEASURES`). #}
+{% if current_user.is_admin %}
+<details class="card gc-scale-in" style="margin-top:14px;" data-dose-units>
+  <summary class="section-title" style="cursor:pointer;margin:0;"><i class="bi bi-rulers"></i> {{ t('radiation.units_title') }}</summary>
+  <p class="hint">{{ t('radiation.units_hint') }}</p>
+  <form method="post" action="{{ url_for('imaging.dose_units') }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for kind, units in radiation.MEASURES.items() %}{% if units|length > 1 %}
+    <div class="form-row" style="margin:0;min-width:150px;"><label>{{ t('radiation.kind_' ~ kind) }}</label>
+      <select class="select" name="unit_{{ kind }}">
+        {% for u in units %}<option value="{{ u }}" {{ 'selected' if radiation.default_unit(kind) == u else '' }}>{{ t('radiation.u_' ~ u) }}</option>{% endfor %}
+      </select></div>
+    {% endif %}{% endfor %}
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+{% endif %}
 {% endblock %}

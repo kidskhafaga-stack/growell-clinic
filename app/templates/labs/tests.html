@@ -199,9 +199,9 @@
       <div style="display:flex;gap:4px;">
         <input class="input" type="number" step="0.001" min="0" name="dose_ref_value" dir="ltr" style="width:90px;"
                value="{{ row.dose_ref_value if row.dose_ref_value is not none else '' }}">
-        <select class="select" name="dose_ref_kind" style="min-width:90px;">
+        <select class="select" name="dose_ref_measure" style="min-width:150px;">
           <option value="">—</option>
-          {% for k in dose_kinds %}<option value="{{ k }}" {{ 'selected' if row.dose_ref_kind == k else '' }}>{{ t('radiation.unit_' ~ k) }}</option>{% endfor %}
+          {% for k, u in dose_measures %}<option value="{{ k }}:{{ u }}" {{ 'selected' if row.dose_ref_kind == k and (row.dose_ref_unit or radiation_base(k)) == u else '' }}>{{ t('radiation.kind_' ~ k) }} — {{ t('radiation.u_' ~ u) }}</option>{% endfor %}
         </select>
       </div>
     </div>

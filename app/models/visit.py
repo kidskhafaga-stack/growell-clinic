@@ -417,6 +417,8 @@ class VisitInvestigation(db.Model):
     # and for every scan recorded before this existed.
     dose_kind = db.Column(db.String(10))
     dose_value = db.Column(db.Float)
+    # The unit the machine printed it in (`utils/radiation.MEASURES`).
+    dose_unit = db.Column(db.String(12))
     contrast_agent = db.Column(db.String(80))
     contrast_route = db.Column(db.String(10))
     contrast_ml = db.Column(db.Float)

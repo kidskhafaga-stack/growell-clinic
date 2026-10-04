@@ -1490,7 +1490,7 @@
         <h4 style="margin:0 0 6px;"><i class="bi bi-radioactive"></i> {{ t('radiation.file_title') }}</h4>
         <p style="margin:0 0 4px;">{{ t('radiation.before_counts', n=exposure.ionising, recent=exposure.recent, months=exposure.months, contrast=exposure.contrast) }}</p>
         {% if exposure.totals %}<p style="margin:0 0 4px;">{{ t('radiation.all_totals') }}:
-          {% for kind, value in exposure.totals.items() %}<span class="badge badge--muted" dir="ltr">{{ value|round(2) }} {{ t('radiation.unit_' ~ kind) }}</span> {% endfor %}</p>{% endif %}
+          {% for kind, pair in exposure.totals.items() %}<span class="badge badge--muted" dir="ltr">{{ t('radiation.kind_' ~ kind) }} {{ pair[0] }} {{ t('radiation.u_' ~ pair[1]) }}</span> {% endfor %}</p>{% endif %}
         {% for r in exposure.reactions %}
         <p style="margin:4px 0 0;color:var(--danger);" data-file-reaction><i class="bi bi-exclamation-octagon"></i>
           {{ t('radiation.prior_reaction') }}: <span dir="auto">{{ r.contrast_agent }}</span> · {{ t('radiation.reaction_' ~ r.contrast_reaction) }}

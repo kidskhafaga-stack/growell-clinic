@@ -16,10 +16,19 @@ written in one report that the next room never read. So:
   reference level), and a scan above it is listed for review.
 
 **Every number is the machine's or the hospital's.** The program records,
-adds up and compares; it does not estimate a dose, set a reference level, or
-convert one measure into another. The measures are kept apart and never
-added across each other — a CT's dose-length product and a film's
-dose-area product are different quantities.
+adds up and compares; it does not estimate a dose or set a reference level.
+The measures are kept apart and never added across each other — a CT's
+dose-length product and a film's dose-area product are different
+quantities.
+
+**And every machine's unit.** The program is sold to more than one place,
+and machines print the same measure in different units — a DAP meter may
+say Gy·cm², dGy·cm², cGy·cm², mGy·cm² or µGy·m². So a dose is kept in the
+unit it was read in, and turned into one unit per measure only to add and
+compare — by the fixed factors of the units themselves (1 µGy·m² is 10
+mGy·cm²), never a clinical figure. Each hospital names the unit its own
+machines print (`default_unit`), and that is what the form offers first and
+the totals are shown in.
 """
 from datetime import datetime, timedelta
 
@@ -29,10 +38,73 @@ from app.extensions import db
 MODALITIES = ("xray", "ct", "fluoro", "mri", "us", "nuclear", "other")
 #: The ones that give the child ionising radiation.
 IONISING = frozenset({"xray", "ct", "fluoro", "nuclear"})
-#: The dose measures a machine reports, each in its own unit (the label says
-#: which). Kept apart: they are not the same quantity and are never summed
-#: together.
-DOSE_KINDS = ("dlp", "ctdi", "dap", "msv", "fluoro_s")
+#: The dose measures a machine reports. Kept apart: they are not the same
+#: quantity and are never summed together. For each, the units machines print
+#: it in, with the exact factor that turns one into the measure's base unit
+#: (the first). Physics, not medicine: 1 Gy = 1000 mGy, 1 m² = 10 000 cm²,
+#: 1 mCi = 37 MBq.
+MEASURES = {
+    "dlp": {"mgycm": 1.0, "gycm": 1000.0},
+    "ctdi": {"mgy": 1.0},
+    "dap": {"mgycm2": 1.0, "gycm2": 1000.0, "dgycm2": 100.0, "cgycm2": 10.0,
+            "ugym2": 10.0, "ugycm2": 0.001, "mgym2": 10000.0},
+    "kar": {"mgy": 1.0, "gy": 1000.0, "ugy": 0.001},
+    "esak": {"mgy": 1.0, "ugy": 0.001},
+    "msv": {"msv": 1.0, "usv": 0.001},
+    "fluoro_time": {"s": 1.0, "min": 60.0},
+    "activity": {"mbq": 1.0, "gbq": 1000.0, "mci": 37.0},
+}
+DOSE_KINDS = tuple(MEASURES)
+#: Every unit any measure is printed in (for the labels).
+UNITS = tuple(dict.fromkeys(u for units in MEASURES.values() for u in units))
+
+
+def base_unit(kind):
+    return next(iter(MEASURES[kind])) if kind in MEASURES else None
+
+
+def default_unit(kind):
+    """The unit this hospital's machines print ``kind`` in — set once on the
+    dose review screen; the measure's base unit until then."""
+    from app.models import Setting
+
+    if kind not in MEASURES:
+        return None
+    chosen = (Setting.get(f"dose_unit:{kind}") or "").strip()
+    return chosen if chosen in MEASURES[kind] else base_unit(kind)
+
+
+def to_base(value, kind, unit=None):
+    """``value`` in ``unit`` as the measure's base unit. A row written
+    before units were kept is in the base unit."""
+    if value is None or kind not in MEASURES:
+        return None
+    factor = MEASURES[kind].get(unit or base_unit(kind))
+    return None if factor is None else value * factor
+
+
+def from_base(value, kind, unit):
+    factor = MEASURES.get(kind, {}).get(unit)
+    return None if value is None or not factor else value / factor
+
+
+def measures():
+    """``[(kind, unit)]`` for the form's one select — each measure in each
+    unit, this hospital's unit first."""
+    out = []
+    for kind, units in MEASURES.items():
+        first = default_unit(kind)
+        out.append((kind, first))
+        out += [(kind, u) for u in units if u != first]
+    return out
+
+
+def parse_measure(raw):
+    """``"dap:ugym2"`` → ``("dap", "ugym2")``, or ``(None, None)``."""
+    kind, _, unit = (raw or "").partition(":")
+    if kind in MEASURES and unit in MEASURES[kind]:
+        return kind, unit
+    return None, None
 CONTRAST_ROUTES = ("iv", "oral", "rectal", "other")
 REACTIONS = ("none", "mild", "moderate", "severe")
 
@@ -52,11 +124,15 @@ def has_exposure(order):
 
 def over_reference(order):
     """Whether this scan's dose passed the hospital's reference level for
-    the test, in the same measure."""
+    the test, in the same measure — compared in its base unit, whatever unit
+    each was written in."""
     inv = getattr(order, "investigation", None)
-    return bool(inv is not None and inv.dose_ref_value and order.dose_value is not None
-                and order.dose_kind == inv.dose_ref_kind
-                and order.dose_value > inv.dose_ref_value)
+    if not (inv is not None and inv.dose_ref_value and order.dose_value is not None
+            and order.dose_kind == inv.dose_ref_kind):
+        return False
+    mine = to_base(order.dose_value, order.dose_kind, order.dose_unit)
+    ref = to_base(inv.dose_ref_value, inv.dose_ref_kind, inv.dose_ref_unit)
+    return bool(mine is not None and ref is not None and mine > ref + 1e-9)
 
 
 def _number(raw, low=0.0):
@@ -78,8 +154,8 @@ def save(order, form, user=None):
     if order is None or order.kind != "imaging":
         raise ExposureError("not_a_scan")
     dose = _number(form.get("dose_value"))
-    kind = (form.get("dose_kind") or "").strip() or None
-    if dose is not None and kind not in DOSE_KINDS:
+    kind, unit = parse_measure(form.get("dose_measure"))
+    if dose is not None and kind is None:
         raise ExposureError("dose_needs_kind")
     agent = (form.get("contrast_agent") or "").strip()[:80] or None
     route = (form.get("contrast_route") or "").strip() or None
@@ -93,6 +169,7 @@ def save(order, form, user=None):
         raise ExposureError("bad_reaction")
     order.dose_value = dose
     order.dose_kind = kind if dose is not None else None
+    order.dose_unit = unit if dose is not None else None
     order.contrast_agent = agent
     order.contrast_route = route if agent else None
     order.contrast_ml = ml if agent else None
@@ -126,15 +203,25 @@ def summary(patient_id, exclude_id=None, months=12):
     reactions}`` for the child's file and the next scan's screen."""
     rows = history(patient_id, exclude_id)
     since = datetime.utcnow() - timedelta(days=round(months * 30.4))
-    totals, recent_totals = {}, {}
+    base, recent_base = {}, {}
     for r in rows:
-        if r.dose_value is None or r.dose_kind not in DOSE_KINDS:
+        value = to_base(r.dose_value, r.dose_kind, r.dose_unit)
+        if value is None:
             continue
-        totals[r.dose_kind] = round(totals.get(r.dose_kind, 0) + r.dose_value, 3)
+        base[r.dose_kind] = base.get(r.dose_kind, 0) + value
         when = r.performed_at or r.created_at
         if when and when >= since:
-            recent_totals[r.dose_kind] = round(recent_totals.get(r.dose_kind, 0)
-                                               + r.dose_value, 3)
+            recent_base[r.dose_kind] = recent_base.get(r.dose_kind, 0) + value
+
+    def shown(sums):
+        """Each measure's total in the hospital's own unit for it."""
+        out = {}
+        for kind, value in sums.items():
+            unit = default_unit(kind)
+            out[kind] = (round(from_base(value, kind, unit), 3), unit)
+        return out
+
+    totals, recent_totals = shown(base), shown(recent_base)
     ion = [r for r in rows if ionising(r)]
     return {
         "rows": rows,

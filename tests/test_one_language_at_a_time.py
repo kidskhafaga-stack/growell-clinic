@@ -120,8 +120,7 @@ def test_the_arabic_file_is_actually_in_arabic():
         # hospitals too; an Arabic rendering would match nothing on the
         # screen the radiographer is copying from (`utils/radiation`).
         "radiation.kind_dlp", "radiation.kind_ctdi", "radiation.kind_dap",
-        "radiation.unit_dlp", "radiation.unit_ctdi", "radiation.unit_dap",
-        "radiation.unit_msv",
+        "radiation.u_mgycm", "radiation.u_gycm", "radiation.u_mgy", "radiation.u_gy", "radiation.u_ugy", "radiation.u_mgycm2", "radiation.u_gycm2", "radiation.u_dgycm2", "radiation.u_cgycm2", "radiation.u_ugym2", "radiation.u_ugycm2", "radiation.u_mgym2", "radiation.u_msv", "radiation.u_usv", "radiation.u_mbq", "radiation.u_gbq", "radiation.u_mci",
     }
     english = []
     for key, value in _flat(_locale("ar")):

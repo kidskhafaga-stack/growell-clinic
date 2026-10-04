@@ -844,6 +844,8 @@ ADDITIONS = [
     ("investigations", "modality", "VARCHAR(10)"),
     ("investigations", "dose_ref_kind", "VARCHAR(10)"),
     ("investigations", "dose_ref_value", "FLOAT"),
+    ("investigations", "dose_ref_unit", "VARCHAR(12)"),
+    ("visit_investigations", "dose_unit", "VARCHAR(12)"),
     # «Paid, go ahead» on a non-urgent emergency child (`utils/er_pay_first`).
     ("emergency_visits", "pay_cleared_at", "DATETIME"),
     ("emergency_visits", "pay_cleared_by", "INTEGER"),

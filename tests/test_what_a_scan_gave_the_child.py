@@ -92,7 +92,7 @@ def test_the_scan_is_reported_on_radiologys_page(xray):
 # --------------------------------------------------- dose and contrast --
 def test_the_dose_and_the_contrast_are_kept_and_the_reference_flagged(xray):
     order = _order(xray)
-    _expose(xray, order, dose_value="420", dose_kind="dlp", contrast_agent="Omnipaque",
+    _expose(xray, order, dose_value="420", dose_measure="dlp:mgycm", contrast_agent="Omnipaque",
             contrast_route="iv", contrast_ml="12", contrast_reaction="mild",
             contrast_note="طفح بسيط")
     row = _get(xray, order)
@@ -112,7 +112,7 @@ def test_the_dose_and_the_contrast_are_kept_and_the_reference_flagged(xray):
 @pytest.mark.parametrize("form,why", [
     ({"dose_value": "100"}, "dose with no measure"),
     ({"contrast_ml": "10"}, "contrast amount with no agent"),
-    ({"dose_value": "-3", "dose_kind": "dlp"}, "a negative dose"),
+    ({"dose_value": "-3", "dose_measure": "dlp:mgycm"}, "a negative dose"),
 ])
 def test_a_figure_that_cannot_be_kept_is_refused(xray, form, why):
     order = _order(xray)
@@ -123,10 +123,10 @@ def test_a_figure_that_cannot_be_kept_is_refused(xray, form, why):
 
 def test_the_next_scan_sees_what_came_before_and_the_reaction_in_red(xray):
     first = _order(xray, days_ago=40)
-    _expose(xray, first, dose_value="200", dose_kind="dlp", contrast_agent="Omnipaque",
+    _expose(xray, first, dose_value="200", dose_measure="dlp:mgycm", contrast_agent="Omnipaque",
             contrast_route="iv", contrast_reaction="moderate")
     second = _order(xray)
-    _expose(xray, second, dose_value="1.5", dose_kind="msv")
+    _expose(xray, second, dose_value="1.5", dose_measure="msv:msv")
     third = _order(xray)
     page = xray["sign_in"]("boss").get(f"/imaging/order/{third}").get_data(as_text=True)
     assert "data-prior-reaction" in page
@@ -135,7 +135,7 @@ def test_the_next_scan_sees_what_came_before_and_the_reaction_in_red(xray):
     with xray["app"].app_context():
         found = radiation.summary(xray["ids"]["child"], exclude_id=third)
         # Two measures, never added together.
-        assert found["totals"] == {"dlp": 200.0, "msv": 1.5}
+        assert found["totals"] == {"dlp": (200.0, "mgycm"), "msv": (1.5, "msv")}
         assert found["contrast"] == 1 and len(found["reactions"]) == 1
     profile = xray["sign_in"]("boss").get(f"/patients/{xray['ids']['child']}").get_data(as_text=True)
     assert "data-exposure-card" in profile and "data-file-reaction" in profile
@@ -143,9 +143,9 @@ def test_the_next_scan_sees_what_came_before_and_the_reaction_in_red(xray):
 
 def test_the_review_lists_the_ones_above_reference_first(xray):
     under = _order(xray)
-    _expose(xray, under, dose_value="100", dose_kind="dlp")
+    _expose(xray, under, dose_value="100", dose_measure="dlp:mgycm")
     over = _order(xray)
-    _expose(xray, over, dose_value="500", dose_kind="dlp")
+    _expose(xray, over, dose_value="500", dose_measure="dlp:mgycm")
     page = xray["sign_in"]("boss").get("/imaging/doses").get_data(as_text=True)
     assert page.index('data-dose-row="over"') < page.index('data-dose-row="ok"')
     assert "data-to-doses" in xray["sign_in"]("boss").get("/imaging/").get_data(as_text=True)
@@ -158,10 +158,11 @@ def test_the_test_list_sets_the_machine_and_the_reference(xray):
     assert "data-modality-pick" in boss.get("/labs/tests?kind=imaging").get_data(as_text=True)
     boss.post(f"/labs/tests/{xray['ids']['ct']}", data={
         "name_ar": "مقطعية مخ", "is_active": "1", "in_house": "1",
-        "modality": "fluoro", "dose_ref_value": "250", "dose_ref_kind": "dap"})
+        "modality": "fluoro", "dose_ref_value": "250", "dose_ref_measure": "dap:gycm2"})
     with xray["app"].app_context():
         row = xray["db"].session.get(Investigation, xray["ids"]["ct"])
-        assert (row.modality, row.dose_ref_value, row.dose_ref_kind) == ("fluoro", 250.0, "dap")
+        assert (row.modality, row.dose_ref_value, row.dose_ref_kind, row.dose_ref_unit) == (
+            "fluoro", 250.0, "dap", "gycm2")
     boss.post(f"/labs/tests/{xray['ids']['ct']}", data={
         "name_ar": "مقطعية مخ", "is_active": "1", "in_house": "1", "modality": "fluoro"})
     with xray["app"].app_context():
@@ -223,3 +224,55 @@ def test_a_device_study_names_the_doctor_who_did_it(xray):
                     "study_date": datetime.utcnow().strftime("%Y-%m-%d")})
     with xray["app"].app_context():
         assert DeviceStudy.query.one().performed_by == xray["ids"]["doctor"]
+
+
+# ------------------------------------------------------ every machine's unit --
+def test_a_dose_in_any_units_is_added_and_compared_by_the_units_own_factors(xray):
+    """«مش هيتباع لجهة واحدة فقط فا كل مكان ليه طريقة واجهزة» — a DAP meter
+    may print µGy·m² in one hospital and Gy·cm² in the next. Each figure is
+    kept in its own unit, and added and compared in one."""
+    from app.models import Investigation, Setting, VisitInvestigation
+    from app.utils import radiation
+
+    with xray["app"].app_context():
+        db = xray["db"]
+        ct = db.session.get(Investigation, xray["ids"]["ct"])
+        # The reference level typed in mGy·cm²; the readings in other units.
+        ct.dose_ref_kind, ct.dose_ref_value, ct.dose_ref_unit = "dap", 500, "mgycm2"
+        db.session.commit()
+    low = _order(xray)
+    _expose(xray, low, dose_value="40", dose_measure="dap:ugym2")      # 400 mGy·cm²
+    high = _order(xray)
+    _expose(xray, high, dose_value="0.6", dose_measure="dap:gycm2")    # 600 mGy·cm²
+    with xray["app"].app_context():
+        db = xray["db"]
+        assert db.session.get(VisitInvestigation, low).dose_unit == "ugym2"
+        assert radiation.over_reference(db.session.get(VisitInvestigation, low)) is False
+        assert radiation.over_reference(db.session.get(VisitInvestigation, high)) is True
+        assert radiation.summary(xray["ids"]["child"])["totals"] == {"dap": (1000.0, "mgycm2")}
+        # The hospital whose machines print Gy·cm² sees the total in it.
+        Setting.set("dose_unit:dap", "gycm2")
+        db.session.commit()
+        assert radiation.summary(xray["ids"]["child"])["totals"] == {"dap": (1.0, "gycm2")}
+        assert radiation.measures()[[k for k, _u in radiation.measures()].index("dap")] == ("dap", "gycm2")
+
+
+def test_the_factors_are_the_units_own():
+    from app.utils import radiation
+
+    assert radiation.to_base(1, "dap", "ugym2") == 10.0
+    assert radiation.to_base(1, "dap", "mgym2") == 10000.0
+    assert radiation.to_base(2, "activity", "mci") == 74.0
+    assert radiation.to_base(3, "fluoro_time", "min") == 180.0
+    assert radiation.to_base(5, "dlp", None) == 5.0, "a row from before units read as base"
+
+
+def test_the_hospital_names_its_machines_units(xray):
+    from app.models import Setting
+
+    boss = xray["sign_in"]("boss")
+    assert "data-dose-units" in boss.get("/imaging/doses").get_data(as_text=True)
+    boss.post("/imaging/dose-units", data={"unit_dap": "ugym2", "unit_dlp": "nonsense"})
+    with xray["app"].app_context():
+        assert Setting.get("dose_unit:dap") == "ugym2"
+        assert not Setting.get("dose_unit:dlp")
