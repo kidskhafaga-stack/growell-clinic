@@ -445,6 +445,12 @@ class VisitInvestigation(db.Model):
     received_at = db.Column(db.DateTime)
     received_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     received_note = db.Column(db.String(200))
+    # DAS.20 (ب) and (أ-٨): the result reviewed and released by an authorized
+    # member of the laboratory, and who that was. Asked for only where the
+    # hospital switches verification on (`utils/lab_release`); a result typed
+    # again after it was verified is unverified until somebody looks again.
+    verified_at = db.Column(db.DateTime)
+    verified_by = db.Column(db.Integer, db.ForeignKey("users.id"))
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -461,6 +467,7 @@ class VisitInvestigation(db.Model):
     critical_caller = db.relationship("User", foreign_keys=[critical_called_by])
     exposure_writer = db.relationship("User", foreign_keys=[exposure_by])
     receiver = db.relationship("User", foreign_keys=[received_by])
+    verifier = db.relationship("User", foreign_keys=[verified_by])
     operation = db.relationship("Operation", backref="investigations",
                                 foreign_keys=[operation_id])
 
@@ -506,6 +513,14 @@ class VisitInvestigation(db.Model):
         if self.has_result:
             return "resulted"
         return "arrived" if self.files else "requested"
+
+    @property
+    def awaiting_verification(self):
+        """A lab result written and not yet released, where the hospital asks
+        for release — ``False`` everywhere else (`utils/lab_release`)."""
+        from app.utils import lab_release
+
+        return lab_release.awaiting(self)
 
     @property
     def arrived_at(self):

@@ -4470,7 +4470,8 @@
     "treasury_adjust": "Write off counting differences",
     "messages_setup": "Customer-service setup",
     "complaints_manage": "Handle complaints",
-    "duty_manager": "Manager on duty (approves files on hold)"
+    "duty_manager": "Manager on duty (approves files on hold)",
+    "lab_release": "Release lab results"
   },
   "survey": {
     "title": "Survey builder",
@@ -10041,5 +10042,33 @@
     "err_need_reason": "Write the reason.",
     "err_need_told": "Write who was told to redraw.",
     "err_not_a_reason": "That reason is not on the list."
+  },
+  "lab_release": {
+    "not_verified": "Not verified yet",
+    "verify": "Verify result",
+    "verified": "Result verified.",
+    "verified_line": "Verified by {who} — {when}",
+    "needs_authorized": "Needs someone allowed to release lab results",
+    "to_verify": "Results to verify",
+    "list_sub": "Results written and waiting for review and release by an authorized person, oldest first.",
+    "off_sub": "Result release is off in this lab — a result is final once written.",
+    "none_waiting": "No results waiting for release.",
+    "setting": "Results are verified before they are final",
+    "setting_hint": "The lab's policy. When on, each result stays visible to the doctor marked «not verified yet» until someone allowed to release it does, and the printed report says «preliminary». Critical values are told at once as before.",
+    "setting_saved": "Setting saved.",
+    "print_report": "Print lab report",
+    "report_short": "Report",
+    "report_title": "Laboratory report",
+    "printed_at": "Printed",
+    "preliminary": "Preliminary — not verified",
+    "ordered_by": "Ordering doctor",
+    "specimen": "Specimen",
+    "collected": "Collected",
+    "received": "Received at the lab",
+    "reported": "Reported",
+    "comment": "Comment",
+    "err_not_lab": "This is not a lab order.",
+    "err_no_result": "This order has no result yet.",
+    "err_not_allowed": "Releasing results needs the «release lab results» permission."
   }
 }

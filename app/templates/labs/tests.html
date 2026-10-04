@@ -58,6 +58,20 @@
   <p class="hint" style="margin:0;flex-basis:100%;">{{ t('lab_stock.store_hint') }}</p>
 </form>
 
+{# **Releasing results** (GAHAR DAS.20 ب) — the laboratory's policy: off,
+   and results are final as written; on, each waits for somebody holding
+   «lab_release» and says so wherever it is shown. #}
+{% if kind == 'lab' %}
+<form method="post" action="{{ url_for('labs.verify_setting') }}" class="card gc-scale-in" id="verify-setting" data-verify-setting
+      style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label style="display:flex;gap:8px;align-items:center;margin:0;flex:1;min-width:240px;">
+    <input type="checkbox" name="required" value="1" {{ 'checked' if release_required else '' }}>
+    <span><strong>{{ t('lab_release.setting') }}</strong><br><span class="hint" style="margin:0;">{{ t('lab_release.setting_hint') }}</span></span></label>
+  <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+</form>
+{% endif %}
+
 {# **Why a tube is turned away** — the laboratory's acceptance criteria are
    its policy (GAHAR DAS.15 أ), so the list starts empty and is its own. #}
 {% if kind == 'lab' %}

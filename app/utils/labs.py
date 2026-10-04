@@ -382,6 +382,9 @@ def settle(row, user=None, at=None):
     where the sample is. Shared by `record` and by the analyte-by-analyte
     result (`utils/lab_results.save`), so the two cannot disagree about when
     an order is finished."""
+    # A result written again is a result nobody has released yet (GAHAR
+    # DAS.20 ب): the release was of the words that were there before.
+    row.verified_at = row.verified_by = None
     if row.has_result:
         row.status = RESULTED
         row.resulted_at = at or datetime.utcnow()

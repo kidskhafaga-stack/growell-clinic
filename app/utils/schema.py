@@ -891,6 +891,11 @@ ADDITIONS = [
     ("visit_investigations", "received_at", "DATETIME"),
     ("visit_investigations", "received_by", "INTEGER"),
     ("visit_investigations", "received_note", "VARCHAR(200)"),
+    # GAHAR DAS.20 — who reviewed and released a lab result, and when. Empty
+    # on every result already written, and asked for only where the hospital
+    # switches verification on.
+    ("visit_investigations", "verified_at", "DATETIME"),
+    ("visit_investigations", "verified_by", "INTEGER"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

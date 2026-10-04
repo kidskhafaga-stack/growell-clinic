@@ -62,6 +62,7 @@ def index():
                            refused=lab_reception.last_rejections(rows),
                            reason_label=lab_reception.reason_label,
                            urgent_open=bench.urgent_count(bench.LAB),
+                           to_release=_release().waiting_count(),
                            at_door=request.args.get("receive") == "1",
                            # Where the child is, when they are in a bed: the
                            # sample is drawn at the bed, not at the desk.
@@ -93,6 +94,8 @@ def order(order_id):
 
     return render_template("labs/order.html", order=row, bench=bench,
                            reasons=lab_reception.reasons(),
+                           release_required=_release().required(),
+                           may_release=_release().may_release(current_user),
                            reason_label=lab_reception.reason_label,
                            lines=lines, late=lab_results.late(row),
                            age_days=lab_results.age_days(
@@ -263,6 +266,88 @@ def reject(order_id):
     db.session.commit()
     flash(t("lab_reception.rejected"), "warning")
     return redirect(url_for("labs.order", order_id=row.id))
+
+
+@labs_bp.route("/order/<int:order_id>/verify", methods=["POST"])
+@module_required(MODULE)
+def verify(order_id):
+    """Release a result — by whoever the hospital authorized (GAHAR DAS.20 ب)."""
+    from app.models import ActivityLog
+    from app.utils import lab_release
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    back = (url_for("labs.to_verify") if request.form.get("back") == "list"
+            else url_for("labs.order", order_id=row.id))
+    try:
+        lab_release.verify(row, current_user)
+    except lab_release.ReleaseError as err:
+        db.session.rollback()
+        flash(t(f"lab_release.err_{err}"), "error")
+        return redirect(back)
+    ActivityLog.record("lab.verified", user_id=current_user.id,
+                       entity="visit_investigation", entity_id=row.id)
+    db.session.commit()
+    flash(t("lab_release.verified"), "success")
+    return redirect(back)
+
+
+@labs_bp.route("/verify")
+@module_required(MODULE)
+def to_verify():
+    """Results written and waiting for release, oldest first."""
+    from app.utils import lab_release
+
+    return render_template("labs/verify.html", rows=lab_release.waiting(),
+                           required=lab_release.required(),
+                           may_release=lab_release.may_release(current_user),
+                           beds=bench.beds_of(lab_release.waiting()))
+
+
+@labs_bp.route("/verify-setting", methods=["POST"])
+@module_required(MODULE)
+def verify_setting():
+    """Switch result release on or off — the laboratory's policy."""
+    from app.models import ActivityLog, Setting
+    from app.utils import lab_release
+
+    if not current_user.is_admin:
+        abort(403)
+    on = request.form.get("required") == "1"
+    Setting.set(lab_release.SETTING, "1" if on else "0")
+    ActivityLog.record("lab.verify_setting", user_id=current_user.id,
+                       detail="on" if on else "off")
+    db.session.commit()
+    flash(t("lab_release.setting_saved"), "success")
+    return redirect(url_for("labs.tests") + "#verify-setting")
+
+
+@labs_bp.route("/report")
+def report():
+    """The laboratory's final report for one child — GAHAR DAS.20 (أ):
+    the laboratory, the child, each test with its specimen, collection and
+    reporting times, the values against their reference, the ordering
+    doctor, the person who released it, and the comment.
+
+    Read by the lab and by whoever treats the child, so it asks for either
+    the lab module or the medical record, not the lab alone."""
+    from app.utils import lab_release
+    from app.utils.clock import local_now
+    from app.utils.privacy import can_see_visit
+
+    if not current_user.is_authenticated:
+        from flask import current_app
+        return current_app.login_manager.unauthorized()
+    if not (current_user.can_access(MODULE) or current_user.can("patient_medical")):
+        abort(403, description=t("auth.no_permission"))
+    ids = [int(x) for x in (request.args.get("ids") or "").split(",")
+           if x.strip().isdigit()]
+    patient, rows = lab_release.report_rows(ids)
+    rows = [r for r in rows if r.visit is None or can_see_visit(r.visit)]
+    if not rows:
+        abort(404)
+    return render_template("labs/report.html", patient=patient, rows=rows,
+                           required=lab_release.required(),
+                           printed_at=local_now())
 
 
 @labs_bp.route("/rejections")
@@ -525,7 +610,14 @@ def tests():
         devices=_devices() if kind == "diagnostic" else [],
         modalities=_radiation().MODALITIES, dose_measures=_radiation().measures(),
         radiation_base=_radiation().base_unit,
-        reject_reasons=_reception().reasons() if kind == "lab" else [])
+        reject_reasons=_reception().reasons() if kind == "lab" else [],
+        release_required=_release().required())
+
+
+def _release():
+    from app.utils import lab_release
+
+    return lab_release
 
 
 def _reception():

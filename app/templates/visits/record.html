@@ -1104,7 +1104,8 @@
         {{ inv_files.files_block(x, linkable_files) }}
         {# Answered by the lab line by line. Empty on every clinic's order —
            only the lab module writes these — so nothing here changes there. #}
-        {% if x.analytes_resulted %}{{ lab_values.table(x) }}{% endif %}
+        {% if x.analytes_resulted %}{{ lab_values.table(x) }}{% else %}{{ lab_values.unverified(x) }}{% endif %}
+        {{ lab_values.report_link(x) }}
         <details style="margin-top:8px;" {{ 'open' if x.has_result else '' }}>
           <summary style="cursor:pointer;color:var(--green-800);font-size:0.9rem;"><i class="bi bi-pencil-square"></i> {{ t('visits.inv_result') }}</summary>
           <form method="post" action="{{ url_for('visits.result_investigation', inv_id=x.id) }}" style="margin-top:8px;">
