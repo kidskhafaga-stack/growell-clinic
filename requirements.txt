@@ -24,4 +24,10 @@ rcpchgrowth==4.5.0
 tzdata==2025.2
 # Ed25519, for checking the signature on a licence file. Verification only —
 # nothing in this repository can sign one, and the key that can is not in it.
-cryptography==46.0.3
+# 50.0.2 closes the seven advisories on 46.0.3. From 49 on there is no 32-bit
+# Windows wheel, and without one pip tries to compile it and the update stops;
+# so a 32-bit machine stays on 48.0.1, the newest with that wheel. What is
+# still open on 48.0.1 is certificate chains and PKCS#7, and the licence check
+# uses neither — one Ed25519 signature, nothing else.
+cryptography==50.0.2; platform_machine != "x86"
+cryptography==48.0.1; platform_machine == "x86"
