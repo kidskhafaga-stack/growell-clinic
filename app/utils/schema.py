@@ -913,6 +913,9 @@ ADDITIONS = [
     # GAHAR DAS.24 — the point-of-care meter a bedside reading was taken on.
     # Empty on every reading already charted.
     ("observations", "poct_device_id", "INTEGER"),
+    # GAHAR ICD.19 (ج-٦) — difficulties met telling a doctor of a critical
+    # result. Empty on every call already recorded.
+    ("visit_investigations", "critical_difficulty", "VARCHAR(200)"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

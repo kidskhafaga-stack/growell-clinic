@@ -10,6 +10,7 @@
     <h1 class="page-title"><i class="bi bi-exclamation-octagon"></i> {{ t('lab_result.critical_title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('lab_result.critical_sub') }}</p>
   </div>
+  <a class="btn btn-outline gc-press" data-to-critical-report href="{{ url_for('labs.critical_report') }}"><i class="bi bi-journal-text"></i> {{ t('lab_critical.report_title') }}</a>
   <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}">
     <i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
 </div>
@@ -22,7 +23,10 @@
      data-critical-row="{{ row.id }}"{% if row.id in mine %} data-mine{% endif %}>
   <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:8px;">
     <div>
-      <strong><a href="{{ url_for('labs.order', order_id=row.id) }}">{{ row.display_name(current_lang) }}</a></strong>
+      {% set where = url_for('imaging.order', order_id=row.id) if row.kind == 'imaging' else url_for('labs.order', order_id=row.id) %}
+      <strong><a href="{{ where }}">{{ row.display_name(current_lang) }}</a></strong>
+      {% if row.kind != 'lab' %}<span class="badge badge--muted" data-critical-kind="{{ row.kind }}">{{ t('lab_critical.kind_' ~ row.kind) }}</span>{% endif %}
+      {% if late_call(row, now) %}<span class="badge badge--danger" data-call-late>{{ t('lab_critical.call_late') }}</span>{% endif %}
       {% if row.id in mine %}<span class="badge badge--danger">{{ t('lab_result.for_you') }}</span>{% endif %}
       <div class="hint" style="margin:2px 0 0;">
         <a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">{{ row.patient.display_name(current_lang) }}</a>
@@ -36,7 +40,7 @@
         <span class="badge badge--green" data-called><i class="bi bi-telephone-outbound"></i>
           {{ t('lab_critical.called_short', who=row.critical_called_to, when=row.critical_called_at|clinic_stamp) }}</span>
         {% else %}
-        <a class="badge badge--danger" href="{{ url_for('labs.order', order_id=row.id) }}#critical" data-not-called>
+        <a class="badge badge--danger" href="{{ where }}#critical" data-not-called>
           <i class="bi bi-telephone-x"></i> {{ t('lab_critical.not_called') }}</a>
         {% endif %}
         {% if row.critical_manual %}<span class="badge badge--muted">{{ t('lab_critical.marked_by_lab') }}</span>{% endif %}
@@ -51,7 +55,9 @@
     </form>
     {% endif %}
   </div>
-  {{ lv.table(row) }}
+  {% if row.analytes_resulted %}{{ lv.table(row) }}
+  {% else %}<p style="margin:0;white-space:pre-line;" dir="auto">{% if row.result_value is not none %}<strong dir="ltr">{{ '%g'|format(row.result_value) }} {{ row.result_unit or '' }}</strong> {% endif %}{{ row.result_comment or row.result_text or '' }}</p>{% endif %}
+  {% if row.critical_manual %}<p class="hint" style="margin:6px 0 0;" dir="auto">{{ row.critical_manual }}</p>{% endif %}
 </div>
 {% endfor %}
 {% endblock %}

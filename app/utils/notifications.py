@@ -422,7 +422,10 @@ def get_notifications(user):
     try:
         from app.utils.facility import module_enabled
 
-        if module_enabled("labs") and user.can_access("labs"):
+        # A film or a device study can be critical too (ICD.19), so the bell
+        # rings wherever any of the three rooms is on — `critical_for` only
+        # ever answers for somebody a result is for.
+        if any(module_enabled(m) for m in ("labs", "imaging")):
             from app.utils.lab_results import critical_for
 
             critical = critical_for(user)

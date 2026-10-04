@@ -121,10 +121,16 @@ def order(order_id):
     from app.utils import radiation
 
     row = _scan(order_id)
+    from app.utils import lab_critical, lab_results
+
     return render_template(
         "imaging/order.html", order=row, bench=bench, radiation=radiation,
         before=radiation.summary(row.patient_id, exclude_id=row.id),
-        over=radiation.over_reference(row), ionising=radiation.ionising(row))
+        over=radiation.over_reference(row), ionising=radiation.ionising(row),
+        # The critical box (`labs/_critical_box.html`).
+        may_read=lab_results.reads_results(current_user),
+        doctors=lab_critical.doctor_names(),
+        critical_late=lab_critical.late_call(row))
 
 
 @imaging_bp.route("/order/<int:order_id>/report", methods=["POST"])

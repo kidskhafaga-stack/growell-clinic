@@ -134,4 +134,12 @@
       {% if order.resulted_at %}<span class="hint">{{ order.resulted_at|clinic_stamp }}</span>{% endif %}</div>
   </form>
 </div>
+
+{# ---- a critical finding (GAHAR ICD.19 / GSR.03) ----------------------
+   A film can carry a critical finding as surely as a potassium can: marked
+   with the reason, told to a doctor with the read-back, read by them. #}
+<div id="critical" style="margin-top:14px;">
+{% set critical_back = 'imaging' %}
+{% include "labs/_critical_box.html" %}
+</div>
 {% endblock %}

@@ -2323,9 +2323,19 @@ def study_view(study_id):
     from app.models import DeviceStudy
     from app.utils.spirometry import analyse
 
+    from app.models import VisitInvestigation
+    from app.utils import lab_critical, lab_results
+
     study = db.get_or_404(DeviceStudy, study_id)
+    # The critical box only where the critical screens exist — a clinic
+    # with neither a lab nor a radiology module sees the study as before.
+    order = (db.session.get(VisitInvestigation, study.order_id)
+             if study.order_id and lab_critical.rooms_on() else None)
     return render_template("visits/study_view.html", study=study,
-                           spiro=analyse(study))
+                           spiro=analyse(study), order=order,
+                           may_read=lab_results.reads_results(current_user),
+                           doctors=lab_critical.doctor_names() if order else [],
+                           critical_late=lab_critical.late_call(order) if order else None)
 
 
 @visits_bp.route("/studies/<int:study_id>/print")

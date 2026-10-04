@@ -149,66 +149,7 @@
 </div>
 
 {# ---- a critical value -------------------------------------------------- #}
-{% if order.critical_at %}
-<div class="card gc-scale-in" style="margin-bottom:14px;border:2px solid var(--danger);" data-critical-box>
-  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
-    <div>
-      <strong style="color:var(--danger);"><i class="bi bi-exclamation-octagon"></i> {{ t('lab_result.critical_banner') }}</strong>
-      <div class="hint" style="margin:4px 0 0;">{{ order.critical_at|clinic_stamp }}
-      {% if order.critical_seen_at %}
-        · <span data-critical-read>{{ t('lab_result.read_by', who=order.critical_reader.display_name(current_lang) if order.critical_reader else '—', when=order.critical_seen_at|clinic_stamp) }}</span>
-      {% else %}
-        · <span data-critical-unread>{{ t('lab_result.not_read_yet') }}</span>
-      {% endif %}</div>
-    </div>
-    {% if not order.critical_seen_at and may_read %}
-    <form method="post" action="{{ url_for('labs.critical_read', order_id=order.id) }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-primary gc-press" type="submit" data-critical-read-btn>
-        <i class="bi bi-check2-circle"></i> {{ t('lab_result.i_read_it') }}</button>
-    </form>
-    {% endif %}
-  </div>
-  {% if order.critical_manual %}
-  <p class="hint" style="margin:8px 0 0;" data-critical-manual><i class="bi bi-pencil"></i> {{ t('lab_critical.marked_by_lab') }}: <span dir="auto">{{ order.critical_manual }}</span></p>
-  {% endif %}
-  {# The lab's call to the doctor — whom, how, when, and the read-back. #}
-  {% if order.critical_called_at %}
-  <p style="margin:8px 0 0;" data-critical-called>
-    <i class="bi bi-telephone-outbound"></i>
-    {{ t('lab_critical.called_line', who=order.critical_called_to, how=t('lab_critical.method_' ~ order.critical_call_method), when=order.critical_called_at|clinic_stamp, by=order.critical_caller.display_name(current_lang) if order.critical_caller else '—') }}
-    · {% if order.critical_read_back %}<span class="badge badge--green">{{ t('lab_critical.read_back_yes') }}</span>{% else %}<span class="badge badge--danger">{{ t('lab_critical.read_back_no') }}</span>{% endif %}</p>
-  {% endif %}
-  <form method="post" action="{{ url_for('labs.critical_call', order_id=order.id) }}"
-        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;border-top:1px solid var(--line);padding-top:10px;" data-critical-call>
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label>{{ t('lab_critical.called_to') }}</label>
-      <input class="input" name="called_to" list="critical-doctors" required maxlength="120"
-             value="{{ order.critical_called_to or '' }}"></div>
-    <datalist id="critical-doctors">{% for name in doctors %}<option value="{{ name }}">{% endfor %}</datalist>
-    <div class="form-row" style="margin:0;min-width:130px;"><label>{{ t('lab_critical.method') }}</label>
-      <select class="select" name="method">
-        {% for m in ['phone', 'in_person', 'message'] %}<option value="{{ m }}" {{ 'selected' if order.critical_call_method == m else '' }}>{{ t('lab_critical.method_' ~ m) }}</option>{% endfor %}
-      </select></div>
-    <label style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
-      <input type="checkbox" name="read_back" value="1" {{ 'checked' if order.critical_read_back else '' }}> {{ t('lab_critical.read_back') }}</label>
-    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-telephone-outbound"></i> {{ t('lab_critical.save_call') }}</button>
-  </form>
-</div>
-{% elif order.kind == 'lab' and (order.result_text or order.result_value is not none or order.analytes_resulted) %}
-{# A result no number calls critical, that the technician knows is — a
-   positive culture. Said by hand, with the reason. #}
-<details class="card gc-scale-in" style="margin-bottom:14px;" data-critical-mark>
-  <summary style="cursor:pointer;color:var(--danger);"><i class="bi bi-exclamation-octagon"></i> {{ t('lab_critical.mark_title') }}</summary>
-  <form method="post" action="{{ url_for('labs.critical_mark', order_id=order.id) }}"
-        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="form-row" style="margin:0;flex:1;min-width:220px;"><label>{{ t('lab_critical.reason') }}</label>
-      <input class="input" name="reason" required maxlength="200"></div>
-    <button class="btn btn-outline gc-press" type="submit" style="color:var(--danger);border-color:var(--danger);">{{ t('lab_critical.mark') }}</button>
-  </form>
-</details>
-{% endif %}
+{% include "labs/_critical_box.html" %}
 
 {# ---- late (GAHAR DAS.21 / DAS.22) --------------------------------------
    Waiting past the laboratory's time: tell whoever asked. Reported past it:
