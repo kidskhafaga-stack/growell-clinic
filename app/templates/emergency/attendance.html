@@ -15,6 +15,7 @@
   .eo-what { flex:1 1 240px; min-width:0; }
   .eo-src { font-size:.85rem; color:var(--muted); }
 </style>
+{% set hold_patient_id = row.patient_id %}{% set hold_emergency = True %}{% include "_hold_banner.html" %}
 
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>

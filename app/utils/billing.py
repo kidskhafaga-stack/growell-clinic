@@ -102,12 +102,27 @@ def apply_coverage(invoice, patient, warn=None, then=None):
     from app.utils.care_setting import of_invoice
     setting = of_invoice(invoice)
 
+    contract = payer.active_contract(invoice.invoice_date) if payer.contracts else None
     for item in invoice.items:
         # Every line is given a payer figure, 0 where the payer pays nothing,
         # so the claim reads the cover and never a cashier's discount.
-        item.payer_amount = 0.0
-        if not item.service_id or (item.discount_value or 0) > 0:
+        #
+        # **A line covered on an earlier pass keeps its cover.** A stay's
+        # bill is covered again every night it is charged, and this used to
+        # zero every line it skipped — the nights covered before tonight
+        # among them, since their cover sits in the discount. The bill still
+        # read right (the discount stayed) but the claim lost every earlier
+        # night: two nights at 270 each were claimed as 270. Cover this
+        # function wrote is now recomputed, and only a discount somebody
+        # typed is left alone.
+        if not item.service_id or not _cover_line(item):
+            if item.payer_amount is None:
+                item.payer_amount = 0.0
             continue  # keep manual discounts; skip free-text lines
+        item.discount_value = 0
+        item.payer_amount = 0.0
+        item.cover_note = None
+        item.cover_cut = None
         # Contract tariff (سعر تعاقدي): members are billed at the contract's
         # negotiated price for the service, then coverage splits it.
         tariff = payer.tariff(item.service, invoice.invoice_date)
@@ -145,11 +160,36 @@ def apply_coverage(invoice, patient, warn=None, then=None):
                 # contract price of the work.
                 item.commission_amount = item.service.doctor_share(
                     item.gross, item.doctor or invoice.doctor)
+        else:
+            # Why the family pays this line: the contract excludes it here,
+            # or names nothing for it. Said on the bill (`cover_note`).
+            rule = contract.rule_for(item.service, setting) if contract else None
+            item.cover_note = "excluded" if rule is not None and rule.excluded \
+                else "not_covered"
+
+    # What the agreement takes back from that cover — the family's share and
+    # the payer's ceilings, per bill and per year (`utils/contract_terms`).
+    # Nothing at all for a contract that names none.
+    if contract is not None:
+        from app.utils import contract_terms
+        contract_terms.apply(invoice, contract, setting)
 
     # A club whose agreement is "members pay 15% less" carries no price list,
     # so nothing above touched the invoice — its member discount lands there.
     if then is not None:
         then(invoice, patient)
+
+
+def _cover_line(item):
+    """Whether this line's discount is cover this module wrote (or there is
+    none yet) — as against a discount somebody typed, which is kept."""
+    if not (item.discount_value or 0) > 0:
+        return True
+    # A discount typed on a line the payer does not cover (or covers only in
+    # part) is the cashier's, whatever note the line carries — so it is the
+    # match with the cover, never the note, that says the discount is ours.
+    return bool(item.payer_amount and not item.discount_is_percent
+                and abs((item.discount_value or 0) - item.payer_amount) < 0.005)
 
 
 def post_to_ledger(kind, obj, user_id=None):

@@ -300,6 +300,12 @@
 
     {# Sticky, because this form is now tall enough to scroll and a primary
        action that scrolls away is one somebody has to go looking for. #}
+    {# The file is on hold and this person may lift it: the box that says
+       «go ahead on this booking» — recorded with their name. #}
+    {% if flag_override_offered %}
+    <label class="card" style="display:flex;gap:8px;align-items:center;border-inline-start:4px solid var(--danger);margin:10px 0;" data-flag-override>
+      <input type="checkbox" name="flag_override" value="1"> {{ t('flags.override') }}</label>
+    {% endif %}
     <div class="md-bar">
       <button class="md-btn md-btn--filled gc-press gc-ripple" type="submit">
         <i class="bi bi-check-lg"></i> {{ t('appointments.book') }}</button>

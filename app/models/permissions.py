@@ -298,6 +298,12 @@ CAPABILITIES = [
     # screen says why. Nursing keeps the ward and the drug round and does not
     # get this one.
     "medication_order",
+    # The manager on duty — «المدير المناوب». Lets a booking or a planned
+    # admission go ahead for a file on hold, and takes the hold off, beside
+    # whoever holds ``finance_manage``. A capability rather than a rota: the
+    # hospital grants it to the people who carry the duty, and the night's
+    # manager is not always on the finance staff.
+    "duty_manager",
 ]
 
 ROLE_CAPABILITIES = {

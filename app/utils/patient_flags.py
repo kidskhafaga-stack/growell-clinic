@@ -15,6 +15,7 @@ from app.models import PatientFlag
 
 # Clearing is a financial decision, not a clerical one.
 CLEAR_CAPABILITY = "finance_manage"
+DUTY_CAPABILITY = "duty_manager"
 
 
 def active(patient_id):
@@ -54,10 +55,34 @@ def can_clear(user):
     know whether the money ever arrived.
     """
     return bool(user is not None
-                and (getattr(user, "is_admin", False) or user.can(CLEAR_CAPABILITY)))
+                and (getattr(user, "is_admin", False) or user.can(CLEAR_CAPABILITY)
+                     or user.can(DUTY_CAPABILITY)))
 
 
-def raise_flag(patient_id, level, reason, user_id=None):
+def in_emergency(patient_id):
+    """Whether this child is in the emergency department now, or was sent up
+    from it in the last day. **A hold never stops that admission** — the
+    emergency is treated first, by law and by sense; the hold is shown and
+    the staff decide (`app/utils/patient_flags`, decree 1063/2014)."""
+    from datetime import timedelta
+
+    from app.models import EmergencyVisit
+
+    since = datetime.utcnow() - timedelta(hours=24)
+    rows = EmergencyVisit.query.filter(
+        EmergencyVisit.patient_id == patient_id,
+        db.or_(EmergencyVisit.departed_at.is_(None),
+               EmergencyVisit.departed_at >= since)).all()
+    return any(r.departed_at is None or r.disposition == "admitted" for r in rows)
+
+
+def blocks_admission(patient_id):
+    """A planned admission waits for a manager; one from the emergency never
+    does."""
+    return blocks_booking(patient_id) and not in_emergency(patient_id)
+
+
+def raise_flag(patient_id, level, reason, user_id=None, kind=None):
     """Open a flag on a file. Returns the row, or None if it was refused.
 
     Refused when the reason is empty — a note nobody can judge, argue with or
@@ -70,19 +95,22 @@ def raise_flag(patient_id, level, reason, user_id=None):
         return None
     if level not in ("warn", "block"):
         level = "warn"
+    if kind not in ("account", "family"):
+        kind = "account"
 
     existing = active(patient_id)
     if existing is not None:
         # Escalating warn → block is a real event and is kept as one. Anything
         # else just updates the note in place.
         existing.level = level
+        existing.kind = kind
         existing.reason = reason
         existing.raised_by = user_id or existing.raised_by
         existing.raised_at = datetime.utcnow()
         return existing
 
-    flag = PatientFlag(patient_id=patient_id, level=level, reason=reason,
-                       raised_by=user_id)
+    flag = PatientFlag(patient_id=patient_id, level=level, kind=kind,
+                       reason=reason, raised_by=user_id)
     db.session.add(flag)
     return flag
 
@@ -96,3 +124,28 @@ def clear_flag(patient_id, reason, user_id=None):
     flag.cleared_by = user_id
     flag.clear_reason = (reason or "").strip() or None
     return flag
+
+
+def open_holds():
+    """Every open flag, holds first, newest first — the manager's list."""
+    rows = PatientFlag.query.filter(PatientFlag.cleared_at.is_(None)).all()
+    return sorted(rows, key=lambda f: (f.level != "block", -(f.raised_at.timestamp()
+                                                            if f.raised_at else 0)))
+
+
+def held_today():
+    """Files on hold with a booking today or a bed now — the ones a manager
+    may be asked about before the day is out."""
+    from app.models import Admission, Appointment
+    from app.utils.clock import local_today
+
+    held = {f.patient_id for f in PatientFlag.query.filter(
+        PatientFlag.cleared_at.is_(None), PatientFlag.level == "block").all()}
+    if not held:
+        return set()
+    booked = {a.patient_id for a in Appointment.query.filter(
+        Appointment.patient_id.in_(held), Appointment.appt_date == local_today(),
+        Appointment.status.notin_(("cancelled", "no_show"))).all()}
+    in_bed = {a.patient_id for a in Admission.query.filter(
+        Admission.patient_id.in_(held), Admission.discharged_at.is_(None)).all()}
+    return booked | in_bed

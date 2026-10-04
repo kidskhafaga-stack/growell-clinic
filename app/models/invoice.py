@@ -66,6 +66,10 @@ class Invoice(db.Model):
     admission_id = db.Column(db.Integer, db.ForeignKey("admissions.id"),
                              nullable=True, index=True)
     payer_id = db.Column(db.Integer, db.ForeignKey("payer_entities.id"), nullable=True, index=True)
+    # The year's deductible this bill carried — what the family paid of the
+    # first so much a contract leaves to it each year (`utils/contract_terms`).
+    # Empty on every bill with no such term.
+    deductible_taken = db.Column(db.Float)
     coverage_card = db.Column(db.String(60))   # snapshot: membership/card no.
     coverage_expiry = db.Column(db.Date)        # snapshot: card expiry
     # Named discount applied to this invoice (snapshot of the rule's name).
@@ -505,6 +509,13 @@ class InvoiceItem(db.Model):
     # out of the claim until it arrives (`utils/approvals.py`).
     approval_id = db.Column(db.Integer, db.ForeignKey("insurance_approvals.id"))
     approval_needed = db.Column(db.Boolean)
+    # **Why the family pays what it pays on this line** — `not_covered`,
+    # `excluded`, `deductible`, `copay`, `room_ceiling`, `over_ceiling` —
+    # and how much the contract's terms took off the cover
+    # (`utils/contract_terms`). Empty where the payer covers what its rule
+    # says, and on every line billed before this existed.
+    cover_note = db.Column(db.String(16))
+    cover_cut = db.Column(db.Float)
 
     invoice = db.relationship("Invoice", back_populates="items")
     approval = db.relationship("InsuranceApproval")

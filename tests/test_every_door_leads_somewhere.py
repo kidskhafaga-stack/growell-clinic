@@ -325,7 +325,6 @@ KNOWN_ORPHAN_WRITERS = {
     "appointments.walk_in",
     "finance.expense_edit",
     "growth.api_calculate",
-    "patients.flag_raise",
     "vaccinations.delete_dose",
 }
 

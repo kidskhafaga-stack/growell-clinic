@@ -220,6 +220,14 @@
                     {% if p.active_contract() and p.active_contract().id == c.id and p.contracts|length > 1 %}
                     <span class="badge badge--green" title="{{ t('contracts.bills_today_hint') }}">{{ t('contracts.bills_today') }}</span>
                     {% endif %}
+                    {% set due = renewal_state(c) %}
+                    {% if due %}
+                    <span class="badge {{ {'renewed': 'badge--green', 'ending': 'badge--warn', 'lapsed': 'badge--danger'}[due.key] }}" data-contract-due="{{ due.key }}">
+                      <i class="bi bi-alarm"></i>
+                      {% if due.key == 'renewed' %}{{ t('renewal.due_renewed', n=due.days, date=due.renewal.start_date) }}
+                      {% elif due.key == 'ending' %}{{ t('renewal.due_ending', n=due.days) }}
+                      {% else %}{{ t('renewal.due_lapsed', n=due.members) }}{% endif %}</span>
+                    {% endif %}
                     {% if c.is_active and c.overlapping() %}
                     <span class="badge badge--role" style="color:var(--danger);"
                           title="{{ t('contracts.overlap_badge_hint') }}"><i class="bi bi-layers"></i> {{ t('contracts.overlap_badge') }}</span>
@@ -241,6 +249,10 @@
                            carrying the same one. #}
                         <div class="form-row"><label>{{ t('contracts.start') }}</label><input class="input" type="date" name="start_date"></div>
                         <div class="form-row"><label>{{ t('contracts.end') }}</label><input class="input" type="date" name="end_date"></div>
+                        {# Last year's prices raised in the same step; the
+                           rest is fine-tuned on the new contract's screen. #}
+                        <div class="form-row"><label>{{ t('renewal.raise_all') }}</label>
+                          <input class="input" type="number" step="0.01" name="raise_percent" placeholder="%" dir="ltr"></div>
                         <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-files"></i> {{ t('contracts.copy_btn') }}</button>
                       </form>
                     </details>

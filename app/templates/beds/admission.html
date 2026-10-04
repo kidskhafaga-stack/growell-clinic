@@ -100,6 +100,7 @@
         }
      }" x-on:submit.capture="remember()">
 
+{% set hold_patient_id = admission.patient_id %}{% include "_hold_banner.html" %}
 <section class="stay-hero gc-animate" data-stay-hero>
   <div class="stay-hero__who">
     <span class="stay-hero__icon" aria-hidden="true"><i class="bi bi-hospital"></i></span>

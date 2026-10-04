@@ -15,7 +15,6 @@ from app.utils.clock import local_today
 _CACHE = {"at": 0.0, "data": None}
 _LOCK = threading.Lock()
 _TTL = 90
-CONTRACT_SOON_DAYS = 30
 BIRTHDAY_AHEAD_DAYS = 7
 
 
@@ -113,16 +112,34 @@ def _compute():
         pass
 
     try:
-        from app.models import PayerContract
-        soon = today + timedelta(days=CONTRACT_SOON_DAYS)
-        n = (PayerContract.query
-             .filter(PayerContract.end_date.isnot(None),
-                     PayerContract.end_date >= today,
-                     PayerContract.end_date <= soon,
-                     PayerContract.is_active.is_(True)).count())
+        # A file on hold with a booking today or a bed now — somebody will be
+        # asked about it before the day is out (`utils/patient_flags`).
+        from app.utils import patient_flags as _flags
+        n = len(_flags.held_today())
         if n:
+            items.append({"key": "holds_today", "module": "patients",
+                          "icon": "exclamation-octagon", "severity": "danger",
+                          "count": n, "endpoint": "patients.holds", "kwargs": {}})
+    except Exception:  # noqa: BLE001
+        pass
+
+    try:
+        # Contracts ending inside the clinic's reminder window **with no
+        # renewal made** — one whose next contract is ready has nothing left
+        # to do and is not counted. And, louder, a contract that ended with
+        # no renewal while members still carry valid cards: their children
+        # are billed the cash price from that day (`utils/contract_renewal`).
+        from app.utils import contract_renewal as _renewal
+        ending, lapsed = _renewal.needing_attention(today)
+        if lapsed:
+            items.append({"key": "contracts_lapsed", "module": "finance",
+                          "icon": "file-earmark-x", "severity": "danger",
+                          "count": len(lapsed),
+                          "endpoint": "finance.payers", "kwargs": {}})
+        if ending:
             items.append({"key": "contracts_expiring", "module": "finance",
-                          "icon": "file-earmark-text", "severity": "warning", "count": n,
+                          "icon": "file-earmark-text", "severity": "warning",
+                          "count": len(ending),
                           "endpoint": "finance.payers", "kwargs": {}})
     except Exception:  # noqa: BLE001
         pass

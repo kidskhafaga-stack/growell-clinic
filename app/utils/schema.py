@@ -814,6 +814,17 @@ ADDITIONS = [
     ("payer_contract_rules", "needs_approval", "BOOLEAN"),
     ("invoice_items", "approval_id", "INTEGER"),
     ("invoice_items", "approval_needed", "BOOLEAN"),
+    # What the family carries on a contract, and why a line is theirs
+    # (`utils/contract_terms`). Empty is «no limit» and «covered as the rule
+    # says» — every bill already written reads as it did.
+    ("payer_contracts", "deductible_year", "FLOAT"),
+    ("payer_contracts", "ceiling_year", "FLOAT"),
+    ("invoice_items", "cover_note", "VARCHAR(16)"),
+    ("invoice_items", "cover_cut", "FLOAT"),
+    ("invoices", "deductible_taken", "FLOAT"),
+    # Why a file is on hold: the account, or the family (`models/patient_flag`).
+    # Empty on every flag raised before, which read as account ones.
+    ("patient_flags", "kind", "VARCHAR(10)"),
     # «رسم المخ الى بيحتاج حجز ونوم» — a device study booked for a day and an
     # hour, with what the family must do before it. Empty on every order.
     ("visit_investigations", "booked_for", "DATETIME"),

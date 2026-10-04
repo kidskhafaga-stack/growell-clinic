@@ -263,6 +263,12 @@ def create_app(config_name="default"):
         from app.utils.device_board import shown
         return shown()
 
+    def _patient_hold(patient_id):
+        """The open hold on a file — for the banner on the stay, the
+        emergency and the till (`templates/_hold_banner.html`)."""
+        from app.utils import patient_flags
+        return patient_flags.active(patient_id) if patient_id else None
+
     @app.context_processor
     def inject_navigation():
         from app.models import Setting
@@ -273,6 +279,7 @@ def create_app(config_name="default"):
             "MODULE_ENDPOINTS": module_endpoints,
             "module_enabled": module_enabled,
             "device_board_shown": _device_board_shown,
+            "patient_hold": _patient_hold,
             "clinic_name": app.config.get("CLINIC_NAME", "PediaPro"),
             "now_date": local_today().isoformat(),
             "now_weekday": datetime.utcnow().weekday(),

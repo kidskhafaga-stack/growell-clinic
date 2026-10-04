@@ -35,6 +35,10 @@ from app.extensions import db
 # warn  — show it and let the person decide.
 # block — stop the booking until somebody with financial authority allows it.
 FLAG_LEVELS = ["warn", "block"]
+# Why: a problem with the account (money owed, a dispute over a bill), or a
+# problem with the family itself. Asked as *«عندها مشكلة فى الحساب عندها
+# مشكلة مع الاهل»*. Every flag raised before this existed is an account one.
+FLAG_KINDS = ["account", "family"]
 
 
 class PatientFlag(db.Model):
@@ -46,6 +50,7 @@ class PatientFlag(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"),
                            nullable=False, index=True)
     level = db.Column(db.String(10), default="warn", nullable=False)
+    kind = db.Column(db.String(10), default="account")
     # Why, in the words of whoever raised it. Required by the route: a flag
     # with no reason is one nobody can judge, argue with, or clear fairly.
     reason = db.Column(db.Text, nullable=False)

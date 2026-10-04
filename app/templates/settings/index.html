@@ -584,6 +584,13 @@
              value="{{ values.get('refund_no_approval_under', '100') }}">
     </div>
     <p class="hint">{{ t('refunds.no_approval_under_hint') }}</p>
+    <div class="form-row" style="max-width:260px;" data-contract-remind>
+      <label for="contract_remind_days">{{ t('renewal.remind_days') }}</label>
+      <input class="input" type="number" min="1" max="365"
+             id="contract_remind_days" name="contract_remind_days"
+             value="{{ values.get('contract_remind_days') or '' }}" placeholder="30">
+    </div>
+    <p class="hint">{{ t('renewal.remind_days_hint') }}</p>
     <div class="form-row checkbox">
       <input type="checkbox" id="require_shift_to_collect" name="require_shift_to_collect" value="1"
              {{ 'checked' if values.get('require_shift_to_collect','1') != '0' else '' }}>

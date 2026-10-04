@@ -196,6 +196,11 @@
             <a class="no-print" href="{{ url_for('finance.approvals', item=it.id) }}#new">{{ t('approvals.ask') }}</a></div>
           {% elif it.approval_id %}
           <div><span class="badge badge--green" data-approval-number><i class="bi bi-patch-check"></i> {{ t('approvals.number') }} <span dir="ltr">{{ it.approval.approval_number if it.approval else '' }}</span></span></div>
+          {% endif %}
+          {# Why the family pays what it pays on this line — the contract's
+             own reason (`utils/contract_terms`). #}
+          {% if invoice.payer_id and it.cover_note %}
+          <div data-cover-note="{{ it.cover_note }}"><span class="badge badge--muted">{{ t('limits.note_' ~ it.cover_note) }}{% if it.cover_cut %} · {{ it.cover_cut|money }}{% endif %}</span></div>
           {% endif %}</td>
         <td>{{ it.unit_price|money }}</td>
         <td>{{ it.quantity }}</td>

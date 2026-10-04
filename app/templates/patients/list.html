@@ -29,6 +29,9 @@
     <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.phones') }}">
       <i class="bi bi-telephone-plus"></i> {{ t('phones.title') }}
     </a>
+    <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.holds') }}" data-holds-link>
+      <i class="bi bi-exclamation-octagon"></i> {{ t('flags.holds_title') }}
+    </a>
     <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.archive') }}">
       <i class="bi bi-archive"></i> {{ t('archive.title') }}
     </a>

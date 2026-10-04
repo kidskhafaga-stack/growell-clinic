@@ -592,10 +592,12 @@ def create():
         # recorded with their name — the point of the block is that a decision
         # gets made by a person who can make it, not that the family is turned
         # away by a screen.
+        held = False
         if not error and flags.blocks_booking(patient_id):
             override = request.form.get("flag_override") == "1"
             if not (override and flags.can_clear(current_user)):
                 error = t("flags.blocked_booking")
+                held = True
             else:
                 ActivityLog.record(
                     "appointment.flag_override", user_id=current_user.id,
@@ -629,6 +631,9 @@ def create():
                 vaccination_service_id=_vaccination_service_id(),
                 booking_request=_open_request(
                     request.form.get("from_request", type=int)),
+                # The hold stopped it: whoever may lift it is offered the box
+                # that says «go ahead on this booking», recorded by name.
+                flag_override_offered=held and flags.can_clear(current_user),
             )
 
         appt = Appointment(
