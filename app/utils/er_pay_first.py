@@ -60,8 +60,15 @@ def free_48h(date_from, date_to):
     hours after arrival."""
     from app.models import EmergencyVisit, Invoice
 
-    start = datetime.combine(date_from, datetime.min.time())
-    end = datetime.combine(date_to, datetime.max.time())
+    # The clinic's days, turned into the UTC moments the rows are stored
+    # in — a scan at two in the morning belongs to that night, not the day
+    # before (`utils/clock`).
+    from datetime import time
+
+    from app.utils.clock import to_utc
+
+    start = to_utc(datetime.combine(date_from, time.min))
+    end = to_utc(datetime.combine(date_to, time.max))
     rows = (EmergencyVisit.query
             .filter(EmergencyVisit.urgent.is_(True),
                     EmergencyVisit.arrived_at >= start,
