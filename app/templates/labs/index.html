@@ -47,26 +47,10 @@
        data-to-critical href="{{ url_for('labs.critical') }}">
       <i class="bi bi-exclamation-octagon"></i> {{ t('lab_result.critical_title') }}
       {% if critical_open %}<span class="badge badge--danger">{{ critical_open }}</span>{% endif %}</a>
-    {# The scans' door. **This is the screen's own nav entry**: imaging shares
-       the `labs` module rather than bringing an opt-in one of its own — a new
-       module ships *off*, and every clinic already running would have lost
-       sight of its outstanding scans on upgrade. So the link lives where the
-       person who used to see those scans in this very list will look for
-       them, and the count comes with it so nothing goes quiet. #}
-    {# Radiology is its own module now, and the device studies sit with the
-       visit; each door shows only where that place is open to this person. #}
-    {% if module_enabled('imaging') and current_user.can_access('imaging') %}
-    <a class="btn btn-outline gc-press" data-to-imaging
-       href="{{ url_for('imaging.index') }}">
-      <i class="bi bi-radioactive"></i> {{ t('nav.imaging') }}
-      {% if imaging_open %}<span class="badge">{{ imaging_open }}</span>{% endif %}</a>
-    {% endif %}
-    {% if diagnostic_open and current_user.can_access('visits') %}
-    <a class="btn btn-outline gc-press" data-to-diagnostics
-       href="{{ url_for('visits.device_board') }}">
-      <i class="bi bi-activity"></i> {{ t('nav.diagnostics') }}
-      <span class="badge">{{ diagnostic_open }}</span></a>
-    {% endif %}
+    {# No door to radiology or to the device studies here. «وليه فى شورت كات
+       للاشعات؟ … الفني هيحتار» — the lab technician's screen is the lab's;
+       each of those rooms has its own entry in the menu, for the people who
+       work there. #}
     {% if may_build %}
     <a class="btn btn-outline gc-press" href="{{ url_for('labs.tests') }}">
       <i class="bi bi-list-check"></i> {{ t('lab.tests') }}</a>

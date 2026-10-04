@@ -41,9 +41,18 @@
   <div class="card gc-scale-in" style="margin-bottom:16px;">
     <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:end;">
       <h2 class="section-title" style="margin:0;"><i class="bi bi-rulers"></i> {{ device.display_name(current_lang) }}</h2>
-      <div class="form-row" style="margin:0;max-width:180px;">
-        <label>{{ t('study.date') }}</label>
-        <input class="input" type="date" name="study_date" value="{{ today }}"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+        {# «دول بيتموا بطبيب» — the doctor who did it, which is not always
+           whoever types it in. #}
+        <div class="form-row" style="margin:0;min-width:180px;" data-study-doctor>
+          <label>{{ t('study.performed_by') }}</label>
+          <select class="select" name="performed_by">
+            {% for d in study_doctors %}<option value="{{ d.id }}" {{ 'selected' if d.id == current_user.id else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
+          </select></div>
+        <div class="form-row" style="margin:0;max-width:180px;">
+          <label>{{ t('study.date') }}</label>
+          <input class="input" type="date" name="study_date" value="{{ today }}"></div>
+      </div>
     </div>
     <div style="overflow-x:auto;margin-top:12px;">
     <table class="table" style="min-width:520px;">

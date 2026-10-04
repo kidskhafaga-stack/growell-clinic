@@ -1482,6 +1482,23 @@
       <h3 class="section-title" style="margin-top:0;">
         <i class="bi bi-droplet-half"></i> {{ t('patients.tab_labs') }}</h3>
 
+      {# What the scans gave this child — the doses the machines reported and
+         the contrast, added up per measure; a contrast reaction in red. Only
+         where there is something to say (`utils/radiation`). #}
+      {% if exposure and exposure.rows %}
+      <div class="card" style="margin-bottom:14px;{{ 'border:2px solid var(--danger);' if exposure.reactions else '' }}" data-exposure-card>
+        <h4 style="margin:0 0 6px;"><i class="bi bi-radioactive"></i> {{ t('radiation.file_title') }}</h4>
+        <p style="margin:0 0 4px;">{{ t('radiation.before_counts', n=exposure.ionising, recent=exposure.recent, months=exposure.months, contrast=exposure.contrast) }}</p>
+        {% if exposure.totals %}<p style="margin:0 0 4px;">{{ t('radiation.all_totals') }}:
+          {% for kind, value in exposure.totals.items() %}<span class="badge badge--muted" dir="ltr">{{ value|round(2) }} {{ t('radiation.unit_' ~ kind) }}</span> {% endfor %}</p>{% endif %}
+        {% for r in exposure.reactions %}
+        <p style="margin:4px 0 0;color:var(--danger);" data-file-reaction><i class="bi bi-exclamation-octagon"></i>
+          {{ t('radiation.prior_reaction') }}: <span dir="auto">{{ r.contrast_agent }}</span> · {{ t('radiation.reaction_' ~ r.contrast_reaction) }}
+          · <span dir="ltr">{{ (r.performed_at or r.created_at)|clinic_stamp }}</span></p>
+        {% endfor %}
+      </div>
+      {% endif %}
+
       {{ lab_curves.panel(lab_series, lab_latest) }}
 
       {% if lab_orders %}

@@ -42,10 +42,11 @@
       {{ t('imaging.to_report', n=counts.to_run) }}</a>
     <a class="btn btn-outline gc-press{{ ' btn-primary' if not state else '' }}"
        href="{{ url_for(endpoint) }}">{{ t('lab.everything') }}</a>
-    {% if module_enabled('labs') and current_user.can_access('labs') %}
-    <a class="btn btn-outline gc-press" data-to-lab
-       href="{{ url_for('labs.index') }}">
-      <i class="bi bi-eyedropper"></i> {{ t('nav.labs') }}</a>
+    {# No door to the lab: radiology's screen is radiology's (the lab has its
+       own entry in the menu). Its own review of what the children received. #}
+    {% if kind == 'imaging' %}
+    <a class="btn btn-outline gc-press" data-to-doses href="{{ url_for('imaging.doses') }}">
+      <i class="bi bi-radioactive"></i> {{ t('radiation.report_title') }}</a>
     {% endif %}
   </div>
 </div>
@@ -60,7 +61,7 @@
   <div class="im-row st-{{ row.status }}" data-status="{{ row.status }}">
     <div class="im-row__who">
       <div class="im-name">
-        <a href="{{ url_for('labs.order', order_id=row.id) }}">{{ row.name }}</a>
+        <a href="{{ url_for('imaging.order', order_id=row.id) if kind == 'imaging' else url_for('labs.order', order_id=row.id) }}">{{ row.name }}</a>
       </div>
       <div class="hint">
         <a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
@@ -92,10 +93,10 @@
     </form>
     {% endif %}
 
-    {# The report is written on the order screen, the same one the lab uses:
-       one box for an answer, whichever room the answer came from. #}
+    {# The report — and the dose and the contrast — are written on
+       radiology's own order page. #}
     <a class="btn btn-sm btn-outline gc-press"
-       href="{{ url_for('labs.order', order_id=row.id) }}">
+       href="{{ url_for('imaging.order', order_id=row.id) if kind == 'imaging' else url_for('labs.order', order_id=row.id) }}">
       {{ t('lab.open') }}</a>
   </div>
   {% endfor %}

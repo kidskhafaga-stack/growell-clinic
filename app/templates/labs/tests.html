@@ -183,6 +183,28 @@
     <label class="hint" style="min-width:110px;">
       <input type="checkbox" name="needs_booking" value="1" data-needs-booking-box
              {{ 'checked' if row.needs_booking else '' }}> {{ t('device_board.needs_booking') }}</label>
+    {% elif row.kind == 'imaging' %}
+    {# A scan: the machine — whether it gives the child ionising radiation is
+       read from it — and the hospital's own reference level for the dose,
+       in the measure the machine reports. Empty: no reference, no alert. #}
+    <div class="form-row" style="margin-bottom:0;min-width:140px;">
+      <label>{{ t('radiation.modality') }}</label>
+      <select class="select" name="modality" data-modality-pick>
+        <option value="">—</option>
+        {% for m in modalities %}<option value="{{ m }}" {{ 'selected' if row.modality == m else '' }}>{{ t('radiation.modality_' ~ m) }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:150px;">
+      <label>{{ t('radiation.reference') }}</label>
+      <div style="display:flex;gap:4px;">
+        <input class="input" type="number" step="0.001" min="0" name="dose_ref_value" dir="ltr" style="width:90px;"
+               value="{{ row.dose_ref_value if row.dose_ref_value is not none else '' }}">
+        <select class="select" name="dose_ref_kind" style="min-width:90px;">
+          <option value="">—</option>
+          {% for k in dose_kinds %}<option value="{{ k }}" {{ 'selected' if row.dose_ref_kind == k else '' }}>{{ t('radiation.unit_' ~ k) }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
     {% else %}
     <span class="hint" style="align-self:center;margin:0;" data-no-sample>
       <i class="bi bi-info-circle"></i>

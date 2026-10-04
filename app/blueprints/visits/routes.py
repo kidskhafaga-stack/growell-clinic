@@ -2170,7 +2170,9 @@ def study_new(patient_id):
         study = DeviceStudy(
             patient_id=patient.id, device_id=device.id,
             visit_id=open_visit.id if open_visit else None, study_date=sdate,
-            performed_by=current_user.id,
+            # «دول بيتموا بطبيب» — the doctor who did the study, chosen on
+            # the form; whoever typed it in when no doctor was chosen.
+            performed_by=_study_doctor(),
             conclusion=(request.form.get("conclusion") or "").strip() or None,
             notes=(request.form.get("notes") or "").strip() or None)
         for m in device.measurements:
@@ -2205,7 +2207,23 @@ def study_new(patient_id):
     return render_template("visits/study_new.html", patient=patient,
                            devices=devices, device=device, order=order,
                            visit_id=request.values.get("visit_id", type=int),
-                           today=local_today().isoformat())
+                           today=local_today().isoformat(),
+                           study_doctors=_study_doctors())
+
+
+def _study_doctors():
+    """Who may be named as having done a device study: the doctors."""
+    return (User.query.filter(User.is_active.is_(True),
+                              db.or_(User.role == "doctor", User.is_practitioner.is_(True)))
+            .order_by(User.full_name).all())
+
+
+def _study_doctor():
+    """The doctor chosen on the form, if they are one; else whoever saved it."""
+    chosen = request.form.get("performed_by", type=int)
+    if chosen and any(u.id == chosen for u in _study_doctors()):
+        return chosen
+    return current_user.id
 
 
 # ======================================== the device studies board =========

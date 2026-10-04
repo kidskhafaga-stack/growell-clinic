@@ -61,12 +61,6 @@ def index():
                            # sample is drawn at the bed, not at the desk.
                            beds=bench.beds_of(rows),
                            counts=bench.counts(bench.LAB), bench=bench,
-                           # On the door to the scans, so a rack that no
-                           # longer lists them still says they are there.
-                           imaging_open=sum(
-                               bench.counts(bench.IMAGING).values()),
-                           diagnostic_open=sum(
-                               bench.counts(bench.DIAGNOSTIC).values()),
                            now=datetime.utcnow(),
                            late=lab_results.late,
                            critical_open=len(lab_results.all_waiting()),
@@ -78,6 +72,13 @@ def index():
 def order(order_id):
     """One order: what was asked for, where it is, and the box for the answer."""
     row = db.get_or_404(VisitInvestigation, order_id)
+    # A scan is radiology's: its report, its dose and its contrast are written
+    # on radiology's own page, not on the lab's.
+    if row.kind == bench.IMAGING:
+        from app.utils.facility import module_enabled
+
+        if module_enabled("imaging") and current_user.can_access("imaging"):
+            return redirect(url_for("imaging.order", order_id=row.id))
     # A test the laboratory has broken into what it measures is answered
     # line by line, each against this child's range; one it has not is
     # answered the way it always was.
@@ -87,7 +88,18 @@ def order(order_id):
                            age_days=lab_results.age_days(
                                row.patient, row.collected_at or row.created_at),
                            may_read=lab_results.reads_results(current_user),
-                           waited=bench.waiting_minutes(row))
+                           waited=bench.waiting_minutes(row),
+                           doctors=_doctor_names())
+
+
+def _doctor_names():
+    """Who a critical value is telephoned to — for the box's suggestions."""
+    from app.models import User
+
+    rows = (User.query.filter(User.is_active.is_(True),
+                              db.or_(User.role == "doctor", User.is_practitioner.is_(True)))
+            .order_by(User.full_name).all())
+    return [u.full_name for u in rows if u.full_name]
 
 
 @labs_bp.route("/order/<int:order_id>/collect", methods=["POST"])
@@ -262,6 +274,55 @@ def critical_read(order_id):
     return redirect(url_for("labs.order", order_id=row.id))
 
 
+@labs_bp.route("/order/<int:order_id>/critical-mark", methods=["POST"])
+@module_required(MODULE)
+def critical_mark(order_id):
+    """The technician says this result is critical — one with no number to
+    cross a limit (`utils/lab_critical`)."""
+    from app.models import ActivityLog
+    from app.utils import lab_critical
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    try:
+        lab_critical.mark(row, request.form.get("reason"), current_user)
+    except lab_critical.CriticalError as err:
+        db.session.rollback()
+        flash(t(f"lab_critical.err_{err}"), "error")
+        return redirect(url_for("labs.order", order_id=row.id))
+    ActivityLog.record("lab.critical_mark", user_id=current_user.id,
+                       entity="visit_investigation", entity_id=row.id,
+                       detail=row.critical_manual)
+    db.session.commit()
+    flash(t("lab_critical.marked"), "warning")
+    return redirect(url_for("labs.order", order_id=row.id))
+
+
+@labs_bp.route("/order/<int:order_id>/critical-call", methods=["POST"])
+@module_required(MODULE)
+def critical_call(order_id):
+    """The lab told a doctor: whom, how, and whether it was read back."""
+    from app.models import ActivityLog
+    from app.utils import lab_critical
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    back = (url_for("labs.critical") if request.form.get("back") == "list"
+            else url_for("labs.order", order_id=row.id))
+    try:
+        lab_critical.call(row, request.form.get("called_to"),
+                          request.form.get("method"),
+                          request.form.get("read_back") == "1", current_user)
+    except lab_critical.CriticalError as err:
+        db.session.rollback()
+        flash(t(f"lab_critical.err_{err}"), "error")
+        return redirect(back)
+    ActivityLog.record("lab.critical_call", user_id=current_user.id,
+                       entity="visit_investigation", entity_id=row.id,
+                       detail=f"{row.critical_called_to}/{row.critical_call_method}")
+    db.session.commit()
+    flash(t("lab_critical.called"), "success")
+    return redirect(back)
+
+
 # ------------------------------------------------------------- the tests ---
 #: How many tests the list draws at once. A laboratory's catalogue runs to
 #: hundreds, and each row is a form with the price list in it.
@@ -316,7 +377,13 @@ def tests():
         warehouses=_warehouses(), lab_store=_lab_store(),
         services=(Service.query.filter(Service.is_active.is_(True))
                   .order_by(Service.name).all()),
-        devices=_devices() if kind == "diagnostic" else [])
+        devices=_devices() if kind == "diagnostic" else [],
+        modalities=_radiation().MODALITIES, dose_kinds=_radiation().DOSE_KINDS)
+
+
+def _radiation():
+    from app.utils import radiation
+    return radiation
 
 
 def _devices():
@@ -764,6 +831,19 @@ def edit_test(test_id):
         # template — and whether it is booked rather than done on the spot.
         row.device_id = request.form.get("device_id", type=int) or None
         row.needs_booking = request.form.get("needs_booking") == "1"
+    elif row.kind == "imaging":
+        # The machine, and the hospital's reference level for the dose — a
+        # figure only the hospital sets; a blank box clears it.
+        from app.utils import radiation
+
+        modality = (request.form.get("modality") or "").strip()
+        row.modality = modality if modality in radiation.MODALITIES else None
+        ref = request.form.get("dose_ref_value", type=float)
+        kind = (request.form.get("dose_ref_kind") or "").strip()
+        if ref and ref > 0 and kind in radiation.DOSE_KINDS:
+            row.dose_ref_value, row.dose_ref_kind = ref, kind
+        else:
+            row.dose_ref_value = row.dose_ref_kind = None
     # Cleared on purpose when the box is empty: a clinic that stops charging
     # for a test has to be able to say so, and an empty select means nobody
     # rather than "leave it as it was".

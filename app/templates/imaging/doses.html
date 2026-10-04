@@ -1,0 +1,56 @@
+{% extends "shell.html" %}
+{% set active_module = 'imaging' %}
+{% block title %}{{ t('radiation.report_title') }}{% endblock %}
+{% block page_heading %}{{ t('radiation.report_title') }}{% endblock %}
+
+{% block content %}
+{# What the children received in a period — scans above the hospital's
+   reference level and contrast reactions first. Every figure is the
+   machine's or the hospital's (`utils/radiation`). #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-radioactive"></i> {{ t('radiation.report_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('radiation.report_sub') }}</p>
+  </div>
+  <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <div class="form-row" style="margin:0;"><label>{{ t('radiation.from') }}</label>
+      <input class="input" type="date" name="from" value="{{ date_from.isoformat() }}"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('radiation.to') }}</label>
+      <input class="input" type="date" name="to" value="{{ date_to.isoformat() }}"></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i></button>
+  </form>
+</div>
+
+<div class="stat-grid stat-grid--compact" style="margin-bottom:14px;">
+  <div class="stat-card edge-blue"><div class="value">{{ rows|length }}</div><div class="label">{{ t('radiation.scans') }}</div></div>
+  <div class="stat-card {{ 'edge-red' if over else 'edge-green' }}"><div class="value">{{ over }}</div><div class="label">{{ t('radiation.above_reference') }}</div></div>
+  <div class="stat-card {{ 'edge-red' if reactions else 'edge-green' }}"><div class="value">{{ reactions }}</div><div class="label">{{ t('radiation.reactions') }}</div></div>
+</div>
+
+<div class="card gc-scale-in">
+  {% if rows %}
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:720px;" data-dose-rows>
+    <thead><tr><th>{{ t('invoices.date') }}</th><th>{{ t('patients.full_name') }}</th><th>{{ t('invoices.service') }}</th>
+      <th>{{ t('radiation.dose_value') }}</th><th>{{ t('radiation.contrast_agent') }}</th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      {% set above = radiation.over_reference(r) %}
+      <tr {{ 'style=background:#fdecec;'|safe if above else '' }} data-dose-row="{{ 'over' if above else 'ok' }}">
+        <td dir="ltr">{{ (r.performed_at or r.created_at)|clinic_stamp }}</td>
+        <td><a href="{{ url_for('patients.view', patient_id=r.patient_id) }}">{{ r.patient.display_name(current_lang) }}</a></td>
+        <td><a href="{{ url_for('imaging.order', order_id=r.id) }}">{{ r.name }}</a></td>
+        <td>{% if r.dose_value is not none %}<span dir="ltr">{{ r.dose_value }} {{ t('radiation.unit_' ~ r.dose_kind) }}</span>
+          {% if above %}<span class="badge badge--danger">{{ t('radiation.above_reference') }}</span>{% endif %}{% else %}—{% endif %}</td>
+        <td>{% if r.contrast_agent %}<span dir="auto">{{ r.contrast_agent }}</span>
+          {% if r.contrast_reaction in ('mild', 'moderate', 'severe') %}<span class="badge badge--danger">{{ t('radiation.reaction_' ~ r.contrast_reaction) }}</span>{% endif %}{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('radiation.nothing_in_period') }}</p>
+  {% endif %}
+</div>
+{% endblock %}
