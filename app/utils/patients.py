@@ -168,11 +168,14 @@ def patient_hint(patient, lang="ar"):
     picker: the date of birth and age, the mother's name, and the last digits
     of the contact phone. Only what is written; nothing guessed."""
     parts = []
+    if getattr(patient, "identity_provisional", None):
+        parts.append("ملف مؤقت" if lang != "en" else "Provisional file")
     if patient.date_of_birth:
         years, months = patient.age_parts
         age = (f"{years}y {months}m" if years else f"{months}m") if lang == "en" else (
             f"{years} سنة {months} شهر" if years else f"{months} شهر")
-        parts.append(f"{patient.date_of_birth.isoformat()} ({age})")
+        guess = "~" if getattr(patient, "dob_estimated", None) else ""
+        parts.append(f"{guess}{patient.date_of_birth.isoformat()} ({age})")
     family = getattr(patient, "family", None)
     if family is not None:
         mother = next((g for g in (family.parents or []) if g.relation == "mother"), None)
@@ -183,6 +186,86 @@ def patient_hint(patient, lang="ar"):
     if len(phone) >= 4:
         parts.append(f"…{phone[-4:]}")
     return " · ".join(parts)
+
+
+AGE_UNITS = ("years", "months", "days")
+
+
+def estimated_birth(value, unit, today=None):
+    """The date of birth an estimated age points at — ``None`` when the
+    age cannot be read. Days and months as said; years land on today's date
+    that many years back."""
+    from datetime import timedelta
+
+    from app.utils.clock import local_today
+
+    try:
+        value = int(str(value).strip().translate(_ARABIC_DIGITS))
+    except (TypeError, ValueError):
+        return None
+    if value < 0 or unit not in AGE_UNITS:
+        return None
+    today = today or local_today()
+    if unit == "days":
+        return today - timedelta(days=value) if value <= 400 else None
+    if unit == "months":
+        if value > 240:
+            return None
+        month = today.month - value
+        year = today.year + (month - 1) // 12
+        month = (month - 1) % 12 + 1
+        day = min(today.day, 28)
+        return today.replace(year=year, month=month, day=day)
+    if value > 18:
+        return None
+    try:
+        return today.replace(year=today.year - value)
+    except ValueError:                  # 29 February
+        return today.replace(year=today.year - value, day=28)
+
+
+def quick_arrival(full_name, gender, age_value, age_unit, at=None):
+    """A child received in emergency **before registration** — GAHAR
+    ACT.03 (و). Returns ``(patient, reason)``, exactly one set.
+
+    The name may be missing: the file is then provisional, under a name that
+    says so and when the child came, until somebody confirms who this is.
+    The age is somebody's estimate, never the program's: the date of birth
+    is worked out from it and marked estimated, because doses and charts
+    read the age and a birth date made up by the software would be the one
+    thing worse than an estimate a person made. A sex is asked for the same
+    reason the quick registration asks it.
+    """
+    from app.models import GENDERS
+    from app.utils.clock import local_now
+    from app.utils.sequences import claim
+
+    if (gender or "").strip() not in GENDERS:
+        return None, "gender"
+    born = estimated_birth(age_value, age_unit)
+    if born is None:
+        return None, "age"
+    name = (full_name or "").strip()[:120]
+    provisional = not name
+    if provisional:
+        stamp = (at or local_now()).strftime("%d/%m %H:%M")
+        name = f"مجهول — طوارئ {stamp}"
+    patient = Patient(full_name=name, gender=gender.strip(), date_of_birth=born,
+                      is_active=True, dob_estimated=True,
+                      identity_provisional=True if provisional else None)
+    claim(patient, "patient_number", generate_patient_number)
+    return patient, None
+
+
+def provisional_files(limit=200):
+    """Files received before the child was identified, or with an estimated
+    birth date, oldest first — the desk's list to complete."""
+    from sqlalchemy import or_
+
+    return (Patient.query.filter(or_(Patient.identity_provisional.is_(True),
+                                     Patient.dob_estimated.is_(True)),
+                                 Patient.is_active.is_(True))
+            .order_by(Patient.created_at, Patient.id).limit(limit).all())
 
 
 def patient_number_allocator(scheme=None, prefix=None):

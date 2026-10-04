@@ -916,6 +916,11 @@ ADDITIONS = [
     # GAHAR ICD.19 (ج-٦) — difficulties met telling a doctor of a critical
     # result. Empty on every call already recorded.
     ("visit_investigations", "critical_difficulty", "VARCHAR(200)"),
+    # GAHAR ACT.03 (و) — a child received before they were identified, and a
+    # birth date worked out from an estimated age. Empty on every child
+    # registered the usual way.
+    ("patients", "identity_provisional", "BOOLEAN"),
+    ("patients", "dob_estimated", "BOOLEAN"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

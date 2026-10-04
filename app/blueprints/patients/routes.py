@@ -1460,6 +1460,17 @@ def _growth_concern(picture):
 
 
 # ---------------------------------------------------------------- edit -----
+@patients_bp.route("/provisional")
+@module_required(MODULE)
+def provisional():
+    """Files opened before the child was identified, or with a birth date
+    worked out from an estimated age — the desk's list to complete
+    (GAHAR ACT.03 و)."""
+    from app.utils.patients import provisional_files
+
+    return render_template("patients/provisional.html", rows=provisional_files())
+
+
 @patients_bp.route("/<int:patient_id>/edit", methods=["GET", "POST"])
 @module_required(MODULE)
 def edit(patient_id):
@@ -1467,6 +1478,7 @@ def edit(patient_id):
     families = Family.query.order_by(Family.family_name).all()
 
     if request.method == "POST":
+        was_born = patient.date_of_birth
         form = _read_patient_form()
         error = _validate_patient(form, existing=patient)
         if error:
@@ -1497,6 +1509,14 @@ def edit(patient_id):
         patient.chronic_diseases = form["chronic_diseases"]
         patient.notes = form["notes"]
         patient.is_active = form["is_active"]
+        # A file opened before the child was identified (ACT.03 و): the desk
+        # says, in so many words, that it now knows who this is; and a birth
+        # date typed over the estimated one is no longer an estimate.
+        if patient.identity_provisional and request.form.get("identity_confirmed") == "1":
+            patient.identity_provisional = None
+        if patient.dob_estimated and (request.form.get("dob_confirmed") == "1"
+                                      or (was_born and was_born != patient.date_of_birth)):
+            patient.dob_estimated = None
 
         new_photo = save_patient_photo(request.files.get("photo"), _upload_dir())
         if new_photo:

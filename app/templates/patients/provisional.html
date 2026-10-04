@@ -1,0 +1,34 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('er_quick.list_title') }}{% endblock %}
+{% block page_heading %}{{ t('er_quick.list_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ACT.03 (و) — children received before they were identified, and
+   birth dates worked out from an estimated age: the desk's list to complete,
+   on the same file, so everything done for the child stays where it is. #}
+<div class="gc-animate" style="margin-bottom:16px;">
+  <h1 class="page-title"><i class="bi bi-person-exclamation"></i> {{ t('er_quick.list_title') }}</h1>
+  <p class="page-sub" style="margin:0;">{{ t('er_quick.list_sub') }}</p>
+</div>
+{% if not rows %}
+<div class="card gc-scale-in"><p class="hint" style="margin:0;" data-none-provisional>{{ t('er_quick.none') }}</p></div>
+{% else %}
+<div class="card gc-scale-in" style="overflow-x:auto;">
+  <table class="table" style="min-width:560px;">
+    <thead><tr><th>{{ t('patients.file_number') }}</th><th>{{ t('appointments.patient') }}</th><th>{{ t('patients.dob') }}</th><th>{{ t('er_quick.opened') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for p in rows %}
+    <tr data-provisional-row="{{ p.id }}">
+      <td dir="ltr">{{ p.patient_number }}</td>
+      <td>{{ p.display_name(current_lang) }}{% if p.identity_provisional %} <span class="badge badge--danger">{{ t('er_quick.badge_provisional') }}</span>{% endif %}</td>
+      <td dir="ltr">{{ p.date_of_birth.isoformat() }}{% if p.dob_estimated %} <span class="badge badge--warn">{{ t('er_quick.badge_estimated') }}</span>{% endif %}</td>
+      <td>{{ p.created_at|clinic_stamp }}</td>
+      <td><a class="btn btn-sm btn-outline gc-press" href="{{ url_for('patients.edit', patient_id=p.id) }}">{{ t('er_quick.complete') }}</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
