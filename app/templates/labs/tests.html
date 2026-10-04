@@ -231,6 +231,13 @@
       <input type="checkbox" name="in_house" value="1" data-in-house
              {{ 'checked' if row.in_house is not false else '' }}>
       {{ t('lab.in_house') }}</label>
+    {# Filed under the wrong room? Moved here, with its open orders. #}
+    <div class="form-row" style="margin-bottom:0;min-width:130px;" data-move-kind>
+      <label>{{ t('lab.move_kind') }}</label>
+      <select class="select" name="move_kind">
+        {% for k in kinds %}<option value="{{ k }}" {{ 'selected' if row.kind == k else '' }}>{{ t('lab.kind_' ~ k) }}</option>{% endfor %}
+      </select>
+    </div>
     <button class="btn btn-sm btn-outline gc-press" type="submit">
       {{ t('common.save') }}</button>
     {% set ref = reference.get(row.id) %}

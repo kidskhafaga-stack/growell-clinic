@@ -381,6 +381,24 @@ def tests():
         modalities=_radiation().MODALITIES, dose_kinds=_radiation().DOSE_KINDS)
 
 
+def _move_kind(row, kind):
+    """A test filed under the wrong room — an echo added as a film before
+    the device studies had a room of their own — moved, and its orders not
+    yet answered moved with it, so they land on the right worklist."""
+    if not kind or kind == row.kind or kind not in INVESTIGATION_KINDS:
+        return False
+    row.kind = kind
+    (VisitInvestigation.query
+     .filter(VisitInvestigation.investigation_id == row.id,
+             VisitInvestigation.status != bench.RESULTED)
+     .update({VisitInvestigation.kind: kind}, synchronize_session=False))
+    if kind == bench.DIAGNOSTIC:
+        from app.utils import device_board
+
+        device_board.mark_used()
+    return True
+
+
 def _radiation():
     from app.utils import radiation
     return radiation
@@ -854,6 +872,7 @@ def edit_test(test_id):
     # search, because the *order* is written here whoever performs it. All
     # this decides is whether the order joins this building's own worklist.
     row.in_house = request.form.get("in_house") == "1"
+    _move_kind(row, request.form.get("move_kind"))
     db.session.commit()
     flash(t("lab.test_saved"), "success")
     return redirect(url_for("labs.tests", kind=row.kind))

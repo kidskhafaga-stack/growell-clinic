@@ -26,8 +26,28 @@
   <p class="page-sub" style="margin:0;">{{ t('device_board.sub') }}</p>
 </div>
 
+{# A study with no order — the child in front of the echo now. #}
+<form method="get" action="{{ url_for('visits.device_start') }}" class="card gc-scale-in"
+      style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:14px;" data-device-start>
+  <div class="form-row" style="margin:0;flex:1;min-width:200px;"><label>{{ t('device_board.start_label') }}</label>
+    <input class="input" name="number" required dir="ltr" placeholder="{{ t('device_board.start_ph') }}"></div>
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('device_board.start') }}</button>
+</form>
+
 {% if not rows %}
-<div class="card gc-scale-in"><p class="hint" style="margin:0;">{{ t('device_board.nothing') }}</p></div>
+<div class="card gc-scale-in" data-board-empty>
+  <p style="margin:0 0 6px;">{{ t('device_board.nothing') }}</p>
+  {# Why nothing waits, in the clinic's own terms. #}
+  <ul class="hint" style="margin:0;padding-inline-start:18px;line-height:1.9;">
+    <li>{{ t('device_board.how_orders_come') }}</li>
+    {% if not defined %}<li data-none-defined style="color:#b45309;">{{ t('device_board.none_defined') }}
+      {% if current_user.is_admin %}<a href="{{ url_for('labs.tests', kind='diagnostic') }}">{{ t('lab.tests') }}</a>{% endif %}</li>
+    {% else %}<li>{{ t('device_board.defined_n', n=defined) }}</li>{% endif %}
+    {% if elsewhere %}<li data-filed-elsewhere style="color:var(--danger);">{{ t('device_board.filed_elsewhere', n=elsewhere) }}
+      {% if current_user.is_admin %}<a href="{{ url_for('labs.tests', kind='imaging') }}">{{ t('lab.tests') }}</a>{% endif %}</li>{% endif %}
+    {% if not device_count %}<li>{{ t('device_board.no_devices') }}</li>{% endif %}
+  </ul>
+</div>
 {% else %}
 <div class="card gc-scale-in">
   {% for row in rows %}
@@ -92,4 +112,30 @@
   {% endfor %}
 </div>
 {% endif %}
+
+{# What was done lately — so the board is the room's day, not only its queue. #}
+<div class="card gc-scale-in" style="margin-top:14px;" data-recent-studies>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-clock-history"></i> {{ t('device_board.recent', n=recent_days) }}</h2>
+  {% if recent %}
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:560px;">
+    <thead><tr><th>{{ t('study.date') }}</th><th>{{ t('patients.full_name') }}</th>
+      <th>{{ t('study.device') }}</th><th>{{ t('study.performed_by') }}</th><th>{{ t('study.conclusion') }}</th></tr></thead>
+    <tbody>
+      {% for st in recent %}
+      <tr data-recent-study="{{ st.id }}">
+        <td dir="ltr">{{ st.study_date }}</td>
+        <td><a href="{{ url_for('patients.view', patient_id=st.patient_id) }}">{{ st.patient.display_name(current_lang) if st.patient else '—' }}</a></td>
+        <td>{{ st.device.display_name(current_lang) if st.device else '—' }}</td>
+        <td>{{ st.performer.display_name(current_lang) if st.performer else '—' }}</td>
+        <td dir="auto">{{ (st.conclusion or '')|truncate(80) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('device_board.recent_none') }}</p>
+  {% endif %}
+</div>
 {% endblock %}

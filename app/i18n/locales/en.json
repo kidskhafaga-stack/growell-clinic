@@ -6936,7 +6936,8 @@
     "scan_open": "Open",
     "scan_unknown": "No sample numbered {code}.",
     "label_printed": "label printed as",
-    "reprint_label": "Reprint the label"
+    "reprint_label": "Reprint the label",
+    "move_kind": "Room (if filed wrongly)"
   },
   "pharm": {
     "sub": "The queue: who is waiting, and what for",
@@ -9556,7 +9557,18 @@
     "booked": "Study booked.",
     "unbooked": "Booking cancelled.",
     "recorded": "{device} study recorded.",
-    "answers": "This result answers the order: {name}"
+    "answers": "This result answers the order: {name}",
+    "start_label": "A new study with no order — file number",
+    "start_ph": "Child's file number",
+    "start": "Start a study",
+    "no_such_file": "No file numbered {number}",
+    "how_orders_come": "A study appears here when a doctor orders it from a visit, the emergency or a ward — or start one directly above by file number.",
+    "none_defined": "No test is defined as a «device study» in the tests list — the echo, EEG and ultrasound must be defined that way for their orders to arrive here.",
+    "defined_n": "{n} tests are defined as device studies.",
+    "filed_elsewhere": "{n} open orders for a test tied to a device are filed under radiology or the lab — change its room in the tests list so they arrive here.",
+    "no_devices": "No devices recorded yet (echo, ECG, EEG…).",
+    "recent": "Done in the last {n} days",
+    "recent_none": "No studies done in these days."
   },
   "lab_hand": {
     "age_ph": "As on the sheet: 6-23 months · <1 year · all",

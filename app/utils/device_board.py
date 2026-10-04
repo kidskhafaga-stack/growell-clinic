@@ -178,3 +178,37 @@ def booked_today(order, now=None):
         return False
     day, today = local_date(order.booked_for), local_date(now or datetime.utcnow())
     return day is not None and today is not None and day <= today
+
+
+def context(days=7):
+    """What the board shows besides its worklist: the studies done in the
+    last ``days``, and — for an empty board — how many tests are defined as
+    device studies and how many devices the clinic has, so «nothing waits»
+    can say why."""
+    from datetime import timedelta
+
+    from app.models import DeviceStudy, Investigation, MedicalDevice
+    from app.utils.clock import local_today
+
+    since = local_today() - timedelta(days=days)
+    recent = (DeviceStudy.query.filter(DeviceStudy.study_date >= since)
+              .order_by(DeviceStudy.study_date.desc(), DeviceStudy.id.desc())
+              .limit(50).all())
+    return {
+        "recent": recent, "recent_days": days,
+        "defined": Investigation.query.filter_by(kind="diagnostic", is_active=True).count(),
+        "device_count": MedicalDevice.query.filter_by(is_active=True).count(),
+        "elsewhere": _filed_elsewhere(),
+    }
+
+
+def _filed_elsewhere():
+    """Open orders whose test is set to a device but filed under radiology
+    or the lab — the board would never see them."""
+    from app.models import Investigation, VisitInvestigation
+
+    return (VisitInvestigation.query
+            .join(Investigation, VisitInvestigation.investigation_id == Investigation.id)
+            .filter(Investigation.device_id.isnot(None),
+                    Investigation.kind != "diagnostic",
+                    VisitInvestigation.status != "resulted").count())
