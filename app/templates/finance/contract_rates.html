@@ -102,6 +102,12 @@
       <input class="input" type="number" step="0.01" min="0" name="deductible_year" value="{{ contract.deductible_year or '' }}"></div>
     <div class="form-row" style="margin:0;width:170px;"><label>{{ t('limits.ceiling_year') }}</label>
       <input class="input" type="number" step="0.01" min="0" name="ceiling_year" value="{{ contract.ceiling_year or '' }}"></div>
+    {# While a line waits for the payer's approval: the bill waits, or the
+       family pays now and is refunded to its account when it comes. #}
+    <div class="form-row" style="margin:0;min-width:240px;" data-approval-policy><label>{{ t('limits.approval_policy') }}</label>
+      <select class="select" name="approval_policy">
+        {% for p in ['wait', 'collect'] %}<option value="{{ p }}" {{ 'selected' if (contract.approval_policy or 'wait') == p else '' }}>{{ t('limits.policy_' ~ p) }}</option>{% endfor %}
+      </select></div>
     <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
     <span class="hint" style="margin:0 0 8px;flex-basis:100%;">{{ t('limits.year_hint') }}</span>
   </form>
@@ -110,7 +116,7 @@
   <div style="overflow-x:auto;">
   <table class="table" style="min-width:560px;margin-bottom:10px;">
     <thead><tr><th>{{ t('contracts.rule_setting') }}</th><th>{{ t('limits.copay_amount') }}</th>
-      <th>{{ t('limits.ceiling_case') }}</th><th>{{ t('limits.night_ceiling') }}</th><th></th></tr></thead>
+      <th>{{ t('limits.ceiling_case') }}</th><th>{{ t('limits.night_ceiling') }}</th><th>{{ t('limits.deposit_amount') }}</th><th></th></tr></thead>
     <tbody>
     {% for r in contract.terms %}
     <tr data-term="{{ r.setting }}">
@@ -118,6 +124,7 @@
       <td>{{ r.copay_amount|money if r.copay_amount else '—' }}</td>
       <td>{{ r.ceiling_case|money if r.ceiling_case else '—' }}</td>
       <td>{{ r.night_ceiling|money if r.night_ceiling else '—' }}</td>
+      <td>{{ r.deposit_amount|money if r.deposit_amount else '—' }}</td>
       <td style="text-align:end;">
         <form method="post" action="{{ url_for('finance.contract_term_delete', term_id=r.id) }}" style="margin:0;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -143,6 +150,8 @@
       <input class="input" type="number" step="0.01" min="0" name="ceiling_case"></div>
     <div class="form-row" style="margin:0;width:140px;"><label>{{ t('limits.night_ceiling') }}</label>
       <input class="input" type="number" step="0.01" min="0" name="night_ceiling"></div>
+    <div class="form-row" style="margin:0;width:140px;"><label>{{ t('limits.deposit_amount') }}</label>
+      <input class="input" type="number" step="0.01" min="0" name="deposit_amount"></div>
     <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
 </div>

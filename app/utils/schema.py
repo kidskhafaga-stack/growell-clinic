@@ -849,6 +849,12 @@ ADDITIONS = [
     # «Paid, go ahead» on a non-urgent emergency child (`utils/er_pay_first`).
     ("emergency_visits", "pay_cleared_at", "DATETIME"),
     ("emergency_visits", "pay_cleared_by", "INTEGER"),
+    # A claim sending again what a payer refused (`utils/claims_desk`).
+    ("claims", "resubmission_of_id", "INTEGER"),
+    # The approval letter, the waiting policy, the suggested deposit.
+    ("insurance_approvals", "letter_file", "VARCHAR(80)"),
+    ("payer_contracts", "approval_policy", "VARCHAR(10)"),
+    ("payer_contract_terms", "deposit_amount", "FLOAT"),
     # «رسم المخ الى بيحتاج حجز ونوم» — a device study booked for a day and an
     # hour, with what the family must do before it. Empty on every order.
     ("visit_investigations", "booked_for", "DATETIME"),

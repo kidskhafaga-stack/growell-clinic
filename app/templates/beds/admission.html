@@ -560,6 +560,11 @@
     <div class="stat-card {{ 'edge-red' if stay_money.owing > 0 else 'edge-green' }}"><div class="value">{{ stay_money.owing|money }}</div><div class="label">{{ t('invoices.balance') }}</div></div>
     <div class="stat-card edge-green"><div class="value">{{ stay_money.held|money }}</div><div class="label">{{ t('credit.held') }}</div></div>
   </div>
+  {% set sugg = stay_money.suggested %}
+  {% if sugg[0] %}
+  <p class="hint" style="margin:0 0 8px;" data-deposit-suggested><i class="bi bi-lightbulb"></i>
+    {{ t('credit.suggested_' ~ sugg[1], amount=sugg[0]|money) }}</p>
+  {% endif %}
   {% if stay_money.short > 0 %}
   <p class="alert-pill warn" style="margin:0 0 10px;" data-deposit-short>
     <i class="bi bi-exclamation-triangle"></i> {{ t('credit.top_up', amount=stay_money.short|money) }}</p>
@@ -580,7 +585,7 @@
     <input type="hidden" name="admission_id" value="{{ admission.id }}">
     <input type="hidden" name="next" value="admission:{{ admission.id }}">
     <div class="form-row" style="margin:0;width:130px;"><label>{{ t('invoices.amount') }}</label>
-      <input class="input" type="number" step="0.01" min="0.01" name="amount" value="{{ stay_money.short if stay_money.short > 0 else '' }}" required></div>
+      <input class="input" type="number" step="0.01" min="0.01" name="amount" value="{{ stay_money.short if stay_money.short > 0 else ((sugg[0] - stay_money.deposited) if sugg[0] and sugg[0] > stay_money.deposited else '') }}" required></div>
     <div class="form-row" style="margin:0;min-width:120px;"><label>{{ t('invoices.method') }}</label>
       <select class="select" name="method">{% for m in pay_methods %}<option value="{{ m }}">{{ t('payment_methods.' ~ m) }}</option>{% endfor %}</select></div>
     <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('credit.take_deposit') }}</button>

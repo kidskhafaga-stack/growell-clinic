@@ -2027,7 +2027,8 @@
     "transfer": "Transfer",
     "wallet": "Wallet",
     "online": "Online (gateway)",
-    "credit": "From patient account"
+    "credit": "From patient account",
+    "bill": "From a bill (after approval)"
   },
   "statements": {
     "title": "Doctor account statement",
@@ -9691,7 +9692,12 @@
     "approved": "Approval recorded and linked to {n} lines.",
     "rejected": "Refusal recorded.",
     "missing": "Needs approval",
-    "to_claims": "Claims"
+    "to_claims": "Claims",
+    "letter": "Approval letter",
+    "add_letter": "Upload the letter",
+    "bad_letter": "The file must be a PDF or an image (under 20 MB)",
+    "letter_saved": "Approval letter saved",
+    "refunded_to_account": "Bill {number} was covered after the approval, and the {amount} the family paid over its share went to its patient account"
   },
   "credit": {
     "title": "Patient account",
@@ -9737,7 +9743,11 @@
     "mode_auto": "Automatic — on for a hospital or a dental clinic",
     "mode_on": "On",
     "mode_off": "Off",
-    "setting_hint": "Money taken before the care (a stay deposit, a dental payment larger than the plan) is held on the patient's account, pays their bills, or is handed back. A patient who holds a balance always sees it, even with the account switched off."
+    "setting_hint": "Money taken before the care (a stay deposit, a dental payment larger than the plan) is held on the patient's account, pays their bills, or is handed back. A patient who holds a balance always sees it, even with the account switched off.",
+    "suggested_contract": "Suggested deposit under the contract: {amount}",
+    "suggested_department": "Suggested deposit for the department: {amount}",
+    "deposit_for": "Suggested deposit — {place}",
+    "deposit_suggest_hint": "A figure the hospital sets for a cash patient on admission to each department, shown on the stay as a suggestion. For an insured member it is set in the contract's terms. Empty = no suggestion."
   },
   "limits": {
     "title": "Family share and payer ceilings",
@@ -9755,7 +9765,12 @@
     "note_deductible": "Yearly deductible",
     "note_copay": "Fixed family share",
     "note_room_ceiling": "Room difference over the nightly ceiling",
-    "note_over_ceiling": "Over the payer's ceiling"
+    "note_over_ceiling": "Over the payer's ceiling",
+    "approval_policy": "A line waiting for approval",
+    "policy_wait": "Do it and wait for the approval (the family does not pay)",
+    "policy_collect": "The family pays, refunded to its account when the approval comes",
+    "deposit_amount": "Suggested deposit",
+    "note_awaiting_approval": "Awaiting approval — the family pays it until then"
   },
   "renewal": {
     "adjust_title": "Change the contract's prices",
@@ -9931,5 +9946,48 @@
     "arrived": "Arrived",
     "level": "Triage",
     "free_none": "No urgent attendances in this period."
+  },
+  "claims_desk": {
+    "board_title": "Claims desk — payers",
+    "board_hint": "Next batch: from the day after the last claimed period up to the contract's cycle day (or today when the contract names none). Figures for the last 12 months.",
+    "next_batch": "Next batch",
+    "make_batch": "Make the claim",
+    "no_batch": "No batch due",
+    "claimed": "Claimed",
+    "accepted": "Accepted",
+    "paid": "Actually paid",
+    "open_refused": "Refused and still open",
+    "paid_short": "The payer paid {amount} less than it accepted",
+    "lines_title": "Claim lines",
+    "decide_hint": "Write the payer's answer per line: an empty box = accepted in full. Where part or all was refused, write what was accepted and why.",
+    "save_decision": "Save the payer's answer",
+    "decided": "The payer's answer was recorded",
+    "decision_accepted": "Accepted",
+    "decision_partial": "Part",
+    "decision_refused": "Refused",
+    "resubmit": "Resubmit the ticked",
+    "write_off": "Write off the ticked",
+    "resubmitted": "Resubmission claim {number} made",
+    "written_off": "{n} lines written off",
+    "written_off_badge": "Written off",
+    "resubmission_of": "Resubmission of claim",
+    "followups": "Resubmitted in",
+    "sheet": "Claim sheet (Excel)",
+    "col_invoice": "Invoice",
+    "col_date": "Date",
+    "col_patient": "Patient",
+    "col_card": "Card",
+    "col_setting": "Department",
+    "col_line": "Item",
+    "col_approval": "Approval no.",
+    "col_amount": "Claimed",
+    "col_accepted": "Accepted",
+    "col_reason": "Refusal reason",
+    "err_not_submitted": "The claim must be submitted first",
+    "err_no_lines": "The claim has no lines",
+    "err_bad_amount": "Accepted must be between zero and the line's amount",
+    "err_need_reason": "Every line refused in full or in part needs its reason",
+    "err_nothing_to_resubmit": "No open refused lines ticked",
+    "err_nothing_to_write_off": "No open refused lines ticked"
   }
 }

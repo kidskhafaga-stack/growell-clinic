@@ -221,6 +221,12 @@ class PayerContract(db.Model):
     #
     # The first this much of what the contract would cover, each year, is
     # the family's.
+    # While a line waits for its approval: «wait» (the default — the bill
+    # waits out of the claim and the family is not asked) or «collect» —
+    # the family pays the line now and is refunded to its own account when
+    # the approval arrives (`utils/approvals.link_waiting`). Never for an
+    # urgent emergency child.
+    approval_policy = db.Column(db.String(10))
     deductible_year = db.Column(db.Float)
     # The most the payer pays for one member in that year; past it the
     # family pays.
@@ -284,11 +290,13 @@ class PayerContract(db.Model):
             # contract rolls over, which is the one day nobody is looking.
             filing_days=self.filing_days, payment_days=self.payment_days,
             cycle_day=self.cycle_day,
-            deductible_year=self.deductible_year, ceiling_year=self.ceiling_year)
+            deductible_year=self.deductible_year, ceiling_year=self.ceiling_year,
+            approval_policy=self.approval_policy)
         for t in self.terms:
             clone.terms.append(PayerContractTerm(
                 setting=t.setting, copay_amount=t.copay_amount,
-                ceiling_case=t.ceiling_case, night_ceiling=t.night_ceiling))
+                ceiling_case=t.ceiling_case, night_ceiling=t.night_ceiling,
+                deposit_amount=t.deposit_amount))
         for r in self.rules:
             clone.rules.append(PayerContractRule(
                 setting=r.setting, scope=r.scope, service_id=r.service_id,
@@ -445,6 +453,9 @@ class PayerContractTerm(db.Model):
     copay_amount = db.Column(db.Float)
     ceiling_case = db.Column(db.Float)
     night_ceiling = db.Column(db.Float)
+    # The deposit the hospital asks a member for on admission to this
+    # department under this contract — a suggestion the desk reads.
+    deposit_amount = db.Column(db.Float)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     contract = db.relationship("PayerContract", back_populates="terms")
@@ -483,6 +494,9 @@ class InsuranceApproval(db.Model):
     estimate = db.Column(db.Float)
     status = db.Column(db.String(10), default="requested", nullable=False, index=True)
     approval_number = db.Column(db.String(60))
+    # The payer's letter itself, scanned or photographed — the claim is
+    # argued over the paper, not over the number typed from it.
+    letter_file = db.Column(db.String(80))
     approved_amount = db.Column(db.Float)
     valid_until = db.Column(db.Date)
     note = db.Column(db.String(255))
@@ -564,11 +578,18 @@ class Claim(db.Model):
     notes = db.Column(db.String(255))
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    # A claim sending again what a payer refused on an earlier one
+    # (`utils/claims_desk.resubmit`). Empty on an ordinary claim.
+    resubmission_of_id = db.Column(db.Integer, db.ForeignKey("claims.id"))
 
     payer = db.relationship("PayerEntity")
     creator = db.relationship("User")
     items = db.relationship("ClaimItem", back_populates="claim",
                             cascade="all, delete-orphan")
+    lines = db.relationship("ClaimLine", back_populates="claim",
+                            foreign_keys="ClaimLine.claim_id",
+                            cascade="all, delete-orphan", order_by="ClaimLine.id")
+    resubmission_of = db.relationship("Claim", remote_side=[id])
 
     def __repr__(self):
         return f"<Claim {self.claim_number} {self.status}>"
@@ -591,3 +612,62 @@ class ClaimItem(db.Model):
 
     def __repr__(self):
         return f"<ClaimItem claim={self.claim_id} inv={self.invoice_id}>"
+
+
+#: What the payer said about one line of a claim.
+CLAIM_DECISIONS = ("accepted", "partial", "refused")
+
+
+class ClaimLine(db.Model):
+    """One billed line inside a claim — what the payer is asked for it, and
+    what the payer said: accepted, part of it, or refused with the reason.
+
+    Payers answer by the line, not by the invoice: «the CBC is not in the
+    policy», «the third night needed an approval». A refused line can be sent
+    again on a resubmission claim (``resubmitted_in_id``) or let go
+    (``written_off``) — never both, and never silently.
+    """
+    __tablename__ = "claim_lines"
+
+    id = db.Column(db.Integer, primary_key=True)
+    claim_id = db.Column(db.Integer, db.ForeignKey("claims.id"), nullable=False, index=True)
+    claim_item_id = db.Column(db.Integer, db.ForeignKey("claim_items.id"), index=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"), index=True)
+    # Empty for a bill claimed before cover was kept per line: the whole
+    # bill's claim is one line then.
+    invoice_item_id = db.Column(db.Integer, db.ForeignKey("invoice_items.id"), index=True)
+    # Snapshots, so the claim reads the same after the bill is touched.
+    description = db.Column(db.String(200))
+    service_date = db.Column(db.Date)
+    setting = db.Column(db.String(12))
+    approval_number = db.Column(db.String(60))
+    amount = db.Column(db.Float, default=0, nullable=False)
+    # The payer's answer.
+    decision = db.Column(db.String(10))
+    accepted = db.Column(db.Float)
+    refusal_reason = db.Column(db.String(200))
+    # What became of a refused remainder.
+    resubmit_of_id = db.Column(db.Integer, db.ForeignKey("claim_lines.id"))
+    resubmitted_in_id = db.Column(db.Integer, db.ForeignKey("claims.id"))
+    written_off = db.Column(db.Boolean)
+
+    claim = db.relationship("Claim", foreign_keys=[claim_id], back_populates="lines")
+    invoice = db.relationship("Invoice")
+    invoice_item = db.relationship("InvoiceItem")
+    resubmitted_in = db.relationship("Claim", foreign_keys=[resubmitted_in_id])
+
+    @property
+    def refused(self):
+        """What the payer did not accept of this line."""
+        if self.decision is None:
+            return 0.0
+        return round((self.amount or 0) - (self.accepted or 0), 2)
+
+    @property
+    def open_refusal(self):
+        """Refused, and neither sent again nor let go."""
+        return bool(self.refused > 0 and not self.resubmitted_in_id
+                    and not self.written_off)
+
+    def __repr__(self):
+        return f"<ClaimLine claim={self.claim_id} {self.amount} {self.decision}>"

@@ -5496,15 +5496,51 @@ def approval_decide(approval_id):
         until = datetime.strptime(raw, "%Y-%m-%d").date() if raw else None
     except ValueError:
         until = None
+    # The payer's letter, scanned or photographed — kept with the answer.
+    from app.utils.uploads import save_document
+
+    letter = request.files.get("letter")
+    if letter is not None and letter.filename:
+        stored = save_document(letter)
+        if stored is None:
+            flash(t("approvals.bad_letter"), "danger")
+            return redirect(url_for("finance.approvals") + f"#a{row.id}")
+        row.letter_file = stored
     linked = ap.decide(row, approved, current_user, number=number,
                        amount=request.form.get("approved_amount", type=float),
                        valid_until=until, note=request.form.get("note"))
+    refunds = getattr(row, "refunds", None) or []
     ActivityLog.record("approval." + row.status, user_id=current_user.id,
                        entity="insurance_approval", entity_id=row.id,
                        detail=row.approval_number or "", ip_address=client_ip())
     db.session.commit()
+    # The bills covered again, and the refunds to the family's account, in
+    # the ledger — best effort, as every posting is.
+    for invoice, _amount, _pay in refunds:
+        _post_journal_safe("invoice", invoice)
     flash(t("approvals.approved", n=linked) if approved else t("approvals.rejected"),
           "success" if approved else "warning")
+    for invoice, amount, _pay in refunds:
+        flash(t("approvals.refunded_to_account", amount=format_money(amount),
+                number=invoice.invoice_number), "info")
+    return redirect(url_for("finance.approvals") + f"#a{row.id}")
+
+
+@finance_bp.route("/approvals/<int:approval_id>/letter", methods=["POST"])
+@module_required(MODULE)
+def approval_letter(approval_id):
+    """The letter, added after the answer was recorded."""
+    from app.models import InsuranceApproval
+    from app.utils.uploads import save_document
+
+    row = db.get_or_404(InsuranceApproval, approval_id)
+    stored = save_document(request.files.get("letter"))
+    if stored is None:
+        flash(t("approvals.bad_letter"), "danger")
+    else:
+        row.letter_file = stored
+        db.session.commit()
+        flash(t("approvals.letter_saved"), "success")
     return redirect(url_for("finance.approvals") + f"#a{row.id}")
 
 
@@ -5549,7 +5585,8 @@ def contract_term_save(contract_id):
     if setting not in ("any",) + tuple(SETTINGS):
         flash(t("contracts.rule_bad"), "danger")
         return redirect(back)
-    figures = {k: _limit(k) for k in ("copay_amount", "ceiling_case", "night_ceiling")}
+    figures = {k: _limit(k) for k in ("copay_amount", "ceiling_case", "night_ceiling",
+                                       "deposit_amount")}
     if any(v is False for v in figures.values()):
         flash(t("limits.terms_bad"), "danger")
         return redirect(back)
@@ -5598,6 +5635,9 @@ def contract_year_save(contract_id):
         flash(t("limits.terms_bad"), "danger")
         return redirect(back)
     c.deductible_year, c.ceiling_year = deductible, ceiling
+    policy = request.form.get("approval_policy")
+    if policy in ("wait", "collect"):
+        c.approval_policy = None if policy == "wait" else policy
     ActivityLog.record("contract.year", user_id=current_user.id,
                        entity="payer_contract", entity_id=c.id,
                        detail=f"{deductible}/{ceiling}", ip_address=client_ip())
@@ -5792,8 +5832,14 @@ def claims():
     # empty for a clinic that has typed no terms — see `utils/claim_clock`.
     from app.utils import claim_clock
 
+    from app.utils import claims_desk
+
     return render_template("finance/claims.html", rows=rows,
                            claim_docs=claim_docs,
+                           # Each payer's next batch, by its cycle day, and
+                           # how its claims stand — the desk's first view.
+                           board=claims_desk.payer_board(today),
+                           desk=claims_desk,
                            closing=claim_clock.closing_soon(),
                            aging=claim_clock.aging(),
                            outstanding=claim_clock.outstanding(),
@@ -5862,6 +5908,12 @@ def claim_create():
         claim.items.append(ClaimItem(invoice_id=inv.id, amount=inv.payer_total))
     claim.total_amount = round(sum(it.amount for it in claim.items), 2)
     db.session.add(claim)
+    db.session.flush()
+    # The payer answers by the line, so the claim carries its lines — each
+    # with its department and its approval number (`utils/claims_desk`).
+    from app.utils import claims_desk
+
+    claims_desk.build_lines(claim)
     ActivityLog.record("claim.create", user_id=current_user.id, entity="claim",
                        detail=claim.claim_number, ip_address=client_ip())
     db.session.commit()
@@ -5872,9 +5924,93 @@ def claim_create():
 @finance_bp.route("/claim/<int:claim_id>")
 @module_required(MODULE)
 def claim_view(claim_id):
+    from app.utils import claims_desk
+
     claim = db.get_or_404(Claim, claim_id)
+    if claims_desk.ensure_lines(claim):
+        db.session.commit()
     return render_template("finance/claim_view.html", claim=claim,
-                           payment_methods=PAYMENT_METHODS)
+                           payment_methods=PAYMENT_METHODS,
+                           sums=claims_desk.totals(claim),
+                           followups=Claim.query.filter_by(resubmission_of_id=claim.id).all())
+
+
+@finance_bp.route("/claim/<int:claim_id>/decide", methods=["POST"])
+@module_required(MODULE)
+def claim_decide(claim_id):
+    """The payer's answer, line by line: accepted, part of it, or refused
+    with the reason."""
+    from app.utils import claims_desk
+
+    claim = db.get_or_404(Claim, claim_id)
+    answers = {ln.id: (request.form.get(f"accepted_{ln.id}"),
+                       request.form.get(f"reason_{ln.id}")) for ln in claim.lines}
+    try:
+        claims_desk.decide(claim, answers, current_user)
+    except claims_desk.DeskError as err:
+        db.session.rollback()
+        flash(t(f"claims_desk.err_{err}"), "danger")
+        return redirect(url_for("finance.claim_view", claim_id=claim.id))
+    ActivityLog.record("claim.decide", user_id=current_user.id, entity="claim",
+                       detail=f"{claim.claim_number}:{claim.approved_amount}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("claims_desk.decided"), "success")
+    return redirect(url_for("finance.claim_view", claim_id=claim.id))
+
+
+@finance_bp.route("/claim/<int:claim_id>/refused", methods=["POST"])
+@module_required(MODULE)
+def claim_refused(claim_id):
+    """What becomes of the refused lines ticked: sent again on a new claim,
+    or let go."""
+    from app.utils import claims_desk
+
+    claim = db.get_or_404(Claim, claim_id)
+    ids = [int(x) for x in request.form.getlist("line_id") if x.isdigit()]
+    action = request.form.get("action")
+    try:
+        if action == "resubmit":
+            again = claims_desk.resubmit(claim, ids, current_user)
+            ActivityLog.record("claim.resubmit", user_id=current_user.id,
+                               entity="claim", detail=f"{claim.claim_number}->{again.claim_number}",
+                               ip_address=client_ip())
+            db.session.commit()
+            flash(t("claims_desk.resubmitted", number=again.claim_number), "success")
+            return redirect(url_for("finance.claim_view", claim_id=again.id))
+        if action == "write_off":
+            n = claims_desk.write_off(claim, ids, current_user)
+            ActivityLog.record("claim.write_off", user_id=current_user.id,
+                               entity="claim", detail=f"{claim.claim_number}:{n}",
+                               ip_address=client_ip())
+            db.session.commit()
+            flash(t("claims_desk.written_off", n=n), "info")
+            return redirect(url_for("finance.claim_view", claim_id=claim.id))
+    except claims_desk.DeskError as err:
+        db.session.rollback()
+        flash(t(f"claims_desk.err_{err}"), "warning")
+    return redirect(url_for("finance.claim_view", claim_id=claim.id))
+
+
+@finance_bp.route("/claim/<int:claim_id>/sheet")
+@module_required(MODULE)
+def claim_sheet(claim_id):
+    """The claim as a sheet for the payer — one row per line."""
+    from io import BytesIO
+
+    from flask import send_file
+
+    from app.utils import claims_desk
+
+    claim = db.get_or_404(Claim, claim_id)
+    book = claims_desk.export(claim, t, getattr(g, "lang", "ar"))
+    db.session.commit()
+    buf = BytesIO()
+    book.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True, download_name=f"{claim.claim_number}.xlsx")
 
 
 @finance_bp.route("/claim/<int:claim_id>/action", methods=["POST"])
@@ -5911,6 +6047,12 @@ def claim_action(claim_id):
         claim.paid_at = datetime.utcnow()
     elif action == "delete" and claim.status == "draft":
         number = claim.claim_number
+        # A resubmission taken back: the lines it was sending again are
+        # open refusals once more, not pointing at a claim that is gone.
+        from app.models import ClaimLine
+
+        (ClaimLine.query.filter(ClaimLine.resubmitted_in_id == claim.id)
+         .update({ClaimLine.resubmitted_in_id: None}, synchronize_session=False))
         db.session.delete(claim)
         db.session.commit()
         flash(t("claims.deleted", number=number), "info")

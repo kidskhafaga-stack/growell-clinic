@@ -43,6 +43,10 @@ TEXT_KEYS = [
     # follows the facility — on for a hospital or a dental clinic — and
     # «on» / «off» is the clinic's own word. `app/utils/patient_credit`.
     "patient_credit_mode",
+    # The deposit the hospital asks a cash patient for on admission, per
+    # department — a figure the desk reads on the stay (`patient_credit`).
+    "deposit_suggest:emergency", "deposit_suggest:inpatient",
+    "deposit_suggest:nicu", "deposit_suggest:icu",
     # Where the clinic is. Needed wherever a stored UTC moment has to be
     # compared with a time a person typed (see app/utils/clock.py).
     "clinic_timezone",

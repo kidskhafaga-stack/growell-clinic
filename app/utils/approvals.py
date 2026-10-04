@@ -86,9 +86,60 @@ def link_waiting(approval):
             continue
         item.approval_id = approval.id
         item.approval_needed = False
+        if item.cover_note == "awaiting_approval":
+            approval._collected = getattr(approval, "_collected", set()) | {invoice}
         done += 1
     db.session.flush()
     return done
+
+
+def collects(contract, invoice):
+    """Whether, while a line waits for its approval, the family pays it now
+    (and is refunded on approval) — the contract's choice. **Never an urgent
+    emergency child**: their care is not paid ahead, whatever is set."""
+    if contract is None or (contract.approval_policy or "wait") != "collect":
+        return False
+    return not _urgent_emergency(invoice)
+
+
+def _urgent_emergency(invoice):
+    from app.models import EmergencyVisit
+
+    if invoice is None or not invoice.visit_id:
+        return False
+    return EmergencyVisit.query.filter(EmergencyVisit.visit_id == invoice.visit_id,
+                                       EmergencyVisit.urgent.is_(True)).first() is not None
+
+
+def refund_collected(invoices, user=None):
+    """The approval arrived: cover the bills again, and what the family paid
+    beyond their share now goes to their own account — never left as a
+    negative balance on a bill. Returns ``[(invoice, amount)]`` moved."""
+    from app.models import CREDIT_METHOD, Payment, PatientCredit
+    from app.utils import billing
+
+    moved = []
+    for invoice in invoices:
+        if invoice is None or invoice.patient is None:
+            continue
+        billing.apply_coverage(invoice, invoice.patient)
+        db.session.flush()
+        surplus = round(invoice.paid - invoice.total, 2)
+        if surplus > 0.009:
+            pay = Payment(amount=surplus, method=CREDIT_METHOD, kind="refund",
+                          received_by=getattr(user, "id", None),
+                          notes="بعد الموافقة — للحساب الدائن")
+            invoice.payments.append(pay)
+            db.session.flush()
+            db.session.add(PatientCredit(
+                patient_id=invoice.patient_id, kind="in", amount=surplus,
+                method="bill", invoice_id=invoice.id, payment_id=pay.id,
+                note=f"بعد موافقة الجهة — {invoice.invoice_number}"[:200],
+                created_by=getattr(user, "id", None)))
+            moved.append((invoice, surplus, pay))
+        invoice.recalc_status()
+    db.session.flush()
+    return moved
 
 
 def decide(approval, approved, user, number=None, amount=None, valid_until=None,
@@ -103,4 +154,11 @@ def decide(approval, approved, user, number=None, amount=None, valid_until=None,
     approval.decided_by = getattr(user, "id", None)
     approval.decided_at = datetime.utcnow()
     db.session.flush()
-    return link_waiting(approval) if approved else 0
+    if not approved:
+        return 0
+    linked = link_waiting(approval)
+    # Lines the family paid while they waited: covered now, the difference
+    # to the family's own account (`refund_collected`).
+    approval.refunds = refund_collected(sorted(getattr(approval, "_collected", set()),
+                                               key=lambda i: i.id), user)
+    return linked

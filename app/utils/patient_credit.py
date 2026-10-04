@@ -89,10 +89,34 @@ def for_stay(admission):
     charged = round(sum(i.total for i in bills), 2)
     owing = round(sum(i.balance for i in bills), 2)
     held = balance(admission.patient_id)
-    return {"deposited": deposited, "charged": charged,
+    return {"suggested": suggested_deposit(admission),
+            "deposited": deposited, "charged": charged,
             "paid": round(sum(i.paid for i in bills), 2), "owing": owing,
             "held": held, "short": round(max(owing - held, 0.0), 2),
             "bills": bills}
+
+
+def suggested_deposit(admission):
+    """``(amount, source)`` the hospital asks on admission to this stay's
+    department — the member's contract term first, else the hospital's own
+    figure for the department (``deposit_suggest:<setting>``). ``(None,
+    None)`` when it set none. A figure somebody typed, never one worked out."""
+    from app.models import Setting
+    from app.utils.care_setting import of_admission
+
+    setting = of_admission(admission)
+    patient = admission.patient
+    coverage = patient.active_coverage if patient is not None else None
+    if coverage is not None and coverage.payer is not None and coverage.payer.contracts:
+        contract = coverage.payer.active_contract()
+        term = contract.term_for(setting) if contract is not None else None
+        if term is not None and term.deposit_amount:
+            return term.deposit_amount, "contract"
+    try:
+        figure = float(Setting.get(f"deposit_suggest:{setting}") or 0)
+    except (TypeError, ValueError):
+        figure = 0
+    return (figure, "department") if figure > 0 else (None, None)
 
 
 def _amount(raw):

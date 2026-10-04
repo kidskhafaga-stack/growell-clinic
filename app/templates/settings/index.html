@@ -560,6 +560,15 @@
       </select>
     </div>
     <p class="hint">{{ t('credit.setting_hint') }}</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;" data-deposit-suggest>
+      {% for setting in ['emergency', 'inpatient', 'nicu', 'icu'] %}
+      <div class="form-row" style="max-width:170px;">
+        <label for="deposit_suggest_{{ setting }}">{{ t('credit.deposit_for', place=t('contracts.setting_' ~ setting)) }}</label>
+        <input class="input" type="number" min="0" step="0.01" id="deposit_suggest_{{ setting }}"
+               name="deposit_suggest:{{ setting }}" value="{{ values.get('deposit_suggest:' ~ setting) or '' }}"></div>
+      {% endfor %}
+    </div>
+    <p class="hint">{{ t('credit.deposit_suggest_hint') }}</p>
     <div class="form-row checkbox" data-arrive-on-payment>
       <input type="checkbox" id="arrive_on_payment" name="arrive_on_payment" value="1"
              {{ 'checked' if values.get('arrive_on_payment','1') != '0' else '' }}>
