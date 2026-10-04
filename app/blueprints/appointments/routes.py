@@ -1351,7 +1351,15 @@ def _patient_brief(p, wanted=None):
         # the quick-create and the already-chosen patient — so the badge
         # lights up in all three from one place.
         "missing": basics.missing(p, keys=wanted),
+        # Two children of one name told apart: born, mother, phone.
+        "hint": _hint(p),
     }
+
+
+def _hint(patient):
+    from app.utils.patients import patient_hint
+
+    return patient_hint(patient, getattr(g, "lang", "ar"))
 
 
 # ---------------------------------------- the visit that changed shape -----

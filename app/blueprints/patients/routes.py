@@ -3801,7 +3801,7 @@ def sibling_search(patient_id):
     """JSON: patients who could be linked as a sibling of this one."""
     from flask import jsonify
 
-    from app.utils.patients import apply_patient_search
+    from app.utils.patients import apply_patient_search, patient_hint
 
     patient = db.get_or_404(Patient, patient_id)
     q = (request.args.get("q") or "").strip()
@@ -3830,7 +3830,8 @@ def sibling_search(patient_id):
             # household the program divided. Saying "another family" there
             # reads as the program being wrong.
             "same_name": bool(theirs and mine and theirs == mine
-                              and p.family_id != patient.family_id)})
+                              and p.family_id != patient.family_id),
+            "hint": patient_hint(p, lang)})
     return jsonify({"patients": out})
 
 

@@ -57,6 +57,7 @@
                   x-on:mouseenter="picker.active = idx" x-on:click="pick(r)">
             <span x-text="r.name"></span>
             <span class="badge badge--muted" dir="ltr" x-text="r.file"></span>
+            <span class="gc-picker-sub" data-picker-hint x-show="r.hint" x-text="r.hint"></span>
           </button>
         </template>
       </div>

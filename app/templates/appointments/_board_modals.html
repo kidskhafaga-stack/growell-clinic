@@ -15,6 +15,7 @@
           <button type="button" class="mini-result gc-press" x-on:click="pickPatient(p)">
             <span x-text="p.name"></span>
             <span style="color:var(--muted);font-size:0.85rem;" x-text="p.number + ' · ' + p.age + (p.phone ? ' · ' + p.phone : '')"></span>
+            <span class="gc-picker-sub" data-picker-hint x-show="p.hint" x-text="p.hint"></span>
           </button>
         </template>
       </div>

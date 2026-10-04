@@ -1758,6 +1758,7 @@
                   <input type="hidden" name="sibling_id" :value="p.id">
                   <span style="flex:1;" x-text="p.full_name"></span>
                   <span class="hint" dir="ltr" x-text="p.patient_number"></span>
+                  <span class="gc-picker-sub" data-picker-hint x-show="p.hint" x-text="p.hint"></span>
                   {# Said on the row, not found out after pressing — and naming
                      the record when two of them carry the same typed name. #}
                   <span class="badge badge--muted" x-show="p.in_family && !p.same_name" x-cloak

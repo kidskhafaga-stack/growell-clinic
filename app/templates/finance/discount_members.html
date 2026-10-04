@@ -68,9 +68,12 @@
         <template x-for="p in rows" :key="p.id">
           <button type="button" class="btn btn-outline btn-sm"
                   style="display:block;width:100%;text-align:start;border:0;border-radius:0;"
-                  x-on:click="picked = p.id; pickedName = p.full_name; q = p.full_name; rows = [];">
-            <span x-text="p.full_name"></span>
-            <span class="hint" dir="ltr" x-text="p.patient_number"></span>
+                  x-on:click="picked = p.id; pickedName = p.name; q = p.name; rows = [];" data-member-row>
+            {# The booking search answers `name` and `number`; this read
+               `full_name` and `patient_number`, so every row came up blank. #}
+            <span x-text="p.name"></span>
+            <span class="hint" dir="ltr" x-text="p.number"></span>
+            <span class="gc-picker-sub" data-picker-hint x-show="p.hint" x-text="p.hint"></span>
           </button>
         </template>
       </div>

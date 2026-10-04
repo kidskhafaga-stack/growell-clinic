@@ -430,6 +430,11 @@
     }
     badge('badge--muted', child.file, true);
     if (child.phone) badge('badge--muted', child.phone, true);
+    // Two children of one name told apart: born, mother, phone.
+    if (child.hint) {
+      var h = document.createElement('span'); h.className = 'hint'; h.setAttribute('data-picker-hint', '');
+      h.textContent = child.hint; b.appendChild(h);
+    }
     if (child.missing && child.missing.length && typeof BASICS_N !== 'undefined') {
       var gap = badge('badge--warn', BASICS_N.replace('{n}', child.missing.length));
       gap.setAttribute('data-basics-missing', '');

@@ -211,7 +211,14 @@ def patient_search():
                      # them twice is what the admit itself refuses, and saying it
                      # before the press saves the round trip.
                      "inside": p.id in inside,
-                     "missing": basics.missing(p, keys=wanted)} for p in rows])
+                     "missing": basics.missing(p, keys=wanted),
+                     "hint": _patient_hint(p, lang)} for p in rows])
+
+
+def _patient_hint(patient, lang):
+    from app.utils.patients import patient_hint
+
+    return patient_hint(patient, lang)
 
 
 @beds_bp.route("/patient-quick", methods=["POST"])

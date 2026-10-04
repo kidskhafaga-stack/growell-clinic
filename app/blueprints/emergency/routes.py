@@ -243,8 +243,11 @@ def patient_search():
         Patient.query.filter(Patient.is_active.is_(True)), query)
         .limit(10).all())
     lang = getattr(g, "lang", "ar")
+    from app.utils.patients import patient_hint
+
     return jsonify([{"id": p.id, "name": p.display_name(lang),
-                     "file": p.patient_number} for p in rows])
+                     "file": p.patient_number,
+                     "hint": patient_hint(p, lang)} for p in rows])
 
 
 @emergency_bp.route("/drug-search")
