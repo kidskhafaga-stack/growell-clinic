@@ -1460,6 +1460,19 @@ def _growth_concern(picture):
 
 
 # ---------------------------------------------------------------- edit -----
+@patients_bp.route("/<int:patient_id>/wristband")
+@module_required(MODULE)
+def wristband(patient_id):
+    """The child's wristband to print — two identifiers, a barcode, and for
+    a newborn the mother's name and the time of birth (GAHAR ACT.03)."""
+    from app.utils.barcode39 import svg
+    from app.utils.patients import wristband as band
+
+    patient = db.get_or_404(Patient, patient_id)
+    return render_template("patients/wristband.html", band=band(patient),
+                           bars=svg(patient.patient_number, height=36))
+
+
 @patients_bp.route("/provisional")
 @module_required(MODULE)
 def provisional():

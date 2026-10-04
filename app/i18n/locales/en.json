@@ -10378,5 +10378,13 @@
     "banner_provisional": "Provisional file — the child was received before being identified",
     "identity_confirm": "The child's identity is confirmed (real name written)",
     "dob_confirm": "This birth date is the real one, not an estimate"
+  },
+  "wristband": {
+    "print": "Print wristband",
+    "baby_of_male": "Baby boy of {mother}",
+    "baby_of_female": "Baby girl of {mother}",
+    "provisional": "Provisional file — identity not confirmed yet",
+    "allergy": "Allergy",
+    "hint": "Two identifiers that are the child's: the name and the file number (and its barcode), with the date of birth — a bed or room number is never one. Sized for a wristband printer; any other printer prints it too."
   }
 }

@@ -268,6 +268,36 @@ def provisional_files(limit=200):
             .order_by(Patient.created_at, Patient.id).limit(limit).all())
 
 
+def wristband(patient, today=None):
+    """What goes on a child's wristband — GAHAR ACT.03 (أ، د، و).
+
+    Two identifiers that belong to the child and never the bed: the name and
+    the file number (as text and as a barcode), with the date of birth. For a
+    newborn — the first twenty-eight days — the child is identified the way a
+    nursery does it: «baby of» the mother's name, with the time of birth and
+    the birth weight. A file opened before the child was identified says so,
+    and an estimated birth date is marked. Allergies, when written, ride on
+    the band too. Nothing on it is invented: every line is a field somebody
+    wrote."""
+    from app.utils.clock import local_today
+
+    today = today or local_today()
+    days = (today - patient.date_of_birth).days if patient.date_of_birth else None
+    mother = None
+    family = getattr(patient, "family", None)
+    if family is not None:
+        mother = next((g for g in (family.parents or []) if g.relation == "mother"
+                       and (g.full_name or "").strip()), None)
+    return {
+        "patient": patient,
+        "newborn": days is not None and days < 28,
+        "mother": mother.full_name if mother is not None else None,
+        "provisional": bool(patient.identity_provisional),
+        "estimated": bool(patient.dob_estimated),
+        "allergies": (patient.allergies or "").strip() or None,
+    }
+
+
 def patient_number_allocator(scheme=None, prefix=None):
     """Return a generator of sequential file numbers with no per-call DB query.
 

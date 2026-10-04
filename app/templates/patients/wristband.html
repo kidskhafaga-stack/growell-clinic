@@ -1,0 +1,49 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% set p = band.patient %}
+{% block title %}{{ t('wristband.print') }}{% endblock %}
+{% block page_heading %}{{ t('wristband.print') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ACT.03 — two identifiers that are the child's, never the bed or the
+   room (هـ): the name and the file number, as text and barcode, with the
+   date of birth. A newborn is identified as «baby of» the mother, with the
+   time of birth (و). Every line is a field somebody wrote. #}
+<style>
+  .wb { width:250mm; max-width:100%; min-height:25mm; border:1px dashed var(--line); border-radius:14px;
+        padding:3mm 5mm; display:flex; gap:5mm; align-items:center; background:#fff; color:#000; }
+  .wb__who { flex:1; min-width:0; line-height:1.35; }
+  .wb__name { font-size:15pt; font-weight:700; }
+  .wb__line { font-size:9.5pt; }
+  .wb__alert { font-size:9.5pt; font-weight:700; color:#b00020; }
+  .wb__bars svg { height:12mm; width:auto; }
+  @media print {
+    @page { size:260mm 32mm; margin:2mm; }
+    .no-print, .gc-topbar, nav, header, .sidebar { display:none !important; }
+    .wb { border:0; }
+  }
+</style>
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.view', patient_id=p.id) }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+</div>
+<div class="wb" data-wristband="{{ p.id }}" dir="rtl">
+  <div class="wb__who">
+    {% if band.newborn and band.mother %}
+    <div class="wb__name" data-wb-newborn>{{ t('wristband.baby_of_' ~ (p.gender or 'male'), mother=band.mother) }}</div>
+    <div class="wb__line">{{ p.display_name('ar') }}</div>
+    {% else %}
+    <div class="wb__name">{{ p.display_name('ar') }}</div>
+    {% endif %}
+    <div class="wb__line"><span dir="ltr"><strong>{{ p.patient_number }}</strong></span>
+      · {{ t('patients.dob') }}: <span dir="ltr">{{ '~' if band.estimated else '' }}{{ p.date_of_birth.isoformat() }}</span>
+      {% if band.newborn and p.birth_time %} <span dir="ltr">{{ p.birth_time.strftime('%H:%M') }}</span>{% endif %}
+      · {{ t('genders.' ~ p.gender) if p.gender else '' }}
+      {% if band.newborn and p.birth_weight_kg %} · <span dir="ltr">{{ '%g'|format(p.birth_weight_kg) }} kg</span>{% endif %}</div>
+    {% if band.provisional %}<div class="wb__alert" data-wb-provisional>{{ t('wristband.provisional') }}</div>{% endif %}
+    {% if band.allergies %}<div class="wb__alert" data-wb-allergy>{{ t('wristband.allergy') }}: {{ band.allergies|truncate(60) }}</div>{% endif %}
+  </div>
+  <div class="wb__bars" dir="ltr">{{ bars|safe }}</div>
+</div>
+<p class="hint no-print" style="margin-top:10px;">{{ t('wristband.hint') }}</p>
+{% endblock %}

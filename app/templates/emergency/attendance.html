@@ -43,7 +43,9 @@
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
     <h1 class="page-title"><i class="bi bi-truck-front"></i>
-      <a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">{{ row.patient.display_name(current_lang) }}</a></h1>
+      <a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">{{ row.patient.display_name(current_lang) }}</a>
+      {% if row.patient.identity_provisional %}<span class="badge badge--danger" data-er-provisional>{{ t('er_quick.badge_provisional') }}</span>{% endif %}
+      <a class="btn btn-sm btn-outline gc-press" data-to-wristband href="{{ url_for('patients.wristband', patient_id=row.patient_id) }}"><i class="bi bi-upc"></i> {{ t('wristband.print') }}</a></h1>
     <p class="page-sub" style="margin:0;">
       <span dir="ltr">{{ row.arrived_at|clinic_stamp }}</span> · {{ t('emergency.arr_' ~ row.arrival) }}
       · <span dir="ltr">{{ row.minutes }}′</span>

@@ -151,6 +151,9 @@
     <a class="btn btn-outline gc-press"
        href="{{ url_for('patients.view', patient_id=admission.patient_id) }}">
       <i class="bi bi-person"></i> {{ t('beds.patient_file') }}</a>
+    <a class="btn btn-outline gc-press" data-to-wristband
+       href="{{ url_for('patients.wristband', patient_id=admission.patient_id) }}">
+      <i class="bi bi-upc"></i> {{ t('wristband.print') }}</a>
     {# The rounds for this child, when the clinic runs them. The stay and the
        observations are two halves of the same shift, and a screen that knows
        where the child is and cannot reach what was measured sends somebody
