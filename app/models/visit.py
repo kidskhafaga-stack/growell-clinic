@@ -461,6 +461,14 @@ class VisitInvestigation(db.Model):
     sent_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     sent_batch = db.Column(db.String(24), index=True)
     returned_at = db.Column(db.DateTime)
+    # DAS.21 دليل ٢ و٤ / DAS.22 دليل ٣ و٥: a result past its time — the
+    # requester told of the delay (whom, when, by whom), and why it was late,
+    # which is the investigation the standard asks of every unacceptable
+    # turnaround (`utils/lab_tat`).
+    delay_told_at = db.Column(db.DateTime)
+    delay_told_to = db.Column(db.String(120))
+    delay_told_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    delay_reason = db.Column(db.String(200))
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -480,6 +488,7 @@ class VisitInvestigation(db.Model):
     verifier = db.relationship("User", foreign_keys=[verified_by])
     sent_lab = db.relationship("ReferralLab", foreign_keys=[sent_lab_id])
     sender = db.relationship("User", foreign_keys=[sent_by])
+    delay_teller = db.relationship("User", foreign_keys=[delay_told_by])
     operation = db.relationship("Operation", backref="investigations",
                                 foreign_keys=[operation_id])
 

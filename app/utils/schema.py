@@ -904,6 +904,12 @@ ADDITIONS = [
     ("visit_investigations", "sent_batch", "VARCHAR(24)"),
     ("visit_investigations", "returned_at", "DATETIME"),
     ("investigations", "referral_lab_id", "INTEGER"),
+    # GAHAR DAS.21/22 — a late result: who was told of the delay, and why
+    # it was late. Empty on everything already written.
+    ("visit_investigations", "delay_told_at", "DATETIME"),
+    ("visit_investigations", "delay_told_to", "VARCHAR(120)"),
+    ("visit_investigations", "delay_told_by", "INTEGER"),
+    ("visit_investigations", "delay_reason", "VARCHAR(200)"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

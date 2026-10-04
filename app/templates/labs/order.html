@@ -210,6 +210,38 @@
 </details>
 {% endif %}
 
+{# ---- late (GAHAR DAS.21 / DAS.22) --------------------------------------
+   Waiting past the laboratory's time: tell whoever asked. Reported past it:
+   say why. Both are kept for the turnaround report. #}
+{% if order.kind == 'lab' and (late or was_late or order.delay_told_at) %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--danger);" data-late-box>
+  <p style="margin:0 0 8px;"><i class="bi bi-stopwatch"></i>
+    {% if was_late %}{{ t('lab_tat.reported_late', n=took) }}{% else %}{{ t('lab_tat.waiting_late') }}{% endif %}</p>
+  {% if order.delay_told_at %}
+  <p class="hint" style="margin:0 0 8px;" data-delay-told>{{ t('lab_tat.told_line', who=order.delay_told_to, when=order.delay_told_at|clinic_stamp, by=order.delay_teller.display_name(current_lang) if order.delay_teller else '—') }}</p>
+  {% endif %}
+  {% if order.delay_reason %}<p class="hint" style="margin:0 0 8px;" data-delay-reason>{{ t('lab_tat.reason') }}: <span dir="auto">{{ order.delay_reason }}</span></p>{% endif %}
+  {% if order.status != 'resulted' %}
+  <form method="post" action="{{ url_for('labs.tell_delay', order_id=order.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;" data-tell-delay>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label for="delay_to">{{ t('lab_tat.told_to') }}</label>
+      <input class="input" id="delay_to" name="told_to" list="delay-doctors" required maxlength="120" value="{{ order.delay_told_to or '' }}"></div>
+    <datalist id="delay-doctors">{% for name in doctors %}<option value="{{ name }}">{% endfor %}</datalist>
+    <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label for="delay_reason">{{ t('lab_tat.reason') }}</label>
+      <input class="input" id="delay_reason" name="reason" maxlength="200" value="{{ order.delay_reason or '' }}"></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-telephone-outbound"></i> {{ t('lab_tat.tell') }}</button>
+  </form>
+  {% elif was_late %}
+  <form method="post" action="{{ url_for('labs.late_reason', order_id=order.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;" data-late-reason>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;flex:1;min-width:220px;"><label for="late_reason">{{ t('lab_tat.why_late') }}</label>
+      <input class="input" id="late_reason" name="reason" required maxlength="200" value="{{ order.delay_reason or '' }}"></div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
 {# ---- released (GAHAR DAS.20 ب) ----------------------------------------
    Who reviewed and released the result, and the report to print. #}
 {% if order.kind == 'lab' and order.status == 'resulted' %}

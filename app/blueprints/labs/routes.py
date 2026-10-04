@@ -99,6 +99,7 @@ def order(order_id):
                            may_release=_release().may_release(current_user),
                            referral_labs=_sendout().laboratories(),
                            sent_late=_sendout().late(row),
+                           was_late=_tat().was_late(row), took=_tat().minutes(row),
                            reason_label=lab_reception.reason_label,
                            lines=lines, late=lab_results.late(row),
                            age_days=lab_results.age_days(
@@ -477,6 +478,70 @@ def referral_lab_save(lab_id=None):
     return redirect(url_for("labs.referral_labs"))
 
 
+# ------------------------------------------------------------ turnaround --
+@labs_bp.route("/turnaround")
+@module_required(MODULE)
+def turnaround():
+    """How long each test took in a period, the late ones with their reason,
+    and the STAT list — GAHAR DAS.21 / DAS.22."""
+    from datetime import timedelta
+
+    from app.utils import lab_tat
+    from app.utils.clock import local_today
+
+    end = _day(request.args.get("to")) or local_today()
+    start = _day(request.args.get("from")) or (end - timedelta(days=30))
+    if start > end:
+        start, end = end, start
+    per_test, late_rows = lab_tat.report(start, end)
+    return render_template("labs/turnaround.html", per_test=per_test,
+                           late_rows=late_rows, start=start, end=end,
+                           stat=lab_tat.stat_list(), minutes=lab_tat.minutes)
+
+
+@labs_bp.route("/order/<int:order_id>/delay", methods=["POST"])
+@module_required(MODULE)
+def tell_delay(order_id):
+    """The requester was told the result is late (GAHAR DAS.21 دليل ٤)."""
+    from app.models import ActivityLog
+    from app.utils import lab_tat
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    try:
+        lab_tat.tell_delay(row, request.form.get("told_to"),
+                           reason=request.form.get("reason"), user=current_user)
+    except lab_tat.DelayError as err:
+        db.session.rollback()
+        flash(t(f"lab_tat.err_{err}"), "error")
+        return redirect(url_for("labs.order", order_id=row.id))
+    ActivityLog.record("lab.delay_told", user_id=current_user.id,
+                       entity="visit_investigation", entity_id=row.id,
+                       detail=row.delay_told_to)
+    db.session.commit()
+    flash(t("lab_tat.told"), "success")
+    return redirect(url_for("labs.order", order_id=row.id))
+
+
+@labs_bp.route("/order/<int:order_id>/late-reason", methods=["POST"])
+@module_required(MODULE)
+def late_reason(order_id):
+    """Why a result was late — the investigation (GAHAR DAS.21 دليل ٢)."""
+    from app.utils import lab_tat
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    back = (url_for("labs.turnaround") if request.form.get("back") == "report"
+            else url_for("labs.order", order_id=row.id))
+    try:
+        lab_tat.explain(row, request.form.get("reason"))
+    except lab_tat.DelayError as err:
+        db.session.rollback()
+        flash(t(f"lab_tat.err_{err}"), "error")
+        return redirect(back)
+    db.session.commit()
+    flash(t("lab_tat.reason_saved"), "success")
+    return redirect(back)
+
+
 @labs_bp.route("/rejections")
 @module_required(MODULE)
 def rejections():
@@ -740,6 +805,12 @@ def tests():
         reject_reasons=_reception().reasons() if kind == "lab" else [],
         release_required=_release().required(),
         referral_labs=_sendout().laboratories() if kind == "lab" else [])
+
+
+def _tat():
+    from app.utils import lab_tat
+
+    return lab_tat
 
 
 def _sendout():
