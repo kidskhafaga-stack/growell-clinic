@@ -331,3 +331,50 @@ class ReferralLab(db.Model):
     def __repr__(self):
         return f"<ReferralLab {self.name}>"
 
+
+class ReagentLot(db.Model):
+    """One lot of a reagent or laboratory supply — GAHAR DAS.12.
+
+    *"Criteria for inspection, acceptance, and rejection of provided
+    reagent … identification, enlisting and labelling of all reagents …
+    measures to ensure that the laboratory does not use expired
+    materials."* The store counts how many strips there are; it has never
+    known which lot they came from or when it expires, and the standard is
+    about exactly that. So the laboratory keeps its lots here, beside the
+    store and without changing it: received and inspected (accepted, or
+    rejected with why), opened for use, finished — and an expired lot is
+    never opened (`utils/lab_reagents`).
+    """
+    __tablename__ = "reagent_lots"
+
+    id = db.Column(db.Integer, primary_key=True)
+    # The store item when the reagent is kept in the store; its own name
+    # when it is not.
+    item_id = db.Column(db.Integer, db.ForeignKey("store_items.id"), index=True)
+    name = db.Column(db.String(160))
+    lot_number = db.Column(db.String(60), nullable=False)
+    expiry_date = db.Column(db.Date, nullable=False, index=True)
+    quantity = db.Column(db.Integer)
+    # Inspection at receipt (DAS.12 أ): accepted, or rejected with why.
+    decision = db.Column(db.String(10), default="accepted", nullable=False)
+    inspection_note = db.Column(db.String(200))
+    received_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    received_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    opened_at = db.Column(db.DateTime)
+    opened_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    finished_at = db.Column(db.DateTime)
+    finished_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    item = db.relationship("StoreItem")
+    receiver = db.relationship("User", foreign_keys=[received_by])
+    opener = db.relationship("User", foreign_keys=[opened_by])
+
+    def display_name(self, lang="ar"):
+        if self.item is not None:
+            return self.item.display_name(lang)
+        return self.name or ""
+
+    def __repr__(self):
+        return f"<ReagentLot {self.lot_number} {self.expiry_date}>"
+

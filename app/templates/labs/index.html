@@ -56,6 +56,11 @@
     <a class="btn btn-outline gc-press" data-to-send-out href="{{ url_for('labs.send_out') }}">
       <i class="bi bi-truck"></i> {{ t('lab_sendout.title') }}</a>
     {% endif %}
+    {# Reagent lots — and an expired one still on the shelf said in red
+       until somebody takes it off (GAHAR DAS.12 ج). #}
+    <a class="btn btn-outline gc-press{{ ' lb-critical' if expired_lots else '' }}" data-to-reagents href="{{ url_for('labs.reagents') }}">
+      <i class="bi bi-box2"></i> {{ t('lab_reagents.title') }}
+      {% if expired_lots %}<span class="badge badge--danger" data-expired-lots>{{ expired_lots }}</span>{% endif %}</a>
     <a class="btn btn-outline gc-press" data-to-turnaround href="{{ url_for('labs.turnaround') }}">
       <i class="bi bi-stopwatch"></i> {{ t('lab_tat.title') }}</a>
     {# The refused tubes, a register of their own (GAHAR DAS.15). #}

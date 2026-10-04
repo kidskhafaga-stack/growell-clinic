@@ -1,0 +1,78 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_reagents.title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_reagents.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR DAS.12 — each lot received and inspected, opened, finished; an
+   expired lot is never opened and stays in red here until it is taken off;
+   what runs low is read from the lab's store. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-box2"></i> {{ t('lab_reagents.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lab_reagents.sub', n=warn_days) }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}"><i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
+</div>
+
+<form method="post" action="{{ url_for('labs.reagent_receive') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;" data-receive-lot>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin:0;flex-basis:100%;">{{ t('lab_reagents.receive_title') }}</h2>
+  <div class="form-row" style="margin:0;min-width:200px;flex:2;"><label for="item_id">{{ t('lab_reagents.item') }}</label>
+    <select class="select" id="item_id" name="item_id"><option value="">{{ t('lab_reagents.not_in_store') }}</option>
+      {% for i in items %}<option value="{{ i.id }}">{{ i.display_name(current_lang) }}</option>{% endfor %}</select></div>
+  <div class="form-row" style="margin:0;min-width:160px;flex:1;"><label for="lot_name">{{ t('lab_reagents.name') }}</label><input class="input" id="lot_name" name="name" maxlength="160"></div>
+  <div class="form-row" style="margin:0;min-width:130px;"><label for="lot_number">{{ t('lab_reagents.lot') }}</label><input class="input" id="lot_number" name="lot_number" required maxlength="60" dir="ltr"></div>
+  <div class="form-row" style="margin:0;min-width:150px;"><label for="expiry_date">{{ t('lab_reagents.expiry') }}</label><input class="input" type="date" id="expiry_date" name="expiry_date" required></div>
+  <div class="form-row" style="margin:0;min-width:90px;"><label for="quantity">{{ t('lab_reagents.qty') }}</label><input class="input" type="number" min="1" id="quantity" name="quantity" dir="ltr"></div>
+  <div class="form-row" style="margin:0;min-width:130px;"><label for="decision">{{ t('lab_reagents.decision') }}</label>
+    <select class="select" id="decision" name="decision"><option value="accepted">{{ t('lab_reagents.accepted') }}</option><option value="rejected">{{ t('lab_reagents.rejected') }}</option></select></div>
+  <div class="form-row" style="margin:0;min-width:200px;flex:2;"><label for="inspection_note">{{ t('lab_reagents.note') }}</label><input class="input" id="inspection_note" name="inspection_note" maxlength="200" placeholder="{{ t('lab_reagents.note_ph') }}"></div>
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-box-arrow-in-down"></i> {{ t('lab_reagents.receive') }}</button>
+</form>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;overflow-x:auto;" data-shelf>
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_reagents.shelf') }}</h2>
+  {% if not lots %}<p class="hint" style="margin:0;" data-empty-shelf>{{ t('lab_reagents.none') }}</p>{% else %}
+  <table class="table" style="min-width:640px;">
+    <thead><tr><th>{{ t('lab_reagents.item') }}</th><th>{{ t('lab_reagents.lot') }}</th><th>{{ t('lab_reagents.expiry') }}</th><th>{{ t('lab_reagents.state') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for lot in lots %}{% set st = state(lot) %}
+    <tr data-lot="{{ lot.id }}" data-lot-state="{{ st }}">
+      <td>{{ lot.display_name(current_lang) }}{% if lot.quantity %} <span class="hint">× {{ lot.quantity }}</span>{% endif %}</td>
+      <td dir="ltr">{{ lot.lot_number }}</td>
+      <td>{{ lot.expiry_date.isoformat() }}</td>
+      <td>{% if st == 'expired' %}<span class="badge badge--danger">{{ t('lab_reagents.st_expired') }}</span>
+        {% elif st == 'near' %}<span class="badge badge--warn">{{ t('lab_reagents.st_near') }}</span>{% if lot.opened_at %} <span class="badge badge--muted">{{ t('lab_reagents.st_in_use') }}</span>{% endif %}
+        {% elif st == 'in_use' %}<span class="badge badge--green">{{ t('lab_reagents.st_in_use') }}</span>
+        {% else %}<span class="badge badge--muted">{{ t('lab_reagents.st_in_stock') }}</span>{% endif %}</td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap;">
+        {% if not lot.opened_at and st != 'expired' %}
+        <form method="post" action="{{ url_for('labs.reagent_act', lot_id=lot.id, action='open') }}" style="margin:0;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('lab_reagents.open') }}</button></form>
+        {% endif %}
+        <form method="post" action="{{ url_for('labs.reagent_act', lot_id=lot.id, action='finish') }}" style="margin:0;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('lab_reagents.remove') if st == 'expired' else t('lab_reagents.finish') }}</button></form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-low-items>
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_reagents.low') }}</h2>
+  {% if not store %}<p class="hint" style="margin:0;">{{ t('lab_reagents.no_store') }}</p>
+  {% elif not low %}<p class="hint" style="margin:0;">{{ t('lab_reagents.none_low') }}</p>
+  {% else %}<ul style="margin:0;padding-inline-start:18px;">{% for item, held in low %}<li data-low-item="{{ item.id }}">{{ item.display_name(current_lang) }} — {{ t('lab_reagents.held', n=held, limit=item.reorder_level) }}</li>{% endfor %}</ul>{% endif %}
+</div>
+
+{% if rejected %}
+<div class="card gc-scale-in" style="overflow-x:auto;" data-rejected-lots>
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_reagents.rejected_title') }}</h2>
+  <table class="table" style="min-width:520px;">
+    <thead><tr><th>{{ t('lab_reagents.item') }}</th><th>{{ t('lab_reagents.lot') }}</th><th>{{ t('lab_reagents.note') }}</th><th>{{ t('lab_reception.col_when') }}</th></tr></thead>
+    <tbody>{% for lot in rejected %}<tr data-rejected-lot="{{ lot.id }}"><td>{{ lot.display_name(current_lang) }}</td><td dir="ltr">{{ lot.lot_number }}</td><td dir="auto">{{ lot.inspection_note }}</td><td>{{ lot.received_at|clinic_stamp }}{% if lot.receiver %} · {{ lot.receiver.display_name(current_lang) }}{% endif %}</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

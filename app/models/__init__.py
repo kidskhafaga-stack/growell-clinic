@@ -306,7 +306,8 @@ from app.models.cost_centre import CostCentre
 from app.models.lab_reference import (RANGE_KINDS, RANGE_SEXES, LabAnalyte,
                                        LabConsumable, LabRange,
                                        LabResultValue, LabTestAnalyte,
-                                       ReferralLab, SampleRejection)
+                                       ReagentLot, ReferralLab,
+                                       SampleRejection)
 from app.models.unit_staff import BreakGlass, UnitStaff
 from app.models.accounting import (
     ACCOUNT_TYPES,
@@ -696,6 +697,7 @@ __all__ = [
     "LabResultValue",
     "SampleRejection",
     "ReferralLab",
+    "ReagentLot",
     "RANGE_KINDS",
     "RANGE_SEXES",
 ]

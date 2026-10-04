@@ -64,6 +64,7 @@ def index():
                            urgent_open=bench.urgent_count(bench.LAB),
                            to_release=_release().waiting_count(),
                            sent_labs=bool(_sendout().laboratories()),
+                           expired_lots=_reagents().expired_on_shelf(),
                            at_door=request.args.get("receive") == "1",
                            # Where the child is, when they are in a bed: the
                            # sample is drawn at the bed, not at the desk.
@@ -542,6 +543,67 @@ def late_reason(order_id):
     return redirect(back)
 
 
+# -------------------------------------------------------------- reagents --
+@labs_bp.route("/reagents")
+@module_required(MODULE)
+def reagents():
+    """Reagent lots: what is on the shelf, what is expiring, what was
+    refused at the door, and what the store says is running low (DAS.12)."""
+    from app.models import StoreItem
+    from app.utils import lab_reagents, lab_stock
+
+    store = lab_stock.store()
+    items = (StoreItem.query.filter(StoreItem.is_active.is_(True))
+             .order_by(StoreItem.name).all())
+    return render_template("labs/reagents.html", lots=lab_reagents.shelf(),
+                           rejected=lab_reagents.recent_rejected(),
+                           low=lab_reagents.low_items(), store=store,
+                           items=items, state=lab_reagents.state,
+                           warn_days=lab_reagents.warn_days())
+
+
+@labs_bp.route("/reagents", methods=["POST"])
+@module_required(MODULE)
+def reagent_receive():
+    """A lot arrived and was inspected — accepted, or rejected with why."""
+    from app.models import ActivityLog
+    from app.utils import lab_reagents
+
+    try:
+        lot = lab_reagents.receive(request.form, user=current_user)
+    except lab_reagents.LotError as err:
+        db.session.rollback()
+        flash(t(f"lab_reagents.err_{err}"), "error")
+        return redirect(url_for("labs.reagents"))
+    ActivityLog.record("lab.reagent_received", user_id=current_user.id,
+                       detail=f"{lot.lot_number} {lot.decision}"[:250])
+    db.session.commit()
+    flash(t("lab_reagents.received_" + lot.decision), "success")
+    return redirect(url_for("labs.reagents"))
+
+
+@labs_bp.route("/reagents/<int:lot_id>/<action>", methods=["POST"])
+@module_required(MODULE)
+def reagent_act(lot_id, action):
+    """Open a lot for use (never an expired one), or finish it."""
+    from app.models import ReagentLot
+    from app.utils import lab_reagents
+
+    lot = db.get_or_404(ReagentLot, lot_id)
+    step = {"open": lab_reagents.open_lot, "finish": lab_reagents.finish}.get(action)
+    if step is None:
+        abort(404)
+    try:
+        step(lot, user=current_user)
+    except lab_reagents.LotError as err:
+        db.session.rollback()
+        flash(t(f"lab_reagents.err_{err}"), "error")
+        return redirect(url_for("labs.reagents"))
+    db.session.commit()
+    flash(t(f"lab_reagents.done_{action}"), "success")
+    return redirect(url_for("labs.reagents"))
+
+
 @labs_bp.route("/rejections")
 @module_required(MODULE)
 def rejections():
@@ -805,6 +867,12 @@ def tests():
         reject_reasons=_reception().reasons() if kind == "lab" else [],
         release_required=_release().required(),
         referral_labs=_sendout().laboratories() if kind == "lab" else [])
+
+
+def _reagents():
+    from app.utils import lab_reagents
+
+    return lab_reagents
 
 
 def _tat():
