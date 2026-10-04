@@ -16,6 +16,29 @@
   .eo-src { font-size:.85rem; color:var(--muted); }
 </style>
 {% set hold_patient_id = row.patient_id %}{% set hold_emergency = True %}{% include "_hold_banner.html" %}
+{# «Pay first» — only a child the triage called non-urgent, only where the
+   hospital switched it on (`utils/er_pay_first`). The doctor writes as
+   always; giving and doing wait for the desk. Triaged urgent, it lifts. #}
+{% if pay_waits %}
+<div class="card no-print gc-scale-in" style="margin-bottom:12px;border-inline-start:4px solid #d97706;" data-pay-waits>
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">
+    <div><b style="color:#b45309;"><i class="bi bi-cash-coin"></i> {{ t('er_pay.banner') }}</b>
+      <div class="hint" style="margin:2px 0 0;">{{ t('er_pay.banner_hint') }}</div></div>
+    {% if current_user.can_collect %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.patient_account', patient_id=row.patient_id) }}">
+        <i class="bi bi-piggy-bank"></i> {{ t('credit.take_deposit') }}</a>
+      <form method="post" action="{{ url_for('emergency.pay_clear', attendance_id=row.id) }}" style="margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-primary btn-sm gc-press" type="submit" data-pay-clear><i class="bi bi-check-lg"></i> {{ t('er_pay.clear') }}</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% elif row.pay_cleared_at %}
+<p class="hint" data-pay-cleared><i class="bi bi-cash-coin"></i> {{ t('er_pay.cleared_line', who=row.pay_clearer.display_name(current_lang) if row.pay_clearer else '—', when=row.pay_cleared_at|clinic_stamp) }}</p>
+{% endif %}
 
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>

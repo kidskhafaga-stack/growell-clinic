@@ -844,6 +844,9 @@ ADDITIONS = [
     ("investigations", "modality", "VARCHAR(10)"),
     ("investigations", "dose_ref_kind", "VARCHAR(10)"),
     ("investigations", "dose_ref_value", "FLOAT"),
+    # «Paid, go ahead» on a non-urgent emergency child (`utils/er_pay_first`).
+    ("emergency_visits", "pay_cleared_at", "DATETIME"),
+    ("emergency_visits", "pay_cleared_by", "INTEGER"),
     # «رسم المخ الى بيحتاج حجز ونوم» — a device study booked for a day and an
     # hour, with what the family must do before it. Empty on every order.
     ("visit_investigations", "booked_for", "DATETIME"),

@@ -34,14 +34,15 @@ from datetime import datetime, timedelta
 
 from app.extensions import db
 
-KINDS = ("triage", "approval", "doctor", "treatment", "reassess", "sample",
-         "imaging", "result", "decision")
+KINDS = ("triage", "payment", "approval", "doctor", "treatment", "reassess",
+         "sample", "imaging", "result", "decision")
 _RANK = {k: i for i, k in enumerate(KINDS)}
 
 #: Bootstrap icons, one per kind, so the screen says it in a shape as well as
 #: in words — «عايز الشاشة تبقى فيها اشكال تصف المعنى جنب الكلام».
 ICONS = {
     "triage": "clipboard2-pulse",
+    "payment": "cash-coin",
     "approval": "file-earmark-medical",
     "doctor": "person-badge",
     "treatment": "capsule",
@@ -161,6 +162,13 @@ def _attendance_items(a, orders, tests, now):
     if a.triaged_at is None:
         return [_item("triage", a.arrived_at, now)]
     items = []
+    # A child triaged non-urgent where the hospital asks for payment first:
+    # the treatment waits for the desk, and the screen says so rather than
+    # leaving everybody to wonder why it has not been given.
+    from app.utils import er_pay_first
+
+    if er_pay_first.waits(a):
+        items.append(_item("payment", a.triaged_at, now))
     for o in orders:
         if o.state == "waiting_doctor":
             items.append(_item("approval", o.created_at, now, o.name))

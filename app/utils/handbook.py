@@ -797,6 +797,21 @@ SECTIONS = [
         "icon": "thermometer-half",
         "title": ("الطوارئ", "Emergency"),
         "lines": [
+            ("<b>«ادفع الأول وبعدين يتنفذ»</b> (من الإعدادات ← السياسات، مقفول "
+             "افتراضياً): للحالة اللي اتفرزت <b>غير عاجلة</b> بس — الطبيب بيكتب "
+             "عادي، والإعطاء والعمل مستنيين الخزنة لحد «اتدفع — يكمل». الحالة "
+             "العاجلة أو اللي لسه ما اتفرزتش <b>عمرها ما بتستنى</b>، وإعادة الفرز "
+             "عاجل بتشيل الانتظار فوراً (قرار 1063 لسنة 2014). «الحالات الحرجة — "
+             "أول 48 ساعة» من سجل الطوارئ: الحالات العاجلة واللي اتحاسب عليه في "
+             "أول 48 ساعة للمطالبة بيه.",
+             "<b>«Pay first, then it is done»</b> (Settings → Policies, off by "
+             "default): only for a child triaged <b>non-urgent</b> — the doctor "
+             "writes as always, and giving and doing wait for the desk's «Paid — "
+             "go ahead». An urgent or not-yet-triaged child <b>never waits</b>, "
+             "and re-triaging urgent lifts the wait at once (decree 1063 of "
+             "2014). «Urgent cases — first 48 hours» from the register: the "
+             "urgent attendances and what their first 48 hours were billed, to "
+             "be claimed."),
             ("<b>الشاشة بتجاوب على سؤال واحد: مين الأول.</b> لوحة الأسرّة "
              "بترسم المكان وبتقول مين فيه؛ الطوارئ بتتقرا بالعكس — الأسوأ "
              "فوق. والترتيب أربع حاجات بالترتيب ده: طفل محدش قاسه من ساعة ما "
