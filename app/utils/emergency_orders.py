@@ -230,8 +230,12 @@ def encounter(attendance, user):
 
 
 def order_test(attendance, user, investigation=None, name=None, kind=None,
-               notes=None, outside=None):
-    """A test or scan for a child in emergency. Returns the order."""
+               notes=None, outside=None, urgent=None):
+    """A test or scan for a child in emergency. Returns the order.
+
+    Urgent when the doctor says so, and — when nobody said — when the
+    triage called the child urgent: the doctor of a red child writes
+    nothing more to have the lab treat the tube as STAT."""
     from app.models.prescription import INVESTIGATION_KINDS
     from app.utils import labs
 
@@ -252,7 +256,9 @@ def order_test(attendance, user, investigation=None, name=None, kind=None,
         kind=kind, name=name, name_en=(name_en or "").strip()[:200] or None,
         request_notes=(notes or "").strip()[:255] or None,
         done_outside=labs.goes_outside(investigation, asked=outside),
-        ordered_by=user.id)
+        ordered_by=user.id,
+        urgent=True if (urgent if urgent is not None
+                        else attendance.urgent is True) else None)
     db.session.add(row)
     db.session.flush()
     return row

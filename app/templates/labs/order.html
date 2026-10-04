@@ -12,6 +12,7 @@
       <a href="{{ url_for('patients.view', patient_id=order.patient_id) }}">
         {{ order.patient.display_name(current_lang) }}</a>
       · <span class="badge badge--muted" data-status>{{ t('lab.state_' ~ order.status) }}</span>
+      {% if order.urgent %}· <span class="badge badge--danger" data-urgent><i class="bi bi-lightning-charge"></i> {{ t('lab_reception.urgent') }}</span>{% endif %}
       · <span class="hint" dir="ltr">{{ t('lab.waiting_n', n=waited) }}</span>
     </p>
   </div>
@@ -61,6 +62,61 @@
       <i class="bi bi-droplet-fill"></i>
       {{ t('lab.recollect') if order.collected_at else t('lab.collect') }}</button>
   </form>
+  {% endif %}
+
+  {# ---- the lab's door (GAHAR DAS.15 ب) --------------------------------
+     A drawn tube is received — with a note when it is accepted although it
+     is not as it should be — or refused, with why and who was told. #}
+  {% if order.kind == 'lab' and order.collected_at %}
+  <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px;" data-door>
+    {% if order.received_at %}
+    <p style="margin:0 0 8px;" data-received>
+      <i class="bi bi-box-arrow-in-down"></i>
+      {{ t('lab_reception.received_line', when=order.received_at|clinic_stamp, who=order.receiver.display_name(current_lang) if order.receiver else '—') }}
+      {% if order.received_note %}<br><span class="hint" data-received-note><i class="bi bi-exclamation-triangle"></i> {{ t('lab_reception.accepted_despite') }}: <span dir="auto">{{ order.received_note }}</span></span>{% endif %}</p>
+    {% elif order.status != 'resulted' %}
+    <form method="post" action="{{ url_for('labs.receive', order_id=order.id) }}"
+          style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:8px;" data-receive>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;flex:1;min-width:220px;"><label for="receive_note">{{ t('lab_reception.note') }}</label>
+        <input class="input" id="receive_note" name="note" maxlength="200" placeholder="{{ t('lab_reception.note_ph') }}"></div>
+      <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-box-arrow-in-down"></i> {{ t('lab_reception.receive') }}</button>
+    </form>
+    {% endif %}
+    {% if order.status != 'resulted' %}
+    <details data-reject>
+      <summary style="cursor:pointer;color:var(--danger);"><i class="bi bi-x-octagon"></i> {{ t('lab_reception.reject_title') }}</summary>
+      <form method="post" action="{{ url_for('labs.reject', order_id=order.id) }}"
+            style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if reasons %}
+        <div class="form-row" style="margin:0;min-width:180px;"><label for="reason_key">{{ t('lab_reception.reason') }}</label>
+          <select class="select" id="reason_key" name="reason_key">
+            <option value="">{{ t('lab_reception.reason_other') }}</option>
+            {% for r in reasons %}<option value="{{ r.key }}">{{ r.name_ar }}</option>{% endfor %}
+          </select></div>
+        {% endif %}
+        <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label for="reason_text">{{ t('lab_reception.reason_words') if reasons else t('lab_reception.reason') }}</label>
+          <input class="input" id="reason_text" name="reason_text" maxlength="200" {{ '' if reasons else 'required' }}></div>
+        <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label for="told_to">{{ t('lab_reception.told_to') }}</label>
+          <input class="input" id="told_to" name="told_to" list="reject-told" required maxlength="120"></div>
+        <datalist id="reject-told">{% for name in doctors %}<option value="{{ name }}">{% endfor %}</datalist>
+        <button class="btn btn-outline gc-press" type="submit" style="color:var(--danger);border-color:var(--danger);">{{ t('lab_reception.reject') }}</button>
+      </form>
+      {% if not reasons %}<p class="hint" style="margin:6px 0 0;">{{ t('lab_reception.no_reasons_yet') }}</p>{% endif %}
+    </details>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# Tubes refused before this one — each kept with its number. #}
+  {% if order.rejections %}
+  <ul class="hint" style="margin:10px 0 0;padding-inline-start:18px;" data-refused-before>
+    {% for r in order.rejections %}
+    <li><span dir="ltr">{{ r.sample_code or '—' }}</span> · {{ r.rejected_at|clinic_stamp }} · {{ reason_label(r) }}
+      · {{ t('lab_reception.told', who=r.told_to) }}{% if r.rejecter %} · {{ r.rejecter.display_name(current_lang) }}{% endif %}</li>
+    {% endfor %}
+  </ul>
   {% endif %}
 </div>
 

@@ -433,6 +433,18 @@ class VisitInvestigation(db.Model):
     # When this order's consumables left the lab's store (`utils/lab_stock`).
     # Once per order: a result cleared and typed again is the same run.
     consumed_at = db.Column(db.DateTime)
+    # ---- urgent, and the lab's door (`utils/lab_reception`) -------------
+    # GAHAR DAS.14 (أ) asks the request to carry «special marking for urgent
+    # tests», and DAS.22 a STAT time for each test — the catalogue has had
+    # the STAT figure for months and no order could say it was STAT, so the
+    # figure was never used. ``None`` is «nobody said», read as routine.
+    urgent = db.Column(db.Boolean)
+    # DAS.15 (ب-١): an accepted specimen is recorded with the date and time
+    # it reached the lab and who received it — and (ب-٣) a suboptimal one
+    # accepted anyway says why. Empty on every order received before this.
+    received_at = db.Column(db.DateTime)
+    received_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    received_note = db.Column(db.String(200))
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -448,6 +460,7 @@ class VisitInvestigation(db.Model):
     critical_reader = db.relationship("User", foreign_keys=[critical_seen_by])
     critical_caller = db.relationship("User", foreign_keys=[critical_called_by])
     exposure_writer = db.relationship("User", foreign_keys=[exposure_by])
+    receiver = db.relationship("User", foreign_keys=[received_by])
     operation = db.relationship("Operation", backref="investigations",
                                 foreign_keys=[operation_id])
 

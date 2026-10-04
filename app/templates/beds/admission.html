@@ -1425,6 +1425,10 @@
         <input class="input" name="outside_place" maxlength="160" x-show="outside" x-cloak
                placeholder="{{ t('stay_tests.outside_place_ph') }}">
       </div>
+      {# GAHAR DAS.14 (أ) — the urgent mark: first on the lab's rack, held to
+         the test's STAT time. #}
+      <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+        <input type="checkbox" name="urgent" value="1" data-test-urgent> {{ t('lab_reception.urgent_box') }}</label>
       <button class="btn btn-primary gc-press" type="submit">
         <i class="bi bi-plus-lg"></i> {{ t('stay_tests.order') }}</button>
     </div>

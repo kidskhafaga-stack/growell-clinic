@@ -884,6 +884,13 @@ ADDITIONS = [
     # store, so a result typed, cleared and typed again takes them once.
     ("investigations", "cost", "FLOAT"),
     ("visit_investigations", "consumed_at", "DATETIME"),
+    # GAHAR DAS.14/15/22 — the urgent mark on an order, and the sample's
+    # reception at the lab. Empty on every order already written: nobody
+    # said urgent, and nobody recorded the reception.
+    ("visit_investigations", "urgent", "BOOLEAN"),
+    ("visit_investigations", "received_at", "DATETIME"),
+    ("visit_investigations", "received_by", "INTEGER"),
+    ("visit_investigations", "received_note", "VARCHAR(200)"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

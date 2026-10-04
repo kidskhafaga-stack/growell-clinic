@@ -1177,6 +1177,12 @@
           <label style="display:flex;align-items:center;gap:6px;font-weight:400;">
             <input type="checkbox" x-model="outside" data-inv-outside-box>
             <span>{{ t('rx.inv_outside') }}</span></label></div>
+        {# GAHAR DAS.14 (أ) — the urgent mark. One box; the lab puts the tube
+           first and holds it to the test's STAT time (DAS.22). #}
+        <div class="form-row"><label>{{ t('lab_reception.urgent') }}</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;">
+            <input type="checkbox" name="urgent" value="1" data-inv-urgent>
+            <span>{{ t('lab_reception.urgent_box') }}</span></label></div>
         <div class="form-row" style="position:relative;"><label>{{ t('rx.inv_name') }} *</label>
           <input class="input" name="name" x-model="name" autocomplete="off" required
                  placeholder="{{ t('rx.inv_search_ph') }}"

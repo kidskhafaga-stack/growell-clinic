@@ -101,7 +101,9 @@ def worklist(kind=LAB, state=None, limit=200):
         query = query.filter(VisitInvestigation.kind == kind)
     if state:
         query = query.filter(VisitInvestigation.status == state)
-    return (query.order_by(VisitInvestigation.created_at,
+    # **Urgent first** (GAHAR DAS.22), then oldest first within each.
+    urgent_first = db.case((VisitInvestigation.urgent.is_(True), 0), else_=1)
+    return (query.order_by(urgent_first, VisitInvestigation.created_at,
                            VisitInvestigation.id).limit(limit).all())
 
 
@@ -210,6 +212,17 @@ def counts(kind=LAB):
     found = dict(rows)
     return {"to_collect": found.get(REQUESTED, 0),
             "to_run": found.get(COLLECTED, 0)}
+
+
+def urgent_count(kind=LAB):
+    """How many open orders say urgent — a number of its own, not a third
+    key on :func:`counts`, whose two numbers callers add up."""
+    query = (db.session.query(db.func.count(VisitInvestigation.id))
+             .filter(VisitInvestigation.status.in_(OPEN_STATES), _ours(),
+                     VisitInvestigation.urgent.is_(True)))
+    if kind:
+        query = query.filter(VisitInvestigation.kind == kind)
+    return query.scalar() or 0
 
 
 def waiting_minutes(row, now=None):
@@ -330,7 +343,12 @@ def sample_code(row):
     """
     from app.utils.clock import local_today
 
-    return f"{local_today():%y%m%d}-{row.id:05d}"
+    code = f"{local_today():%y%m%d}-{row.id:05d}"
+    # A tube the lab refused keeps its number on the refusal record; the
+    # one drawn to replace it is numbered after it, so two tubes of one
+    # order are never one code (GAHAR DAS.15 ج — traceability).
+    refused = len(getattr(row, "rejections", None) or [])
+    return f"{code}-{refused + 1}" if refused else code
 
 
 def record(row, value=None, unit=None, low=None, high=None, text=None,

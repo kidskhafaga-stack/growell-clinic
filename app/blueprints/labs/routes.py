@@ -54,9 +54,15 @@ def index():
     state = (request.args.get("state") or "").strip() or None
     if state not in bench.OPEN_STATES:
         state = None
+    from app.utils import lab_reception
+
     rows = bench.worklist(kind=bench.LAB, state=state)
     return render_template("labs/index.html",
                            rows=rows, state=state,
+                           refused=lab_reception.last_rejections(rows),
+                           reason_label=lab_reception.reason_label,
+                           urgent_open=bench.urgent_count(bench.LAB),
+                           at_door=request.args.get("receive") == "1",
                            # Where the child is, when they are in a bed: the
                            # sample is drawn at the bed, not at the desk.
                            beds=bench.beds_of(rows),
@@ -83,7 +89,11 @@ def order(order_id):
     # line by line, each against this child's range; one it has not is
     # answered the way it always was.
     lines = lab_results.sheet(row) if lab_results.measured(row) else None
+    from app.utils import lab_reception
+
     return render_template("labs/order.html", order=row, bench=bench,
+                           reasons=lab_reception.reasons(),
+                           reason_label=lab_reception.reason_label,
                            lines=lines, late=lab_results.late(row),
                            age_days=lab_results.age_days(
                                row.patient, row.collected_at or row.created_at),
@@ -179,13 +189,148 @@ def labels():
 @module_required(MODULE)
 def scan():
     """A barcode reader's input: the tube's code, then Enter. Opens the order
-    it belongs to — to mark it drawn, or to write its result."""
+    it belongs to — to mark it drawn, or to write its result.
+
+    **At the door** (``receive=1``) it receives the tube instead and comes
+    straight back to the box, so a tray of tubes is received by scanning
+    them one after another (GAHAR DAS.15 ب-١)."""
+    from app.utils import lab_reception
+
     code = (request.args.get("code") or "").strip()
+    at_door = request.args.get("receive") == "1"
     row = bench.by_code(code)
     if row is None:
         flash(t("lab.scan_unknown", code=code[:24]), "warning")
+        return redirect(url_for("labs.index", receive=1 if at_door else None))
+    if at_door:
+        try:
+            lab_reception.receive(row, user=current_user)
+        except lab_reception.ReceptionError as err:
+            db.session.rollback()
+            flash(t(f"lab_reception.err_{err}"), "warning")
+            return redirect(url_for("labs.index", receive=1))
+        db.session.commit()
+        flash(t("lab_reception.received_code", code=row.sample_code,
+                name=row.name), "success")
+        return redirect(url_for("labs.index", receive=1))
+    return redirect(url_for("labs.order", order_id=row.id))
+
+
+@labs_bp.route("/order/<int:order_id>/receive", methods=["POST"])
+@module_required(MODULE)
+def receive(order_id):
+    """The tube reached the lab and was accepted — with a note when it was
+    accepted although not as it should be (GAHAR DAS.15 ب)."""
+    from app.utils import lab_reception
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    try:
+        lab_reception.receive(row, user=current_user,
+                              note=request.form.get("note"))
+    except lab_reception.ReceptionError as err:
+        db.session.rollback()
+        flash(t(f"lab_reception.err_{err}"), "error")
+        return redirect(url_for("labs.order", order_id=row.id))
+    db.session.commit()
+    flash(t("lab_reception.received"), "success")
+    if request.form.get("back") == "rack":
         return redirect(url_for("labs.index"))
     return redirect(url_for("labs.order", order_id=row.id))
+
+
+@labs_bp.route("/order/<int:order_id>/reject", methods=["POST"])
+@module_required(MODULE)
+def reject(order_id):
+    """The tube is refused: why, and who was told to draw it again. The
+    order goes back to be drawn (GAHAR DAS.15 ب-٢)."""
+    from app.models import ActivityLog
+    from app.utils import lab_reception
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    try:
+        refused = lab_reception.reject(
+            row, reason_key=request.form.get("reason_key"),
+            reason_text=request.form.get("reason_text"),
+            told_to=request.form.get("told_to"), user=current_user)
+    except lab_reception.ReceptionError as err:
+        db.session.rollback()
+        flash(t(f"lab_reception.err_{err}"), "error")
+        return redirect(url_for("labs.order", order_id=row.id))
+    ActivityLog.record("lab.sample_rejected", user_id=current_user.id,
+                       entity="visit_investigation", entity_id=row.id,
+                       detail=f"{refused.sample_code}: "
+                              f"{lab_reception.reason_label(refused)}"[:250])
+    db.session.commit()
+    flash(t("lab_reception.rejected"), "warning")
+    return redirect(url_for("labs.order", order_id=row.id))
+
+
+@labs_bp.route("/rejections")
+@module_required(MODULE)
+def rejections():
+    """Every refused tube in a period, and how many under each reason —
+    what the surveyor matches against the policy (GAHAR DAS.15 دليل ٣)."""
+    from datetime import timedelta
+
+    from app.utils import lab_reception
+    from app.utils.clock import local_today
+
+    today = local_today()
+    end = _day(request.args.get("to")) or today
+    start = _day(request.args.get("from")) or (end - timedelta(days=30))
+    if start > end:
+        start, end = end, start
+    rows, tally = lab_reception.register(start, end)
+    return render_template("labs/rejections.html", rows=rows, tally=tally,
+                           start=start, end=end,
+                           label=lab_reception.reason_label)
+
+
+def _day(raw):
+    from datetime import date
+
+    try:
+        return date.fromisoformat((raw or "").strip())
+    except ValueError:
+        return None
+
+
+@labs_bp.route("/reject-reasons", methods=["POST"])
+@module_required(MODULE)
+def reject_reason_add():
+    """A line on the laboratory's list of rejection reasons — its policy,
+    so its words (GAHAR DAS.15 أ). Admin only, like the tests list."""
+    from app.utils import lab_reception
+
+    if not current_user.is_admin:
+        abort(403)
+    try:
+        lab_reception.add_reason(request.form.get("name"))
+    except lab_reception.ReceptionError as err:
+        db.session.rollback()
+        flash(t(f"lab_reception.err_{err}"), "error")
+        return redirect(url_for("labs.tests") + "#reject-reasons")
+    db.session.commit()
+    flash(t("lab_reception.reason_added"), "success")
+    return redirect(url_for("labs.tests") + "#reject-reasons")
+
+
+@labs_bp.route("/reject-reasons/<int:reason_id>/retire", methods=["POST"])
+@module_required(MODULE)
+def reject_reason_retire(reason_id):
+    """Off the list — retired, so a tube refused under it still names it."""
+    from app.models import Lookup
+    from app.utils import lab_reception
+
+    if not current_user.is_admin:
+        abort(403)
+    try:
+        lab_reception.retire_reason(db.session.get(Lookup, reason_id))
+    except lab_reception.ReceptionError:
+        abort(404)
+    db.session.commit()
+    flash(t("lab_reception.reason_retired"), "success")
+    return redirect(url_for("labs.tests") + "#reject-reasons")
 
 
 @labs_bp.route("/order/<int:order_id>/result", methods=["POST"])
@@ -379,7 +524,14 @@ def tests():
                   .order_by(Service.name).all()),
         devices=_devices() if kind == "diagnostic" else [],
         modalities=_radiation().MODALITIES, dose_measures=_radiation().measures(),
-        radiation_base=_radiation().base_unit)
+        radiation_base=_radiation().base_unit,
+        reject_reasons=_reception().reasons() if kind == "lab" else [])
+
+
+def _reception():
+    from app.utils import lab_reception
+
+    return lab_reception
 
 
 def _move_kind(row, kind):

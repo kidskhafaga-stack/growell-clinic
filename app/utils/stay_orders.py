@@ -68,7 +68,7 @@ def encounter(admission, user):
 
 def order(admission, user, investigation=None, name=None, name_en=None,
           kind=None, notes=None, laterality=None, outside=None,
-          outside_place=None):
+          outside_place=None, urgent=None):
     """Write one test or scan for a child in a bed. Returns the order.
 
     Refused for a stay that has ended and for an order with no name. Where it
@@ -100,7 +100,8 @@ def order(admission, user, investigation=None, name=None, name_en=None,
         outside_place=((outside_place or "").strip()[:160] or None)
         if goes_out else None,
         ordered_by=user.id,
-        laterality=side if (kind == "imaging" and side in SIDES) else None)
+        laterality=side if (kind == "imaging" and side in SIDES) else None,
+        urgent=True if urgent else None)
     db.session.add(row)
     db.session.flush()
     return row

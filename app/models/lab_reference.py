@@ -257,3 +257,45 @@ class LabConsumable(db.Model):
                                             cascade="all, delete-orphan"))
     item = db.relationship("StoreItem")
 
+
+class SampleRejection(db.Model):
+    """A specimen the laboratory refused — GAHAR DAS.15 (ب-٢).
+
+    *"Records of rejection are maintained, including the cause of rejection,
+    time and date, name of rejecting person, and name of the notified
+    individual."* A row of its own and not columns on the order, because an
+    order can be refused more than once — haemolysed at eight, clotted at
+    ten — and each refused tube is a record the surveyor asks for. The order
+    goes back to be drawn again; this keeps the tube that was turned away,
+    with the number it carried and who drew it.
+    """
+    __tablename__ = "sample_rejections"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey("visit_investigations.id"),
+                         nullable=False, index=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"),
+                           nullable=False, index=True)
+    # The tube as it was: its number, when and by whom it was drawn.
+    sample_code = db.Column(db.String(24))
+    collected_at = db.Column(db.DateTime)
+    collected_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # Why — a line of the laboratory's own list (`Lookup` domain
+    # ``sample_reject``), or its words when the list has none that fits.
+    reason_key = db.Column(db.String(40))
+    reason_text = db.Column(db.String(200))
+    # Who was told to draw it again.
+    told_to = db.Column(db.String(120), nullable=False)
+    rejected_at = db.Column(db.DateTime, default=datetime.utcnow,
+                            nullable=False, index=True)
+    rejected_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+
+    order = db.relationship("VisitInvestigation", backref=db.backref(
+        "rejections", order_by="SampleRejection.id",
+        cascade="all, delete-orphan"))
+    patient = db.relationship("Patient")
+    collector = db.relationship("User", foreign_keys=[collected_by])
+    rejecter = db.relationship("User", foreign_keys=[rejected_by])
+
+    def __repr__(self):
+        return f"<SampleRejection {self.order_id} {self.reason_key or self.reason_text}>"

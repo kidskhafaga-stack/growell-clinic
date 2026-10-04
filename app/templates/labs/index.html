@@ -18,6 +18,8 @@
   .lb-name { font-weight:600; }
   .lb-waited { font-variant-numeric: tabular-nums; }
   .lb-critical { border-color:var(--danger); color:var(--danger); }
+  /* Urgent (GAHAR DAS.22): first on the list, and said on the row. */
+  .lb-row.is-urgent { border-color:var(--danger); }
 </style>
 
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
@@ -41,6 +43,12 @@
       {{ t('lab.to_run', n=counts.to_run) }}</a>
     <a class="btn btn-outline gc-press{{ ' btn-primary' if not state else '' }}"
        href="{{ url_for('labs.index') }}">{{ t('lab.everything') }}</a>
+    {% if urgent_open %}
+    <span class="badge badge--danger" data-urgent-open><i class="bi bi-lightning-charge"></i> {{ t('lab_reception.urgent_n', n=urgent_open) }}</span>
+    {% endif %}
+    {# The refused tubes, a register of their own (GAHAR DAS.15). #}
+    <a class="btn btn-outline gc-press" data-to-rejections href="{{ url_for('labs.rejections') }}">
+      <i class="bi bi-x-octagon"></i> {{ t('lab_reception.register_title') }}</a>
     {# Critical values nobody has read yet: the one list the lab chases by
        telephone. Always here, so an empty one is seen to be empty. #}
     <a class="btn btn-outline gc-press{{ ' lb-critical' if critical_open else '' }}"
@@ -67,6 +75,10 @@
   <input class="input" name="code" maxlength="40" dir="ltr" autocomplete="off" autofocus
          placeholder="{{ t('lab.scan_ph') }}" style="flex:1;min-width:200px;" aria-label="{{ t('lab.scan_ph') }}">
   <button class="btn btn-outline gc-press" type="submit">{{ t('lab.scan_open') }}</button>
+  {# **At the door**: each scan receives the tube and comes back here, so a
+     tray is received by scanning it (GAHAR DAS.15 ب-١). #}
+  <label style="display:flex;gap:6px;align-items:center;margin:0;" data-scan-receive>
+    <input type="checkbox" name="receive" value="1" {{ 'checked' if at_door else '' }}> {{ t('lab_reception.scan_receive') }}</label>
 </form>
 
 {% if not rows %}
@@ -78,10 +90,11 @@
 {% else %}
 <div class="card gc-scale-in">
   {% for row in rows %}
-  <div class="lb-row st-{{ row.status }}" data-status="{{ row.status }}">
+  <div class="lb-row st-{{ row.status }}{{ ' is-urgent' if row.urgent else '' }}" data-status="{{ row.status }}">
     <div class="lb-row__who">
       <div class="lb-name">
         <a href="{{ url_for('labs.order', order_id=row.id) }}">{{ row.name }}</a>
+        {% if row.urgent %}<span class="badge badge--danger" data-urgent><i class="bi bi-lightning-charge"></i> {{ t('lab_reception.urgent') }}</span>{% endif %}
       </div>
       <div class="hint">
         <a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
@@ -97,7 +110,20 @@
     {% if row.status == 'collected' %}
     <span class="alert-pill ok" data-sample>
       <i class="bi bi-upc"></i> <span dir="ltr">{{ row.sample_code }}</span></span>
+    {% if row.received_at %}
+    <span class="hint" data-received><i class="bi bi-box-arrow-in-down"></i> {{ t('lab_reception.received_at', when=row.received_at|clinic_stamp) }}</span>
     {% else %}
+    <form method="post" style="margin:0;" action="{{ url_for('labs.receive', order_id=row.id) }}" data-receive>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="back" value="rack">
+      <button class="btn btn-sm btn-outline gc-press" type="submit"><i class="bi bi-box-arrow-in-down"></i> {{ t('lab_reception.receive') }}</button>
+    </form>
+    {% endif %}
+    {% else %}
+    {% if refused.get(row.id) %}
+    <span class="alert-pill danger" data-refused><i class="bi bi-x-octagon"></i>
+      {{ t('lab_reception.refused_line', why=reason_label(refused[row.id])) }}</span>
+    {% endif %}
     <span class="alert-pill warn" data-needs-sample>
       <i class="bi bi-droplet"></i> {{ t('lab.needs_sample') }}
       {% if row.sample_code %} · <span dir="ltr" data-label-code>{{ row.sample_code }}</span>{% endif %}</span>
