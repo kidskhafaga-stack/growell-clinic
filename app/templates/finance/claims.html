@@ -13,6 +13,47 @@
   </div>
 </div>
 
+{# **The desk's first view**: each payer's next batch — from the day after
+   its last claimed period up to its contract's cycle day — and how its
+   claims of the year stand: claimed, accepted, paid, refused and still open
+   (`utils/claims_desk`). #}
+{% if board %}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-claims-board>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-inboxes"></i> {{ t('claims_desk.board_title') }}</h2>
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:820px;">
+    <thead><tr><th>{{ t('claims.entity') }}</th><th>{{ t('claims_desk.next_batch') }}</th>
+      <th class="num">{{ t('claims_desk.claimed') }}</th><th class="num">{{ t('claims_desk.accepted') }}</th>
+      <th class="num">{{ t('claims_desk.paid') }}</th><th class="num">{{ t('claims_desk.open_refused') }}</th></tr></thead>
+    <tbody>
+      {% for r in board %}
+      <tr data-board-payer="{{ r.payer.id }}">
+        <td><a href="{{ url_for('finance.claim_detail', payer_id=r.payer.id) }}">{{ r.payer.display_name(current_lang) }}</a></td>
+        <td>
+          {% if r.batch %}
+          <form method="post" action="{{ url_for('finance.claim_create') }}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0;" data-next-batch>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="payer_id" value="{{ r.payer.id }}">
+            <input type="hidden" name="date_from" value="{{ r.batch[0].isoformat() }}">
+            <input type="hidden" name="date_to" value="{{ r.batch[1].isoformat() }}">
+            <span dir="ltr">{{ r.batch[0] }} → {{ r.batch[1] }}</span>
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('claims_desk.make_batch') }}</button>
+          </form>
+          {% else %}<span class="hint">{{ t('claims_desk.no_batch') }}</span>{% endif %}
+        </td>
+        <td class="num">{{ r.claimed|money }}</td>
+        <td class="num">{{ r.accepted|money }}</td>
+        <td class="num">{{ r.paid|money }}</td>
+        <td class="num" style="{{ 'color:var(--danger);font-weight:700;' if r.open else '' }}">{{ r.open|money }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="hint" style="margin:6px 0 0;">{{ t('claims_desk.board_hint') }}</p>
+</div>
+{% endif %}
+
 <form method="get" class="card gc-scale-in">
   <div class="form-grid">
     <div class="form-row"><label>{{ t('claims.from') }}</label><input class="input" type="date" name="date_from" value="{{ date_from }}"></div>

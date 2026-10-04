@@ -2244,6 +2244,22 @@ SECTIONS = [
              "before saving. The reminder comes the number of days set in "
              "Settings, and a contract that ended with no renewal while members "
              "still hold cards is flagged in red."),
+            ("<b>مكتب المطالبات</b>: أول شاشة المطالبات فيها كل جهة ودفعتها "
+             "الجاية (من بعد آخر فترة اتطالب بيها لحد يوم الدورة في العقد) بزرار "
+             "«اعمل المطالبة»، والمطالب بيه والمقبول والمدفوع فعلاً والمرفوض المفتوح. "
+             "المطالبة فيها سطورها — كل بند بقسمه ورقم موافقته — وردّ الجهة بيتكتب "
+             "على كل سطر: مقبول أو جزء أو مرفوض بسببه. المرفوض يا يتعاد تقديمه في "
+             "مطالبة جديدة مربوطة بيه، يا نتنازل عنه بقرار — ومينفعش الاتنين. "
+             "والمطالبة بتتنزل شيت Excel للجهة.",
+             "<b>The claims desk</b>: the claims screen opens on each payer's "
+             "next batch (from after its last claimed period to its contract's "
+             "cycle day) with «Make the claim», and what was claimed, accepted, "
+             "actually paid, and refused and still open. A claim carries its "
+             "lines — each item with its department and approval number — and "
+             "the payer's answer is written per line: accepted, part, or "
+             "refused with the reason. A refusal is either resubmitted on a new "
+             "claim tied to it, or written off by decision — never both. The "
+             "claim downloads as an Excel sheet for the payer."),
             ("<b>نصيب الأسرة وسقوف الجهة</b> على شاشة أسعار العقد: مبلغ ثابت "
              "على الأسرة في كل فاتورة لكل قسم، وأقصى ما الجهة تدفعه في الفاتورة "
              "وفي ليلة السرير (الغرفة الخاصة فرقها على الأسرة)، والتحمّل وسقف "
