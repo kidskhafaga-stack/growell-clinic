@@ -1045,6 +1045,9 @@ def add_investigation(visit_id):
         # (أ) و(و) — **من اللوج، مش من فورم**: صفر كتابة، وما بيتزوّرش.
         ordered_by=current_user.id,
         laterality=side if (kind == "imaging" and side in SIDES) else None,
+        # GAHAR DAS.14 (أ) — «special marking for urgent tests». One box;
+        # unticked is «nobody said», which the lab reads as routine.
+        urgent=True if request.form.get("urgent") == "1" else None,
     ))
     db.session.commit()
     flash(t("visits.inv_added"), "success")

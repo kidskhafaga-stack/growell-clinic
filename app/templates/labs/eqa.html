@@ -1,0 +1,64 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_quality.eqa_title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_quality.eqa_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR DAS.19 — each proficiency round (or inter-laboratory comparison):
+   provider, round, dates, the grade, who reviewed it, and the remedial
+   action for anything unacceptable. Kept, never deleted. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-globe"></i> {{ t('lab_quality.eqa_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lab_quality.eqa_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.quality') }}"><i class="bi bi-graph-up"></i> {{ t('lab_quality.title') }}</a>
+</div>
+
+{% macro fields(r) %}
+  <div class="form-row" style="margin:0;min-width:140px;"><label>{{ t('lab_quality.f_kind') }}</label>
+    <select class="select" name="kind">{% for k in ['proficiency', 'interlab'] %}<option value="{{ k }}" {{ 'selected' if r and r.kind == k else '' }}>{{ t('lab_quality.kind_' ~ k) }}</option>{% endfor %}</select></div>
+  <div class="form-row" style="margin:0;flex:2;min-width:160px;"><label>{{ t('lab_quality.f_provider') }}</label><input class="input" name="provider" required maxlength="160" value="{{ r.provider if r else '' }}"></div>
+  <div class="form-row" style="margin:0;min-width:110px;"><label>{{ t('lab_quality.f_round') }}</label><input class="input" name="round_code" maxlength="60" dir="ltr" value="{{ (r.round_code or '') if r else '' }}"></div>
+  <div class="form-row" style="margin:0;flex:2;min-width:160px;"><label>{{ t('lab_quality.f_tests') }}</label><input class="input" name="tests" maxlength="255" value="{{ (r.tests or '') if r else '' }}"></div>
+  <div class="form-row" style="margin:0;min-width:140px;"><label>{{ t('lab_quality.f_received') }}</label><input class="input" type="date" name="received_on" value="{{ r.received_on.isoformat() if r and r.received_on else '' }}"></div>
+  <div class="form-row" style="margin:0;min-width:140px;"><label>{{ t('lab_quality.f_due') }}</label><input class="input" type="date" name="due_on" value="{{ r.due_on.isoformat() if r and r.due_on else '' }}"></div>
+  <div class="form-row" style="margin:0;min-width:140px;"><label>{{ t('lab_quality.f_submitted') }}</label><input class="input" type="date" name="submitted_on" value="{{ r.submitted_on.isoformat() if r and r.submitted_on else '' }}"></div>
+{% endmacro %}
+
+<form method="post" action="{{ url_for('labs.eqa_save') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;" data-eqa-new>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin:0;flex-basis:100%;">{{ t('lab_quality.new_round') }}</h2>
+  {{ fields(none) }}
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('lab_reception.add') }}</button>
+</form>
+
+{% if not rounds %}<div class="card gc-scale-in"><p class="hint" style="margin:0;" data-no-rounds>{{ t('lab_quality.no_rounds') }}</p></div>{% endif %}
+{% for r in rounds %}
+<div class="card gc-scale-in" style="margin-bottom:10px;" data-round="{{ r.id }}">
+  <form method="post" action="{{ url_for('labs.eqa_save', round_id=r.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {{ fields(r) }}
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+  <div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px;">
+    {% if r.reviewed_at %}
+    <p style="margin:0;" data-round-graded>
+      {% if r.outcome == 'acceptable' %}<span class="badge badge--green">{{ t('lab_quality.out_acceptable') }}</span>{% elif r.outcome == 'unacceptable' %}<span class="badge badge--danger">{{ t('lab_quality.out_unacceptable') }}</span>{% else %}<span class="badge badge--muted">{{ t('lab_quality.out_pending') }}</span>{% endif %}
+      · {{ t('lab_quality.reviewed_line', who=r.reviewer.display_name(current_lang) if r.reviewer else '—', when=r.reviewed_at|clinic_stamp) }}
+      {% if r.grade_note %} · <span dir="auto">{{ r.grade_note }}</span>{% endif %}
+      {% if r.remedial_action %}<br><span class="hint">{{ t('lab_quality.remedial') }}: <span dir="auto">{{ r.remedial_action }}</span></span>{% endif %}</p>
+    {% elif may_review %}
+    <form method="post" action="{{ url_for('labs.eqa_grade', round_id=r.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;" data-grade>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;min-width:140px;"><label>{{ t('lab_quality.outcome') }}</label>
+        <select class="select" name="outcome">{% for o in outcomes %}<option value="{{ o }}">{{ t('lab_quality.out_' ~ o) }}</option>{% endfor %}</select></div>
+      <div class="form-row" style="margin:0;flex:1;min-width:160px;"><label>{{ t('lab_quality.grade_note') }}</label><input class="input" name="grade_note" maxlength="255"></div>
+      <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label>{{ t('lab_quality.remedial') }}</label><input class="input" name="remedial_action" maxlength="255"></div>
+      <button class="btn btn-outline gc-press" type="submit">{{ t('lab_quality.grade') }}</button>
+    </form>
+    {% else %}<span class="badge badge--warn">{{ t('lab_quality.not_reviewed') }}</span>{% endif %}
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

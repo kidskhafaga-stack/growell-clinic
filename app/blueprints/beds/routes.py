@@ -1950,7 +1950,8 @@ def order_test(admission_id):
             notes=request.form.get("notes"),
             laterality=request.form.get("laterality"),
             outside=(asked == "1") if asked is not None else None,
-            outside_place=request.form.get("outside_place"))
+            outside_place=request.form.get("outside_place"),
+            urgent=request.form.get("urgent") == "1")
     except stay_orders.StayClosed:
         db.session.rollback()
         flash(t("stay_tests.closed"), "error")

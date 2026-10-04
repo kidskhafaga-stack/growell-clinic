@@ -1,0 +1,68 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ material.label(current_lang) }}{% endblock %}
+{% block page_heading %}{{ t('lab_quality.title') }}{% endblock %}
+
+{% block content %}
+{# One control: the Levey-Jennings chart against the target the laboratory
+   wrote, its runs, and the box for today's value (GAHAR DAS.18). #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-graph-up"></i> {{ material.label(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;" dir="ltr">{{ '%g'|format(material.target_mean) }} ± {{ '%g'|format(material.target_sd) }} {{ material.unit or '' }}{% if material.lot_number %} · {{ material.lot_number }}{% endif %}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.quality') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('lab_quality.title') }}</a>
+</div>
+
+<form method="post" action="{{ url_for('labs.qc_run', material_id=material.id) }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;" data-qc-run>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="form-row" style="margin:0;min-width:120px;"><label for="qc_value">{{ t('lab_quality.value') }}</label><input class="input" id="qc_value" name="value" required inputmode="decimal" dir="ltr" autofocus></div>
+  {% if not chosen %}
+  <div class="form-row" style="margin:0;min-width:140px;"><label for="qc_accepted">{{ t('lab_quality.judgement') }}</label>
+    <select class="select" id="qc_accepted" name="accepted"><option value="1">{{ t('lab_quality.passed') }}</option><option value="0">{{ t('lab_quality.failed') }}</option></select></div>
+  {% endif %}
+  <div class="form-row" style="margin:0;flex:1;min-width:200px;"><label for="qc_action">{{ t('lab_quality.action') }}</label><input class="input" id="qc_action" name="action" maxlength="255"></div>
+  <button class="btn btn-primary gc-press" type="submit">{{ t('lab_quality.record') }}</button>
+  <p class="hint" style="margin:0;flex-basis:100%;">{{ t('lab_quality.rules_on', rules=chosen|join(', ')) if chosen else t('lab_quality.rules_off') }}</p>
+</form>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;overflow-x:auto;" data-lj-chart>
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_quality.chart') }}</h2>
+  {% if not points %}<p class="hint" style="margin:0;">{{ t('lab_quality.no_runs') }}</p>{% else %}
+  {% set w, h, pad = 620, 240, 40 %}
+  {% set step = (w - pad * 2) / ((points|length - 1) if points|length > 1 else 1) %}
+  <svg viewBox="0 0 {{ w }} {{ h }}" width="100%" style="max-width:{{ w }}px;min-width:420px;" role="img" aria-label="{{ t('lab_quality.chart') }}" dir="ltr">
+    {% for sd in [3, 2, 1, 0, -1, -2, -3] %}
+    {% set y = (h / 2) - sd * ((h - 30) / 8) %}
+    <line x1="{{ pad }}" x2="{{ w - 10 }}" y1="{{ y }}" y2="{{ y }}" stroke="{{ 'var(--danger)' if sd|abs == 3 else ('#d97706' if sd|abs == 2 else 'var(--line)') }}" stroke-width="{{ 1.5 if sd == 0 else 1 }}" stroke-dasharray="{{ '' if sd == 0 else '4 3' }}"/>
+    <text x="4" y="{{ y + 4 }}" font-size="11" fill="var(--muted)">{{ ('+' if sd > 0 else '') ~ sd ~ 'SD' if sd != 0 else t('lab_quality.mean') }}</text>
+    {% endfor %}
+    {% for i, zz, ok, v in points %}
+    {% set x = pad + i * step %}{% set y = (h / 2) - zz * ((h - 30) / 8) %}
+    {% if not loop.first %}{% set pz = points[loop.index0 - 1][1] %}<line x1="{{ pad + (i - 1) * step }}" y1="{{ (h / 2) - pz * ((h - 30) / 8) }}" x2="{{ x }}" y2="{{ y }}" stroke="var(--muted)" stroke-width="1"/>{% endif %}
+    <circle cx="{{ x }}" cy="{{ y }}" r="4" fill="{{ 'var(--green-600)' if ok else 'var(--danger)' }}" data-point="{{ 'ok' if ok else 'failed' }}"><title>{{ '%g'|format(v) }}</title></circle>
+    {% endfor %}
+  </svg>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="overflow-x:auto;" data-qc-runs>
+  <table class="table" style="min-width:560px;font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('lab_reception.col_when') }}</th><th>{{ t('lab_quality.value') }}</th><th>SD</th><th>{{ t('lab_quality.judgement') }}</th><th>{{ t('lab_quality.action') }}</th></tr></thead>
+    <tbody>
+    {% for r in runs %}
+    <tr data-qc-run-row="{{ r.id }}">
+      <td>{{ r.run_at|clinic_stamp }}{% if r.runner %}<div class="hint">{{ r.runner.display_name(current_lang) }}</div>{% endif %}</td>
+      <td dir="ltr">{{ '%g'|format(r.value) }}</td>
+      <td dir="ltr">{{ '%+.1f'|format(z(material, r.value)) }}</td>
+      <td>{% if r.accepted %}<span class="badge badge--green">{{ t('lab_quality.passed') }}</span>{% else %}<span class="badge badge--danger">{{ t('lab_quality.failed') }}</span>{% endif %}{% if r.rule_broken %} <span class="hint" dir="ltr">{{ r.rule_broken.replace('_', '-') }}</span>{% endif %}</td>
+      <td>{% if r.action %}<span dir="auto">{{ r.action }}</span>{% elif not r.accepted %}
+        <form method="post" action="{{ url_for('labs.qc_action', run_id=r.id) }}" style="display:flex;gap:6px;margin:0;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="input" name="action" required maxlength="255" placeholder="{{ t('lab_quality.action_ph') }}" aria-label="{{ t('lab_quality.action') }}" style="min-width:160px;">
+          <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button></form>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

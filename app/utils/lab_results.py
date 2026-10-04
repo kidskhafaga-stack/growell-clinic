@@ -360,12 +360,23 @@ def mark_read(order, user, at=None):
 
 
 # ------------------------------------------------------------- lateness ---
+def limit_minutes(order):
+    """The minutes the laboratory says this test takes — the STAT figure for
+    an urgent order, the routine one otherwise or when it gave no STAT time
+    — or ``None`` when it has said nothing (GAHAR DAS.21/22)."""
+    inv = order.investigation
+    limit = None
+    if getattr(order, "urgent", None):
+        limit = getattr(inv, "tat_stat_max", None) or getattr(inv, "tat_stat_min", None)
+    return limit or getattr(inv, "tat_max", None) or getattr(inv, "tat_min", None)
+
+
 def late(order, now=None):
     """Whether this sample has waited longer than the laboratory says the
-    test takes — ``None`` when the laboratory has not said. The routine
-    figure: an order carries no «urgent» mark to choose the STAT one by."""
-    inv = order.investigation
-    limit = getattr(inv, "tat_max", None) or getattr(inv, "tat_min", None)
+    test takes — ``None`` when the laboratory has not said. An urgent order
+    is held to the STAT figure (GAHAR DAS.22), and to the routine one when
+    the laboratory gave the test no STAT time."""
+    limit = limit_minutes(order)
     if not limit or order.status == "resulted" or order.done_outside:
         return None
     # The laboratory's time runs from the sample, not from the order: a test

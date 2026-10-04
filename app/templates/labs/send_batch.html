@@ -1,0 +1,39 @@
+{% extends "shell.html" %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_sendout.manifest') }} {{ code }}{% endblock %}
+{% block page_heading %}{{ t('lab_sendout.manifest') }}{% endblock %}
+
+{% block content %}
+{# What goes in the box: each sample with its label, the child, the test,
+   when it was drawn — and lines for whoever hands it over and receives it. #}
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.send_out') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('lab_sendout.title') }}</a>
+  <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+</div>
+<div class="card gc-scale-in print-area" data-manifest="{{ code }}">
+  {{ print_header(t('lab_sendout.manifest') ~ ' — ' ~ (lab.name if lab else ''), '<span dir="ltr"><strong>' ~ code ~ '</strong></span><br>' ~ printed_at.strftime('%Y-%m-%d %H:%M')) }}
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:560px;">
+      <thead><tr><th>#</th><th>{{ t('lab_reception.col_tube') }}</th><th>{{ t('lab_reception.col_patient') }}</th><th>{{ t('patients.file_number') }}</th><th>{{ t('lab_reception.col_test') }}</th><th>{{ t('lab_release.specimen') }}</th><th>{{ t('lab_release.collected') }}</th></tr></thead>
+      <tbody>
+      {% for row in rows %}
+      <tr data-manifest-row="{{ row.id }}">
+        <td>{{ loop.index }}</td>
+        <td dir="ltr">{{ row.sample_code or '—' }}</td>
+        <td>{{ row.patient.display_name(current_lang) }}</td>
+        <td>{{ row.patient.patient_number }}</td>
+        <td>{{ row.display_name(current_lang) }}{% if row.urgent %} <strong>({{ t('lab_reception.urgent') }})</strong>{% endif %}</td>
+        <td>{{ row.investigation.sample_type if row.investigation and row.investigation.sample_type else '—' }}</td>
+        <td>{{ row.collected_at|clinic_stamp if row.collected_at else '—' }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div style="display:flex;gap:30px;flex-wrap:wrap;margin-top:28px;">
+    <div style="flex:1;min-width:200px;">{{ t('lab_sendout.handed_by') }}: {{ rows[0].sender.display_name(current_lang) if rows[0].sender else '' }}<br><br>{{ t('lab_sendout.signature') }}: ____________</div>
+    <div style="flex:1;min-width:200px;">{{ t('lab_sendout.received_by') }}: ____________<br><br>{{ t('lab_sendout.time') }}: ____________</div>
+  </div>
+</div>
+{% endblock %}

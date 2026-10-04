@@ -304,6 +304,11 @@ CAPABILITIES = [
     # hospital grants it to the people who carry the duty, and the night's
     # manager is not always on the finance staff.
     "duty_manager",
+    # Releasing a laboratory result — GAHAR DAS.20 (ب): «reviewing, verifying
+    # and reporting of results by authorized staff member». Whoever types a
+    # result is not thereby authorized to release it; the hospital grants
+    # this to the people its laboratory policy names (`utils/lab_release`).
+    "lab_release",
 ]
 
 ROLE_CAPABILITIES = {

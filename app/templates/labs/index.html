@@ -18,6 +18,8 @@
   .lb-name { font-weight:600; }
   .lb-waited { font-variant-numeric: tabular-nums; }
   .lb-critical { border-color:var(--danger); color:var(--danger); }
+  /* Urgent (GAHAR DAS.22): first on the list, and said on the row. */
+  .lb-row.is-urgent { border-color:var(--danger); }
 </style>
 
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
@@ -41,6 +43,38 @@
       {{ t('lab.to_run', n=counts.to_run) }}</a>
     <a class="btn btn-outline gc-press{{ ' btn-primary' if not state else '' }}"
        href="{{ url_for('labs.index') }}">{{ t('lab.everything') }}</a>
+    {% if urgent_open %}
+    <span class="badge badge--danger" data-urgent-open><i class="bi bi-lightning-charge"></i> {{ t('lab_reception.urgent_n', n=urgent_open) }}</span>
+    {% endif %}
+    {% if to_release %}
+    <a class="btn btn-outline gc-press" data-to-verify href="{{ url_for('labs.to_verify') }}">
+      <i class="bi bi-patch-check"></i> {{ t('lab_release.to_verify') }} <span class="badge badge--warn">{{ to_release }}</span></a>
+    {% endif %}
+    {# Samples for a referral laboratory (GAHAR DAS.13). Always here once the
+       lab has one, so an empty list is seen to be empty. #}
+    {% if sent_labs %}
+    <a class="btn btn-outline gc-press" data-to-send-out href="{{ url_for('labs.send_out') }}">
+      <i class="bi bi-truck"></i> {{ t('lab_sendout.title') }}</a>
+    {% endif %}
+    {# Reagent lots — and an expired one still on the shelf said in red
+       until somebody takes it off (GAHAR DAS.12 ج). #}
+    <a class="btn btn-outline gc-press{{ ' lb-critical' if expired_lots else '' }}" data-to-reagents href="{{ url_for('labs.reagents') }}">
+      <i class="bi bi-box2"></i> {{ t('lab_reagents.title') }}
+      {% if expired_lots %}<span class="badge badge--danger" data-expired-lots>{{ expired_lots }}</span>{% endif %}</a>
+    {# Quality control (GAHAR DAS.18/19) — a failed control with no action
+       written is said in red. #}
+    <a class="btn btn-outline gc-press{{ ' lb-critical' if qc_failures else '' }}" data-to-quality href="{{ url_for('labs.quality') }}">
+      <i class="bi bi-graph-up"></i> {{ t('lab_quality.title') }}
+      {% if qc_failures %}<span class="badge badge--danger" data-qc-failures>{{ qc_failures }}</span>{% endif %}</a>
+    {# Point-of-care devices (GAHAR DAS.24) — a failed or overdue control in red. #}
+    <a class="btn btn-outline gc-press{{ ' lb-critical' if poct_attention else '' }}" data-to-poct href="{{ url_for('labs.poct') }}">
+      <i class="bi bi-phone"></i> {{ t('lab_poct.title') }}
+      {% if poct_attention %}<span class="badge badge--danger" data-poct-attention>{{ poct_attention }}</span>{% endif %}</a>
+    <a class="btn btn-outline gc-press" data-to-turnaround href="{{ url_for('labs.turnaround') }}">
+      <i class="bi bi-stopwatch"></i> {{ t('lab_tat.title') }}</a>
+    {# The refused tubes, a register of their own (GAHAR DAS.15). #}
+    <a class="btn btn-outline gc-press" data-to-rejections href="{{ url_for('labs.rejections') }}">
+      <i class="bi bi-x-octagon"></i> {{ t('lab_reception.register_title') }}</a>
     {# Critical values nobody has read yet: the one list the lab chases by
        telephone. Always here, so an empty one is seen to be empty. #}
     <a class="btn btn-outline gc-press{{ ' lb-critical' if critical_open else '' }}"
@@ -67,6 +101,10 @@
   <input class="input" name="code" maxlength="40" dir="ltr" autocomplete="off" autofocus
          placeholder="{{ t('lab.scan_ph') }}" style="flex:1;min-width:200px;" aria-label="{{ t('lab.scan_ph') }}">
   <button class="btn btn-outline gc-press" type="submit">{{ t('lab.scan_open') }}</button>
+  {# **At the door**: each scan receives the tube and comes back here, so a
+     tray is received by scanning it (GAHAR DAS.15 ب-١). #}
+  <label style="display:flex;gap:6px;align-items:center;margin:0;" data-scan-receive>
+    <input type="checkbox" name="receive" value="1" {{ 'checked' if at_door else '' }}> {{ t('lab_reception.scan_receive') }}</label>
 </form>
 
 {% if not rows %}
@@ -78,10 +116,11 @@
 {% else %}
 <div class="card gc-scale-in">
   {% for row in rows %}
-  <div class="lb-row st-{{ row.status }}" data-status="{{ row.status }}">
+  <div class="lb-row st-{{ row.status }}{{ ' is-urgent' if row.urgent else '' }}" data-status="{{ row.status }}">
     <div class="lb-row__who">
       <div class="lb-name">
         <a href="{{ url_for('labs.order', order_id=row.id) }}">{{ row.name }}</a>
+        {% if row.urgent %}<span class="badge badge--danger" data-urgent><i class="bi bi-lightning-charge"></i> {{ t('lab_reception.urgent') }}</span>{% endif %}
       </div>
       <div class="hint">
         <a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
@@ -97,7 +136,23 @@
     {% if row.status == 'collected' %}
     <span class="alert-pill ok" data-sample>
       <i class="bi bi-upc"></i> <span dir="ltr">{{ row.sample_code }}</span></span>
+    {% if row.sent_at %}
+    <span class="alert-pill warn" data-sent><i class="bi bi-truck"></i> {{ t('lab_sendout.sent_to', lab=row.sent_lab.name if row.sent_lab else '—') }}</span>
+    {% endif %}
+    {% if row.received_at %}
+    <span class="hint" data-received><i class="bi bi-box-arrow-in-down"></i> {{ t('lab_reception.received_at', when=row.received_at|clinic_stamp) }}</span>
     {% else %}
+    <form method="post" style="margin:0;" action="{{ url_for('labs.receive', order_id=row.id) }}" data-receive>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="back" value="rack">
+      <button class="btn btn-sm btn-outline gc-press" type="submit"><i class="bi bi-box-arrow-in-down"></i> {{ t('lab_reception.receive') }}</button>
+    </form>
+    {% endif %}
+    {% else %}
+    {% if refused.get(row.id) %}
+    <span class="alert-pill danger" data-refused><i class="bi bi-x-octagon"></i>
+      {{ t('lab_reception.refused_line', why=reason_label(refused[row.id])) }}</span>
+    {% endif %}
     <span class="alert-pill warn" data-needs-sample>
       <i class="bi bi-droplet"></i> {{ t('lab.needs_sample') }}
       {% if row.sample_code %} · <span dir="ltr" data-label-code>{{ row.sample_code }}</span>{% endif %}</span>

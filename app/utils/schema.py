@@ -884,6 +884,35 @@ ADDITIONS = [
     # store, so a result typed, cleared and typed again takes them once.
     ("investigations", "cost", "FLOAT"),
     ("visit_investigations", "consumed_at", "DATETIME"),
+    # GAHAR DAS.14/15/22 — the urgent mark on an order, and the sample's
+    # reception at the lab. Empty on every order already written: nobody
+    # said urgent, and nobody recorded the reception.
+    ("visit_investigations", "urgent", "BOOLEAN"),
+    ("visit_investigations", "received_at", "DATETIME"),
+    ("visit_investigations", "received_by", "INTEGER"),
+    ("visit_investigations", "received_note", "VARCHAR(200)"),
+    # GAHAR DAS.20 — who reviewed and released a lab result, and when. Empty
+    # on every result already written, and asked for only where the hospital
+    # switches verification on.
+    ("visit_investigations", "verified_at", "DATETIME"),
+    ("visit_investigations", "verified_by", "INTEGER"),
+    # GAHAR DAS.13/15 (د) — a sample sent to a referral laboratory, and the
+    # laboratory a test is sent to. Empty on everything already written.
+    ("visit_investigations", "sent_lab_id", "INTEGER"),
+    ("visit_investigations", "sent_at", "DATETIME"),
+    ("visit_investigations", "sent_by", "INTEGER"),
+    ("visit_investigations", "sent_batch", "VARCHAR(24)"),
+    ("visit_investigations", "returned_at", "DATETIME"),
+    ("investigations", "referral_lab_id", "INTEGER"),
+    # GAHAR DAS.21/22 — a late result: who was told of the delay, and why
+    # it was late. Empty on everything already written.
+    ("visit_investigations", "delay_told_at", "DATETIME"),
+    ("visit_investigations", "delay_told_to", "VARCHAR(120)"),
+    ("visit_investigations", "delay_told_by", "INTEGER"),
+    ("visit_investigations", "delay_reason", "VARCHAR(200)"),
+    # GAHAR DAS.24 — the point-of-care meter a bedside reading was taken on.
+    # Empty on every reading already charted.
+    ("observations", "poct_device_id", "INTEGER"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

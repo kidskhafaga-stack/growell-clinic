@@ -115,7 +115,10 @@ def chart(patient_id):
         now_local=local_now().strftime("%Y-%m-%dT%H:%M"),
         intervals=INTERVALS, oxygen=OXYGEN_SUPPORT, avpu=AVPU,
         may_order=_may_order(), late=rounds.LATE, due=rounds.DUE,
-        open_visit=_open_visit(patient_id))
+        open_visit=_open_visit(patient_id),
+        # The hospital's point-of-care meters, when it keeps them (GAHAR
+        # DAS.24) — none, and the chart is exactly as it was.
+        poct_devices=_poct().active_devices())
 
 
 def _age_months(patient):
@@ -177,6 +180,14 @@ def record(patient_id):
     row.avpu = avpu if avpu in AVPU else None
     oxygen = (request.form.get("oxygen_support") or "").strip()
     row.oxygen_support = oxygen if oxygen in OXYGEN_SUPPORT else None
+    # Which meter the glucose was read on. Said, never refused: a reading
+    # taken by somebody not on the meter's trained list is still the
+    # child's reading, and the warning goes to whoever answers for the meter.
+    device = _poct().device_for(request.form.get("poct_device_id"))
+    if device is not None and row.glucose_mgdl is not None:
+        row.poct_device_id = device.id
+        if not _poct().is_operator(device, current_user):
+            flash(t("lab_poct.not_trained", device=device.name), "warning")
 
     if row.is_empty:
         flash(t("observations.nothing_measured"), "error")
@@ -266,3 +277,9 @@ def stop(order_id):
         db.session.commit()
         flash(t("observations.order_stopped"), "success")
     return redirect(url_for("observations.chart", patient_id=row.patient_id))
+
+
+def _poct():
+    from app.utils import lab_poct
+
+    return lab_poct

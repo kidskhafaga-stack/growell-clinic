@@ -1,0 +1,59 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_sendout.register_title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_sendout.register_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR DAS.13 دليل ٤-٥ — the send-out records, and each referral
+   laboratory's turnaround measured from its own samples. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-journal-text"></i> {{ t('lab_sendout.register_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lab_sendout.register_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.send_out') }}"><i class="bi bi-truck"></i> {{ t('lab_sendout.title') }}</a>
+</div>
+<form method="get" action="{{ url_for('labs.send_register') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+  <div class="form-row" style="margin:0;"><label for="from">{{ t('lab_reception.from') }}</label><input class="input" type="date" id="from" name="from" value="{{ start.isoformat() }}"></div>
+  <div class="form-row" style="margin:0;"><label for="to">{{ t('lab_reception.to') }}</label><input class="input" type="date" id="to" name="to" value="{{ end.isoformat() }}"></div>
+  <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('lab_reception.show') }}</button>
+</form>
+{% if per_lab %}
+<div class="card gc-scale-in" style="margin-bottom:14px;overflow-x:auto;" data-per-lab>
+  <table class="table" style="min-width:520px;font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('lab_sendout.lab') }}</th><th>{{ t('lab_sendout.n_sent') }}</th><th>{{ t('lab_sendout.n_back') }}</th><th>{{ t('lab_sendout.n_late') }}</th><th>{{ t('lab_sendout.kept') }}</th><th>{{ t('lab_sendout.promised') }}</th></tr></thead>
+    <tbody>
+    {% for e in per_lab %}
+    <tr data-lab-row>
+      <td>{{ e.lab.name if e.lab else '—' }}</td><td>{{ e.sent }}</td><td>{{ e.back }}</td>
+      <td>{% if e.late %}<span class="badge badge--danger">{{ e.late }}</span>{% else %}0{% endif %}</td>
+      <td>{{ t('lab_sendout.days', n=e.kept_days) if e.kept_days is not none else '—' }}</td>
+      <td>{{ t('lab_sendout.days', n=e.lab.tat_days) if e.lab and e.lab.tat_days else '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% if not rows %}
+<div class="card gc-scale-in"><p class="hint" style="margin:0;" data-none-sent>{{ t('lab_sendout.none_sent') }}</p></div>
+{% else %}
+<div class="card gc-scale-in" style="overflow-x:auto;">
+  <table class="table" style="min-width:640px;">
+    <thead><tr><th>{{ t('lab_reception.col_when') }}</th><th>{{ t('lab_sendout.batch') }}</th><th>{{ t('lab_reception.col_patient') }}</th><th>{{ t('lab_reception.col_test') }}</th><th>{{ t('lab_sendout.lab') }}</th><th>{{ t('lab_sendout.back') }}</th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+    <tr data-sent-row="{{ row.id }}">
+      <td>{{ row.sent_at|clinic_stamp }}</td>
+      <td dir="ltr"><a href="{{ url_for('labs.send_batch', code=row.sent_batch) }}">{{ row.sent_batch }}</a></td>
+      <td>{{ row.patient.display_name(current_lang) }}</td>
+      <td><a href="{{ url_for('labs.order', order_id=row.id) }}">{{ row.display_name(current_lang) }}</a></td>
+      <td>{{ row.sent_lab.name if row.sent_lab else '—' }}</td>
+      <td>{% if row.returned_at %}{{ row.returned_at|clinic_stamp }}{% elif late(row, now) %}<span class="badge badge--danger">{{ t('lab_sendout.late') }}</span>{% else %}<span class="hint">{{ t('lab_sendout.waiting') }}</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

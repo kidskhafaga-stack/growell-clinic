@@ -176,6 +176,17 @@
         <input class="input" type="number" min="0" max="900" inputmode="numeric"
                id="glucose_mgdl" name="glucose_mgdl" dir="ltr">
       </div>
+      {# The meter it was read on (GAHAR DAS.24) — only where the hospital
+         keeps its point-of-care devices. #}
+      {% if poct_devices %}
+      <div class="form-row" data-poct-device>
+        <label for="poct_device_id">{{ t('lab_poct.meter') }}</label>
+        <select class="select" id="poct_device_id" name="poct_device_id">
+          <option value="">—</option>
+          {% for d in poct_devices %}<option value="{{ d.id }}">{{ d.name }}{% if d.location %} · {{ d.location }}{% endif %}</option>{% endfor %}
+        </select>
+      </div>
+      {% endif %}
       <div class="form-row">
         <label for="avpu">{{ t('observations.avpu') }}</label>
         <select class="select" id="avpu" name="avpu">

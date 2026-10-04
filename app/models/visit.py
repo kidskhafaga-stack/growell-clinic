@@ -433,6 +433,42 @@ class VisitInvestigation(db.Model):
     # When this order's consumables left the lab's store (`utils/lab_stock`).
     # Once per order: a result cleared and typed again is the same run.
     consumed_at = db.Column(db.DateTime)
+    # ---- urgent, and the lab's door (`utils/lab_reception`) -------------
+    # GAHAR DAS.14 (أ) asks the request to carry «special marking for urgent
+    # tests», and DAS.22 a STAT time for each test — the catalogue has had
+    # the STAT figure for months and no order could say it was STAT, so the
+    # figure was never used. ``None`` is «nobody said», read as routine.
+    urgent = db.Column(db.Boolean)
+    # DAS.15 (ب-١): an accepted specimen is recorded with the date and time
+    # it reached the lab and who received it — and (ب-٣) a suboptimal one
+    # accepted anyway says why. Empty on every order received before this.
+    received_at = db.Column(db.DateTime)
+    received_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    received_note = db.Column(db.String(200))
+    # DAS.20 (ب) and (أ-٨): the result reviewed and released by an authorized
+    # member of the laboratory, and who that was. Asked for only where the
+    # hospital switches verification on (`utils/lab_release`); a result typed
+    # again after it was verified is unverified until somebody looks again.
+    verified_at = db.Column(db.DateTime)
+    verified_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # DAS.13 دليل ٥ / DAS.15 (د): a sample drawn here and sent to a referral
+    # laboratory — where, when, by whom, on which batch, and when its result
+    # came back (`utils/lab_sendout`). Not `done_outside`: that is an order
+    # the family takes elsewhere and the bench never touches; this one the
+    # lab drew, labelled and shipped, and its result returns to the lab.
+    sent_lab_id = db.Column(db.Integer, db.ForeignKey("referral_labs.id"))
+    sent_at = db.Column(db.DateTime, index=True)
+    sent_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    sent_batch = db.Column(db.String(24), index=True)
+    returned_at = db.Column(db.DateTime)
+    # DAS.21 دليل ٢ و٤ / DAS.22 دليل ٣ و٥: a result past its time — the
+    # requester told of the delay (whom, when, by whom), and why it was late,
+    # which is the investigation the standard asks of every unacceptable
+    # turnaround (`utils/lab_tat`).
+    delay_told_at = db.Column(db.DateTime)
+    delay_told_to = db.Column(db.String(120))
+    delay_told_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    delay_reason = db.Column(db.String(200))
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -448,6 +484,11 @@ class VisitInvestigation(db.Model):
     critical_reader = db.relationship("User", foreign_keys=[critical_seen_by])
     critical_caller = db.relationship("User", foreign_keys=[critical_called_by])
     exposure_writer = db.relationship("User", foreign_keys=[exposure_by])
+    receiver = db.relationship("User", foreign_keys=[received_by])
+    verifier = db.relationship("User", foreign_keys=[verified_by])
+    sent_lab = db.relationship("ReferralLab", foreign_keys=[sent_lab_id])
+    sender = db.relationship("User", foreign_keys=[sent_by])
+    delay_teller = db.relationship("User", foreign_keys=[delay_told_by])
     operation = db.relationship("Operation", backref="investigations",
                                 foreign_keys=[operation_id])
 
@@ -493,6 +534,14 @@ class VisitInvestigation(db.Model):
         if self.has_result:
             return "resulted"
         return "arrived" if self.files else "requested"
+
+    @property
+    def awaiting_verification(self):
+        """A lab result written and not yet released, where the hospital asks
+        for release — ``False`` everywhere else (`utils/lab_release`)."""
+        from app.utils import lab_release
+
+        return lab_release.awaiting(self)
 
     @property
     def arrived_at(self):

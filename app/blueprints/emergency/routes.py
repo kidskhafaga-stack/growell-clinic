@@ -507,7 +507,9 @@ def order_test(attendance_id):
                       kind=request.form.get("kind"),
                       notes=request.form.get("notes"),
                       outside=(outside == "1") if outside in ("0", "1")
-                      else None)
+                      else None,
+                      urgent=(request.form.get("urgent") == "1")
+                      if request.form.get("urgent") in ("0", "1") else None)
     except eo.Closed:
         db.session.rollback()
         flash(t("er_orders.closed"), "error")

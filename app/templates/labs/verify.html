@@ -1,0 +1,45 @@
+{% extends "shell.html" %}
+{% import "labs/_values.html" as lv with context %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_release.to_verify') }}{% endblock %}
+{% block page_heading %}{{ t('lab_release.to_verify') }}{% endblock %}
+
+{% block content %}
+{# GAHAR DAS.20 (ب) — results written and waiting for somebody the hospital
+   authorized to review and release them, oldest first. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-patch-check"></i> {{ t('lab_release.to_verify') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lab_release.list_sub') if required else t('lab_release.off_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}"><i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
+</div>
+{% if not rows %}
+<div class="card gc-scale-in"><p class="hint" style="margin:0;" data-none-to-verify>{{ t('lab_release.none_waiting') }}</p></div>
+{% endif %}
+{% for row in rows %}
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-verify-row="{{ row.id }}">
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:6px;">
+    <div>
+      <strong><a href="{{ url_for('labs.order', order_id=row.id) }}">{{ row.display_name(current_lang) }}</a></strong>
+      {% if row.urgent %}<span class="badge badge--danger"><i class="bi bi-lightning-charge"></i> {{ t('lab_reception.urgent') }}</span>{% endif %}
+      {% if row.critical_at %}<span class="badge badge--danger"><i class="bi bi-exclamation-octagon"></i> {{ t('lab_result.critical_banner') }}</span>{% endif %}
+      <div class="hint" style="margin:2px 0 0;">
+        <a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">{{ row.patient.display_name(current_lang) }}</a>
+        {% if beds and beds.get(row.patient_id) %} · <span class="badge badge--muted"><i class="bi bi-hospital"></i> {{ beds[row.patient_id] }}</span>{% endif %}
+        · {{ row.resulted_at|clinic_stamp }}{% if row.resulter %} · {{ row.resulter.display_name(current_lang) }}{% endif %}
+      </div>
+    </div>
+    {% if may_release %}
+    <form method="post" action="{{ url_for('labs.verify', order_id=row.id) }}" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="back" value="list">
+      <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-patch-check"></i> {{ t('lab_release.verify') }}</button>
+    </form>
+    {% endif %}
+  </div>
+  {% if row.analytes_resulted %}{{ lv.table(row) }}
+  {% else %}<p style="margin:0;" dir="auto">{% if row.result_value is not none %}<strong dir="ltr">{{ '%g'|format(row.result_value) }} {{ row.result_unit or '' }}</strong> {% endif %}{{ row.result_text or '' }}</p>{% endif %}
+</div>
+{% endfor %}
+{% endblock %}

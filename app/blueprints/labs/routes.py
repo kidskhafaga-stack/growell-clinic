@@ -54,9 +54,20 @@ def index():
     state = (request.args.get("state") or "").strip() or None
     if state not in bench.OPEN_STATES:
         state = None
+    from app.utils import lab_reception
+
     rows = bench.worklist(kind=bench.LAB, state=state)
     return render_template("labs/index.html",
                            rows=rows, state=state,
+                           refused=lab_reception.last_rejections(rows),
+                           reason_label=lab_reception.reason_label,
+                           urgent_open=bench.urgent_count(bench.LAB),
+                           to_release=_release().waiting_count(),
+                           sent_labs=bool(_sendout().laboratories()),
+                           expired_lots=_reagents().expired_on_shelf(),
+                           qc_failures=_quality().failed_without_action(),
+                           poct_attention=_poct_util().needing_attention(),
+                           at_door=request.args.get("receive") == "1",
                            # Where the child is, when they are in a bed: the
                            # sample is drawn at the bed, not at the desk.
                            beds=bench.beds_of(rows),
@@ -83,7 +94,16 @@ def order(order_id):
     # line by line, each against this child's range; one it has not is
     # answered the way it always was.
     lines = lab_results.sheet(row) if lab_results.measured(row) else None
+    from app.utils import lab_reception
+
     return render_template("labs/order.html", order=row, bench=bench,
+                           reasons=lab_reception.reasons(),
+                           release_required=_release().required(),
+                           may_release=_release().may_release(current_user),
+                           referral_labs=_sendout().laboratories(),
+                           sent_late=_sendout().late(row),
+                           was_late=_tat().was_late(row), took=_tat().minutes(row),
+                           reason_label=lab_reception.reason_label,
                            lines=lines, late=lab_results.late(row),
                            age_days=lab_results.age_days(
                                row.patient, row.collected_at or row.created_at),
@@ -179,13 +199,790 @@ def labels():
 @module_required(MODULE)
 def scan():
     """A barcode reader's input: the tube's code, then Enter. Opens the order
-    it belongs to — to mark it drawn, or to write its result."""
+    it belongs to — to mark it drawn, or to write its result.
+
+    **At the door** (``receive=1``) it receives the tube instead and comes
+    straight back to the box, so a tray of tubes is received by scanning
+    them one after another (GAHAR DAS.15 ب-١)."""
+    from app.utils import lab_reception
+
     code = (request.args.get("code") or "").strip()
+    at_door = request.args.get("receive") == "1"
     row = bench.by_code(code)
     if row is None:
         flash(t("lab.scan_unknown", code=code[:24]), "warning")
+        return redirect(url_for("labs.index", receive=1 if at_door else None))
+    if at_door:
+        try:
+            lab_reception.receive(row, user=current_user)
+        except lab_reception.ReceptionError as err:
+            db.session.rollback()
+            flash(t(f"lab_reception.err_{err}"), "warning")
+            return redirect(url_for("labs.index", receive=1))
+        db.session.commit()
+        flash(t("lab_reception.received_code", code=row.sample_code,
+                name=row.name), "success")
+        return redirect(url_for("labs.index", receive=1))
+    return redirect(url_for("labs.order", order_id=row.id))
+
+
+@labs_bp.route("/order/<int:order_id>/receive", methods=["POST"])
+@module_required(MODULE)
+def receive(order_id):
+    """The tube reached the lab and was accepted — with a note when it was
+    accepted although not as it should be (GAHAR DAS.15 ب)."""
+    from app.utils import lab_reception
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    try:
+        lab_reception.receive(row, user=current_user,
+                              note=request.form.get("note"))
+    except lab_reception.ReceptionError as err:
+        db.session.rollback()
+        flash(t(f"lab_reception.err_{err}"), "error")
+        return redirect(url_for("labs.order", order_id=row.id))
+    db.session.commit()
+    flash(t("lab_reception.received"), "success")
+    if request.form.get("back") == "rack":
         return redirect(url_for("labs.index"))
     return redirect(url_for("labs.order", order_id=row.id))
+
+
+@labs_bp.route("/order/<int:order_id>/reject", methods=["POST"])
+@module_required(MODULE)
+def reject(order_id):
+    """The tube is refused: why, and who was told to draw it again. The
+    order goes back to be drawn (GAHAR DAS.15 ب-٢)."""
+    from app.models import ActivityLog
+    from app.utils import lab_reception
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    try:
+        refused = lab_reception.reject(
+            row, reason_key=request.form.get("reason_key"),
+            reason_text=request.form.get("reason_text"),
+            told_to=request.form.get("told_to"), user=current_user)
+    except lab_reception.ReceptionError as err:
+        db.session.rollback()
+        flash(t(f"lab_reception.err_{err}"), "error")
+        return redirect(url_for("labs.order", order_id=row.id))
+    ActivityLog.record("lab.sample_rejected", user_id=current_user.id,
+                       entity="visit_investigation", entity_id=row.id,
+                       detail=f"{refused.sample_code}: "
+                              f"{lab_reception.reason_label(refused)}"[:250])
+    db.session.commit()
+    flash(t("lab_reception.rejected"), "warning")
+    return redirect(url_for("labs.order", order_id=row.id))
+
+
+@labs_bp.route("/order/<int:order_id>/verify", methods=["POST"])
+@module_required(MODULE)
+def verify(order_id):
+    """Release a result — by whoever the hospital authorized (GAHAR DAS.20 ب)."""
+    from app.models import ActivityLog
+    from app.utils import lab_release
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    back = (url_for("labs.to_verify") if request.form.get("back") == "list"
+            else url_for("labs.order", order_id=row.id))
+    try:
+        lab_release.verify(row, current_user)
+    except lab_release.ReleaseError as err:
+        db.session.rollback()
+        flash(t(f"lab_release.err_{err}"), "error")
+        return redirect(back)
+    ActivityLog.record("lab.verified", user_id=current_user.id,
+                       entity="visit_investigation", entity_id=row.id)
+    db.session.commit()
+    flash(t("lab_release.verified"), "success")
+    return redirect(back)
+
+
+@labs_bp.route("/verify")
+@module_required(MODULE)
+def to_verify():
+    """Results written and waiting for release, oldest first."""
+    from app.utils import lab_release
+
+    return render_template("labs/verify.html", rows=lab_release.waiting(),
+                           required=lab_release.required(),
+                           may_release=lab_release.may_release(current_user),
+                           beds=bench.beds_of(lab_release.waiting()))
+
+
+@labs_bp.route("/verify-setting", methods=["POST"])
+@module_required(MODULE)
+def verify_setting():
+    """Switch result release on or off — the laboratory's policy."""
+    from app.models import ActivityLog, Setting
+    from app.utils import lab_release
+
+    if not current_user.is_admin:
+        abort(403)
+    on = request.form.get("required") == "1"
+    Setting.set(lab_release.SETTING, "1" if on else "0")
+    ActivityLog.record("lab.verify_setting", user_id=current_user.id,
+                       detail="on" if on else "off")
+    db.session.commit()
+    flash(t("lab_release.setting_saved"), "success")
+    return redirect(url_for("labs.tests") + "#verify-setting")
+
+
+@labs_bp.route("/report")
+def report():
+    """The laboratory's final report for one child — GAHAR DAS.20 (أ):
+    the laboratory, the child, each test with its specimen, collection and
+    reporting times, the values against their reference, the ordering
+    doctor, the person who released it, and the comment.
+
+    Read by the lab and by whoever treats the child, so it asks for either
+    the lab module or the medical record, not the lab alone."""
+    from app.utils import lab_release
+    from app.utils.clock import local_now
+    from app.utils.privacy import can_see_visit
+
+    if not current_user.is_authenticated:
+        from flask import current_app
+        return current_app.login_manager.unauthorized()
+    if not (current_user.can_access(MODULE) or current_user.can("patient_medical")):
+        abort(403, description=t("auth.no_permission"))
+    ids = [int(x) for x in (request.args.get("ids") or "").split(",")
+           if x.strip().isdigit()]
+    patient, rows = lab_release.report_rows(ids)
+    rows = [r for r in rows if r.visit is None or can_see_visit(r.visit)]
+    if not rows:
+        abort(404)
+    return render_template("labs/report.html", patient=patient, rows=rows,
+                           required=lab_release.required(),
+                           printed_at=local_now())
+
+
+# ------------------------------------------- sent to a referral laboratory --
+@labs_bp.route("/send-out")
+@module_required(MODULE)
+def send_out():
+    """Samples to send, and samples out — GAHAR DAS.13 / DAS.15 (د)."""
+    from app.utils import lab_sendout
+
+    rows = lab_sendout.to_send()
+    out = lab_sendout.out_now()
+    return render_template("labs/send_out.html", rows=rows, out=out,
+                           labs=lab_sendout.laboratories(),
+                           late=lab_sendout.late, now=datetime.utcnow(),
+                           beds=bench.beds_of(rows + out))
+
+
+@labs_bp.route("/send-out", methods=["POST"])
+@module_required(MODULE)
+def send_out_post():
+    """Send the ticked samples to one laboratory, on one numbered batch."""
+    from app.models import ActivityLog, ReferralLab
+    from app.utils import lab_sendout
+
+    ids = [int(x) for x in request.form.getlist("order_id") if x.isdigit()]
+    orders = [db.session.get(VisitInvestigation, i) for i in ids]
+    lab = db.session.get(ReferralLab, request.form.get("lab_id", type=int) or 0)
+    try:
+        code = lab_sendout.send(orders, lab, user=current_user)
+    except lab_sendout.SendError as err:
+        db.session.rollback()
+        flash(t(f"lab_sendout.err_{err}"), "error")
+        back = request.form.get("back_order", type=int)
+        return redirect(url_for("labs.order", order_id=back) if back
+                        else url_for("labs.send_out"))
+    ActivityLog.record("lab.sent_out", user_id=current_user.id,
+                       detail=f"{code} → {lab.name} ({len(orders)})"[:250])
+    db.session.commit()
+    flash(t("lab_sendout.sent", code=code, n=len(orders)), "success")
+    return redirect(url_for("labs.send_batch", code=code))
+
+
+@labs_bp.route("/send-out/batch/<code>")
+@module_required(MODULE)
+def send_batch(code):
+    """The batch's manifest — what goes in the box, to print and sign."""
+    from app.utils import lab_sendout
+    from app.utils.clock import local_now
+
+    rows = lab_sendout.batch(code)
+    if not rows:
+        abort(404)
+    return render_template("labs/send_batch.html", rows=rows, code=code,
+                           lab=rows[0].sent_lab, printed_at=local_now())
+
+
+@labs_bp.route("/order/<int:order_id>/recall", methods=["POST"])
+@module_required(MODULE)
+def recall(order_id):
+    """Marked sent by mistake — taken back before its result came."""
+    from app.utils import lab_sendout
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    try:
+        lab_sendout.recall(row)
+    except lab_sendout.SendError as err:
+        db.session.rollback()
+        flash(t(f"lab_sendout.err_{err}"), "error")
+        return redirect(url_for("labs.order", order_id=row.id))
+    db.session.commit()
+    flash(t("lab_sendout.recalled"), "success")
+    return redirect(url_for("labs.order", order_id=row.id))
+
+
+@labs_bp.route("/send-out/register")
+@module_required(MODULE)
+def send_register():
+    """What went where in a period, what came back, what is late, and the
+    turnaround each laboratory kept — the evaluation DAS.13 (ب) asks for."""
+    from datetime import timedelta
+
+    from app.utils import lab_sendout
+    from app.utils.clock import local_today
+
+    end = _day(request.args.get("to")) or local_today()
+    start = _day(request.args.get("from")) or (end - timedelta(days=30))
+    if start > end:
+        start, end = end, start
+    rows, per_lab = lab_sendout.register(start, end)
+    return render_template("labs/send_register.html", rows=rows, per_lab=per_lab,
+                           start=start, end=end, late=lab_sendout.late,
+                           now=datetime.utcnow())
+
+
+@labs_bp.route("/referral-labs")
+@module_required(MODULE)
+def referral_labs():
+    """The laboratories this one sends to, with their agreements."""
+    from app.utils import lab_sendout
+
+    return render_template("labs/referral_labs.html",
+                           labs=lab_sendout.laboratories(active_only=False),
+                           state=lab_sendout.agreement_state,
+                           may_build=current_user.is_admin)
+
+
+@labs_bp.route("/referral-labs", methods=["POST"])
+@labs_bp.route("/referral-labs/<int:lab_id>", methods=["POST"])
+@module_required(MODULE)
+def referral_lab_save(lab_id=None):
+    from app.models import ReferralLab
+    from app.utils import lab_sendout
+
+    _admin_only()
+    row = db.get_or_404(ReferralLab, lab_id) if lab_id else None
+    try:
+        lab_sendout.save_laboratory(request.form, row)
+    except lab_sendout.SendError as err:
+        db.session.rollback()
+        flash(t(f"lab_sendout.err_{err}"), "error")
+        return redirect(url_for("labs.referral_labs"))
+    db.session.commit()
+    flash(t("lab_sendout.lab_saved"), "success")
+    return redirect(url_for("labs.referral_labs"))
+
+
+# ------------------------------------------------------------ turnaround --
+@labs_bp.route("/turnaround")
+@module_required(MODULE)
+def turnaround():
+    """How long each test took in a period, the late ones with their reason,
+    and the STAT list — GAHAR DAS.21 / DAS.22."""
+    from datetime import timedelta
+
+    from app.utils import lab_tat
+    from app.utils.clock import local_today
+
+    end = _day(request.args.get("to")) or local_today()
+    start = _day(request.args.get("from")) or (end - timedelta(days=30))
+    if start > end:
+        start, end = end, start
+    per_test, late_rows = lab_tat.report(start, end)
+    return render_template("labs/turnaround.html", per_test=per_test,
+                           late_rows=late_rows, start=start, end=end,
+                           stat=lab_tat.stat_list(), minutes=lab_tat.minutes)
+
+
+@labs_bp.route("/order/<int:order_id>/delay", methods=["POST"])
+@module_required(MODULE)
+def tell_delay(order_id):
+    """The requester was told the result is late (GAHAR DAS.21 دليل ٤)."""
+    from app.models import ActivityLog
+    from app.utils import lab_tat
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    try:
+        lab_tat.tell_delay(row, request.form.get("told_to"),
+                           reason=request.form.get("reason"), user=current_user)
+    except lab_tat.DelayError as err:
+        db.session.rollback()
+        flash(t(f"lab_tat.err_{err}"), "error")
+        return redirect(url_for("labs.order", order_id=row.id))
+    ActivityLog.record("lab.delay_told", user_id=current_user.id,
+                       entity="visit_investigation", entity_id=row.id,
+                       detail=row.delay_told_to)
+    db.session.commit()
+    flash(t("lab_tat.told"), "success")
+    return redirect(url_for("labs.order", order_id=row.id))
+
+
+@labs_bp.route("/order/<int:order_id>/late-reason", methods=["POST"])
+@module_required(MODULE)
+def late_reason(order_id):
+    """Why a result was late — the investigation (GAHAR DAS.21 دليل ٢)."""
+    from app.utils import lab_tat
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    back = (url_for("labs.turnaround") if request.form.get("back") == "report"
+            else url_for("labs.order", order_id=row.id))
+    try:
+        lab_tat.explain(row, request.form.get("reason"))
+    except lab_tat.DelayError as err:
+        db.session.rollback()
+        flash(t(f"lab_tat.err_{err}"), "error")
+        return redirect(back)
+    db.session.commit()
+    flash(t("lab_tat.reason_saved"), "success")
+    return redirect(back)
+
+
+# -------------------------------------------------------------- reagents --
+@labs_bp.route("/reagents")
+@module_required(MODULE)
+def reagents():
+    """Reagent lots: what is on the shelf, what is expiring, what was
+    refused at the door, and what the store says is running low (DAS.12)."""
+    from app.models import StoreItem
+    from app.utils import lab_reagents, lab_stock
+
+    store = lab_stock.store()
+    items = (StoreItem.query.filter(StoreItem.is_active.is_(True))
+             .order_by(StoreItem.name).all())
+    return render_template("labs/reagents.html", lots=lab_reagents.shelf(),
+                           rejected=lab_reagents.recent_rejected(),
+                           low=lab_reagents.low_items(), store=store,
+                           items=items, state=lab_reagents.state,
+                           warn_days=lab_reagents.warn_days())
+
+
+@labs_bp.route("/reagents", methods=["POST"])
+@module_required(MODULE)
+def reagent_receive():
+    """A lot arrived and was inspected — accepted, or rejected with why."""
+    from app.models import ActivityLog
+    from app.utils import lab_reagents
+
+    try:
+        lot = lab_reagents.receive(request.form, user=current_user)
+    except lab_reagents.LotError as err:
+        db.session.rollback()
+        flash(t(f"lab_reagents.err_{err}"), "error")
+        return redirect(url_for("labs.reagents"))
+    ActivityLog.record("lab.reagent_received", user_id=current_user.id,
+                       detail=f"{lot.lot_number} {lot.decision}"[:250])
+    db.session.commit()
+    flash(t("lab_reagents.received_" + lot.decision), "success")
+    return redirect(url_for("labs.reagents"))
+
+
+@labs_bp.route("/reagents/<int:lot_id>/<action>", methods=["POST"])
+@module_required(MODULE)
+def reagent_act(lot_id, action):
+    """Open a lot for use (never an expired one), or finish it."""
+    from app.models import ReagentLot
+    from app.utils import lab_reagents
+
+    lot = db.get_or_404(ReagentLot, lot_id)
+    step = {"open": lab_reagents.open_lot, "finish": lab_reagents.finish}.get(action)
+    if step is None:
+        abort(404)
+    try:
+        step(lot, user=current_user)
+    except lab_reagents.LotError as err:
+        db.session.rollback()
+        flash(t(f"lab_reagents.err_{err}"), "error")
+        return redirect(url_for("labs.reagents"))
+    db.session.commit()
+    flash(t(f"lab_reagents.done_{action}"), "success")
+    return redirect(url_for("labs.reagents"))
+
+
+# --------------------------------------------------------- quality control --
+@labs_bp.route("/quality")
+@module_required(MODULE)
+def quality():
+    """Internal quality control: the controls, the rules, the monthly
+    review (GAHAR DAS.18) — and the door to external quality (DAS.19)."""
+    from app.models import LabAnalyte, QcMaterial
+    from app.utils import lab_quality
+
+    materials = QcMaterial.query.order_by(QcMaterial.is_active.desc(),
+                                          QcMaterial.name).all()
+    return render_template("labs/quality.html", materials=materials,
+                           analytes=LabAnalyte.query.order_by(LabAnalyte.name).all(),
+                           rules=lab_quality.RULES, chosen=lab_quality.chosen_rules(),
+                           months=lab_quality.months(),
+                           may_review=lab_quality.may_review(current_user),
+                           may_build=current_user.is_admin,
+                           open_failures=lab_quality.failed_without_action())
+
+
+@labs_bp.route("/quality/materials", methods=["POST"])
+@module_required(MODULE)
+def qc_material_add():
+    from app.utils import lab_quality
+
+    if not lab_quality.may_review(current_user):
+        abort(403, description=t("auth.no_permission"))
+    try:
+        row = lab_quality.save_material(request.form)
+    except lab_quality.QualityError as err:
+        db.session.rollback()
+        flash(t(f"lab_quality.err_{err}"), "error")
+        return redirect(url_for("labs.quality"))
+    db.session.commit()
+    flash(t("lab_quality.material_saved"), "success")
+    return redirect(url_for("labs.qc_material", material_id=row.id))
+
+
+@labs_bp.route("/quality/material/<int:material_id>")
+@module_required(MODULE)
+def qc_material(material_id):
+    """One control: its Levey-Jennings chart, its runs, and the box for
+    today's value."""
+    from app.models import QcMaterial
+    from app.utils import lab_quality
+
+    row = db.get_or_404(QcMaterial, material_id)
+    return render_template("labs/qc_material.html", material=row,
+                           points=lab_quality.chart(row),
+                           runs=list(reversed(row.runs))[:60],
+                           chosen=lab_quality.chosen_rules(),
+                           z=lab_quality.z)
+
+
+@labs_bp.route("/quality/material/<int:material_id>/run", methods=["POST"])
+@module_required(MODULE)
+def qc_run(material_id):
+    from app.models import QcMaterial
+    from app.utils import lab_quality
+
+    row = db.get_or_404(QcMaterial, material_id)
+    try:
+        run = lab_quality.record_run(row, request.form.get("value"), user=current_user,
+                                     accepted=request.form.get("accepted") != "0",
+                                     action=request.form.get("action"))
+    except lab_quality.QualityError as err:
+        db.session.rollback()
+        flash(t(f"lab_quality.err_{err}"), "error")
+        return redirect(url_for("labs.qc_material", material_id=row.id))
+    db.session.commit()
+    flash(t("lab_quality.run_ok") if run.accepted else t("lab_quality.run_failed"),
+          "success" if run.accepted else "warning")
+    return redirect(url_for("labs.qc_material", material_id=row.id))
+
+
+@labs_bp.route("/quality/run/<int:run_id>/action", methods=["POST"])
+@module_required(MODULE)
+def qc_action(run_id):
+    from app.models import QcRun
+    from app.utils import lab_quality
+
+    run = db.get_or_404(QcRun, run_id)
+    try:
+        lab_quality.add_action(run, request.form.get("action"))
+    except lab_quality.QualityError as err:
+        db.session.rollback()
+        flash(t(f"lab_quality.err_{err}"), "error")
+        return redirect(url_for("labs.qc_material", material_id=run.material_id))
+    db.session.commit()
+    flash(t("lab_quality.action_saved"), "success")
+    return redirect(url_for("labs.qc_material", material_id=run.material_id))
+
+
+@labs_bp.route("/quality/rules", methods=["POST"])
+@module_required(MODULE)
+def qc_rules():
+    """Which rules reject a control run — the laboratory's policy."""
+    from app.models import ActivityLog
+    from app.utils import lab_quality
+
+    _admin_only()
+    lab_quality.set_rules(request.form.getlist("rule"))
+    ActivityLog.record("lab.qc_rules", user_id=current_user.id,
+                       detail=",".join(lab_quality.chosen_rules()))
+    db.session.commit()
+    flash(t("lab_quality.rules_saved"), "success")
+    return redirect(url_for("labs.quality"))
+
+
+@labs_bp.route("/quality/review", methods=["POST"])
+@module_required(MODULE)
+def qc_review():
+    """A month of control data reviewed by somebody authorized."""
+    from app.utils import lab_quality
+
+    try:
+        lab_quality.review(request.form.get("month"), current_user,
+                           note=request.form.get("note"))
+    except lab_quality.QualityError as err:
+        db.session.rollback()
+        flash(t(f"lab_quality.err_{err}"), "error")
+        return redirect(url_for("labs.quality"))
+    db.session.commit()
+    flash(t("lab_quality.reviewed"), "success")
+    return redirect(url_for("labs.quality"))
+
+
+@labs_bp.route("/eqa")
+@module_required(MODULE)
+def eqa():
+    """External quality rounds and inter-laboratory comparisons (DAS.19)."""
+    from app.utils import lab_quality
+
+    return render_template("labs/eqa.html", rounds=lab_quality.rounds(),
+                           outcomes=lab_quality.EQA_OUTCOMES,
+                           may_review=lab_quality.may_review(current_user))
+
+
+@labs_bp.route("/eqa", methods=["POST"])
+@labs_bp.route("/eqa/<int:round_id>", methods=["POST"])
+@module_required(MODULE)
+def eqa_save(round_id=None):
+    from app.models import EqaRound
+    from app.utils import lab_quality
+
+    row = db.get_or_404(EqaRound, round_id) if round_id else None
+    try:
+        lab_quality.save_round(request.form, user=current_user, row=row)
+    except lab_quality.QualityError as err:
+        db.session.rollback()
+        flash(t(f"lab_quality.err_{err}"), "error")
+        return redirect(url_for("labs.eqa"))
+    db.session.commit()
+    flash(t("lab_quality.round_saved"), "success")
+    return redirect(url_for("labs.eqa"))
+
+
+@labs_bp.route("/eqa/<int:round_id>/grade", methods=["POST"])
+@module_required(MODULE)
+def eqa_grade(round_id):
+    from app.models import EqaRound
+    from app.utils import lab_quality
+
+    row = db.get_or_404(EqaRound, round_id)
+    try:
+        lab_quality.grade_round(row, request.form.get("outcome"),
+                                note=request.form.get("grade_note"),
+                                remedial=request.form.get("remedial_action"),
+                                user=current_user)
+    except lab_quality.QualityError as err:
+        db.session.rollback()
+        flash(t(f"lab_quality.err_{err}"), "error")
+        return redirect(url_for("labs.eqa"))
+    db.session.commit()
+    flash(t("lab_quality.graded"), "success")
+    return redirect(url_for("labs.eqa"))
+
+
+# ---------------------------------------------------- point-of-care testing --
+def _may_run_poct_setup():
+    from app.utils import lab_poct
+
+    boss = lab_poct.supervisor()
+    return current_user.is_admin or (boss is not None and boss.id == current_user.id)
+
+
+@labs_bp.route("/poct")
+@module_required(MODULE)
+def poct():
+    """Every point-of-care device, where it is, who supervises (DAS.24)."""
+    from app.models import PoctDevice, User
+    from app.utils import lab_poct
+
+    devices = PoctDevice.query.order_by(PoctDevice.is_active.desc(),
+                                        PoctDevice.name).all()
+    staff = (User.query.filter(User.is_active.is_(True))
+             .order_by(User.full_name).all())
+    return render_template("labs/poct.html", devices=devices, staff=staff,
+                           supervisor=lab_poct.supervisor(),
+                           qc_state=lab_poct.qc_state,
+                           may_build=_may_run_poct_setup(),
+                           is_admin=current_user.is_admin)
+
+
+@labs_bp.route("/poct/supervisor", methods=["POST"])
+@module_required(MODULE)
+def poct_supervisor():
+    from app.utils import lab_poct
+
+    _admin_only()
+    lab_poct.set_supervisor(request.form.get("user_id", type=int))
+    db.session.commit()
+    flash(t("lab_poct.supervisor_saved"), "success")
+    return redirect(url_for("labs.poct"))
+
+
+@labs_bp.route("/poct/devices", methods=["POST"])
+@labs_bp.route("/poct/device/<int:device_id>/save", methods=["POST"])
+@module_required(MODULE)
+def poct_device_save(device_id=None):
+    from app.models import PoctDevice
+    from app.utils import lab_poct
+
+    if not _may_run_poct_setup():
+        abort(403, description=t("auth.no_permission"))
+    row = db.get_or_404(PoctDevice, device_id) if device_id else None
+    try:
+        row = lab_poct.save_device(request.form, row)
+    except lab_poct.PoctError as err:
+        db.session.rollback()
+        flash(t(f"lab_poct.err_{err}"), "error")
+        return redirect(url_for("labs.poct"))
+    db.session.commit()
+    flash(t("lab_poct.device_saved"), "success")
+    return redirect(url_for("labs.poct_device", device_id=row.id))
+
+
+@labs_bp.route("/poct/device/<int:device_id>")
+@module_required(MODULE)
+def poct_device(device_id):
+    """One device: its trained operators, its controls, its readings."""
+    from app.models import PoctDevice, User
+    from app.utils import lab_poct
+
+    row = db.get_or_404(PoctDevice, device_id)
+    staff = (User.query.filter(User.is_active.is_(True))
+             .order_by(User.full_name).all())
+    return render_template("labs/poct_device.html", device=row, staff=staff,
+                           checks=list(reversed(row.checks))[:40],
+                           readings=lab_poct.readings(row),
+                           state=lab_poct.qc_state(row),
+                           may_build=_may_run_poct_setup())
+
+
+@labs_bp.route("/poct/device/<int:device_id>/operators", methods=["POST"])
+@module_required(MODULE)
+def poct_operator(device_id):
+    from app.models import PoctDevice
+    from app.utils import lab_poct
+
+    if not _may_run_poct_setup():
+        abort(403, description=t("auth.no_permission"))
+    row = db.get_or_404(PoctDevice, device_id)
+    try:
+        lab_poct.add_operator(row, request.form)
+    except lab_poct.PoctError as err:
+        db.session.rollback()
+        flash(t(f"lab_poct.err_{err}"), "error")
+        return redirect(url_for("labs.poct_device", device_id=row.id))
+    db.session.commit()
+    flash(t("lab_poct.operator_saved"), "success")
+    return redirect(url_for("labs.poct_device", device_id=row.id))
+
+
+@labs_bp.route("/poct/device/<int:device_id>/qc", methods=["POST"])
+@module_required(MODULE)
+def poct_qc(device_id):
+    from app.models import PoctDevice
+    from app.utils import lab_poct
+
+    row = db.get_or_404(PoctDevice, device_id)
+    try:
+        check = lab_poct.record_qc(row, request.form, user=current_user)
+    except lab_poct.PoctError as err:
+        db.session.rollback()
+        flash(t(f"lab_poct.err_{err}"), "error")
+        return redirect(url_for("labs.poct_device", device_id=row.id))
+    db.session.commit()
+    flash(t("lab_poct.qc_ok") if check.passed else t("lab_poct.qc_failed"),
+          "success" if check.passed else "warning")
+    return redirect(url_for("labs.poct_device", device_id=row.id))
+
+
+@labs_bp.route("/poct/qc/<int:check_id>/action", methods=["POST"])
+@module_required(MODULE)
+def poct_qc_action(check_id):
+    from app.models import PoctQc
+    from app.utils import lab_poct
+
+    check = db.get_or_404(PoctQc, check_id)
+    try:
+        lab_poct.qc_action(check, request.form.get("action"))
+    except lab_poct.PoctError as err:
+        db.session.rollback()
+        flash(t(f"lab_poct.err_{err}"), "error")
+        return redirect(url_for("labs.poct_device", device_id=check.device_id))
+    db.session.commit()
+    flash(t("lab_quality.action_saved"), "success")
+    return redirect(url_for("labs.poct_device", device_id=check.device_id))
+
+
+@labs_bp.route("/rejections")
+@module_required(MODULE)
+def rejections():
+    """Every refused tube in a period, and how many under each reason —
+    what the surveyor matches against the policy (GAHAR DAS.15 دليل ٣)."""
+    from datetime import timedelta
+
+    from app.utils import lab_reception
+    from app.utils.clock import local_today
+
+    today = local_today()
+    end = _day(request.args.get("to")) or today
+    start = _day(request.args.get("from")) or (end - timedelta(days=30))
+    if start > end:
+        start, end = end, start
+    rows, tally = lab_reception.register(start, end)
+    return render_template("labs/rejections.html", rows=rows, tally=tally,
+                           start=start, end=end,
+                           label=lab_reception.reason_label)
+
+
+def _day(raw):
+    from datetime import date
+
+    try:
+        return date.fromisoformat((raw or "").strip())
+    except ValueError:
+        return None
+
+
+@labs_bp.route("/reject-reasons", methods=["POST"])
+@module_required(MODULE)
+def reject_reason_add():
+    """A line on the laboratory's list of rejection reasons — its policy,
+    so its words (GAHAR DAS.15 أ). Admin only, like the tests list."""
+    from app.utils import lab_reception
+
+    if not current_user.is_admin:
+        abort(403)
+    try:
+        lab_reception.add_reason(request.form.get("name"))
+    except lab_reception.ReceptionError as err:
+        db.session.rollback()
+        flash(t(f"lab_reception.err_{err}"), "error")
+        return redirect(url_for("labs.tests") + "#reject-reasons")
+    db.session.commit()
+    flash(t("lab_reception.reason_added"), "success")
+    return redirect(url_for("labs.tests") + "#reject-reasons")
+
+
+@labs_bp.route("/reject-reasons/<int:reason_id>/retire", methods=["POST"])
+@module_required(MODULE)
+def reject_reason_retire(reason_id):
+    """Off the list — retired, so a tube refused under it still names it."""
+    from app.models import Lookup
+    from app.utils import lab_reception
+
+    if not current_user.is_admin:
+        abort(403)
+    try:
+        lab_reception.retire_reason(db.session.get(Lookup, reason_id))
+    except lab_reception.ReceptionError:
+        abort(404)
+    db.session.commit()
+    flash(t("lab_reception.reason_retired"), "success")
+    return redirect(url_for("labs.tests") + "#reject-reasons")
 
 
 @labs_bp.route("/order/<int:order_id>/result", methods=["POST"])
@@ -379,7 +1176,52 @@ def tests():
                   .order_by(Service.name).all()),
         devices=_devices() if kind == "diagnostic" else [],
         modalities=_radiation().MODALITIES, dose_measures=_radiation().measures(),
-        radiation_base=_radiation().base_unit)
+        radiation_base=_radiation().base_unit,
+        reject_reasons=_reception().reasons() if kind == "lab" else [],
+        release_required=_release().required(),
+        referral_labs=_sendout().laboratories() if kind == "lab" else [])
+
+
+def _poct_util():
+    from app.utils import lab_poct
+
+    return lab_poct
+
+
+def _quality():
+    from app.utils import lab_quality
+
+    return lab_quality
+
+
+def _reagents():
+    from app.utils import lab_reagents
+
+    return lab_reagents
+
+
+def _tat():
+    from app.utils import lab_tat
+
+    return lab_tat
+
+
+def _sendout():
+    from app.utils import lab_sendout
+
+    return lab_sendout
+
+
+def _release():
+    from app.utils import lab_release
+
+    return lab_release
+
+
+def _reception():
+    from app.utils import lab_reception
+
+    return lab_reception
 
 
 def _move_kind(row, kind):
@@ -873,6 +1715,12 @@ def edit_test(test_id):
     # search, because the *order* is written here whoever performs it. All
     # this decides is whether the order joins this building's own worklist.
     row.in_house = request.form.get("in_house") == "1"
+    if row.kind == "lab" and "referral_lab_id" in request.form:
+        from app.models import ReferralLab
+
+        wanted = request.form.get("referral_lab_id", type=int)
+        row.referral_lab_id = (wanted if wanted and db.session.get(ReferralLab, wanted)
+                               else None)
     _move_kind(row, request.form.get("move_kind"))
     db.session.commit()
     flash(t("lab.test_saved"), "success")

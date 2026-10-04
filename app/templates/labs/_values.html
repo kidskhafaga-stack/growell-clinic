@@ -22,7 +22,23 @@
   {%- endif -%}
 {%- endmacro %}
 
+{# GAHAR DAS.20 (ب) — a result the laboratory has not released yet, where the
+   hospital asks for release. Said beside the result, never hiding it. #}
+{% macro unverified(order) -%}
+  {%- if order.awaiting_verification -%}
+  <span class="badge badge--warn" data-unverified><i class="bi bi-hourglass-split"></i> {{ t('lab_release.not_verified') }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{# The laboratory's report for this result, to print — once it has one. #}
+{% macro report_link(order) -%}
+  {%- if order.kind == 'lab' and order.status == 'resulted' -%}
+  <a class="btn btn-sm btn-outline gc-press" data-lab-report href="{{ url_for('labs.report', ids=order.id) }}" title="{{ t('lab_release.print_report') }}"><i class="bi bi-printer"></i> {{ t('lab_release.report_short') }}</a>
+  {%- endif -%}
+{%- endmacro %}
+
 {% macro table(order) %}
+{% if order.awaiting_verification %}<div style="margin:4px 0;">{{ unverified(order) }}</div>{% endif %}
 <div style="overflow-x:auto;" data-analyte-values="{{ order.id }}">
   <table class="table" style="min-width:340px;font-variant-numeric:tabular-nums;">
     <thead><tr>

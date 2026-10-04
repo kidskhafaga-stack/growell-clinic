@@ -1,0 +1,10 @@
+{# The device's fields — on the list for a new one and on its own page. #}
+{% set d = device if device is defined else none %}
+<div class="form-row" style="margin:0;flex:2;min-width:160px;"><label>{{ t('lab_poct.f_name') }}</label><input class="input" name="name" required maxlength="160" value="{{ d.name if d else '' }}"></div>
+<div class="form-row" style="margin:0;min-width:130px;"><label>{{ t('lab_poct.f_kind') }}</label><input class="input" name="kind" maxlength="80" value="{{ (d.kind or '') if d else '' }}"></div>
+<div class="form-row" style="margin:0;min-width:120px;"><label>{{ t('lab_poct.f_serial') }}</label><input class="input" name="serial" maxlength="80" dir="ltr" value="{{ (d.serial or '') if d else '' }}"></div>
+<div class="form-row" style="margin:0;min-width:140px;"><label>{{ t('lab_poct.f_location') }}</label><input class="input" name="location" maxlength="120" value="{{ (d.location or '') if d else '' }}"></div>
+<div class="form-row" style="margin:0;flex:1;min-width:160px;"><label>{{ t('lab_poct.f_tests') }}</label><input class="input" name="tests" maxlength="200" value="{{ (d.tests or '') if d else '' }}"></div>
+<div class="form-row" style="margin:0;min-width:120px;"><label>{{ t('lab_poct.f_every') }}</label><input class="input" type="number" min="1" name="qc_every_days" dir="ltr" value="{{ (d.qc_every_days or '') if d else '' }}"></div>
+<div class="form-row" style="margin:0;min-width:160px;"><label>{{ t('lab_poct.f_responsible') }}</label>
+  <select class="select" name="responsible_id"><option value="">—</option>{% for u in staff %}<option value="{{ u.id }}" {{ 'selected' if d and d.responsible_id == u.id else '' }}>{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>

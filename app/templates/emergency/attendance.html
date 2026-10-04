@@ -307,6 +307,7 @@
         action="{{ url_for('emergency.order_test', attendance_id=row.id) }}"
         x-data="{
           kind: 'lab', outside: false, invId: '', q: '',
+          urgent: {{ 'true' if row.urgent else 'false' }},
           picker: window.gcPicker({ url: '', minChars: 2 }),
           init() {
             const self = this;
@@ -354,6 +355,12 @@
       </div>
       <label style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
         <input type="checkbox" x-model="outside"> {{ t('rx.inv_outside_short') }}</label>
+      {# Urgent already when the triage called the child urgent — the doctor
+         of a red child writes nothing more (GAHAR DAS.14 أ / DAS.22). Sent
+         always, so «said no» and «nobody said» stay apart. #}
+      <input type="hidden" name="urgent" :value="urgent ? '1' : '0'">
+      <label style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
+        <input type="checkbox" x-model="urgent" data-er-test-urgent> {{ t('lab_reception.urgent_box') }}</label>
       <button class="btn btn-primary gc-press" type="submit">
         <i class="bi bi-plus-lg"></i> {{ t('stay_tests.order') }}</button>
     </div>

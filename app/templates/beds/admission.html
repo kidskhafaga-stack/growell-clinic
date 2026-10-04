@@ -1320,6 +1320,8 @@
         <i class="bi bi-box-arrow-up-right"></i> {{ t('rx.inv_outside_short') }}{% if x.outside_place %} · {{ x.outside_place }}{% endif %}</span>{% endif %}
       {% if x.status == 'resulted' %}
       <span class="badge badge--green" data-test-state="resulted">{{ t('stay_tests.resulted') }}</span>
+      {% if not x.analytes_resulted %}{{ lab_values.unverified(x) }}{% endif %}
+      {{ lab_values.report_link(x) }}
       {% if x.result_value is not none %}<span class="num" dir="ltr">{{ x.result_value }}{% if x.result_unit %} {{ x.result_unit }}{% endif %}</span>
       {% elif x.result_text %}<span style="color:var(--muted);">{{ x.result_text|truncate(80) }}</span>{% endif %}
       {% if x.critical_at and not x.critical_seen_at %}<span class="badge badge--danger" data-test-critical><i class="bi bi-exclamation-octagon"></i> {{ t('lab_result.critical_unread_short') }}</span>
@@ -1425,6 +1427,10 @@
         <input class="input" name="outside_place" maxlength="160" x-show="outside" x-cloak
                placeholder="{{ t('stay_tests.outside_place_ph') }}">
       </div>
+      {# GAHAR DAS.14 (أ) — the urgent mark: first on the lab's rack, held to
+         the test's STAT time. #}
+      <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+        <input type="checkbox" name="urgent" value="1" data-test-urgent> {{ t('lab_reception.urgent_box') }}</label>
       <button class="btn btn-primary gc-press" type="submit">
         <i class="bi bi-plus-lg"></i> {{ t('stay_tests.order') }}</button>
     </div>

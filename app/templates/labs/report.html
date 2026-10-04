@@ -1,0 +1,72 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import age_label with context %}
+{% from "_print_header.html" import print_header with context %}
+{% import "labs/_values.html" as lv with context %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_release.report_title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_release.report_title') }}{% endblock %}
+
+{% block content %}
+{# The laboratory's final report — GAHAR DAS.20 (أ), item by item:
+   (١) the laboratory, (٢) the child, (٣) the tests, (٤) the ordering doctor,
+   (٥) collection time and specimen, (٦) reporting time, (٧) results and
+   reference, (٨) who released it, (٩) the comment. Nothing on it is the
+   program's own: every line is a column somebody wrote. #}
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.view', patient_id=patient.id) }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+</div>
+
+<div class="card gc-scale-in print-area" data-lab-report-page>
+  {{ print_header(t('lab_release.report_title'), t('lab_release.printed_at') ~ ': <strong dir="ltr">' ~ printed_at.strftime('%Y-%m-%d %H:%M') ~ '</strong>') }}
+
+  <div class="info-grid" style="margin-bottom:16px;" data-report-patient>
+    <div class="info-item"><div class="k">{{ t('appointments.patient') }}</div><div class="v">{{ patient.display_name(current_lang) }}</div></div>
+    <div class="info-item"><div class="k">{{ t('patients.file_number') }}</div><div class="v">{{ patient.patient_number }}</div></div>
+    <div class="info-item"><div class="k">{{ t('patients.age') }}</div><div class="v">{{ age_label(patient) }}</div></div>
+    <div class="info-item"><div class="k">{{ t('patients.gender') }}</div><div class="v">{{ t('genders.' ~ patient.gender) if patient.gender else '—' }}</div></div>
+  </div>
+
+  {% for row in rows %}
+  <section style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px;break-inside:avoid;" data-report-row="{{ row.id }}">
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline;">
+      <h3 style="margin:0;font-size:1.05rem;">{{ row.display_name(current_lang) }}
+        {% if row.urgent %}<span class="badge badge--danger">{{ t('lab_reception.urgent') }}</span>{% endif %}</h3>
+      {% if row.verified_at %}
+      <span class="badge badge--green" data-report-verified>{{ t('lab_release.verified_line', who=row.verifier.display_name(current_lang) if row.verifier else '—', when=row.verified_at|clinic_stamp) }}</span>
+      {% elif required %}
+      <span class="badge badge--warn" data-report-preliminary>{{ t('lab_release.preliminary') }}</span>
+      {% endif %}
+    </div>
+    <div class="hint" style="margin:6px 0 10px;display:flex;gap:14px;flex-wrap:wrap;">
+      {% set who_ordered = row.orderer or (row.visit.doctor if row.visit else none) %}
+      <span>{{ t('lab_release.ordered_by') }}: {{ who_ordered.display_name(current_lang) if who_ordered else '—' }}</span>
+      <span>{{ t('lab_release.specimen') }}: {{ (row.investigation.sample_type if row.investigation and row.investigation.sample_type else '—') }}{% if row.sample_code %} · <span dir="ltr">{{ row.sample_code }}</span>{% endif %}</span>
+      <span>{{ t('lab_release.collected') }}: {{ row.collected_at|clinic_stamp if row.collected_at else '—' }}</span>
+      {% if row.received_at %}<span>{{ t('lab_release.received') }}: {{ row.received_at|clinic_stamp }}</span>{% endif %}
+      <span>{{ t('lab_release.reported') }}: {{ row.resulted_at|clinic_stamp if row.resulted_at else '—' }}{% if row.resulter %} · {{ row.resulter.display_name(current_lang) }}{% endif %}</span>
+    </div>
+    {% if row.received_note %}<p class="hint" style="margin:0 0 8px;" data-report-received-note><i class="bi bi-exclamation-triangle"></i> {{ t('lab_reception.accepted_despite') }}: <span dir="auto">{{ row.received_note }}</span></p>{% endif %}
+
+    {% if row.analytes_resulted %}
+    {{ lv.table(row) }}
+    {% elif row.result_value is not none %}
+    <table class="table" style="font-variant-numeric:tabular-nums;">
+      <thead><tr><th>{{ t('lab_result.value') }}</th><th>{{ t('lab_result.reference') }}</th></tr></thead>
+      <tbody><tr>
+        <td dir="ltr"><strong>{{ '%g'|format(row.result_value) }}</strong> {{ row.result_unit or '' }}</td>
+        <td dir="ltr" class="hint">{% if row.result_low is not none and row.result_high is not none %}{{ '%g'|format(row.result_low) }} – {{ '%g'|format(row.result_high) }}{% else %}—{% endif %}</td>
+      </tr></tbody>
+    </table>
+    {% endif %}
+    {% if row.result_text %}<p style="margin:8px 0 0;white-space:pre-line;" dir="auto">{{ row.result_text }}</p>{% endif %}
+    {% if row.result_comment %}<p style="margin:8px 0 0;" dir="auto" data-report-comment><strong>{{ t('lab_release.comment') }}:</strong> {{ row.result_comment }}</p>{% endif %}
+    {% if row.critical_at %}
+    <p style="margin:8px 0 0;color:var(--danger);" data-report-critical><i class="bi bi-exclamation-octagon"></i> {{ t('lab_result.critical_banner') }}
+      {% if row.critical_called_at %} — {{ t('lab_critical.called_short', who=row.critical_called_to, when=row.critical_called_at|clinic_stamp) }}{% endif %}</p>
+    {% endif %}
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

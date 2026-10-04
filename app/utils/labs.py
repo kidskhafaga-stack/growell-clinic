@@ -101,7 +101,9 @@ def worklist(kind=LAB, state=None, limit=200):
         query = query.filter(VisitInvestigation.kind == kind)
     if state:
         query = query.filter(VisitInvestigation.status == state)
-    return (query.order_by(VisitInvestigation.created_at,
+    # **Urgent first** (GAHAR DAS.22), then oldest first within each.
+    urgent_first = db.case((VisitInvestigation.urgent.is_(True), 0), else_=1)
+    return (query.order_by(urgent_first, VisitInvestigation.created_at,
                            VisitInvestigation.id).limit(limit).all())
 
 
@@ -188,6 +190,11 @@ def goes_outside(investigation, asked=None):
         return bool(asked)
     if investigation is None:
         return False
+    # A test the lab sends to its referral laboratory is drawn **here** —
+    # it is the lab's to draw and ship (GAHAR DAS.13), not the family's to
+    # take elsewhere.
+    if getattr(investigation, "referral_lab_id", None):
+        return False
     return investigation.in_house is False
 
 
@@ -210,6 +217,17 @@ def counts(kind=LAB):
     found = dict(rows)
     return {"to_collect": found.get(REQUESTED, 0),
             "to_run": found.get(COLLECTED, 0)}
+
+
+def urgent_count(kind=LAB):
+    """How many open orders say urgent — a number of its own, not a third
+    key on :func:`counts`, whose two numbers callers add up."""
+    query = (db.session.query(db.func.count(VisitInvestigation.id))
+             .filter(VisitInvestigation.status.in_(OPEN_STATES), _ours(),
+                     VisitInvestigation.urgent.is_(True)))
+    if kind:
+        query = query.filter(VisitInvestigation.kind == kind)
+    return query.scalar() or 0
 
 
 def waiting_minutes(row, now=None):
@@ -330,7 +348,12 @@ def sample_code(row):
     """
     from app.utils.clock import local_today
 
-    return f"{local_today():%y%m%d}-{row.id:05d}"
+    code = f"{local_today():%y%m%d}-{row.id:05d}"
+    # A tube the lab refused keeps its number on the refusal record; the
+    # one drawn to replace it is numbered after it, so two tubes of one
+    # order are never one code (GAHAR DAS.15 ج — traceability).
+    refused = len(getattr(row, "rejections", None) or [])
+    return f"{code}-{refused + 1}" if refused else code
 
 
 def record(row, value=None, unit=None, low=None, high=None, text=None,
@@ -364,6 +387,12 @@ def settle(row, user=None, at=None):
     where the sample is. Shared by `record` and by the analyte-by-analyte
     result (`utils/lab_results.save`), so the two cannot disagree about when
     an order is finished."""
+    # A result written again is a result nobody has released yet (GAHAR
+    # DAS.20 ب): the release was of the words that were there before.
+    row.verified_at = row.verified_by = None
+    # A sample sent out has come back when its result is written.
+    if getattr(row, "sent_at", None) is not None:
+        row.returned_at = (at or datetime.utcnow()) if row.has_result else None
     if row.has_result:
         row.status = RESULTED
         row.resulted_at = at or datetime.utcnow()

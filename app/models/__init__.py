@@ -305,8 +305,12 @@ from app.models.discount import (DISCOUNT_TYPES, VACCINE_SCOPE,
 from app.models.cost_centre import CostCentre
 from app.models.lab_reference import (RANGE_KINDS, RANGE_SEXES, LabAnalyte,
                                        LabConsumable, LabRange,
-                                       LabResultValue, LabTestAnalyte)
+                                       LabResultValue, LabTestAnalyte,
+                                       ReagentLot, ReferralLab,
+                                       SampleRejection)
 from app.models.unit_staff import BreakGlass, UnitStaff
+from app.models.lab_quality import (EqaRound, PoctDevice, PoctOperator, PoctQc,
+                                    QcMaterial, QcReview, QcRun)
 from app.models.accounting import (
     ACCOUNT_TYPES,
     PERIOD_STATUSES,
@@ -693,6 +697,16 @@ __all__ = [
     "LabTestAnalyte",
     "LabRange",
     "LabResultValue",
+    "SampleRejection",
+    "ReferralLab",
+    "ReagentLot",
+    "QcMaterial",
+    "QcRun",
+    "QcReview",
+    "EqaRound",
+    "PoctDevice",
+    "PoctOperator",
+    "PoctQc",
     "RANGE_KINDS",
     "RANGE_SEXES",
 ]

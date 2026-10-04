@@ -1,0 +1,71 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_sendout.title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_sendout.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR DAS.13 / DAS.15 (د) — samples drawn here for a referral laboratory:
+   tick, choose the laboratory, and the batch gets a number and a manifest. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-truck"></i> {{ t('lab_sendout.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lab_sendout.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" data-to-send-register href="{{ url_for('labs.send_register') }}"><i class="bi bi-journal-text"></i> {{ t('lab_sendout.register_title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('labs.referral_labs') }}"><i class="bi bi-building"></i> {{ t('lab_sendout.labs_title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}"><i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
+  </div>
+</div>
+
+{% if not labs %}
+<div class="card gc-scale-in" style="margin-bottom:14px;"><p class="hint" style="margin:0;" data-no-referral-labs>{{ t('lab_sendout.no_labs') }}</p></div>
+{% endif %}
+
+<form method="post" action="{{ url_for('labs.send_out_post') }}" class="card gc-scale-in" style="margin-bottom:14px;" data-send-batch>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_sendout.to_send') }}</h2>
+  {% if not rows %}
+  <p class="hint" style="margin:0;" data-nothing-to-send>{{ t('lab_sendout.nothing_to_send') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:560px;">
+      <thead><tr><th></th><th>{{ t('lab_reception.col_test') }}</th><th>{{ t('lab_reception.col_patient') }}</th><th>{{ t('lab_reception.col_tube') }}</th><th>{{ t('lab_release.collected') }}</th></tr></thead>
+      <tbody>
+      {% for row in rows %}
+      <tr data-to-send-row="{{ row.id }}">
+        <td><input type="checkbox" name="order_id" value="{{ row.id }}" aria-label="{{ row.name }}" {{ 'checked' if row.investigation and row.investigation.referral_lab_id else '' }}></td>
+        <td>{{ row.display_name(current_lang) }}{% if row.investigation and row.investigation.referral_lab_id %} <span class="badge badge--muted">{{ (labs|selectattr('id', 'equalto', row.investigation.referral_lab_id)|map(attribute='name')|first) or '' }}</span>{% endif %}
+          {% if row.urgent %} <span class="badge badge--danger">{{ t('lab_reception.urgent') }}</span>{% endif %}</td>
+        <td>{{ row.patient.display_name(current_lang) }}{% if beds and beds.get(row.patient_id) %} · <span class="hint">{{ beds[row.patient_id] }}</span>{% endif %}</td>
+        <td dir="ltr">{{ row.sample_code or '—' }}</td>
+        <td>{{ row.collected_at|clinic_stamp }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if labs %}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+    <div class="form-row" style="margin:0;min-width:220px;"><label for="lab_id">{{ t('lab_sendout.send_to') }}</label>
+      <select class="select" id="lab_id" name="lab_id">{% for l in labs %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}</select></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-truck"></i> {{ t('lab_sendout.send_batch') }}</button>
+  </div>
+  {% endif %}
+  {% endif %}
+</form>
+
+<div class="card gc-scale-in" data-out-now>
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_sendout.out_now') }}</h2>
+  {% if not out %}<p class="hint" style="margin:0;">{{ t('lab_sendout.none_out') }}</p>{% endif %}
+  {% for row in out %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);padding:8px 0;" data-out-row="{{ row.id }}">
+    <a href="{{ url_for('labs.order', order_id=row.id) }}" style="font-weight:600;">{{ row.display_name(current_lang) }}</a>
+    <span class="hint" style="margin:0;">{{ row.patient.display_name(current_lang) }}</span>
+    <span class="badge badge--muted">{{ row.sent_lab.name if row.sent_lab else '—' }}</span>
+    <span class="hint" style="margin:0;">{{ row.sent_at|clinic_stamp }} · <a href="{{ url_for('labs.send_batch', code=row.sent_batch) }}" dir="ltr">{{ row.sent_batch }}</a></span>
+    {% if late(row, now) %}<span class="badge badge--danger" data-sent-late>{{ t('lab_sendout.late') }}</span>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
