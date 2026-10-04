@@ -58,6 +58,17 @@
             <label for="date_of_birth">{{ t('patients.dob') }} *</label>
             <input class="input" type="date" id="date_of_birth" name="date_of_birth"
                    value="{{ form.date_of_birth or '' }}" required>
+            {# A birth date worked out from an estimated age, or a file opened
+               before the child was identified (ACT.03 و) — said here, where
+               the desk can put it right. #}
+            {% if patient and patient.dob_estimated %}
+            <label class="hint" style="display:flex;gap:6px;align-items:center;margin:4px 0 0;" data-dob-confirm>
+              <input type="checkbox" name="dob_confirmed" value="1"> {{ t('er_quick.dob_confirm') }}</label>
+            {% endif %}
+            {% if patient and patient.identity_provisional %}
+            <label style="display:flex;gap:6px;align-items:center;margin:6px 0 0;color:var(--danger);" data-identity-confirm>
+              <input type="checkbox" name="identity_confirmed" value="1"> {{ t('er_quick.identity_confirm') }}</label>
+            {% endif %}
           </div>
           <div class="form-row">
             <label for="gender">{{ t('patients.gender') }} *</label>

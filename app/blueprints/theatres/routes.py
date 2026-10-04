@@ -2231,7 +2231,9 @@ def patient_search():
                      "file": p.patient_number,
                      # Half-written files are named on the row somebody picks
                      # from, which is the moment reception can still fix it.
-                     "missing": basics.missing(p, keys=wanted)} for p in rows])
+                     "missing": basics.missing(p, keys=wanted),
+                     # Two children of one name told apart (`patient_hint`).
+                     "hint": _hint(p, lang)} for p in rows])
 
 
 @theatres_bp.route("/patient-quick", methods=["POST"])
@@ -2331,3 +2333,10 @@ def _happened_at():
             except ValueError:
                 continue
     return datetime.utcnow()
+
+
+def _hint(patient, lang):
+    from app.utils.patients import patient_hint
+
+    return patient_hint(patient, lang)
+

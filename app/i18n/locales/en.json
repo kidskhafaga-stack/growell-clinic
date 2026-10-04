@@ -10353,5 +10353,38 @@
     "err_need_user": "Choose the staff member.",
     "err_need_result": "Write the control result.",
     "err_need_action": "Write the action."
+  },
+  "er_quick": {
+    "title": "Arrived now — before registration",
+    "name": "Name, if known",
+    "name_ph": "Leave blank if unknown",
+    "age": "Estimated age",
+    "unit": "In",
+    "unit_years": "years",
+    "unit_months": "months",
+    "unit_days": "days",
+    "arrive": "Receive now",
+    "need_gender": "Choose the sex.",
+    "need_age": "Write the estimated age (years up to 18, months, or days).",
+    "arrived": "Child received on file {file}.",
+    "to_complete": "Provisional files to complete: {n}",
+    "list_title": "Files to complete",
+    "list_sub": "Children received before they were identified, or with a birth date worked out from an estimated age — completed on the same file, so everything done for the child stays where it is.",
+    "none": "No provisional files.",
+    "opened": "Opened",
+    "complete": "Complete the details",
+    "badge_provisional": "Provisional file",
+    "badge_estimated": "Estimated birth date",
+    "banner_provisional": "Provisional file — the child was received before being identified",
+    "identity_confirm": "The child's identity is confirmed (real name written)",
+    "dob_confirm": "This birth date is the real one, not an estimate"
+  },
+  "wristband": {
+    "print": "Print wristband",
+    "baby_of_male": "Baby boy of {mother}",
+    "baby_of_female": "Baby girl of {mother}",
+    "provisional": "Provisional file — identity not confirmed yet",
+    "allergy": "Allergy",
+    "hint": "Two identifiers that are the child's: the name and the file number (and its barcode), with the date of birth — a bed or room number is never one. Sized for a wristband printer; any other printer prints it too."
   }
 }

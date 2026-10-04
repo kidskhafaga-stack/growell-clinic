@@ -52,6 +52,13 @@ class Patient(db.Model):
     full_name_en = db.Column(db.String(120))
 
     date_of_birth = db.Column(db.Date, nullable=False)
+    # GAHAR ACT.03 (و) — the special situations: a child received in an
+    # emergency before anybody knew who they were. ``identity_provisional``
+    # says the name is a placeholder until somebody confirms who this is;
+    # ``dob_estimated`` that the date of birth was worked out from an age
+    # somebody judged. Both empty on every child registered the usual way.
+    identity_provisional = db.Column(db.Boolean)
+    dob_estimated = db.Column(db.Boolean)
     gender = db.Column(db.String(10), nullable=False)
     national_id = db.Column(db.String(20))
     # The patient's own phone (captured once they're old enough to carry one),

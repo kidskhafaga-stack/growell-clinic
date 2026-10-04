@@ -6,6 +6,16 @@
 {% block page_heading %}{{ t('patients.profile') }}{% endblock %}
 
 {% block content %}
+{# A file opened before the child was identified, or a birth date worked out
+   from an estimated age (GAHAR ACT.03 و) — said at the top until the desk
+   completes it. #}
+{% if patient.identity_provisional or patient.dob_estimated %}
+<div class="card gc-scale-in" style="margin-bottom:12px;border-inline-start:4px solid var(--danger);display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;" data-provisional-banner>
+  <span>{% if patient.identity_provisional %}<strong style="color:var(--danger);">{{ t('er_quick.banner_provisional') }}</strong>{% endif %}
+    {% if patient.dob_estimated %}<span class="badge badge--warn">{{ t('er_quick.badge_estimated') }}</span>{% endif %}</span>
+  <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('patients.edit', patient_id=patient.id) }}">{{ t('er_quick.complete') }}</a>
+</div>
+{% endif %}
 {# ``inside`` maps a section to the tab that now holds it. Adding or stopping
    an ongoing medicine redirects back to ``#meds``, and that block has moved
    into the prescriptions tab — without this line the redirect would ask for a
@@ -191,6 +201,9 @@
       <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('patients.edit', patient_id=patient.id) }}">
         <i class="bi bi-pencil"></i> {{ t('common.edit') }}
       </a>
+      {# The wristband — two identifiers, never the bed (GAHAR ACT.03). #}
+      <a class="btn btn-outline btn-sm gc-press" data-to-wristband href="{{ url_for('patients.wristband', patient_id=patient.id) }}">
+        <i class="bi bi-upc"></i> {{ t('wristband.print') }}</a>
       {% if current_user.can('patient_medical') %}
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.report', patient_id=patient.id) }}" target="_blank">
         <i class="bi bi-file-medical"></i> {{ t('report.title') }}</a>
@@ -1758,6 +1771,7 @@
                   <input type="hidden" name="sibling_id" :value="p.id">
                   <span style="flex:1;" x-text="p.full_name"></span>
                   <span class="hint" dir="ltr" x-text="p.patient_number"></span>
+                  <span class="gc-picker-sub" data-picker-hint x-show="p.hint" x-text="p.hint"></span>
                   {# Said on the row, not found out after pressing — and naming
                      the record when two of them carry the same typed name. #}
                   <span class="badge badge--muted" x-show="p.in_family && !p.same_name" x-cloak

@@ -105,6 +105,7 @@
                     x-on:click="chosen = p; results = []; q = ''">
               <span x-text="p.name"></span>
               <span class="num" style="color:var(--muted);" x-text="p.number"></span>
+              <span class="gc-picker-sub" data-picker-hint x-show="p.hint" x-text="p.hint"></span>
               <span style="color:var(--muted);" x-text="p.age"></span>
             </button>
           </template>

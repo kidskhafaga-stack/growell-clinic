@@ -30,6 +30,7 @@ from app.models.admission import Admission
 from app.models.emergency_visit import ARRIVALS, DISPOSITIONS
 from app.utils import beds as ward
 from app.utils.decorators import capability_required, module_required
+from app.utils.sequences import retry_on_number_clash
 
 MODULE = "emergency"
 KIND = "emergency"
@@ -91,7 +92,14 @@ def register():
                            untriaged=er.untriaged(),
                            incomplete=er.incomplete_departed(),
                            dispositions=DISPOSITIONS, arrivals=ARRIVALS,
-                           leave_reasons=_reasons(), asked_on=_asked_on())
+                           leave_reasons=_reasons(), asked_on=_asked_on(),
+                           provisional_n=len(_provisional()))
+
+
+def _provisional():
+    from app.utils.patients import provisional_files
+
+    return provisional_files()
 
 
 @emergency_bp.route("/arrive", methods=["POST"])
@@ -115,6 +123,43 @@ def arrive():
     flash(t("emergency.arrived_msg"), "success")
     # Straight to the child's own page: the next thing anybody does is
     # write what they came for.
+    return redirect(url_for("emergency.attendance", attendance_id=row.id))
+
+
+@emergency_bp.route("/arrive-now", methods=["POST"])
+@module_required(MODULE)
+@retry_on_number_clash
+def arrive_now():
+    """A child received **now**, before anybody has registered them — GAHAR
+    ACT.03 (و). A sex and an estimated age, the name if anybody knows it;
+    the file is opened on the spot (provisional when there is no name), and
+    the child arrives on it in the same press. Triage, orders and the
+    wristband follow at once; the desk completes the file afterwards."""
+    from app.utils import emergency as er
+    from app.utils import patients as reg
+    
+    patient, why = reg.quick_arrival(request.form.get("full_name"),
+                                     request.form.get("gender"),
+                                     request.form.get("age_value"),
+                                     request.form.get("age_unit"))
+    if patient is None:
+        return _back(t(f"er_quick.need_{why}"), "error")
+    db.session.add(patient)
+    try:
+        db.session.flush()
+        row = er.arrive(patient, user=current_user,
+                        arrival=(request.form.get("arrival") or "").strip() or None,
+                        treatment_only=bool(request.form.get("treatment_only")))
+    except ValueError:
+        db.session.rollback()
+        return _back(t("emergency.not_saved"), "error")
+    from app.models import ActivityLog
+
+    ActivityLog.record("patient.quick_arrival", user_id=current_user.id,
+                       entity="patient", entity_id=patient.id,
+                       detail=patient.patient_number)
+    db.session.commit()
+    flash(t("er_quick.arrived", file=patient.patient_number), "success")
     return redirect(url_for("emergency.attendance", attendance_id=row.id))
 
 
@@ -243,8 +288,11 @@ def patient_search():
         Patient.query.filter(Patient.is_active.is_(True)), query)
         .limit(10).all())
     lang = getattr(g, "lang", "ar")
+    from app.utils.patients import patient_hint
+
     return jsonify([{"id": p.id, "name": p.display_name(lang),
-                     "file": p.patient_number} for p in rows])
+                     "file": p.patient_number,
+                     "hint": patient_hint(p, lang)} for p in rows])
 
 
 @emergency_bp.route("/drug-search")

@@ -128,10 +128,12 @@ def followups(doctor_id, search=None, today=None):
                             Visit.followup_instructions.isnot(None))))
     search = (search or "").strip()
     if search:
-        like = f"%{search}%"
-        query = query.join(Patient, Patient.id == Visit.patient_id).filter(
-            db.or_(Patient.full_name.ilike(like), Patient.full_name_en.ilike(like),
-                   Patient.patient_number.ilike(like)))
+        # The rule every patient search follows (`apply_patient_search`):
+        # name, file, guardian, phone, date of birth.
+        from app.utils.patients import apply_patient_search
+
+        matched = apply_patient_search(db.session.query(Patient.id), search)
+        query = query.filter(Visit.patient_id.in_(matched))
     visits = query.order_by(Visit.visit_date.desc(), Visit.id.desc()).all()
     latest = {}
     for v in visits:

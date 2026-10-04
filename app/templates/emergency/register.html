@@ -57,6 +57,7 @@
                   x-on:mouseenter="picker.active = idx" x-on:click="pick(r)">
             <span x-text="r.name"></span>
             <span class="badge badge--muted" dir="ltr" x-text="r.file"></span>
+            <span class="gc-picker-sub" data-picker-hint x-show="r.hint" x-text="r.hint"></span>
           </button>
         </template>
       </div>
@@ -73,6 +74,39 @@
       <i class="bi bi-box-arrow-in-right"></i> {{ t('er_orders.arrived_btn') }}</button>
     <a class="btn btn-outline gc-press" href="{{ url_for('patients.create') }}">
       <i class="bi bi-person-plus"></i> {{ t('er_orders.new_child') }}</a>
+  </form>
+  {# **Received now, registered later** — GAHAR ACT.03 (و). A child who
+     needs a hand on them this minute is not sent to a registration form:
+     a sex, an estimated age, the name if anybody knows it, and the file is
+     opened on the spot — provisional with no name — and the child arrives
+     on it. The desk completes it afterwards (`patients.provisional`). #}
+  <form method="post" action="{{ url_for('emergency.arrive_now') }}" data-arrive-now
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <strong style="flex-basis:100%;color:var(--danger);"><i class="bi bi-lightning-charge"></i> {{ t('er_quick.title') }}</strong>
+    <div class="form-row" style="margin-bottom:0;flex:1;min-width:180px;">
+      <label for="aq_name">{{ t('er_quick.name') }}</label>
+      <input class="input" id="aq_name" name="full_name" maxlength="120" placeholder="{{ t('er_quick.name_ph') }}"></div>
+    <fieldset style="border:0;padding:0;margin:0;display:flex;gap:10px;align-items:center;" data-aq-gender>
+      <legend class="hint" style="margin:0 0 4px;padding:0;">{{ t('patients.gender') }}</legend>
+      {% for gx in ['male', 'female'] %}<label style="display:flex;gap:4px;align-items:center;"><input type="radio" name="gender" value="{{ gx }}" required> {{ t('genders.' ~ gx) }}</label>{% endfor %}
+    </fieldset>
+    <div class="form-row" style="margin-bottom:0;min-width:90px;max-width:110px;">
+      <label for="aq_age">{{ t('er_quick.age') }}</label>
+      <input class="input" id="aq_age" name="age_value" type="number" min="0" max="400" required inputmode="numeric" dir="ltr"></div>
+    <div class="form-row" style="margin-bottom:0;min-width:110px;">
+      <label for="aq_unit">{{ t('er_quick.unit') }}</label>
+      <select class="select" id="aq_unit" name="age_unit">
+        {% for u in ['years', 'months', 'days'] %}<option value="{{ u }}">{{ t('er_quick.unit_' ~ u) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row" style="margin-bottom:0;min-width:130px;">
+      <label for="aq_arrival">{{ t('er_orders.how_arrived') }}</label>
+      <select class="select" id="aq_arrival" name="arrival">
+        {% for a in arrivals %}<option value="{{ a }}">{{ t('emergency.arr_' ~ a) }}</option>{% endfor %}
+      </select></div>
+    <button class="btn btn-primary gc-press" type="submit" style="background:var(--danger);border-color:var(--danger);">
+      <i class="bi bi-box-arrow-in-right"></i> {{ t('er_quick.arrive') }}</button>
+    <a class="hint" style="flex-basis:100%;margin:0;" data-to-provisional href="{{ url_for('patients.provisional') }}">{{ t('er_quick.to_complete', n=provisional_n) }}</a>
   </form>
 </div>
 

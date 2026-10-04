@@ -1385,11 +1385,13 @@ def _filtered_invoices():
     needle = (request.args.get("q") or "").strip()
     if needle:
         like = f"%{needle}%"
-        query = (query.outerjoin(Patient, Invoice.patient_id == Patient.id)
-                 .filter(db.or_(Invoice.invoice_number.ilike(like),
-                                Patient.full_name.ilike(like),
-                                Patient.full_name_en.ilike(like),
-                                Patient.patient_number.ilike(like))))
+        # The child the way every patient search finds one
+        # (`apply_patient_search`) — name, file, guardian, phone, birth date.
+        from app.utils.patients import apply_patient_search
+
+        matched = apply_patient_search(db.session.query(Patient.id), needle)
+        query = query.filter(db.or_(Invoice.invoice_number.ilike(like),
+                                    Invoice.patient_id.in_(matched)))
     return query
 
 

@@ -100,6 +100,7 @@
                   <button type="button" class="patient-result gc-press" x-on:click="pick(p)">
                     <span x-text="p.name"></span>
                     <span class="muted" x-text="p.number + ' · ' + p.age + (p.phone ? ' · ' + p.phone : '')"></span>
+                    <span class="gc-picker-sub" data-picker-hint x-show="p.hint" x-text="p.hint"></span>
                     <span class="badge badge--warn" data-basics-missing x-show="p.missing && p.missing.length" x-cloak :title="(p.missing || []).map(k => BASICS[k] || k).join(' \u00b7 ')" x-text="BASICS_N.replace('{n}', (p.missing || []).length)"></span>
                   </button>
                 </template>

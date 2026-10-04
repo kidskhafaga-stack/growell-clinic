@@ -369,6 +369,7 @@
                     x-on:click="pick(r)">
               <span x-text="r.name"></span>
               <span class="badge badge--muted" x-text="r.file"></span>
+              <span class="gc-picker-sub" data-picker-hint x-show="r.hint" x-text="r.hint"></span>
               <span class="badge badge--warn" data-basics-missing
                     x-show="r.missing && r.missing.length" x-cloak
                     :title="(r.missing || []).map(k => BASICS[k] || k).join(' \u00b7 ')"

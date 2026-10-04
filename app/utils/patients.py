@@ -72,35 +72,51 @@ def _digits_norm(col):
     return func.replace(func.replace(func.replace(col, " ", ""), "-", ""), "+", "")
 
 
-def apply_patient_search(query, q):
-    """Filter a Patient query by a free-text term.
+_ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
 
-    Matches the patient's name, file number, legacy reference, national id and
-    — when the term contains digits — any phone on record: the patient's own
-    number *and* their guardians' primary/alt numbers. Shared by every patient-
-    listing page (patients, vaccinations, growth, booking) so search behaves
-    identically everywhere.
-    """
+
+def _search_date(term):
+    """``(start, end)`` of the birth dates a typed term names — a whole day
+    (``2021-05-03``, ``3/5/2021``, ``3-5-2021``, ``3.5.2021``) or a whole
+    year (``2021``) — or ``None`` when it names no date."""
+    from datetime import date
+
+    term = term.translate(_ARABIC_DIGITS)
+    if term.isdigit() and len(term) == 4 and 1900 <= int(term) <= 2100:
+        year = int(term)
+        return date(year, 1, 1), date(year, 12, 31)
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y", "%Y/%m/%d"):
+        try:
+            day = datetime.strptime(term, fmt).date()
+        except ValueError:
+            continue
+        return day, day
+    return None
+
+
+def _term_conditions(term):
+    """Every field one typed term may match, as a list of SQL conditions."""
     from sqlalchemy import or_
 
     from app.extensions import db
     from app.models import Parent
 
-    q = (q or "").strip()
-    if not q:
-        return query
-    like = f"%{q}%"
+    like = f"%{term}%"
+    western = term.translate(_ARABIC_DIGITS)
     conds = [
         Patient.full_name.ilike(like),
         Patient.full_name_en.ilike(like),
         Patient.patient_number.ilike(like),
         Patient.reference_number.ilike(like),
         Patient.national_id.ilike(like),
+        # The mother's, the father's or the guardian's name — «ابن مين؟» is
+        # how half of every waiting room is found.
+        Patient.family_id.in_(db.session.query(Parent.family_id).filter(or_(
+            Parent.full_name.ilike(like), Parent.full_name_en.ilike(like)))),
     ]
-
     # Phone search: only when the term has digits, matched against normalised
     # (space/dash-free) numbers so formatting differences don't hide a match.
-    digits = "".join(ch for ch in q if ch.isdigit())
+    digits = "".join(ch for ch in term.translate(_ARABIC_DIGITS) if ch.isdigit())
     if digits:
         pat = f"%{digits}%"
         conds.append(_digits_norm(Patient.own_phone).like(pat))
@@ -109,8 +125,177 @@ def apply_patient_search(query, q):
             _digits_norm(Parent.phone_alt).like(pat),
         ))
         conds.append(Patient.family_id.in_(guardians))
+    if western != term:
+        # A file or national number typed in Arabic-Indic digits.
+        conds += [Patient.patient_number.ilike(f"%{western}%"),
+                  Patient.national_id.ilike(f"%{western}%")]
+    born = _search_date(term)
+    if born is not None:
+        conds.append(Patient.date_of_birth.between(*born))
+    return conds
 
-    return query.filter(or_(*conds))
+
+def apply_patient_search(query, q):
+    """Filter a Patient query by a free-text term.
+
+    Matches the child's name, file number, legacy reference, national id,
+    **the name of a parent or guardian**, **the date of birth** (a day in any
+    of the usual ways of writing one, or a year) and — when the term has
+    digits — any phone on record: the child's own and their guardians'.
+    Arabic-Indic digits are read as digits.
+
+    **Several words narrow it down.** «سارة 2021» or «أحمد 0100» finds the
+    children every word matches, each word in any field; and the whole phrase
+    still matches as before, so a search that found a child yesterday finds
+    them today. Shared by every patient-listing page and every patient picker,
+    so search behaves identically everywhere.
+    """
+    from sqlalchemy import and_, or_
+
+    q = (q or "").strip()
+    if not q:
+        return query
+    phrase = or_(*_term_conditions(q))
+    words = [w for w in q.split() if w]
+    if len(words) < 2:
+        return query.filter(phrase)
+    each = and_(*[or_(*_term_conditions(w)) for w in words])
+    return query.filter(or_(phrase, each))
+
+
+def patient_hint(patient, lang="ar"):
+    """One line that tells two children of the same name apart, for every
+    picker: the date of birth and age, the mother's name, and the last digits
+    of the contact phone. Only what is written; nothing guessed."""
+    parts = []
+    if getattr(patient, "identity_provisional", None):
+        parts.append("ملف مؤقت" if lang != "en" else "Provisional file")
+    if patient.date_of_birth:
+        years, months = patient.age_parts
+        age = (f"{years}y {months}m" if years else f"{months}m") if lang == "en" else (
+            f"{years} سنة {months} شهر" if years else f"{months} شهر")
+        guess = "~" if getattr(patient, "dob_estimated", None) else ""
+        parts.append(f"{guess}{patient.date_of_birth.isoformat()} ({age})")
+    family = getattr(patient, "family", None)
+    if family is not None:
+        mother = next((g for g in (family.parents or []) if g.relation == "mother"), None)
+        if mother is not None and (mother.full_name or "").strip():
+            label = "Mother" if lang == "en" else "الأم"
+            parts.append(f"{label}: {mother.display_name(lang)}")
+    phone = "".join(ch for ch in (patient.contact_phone or "") if ch.isdigit())
+    if len(phone) >= 4:
+        parts.append(f"…{phone[-4:]}")
+    return " · ".join(parts)
+
+
+AGE_UNITS = ("years", "months", "days")
+
+
+def estimated_birth(value, unit, today=None):
+    """The date of birth an estimated age points at — ``None`` when the
+    age cannot be read. Days and months as said; years land on today's date
+    that many years back."""
+    from datetime import timedelta
+
+    from app.utils.clock import local_today
+
+    try:
+        value = int(str(value).strip().translate(_ARABIC_DIGITS))
+    except (TypeError, ValueError):
+        return None
+    if value < 0 or unit not in AGE_UNITS:
+        return None
+    today = today or local_today()
+    if unit == "days":
+        return today - timedelta(days=value) if value <= 400 else None
+    if unit == "months":
+        if value > 240:
+            return None
+        month = today.month - value
+        year = today.year + (month - 1) // 12
+        month = (month - 1) % 12 + 1
+        day = min(today.day, 28)
+        return today.replace(year=year, month=month, day=day)
+    if value > 18:
+        return None
+    try:
+        return today.replace(year=today.year - value)
+    except ValueError:                  # 29 February
+        return today.replace(year=today.year - value, day=28)
+
+
+def quick_arrival(full_name, gender, age_value, age_unit, at=None):
+    """A child received in emergency **before registration** — GAHAR
+    ACT.03 (و). Returns ``(patient, reason)``, exactly one set.
+
+    The name may be missing: the file is then provisional, under a name that
+    says so and when the child came, until somebody confirms who this is.
+    The age is somebody's estimate, never the program's: the date of birth
+    is worked out from it and marked estimated, because doses and charts
+    read the age and a birth date made up by the software would be the one
+    thing worse than an estimate a person made. A sex is asked for the same
+    reason the quick registration asks it.
+    """
+    from app.models import GENDERS
+    from app.utils.clock import local_now
+    from app.utils.sequences import claim
+
+    if (gender or "").strip() not in GENDERS:
+        return None, "gender"
+    born = estimated_birth(age_value, age_unit)
+    if born is None:
+        return None, "age"
+    name = (full_name or "").strip()[:120]
+    provisional = not name
+    if provisional:
+        stamp = (at or local_now()).strftime("%d/%m %H:%M")
+        name = f"مجهول — طوارئ {stamp}"
+    patient = Patient(full_name=name, gender=gender.strip(), date_of_birth=born,
+                      is_active=True, dob_estimated=True,
+                      identity_provisional=True if provisional else None)
+    claim(patient, "patient_number", generate_patient_number)
+    return patient, None
+
+
+def provisional_files(limit=200):
+    """Files received before the child was identified, or with an estimated
+    birth date, oldest first — the desk's list to complete."""
+    from sqlalchemy import or_
+
+    return (Patient.query.filter(or_(Patient.identity_provisional.is_(True),
+                                     Patient.dob_estimated.is_(True)),
+                                 Patient.is_active.is_(True))
+            .order_by(Patient.created_at, Patient.id).limit(limit).all())
+
+
+def wristband(patient, today=None):
+    """What goes on a child's wristband — GAHAR ACT.03 (أ، د، و).
+
+    Two identifiers that belong to the child and never the bed: the name and
+    the file number (as text and as a barcode), with the date of birth. For a
+    newborn — the first twenty-eight days — the child is identified the way a
+    nursery does it: «baby of» the mother's name, with the time of birth and
+    the birth weight. A file opened before the child was identified says so,
+    and an estimated birth date is marked. Allergies, when written, ride on
+    the band too. Nothing on it is invented: every line is a field somebody
+    wrote."""
+    from app.utils.clock import local_today
+
+    today = today or local_today()
+    days = (today - patient.date_of_birth).days if patient.date_of_birth else None
+    mother = None
+    family = getattr(patient, "family", None)
+    if family is not None:
+        mother = next((g for g in (family.parents or []) if g.relation == "mother"
+                       and (g.full_name or "").strip()), None)
+    return {
+        "patient": patient,
+        "newborn": days is not None and days < 28,
+        "mother": mother.full_name if mother is not None else None,
+        "provisional": bool(patient.identity_provisional),
+        "estimated": bool(patient.dob_estimated),
+        "allergies": (patient.allergies or "").strip() or None,
+    }
 
 
 def patient_number_allocator(scheme=None, prefix=None):

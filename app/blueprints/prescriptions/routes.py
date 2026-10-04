@@ -1355,7 +1355,8 @@ def patient_search():
     return jsonify([
         {"id": p.id, "name": p.display_name(lang), "number": p.patient_number,
          "dob": p.date_of_birth.isoformat() if p.date_of_birth else "",
-         "missing": basics.missing(p, keys=wanted)}
+         "missing": basics.missing(p, keys=wanted),
+         "hint": _patient_hint(p, lang)}
         for p in rows])
 
 
@@ -1644,3 +1645,10 @@ def investigation_delete(inv_id):
     db.session.commit()
     flash(t("inv_list.deleted"), "success")
     return redirect(url_for("prescriptions.investigations"))
+
+
+def _patient_hint(patient, lang):
+    from app.utils.patients import patient_hint
+
+    return patient_hint(patient, lang)
+
