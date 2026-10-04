@@ -195,7 +195,8 @@
           <div data-approval-missing="{{ it.id }}"><span class="badge badge--danger"><i class="bi bi-exclamation-triangle"></i> {{ t('approvals.missing') }}</span>
             <a class="no-print" href="{{ url_for('finance.approvals', item=it.id) }}#new">{{ t('approvals.ask') }}</a></div>
           {% elif it.approval_id %}
-          <div><span class="badge badge--green" data-approval-number><i class="bi bi-patch-check"></i> {{ t('approvals.number') }} <span dir="ltr">{{ it.approval.approval_number if it.approval else '' }}</span></span></div>
+          <div><span class="badge badge--green" data-approval-number><i class="bi bi-patch-check"></i> {{ t('approvals.number') }} <span dir="ltr">{{ it.approval.approval_number if it.approval else '' }}</span></span>
+            {% if it.approval and it.approval.letter_file %}<a class="no-print" target="_blank" href="{{ url_for('static', filename='uploads/patient_docs/' ~ it.approval.letter_file) }}"><i class="bi bi-file-earmark-text"></i> {{ t('approvals.letter') }}</a>{% endif %}</div>
           {% endif %}
           {# Why the family pays what it pays on this line — the contract's
              own reason (`utils/contract_terms`). #}

@@ -139,6 +139,13 @@ def apply_coverage(invoice, patient, warn=None, then=None):
             # waits out of the claim (`utils/approvals`).
             from app.utils import approvals
             approvals.mark(item, invoice, payer, setting)
+            # «Collect now, refund on approval» where the contract says so:
+            # the family pays this line until the payer's number arrives.
+            if item.approval_needed and approvals.collects(contract, invoice):
+                item.discount_value = 0
+                item.payer_amount = 0.0
+                item.cover_note = "awaiting_approval"
+                continue
             if item.service is not None:
                 # **On the price of the line, not on what is left for the
                 # family to pay.**

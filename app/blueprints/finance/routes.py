@@ -5496,15 +5496,51 @@ def approval_decide(approval_id):
         until = datetime.strptime(raw, "%Y-%m-%d").date() if raw else None
     except ValueError:
         until = None
+    # The payer's letter, scanned or photographed — kept with the answer.
+    from app.utils.uploads import save_document
+
+    letter = request.files.get("letter")
+    if letter is not None and letter.filename:
+        stored = save_document(letter)
+        if stored is None:
+            flash(t("approvals.bad_letter"), "danger")
+            return redirect(url_for("finance.approvals") + f"#a{row.id}")
+        row.letter_file = stored
     linked = ap.decide(row, approved, current_user, number=number,
                        amount=request.form.get("approved_amount", type=float),
                        valid_until=until, note=request.form.get("note"))
+    refunds = getattr(row, "refunds", None) or []
     ActivityLog.record("approval." + row.status, user_id=current_user.id,
                        entity="insurance_approval", entity_id=row.id,
                        detail=row.approval_number or "", ip_address=client_ip())
     db.session.commit()
+    # The bills covered again, and the refunds to the family's account, in
+    # the ledger — best effort, as every posting is.
+    for invoice, _amount, _pay in refunds:
+        _post_journal_safe("invoice", invoice)
     flash(t("approvals.approved", n=linked) if approved else t("approvals.rejected"),
           "success" if approved else "warning")
+    for invoice, amount, _pay in refunds:
+        flash(t("approvals.refunded_to_account", amount=format_money(amount),
+                number=invoice.invoice_number), "info")
+    return redirect(url_for("finance.approvals") + f"#a{row.id}")
+
+
+@finance_bp.route("/approvals/<int:approval_id>/letter", methods=["POST"])
+@module_required(MODULE)
+def approval_letter(approval_id):
+    """The letter, added after the answer was recorded."""
+    from app.models import InsuranceApproval
+    from app.utils.uploads import save_document
+
+    row = db.get_or_404(InsuranceApproval, approval_id)
+    stored = save_document(request.files.get("letter"))
+    if stored is None:
+        flash(t("approvals.bad_letter"), "danger")
+    else:
+        row.letter_file = stored
+        db.session.commit()
+        flash(t("approvals.letter_saved"), "success")
     return redirect(url_for("finance.approvals") + f"#a{row.id}")
 
 
@@ -5549,7 +5585,8 @@ def contract_term_save(contract_id):
     if setting not in ("any",) + tuple(SETTINGS):
         flash(t("contracts.rule_bad"), "danger")
         return redirect(back)
-    figures = {k: _limit(k) for k in ("copay_amount", "ceiling_case", "night_ceiling")}
+    figures = {k: _limit(k) for k in ("copay_amount", "ceiling_case", "night_ceiling",
+                                       "deposit_amount")}
     if any(v is False for v in figures.values()):
         flash(t("limits.terms_bad"), "danger")
         return redirect(back)
@@ -5598,6 +5635,9 @@ def contract_year_save(contract_id):
         flash(t("limits.terms_bad"), "danger")
         return redirect(back)
     c.deductible_year, c.ceiling_year = deductible, ceiling
+    policy = request.form.get("approval_policy")
+    if policy in ("wait", "collect"):
+        c.approval_policy = None if policy == "wait" else policy
     ActivityLog.record("contract.year", user_id=current_user.id,
                        entity="payer_contract", entity_id=c.id,
                        detail=f"{deductible}/{ceiling}", ip_address=client_ip())

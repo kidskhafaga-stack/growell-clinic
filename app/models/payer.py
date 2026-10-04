@@ -221,6 +221,12 @@ class PayerContract(db.Model):
     #
     # The first this much of what the contract would cover, each year, is
     # the family's.
+    # While a line waits for its approval: «wait» (the default — the bill
+    # waits out of the claim and the family is not asked) or «collect» —
+    # the family pays the line now and is refunded to its own account when
+    # the approval arrives (`utils/approvals.link_waiting`). Never for an
+    # urgent emergency child.
+    approval_policy = db.Column(db.String(10))
     deductible_year = db.Column(db.Float)
     # The most the payer pays for one member in that year; past it the
     # family pays.
@@ -284,11 +290,13 @@ class PayerContract(db.Model):
             # contract rolls over, which is the one day nobody is looking.
             filing_days=self.filing_days, payment_days=self.payment_days,
             cycle_day=self.cycle_day,
-            deductible_year=self.deductible_year, ceiling_year=self.ceiling_year)
+            deductible_year=self.deductible_year, ceiling_year=self.ceiling_year,
+            approval_policy=self.approval_policy)
         for t in self.terms:
             clone.terms.append(PayerContractTerm(
                 setting=t.setting, copay_amount=t.copay_amount,
-                ceiling_case=t.ceiling_case, night_ceiling=t.night_ceiling))
+                ceiling_case=t.ceiling_case, night_ceiling=t.night_ceiling,
+                deposit_amount=t.deposit_amount))
         for r in self.rules:
             clone.rules.append(PayerContractRule(
                 setting=r.setting, scope=r.scope, service_id=r.service_id,
@@ -445,6 +453,9 @@ class PayerContractTerm(db.Model):
     copay_amount = db.Column(db.Float)
     ceiling_case = db.Column(db.Float)
     night_ceiling = db.Column(db.Float)
+    # The deposit the hospital asks a member for on admission to this
+    # department under this contract — a suggestion the desk reads.
+    deposit_amount = db.Column(db.Float)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     contract = db.relationship("PayerContract", back_populates="terms")
@@ -483,6 +494,9 @@ class InsuranceApproval(db.Model):
     estimate = db.Column(db.Float)
     status = db.Column(db.String(10), default="requested", nullable=False, index=True)
     approval_number = db.Column(db.String(60))
+    # The payer's letter itself, scanned or photographed — the claim is
+    # argued over the paper, not over the number typed from it.
+    letter_file = db.Column(db.String(80))
     approved_amount = db.Column(db.Float)
     valid_until = db.Column(db.Date)
     note = db.Column(db.String(255))

@@ -87,12 +87,26 @@
     <span class="hint" style="margin:0;"><span dir="ltr">{{ a.approval_number }}</span>
       {% if a.approved_amount %} · {{ a.approved_amount|money }}{% endif %}
       {% if a.valid_until %} · {{ t('approvals.until') }} <span dir="ltr">{{ a.valid_until }}</span>{% endif %}</span>
-    {% elif a.status == 'requested' %}
+    {% endif %}
+    {# The payer's letter — opened from here, or added after the answer. #}
+    {% if a.letter_file %}
+    <a class="btn btn-sm btn-outline gc-press" target="_blank" data-approval-letter
+       href="{{ url_for('static', filename='uploads/patient_docs/' ~ a.letter_file) }}"><i class="bi bi-file-earmark-text"></i> {{ t('approvals.letter') }}</a>
+    {% elif a.status != 'requested' %}
+    <form method="post" action="{{ url_for('finance.approval_letter', approval_id=a.id) }}" enctype="multipart/form-data"
+          style="display:flex;gap:6px;align-items:center;margin:0;" data-add-letter>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" type="file" name="letter" accept=".pdf,image/*" required style="max-width:200px;">
+      <button class="btn btn-sm btn-outline gc-press" type="submit"><i class="bi bi-upload"></i> {{ t('approvals.add_letter') }}</button>
+    </form>
+    {% endif %}
+    {% if a.status == 'requested' %}
     <details>
       <summary class="btn btn-sm btn-outline">{{ t('approvals.record_answer') }}</summary>
-      <form method="post" action="{{ url_for('finance.approval_decide', approval_id=a.id) }}"
+      <form method="post" action="{{ url_for('finance.approval_decide', approval_id=a.id) }}" enctype="multipart/form-data"
             style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-top:6px;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="input" type="file" name="letter" accept=".pdf,image/*" style="max-width:220px;" aria-label="{{ t('approvals.letter') }}">
         <input class="input" name="approval_number" dir="ltr" placeholder="{{ t('approvals.number') }}" style="width:150px;">
         <input class="input" type="number" step="0.01" min="0" name="approved_amount" placeholder="{{ t('approvals.amount') }}" style="width:120px;">
         <input class="input" type="date" name="valid_until" style="width:150px;" aria-label="{{ t('approvals.until') }}">

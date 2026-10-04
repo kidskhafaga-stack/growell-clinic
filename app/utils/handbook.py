@@ -2244,6 +2244,21 @@ SECTIONS = [
              "before saving. The reminder comes the number of days set in "
              "Settings, and a contract that ended with no renewal while members "
              "still hold cards is flagged in red."),
+            ("<b>الموافقة وخطابها</b>: الرد بيتسجّل برقمه ومعاه صورة الخطاب (PDF أو "
+             "صورة). ولكل عقد سياسة للبند اللي مستني موافقة: «نعمل ونستنى» "
+             "(الأسرة ما بتدفعش)، أو «الأسرة تدفع ونرجّع» — ولما الموافقة تيجي "
+             "الفاتورة بتتغطّى واللي اتدفع زيادة بيروح لحساب المريض الدائن. "
+             "الحالة العاجلة في الطوارئ عمرها ما بتدفع وهي مستنية. والدفعة "
+             "المقدّمة المقترحة لكل قسم من الإعدادات (للكاش) ومن شروط العقد "
+             "(للمؤمَّن عليه) بتظهر على شاشة الإقامة.",
+             "<b>The approval and its letter</b>: the answer is recorded with "
+             "its number and the letter's scan (PDF or image). Each contract "
+             "chooses what happens while a line waits: «do it and wait» (the "
+             "family does not pay), or «the family pays, refunded» — when the "
+             "approval comes the bill is covered and what was overpaid goes to "
+             "the patient account. An urgent emergency child never pays while "
+             "it waits. The suggested deposit per department, from Settings "
+             "(cash) and the contract's terms (members), shows on the stay."),
             ("<b>مكتب المطالبات</b>: أول شاشة المطالبات فيها كل جهة ودفعتها "
              "الجاية (من بعد آخر فترة اتطالب بيها لحد يوم الدورة في العقد) بزرار "
              "«اعمل المطالبة»، والمطالب بيه والمقبول والمدفوع فعلاً والمرفوض المفتوح. "
