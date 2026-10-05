@@ -49,7 +49,14 @@ def prescription(rx_id):
     return render_template(
         "pharmacy/rx.html", rx=row, counter=counter,
         safety=counter.review(row, lang=getattr(g, "lang", "ar")),
-        items=_shelf())
+        items=_shelf(), lots_of=_good_lots)
+
+
+def _good_lots(item):
+    """GAHAR MMS.04 — the lots on the shelf that may be handed over."""
+    from app.utils import med_storage
+
+    return [row for row in med_storage.lots(item) if row["state"] != "expired"]
 
 
 @pharmacy_bp.route("/line/<int:line_id>/shelf", methods=["POST"])
@@ -62,10 +69,25 @@ def shelf(line_id):
     asking the doctor to pick a store item mid-consultation is asking them to
     do somebody else's job with worse information.
     """
+    from app.models import StoreItem
+    from app.utils import med_storage
+
     line = db.get_or_404(PrescriptionItem, line_id)
-    line.store_item_id = request.form.get("store_item_id", type=int)
+    chosen = request.form.get("store_item_id", type=int)
+    if chosen != line.store_item_id:
+        line.lot_number = None          # a lot of the box that was there before
+    line.store_item_id = chosen
     quantity = request.form.get("quantity", type=int)
     line.quantity = max(1, quantity) if quantity else line.quantity
+    item = db.session.get(StoreItem, chosen) if chosen else None
+    if item is not None and "lot_number" in request.form:
+        try:
+            line.lot_number = med_storage.check_pick(item, request.form.get("lot_number"))
+        except med_storage.StorageError as err:
+            db.session.rollback()
+            flash(t(f"med_store.err_{err}"), "error")
+            return redirect(url_for("pharmacy.prescription",
+                                    rx_id=line.prescription_id))
     db.session.commit()
     return redirect(url_for("pharmacy.prescription",
                             rx_id=line.prescription_id))

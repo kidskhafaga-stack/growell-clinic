@@ -778,6 +778,12 @@ ADDITIONS = [
     ("expenses", "cost_centre_id", "INTEGER"),
     ("services", "cost_centre_id", "INTEGER"),
     ("stock_movements", "cost_centre_id", "INTEGER"),
+    # GAHAR MMS.04 / GSR.19 — the lot and expiry of a medicine's box, at
+    # receipt (optional) and on an issue when a lot was picked. Empty on every
+    # movement recorded before.
+    ("stock_movements", "lot_number", "VARCHAR(60)"),
+    ("stock_movements", "expiry_date", "DATE"),
+    ("prescription_items", "lot_number", "VARCHAR(60)"),
     # The survey after a stay, and its money side; and why a family left
     # against advice. Empty on every row already there: nobody was asked.
     ("feedback", "finance_rating", "INTEGER"),

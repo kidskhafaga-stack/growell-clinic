@@ -637,6 +637,10 @@ class PrescriptionItem(db.Model):
     dispensed_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     invoice_item_id = db.Column(db.Integer, db.ForeignKey("invoice_items.id"),
                                 nullable=True, index=True)
+    # GAHAR MMS.04 — the lot the pharmacy handed over, when it picked one on
+    # the shelf (optional; left empty, the issue is counted against the
+    # earliest-expiring lot as before).
+    lot_number = db.Column(db.String(60))
     stock_movement_id = db.Column(db.Integer,
                                   db.ForeignKey("stock_movements.id"),
                                   nullable=True, index=True)

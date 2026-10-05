@@ -13,6 +13,8 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('inventory.purchases') }}"><i class="bi bi-cart"></i> {{ t('purchases.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('inventory.stocktake') }}"><i class="bi bi-clipboard-check"></i> {{ t('store.stocktake_btn') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('inventory.documents') }}"><i class="bi bi-journals"></i> {{ t('storedocs.title') }}</a>
+    {# GAHAR MMS.04 — the lots expired or near, and where medicines are kept. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.storage_expiry') }}" data-to-expiry><i class="bi bi-calendar-x"></i> {{ t('med_store.expiry_title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('inventory.warehouses') }}"><i class="bi bi-buildings"></i> {{ t('warehouses.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('inventory.lookups') }}"><i class="bi bi-list-ul"></i> {{ t('lookups.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('inventory.index') }}"><i class="bi bi-shield-plus"></i> {{ t('inventory.title') }}</a>

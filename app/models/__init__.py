@@ -312,6 +312,9 @@ from app.models.lab_reference import (RANGE_KINDS, RANGE_SEXES, LabAnalyte,
                                        ReferralInvoice, ReferralLabPrice,
                                        SampleRejection, SpecimenStore)
 from app.models.unit_staff import BreakGlass, UnitStaff
+from app.models.med_storage import (OutageDecision, PowerOutage,
+                                    StorageArea, StorageInspection,
+                                    TempReading)
 from app.models.lab_quality import (METHOD_CHECK_KINDS, EqaRound,
                                     LabCompetency,
                                     LabProcedure, MethodCheck, PoctDevice,
@@ -719,6 +722,11 @@ __all__ = [
     "PoctDevice",
     "PoctOperator",
     "LabCompetency",
+    "StorageArea",
+    "StorageInspection",
+    "TempReading",
+    "PowerOutage",
+    "OutageDecision",
     "PoctQc",
     "LabProcedure",
     "MethodCheck",

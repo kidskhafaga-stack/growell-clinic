@@ -1,0 +1,34 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('med_store.expiry_title') }}{% endblock %}
+{% block page_heading %}{{ t('med_store.expiry_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR MMS.04 evidence 5 and MMS.08 — every lot with something left that is
+   expired or within the near-expiry window, store items and vaccine batches
+   on one list, expired first. Removing one is a removal on the item's own
+   page, under its lot, so the store's books and this list agree. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-calendar-x"></i> {{ t('med_store.expiry_title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('med_store.expiry_sub', n=near_days) }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.storage') }}"><i class="bi bi-thermometer-snow"></i> {{ t('med_store.title') }}</a>
+</div>
+<div class="card gc-scale-in" style="overflow-x:auto;" data-expiry-list>
+  {% if not rows %}<p class="hint" style="margin:0;">{{ t('med_store.nothing_expiring') }}</p>{% else %}
+  <table class="table" style="min-width:600px;font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('med_store.medicine') }}</th><th>{{ t('inventory.lot_number') }}</th><th>{{ t('inventory.expiry_date') }}</th><th>{{ t('med_store.left') }}</th><th></th></tr></thead>
+    <tbody>{% for r in rows %}
+    <tr data-expiry-row="{{ r.kind }}-{{ r.lot }}" data-state="{{ r.state }}">
+      <td>{% if r.kind == 'store' %}{{ r.item.display_name(current_lang) }}{% else %}{{ r.item.name if r.item else '—' }} <span class="hint">· {{ t('med_store.vaccine') }}</span>{% endif %}</td>
+      <td dir="ltr">{{ r.lot }}</td>
+      <td><span class="badge {{ 'badge--danger' if r.state == 'expired' else 'badge--warn' }}">{{ r.expiry.isoformat() if r.expiry else '—' }} · {{ t('med_store.state_' ~ r.state) }}</span></td>
+      <td>{{ r.left }}</td>
+      <td>{% if r.kind == 'store' and current_user.can_access('inventory') %}<a href="{{ url_for('inventory.store_item', item_id=r.item.id) }}">{{ t('med_store.remove_on_item') }}</a>
+        {% elif r.kind == 'vaccine' and current_user.can_access('inventory') and r.item %}<a href="{{ url_for('inventory.item_card', brand_id=r.item.id) }}">{{ t('med_store.remove_on_item') }}</a>{% endif %}</td>
+    </tr>
+    {% endfor %}</tbody></table>
+  {% endif %}
+</div>
+{% endblock %}

@@ -26,6 +26,9 @@
     <span class="badge badge--muted">{{ t('pharm.n_waiting', n=rows|length) }}</span>
     {# How far back the counter looks. A prescription from March is not
        waiting here; it was filled somewhere else or never filled. #}
+    {# Where medicines are kept (GAHAR MMS.04 / GSR.19). #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.storage') }}" data-to-storage>
+      <i class="bi bi-thermometer-snow"></i> {{ t('med_store.title') }}</a>
     {# The other half of the profession. Drawn only where there are beds: a
        clinic with no inpatients has no charts to review, and a dead link is
        worse than no link. #}

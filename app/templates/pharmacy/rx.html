@@ -109,6 +109,21 @@
         <input class="input" type="number" min="1" max="99" dir="ltr"
                id="qty_{{ line.id }}" name="quantity" value="{{ line.quantity or 1 }}">
       </div>
+      {# GAHAR MMS.04 — which lot, optional: the earliest-expiring good lot
+         is offered first; left empty, the issue is counted against it. An
+         expired lot is never offered. #}
+      {% if line.store_item %}{% set good_lots = lots_of(line.store_item) %}
+      {% if good_lots %}
+      <div class="form-row" style="margin-bottom:0;min-width:160px;">
+        <label for="lot_{{ line.id }}">{{ t('inventory.lot_number') }}</label>
+        <select class="select" id="lot_{{ line.id }}" name="lot_number" data-shelf-lot>
+          <option value="">{{ t('med_store.lot_any') }}</option>
+          {% for l in good_lots %}
+          <option value="{{ l.lot }}" {{ 'selected' if l.lot == line.lot_number else '' }}>{{ l.lot }}{% if l.expiry %} · {{ l.expiry.isoformat() }}{% endif %} · {{ l.left }}{% if loop.first %} ★{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}{% endif %}
       <button class="btn btn-outline gc-press" type="submit">
         {{ t('common.save') }}</button>
     </form>

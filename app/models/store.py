@@ -233,6 +233,13 @@ class StockMovement(db.Model):
     unit_cost = db.Column(db.Float)
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
     note = db.Column(db.String(200))
+    # GAHAR MMS.04 / GSR.19 دليل ٥ — the lot and expiry this box carries.
+    # Written at receipt when the store knows them, and on an issue only when
+    # somebody picked the lot (the pharmacy's shelf, a removal of an expired
+    # lot). Empty everywhere it was empty before: nothing that worked needs
+    # them, and `utils/med_storage.lots` reads what is there.
+    lot_number = db.Column(db.String(60))
+    expiry_date = db.Column(db.Date)
     # The part of the clinic that used what left the shelf — the pharmacy
     # for a box handed over or a dose given on the ward, the department of
     # the service whose consumables these were. Its cost of goods is posted

@@ -1,0 +1,100 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ area.name }}{% endblock %}
+{% block page_heading %}{{ t('med_store.title') }}{% endblock %}
+
+{% block content %}
+{# One storage place: today's temperatures and the last fortnight's, the
+   monthly inspection, and the place's own range — the hospital's. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-box-seam"></i> {{ area.name }} <span class="hint">· {{ t('med_store.kind_' ~ area.kind) }}</span></h1>
+    <p class="page-sub" style="margin:0;" dir="ltr">{% if area.has_range %}{{ area.temp_min if area.temp_min is not none else '…' }}–{{ area.temp_max if area.temp_max is not none else '…' }} °C{% if area.humidity_max is not none %} · ≤ {{ area.humidity_max }}%{% endif %}{% else %}<span dir="auto">{{ t('med_store.no_range') }}</span>{% endif %}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.storage') }}"><i class="bi bi-list-ul"></i> {{ t('med_store.title') }}</a>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;">
+<form method="post" action="{{ url_for('med_storage.storage_temp', area_id=area.id) }}" class="card gc-scale-in" id="temp" data-temp-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin-top:0;">{{ t('med_store.read_now') }}
+    <small class="hint">{{ t('med_store.n_readings', n=state.count) }}{% if state.wanted %} / {{ state.wanted }}{% endif %}</small></h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <div class="form-row" style="margin:0;"><label for="temp_c">{{ t('med_store.temp') }}</label>
+      <input class="input" id="temp_c" name="temp_c" type="number" step="0.1" dir="ltr" required style="width:110px;"></div>
+    <div class="form-row" style="margin:0;"><label for="humidity">{{ t('med_store.humidity') }}</label>
+      <input class="input" id="humidity" name="humidity" type="number" step="1" dir="ltr" style="width:110px;"></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label for="t_action">{{ t('med_store.action_if_out') }}</label>
+      <input class="input" id="t_action" name="action" maxlength="500" dir="auto"></div>
+    <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+  </div>
+</form>
+
+<form method="post" action="{{ url_for('med_storage.storage_inspect', area_id=area.id) }}" class="card gc-scale-in" id="inspect" data-inspect-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin-top:0;">{{ t('med_store.inspect_now') }}
+    {% if due %}<span class="badge badge--danger">{{ t('med_store.inspection_due') }}</span>{% endif %}</h2>
+  <div class="form-row" style="margin:0 0 8px;"><label for="inspected_on">{{ t('med_store.inspected_on') }}</label>
+    <input class="input" type="date" id="inspected_on" name="inspected_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" style="width:170px;"></div>
+  <table class="table" style="margin:0;">
+    <tbody>
+    {% for q in items %}
+    <tr><td>{{ t('med_store.q_' ~ q) }}</td>
+      <td style="white-space:nowrap;">{% for a in answers %}<label style="display:inline-flex;gap:4px;align-items:center;margin-inline-end:10px;"><input type="radio" name="q_{{ q }}" value="{{ a }}" required> {{ t('med_store.a_' ~ a) }}</label>{% endfor %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="form-row" style="margin:8px 0 0;"><label for="findings">{{ t('med_store.findings') }}</label>
+    <textarea class="input" id="findings" name="findings" rows="2" maxlength="1000" dir="auto"></textarea></div>
+  <div class="form-row" style="margin:8px 0 0;"><label for="i_action">{{ t('med_store.action') }}</label>
+    <textarea class="input" id="i_action" name="action" rows="2" maxlength="1000" dir="auto"></textarea></div>
+  <button class="btn btn-primary gc-press" type="submit" style="margin-top:10px;">{{ t('common.save') }}</button>
+</form>
+</div>
+
+<div class="card gc-scale-in" style="overflow-x:auto;margin-top:14px;" data-readings>
+  <h2 class="section-title" style="margin-top:0;">{{ t('med_store.readings_title') }}</h2>
+  {% if readings %}
+  <table class="table" style="min-width:560px;font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('med_store.when') }}</th><th>{{ t('med_store.temp') }}</th><th>{{ t('med_store.humidity') }}</th><th>{{ t('med_store.by') }}</th><th>{{ t('med_store.action') }}</th></tr></thead>
+    <tbody>{% for r in readings %}
+    <tr data-reading="{{ r.id }}"{% if r.out_of_range %} style="background:color-mix(in srgb, var(--danger) 8%, transparent);"{% endif %}>
+      <td>{{ r.taken_at|clinic_stamp }}</td>
+      <td dir="ltr">{{ r.temp_c }} °C{% if r.out_of_range %} <span class="badge badge--danger">{{ t('med_store.out') }}</span>{% endif %}</td>
+      <td dir="ltr">{{ r.humidity if r.humidity is not none else '—' }}</td>
+      <td>{{ r.reader.display_name(current_lang) if r.reader else '—' }}</td>
+      <td dir="auto">{{ r.action or '—' }}</td></tr>
+    {% endfor %}</tbody></table>
+  {% else %}<p class="hint" style="margin:0;">{{ t('med_store.no_readings') }}</p>{% endif %}
+</div>
+
+<div class="card gc-scale-in" style="overflow-x:auto;margin-top:14px;" data-inspections>
+  <h2 class="section-title" style="margin-top:0;">{{ t('med_store.inspections_title') }}</h2>
+  {% if inspections %}
+  <table class="table" style="min-width:560px;">
+    <thead><tr><th>{{ t('med_store.inspected_on') }}</th><th>{{ t('med_store.not_met') }}</th><th>{{ t('med_store.findings') }}</th><th>{{ t('med_store.action') }}</th><th>{{ t('med_store.by') }}</th></tr></thead>
+    <tbody>{% for i in inspections %}
+    <tr data-inspection="{{ i.id }}">
+      <td dir="ltr">{{ i.inspected_on.isoformat() }}</td>
+      <td>{% for q in i.failed %}<span class="badge badge--warn" style="margin:0 4px 4px 0;">{{ t('med_store.q_' ~ q) }}</span>{% else %}<span class="badge badge--green">{{ t('med_store.all_met') }}</span>{% endfor %}</td>
+      <td dir="auto">{{ i.findings or '—' }}</td><td dir="auto">{{ i.action or '—' }}</td>
+      <td>{{ i.inspector.display_name(current_lang) if i.inspector else '—' }}</td></tr>
+    {% endfor %}</tbody></table>
+  {% else %}<p class="hint" style="margin:0;">{{ t('med_store.no_inspections') }}</p>{% endif %}
+</div>
+
+{% if may_manage %}
+<details class="card gc-scale-in" style="margin-top:14px;" data-edit-place>
+  <summary style="cursor:pointer;font-weight:600;">{{ t('med_store.edit_place') }}</summary>
+  <form method="post" action="{{ url_for('med_storage.storage_area_save', area_id=area.id) }}" style="margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% include "med_storage/_storage_area_fields.html" %}
+    <button class="btn btn-primary gc-press" type="submit" style="margin-top:10px;">{{ t('common.save') }}</button>
+  </form>
+  <form method="post" action="{{ url_for('med_storage.storage_area_retire', area_id=area.id) }}" style="margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('med_store.retire') if area.is_active else t('med_store.restore') }}</button>
+  </form>
+</details>
+{% endif %}
+{% endblock %}

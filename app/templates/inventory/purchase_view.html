@@ -69,6 +69,18 @@
           </div>
         </td>
       </tr>
+      {% elif it.store_item_id and po.status in ['approved','partial'] and it.outstanding %}
+      {# GAHAR MMS.04 — the lot and expiry of a store item, optional: a
+         receipt without them is received exactly as before. #}
+      <tr class="no-print">
+        <td colspan="6" style="background:var(--surface-2,rgba(0,0,0,.02));">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;" data-store-lot="{{ it.id }}">
+            <span class="hint"><i class="bi bi-upc"></i> {{ t('med_store.lot_optional') }}:</span>
+            <div class="form-row" style="margin:0;"><label>{{ t('inventory.lot_number') }}</label><input class="input" name="lot_{{ it.id }}" dir="ltr" maxlength="60" style="width:130px;"></div>
+            <div class="form-row" style="margin:0;"><label>{{ t('inventory.expiry_date') }}</label><input class="input" type="date" name="exp_{{ it.id }}" style="width:150px;"></div>
+          </div>
+        </td>
+      </tr>
       {% endif %}
       {% endfor %}
     </tbody>
