@@ -733,7 +733,7 @@
         <th>{{ t('settings.cr_source') }}</th>
       </tr></thead>
       <tbody>
-      {% for rule in clinical_rules %}
+      {% for rule in clinical_rules if rule.owner != 'vital_bands' %}
       <tr>
         <td>{{ t('settings.cr_p_' ~ rule.parameter) }}</td>
         <td dir="ltr">{{ rule.context }}</td>
@@ -764,6 +764,41 @@
       </tbody>
     </table>
     </div>
+
+    {# The heart and breathing rate bands by age — what colours every reading
+       in the program (GAHAR ICD.22 أ, evidence 3: *age specific criteria*,
+       *as per the hospital policy*). The hospital's approved criteria go in
+       the boxes; a blank box keeps this program's number, shown as the
+       placeholder, and a box that lets more readings pass as usual says so. #}
+    <h3 style="margin:18px 0 6px;font-size:0.95rem;" id="vital-bands">
+      <i class="bi bi-activity"></i> {{ t('settings.vb_title') }}</h3>
+    <p class="hint" style="margin:0 0 8px;">{{ t('settings.vb_hint') }}</p>
+    {% for group in ('vital_hr', 'vital_rr') %}
+    {% set rows = clinical_rules | selectattr('group', 'defined') | selectattr('group', 'equalto', group) | list %}
+    <div style="overflow-x:auto;margin-bottom:10px;" data-vital-bands="{{ group }}">
+    <table class="table" style="min-width:560px;font-variant-numeric:tabular-nums;">
+      <thead><tr><th>{{ t('settings.cr_p_' ~ rows[0].parameter) }} · {{ t('settings.cr_context') }}</th>
+        <th>{{ t('settings.vb_ok_low') }}</th><th>{{ t('settings.vb_ok_high') }}</th>
+        <th>{{ t('settings.vb_warn_low') }}</th><th>{{ t('settings.vb_warn_high') }}</th></tr></thead>
+      <tbody>
+      {% for band in rows | map(attribute='band') | unique %}
+      <tr>
+        <td dir="ltr">{{ (rows | selectattr('band', 'equalto', band) | first).context }}</td>
+        {% for rule in rows if rule.band == band %}
+        <td>
+          <input class="input" name="{{ rule.key }}" dir="ltr" style="max-width:80px;"
+                 inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*"
+                 placeholder="{{ rule.default }}" aria-label="{{ rule.key }}"
+                 value="{{ rule.value if rule.overridden else '' }}">
+          {% if rule.weaker %}<div class="hint" style="color:var(--danger);margin-top:2px;font-size:.75rem;"><i class="bi bi-exclamation-triangle"></i> {{ t('settings.cr_weaker') }}</div>{% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% endfor %}
 
     <p class="hint" style="margin-top:10px;">
       <i class="bi bi-info-circle"></i> {{ t('settings.clinical_note') }}</p>

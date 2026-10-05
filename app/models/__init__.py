@@ -102,6 +102,7 @@ from app.models.referral import (Referral,
                                  TRANSFER as TRANSFER_KIND)
 from app.models.responsibility import CareResponsibility
 from app.models.handover import Handover, HandoverItem
+from app.models.deterioration import DeteriorationCall
 from app.models.pain import (ELEMENTS as PAIN_ELEMENTS, PainAssessment,
                              PainScreen, TOOL_DOMAIN as PAIN_TOOL_DOMAIN)
 from app.models.nursing import (ABCDE as NURSING_ABCDE,
@@ -426,6 +427,7 @@ __all__ = [
     "CareResponsibility",
     "Handover",
     "HandoverItem",
+    "DeteriorationCall",
     "PainScreen",
     "PainAssessment",
     "PAIN_ELEMENTS",

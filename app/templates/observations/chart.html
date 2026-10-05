@@ -54,6 +54,35 @@
   </div>
 </div>
 
+{# ---- calling for help — GAHAR ICD.22 / GSR.10 --------------------------- #}
+{# Two taps when the reading goes red: the hospital's code or whom, and send.
+   The newest reading outside the range is copied onto the call; a worry in
+   words is enough on its own — no band replaces a nurse who does not like how
+   the child looks. #}
+{% for c in open_calls %}
+<div class="card gc-scale-in" style="margin-bottom:12px;border-color:var(--danger);" data-open-call="{{ c.id }}">
+  <a href="{{ url_for('observations.call_view', call_id=c.id) }}"><i class="bi bi-megaphone"></i>
+    {{ t('deterioration.open_line', when=c.called_at|clinic_stamp) }}{% if c.arrived_at %} · {{ t('deterioration.came') }}{% else %} · <strong>{{ t('deterioration.nobody_yet') }}</strong>{% endif %}</a>
+</div>
+{% endfor %}
+<details class="card gc-scale-in" style="margin-bottom:16px;{{ 'border-color:var(--danger);' if call_reading else '' }}" {{ 'open' if call_reading else '' }} data-call-box>
+  <summary style="cursor:pointer;font-weight:600;"><i class="bi bi-megaphone"></i> {{ t('deterioration.call_title') }}
+    {% if call_reading %}<span class="badge badge--danger" dir="ltr">{{ call_reading }}</span>{% endif %}</summary>
+  <form method="post" action="{{ url_for('observations.call_for_help', patient_id=patient.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;" data-call-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if call_reading and readings %}<input type="hidden" name="observation_id" value="{{ readings[0].id }}">{% endif %}
+    {% if call_codes %}
+    <div class="form-row" style="margin:0;"><label for="code_key">{{ t('deterioration.code') }}</label>
+      <select class="input" id="code_key" name="code_key"><option value="">—</option>{% for c in call_codes %}<option value="{{ c.key }}">{{ c.name_ar }}</option>{% endfor %}</select></div>
+    {% endif %}
+    <div class="form-row" style="margin:0;"><label for="called_whom">{{ t('deterioration.whom') }}</label>
+      <input class="input" id="called_whom" name="called_whom" maxlength="120" placeholder="{{ t('deterioration.whom_ph') }}"></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label for="concern">{{ t('deterioration.concern') }}</label>
+      <input class="input" id="concern" name="concern" maxlength="255" placeholder="{{ t('deterioration.concern_ph') }}"></div>
+    <button class="btn gc-press" type="submit" style="background:var(--danger);color:#fff;"><i class="bi bi-megaphone"></i> {{ t('deterioration.call_now') }}</button>
+  </form>
+</details>
+
 {# ---- the order: how often, since when, and who asked ------------------- #}
 <div class="card gc-scale-in" style="margin-bottom:16px;">
   <h2 class="section-title" style="margin-top:0;">

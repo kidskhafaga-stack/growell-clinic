@@ -25,6 +25,10 @@ import pytest
 
 from app.utils import clinical_rules as cr
 
+#: The settings keys that hold a clinical number: the triage rules, and the
+#: age bands of the heart and breathing rates.
+CLINICAL_PREFIXES = ("triage_", "vital_")
+
 
 # ------------------------------------------------- what the rules ask for ---
 @pytest.fixture
@@ -69,6 +73,13 @@ def _exercise(kit):
                                      "سخونية واسهال وترجيع")
         red_flags.bands()
         red_flags.spo2_limits()
+        # And the age bands that colour every reading — registered since the
+        # hospital's own criteria became something it can write (ICD.22).
+        from app.utils import vital_bands
+
+        for months in (1, 6, 24, 60, 120, 200):
+            for kind in ("hr", "rr"):
+                vital_bands.band(kind, months, 100)
 
 
 def test_every_clinical_key_the_rules_read_is_registered(watched):
@@ -80,7 +91,7 @@ def test_every_clinical_key_the_rules_read_is_registered(watched):
     _exercise(kit)
 
     known = set(cr.by_key())
-    clinical = {key for key in asked if key.startswith("triage_")}
+    clinical = {key for key in asked if key.startswith(CLINICAL_PREFIXES)}
     assert clinical, "the rules read no clinical settings at all — check the spy"
 
     unowned = sorted(clinical - known)
@@ -96,7 +107,7 @@ def test_the_register_does_not_describe_rules_nobody_reads(watched):
     kit, asked = watched
     _exercise(kit)
 
-    read = {key for key in asked if key.startswith("triage_")}
+    read = {key for key in asked if key.startswith(CLINICAL_PREFIXES)}
     dead = sorted(set(cr.by_key()) - read)
     assert not dead, (
         "the register lists thresholds nothing reads: " + ", ".join(dead))

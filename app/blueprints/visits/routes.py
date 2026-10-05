@@ -550,7 +550,7 @@ def record(visit_id):
         # A way into this child's tooth chart, when the clinic does
         # dentistry.
         dental_chart_url=_dental_chart_url(visit),
-        vital_bands=vital_bands.BY_AGE,
+        vital_bands=vital_bands.table(),
         vital_fixed=vital_bands.FIXED,
     )
 

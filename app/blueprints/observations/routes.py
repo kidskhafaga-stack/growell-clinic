@@ -80,9 +80,12 @@ def index():
     Sorted worst-first by the util rather than here, because the same order
     has to hold anywhere else this list is shown.
     """
+    from app.utils import deterioration
+
     rows = rounds.board()
     return render_template("observations/index.html", rows=rows,
                            may_order=_may_order(),
+                           open_calls=deterioration.open_calls(),
                            late=rounds.LATE, due=rounds.DUE)
 
 
@@ -118,7 +121,20 @@ def chart(patient_id):
         open_visit=_open_visit(patient_id),
         # The hospital's point-of-care meters, when it keeps them (GAHAR
         # DAS.24) — none, and the chart is exactly as it was.
-        poct_devices=_poct().active_devices())
+        poct_devices=_poct().active_devices(),
+        # GAHAR ICD.22 — calling for help from the reading that went red: the
+        # hospital's codes, the newest reading to copy onto the call, and any
+        # call for this child still open.
+        **_deterioration_context(patient, last))
+
+
+def _deterioration_context(patient, last):
+    from app.utils import deterioration
+
+    return {"call_codes": deterioration.codes(),
+            "call_reading": deterioration.describe(last, patient),
+            "open_calls": [c for c in deterioration.for_patient(patient.id)
+                           if c.is_open]}
 
 
 def _age_months(patient):

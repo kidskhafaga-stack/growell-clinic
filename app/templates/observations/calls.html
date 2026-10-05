@@ -1,0 +1,73 @@
+{% extends "shell.html" %}
+{% set active_module = 'observations' %}
+{% block title %}{{ t('deterioration.list_title') }}{% endblock %}
+{% block page_heading %}{{ t('deterioration.list_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ICD.22 — the calls still open (nobody came, or nobody wrote what was
+   done) first; the last week's below; and the hospital's codes and time
+   frame for whoever builds the lists. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-megaphone"></i> {{ t('deterioration.list_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('deterioration.list_sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('observations.calls_report') }}" data-to-calls-report><i class="bi bi-bar-chart-line"></i> {{ t('deterioration.report_title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('observations.index') }}"><i class="bi bi-list-check"></i> {{ t('observations.board') }}</a>
+  </div>
+</div>
+
+{% macro call_row(c) %}
+<tr data-call-row="{{ c.id }}">
+  <td><a href="{{ url_for('observations.call_view', call_id=c.id) }}">{{ c.patient.display_name(current_lang) }}</a> <span class="hint" dir="ltr">#{{ c.patient.patient_number }}</span></td>
+  <td>{% if c.reading %}<span dir="ltr">{{ c.reading }}</span>{% endif %}{% if c.concern %} <span class="hint" dir="auto">{{ c.concern }}</span>{% endif %}</td>
+  <td>{{ c.called_at|clinic_stamp }}{% if c.code_key %} · {{ code_label(c.code_key) }}{% endif %}</td>
+  <td>{% if c.arrived_at %}{{ t('deterioration.min', n=c.minutes_to_arrive()) }}{% else %}<span class="badge badge--danger">{{ t('deterioration.nobody_yet') }}</span>{% endif %}
+    {% if late(c) %}<span class="badge badge--danger">{{ t('deterioration.late', n=limit) }}</span>{% endif %}</td>
+  <td>{{ t('deterioration.outcome_' ~ c.outcome) if c.outcome else '—' }}</td>
+</tr>
+{% endmacro %}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;overflow-x:auto;" data-open-calls>
+  <h2 class="section-title" style="margin-top:0;">{{ t('deterioration.open_title', n=open_rows|length) }}</h2>
+  {% if open_rows %}
+  <table class="table" style="min-width:620px;"><thead><tr><th>{{ t('lab_reception.col_patient') }}</th><th>{{ t('deterioration.seen') }}</th><th>{{ t('deterioration.called') }}</th><th>{{ t('deterioration.arrival') }}</th><th>{{ t('deterioration.outcome') }}</th></tr></thead>
+  <tbody>{% for c in open_rows %}{{ call_row(c) }}{% endfor %}</tbody></table>
+  {% else %}<p class="hint" style="margin:0;">{{ t('deterioration.none_open') }}</p>{% endif %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;overflow-x:auto;">
+  <h2 class="section-title" style="margin-top:0;">{{ t('deterioration.recent_title') }}</h2>
+  {% if recent %}
+  <table class="table" style="min-width:620px;"><thead><tr><th>{{ t('lab_reception.col_patient') }}</th><th>{{ t('deterioration.seen') }}</th><th>{{ t('deterioration.called') }}</th><th>{{ t('deterioration.arrival') }}</th><th>{{ t('deterioration.outcome') }}</th></tr></thead>
+  <tbody>{% for c in recent %}{{ call_row(c) }}{% endfor %}</tbody></table>
+  {% else %}<p class="hint" style="margin:0;">{{ t('deterioration.none_recent') }}</p>{% endif %}
+</div>
+
+{% if current_user.is_admin %}
+<form method="post" action="{{ url_for('observations.calls_settings') }}" class="card gc-scale-in" id="call-settings" data-call-settings>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin-top:0;">{{ t('deterioration.settings_title') }}</h2>
+  <p class="hint" style="margin-top:0;">{{ t('deterioration.settings_hint') }}</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <div class="form-row" style="margin:0;"><label for="minutes">{{ t('deterioration.minutes_label') }}</label>
+      <input class="input" type="number" min="1" max="240" id="minutes" name="minutes" value="{{ limit or '' }}" placeholder="{{ t('deterioration.minutes_ph') }}"></div>
+    <div class="form-row" style="margin:0;"><label for="code">{{ t('deterioration.add_code') }}</label>
+      <input class="input" id="code" name="code" maxlength="80" placeholder="{{ t('deterioration.code_ph') }}"></div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+  </div>
+</form>
+{% if codes %}
+<div class="card gc-scale-in" style="margin-top:8px;">
+  {% for c in codes %}
+  <form method="post" action="{{ url_for('observations.calls_code_retire', code_id=c.id) }}" style="display:inline-flex;gap:4px;align-items:center;margin:0 10px 6px 0;" data-call-code="{{ c.key }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <span class="badge badge--muted">{{ c.name_ar }}</span>
+    <button class="btn btn-sm btn-outline gc-press" type="submit" aria-label="{{ t('lab_storage.retire') }}"><i class="bi bi-x"></i></button>
+  </form>
+  {% endfor %}
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

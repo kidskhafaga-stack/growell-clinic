@@ -1280,6 +1280,7 @@ def watch():
     # تعدّي.
     from app.utils import restraint as tied
     from app.utils import resuscitation as cpr
+    from app.utils import deterioration as _det
     from app.utils import verbal_order as vo
     from app.utils import refusal as no
     from app.utils import lines as _lines
@@ -1303,6 +1304,10 @@ def watch():
                            restraints_unwatched=tied.unwatched(),
                            restraint_minutes=watch_minutes,
                            resus_running=cpr.running(),
+                           # GSR.10 / ICD.22 — نداء تدهور مفتوح: محدّش وصل،
+                           # أو وصل ومحدّش كتب اللي اتعمل.
+                           calls_open=_det.open_calls(limit=20),
+                           call_late=_det.late,
                            resus_unanswered=cpr.never_answered(limit=20),
                            # وسابعة من نفس الشكل: أمر شفهي لسه ناقصه
                            # قراية بصوت عالي أو تأكيد من اللي قاله.

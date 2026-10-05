@@ -79,13 +79,55 @@ def _spo2_rules():
     ]
 
 
+#: The four limits of a band, in `vital_bands` order, and which way a change
+#: makes the colour catch fewer children: a lower low limit and a higher high
+#: limit both let more readings pass as usual.
+BAND_FIELDS = (("ok_low", DOWN), ("ok_high", UP),
+               ("warn_low", DOWN), ("warn_high", UP))
+
+
+def _vital_band_rules():
+    """The heart and breathing rate bands by age — GAHAR ICD.22 (أ) and
+    evidence 3: *age specific criteria* **as per the hospital policy**.
+
+    They were constants in `vital_bands`, coloured every reading in the
+    program, and no hospital could put its own approved criteria in their
+    place. Registered here like the fever and oxygen numbers: the default
+    kept, the hospital's number beside it, a weaker edit warned about. Until
+    a hospital writes one, every colour stays exactly as it was.
+    """
+    from app.utils.vital_bands import BY_AGE
+
+    out = []
+    for kind in ("hr", "rr"):
+        upper = 0
+        for index, (limit, *numbers) in enumerate(BY_AGE[kind]):
+            context = (f"{upper}–{limit}m" if limit < 9999 else f"{upper}m+")
+            upper = limit
+            for (field, direction), default in zip(BAND_FIELDS, numbers):
+                out.append({
+                    "key": f"vital_{kind}_{index}_{field}",
+                    "parameter": kind, "unit": "/min", "default": default,
+                    "owner": "vital_bands", "source": PAEDS,
+                    "direction": direction, "context": context,
+                    "action": field, "group": f"vital_{kind}",
+                    "band": index, "field": field,
+                })
+    return out
+
+
 def registry():
     """Every clinical number a clinic can change, with what it means."""
-    return _fever_rules() + _spo2_rules()
+    return _fever_rules() + _spo2_rules() + _vital_band_rules()
 
 
 def by_key():
-    return {rule["key"]: rule for rule in registry()}
+    # Once per request: the vital bands read every one of their limits through
+    # here, for every reading a board colours.
+    from app.utils.request_cache import remember
+
+    return remember("clinical_rules:by_key",
+                    lambda: {rule["key"]: rule for rule in registry()})
 
 
 def value(key):

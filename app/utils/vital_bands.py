@@ -60,6 +60,35 @@ FIXED = {
 }
 
 
+def table():
+    """``BY_AGE`` with the hospital's own numbers where it wrote them.
+
+    The defaults above stay the defaults; a hospital's approved criteria
+    (GAHAR ICD.22) are overrides recorded beside them in the clinical rules
+    register, so clearing one puts this program's number back. Read once per
+    request — every reading on a board asks.
+    """
+    from app.utils.request_cache import remember
+
+    return remember("vital_bands:table", _effective)
+
+
+def _effective():
+    from app.utils import clinical_rules
+
+    fields = [field for field, _direction in clinical_rules.BAND_FIELDS]
+    out = {}
+    for kind, rows in BY_AGE.items():
+        out[kind] = []
+        for index, (limit, *numbers) in enumerate(rows):
+            values = []
+            for field, default in zip(fields, numbers):
+                value = clinical_rules.value(f"vital_{kind}_{index}_{field}")
+                values.append(default if value is None else value)
+            out[kind].append((limit, *values))
+    return out
+
+
 def band_for(kind, age_months):
     """The four limits for this reading, or ``None`` when there are none.
 
@@ -71,7 +100,7 @@ def band_for(kind, age_months):
     """
     if kind in FIXED:
         return FIXED[kind]
-    rows = BY_AGE.get(kind)
+    rows = table().get(kind)
     if not rows or age_months is None:
         return None
     for limit, ok_low, ok_high, warn_low, warn_high in rows:
