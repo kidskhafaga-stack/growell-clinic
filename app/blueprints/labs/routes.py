@@ -2089,3 +2089,79 @@ def manual_reviewed():
     db.session.commit()
     flash(t("lab_docs.scope_saved"), "success")
     return redirect(url_for("labs.manual"))
+
+
+# ---------------------------------------------- a referral laboratory's account --
+def _may_check_invoices():
+    return current_user.is_admin or current_user.can_access("finance")
+
+
+@labs_bp.route("/referral-labs/<int:lab_id>/account")
+@module_required(MODULE)
+def referral_account(lab_id):
+    """What the samples sent to this laboratory came to in a period, at its
+    agreed prices, and its invoices matched against it. A statement — the
+    payment is recorded on the expenses screen; nothing here posts."""
+    from app.models import ReferralLab
+    from app.utils import lab_sendout
+    from app.utils.clock import local_today
+
+    lab = db.get_or_404(ReferralLab, lab_id)
+    end = _day(request.args.get("to")) or local_today()
+    start = _day(request.args.get("from")) or end.replace(day=1)
+    if start > end:
+        start, end = end, start
+    return render_template(
+        "labs/referral_account.html", lab=lab, start=start, end=end,
+        data=lab_sendout.statement(lab, start, end),
+        tests=lab_sendout.priced_tests(lab), prices=lab_sendout.price_list(lab),
+        invoices=lab_sendout.invoices(lab),
+        may_price=current_user.is_admin, may_check=_may_check_invoices())
+
+
+@labs_bp.route("/referral-labs/<int:lab_id>/prices", methods=["POST"])
+@module_required(MODULE)
+def referral_prices(lab_id):
+    from app.models import ReferralLab
+    from app.utils import lab_sendout
+
+    if not current_user.is_admin:
+        abort(403)
+    lab = db.get_or_404(ReferralLab, lab_id)
+    raw = {int(k[6:]): v for k, v in request.form.items()
+           if k.startswith("price_") and k[6:].isdigit()}
+    try:
+        lab_sendout.set_prices(lab, raw)
+    except lab_sendout.SendError as err:
+        db.session.rollback()
+        flash(t(f"lab_account.err_{err}"), "error")
+        return redirect(url_for("labs.referral_account", lab_id=lab.id))
+    db.session.commit()
+    flash(t("lab_account.prices_saved"), "success")
+    return redirect(url_for("labs.referral_account", lab_id=lab.id))
+
+
+@labs_bp.route("/referral-labs/<int:lab_id>/invoice", methods=["POST"])
+@module_required(MODULE)
+def referral_invoice(lab_id):
+    from app.models import ReferralLab
+    from app.utils import lab_sendout
+
+    if not _may_check_invoices():
+        abort(403)
+    lab = db.get_or_404(ReferralLab, lab_id)
+    f = request.form
+    start, end = _day(f.get("from")), _day(f.get("to"))
+    try:
+        lab_sendout.check_invoice(lab, f.get("number"), start, end,
+                                  f.get("amount"), note=f.get("note"),
+                                  user=current_user)
+    except lab_sendout.SendError as err:
+        db.session.rollback()
+        flash(t(f"lab_account.err_{err}"), "error")
+    else:
+        db.session.commit()
+        flash(t("lab_account.invoice_saved"), "success")
+    return redirect(url_for("labs.referral_account", lab_id=lab.id,
+                            **({"from": start.isoformat(), "to": end.isoformat()}
+                               if start and end else {})))

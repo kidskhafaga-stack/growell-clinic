@@ -308,6 +308,7 @@ from app.models.lab_reference import (RANGE_KINDS, RANGE_SEXES, LabAnalyte,
                                        LabConsumable, LabRange,
                                        LabResultValue, LabTestAnalyte,
                                        ReagentLot, ReferralLab,
+                                       ReferralInvoice, ReferralLabPrice,
                                        SampleRejection, SpecimenStore)
 from app.models.unit_staff import BreakGlass, UnitStaff
 from app.models.lab_quality import (METHOD_CHECK_KINDS, EqaRound,
@@ -704,6 +705,8 @@ __all__ = [
     "LabResultValue",
     "SampleRejection",
     "SpecimenStore",
+    "ReferralLabPrice",
+    "ReferralInvoice",
     "ReferralLab",
     "ReagentLot",
     "QcMaterial",

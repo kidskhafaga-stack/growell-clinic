@@ -461,6 +461,9 @@ class VisitInvestigation(db.Model):
     # lab drew, labelled and shipped, and its result returns to the lab.
     sent_lab_id = db.Column(db.Integer, db.ForeignKey("referral_labs.id"))
     sent_at = db.Column(db.DateTime, index=True)
+    # The referral laboratory's price for it when it was sent — its price
+    # list at that moment (``ReferralLabPrice``); empty when none was agreed.
+    sent_cost = db.Column(db.Float)
     sent_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     sent_batch = db.Column(db.String(24), index=True)
     returned_at = db.Column(db.DateTime)

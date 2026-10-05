@@ -141,7 +141,9 @@ def send(orders, lab, user=None, at=None):
             raise SendError("already_sent")
     code = _batch_code()
     now = at or datetime.utcnow()
+    prices = price_list(lab)
     for order in chosen:
+        order.sent_cost = prices.get(order.investigation_id)
         order.sent_lab_id = lab.id
         order.sent_at = now
         order.sent_by = getattr(user, "id", None)
@@ -158,7 +160,7 @@ def recall(order):
     if order.status == "resulted":
         raise SendError("already_back")
     order.sent_lab_id = order.sent_at = order.sent_by = None
-    order.sent_batch = order.returned_at = None
+    order.sent_batch = order.returned_at = order.sent_cost = None
     db.session.flush()
     return order
 
@@ -234,3 +236,117 @@ def register(start, end):
         labs.append(entry)
     labs.sort(key=lambda e: (e["lab"].name if e["lab"] else ""))
     return rows, labs
+
+
+# ------------------------------------------------- the laboratory's account --
+# A statement, not a ledger: what each sample sent was charged at (its price
+# list when it was sent), per period, matched against the laboratory's own
+# invoice. The payment is recorded where every payment is — nothing posts.
+def price_list(lab):
+    """``{investigation_id: price}`` — this laboratory's agreed prices."""
+    from app.models import ReferralLabPrice
+
+    if lab is None:
+        return {}
+    return {row.investigation_id: row.price
+            for row in ReferralLabPrice.query.filter_by(lab_id=lab.id).all()}
+
+
+def priced_tests(lab):
+    """The tests this laboratory's price list is about: the ones sent to it
+    by default, the ones ever sent to it, and the ones already priced."""
+    from app.models import Investigation, ReferralLabPrice, VisitInvestigation
+
+    ids = {i for (i,) in db.session.query(Investigation.id)
+           .filter(Investigation.referral_lab_id == lab.id).all()}
+    ids |= {i for (i,) in db.session.query(VisitInvestigation.investigation_id)
+            .filter(VisitInvestigation.sent_lab_id == lab.id,
+                    VisitInvestigation.investigation_id.isnot(None)).all()}
+    ids |= {i for (i,) in db.session.query(ReferralLabPrice.investigation_id)
+            .filter(ReferralLabPrice.lab_id == lab.id).all()}
+    if not ids:
+        return []
+    return (Investigation.query.filter(Investigation.id.in_(ids))
+            .order_by(Investigation.name_ar).all())
+
+
+def set_prices(lab, prices):
+    """``{investigation_id: raw}`` — a blank removes the price. Changes only
+    what is sent from now on. The caller commits."""
+    from app.models import ReferralLabPrice
+
+    existing = {row.investigation_id: row for row in
+                ReferralLabPrice.query.filter_by(lab_id=lab.id).all()}
+    for test_id, raw in prices.items():
+        raw = str(raw or "").strip().replace(",", ".")
+        row = existing.get(test_id)
+        if not raw:
+            if row is not None:
+                db.session.delete(row)
+            continue
+        try:
+            value = round(float(raw), 2)
+        except ValueError:
+            raise SendError("bad_price") from None
+        if value < 0:
+            raise SendError("bad_price")
+        if row is None:
+            db.session.add(ReferralLabPrice(lab_id=lab.id,
+                                            investigation_id=test_id,
+                                            price=value))
+        else:
+            row.price = value
+
+
+def statement(lab, start, end):
+    """Every sample sent to ``lab`` between two clinic days, with what it was
+    charged at: ``{"rows", "total", "unpriced"}``. A sample with no agreed
+    price is counted apart and never priced at zero — zero would be a figure
+    nobody agreed to."""
+    from datetime import time
+
+    from app.models import VisitInvestigation
+    from app.utils.clock import to_utc
+
+    since = to_utc(datetime.combine(start, time.min))
+    until = to_utc(datetime.combine(end, time.max))
+    rows = (VisitInvestigation.query
+            .filter(VisitInvestigation.sent_lab_id == lab.id,
+                    VisitInvestigation.sent_at >= since,
+                    VisitInvestigation.sent_at <= until)
+            .order_by(VisitInvestigation.sent_at, VisitInvestigation.id).all())
+    total = round(sum(r.sent_cost for r in rows if r.sent_cost is not None), 2)
+    unpriced = sum(1 for r in rows if r.sent_cost is None)
+    return {"rows": rows, "total": total, "unpriced": unpriced}
+
+
+def invoices(lab):
+    from app.models import ReferralInvoice
+
+    return (ReferralInvoice.query.filter_by(lab_id=lab.id)
+            .order_by(ReferralInvoice.period_end.desc(),
+                      ReferralInvoice.id.desc()).all())
+
+
+def check_invoice(lab, number, start, end, amount, note=None, user=None):
+    """The laboratory's invoice for a period, matched against the statement."""
+    from app.models import ReferralInvoice
+
+    number = (number or "").strip()[:60]
+    if not number:
+        raise SendError("need_invoice_number")
+    if start is None or end is None or end < start:
+        raise SendError("bad_period")
+    try:
+        value = round(float(str(amount or "").strip().replace(",", ".")), 2)
+    except ValueError:
+        raise SendError("bad_amount") from None
+    if value < 0:
+        raise SendError("bad_amount")
+    ours = statement(lab, start, end)["total"]
+    row = ReferralInvoice(lab_id=lab.id, number=number, period_start=start,
+                          period_end=end, amount=value, our_total=ours,
+                          note=(note or "").strip()[:255] or None,
+                          checked_by=getattr(user, "id", None))
+    db.session.add(row)
+    return row

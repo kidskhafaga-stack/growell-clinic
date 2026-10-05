@@ -924,6 +924,9 @@ ADDITIONS = [
     # GAHAR DAS.20 (هـ) — how long the laboratory keeps a test's tube. Empty
     # on every test already defined: no date until the laboratory writes one.
     ("investigations", "keep_days", "INTEGER"),
+    # What a referral laboratory charged for a sample, copied from its price
+    # list when the sample was sent. Empty on everything already sent.
+    ("visit_investigations", "sent_cost", "FLOAT"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

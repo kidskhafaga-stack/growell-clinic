@@ -35,6 +35,7 @@
   {% if st == 'lapsed' %}<span class="badge badge--danger" data-agreement="lapsed">{{ t('lab_sendout.agreement_lapsed') }}</span>
   {% elif st == 'ending' %}<span class="badge badge--warn" data-agreement="ending">{{ t('lab_sendout.agreement_ending') }}</span>{% endif %}
   {% if may_build %}<button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button>{% endif %}
+  <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('labs.referral_account', lab_id=l.id) }}" data-to-referral-account><i class="bi bi-receipt"></i> {{ t('lab_account.title') }}</a>
 </form>
 {% endfor %}
 {% if may_build %}

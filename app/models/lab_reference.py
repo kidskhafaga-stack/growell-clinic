@@ -258,6 +258,62 @@ class LabConsumable(db.Model):
     item = db.relationship("StoreItem")
 
 
+class ReferralLabPrice(db.Model):
+    """What a referral laboratory charges for one test — its agreement's price
+    list (GAHAR DAS.13 asks for the agreement; the account follows from it).
+
+    The price a sample is charged at is copied onto the sample when it is sent
+    (``VisitInvestigation.sent_cost``), so a price changed in March does not
+    rewrite February's statement — the rule ``BedCharge.unit_price`` keeps.
+    """
+    __tablename__ = "referral_lab_prices"
+    __table_args__ = (db.UniqueConstraint("lab_id", "investigation_id",
+                                          name="uq_referral_lab_price"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    lab_id = db.Column(db.Integer, db.ForeignKey("referral_labs.id"),
+                       nullable=False, index=True)
+    investigation_id = db.Column(db.Integer, db.ForeignKey("investigations.id"),
+                                 nullable=False, index=True)
+    price = db.Column(db.Float, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow,
+                           onupdate=datetime.utcnow)
+
+    lab = db.relationship("ReferralLab")
+    investigation = db.relationship("Investigation")
+
+
+class ReferralInvoice(db.Model):
+    """A referral laboratory's invoice, matched against what the program says
+    was sent. A statement, not a ledger entry: the payment is recorded where
+    every other payment is (the expenses screen), and nothing here posts.
+
+    ``our_total`` is what the samples sent in the period came to when the
+    invoice was checked — kept, so the difference read later is the one the
+    person saw, even if a sample is recalled afterwards.
+    """
+    __tablename__ = "referral_invoices"
+
+    id = db.Column(db.Integer, primary_key=True)
+    lab_id = db.Column(db.Integer, db.ForeignKey("referral_labs.id"),
+                       nullable=False, index=True)
+    number = db.Column(db.String(60), nullable=False)
+    period_start = db.Column(db.Date, nullable=False)
+    period_end = db.Column(db.Date, nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    our_total = db.Column(db.Float, nullable=False)
+    note = db.Column(db.String(255))
+    checked_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    checked_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    lab = db.relationship("ReferralLab")
+    checker = db.relationship("User", foreign_keys=[checked_by])
+
+    @property
+    def difference(self):
+        return round((self.amount or 0) - (self.our_total or 0), 2)
+
+
 class SpecimenStore(db.Model):
     """A tube kept after its result — GAHAR DAS.20 (ج)(هـ)(و).
 
