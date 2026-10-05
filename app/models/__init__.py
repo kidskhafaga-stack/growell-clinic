@@ -314,6 +314,10 @@ from app.models.lab_reference import (RANGE_KINDS, RANGE_SEXES, LabAnalyte,
 from app.models.unit_staff import BreakGlass, UnitStaff
 from app.models.equipment import (Equipment, EquipmentEvent,
                                   EquipmentTraining)
+from app.models.hand_hygiene import (HandHygieneAction,
+                                     HandHygieneFacilityCheck,
+                                     HandHygieneOpportunity,
+                                     HandHygieneSession, HandHygieneTraining)
 from app.models.med_storage import (OutageDecision, PowerOutage,
                                     StorageArea, StorageInspection,
                                     TempReading)
@@ -726,6 +730,11 @@ __all__ = [
     "Equipment",
     "EquipmentEvent",
     "EquipmentTraining",
+    "HandHygieneAction",
+    "HandHygieneFacilityCheck",
+    "HandHygieneOpportunity",
+    "HandHygieneSession",
+    "HandHygieneTraining",
     "LabCompetency",
     "StorageArea",
     "StorageInspection",

@@ -1,0 +1,12 @@
+{# Where: a care unit where the hospital has them, otherwise the area in the
+   observer's words. `place_optional` leaves both empty to mean the whole
+   hospital. #}
+{% if units %}
+<div class="form-row" style="margin:0;"><label for="unit_id">{{ t('hh.unit') }}</label>
+  <select class="input" id="unit_id" name="unit_id">
+    <option value="">{{ t('hh.whole_hospital') if place_optional else t('hh.other_area') }}</option>
+    {% for u in units %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}
+  </select></div>
+{% endif %}
+<div class="form-row" style="margin:0;"><label for="area">{{ t('hh.area_written') }}</label>
+  <input class="input" id="area" name="area" maxlength="120" placeholder="{{ t('hh.area_ph') }}"></div>

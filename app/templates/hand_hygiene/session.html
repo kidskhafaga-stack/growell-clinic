@@ -1,0 +1,26 @@
+{% extends "shell.html" %}
+{% set active_module = 'hand_hygiene' %}
+{% block title %}{{ t('hh.session') }}{% endblock %}
+{% block page_heading %}{{ t('hh.session') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-eye"></i> {{ t('hh.session') }} — {{ row.area_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;"><span dir="ltr">{{ row.observed_on.isoformat() }}</span> · {{ row.observer.display_name(current_lang) }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('hand_hygiene.index') }}"><i class="bi bi-droplet-half"></i> {{ t('hh.title') }}</a>
+</div>
+<div class="card" style="overflow-x:auto;" data-hh-session-view>
+  <p style="margin-top:0;" data-hh-session-rate><strong>{{ t('hh.rate') }}:</strong> <span dir="ltr">{{ rate }}%</span> · {{ t('hh.done_of', done=done, n=row.opportunities|length) }}</p>
+  <table class="table" style="min-width:520px;">
+    <thead><tr><th>#</th><th>{{ t('hh.category') }}</th><th>{{ t('hh.moment') }}</th><th>{{ t('hh.what_done') }}</th><th>{{ t('hh.gloves') }}</th></tr></thead>
+    <tbody>{% for o in row.opportunities %}
+    <tr><td>{{ loop.index }}</td><td>{{ t('hh.c_' ~ o.category) }}</td>
+      <td>{% for m in o.moments %}<span class="badge badge--muted" title="{{ t('hh.m' ~ m) }}">{{ m }}</span> {% endfor %}</td>
+      <td><span class="badge {{ 'badge--green' if o.done else 'badge--danger' }}">{{ t('hh.a_' ~ o.action) }}</span></td>
+      <td>{{ t('common.yes') if o.gloves else '—' }}</td></tr>{% endfor %}</tbody>
+  </table>
+  {% if row.note %}<p dir="auto" style="margin-bottom:0;">{{ row.note }}</p>{% endif %}
+</div>
+{% endblock %}

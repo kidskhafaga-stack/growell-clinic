@@ -16,6 +16,9 @@
     <i class="bi bi-tools"></i> {{ t('equip.title') }}</a>
   <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.storage') }}" data-to-storage>
     <i class="bi bi-thermometer-snow"></i> {{ t('med_store.title') }}</a>
+  {# Hand hygiene is observed where the care is (GAHAR IPC.04). #}
+  <a class="btn btn-outline gc-press" href="{{ url_for('hand_hygiene.index') }}" data-to-hand-hygiene>
+    <i class="bi bi-droplet-half"></i> {{ t('hh.title') }}</a>
   <a class="btn btn-outline gc-press" href="{{ url_for('beds.index') }}">
     <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i>
     {{ t('beds.board') }}</a>
