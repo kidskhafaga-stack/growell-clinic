@@ -1,0 +1,42 @@
+{% extends "shell.html" %}
+{% set active_module = 'hand_hygiene' %}
+{% block title %}{{ t('hh.stations') }}{% endblock %}
+{% block page_heading %}{{ t('hh.stations') }}{% endblock %}
+
+{% block content %}
+{# IPC.04 evidence 4–5 — in each area: a working sink, soap, single-use
+   towels, alcohol rub, the poster and a basket; anything missing carries
+   what was done about it. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-moisture"></i> {{ t('hh.stations') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('hh.stations_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('hand_hygiene.index') }}"><i class="bi bi-droplet-half"></i> {{ t('hh.title') }}</a>
+</div>
+
+<form method="post" action="{{ url_for('hand_hygiene.stations_save') }}" class="card gc-scale-in" style="margin-bottom:14px;" data-hh-station-check>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:12px;">
+    <div class="form-row" style="margin:0;"><label for="checked_on">{{ t('hh.date') }}</label>
+      <input class="input" type="date" id="checked_on" name="checked_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+    {% set place_optional = False %}{% include "hand_hygiene/_place.html" %}
+  </div>
+  <fieldset style="border:0;padding:0;margin:0 0 12px;display:flex;gap:16px;flex-wrap:wrap;">
+    <legend class="hint" style="margin-bottom:6px;">{{ t('hh.present') }}</legend>
+    {% for k in items %}<label><input type="checkbox" name="{{ k }}" value="1"> {{ t('hh.f_' ~ k) }}</label>{% endfor %}
+  </fieldset>
+  <div class="form-row"><label for="station-action">{{ t('hh.fix') }}</label><textarea class="input" id="station-action" name="action" rows="2" placeholder="{{ t('hh.fix_ph') }}"></textarea></div>
+  <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+</form>
+
+<div class="card" style="overflow-x:auto;" data-hh-stations>
+  <h2 class="section-title" style="margin-top:0;">{{ t('hh.latest_checks') }}</h2>
+  {% if not stations %}<p class="hint" style="margin:0;">{{ t('hh.no_stations') }}</p>{% else %}
+  <table class="table" style="min-width:600px;"><thead><tr><th>{{ t('hh.area') }}</th><th>{{ t('hh.date') }}</th><th>{{ t('hh.missing') }}</th><th>{{ t('hh.fix') }}</th></tr></thead>
+  <tbody>{% for s in stations %}<tr data-hh-station="{{ s.id }}"><td>{{ s.area_name(current_lang) }}</td><td dir="ltr">{{ s.checked_on.isoformat() }}</td>
+    <td>{% if s.missing %}{% for k in s.missing %}<span class="badge badge--warn">{{ t('hh.f_' ~ k) }}</span> {% endfor %}{% else %}<span class="badge badge--green">{{ t('hh.all_there') }}</span>{% endif %}</td>
+    <td dir="auto">{{ s.action or '—' }}</td></tr>{% endfor %}</tbody></table>
+  {% endif %}
+</div>
+{% endblock %}

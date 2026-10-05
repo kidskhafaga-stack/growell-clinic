@@ -1,0 +1,53 @@
+{% extends "shell.html" %}
+{% set active_module = 'hand_hygiene' %}
+{% block title %}{{ t('hh.observe') }}{% endblock %}
+{% block page_heading %}{{ t('hh.observe') }}{% endblock %}
+
+{% block content %}
+{# The WHO hand hygiene observation form: one row per opportunity — the
+   staff category (never a name), the moment(s), and what was done. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-eye"></i> {{ t('hh.observe') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('hh.observe_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('hand_hygiene.index') }}"><i class="bi bi-droplet-half"></i> {{ t('hh.title') }}</a>
+</div>
+
+<details class="card" style="margin-bottom:14px;" data-hh-moments-key>
+  <summary style="cursor:pointer;font-weight:600;">{{ t('hh.moments_key') }}</summary>
+  <ol style="margin:8px 0 0;">{% for m in moments %}<li>{{ t('hh.m' ~ m) }}</li>{% endfor %}</ol>
+</details>
+
+<form method="post" action="{{ url_for('hand_hygiene.observe_save') }}" class="card gc-scale-in" data-hh-observe
+      x-data="{ shown: 8 }">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:12px;">
+    <div class="form-row" style="margin:0;"><label for="observed_on">{{ t('hh.date') }}</label>
+      <input class="input" type="date" id="observed_on" name="observed_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+    {% set place_optional = False %}{% include "hand_hygiene/_place.html" %}
+  </div>
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:720px;">
+    <thead><tr><th>#</th><th>{{ t('hh.category') }}</th><th>{{ t('hh.moment') }}</th><th>{{ t('hh.what_done') }}</th><th>{{ t('hh.gloves') }}</th></tr></thead>
+    <tbody>
+    {% for i in rows %}
+    <tr data-hh-row="{{ i }}" x-show="{{ i }} < shown">
+      <td>{{ i + 1 }}</td>
+      <td><select class="input" name="op-{{ i }}-category" aria-label="{{ t('hh.category') }} {{ i + 1 }}">
+        <option value=""></option>{% for c in categories %}<option value="{{ c }}">{{ t('hh.c_' ~ c) }}</option>{% endfor %}</select></td>
+      <td style="white-space:nowrap;">{% for m in moments %}<label title="{{ t('hh.m' ~ m) }}" style="margin-inline-end:8px;"><input type="checkbox" name="op-{{ i }}-m" value="{{ m }}"> {{ m }}</label>{% endfor %}</td>
+      <td><select class="input" name="op-{{ i }}-action" aria-label="{{ t('hh.what_done') }} {{ i + 1 }}">
+        <option value=""></option>{% for a in actions %}<option value="{{ a }}">{{ t('hh.a_' ~ a) }}</option>{% endfor %}</select></td>
+      <td><input type="checkbox" name="op-{{ i }}-gloves" value="1" aria-label="{{ t('hh.gloves') }} {{ i + 1 }}"></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <button type="button" class="btn btn-outline btn-sm gc-press" x-show="shown < {{ rows|length }}" @click="shown = Math.min(shown + 8, {{ rows|length }})"><i class="bi bi-plus"></i> {{ t('hh.more_rows') }}</button>
+  <div class="form-row" style="margin-top:12px;"><label for="note">{{ t('hh.note') }}</label><textarea class="input" id="note" name="note" rows="2"></textarea></div>
+  <p class="hint">{{ t('hh.no_names') }}</p>
+  <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+</form>
+{% endblock %}

@@ -160,6 +160,7 @@ def create_app(config_name="default"):
     from app.blueprints.med_storage import med_storage_bp
     from app.blueprints.equipment import equipment_bp
     from app.blueprints.basics import basics_bp
+    from app.blueprints.hand_hygiene import hand_hygiene_bp
     from app.blueprints.webhooks import webhooks_bp
     from app.blueprints.finance import finance_bp
     from app.blueprints.dentistry import dentistry_bp
@@ -220,6 +221,7 @@ def create_app(config_name="default"):
     app.register_blueprint(med_storage_bp)
     app.register_blueprint(equipment_bp)
     app.register_blueprint(basics_bp)
+    app.register_blueprint(hand_hygiene_bp)
     app.register_blueprint(webhooks_bp)
     # The providers post from their own servers and cannot carry a token of
     # ours; they prove themselves by signature instead (see webhook_auth).

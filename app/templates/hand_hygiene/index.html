@@ -1,0 +1,119 @@
+{% extends "shell.html" %}
+{% set active_module = 'hand_hygiene' %}
+{% block title %}{{ t('hh.title') }}{% endblock %}
+{% block page_heading %}{{ t('hh.title') }}{% endblock %}
+
+{% macro rate_badge(rate) -%}
+  {%- if rate is none -%}<span class="hint">—</span>
+  {%- elif target and rate < target -%}<span class="badge badge--danger" data-below-target>{{ rate }}%</span>
+  {%- else -%}<span dir="ltr">{{ rate }}%</span>{%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+{# GAHAR IPC.04 / GSR.22 — the WHO observation tool's results for a period,
+   the year's trend, the stations, and what was decided (evidence 3–6). #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-droplet-half"></i> {{ t('hh.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('hh.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-primary gc-press" href="{{ url_for('hand_hygiene.observe') }}" data-to-observe><i class="bi bi-eye"></i> {{ t('hh.observe') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('hand_hygiene.stations') }}" data-to-stations><i class="bi bi-moisture"></i> {{ t('hh.stations') }}</a>
+    {% if may_manage %}<a class="btn btn-outline gc-press" href="{{ url_for('hand_hygiene.training') }}" data-to-training><i class="bi bi-mortarboard"></i> {{ t('hh.training') }}</a>{% endif %}
+  </div>
+</div>
+
+<form method="get" action="{{ url_for('hand_hygiene.index') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+  <div class="form-row" style="margin:0;"><label for="from">{{ t('lab_reception.from') }}</label><input class="input" type="date" id="from" name="from" value="{{ start.isoformat() }}"></div>
+  <div class="form-row" style="margin:0;"><label for="to">{{ t('lab_reception.to') }}</label><input class="input" type="date" id="to" name="to" value="{{ end.isoformat() }}"></div>
+  <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('lab_reception.show') }}</button>
+</form>
+
+<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-bottom:14px;" data-hh-summary>
+  <div class="card"><div class="hint">{{ t('hh.rate') }}</div><div style="font-size:1.6rem;font-weight:700;" data-hh-rate>{{ rate_badge(data.rate) }}</div>
+    <div class="hint">{{ t('hh.done_of', done=data.done, n=data.n) }}</div></div>
+  <div class="card"><div class="hint">{{ t('hh.sessions_n') }}</div><div style="font-size:1.6rem;font-weight:700;">{{ data.sessions }}</div></div>
+  <div class="card"><div class="hint">{{ t('hh.rub_wash') }}</div><div style="font-size:1.2rem;font-weight:600;">{{ data.rub }} · {{ data.wash }}</div></div>
+  <div class="card"><div class="hint">{{ t('hh.gloves_missed') }}</div><div style="font-size:1.6rem;font-weight:700;">{{ data.gloves_missed }}</div></div>
+  <div class="card" data-hh-target>
+    <div class="hint">{{ t('hh.target') }}</div>
+    {% if may_manage %}
+    <form method="post" action="{{ url_for('hand_hygiene.target_save') }}" style="display:flex;gap:6px;align-items:center;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" type="number" min="1" max="100" name="target" value="{{ target or '' }}" style="width:80px;" aria-label="{{ t('hh.target') }}"> %
+      <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+    </form>
+    {% else %}<div style="font-size:1.6rem;font-weight:700;">{{ (target ~ '%') if target else '—' }}</div>{% endif %}
+    {% if not target %}<div class="hint">{{ t('hh.no_target') }}</div>{% endif %}
+  </div>
+</div>
+
+{% if not data.n %}
+<div class="card" style="margin-bottom:14px;" data-hh-empty><p class="hint" style="margin:0;">{{ t('hh.none') }}</p></div>
+{% else %}
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:14px;">
+  <div class="card" style="overflow-x:auto;" data-hh-by-area>
+    <h2 class="section-title" style="margin-top:0;">{{ t('hh.by_area') }}</h2>
+    <table class="table"><thead><tr><th>{{ t('hh.area') }}</th><th>{{ t('hh.opps') }}</th><th>{{ t('hh.rate') }}</th></tr></thead>
+    <tbody>{% for r in data.by_area %}<tr><td>{{ r.name }}</td><td>{{ r.n }}</td><td>{{ rate_badge(r.rate) }}</td></tr>{% endfor %}</tbody></table>
+  </div>
+  <div class="card" style="overflow-x:auto;" data-hh-by-category>
+    <h2 class="section-title" style="margin-top:0;">{{ t('hh.by_category') }}</h2>
+    <table class="table"><thead><tr><th>{{ t('hh.category') }}</th><th>{{ t('hh.opps') }}</th><th>{{ t('hh.rate') }}</th></tr></thead>
+    <tbody>{% for r in data.by_category if r.n %}<tr><td>{{ t('hh.c_' ~ r.key) }}</td><td>{{ r.n }}</td><td>{{ rate_badge(r.rate) }}</td></tr>{% endfor %}</tbody></table>
+  </div>
+  <div class="card" style="overflow-x:auto;" data-hh-by-moment>
+    <h2 class="section-title" style="margin-top:0;">{{ t('hh.by_moment') }}</h2>
+    <table class="table"><thead><tr><th>{{ t('hh.moment') }}</th><th>{{ t('hh.opps') }}</th><th>{{ t('hh.rate') }}</th></tr></thead>
+    <tbody>{% for r in data.by_moment %}<tr data-moment="{{ r.key }}"><td>{{ r.key }}. {{ t('hh.m' ~ r.key) }}</td><td>{{ r.n }}</td><td>{{ rate_badge(r.rate) }}</td></tr>{% endfor %}</tbody></table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card" style="overflow-x:auto;margin-bottom:14px;" data-hh-trend>
+  <h2 class="section-title" style="margin-top:0;">{{ t('hh.trend') }}</h2>
+  <table class="table" style="min-width:560px;"><thead><tr><th>{{ t('hh.month') }}</th><th>{{ t('hh.opps') }}</th><th>{{ t('hh.rate') }}</th><th style="width:45%;"></th></tr></thead>
+  <tbody>{% for m in trend %}<tr><td dir="ltr">{{ m.month.strftime('%Y-%m') }}</td><td>{{ m.n }}</td><td>{{ rate_badge(m.rate) }}</td>
+    <td>{% if m.rate is not none %}<div style="height:8px;border-radius:4px;background:var(--border, #e5e7eb);"><div style="height:8px;border-radius:4px;width:{{ m.rate }}%;background:{{ 'var(--danger, #dc2626)' if target and m.rate < target else 'var(--green-600)' }};"></div></div>{% endif %}</td></tr>{% endfor %}</tbody></table>
+</div>
+
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-bottom:14px;">
+  <div class="card" style="overflow-x:auto;" data-hh-sessions>
+    <h2 class="section-title" style="margin-top:0;">{{ t('hh.recent') }}</h2>
+    {% if not sessions %}<p class="hint" style="margin:0;">{{ t('hh.none') }}</p>{% else %}
+    <table class="table"><thead><tr><th>{{ t('hh.date') }}</th><th>{{ t('hh.area') }}</th><th>{{ t('hh.opps') }}</th></tr></thead>
+    <tbody>{% for s in sessions %}<tr data-hh-session="{{ s.id }}"><td><a href="{{ url_for('hand_hygiene.session', session_id=s.id) }}" dir="ltr">{{ s.observed_on.isoformat() }}</a></td><td>{{ s.area_name(current_lang) }}</td><td>{{ s.opportunities|length }}</td></tr>{% endfor %}</tbody></table>
+    {% endif %}
+  </div>
+  <div class="card" style="overflow-x:auto;" data-hh-stations>
+    <h2 class="section-title" style="margin-top:0;">{{ t('hh.stations') }}</h2>
+    {% if not stations %}<p class="hint" style="margin:0;">{{ t('hh.no_stations') }}</p>{% else %}
+    <table class="table"><thead><tr><th>{{ t('hh.area') }}</th><th>{{ t('hh.date') }}</th><th>{{ t('hh.missing') }}</th></tr></thead>
+    <tbody>{% for s in stations %}<tr><td>{{ s.area_name(current_lang) }}</td><td dir="ltr">{{ s.checked_on.isoformat() }}</td>
+      <td>{% if s.missing %}{% for k in s.missing %}<span class="badge badge--warn">{{ t('hh.f_' ~ k) }}</span> {% endfor %}{% else %}<span class="badge badge--green">{{ t('hh.all_there') }}</span>{% endif %}</td></tr>{% endfor %}</tbody></table>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card" id="decide" data-hh-decisions>
+  <h2 class="section-title" style="margin-top:0;">{{ t('hh.decisions') }}</h2>
+  <p class="hint" style="margin-top:0;">{{ t('hh.decisions_hint') }}</p>
+  {% if decisions %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:560px;"><thead><tr><th>{{ t('hh.month') }}</th><th>{{ t('hh.area') }}</th><th>{{ t('hh.finding') }}</th><th>{{ t('hh.action') }}</th></tr></thead>
+  <tbody>{% for d in decisions %}<tr data-hh-decision="{{ d.id }}"><td dir="ltr">{{ d.month.strftime('%Y-%m') }}</td><td>{{ d.area_name(current_lang) if (d.unit_id or d.area) else t('hh.whole_hospital') }}</td><td dir="auto">{{ d.finding }}</td><td dir="auto">{{ d.action }}</td></tr>{% endfor %}</tbody></table></div>
+  {% endif %}
+  {% if may_manage %}
+  <form method="post" action="{{ url_for('hand_hygiene.action_save') }}" style="margin-top:12px;" data-hh-decide>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+      <div class="form-row" style="margin:0;"><label for="month">{{ t('hh.month') }}</label><input class="input" type="month" id="month" name="month" value="{{ this_month }}" required></div>
+      {% set place_optional = True %}{% include "hand_hygiene/_place.html" %}
+    </div>
+    <div class="form-row"><label for="finding">{{ t('hh.finding') }}</label><textarea class="input" id="finding" name="finding" rows="2" required></textarea></div>
+    <div class="form-row"><label for="decision-action">{{ t('hh.action') }}</label><textarea class="input" id="decision-action" name="action" rows="2" required></textarea></div>
+    <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

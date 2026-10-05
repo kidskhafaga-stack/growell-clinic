@@ -1,0 +1,39 @@
+{% extends "shell.html" %}
+{% set active_module = 'hand_hygiene' %}
+{% block title %}{{ t('hh.training') }}{% endblock %}
+{% block page_heading %}{{ t('hh.training') }}{% endblock %}
+
+{% block content %}
+{# IPC.04 evidence 2 — who was trained on the hand hygiene policy, when, by
+   whom and until when. Never trained or out of date first. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-mortarboard"></i> {{ t('hh.training') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('hh.training_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('hand_hygiene.index') }}"><i class="bi bi-droplet-half"></i> {{ t('hh.title') }}</a>
+</div>
+
+<form method="post" action="{{ url_for('hand_hygiene.training_save') }}" class="card gc-scale-in" style="margin-bottom:14px;" data-hh-train>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
+    <div class="form-row" style="margin:0;"><label for="user_id">{{ t('hh.person') }}</label>
+      <select class="input" id="user_id" name="user_id" required><option value=""></option>
+        {% for u in staff %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="trained_on">{{ t('hh.trained_on') }}</label><input class="input" type="date" id="trained_on" name="trained_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+    <div class="form-row" style="margin:0;"><label for="trainer">{{ t('hh.trainer') }}</label><input class="input" id="trainer" name="trainer" maxlength="160"></div>
+    <div class="form-row" style="margin:0;"><label for="valid_until">{{ t('hh.valid_until') }}</label><input class="input" type="date" id="valid_until" name="valid_until"></div>
+  </div>
+  <button class="btn btn-primary gc-press" type="submit" style="margin-top:12px;">{{ t('common.save') }}</button>
+</form>
+
+<div class="card" style="overflow-x:auto;" data-hh-training-board>
+  <table class="table" style="min-width:560px;"><thead><tr><th>{{ t('hh.person') }}</th><th>{{ t('hh.trained_on') }}</th><th>{{ t('hh.trainer') }}</th><th>{{ t('hh.valid_until') }}</th></tr></thead>
+  <tbody>{% for r in rows %}<tr data-hh-trained="{{ r.user.id }}" data-state="{{ r.state }}">
+    <td>{{ r.user.display_name(current_lang) }}
+      {% if r.state == 'never' %}<span class="badge badge--warn">{{ t('hh.never_trained') }}</span>{% elif r.state == 'lapsed' %}<span class="badge badge--danger">{{ t('hh.lapsed') }}</span>{% endif %}</td>
+    <td dir="ltr">{{ r.last.trained_on.isoformat() if r.last else '—' }}</td>
+    <td>{{ (r.last.trainer if r.last else None) or '—' }}</td>
+    <td dir="ltr">{{ r.last.valid_until.isoformat() if r.last and r.last.valid_until else '—' }}</td></tr>{% endfor %}</tbody></table>
+</div>
+{% endblock %}
