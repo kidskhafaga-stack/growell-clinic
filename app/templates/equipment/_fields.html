@@ -1,0 +1,29 @@
+{# The fields of a piece of equipment — new or edited. `row` may be undefined. #}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+  <div class="form-row" style="margin:0;"><label for="e_name">{{ t('equip.name') }}</label><input class="input" id="e_name" name="name" maxlength="160" required value="{{ row.name if row else '' }}"></div>
+  <div class="form-row" style="margin:0;"><label for="e_cat">{{ t('equip.category') }}</label><input class="input" id="e_cat" name="category" maxlength="80" placeholder="{{ t('equip.category_ph') }}" value="{{ row.category or '' if row else '' }}"></div>
+  <div class="form-row" style="margin:0;"><label for="e_loc">{{ t('equip.location') }}</label><input class="input" id="e_loc" name="location" maxlength="160" value="{{ row.location or '' if row else '' }}"></div>
+  <div class="form-row" style="margin:0;"><label for="e_man">{{ t('equip.manufacturer') }}</label><input class="input" id="e_man" name="manufacturer" maxlength="120" value="{{ row.manufacturer or '' if row else '' }}"></div>
+  <div class="form-row" style="margin:0;"><label for="e_model">{{ t('equip.model') }}</label><input class="input" id="e_model" name="model" maxlength="120" value="{{ row.model or '' if row else '' }}"></div>
+  <div class="form-row" style="margin:0;"><label for="e_sn">{{ t('equip.serial') }}</label><input class="input" id="e_sn" name="serial_number" maxlength="80" dir="ltr" value="{{ row.serial_number or '' if row else '' }}"></div>
+  <div class="form-row" style="margin:0;"><label for="e_tag">{{ t('equip.asset_tag') }}</label><input class="input" id="e_tag" name="asset_tag" maxlength="60" dir="ltr" value="{{ row.asset_tag or '' if row else '' }}"></div>
+  <div class="form-row" style="margin:0;"><label for="e_co">{{ t('equip.company') }}</label><input class="input" id="e_co" name="company" maxlength="160" value="{{ row.company or '' if row else '' }}"></div>
+  <div class="form-row" style="margin:0;"><label for="e_cc">{{ t('equip.company_contact') }}</label><input class="input" id="e_cc" name="company_contact" maxlength="160" value="{{ row.company_contact or '' if row else '' }}"></div>
+  <div class="form-row" style="margin:0;"><label for="e_inst">{{ t('equip.installed_on') }}</label><input class="input" type="date" id="e_inst" name="installed_on" value="{{ row.installed_on.isoformat() if row and row.installed_on else '' }}"></div>
+  <div class="form-row" style="margin:0;"><label for="e_ppm">{{ t('equip.ppm_every') }}</label><input class="input" type="number" min="1" max="3650" dir="ltr" id="e_ppm" name="ppm_every_days" value="{{ row.ppm_every_days or '' if row else '' }}"></div>
+  <div class="form-row" style="margin:0;"><label for="e_cal">{{ t('equip.cal_every') }}</label><input class="input" type="number" min="1" max="3650" dir="ltr" id="e_cal" name="calibration_every_days" value="{{ row.calibration_every_days or '' if row else '' }}"></div>
+  <div class="form-row" style="margin:0;"><label for="e_dev">{{ t('equip.device_link') }}</label>
+    <select class="input" id="e_dev" name="medical_device_id"><option value="">—</option>{% for d in devices %}<option value="{{ d.id }}" {{ 'selected' if row and row.medical_device_id == d.id else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}</select></div>
+</div>
+<div class="form-row" style="margin:10px 0 0;"><label for="e_test">{{ t('equip.installation_test') }}</label><input class="input" id="e_test" name="installation_test" maxlength="400" dir="auto" value="{{ row.installation_test or '' if row else '' }}"></div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+  <label style="display:inline-flex;gap:6px;align-items:center;"><input type="checkbox" name="is_critical" value="1" {{ 'checked' if row and row.is_critical else '' }}> {{ t('equip.is_critical') }}</label>
+  <div class="form-row" style="margin:0;flex:1;min-width:200px;"><label for="e_backup">{{ t('equip.backup') }}</label><input class="input" id="e_backup" name="backup" maxlength="200" dir="auto" value="{{ row.backup or '' if row else '' }}"></div>
+</div>
+<fieldset style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:12px 0 0;">
+  <legend style="padding:0 6px;font-weight:600;">{{ t('equip.alarm_title') }} <span class="hint" dir="ltr">CSS.02</span></legend>
+  <label style="display:inline-flex;gap:6px;align-items:center;"><input type="checkbox" name="has_critical_alarm" value="1" {{ 'checked' if row and row.has_critical_alarm else '' }}> {{ t('equip.has_alarm') }}</label>
+  <div class="form-row" style="margin:8px 0 0;"><label for="e_set">{{ t('equip.alarm_settings') }}</label><textarea class="input" id="e_set" name="alarm_settings" rows="2" maxlength="4000" dir="auto" placeholder="{{ t('equip.alarm_settings_ph') }}">{{ row.alarm_settings or '' if row else '' }}</textarea></div>
+  <div class="form-row" style="margin:8px 0 0;max-width:220px;"><label for="e_at">{{ t('equip.alarm_test_every') }}</label><input class="input" type="number" min="1" max="3650" dir="ltr" id="e_at" name="alarm_test_every_days" value="{{ row.alarm_test_every_days or '' if row else '' }}"></div>
+</fieldset>
+<p class="hint" style="margin:8px 0 0;">{{ t('equip.interval_hint') }}</p>

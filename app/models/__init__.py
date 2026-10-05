@@ -312,6 +312,8 @@ from app.models.lab_reference import (RANGE_KINDS, RANGE_SEXES, LabAnalyte,
                                        ReferralInvoice, ReferralLabPrice,
                                        SampleRejection, SpecimenStore)
 from app.models.unit_staff import BreakGlass, UnitStaff
+from app.models.equipment import (Equipment, EquipmentEvent,
+                                  EquipmentTraining)
 from app.models.med_storage import (OutageDecision, PowerOutage,
                                     StorageArea, StorageInspection,
                                     TempReading)
@@ -721,6 +723,9 @@ __all__ = [
     "EqaRound",
     "PoctDevice",
     "PoctOperator",
+    "Equipment",
+    "EquipmentEvent",
+    "EquipmentTraining",
     "LabCompetency",
     "StorageArea",
     "StorageInspection",

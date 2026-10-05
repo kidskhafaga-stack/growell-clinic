@@ -15,6 +15,8 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('inventory.documents') }}"><i class="bi bi-journals"></i> {{ t('storedocs.title') }}</a>
     {# GAHAR MMS.04 — the lots expired or near, and where medicines are kept. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.storage_expiry') }}" data-to-expiry><i class="bi bi-calendar-x"></i> {{ t('med_store.expiry_title') }}</a>
+    {# The medical equipment register (GAHAR EFS.10 / CSS.02). #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('equipment.index') }}" data-to-equipment><i class="bi bi-tools"></i> {{ t('equip.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('inventory.warehouses') }}"><i class="bi bi-buildings"></i> {{ t('warehouses.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('inventory.lookups') }}"><i class="bi bi-list-ul"></i> {{ t('lookups.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('inventory.index') }}"><i class="bi bi-shield-plus"></i> {{ t('inventory.title') }}</a>

@@ -1,0 +1,53 @@
+{% extends "shell.html" %}
+{% set active_module = 'equipment' %}
+{% block title %}{{ t('equip.title') }}{% endblock %}
+{% block page_heading %}{{ t('equip.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR EFS.10 / GSR.27 and CSS.02 / GSR.08 — every piece of medical
+   equipment: out of service or overdue first, then the critical ones. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-tools"></i> {{ t('equip.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('equip.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('equipment.incidents') }}" data-to-incidents><i class="bi bi-exclamation-octagon"></i> {{ t('equip.incidents_title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('equipment.index', retired=None if show_retired else '1') }}">{{ t('equip.hide_retired') if show_retired else t('equip.show_retired') }}</a>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="overflow-x:auto;margin-bottom:14px;" data-equipment-board>
+  {% if not rows %}<p class="hint" style="margin:0;">{{ t('equip.none') }}</p>{% else %}
+  <table class="table" style="min-width:720px;">
+    <thead><tr><th>{{ t('equip.name') }}</th><th>{{ t('equip.location') }}</th><th>{{ t('equip.status') }}</th><th>{{ t('equip.k_ppm') }}</th><th>{{ t('equip.k_calibration') }}</th><th>{{ t('equip.k_alarm_test') }}</th></tr></thead>
+    <tbody>
+    {% for r in rows %}{% set e = r.equipment %}
+    <tr data-equipment="{{ e.id }}" data-status="{{ e.status }}">
+      <td><a href="{{ url_for('equipment.view', equipment_id=e.id) }}">{{ e.name }}</a>
+        {% if e.is_critical %}<span class="badge badge--danger" title="{{ t('equip.is_critical') }}">{{ t('equip.critical') }}</span>{% endif %}
+        {% if e.category %}<div class="hint">{{ e.category }}{% if e.serial_number %} · <bdi dir="ltr">{{ e.serial_number }}</bdi>{% endif %}</div>{% endif %}</td>
+      <td>{{ e.location or '—' }}</td>
+      <td><span class="badge {{ 'badge--green' if e.status == 'in_service' else ('badge--danger' if e.status == 'out_of_service' else 'badge--muted') }}">{{ t('equip.s_' ~ e.status) }}</span></td>
+      {% for k in ('ppm', 'calibration', 'alarm_test') %}
+      <td>{% set c = r.checks.get(k) %}
+        {% if c is none %}—{% elif c.state == 'overdue' %}<span class="badge badge--danger" data-overdue="{{ k }}">{{ c.on.isoformat() }}</span>
+        {% elif c.state == 'never' %}<span class="badge badge--warn" data-never="{{ k }}">{{ t('equip.never') }}</span>
+        {% elif c.state == 'ok' %}<span dir="ltr">{{ c.on.isoformat() }}</span>{% else %}<span class="hint">—</span>{% endif %}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+{% if may_manage %}
+<form method="post" action="{{ url_for('equipment.save') }}" class="card gc-scale-in" data-new-equipment>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin-top:0;">{{ t('equip.new') }}</h2>
+  {% include "equipment/_fields.html" %}
+  <button class="btn btn-primary gc-press" type="submit" style="margin-top:12px;">{{ t('common.save') }}</button>
+</form>
+{% endif %}
+{% endblock %}
