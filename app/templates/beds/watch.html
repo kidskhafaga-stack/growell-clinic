@@ -11,6 +11,9 @@
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
   {# The ward's fridge and cupboard are read here too (GAHAR MMS.04). #}
+  {# A broken pump or an alarm that went off is reported from the ward too. #}
+  <a class="btn btn-outline gc-press" href="{{ url_for('equipment.index') }}" data-to-equipment>
+    <i class="bi bi-tools"></i> {{ t('equip.title') }}</a>
   <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.storage') }}" data-to-storage>
     <i class="bi bi-thermometer-snow"></i> {{ t('med_store.title') }}</a>
   <a class="btn btn-outline gc-press" href="{{ url_for('beds.index') }}">

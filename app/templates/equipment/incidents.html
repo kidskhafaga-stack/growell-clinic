@@ -1,0 +1,34 @@
+{% extends "shell.html" %}
+{% set active_module = 'equipment' %}
+{% block title %}{{ t('equip.incidents_title') }}{% endblock %}
+{% block page_heading %}{{ t('equip.incidents_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR EFS.10 evidence 6 and CSS.02 evidence 5 — malfunctions, adverse
+   incidents and alarm events in a period, each with what was done. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-exclamation-octagon"></i> {{ t('equip.incidents_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('equip.incidents_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('equipment.index') }}"><i class="bi bi-tools"></i> {{ t('equip.title') }}</a>
+</div>
+<form method="get" action="{{ url_for('equipment.incidents') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+  <div class="form-row" style="margin:0;"><label for="from">{{ t('lab_reception.from') }}</label><input class="input" type="date" id="from" name="from" value="{{ start.isoformat() }}"></div>
+  <div class="form-row" style="margin:0;"><label for="to">{{ t('lab_reception.to') }}</label><input class="input" type="date" id="to" name="to" value="{{ end.isoformat() }}"></div>
+  <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('lab_reception.show') }}</button>
+</form>
+<div class="card gc-scale-in" style="overflow-x:auto;" data-incident-list>
+  {% if not rows %}<p class="hint" style="margin:0;">{{ t('equip.no_incidents') }}</p>{% else %}
+  <table class="table" style="min-width:640px;">
+    <thead><tr><th>{{ t('equip.when') }}</th><th>{{ t('equip.name') }}</th><th>{{ t('equip.kind') }}</th><th>{{ t('equip.details') }}</th><th>{{ t('equip.action') }}</th></tr></thead>
+    <tbody>{% for ev in rows %}
+    <tr data-incident="{{ ev.id }}"><td>{{ ev.at|clinic_stamp }}</td>
+      <td><a href="{{ url_for('equipment.view', equipment_id=ev.equipment_id) }}">{{ ev.equipment.name }}</a></td>
+      <td><span class="badge badge--danger">{{ t('equip.k_' ~ ev.kind) }}</span></td>
+      <td dir="auto">{{ ev.details }}</td>
+      <td dir="auto">{{ ev.action or '—' }}{% if ev.reported_to %}<div class="hint">{{ t('equip.reported_to') }}: {{ ev.reported_to }}</div>{% endif %}</td></tr>
+    {% endfor %}</tbody></table>
+  {% endif %}
+</div>
+{% endblock %}

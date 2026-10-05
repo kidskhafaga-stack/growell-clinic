@@ -1,0 +1,128 @@
+{% extends "shell.html" %}
+{% set active_module = 'equipment' %}
+{% block title %}{{ row.name }}{% endblock %}
+{% block page_heading %}{{ t('equip.title') }}{% endblock %}
+
+{% block content %}
+{# One piece of equipment: its identification card, what is due, the
+   history of checks, malfunctions, incidents and alarms, and who is trained
+   on it — GAHAR EFS.10 evidence 4–6, CSS.02 evidence 4–5. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-tools"></i> {{ row.name }}
+      <span class="badge {{ 'badge--green' if row.status == 'in_service' else ('badge--danger' if row.status == 'out_of_service' else 'badge--muted') }}" data-status="{{ row.status }}">{{ t('equip.s_' ~ row.status) }}</span>
+      {% if row.is_critical %}<span class="badge badge--danger">{{ t('equip.critical') }}</span>{% endif %}</h1>
+    <p class="page-sub" style="margin:0;">{{ row.category or '' }}{% if row.location %} · {{ row.location }}{% endif %}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('equipment.index') }}"><i class="bi bi-list-ul"></i> {{ t('equip.title') }}</a>
+</div>
+
+{% if broken %}
+<div class="card gc-scale-in" style="border-color:var(--danger);margin-bottom:14px;" data-broken>
+  <strong><i class="bi bi-exclamation-triangle"></i> {{ t('equip.broken_since', when=broken.at|clinic_stamp) }}</strong>
+  <div dir="auto">{{ broken.details }}</div>{% if broken.action %}<div class="hint" dir="auto">{{ broken.action }}</div>{% endif %}
+</div>
+{% endif %}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-id-card>
+  <div class="info-grid">
+    <div class="info-item"><div class="k">{{ t('equip.manufacturer') }} / {{ t('equip.model') }}</div><div class="v">{{ row.manufacturer or '—' }} {{ row.model or '' }}</div></div>
+    <div class="info-item"><div class="k">{{ t('equip.serial') }}</div><div class="v" dir="ltr">{{ row.serial_number or '—' }}{% if row.asset_tag %} · {{ row.asset_tag }}{% endif %}</div></div>
+    <div class="info-item"><div class="k">{{ t('equip.company') }}</div><div class="v">{{ row.company or '—' }}{% if row.company_contact %} · <bdi>{{ row.company_contact }}</bdi>{% endif %}</div></div>
+    <div class="info-item"><div class="k">{{ t('equip.installed_on') }}</div><div class="v">{{ row.installed_on.isoformat() if row.installed_on else '—' }}{% if row.installation_test %}<div class="hint" dir="auto">{{ row.installation_test }}</div>{% endif %}</div></div>
+    {% if row.is_critical %}<div class="info-item"><div class="k">{{ t('equip.backup') }}</div><div class="v" dir="auto">{{ row.backup or '—' }}</div></div>{% endif %}
+    {% if row.device %}<div class="info-item"><div class="k">{{ t('equip.device_link') }}</div><div class="v">{{ row.device.display_name(current_lang) }}</div></div>{% endif %}
+  </div>
+  {% if row.has_critical_alarm %}
+  <div style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px;" data-alarm-settings>
+    <strong>{{ t('equip.alarm_settings') }}</strong>
+    <div style="white-space:pre-line;" dir="auto">{{ row.alarm_settings }}</div>
+  </div>
+  {% endif %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;" data-checks>
+    {% for k in scheduled if k != 'alarm_test' or row.has_critical_alarm %}{% set c = checks[k] %}
+    <span class="badge {{ 'badge--danger' if c.state == 'overdue' else ('badge--warn' if c.state == 'never' else 'badge--muted') }}" data-check="{{ k }}" data-state="{{ c.state }}">
+      {{ t('equip.k_' ~ k) }}: {% if c.on %}<bdi dir="ltr">{{ c.on.isoformat() }}</bdi>{% elif c.state == 'never' %}{{ t('equip.never') }}{% else %}{{ t('equip.no_interval') }}{% endif %}</span>
+    {% endfor %}
+  </div>
+</div>
+
+{% if row.status != 'retired' %}
+<form method="post" action="{{ url_for('equipment.event', equipment_id=row.id) }}" class="card gc-scale-in" id="event" style="margin-bottom:14px;" data-event-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin-top:0;">{{ t('equip.record_event') }}</h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <div class="form-row" style="margin:0;"><label for="ev_kind">{{ t('equip.kind') }}</label>
+      <select class="input" id="ev_kind" name="kind" required><option value="">—</option>{% for k in kinds if (k not in ('alarm_test', 'alarm_event')) or row.has_critical_alarm %}<option value="{{ k }}">{{ t('equip.k_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="ev_by">{{ t('equip.done_by') }}</label><input class="input" id="ev_by" name="done_by" maxlength="160"></div>
+    <div class="form-row" style="margin:0;"><label for="ev_res">{{ t('equip.result') }}</label>
+      <select class="input" id="ev_res" name="result"><option value="">—</option>{% for r in results %}<option value="{{ r }}">{{ t('equip.r_' ~ r) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="ev_next">{{ t('equip.next_due') }}</label><input class="input" type="date" id="ev_next" name="next_due"></div>
+  </div>
+  <div class="form-row" style="margin:8px 0 0;"><label for="ev_det">{{ t('equip.details') }}</label><textarea class="input" id="ev_det" name="details" rows="2" maxlength="4000" required dir="auto"></textarea></div>
+  <div class="form-row" style="margin:8px 0 0;"><label for="ev_act">{{ t('equip.action') }}</label><textarea class="input" id="ev_act" name="action" rows="2" maxlength="4000" dir="auto"></textarea></div>
+  <div class="form-row" style="margin:8px 0 0;max-width:360px;"><label for="ev_rep">{{ t('equip.reported_to') }}</label><input class="input" id="ev_rep" name="reported_to" maxlength="160" dir="auto"></div>
+  <p class="hint" style="margin:8px 0 0;">{{ t('equip.event_hint') }}</p>
+  <button class="btn btn-primary gc-press" type="submit" style="margin-top:10px;">{{ t('common.save') }}</button>
+</form>
+{% endif %}
+
+<div class="card gc-scale-in" style="overflow-x:auto;margin-bottom:14px;" data-history>
+  <h2 class="section-title" style="margin-top:0;">{{ t('equip.history') }}</h2>
+  {% if row.events %}
+  <table class="table" style="min-width:640px;">
+    <thead><tr><th>{{ t('equip.when') }}</th><th>{{ t('equip.kind') }}</th><th>{{ t('equip.details') }}</th><th>{{ t('equip.action') }}</th><th>{{ t('equip.done_by') }}</th></tr></thead>
+    <tbody>{% for ev in row.events %}
+    <tr data-event="{{ ev.id }}" data-kind="{{ ev.kind }}">
+      <td>{{ ev.at|clinic_stamp }}</td>
+      <td><span class="badge {{ 'badge--danger' if ev.kind in ('malfunction', 'incident', 'alarm_event') or ev.result == 'fail' else 'badge--muted' }}">{{ t('equip.k_' ~ ev.kind) }}{% if ev.result %} · {{ t('equip.r_' ~ ev.result) }}{% endif %}</span>
+        {% if ev.next_due %}<div class="hint">{{ t('equip.next_due') }}: <bdi dir="ltr">{{ ev.next_due.isoformat() }}</bdi></div>{% endif %}</td>
+      <td dir="auto" style="white-space:pre-line;">{{ ev.details }}</td>
+      <td dir="auto" style="white-space:pre-line;">{{ ev.action or '—' }}{% if ev.reported_to %}<div class="hint">{{ t('equip.reported_to') }}: {{ ev.reported_to }}</div>{% endif %}</td>
+      <td>{{ ev.done_by or '' }}{% if ev.recorder %}<div class="hint">{{ ev.recorder.display_name(current_lang) }}</div>{% endif %}</td>
+    </tr>{% endfor %}</tbody></table>
+  {% else %}<p class="hint" style="margin:0;">{{ t('equip.no_history') }}</p>{% endif %}
+</div>
+
+<div class="card gc-scale-in" style="overflow-x:auto;margin-bottom:14px;" id="training" data-training>
+  <h2 class="section-title" style="margin-top:0;">{{ t('equip.training_title') }}</h2>
+  {% if row.trainings %}
+  <table class="table" style="min-width:520px;">
+    <thead><tr><th>{{ t('equip.person') }}</th><th>{{ t('equip.trained_on') }}</th><th>{{ t('equip.trainer') }}</th><th>{{ t('equip.valid_until') }}</th></tr></thead>
+    <tbody>{% for tr in row.trainings %}
+    <tr data-trained="{{ tr.user_id }}"><td>{{ tr.user.display_name(current_lang) if tr.user else '—' }}{% if tr.user_id in trained and trained[tr.user_id].id == tr.id %} <span class="badge badge--green">{{ t('equip.current') }}</span>{% endif %}</td>
+      <td dir="ltr">{{ tr.trained_on.isoformat() }}</td><td>{{ tr.trainer or '—' }}</td>
+      <td>{% if tr.valid_until %}<span class="{{ 'badge badge--danger' if tr.valid_until < today else '' }}" dir="ltr">{{ tr.valid_until.isoformat() }}</span>{% else %}—{% endif %}</td></tr>
+    {% endfor %}</tbody></table>
+  {% else %}<p class="hint" style="margin:0;">{{ t('equip.no_training') }}</p>{% endif %}
+  {% if may_manage %}
+  <form method="post" action="{{ url_for('equipment.train', equipment_id=row.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;" data-train-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;min-width:180px;"><label for="tr_user">{{ t('equip.person') }}</label>
+      <select class="input" id="tr_user" name="user_id" required><option value="">—</option>{% for u in staff %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="tr_on">{{ t('equip.trained_on') }}</label><input class="input" type="date" id="tr_on" name="trained_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+    <div class="form-row" style="margin:0;"><label for="tr_by">{{ t('equip.trainer') }}</label><input class="input" id="tr_by" name="trainer" maxlength="160"></div>
+    <div class="form-row" style="margin:0;"><label for="tr_until">{{ t('equip.valid_until') }}</label><input class="input" type="date" id="tr_until" name="valid_until"></div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if may_manage %}
+<details class="card gc-scale-in" data-edit-equipment>
+  <summary style="cursor:pointer;font-weight:600;">{{ t('equip.edit') }}</summary>
+  <form method="post" action="{{ url_for('equipment.save', equipment_id=row.id) }}" style="margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% include "equipment/_fields.html" %}
+    <button class="btn btn-primary gc-press" type="submit" style="margin-top:12px;">{{ t('common.save') }}</button>
+  </form>
+  {% if row.status != 'retired' %}
+  <form method="post" action="{{ url_for('equipment.retire', equipment_id=row.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:14px;" data-retire-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;flex:1;min-width:220px;"><label for="rt_reason">{{ t('equip.retire_reason') }}</label><input class="input" id="rt_reason" name="reason" maxlength="200" required dir="auto"></div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('equip.retire') }}</button>
+  </form>
+  {% else %}<p class="hint" style="margin:10px 0 0;">{{ t('equip.retired_line', on=row.retired_on.isoformat() if row.retired_on else '—', why=row.retired_reason or '') }}</p>{% endif %}
+</details>
+{% endif %}
+{% endblock %}
