@@ -1,0 +1,96 @@
+{# One child's handover card — GAHAR ACT.08.
+
+   The pieces are the same whatever tool the hospital uses; the tool decides
+   their order and the headings they sit under (a): SBAR, ISBAR (an Identify
+   step before it), or I-PASS (illness severity, patient summary, action
+   list, situation awareness, and the receiver's synthesis — that last one is
+   on the acceptance form, because the receiver gives it).
+
+   Everything on a card is read off the record; the only slots a person fills
+   are passed in by the caller: what to watch for, and for I-PASS the
+   severity. The child's name and file number head every card, whatever the
+   tool — GSR.01, two identifiers. #}
+
+{% set HANDOVER_LAYOUT = {
+  'sbar': [('S', 'situation', ['situation']), ('B', 'background', ['background']),
+           ('A', 'assessment', ['assessment']), ('R', 'recommendation', ['actions', 'watch'])],
+  'isbar': [('I', 'identify', ['identify']), ('S', 'situation', ['situation']),
+            ('B', 'background', ['background']), ('A', 'assessment', ['assessment']),
+            ('R', 'recommendation', ['actions', 'watch'])],
+  'ipass': [('I', 'illness', ['severity']),
+            ('P', 'patient', ['identify', 'situation', 'background', 'assessment']),
+            ('A', 'actions', ['actions']), ('S', 'awareness', ['watch', 'critical'])],
+} %}
+
+{% macro _both(v) -%}{{ (v[current_lang] or v['ar']) if v else '—' }}{%- endmacro %}
+
+{% macro _piece(name, c, watch_html, severity_html) %}
+{% if name == 'identify' %}
+  <div class="hint" data-piece="identify">
+    {% if c.dob %}<span dir="ltr">{{ c.dob }}</span> · {% endif %}
+    {% if c.age %}{% if c.age[0] %}{{ c.age[0] }} {{ t('patients.years') }} {% endif %}{% if c.age[1] %}{{ c.age[1] }} {{ t('patients.months') }}{% endif %}{% if not c.age[0] and not c.age[1] %}{{ t('patients.newborn') }}{% endif %}{% endif %}
+    {% if c.gender %} · {{ t('genders.' ~ c.gender) }}{% endif %}
+    · {{ t('handover.doctor') }}: {{ _both(c.doctor) }}
+    {% if c.provisional %} · <span class="badge badge--warn">{{ t('er_quick.badge_provisional') }}</span>{% endif %}
+  </div>
+{% elif name == 'situation' %}
+  <div data-piece="situation">
+    {% if c.reason %}<div dir="auto">{{ c.reason }}</div>{% endif %}
+    {% if c.diagnoses %}<div class="hint">{% for d in c.diagnoses %}{{ _both(d) }}{% if not loop.last %} · {% endif %}{% endfor %}</div>{% endif %}
+    {% if not c.reason and not c.diagnoses %}<span class="hint">{{ t('handover.no_reason') }}</span>{% endif %}
+    {% if c.days is not none %}<span class="badge badge--muted">{{ t('handover.day_n', n=c.days + 1) }}</span>{% endif %}
+    {% if c.isolation %}<span class="badge badge--warn">{{ t('handover.isolation') }}</span>{% endif %}
+  </div>
+{% elif name == 'background' %}
+  <div data-piece="background">
+    <div>{{ t('handover.allergies') }}: {% if c.allergies %}<strong style="color:var(--danger);" dir="auto">{{ c.allergies }}</strong>{% else %}<span class="hint">{{ t('handover.none_written') }}</span>{% endif %}</div>
+    {% if c.chronic %}<div>{{ t('handover.chronic') }}: <span dir="auto">{{ c.chronic }}</span></div>{% endif %}
+    {% if c.lines %}<div>{{ t('lines.title') }}: {% for l in c.lines %}{{ t('lines.kind_' ~ l.kind) }}{% if l.site %} ({{ l.site }}){% endif %}{% if l.days is not none %} · {{ t('handover.days_n', n=l.days) }}{% endif %}{% if not loop.last %}، {% endif %}{% endfor %}</div>{% endif %}
+  </div>
+{% elif name == 'assessment' %}
+  <div data-piece="assessment">
+    {% if c.vitals %}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+      {% for kind, pair in c.vitals.items() %}
+      <span class="badge {{ 'badge--danger' if pair[1] == 'bad' else ('badge--warn' if pair[1] == 'warn' else ('badge--green' if pair[1] == 'ok' else 'badge--muted')) }}" dir="ltr">{{ t('handover.vital_' ~ kind) }} {{ pair[0] }}</span>
+      {% endfor %}
+      {% if c.vitals_at %}<span class="hint" dir="ltr">{{ c.vitals_at|replace('T', ' ') }}</span>{% endif %}
+    </div>
+    {% else %}<span class="hint">{{ t('handover.no_vitals') }}</span>{% endif %}
+    {% if c.risks_unassessed %}<div class="hint">{{ t('handover.risks_unassessed') }}: {% for k in c.risks_unassessed %}{{ t('risks.kind_' ~ k) }}{% if not loop.last %}، {% endif %}{% endfor %}</div>{% endif %}
+    {% if c.critical %}<div style="color:var(--danger);" data-piece-critical><i class="bi bi-exclamation-octagon"></i> {{ t('handover.critical_unseen') }}: {% for x in c.critical %}{{ _both(x) }}{% if not loop.last %}، {% endif %}{% endfor %}</div>{% endif %}
+  </div>
+{% elif name == 'actions' %}
+  <div data-piece="actions">
+    {% if c.tests %}<div>{{ t('handover.tests_waiting') }}: {% for x in c.tests %}{{ _both(x.name) }}{% if x.urgent %} <span class="badge badge--danger">{{ t('lab_reception.urgent') }}</span>{% endif %}{% if not loop.last %}، {% endif %}{% endfor %}</div>{% endif %}
+    {% if c.meds %}<div>{{ t('handover.meds') }}: {% for m in c.meds %}<span dir="auto">{{ m.name }}</span>{% if m.level == 'late' %} <span class="badge badge--danger">{{ t('handover.med_late') }}</span>{% elif m.level == 'due' %} <span class="badge badge--warn">{{ t('handover.med_due') }}</span>{% elif m.due_at %} <span class="hint" dir="ltr">{{ m.due_at|replace('T', ' ') }}</span>{% endif %}{% if not loop.last %}، {% endif %}{% endfor %}</div>{% endif %}
+    {% if c.pending %}<div>{{ t('handover.pending_steps') }}: <span dir="auto">{{ c.pending }}</span></div>{% endif %}
+    {% if not c.tests and not c.meds and not c.pending %}<span class="hint">{{ t('handover.nothing_waiting') }}</span>{% endif %}
+  </div>
+{% elif name == 'critical' %}
+  {% if c.critical %}<div style="color:var(--danger);"><i class="bi bi-exclamation-octagon"></i> {{ t('handover.critical_unseen') }}: {% for x in c.critical %}{{ _both(x) }}{% if not loop.last %}، {% endif %}{% endfor %}</div>{% endif %}
+{% elif name == 'watch' %}
+  <div data-piece="watch">{{ watch_html }}</div>
+{% elif name == 'severity' %}
+  <div data-piece="severity">{{ severity_html }}</div>
+{% endif %}
+{% endmacro %}
+
+{% macro card(c, method, watch_html='', severity_html='', anchor=none) %}
+<section class="gc-handover-card" style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px;break-inside:avoid;" {% if anchor %}id="{{ anchor }}"{% endif %} data-handover-card>
+  <header style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline;margin-bottom:8px;">
+    <h3 style="margin:0;font-size:1.05rem;">{{ _both(c.name) }} <span class="hint" dir="ltr">#{{ c.number }}</span></h3>
+    <span class="hint">{{ _both(c.bed) }}{% if c.unit %} · {{ _both(c.unit) }}{% endif %}</span>
+  </header>
+  {% for letter, key, pieces in HANDOVER_LAYOUT.get(method, HANDOVER_LAYOUT['sbar']) %}
+  <div style="display:grid;grid-template-columns:2.2rem 1fr;gap:8px;padding:6px 0;border-top:1px dashed var(--line);" data-section="{{ key }}">
+    <div title="{{ t('handover.sec_' ~ key) }}"><span class="badge badge--muted" style="font-weight:700;">{{ letter }}</span></div>
+    <div>
+      <div class="hint" style="font-size:.8rem;margin-bottom:2px;">{{ t('handover.sec_' ~ key) }}</div>
+      {% for p in pieces %}{{ _piece(p, c, watch_html, severity_html) }}{% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+  {{ caller() if caller else '' }}
+</section>
+{% endmacro %}

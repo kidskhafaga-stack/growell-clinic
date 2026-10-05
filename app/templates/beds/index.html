@@ -142,6 +142,10 @@
        one. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.watch') }}">
       <i class="bi bi-eye"></i> {{ t('watch.title') }}</a>
+    {# GAHAR ACT.08 — shift handover, doctors and nursing, and the children
+       moved between departments waiting to be accepted. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('beds.handovers') }}" data-to-handovers>
+      <i class="bi bi-arrow-left-right"></i> {{ t('handover.to_handovers') }}</a>
     {% if may_build %}
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.setup') }}">
       <i class="bi bi-diagram-3"></i> {{ t('beds.setup') }}</a>

@@ -268,6 +268,16 @@ def move(admission, bed, user=None, note=None, when=None):
                    moved_by=getattr(user, "id", None),
                    note=(note or "").strip()[:120] or None)
     db.session.add(stay)
+    # GAHAR ACT.08 (ب): a move into another department is a handover between
+    # levels of care — opened here, so every door that moves a child (the
+    # bed screen, the emergency decision) opens one, and accepted by the
+    # department that took the child. The move itself waits for nobody.
+    if current is not None:
+        from app.utils import handover
+
+        db.session.flush()
+        handover.on_move(admission, current.bed, bed, user=user, note=note,
+                         at=now)
     return stay
 
 

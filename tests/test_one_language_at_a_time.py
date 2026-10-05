@@ -119,6 +119,9 @@ def test_the_arabic_file_is_actually_in_arabic():
         # way the console and every radiation report write them, in Arabic
         # hospitals too; an Arabic rendering would match nothing on the
         # screen the radiographer is copying from (`utils/radiation`).
+        # The handover tools GAHAR ACT.08 (a) names — acronyms an Arabic
+        # hospital's policy writes exactly this way.
+        "handover.method_sbar", "handover.method_isbar", "handover.method_ipass",
         "radiation.kind_dlp", "radiation.kind_ctdi", "radiation.kind_dap",
         "radiation.u_mgycm", "radiation.u_gycm", "radiation.u_mgy", "radiation.u_gy", "radiation.u_ugy", "radiation.u_mgycm2", "radiation.u_gycm2", "radiation.u_dgycm2", "radiation.u_cgycm2", "radiation.u_ugym2", "radiation.u_ugycm2", "radiation.u_mgym2", "radiation.u_msv", "radiation.u_usv", "radiation.u_mbq", "radiation.u_gbq", "radiation.u_mci",
     }

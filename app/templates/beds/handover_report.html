@@ -1,0 +1,70 @@
+{% extends "shell.html" %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('handover.report_title') }}{% endblock %}
+{% block page_heading %}{{ t('handover.report_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ACT.08 evidence 5 — the data the hospital monitors. Counted, never
+   judged against a number the hospital did not write: "short days" appear
+   only for a kind of handover the hospital gave a number of shifts. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-bar-chart-line"></i> {{ t('handover.report_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('handover.report_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('beds.handovers') }}"><i class="bi bi-arrow-left-right"></i> {{ t('handover.title') }}</a>
+</div>
+<form method="get" action="{{ url_for('beds.handover_report') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+  <div class="form-row" style="margin:0;"><label for="from">{{ t('lab_reception.from') }}</label><input class="input" type="date" id="from" name="from" value="{{ start.isoformat() }}"></div>
+  <div class="form-row" style="margin:0;"><label for="to">{{ t('lab_reception.to') }}</label><input class="input" type="date" id="to" name="to" value="{{ end.isoformat() }}"></div>
+  <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('lab_reception.show') }}</button>
+</form>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;overflow-x:auto;" data-handover-groups>
+  {% if not data.groups %}<p class="hint" style="margin:0;" data-no-handovers>{{ t('handover.report_none') }}</p>{% else %}
+  <table class="table" style="min-width:680px;font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('handover.unit') }}</th><th>{{ t('handover.kind') }}</th><th>{{ t('handover.col_count') }}</th><th>{{ t('handover.col_accepted') }}</th><th>{{ t('handover.col_median') }}</th><th>{{ t('handover.col_slowest') }}</th><th>{{ t('handover.col_questions') }}</th></tr></thead>
+    <tbody>
+    {% for g in data.groups %}
+    <tr data-group-row="{{ g.unit.id if g.unit else 0 }}-{{ g.kind }}">
+      <td>{{ g.unit.display_name(current_lang) if g.unit else t('handover.all_units') }}</td>
+      <td>{{ t('handover.kind_' ~ g.kind) }} <span class="hint">({% for m in g.method %}{{ t('handover.method_' ~ m) }}{% if not loop.last %}، {% endif %}{% endfor %})</span></td>
+      <td>{{ g.count }}</td>
+      <td>{% if g.accepted < g.count %}<span class="badge badge--warn">{{ g.accepted }}</span>{% else %}{{ g.accepted }}{% endif %}</td>
+      <td>{{ t('handover.min', n=g.median) if g.median is not none else '—' }}</td>
+      <td>{{ t('handover.min', n=g.slowest) if g.slowest is not none else '—' }}</td>
+      <td>{{ g.questions }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;overflow-x:auto;" data-short-days>
+  <h2 class="section-title" style="margin-top:0;">{{ t('handover.short_title') }}</h2>
+  {% if not per_day.medical and not per_day.nursing %}<p class="hint" style="margin:0;" data-no-per-day>{{ t('handover.short_no_number') }}</p>
+  {% elif not data.short_days %}<p class="hint" style="margin:0;">{{ t('handover.short_none') }}</p>
+  {% else %}
+  <table class="table" style="min-width:520px;font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('handover.col_day') }}</th><th>{{ t('handover.unit') }}</th><th>{{ t('handover.kind') }}</th><th>{{ t('handover.col_done') }}</th></tr></thead>
+    <tbody>
+    {% for s in data.short_days %}
+    <tr data-short-row><td dir="ltr">{{ s.day.isoformat() }}</td><td>{{ s.unit.display_name(current_lang) }}</td><td>{{ t('handover.kind_' ~ s.kind) }}</td><td>{{ s.done }} / {{ s.expected }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="overflow-x:auto;" data-report-waiting>
+  <h2 class="section-title" style="margin-top:0;">{{ t('handover.report_waiting') }}</h2>
+  {% if not data.waiting %}<p class="hint" style="margin:0;">{{ t('handover.report_waiting_none') }}</p>{% else %}
+  <ul style="margin:0;padding-inline-start:18px;">
+    {% for row in data.waiting %}
+    <li><a href="{{ url_for('beds.handover_view', handover_id=row.id) }}">{{ t('handover.kind_' ~ (row.discipline or 'transfer')) }} · {{ row.unit.display_name(current_lang) if row.unit else t('handover.all_units') }}</a> <span class="hint">— {{ row.handed_at|clinic_stamp }}</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endblock %}
