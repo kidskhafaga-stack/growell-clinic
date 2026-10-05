@@ -1699,7 +1699,10 @@
     "vb_ok_low": "Usual from",
     "vb_ok_high": "Usual to",
     "vb_warn_low": "Tolerated from",
-    "vb_warn_high": "Tolerated to"
+    "vb_warn_high": "Tolerated to",
+    "ai_boards_section": "The assistant on the medical and management boards",
+    "ai_boards": "Let the assistant read the medical and management boards",
+    "ai_boards_hint": "It is sent the board's totals only: counts, diagnoses, departments and money. No child's name or file number, and doctors as codes whose names are put back on the screen. The reply is not saved."
   },
   "errors": {
     "403_title": "Forbidden",
@@ -2799,7 +2802,13 @@
     "dx_off_provider": "AI diagnosis suggestions need an AI provider configured first, in Settings → AI.",
     "dx_off_where": "Open settings",
     "dx_classified_as": "the classification calls it",
-    "err_unsupported_part": "This provider is not set up here to read this kind of file. Take a photo of the paper (JPG or PNG) and upload it, or choose Claude in the AI settings to read PDFs."
+    "err_unsupported_part": "This provider is not set up here to read this kind of file. Take a photo of the paper (JPG or PNG) and upload it, or choose Claude in the AI settings to read PDFs.",
+    "err_boards_off": "The assistant on the boards is off — turn it on in the AI settings.",
+    "feature_board_read": "Reading the boards",
+    "feature_discussion": "Case discussion",
+    "feature_dx_suggest": "Diagnosis suggestions",
+    "feature_lab_read": "Reading a lab paper",
+    "feature_rx_find": "Finding a drug"
   },
   "rx": {
     "title": "Drugs & Prescriptions",
@@ -10773,5 +10782,15 @@
     "err_need_outcome": "Choose the outcome.",
     "err_need_code": "Write the code's name.",
     "err_not_a_code": "That is not a call code."
+  },
+  "board_ai": {
+    "title": "The assistant reads the board",
+    "read": "Read the period",
+    "ask": "Ask",
+    "ask_ph": "Ask about this period's figures… e.g. why did visits drop?",
+    "privacy": "Only the board's totals are sent — no child's name or file number, and doctors as codes. The reply is not saved.",
+    "from_assistant": "The assistant's reading — check it before relying on it",
+    "off_hint": "The assistant can read this board and answer questions about its figures.",
+    "turn_on": "Turn it on in the AI settings"
   }
 }

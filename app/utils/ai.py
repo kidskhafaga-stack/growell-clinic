@@ -824,6 +824,7 @@ ERROR_KEYS = {
     # switches are two decisions and pointing somebody at the wrong one costs
     # them a settings screen and a guess.
     "discussion_disabled": "ai.err_discussion_off",
+    "boards_disabled": "ai.err_boards_off",
     "err_request": "ai.err_request",
     "err_key": "ai.err_key",
     "err_model": "ai.err_model",

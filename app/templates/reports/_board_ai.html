@@ -1,0 +1,37 @@
+{# The assistant on a board — utils/board_ai. It is sent the figures this
+   board shows and nothing a child can be found by; doctors go as codes and
+   come back with their names. Its reply is shown here once and kept nowhere. #}
+{% if ai_board %}
+{% if ai_endpoint == 'reports.management_board_ai' %}{% set ai_action = url_for('reports.management_board_ai', **request.args) %}
+{% else %}{% set ai_action = url_for('reports.medical_board_ai', **request.args) %}{% endif %}
+<form method="post" action="{{ ai_action }}" class="card gc-scale-in" style="margin-bottom:16px;" data-board-ai>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <strong><i class="bi bi-stars"></i> {{ t('board_ai.title') }}</strong>
+    <span style="flex:1;"></span>
+    <button class="btn btn-outline gc-press" type="submit" name="read" value="1" data-board-ai-read><i class="bi bi-magic"></i> {{ t('board_ai.read') }}</button>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+    <input class="input" name="question" maxlength="400" dir="auto" style="flex:1;min-width:220px;"
+           placeholder="{{ t('board_ai.ask_ph') }}" value="{{ ai_reply.question if ai_reply and ai_reply.question else '' }}" aria-label="{{ t('board_ai.ask') }}">
+    <button class="btn btn-primary gc-press" type="submit" name="ask" value="1" data-board-ai-ask><i class="bi bi-send"></i> {{ t('board_ai.ask') }}</button>
+  </div>
+  <p class="hint" style="margin:8px 0 0;"><i class="bi bi-shield-check"></i> {{ t('board_ai.privacy') }}</p>
+  {% if ai_reply %}
+    {% if ai_reply.ok %}
+    <div style="margin-top:12px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2, transparent);" data-board-ai-reply>
+      <div class="hint" style="margin:0 0 6px;"><i class="bi bi-robot"></i> {{ t('board_ai.from_assistant') }}</div>
+      <div style="white-space:pre-line;line-height:1.7;" dir="auto">{{ ai_reply.text }}</div>
+    </div>
+    {% else %}
+    <p class="alert-pill warn" style="margin:12px 0 0;" data-board-ai-error>{{ ai_reply.message }}</p>
+    {% endif %}
+  {% endif %}
+</form>
+{% else %}
+{% if ai_reply and not ai_reply.ok %}<p class="alert-pill warn" style="margin:0 0 12px;" data-board-ai-error>{{ ai_reply.message }}</p>{% endif %}
+{% if current_user.is_admin %}
+<p class="hint" style="margin:0 0 16px;" data-board-ai-off><i class="bi bi-stars"></i> {{ t('board_ai.off_hint') }}
+  <a href="{{ url_for('settings.index') }}?tab=ai">{{ t('board_ai.turn_on') }}</a></p>
+{% endif %}
+{% endif %}

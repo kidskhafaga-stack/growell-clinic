@@ -211,8 +211,20 @@ def phones_save():
 @patients_bp.route("/analytics")
 @module_required(MODULE)
 def analytics():
-    """Patient analytics: gender / age distribution + top diagnoses in a period."""
+    """Patient analytics: gender / age distribution + top diagnoses in a period.
+
+    **Replaced by the medical board** for whoever can open the reports —
+    asked as «البورد الطبي بدل تحليل المرضى», built under the reports, and
+    then reported as «مش شايف التعديل» because every door here still opened
+    this page. The doors stay where people know them; this sends them on.
+    Somebody without the reports keeps the page they had.
+    """
     from datetime import datetime, timedelta
+
+    if current_user.can_open("reports"):
+        preset = {30: "30", 90: "90", 365: "year"}.get(
+            request.args.get("days", type=int))
+        return redirect(url_for("reports.medical_board", preset=preset))
 
     from sqlalchemy import func
 
