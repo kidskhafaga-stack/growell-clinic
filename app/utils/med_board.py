@@ -27,8 +27,19 @@ from app.extensions import db
 
 PRESETS = ("7", "30", "month", "90", "year")
 DEFAULT_PRESET = "30"
-#: The age groups the program already reports by (``reports.AGE_BUCKETS``).
-AGE_BUCKETS = ["<1", "1-2", "2-5", "5-12", "12+"]
+#: The clinic's own age groups — the ones the patient analytics page always
+#: used and the clinic built («الفئات العمرية الى كنت عاملها بمفتاحها»):
+#: the first month, infant, toddler, school age, adolescent, over age, each
+#: with its definition in ``agegrp.<key>_def``. One list, read from
+#: ``main.routes.AGE_GROUPS``, so the board and every other screen agree.
+def age_groups():
+    from app.blueprints.main.routes import AGE_GROUPS
+
+    return AGE_GROUPS
+
+
+def age_keys():
+    return [key for key, _upper in age_groups()]
 #: How many cases a drill-down shows per page.
 CASES_PER_PAGE = 25
 #: "Came back within a week": the same child seen again within this many days.
@@ -223,19 +234,15 @@ def _cases_query(d_from, d_to, key):
 
 
 def _bucket(born, on):
-    """The child's age group on the day they were seen."""
-    if born is None:
+    """The child's age group on the day they were seen — the clinic's own
+    groups, by days of life as the analytics page always counted them."""
+    if born is None or on is None:
         return None
-    years = on.year - born.year - ((on.month, on.day) < (born.month, born.day))
-    if years < 1:
-        return "<1"
-    if years < 2:
-        return "1-2"
-    if years < 5:
-        return "2-5"
-    if years < 12:
-        return "5-12"
-    return "12+"
+    days = (on - born).days
+    for key, upper in age_groups():
+        if upper is None or days <= upper:
+            return key
+    return age_keys()[-1]
 
 
 def breakdown(d_from, d_to, key):
@@ -251,7 +258,7 @@ def breakdown(d_from, d_to, key):
                                                     Patient.gender).all()):
         ages[_bucket(born, visit_date) or "?"] += 1
         sexes[gender or "?"] += 1
-    return {"ages": [(b, ages.get(b, 0)) for b in AGE_BUCKETS],
+    return {"ages": [(b, ages.get(b, 0)) for b in age_keys()],
             "sexes": dict(sexes), "total": sum(sexes.values())}
 
 
@@ -277,24 +284,36 @@ def all_cases(d_from, d_to, key):
 
 
 # ------------------------------------------------------------- the ages ----
-def ages(d_from, d_to):
-    """``[(bucket, boys, girls, other)]`` — each child once, at the age they
-    were at their first visit in the period."""
+def ages(d_from, d_to, roster=False):
+    """``[(group, boys, girls, other)]`` — each child once, at the age they
+    were at their first visit in the period.
+
+    ``roster`` counts every active file instead, at today's age — the split
+    the old analytics page showed («تقسيمة الحالات»), which is a different
+    question from who was seen in the period."""
     from app.models import Patient, Visit
 
-    first = (db.session.query(Visit.patient_id, db.func.min(Visit.visit_date))
-             .filter(Visit.visit_date >= d_from, Visit.visit_date <= d_to)
-             .group_by(Visit.patient_id).subquery())
-    table = {b: [0, 0, 0] for b in AGE_BUCKETS}
-    for born, gender, seen in (db.session.query(Patient.date_of_birth, Patient.gender,
-                                                first.c[1])
-                               .join(first, first.c.patient_id == Patient.id).all()):
+    table = {b: [0, 0, 0] for b in age_keys()}
+    if roster:
+        from app.utils.clock import local_today
+
+        today = local_today()
+        rows = (db.session.query(Patient.date_of_birth, Patient.gender)
+                .filter(Patient.is_active.is_(True)).all())
+        rows = [(born, gender, today) for born, gender in rows]
+    else:
+        first = (db.session.query(Visit.patient_id, db.func.min(Visit.visit_date))
+                 .filter(Visit.visit_date >= d_from, Visit.visit_date <= d_to)
+                 .group_by(Visit.patient_id).subquery())
+        rows = (db.session.query(Patient.date_of_birth, Patient.gender, first.c[1])
+                .join(first, first.c.patient_id == Patient.id).all())
+    for born, gender, seen in rows:
         bucket = _bucket(born, seen)
         if bucket is None:
             continue
         slot = 0 if gender == "male" else 1 if gender == "female" else 2
         table[bucket][slot] += 1
-    return [(b, *table[b]) for b in AGE_BUCKETS]
+    return [(b, *table[b]) for b in age_keys()]
 
 
 # -------------------------------------------------------------- the wards --

@@ -27,7 +27,7 @@
   <div class="mb-mini"><b>{{ t('board_med.by_age') }}</b>
     {% set top = [1] + d.split.ages|map(attribute=1)|list %}{% set top = top|max %}
     {% for b, n in d.split.ages %}
-    <div><span>{{ t('board_med.age_' ~ loop.index0) }}</span><span class="mb-hbar"><span style="width:{{ (n * 100 / top)|round }}%"></span></span><span class="num">{{ n }}</span></div>
+    <div><span title="{{ t('agegrp.' ~ b ~ '_def') }}">{{ t('agegrp.' ~ b) }}</span><span class="mb-hbar"><span style="width:{{ (n * 100 / top)|round }}%"></span></span><span class="num">{{ n }}</span></div>
     {% endfor %}
   </div>
   <div class="mb-mini"><b>{{ t('board_med.by_sex') }}</b>
@@ -161,7 +161,13 @@
     {% else %}<p class="hint">{{ t('board_med.nothing_rose') }}</p>{% endif %}
     <p class="hint">{{ t('board_med.rising_hint') }}</p>
 
-    <h2 class="section-title mb-h" style="margin-top:16px;">{{ t('board_med.ages') }}</h2>
+    <h2 class="section-title mb-h" style="margin-top:16px;" id="ages">{{ t('board_med.ages_roster') if ages_roster else t('board_med.ages') }}
+      {# The clinic's own groups; seen in the period, or every file today —
+         the split the old analytics page showed. #}
+      <span style="display:inline-flex;gap:4px;margin-inline-start:8px;font-size:.8rem;" data-ages-scope>
+        <a class="badge {{ 'badge--muted' if ages_roster else 'badge--green' }}" href="{{ url_for('reports.medical_board', place=place or None, **q) }}#ages">{{ t('board_med.ages_period') }}</a>
+        <a class="badge {{ 'badge--green' if ages_roster else 'badge--muted' }}" href="{{ url_for('reports.medical_board', place=place or None, ages='all', **q) }}#ages" data-ages-all>{{ t('board_med.ages_all') }}</a>
+      </span></h2>
     {% set peaks = [] %}{% for b, m, f, o in ages %}{% set _ = peaks.append(m + f + o) %}{% endfor %}
     {% set peak = [1, peaks|max]|max %}
     {% set W, H, L, B, T = 360, 170, 10, 30, 14 %}
@@ -173,12 +179,16 @@
         <rect x="{{ x }}" y="{{ H - B - hm }}" width="{{ wd }}" height="{{ hm }}" rx="3" fill="var(--mb-boy)"/>
         <rect x="{{ x }}" y="{{ H - B - hm - hf }}" width="{{ wd }}" height="{{ hf }}" rx="3" fill="var(--mb-girl)"/>
         {% if ho %}<rect x="{{ x }}" y="{{ H - B - hm - hf - ho }}" width="{{ wd }}" height="{{ ho }}" rx="3" fill="var(--muted)"/>{% endif %}
-        <text x="{{ x + wd / 2 }}" y="{{ H - 12 }}" text-anchor="middle">{{ t('board_med.age_' ~ loop.index0) }}</text>
+        <text x="{{ x + wd / 2 }}" y="{{ H - 12 }}" text-anchor="middle">{{ t('agegrp.' ~ b) }}</text>
         <text x="{{ x + wd / 2 }}" y="{{ H - B - hm - hf - ho - 4 }}" text-anchor="middle">{{ m + f + o }}</text>
       {% endfor %}
     </svg>
     <div class="mb-legend"><span><i style="background:var(--mb-boy)"></i>{{ t('genders.male') }}</span><span><i style="background:var(--mb-girl)"></i>{{ t('genders.female') }}</span></div>
-    <p class="hint">{{ t('board_med.ages_hint') }}</p>
+    {# The key: each group and what it means. #}
+    <table class="table" style="margin-top:8px;font-size:.85rem;" data-ages-key>
+      <tbody>{% for b, m, f, o in ages %}<tr><td><b>{{ t('agegrp.' ~ b) }}</b></td><td class="hint">{{ t('agegrp.' ~ b ~ '_def') }}</td><td class="num">{{ m + f + o }}</td></tr>{% endfor %}</tbody>
+    </table>
+    <p class="hint">{{ t('board_med.ages_roster_hint') if ages_roster else t('board_med.ages_hint') }}</p>
   </div>
 </div>
 
@@ -239,7 +249,7 @@
     <select class="input" id="place" name="place" onchange="this.form.submit()">
       <option value="">{{ t('board_med.everywhere') }}</option>
       {% for key, label in places %}
-      <option value="{{ key }}" {{ 'selected' if key == place }}>{{ label.name if label else t('board_med.place_' ~ key) }}</option>
+      <option value="{{ key }}" {{ 'selected' if key == place }}>{{ label.display_name(current_lang) if label else t('board_med.place_' ~ key) }}</option>
       {% endfor %}
     </select>
     <noscript><button class="btn btn-outline btn-sm" type="submit">{{ t('board_med.show') }}</button></noscript>

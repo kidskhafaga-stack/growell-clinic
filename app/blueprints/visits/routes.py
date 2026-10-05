@@ -2239,6 +2239,14 @@ def study_new(patient_id):
     from app.utils import device_board
 
     patient = db.get_or_404(Patient, patient_id)
+    # A quick registration that already had its one service: the missing
+    # details first, where the clinic switched that on
+    # (`utils/patient_basics.needs_completion`).
+    from app.utils import patient_basics as _basics
+
+    if _basics.needs_completion(patient):
+        return redirect(url_for("basics.window_page", patient_id=patient.id,
+                                next=request.full_path.rstrip("?")))
     devices = (MedicalDevice.query.filter_by(is_active=True)
                .order_by(MedicalDevice.name).all())
     # **The order this study answers**, when it came from the device board —
@@ -2339,7 +2347,15 @@ def device_board():
     from app.utils import labs as bench
 
     rows = board.rows()
-    return render_template("visits/device_board.html", rows=rows,
+    # The search that found several children, or none — listed here with the
+    # quick registration beside it.
+    from app.models import Patient
+    from app.utils.patients import apply_patient_search
+
+    q = (request.args.get("q") or "").strip()[:80]
+    found = (apply_patient_search(Patient.query.filter(Patient.is_active.is_(True)), q)
+             .order_by(Patient.full_name).limit(20).all() if q else [])
+    return render_template("visits/device_board.html", rows=rows, q=q, found=found,
                            beds=bench.beds_of(rows), bench=bench,
                            board=board, now=datetime.utcnow(),
                            # Never a blank page: what was done lately, and —
@@ -2351,16 +2367,50 @@ def device_board():
 @module_required(MODULE)
 def device_start():
     """A study with no order — the child in front of the echo now: found by
-    their file number, and the study's form opened for them."""
+    file number, name or phone, the same search every other desk uses
+    («نوحد طريقة البحث»). One child found opens the study's form; several
+    are listed to choose from; none offers the quick registration."""
     from app.models import Patient
+    from app.utils.patients import apply_patient_search
 
-    number = (request.args.get("number") or "").strip()
-    patient = (Patient.query.filter(db.or_(Patient.patient_number == number,
-                                           Patient.reference_number == number))
-               .first() if number else None)
-    if patient is None:
-        flash(t("device_board.no_such_file", number=number[:30]), "warning")
+    q = (request.args.get("q") or request.args.get("number") or "").strip()[:80]
+    if not q:
         return redirect(url_for("visits.device_board"))
+    exact = (Patient.query.filter(db.or_(Patient.patient_number == q,
+                                         Patient.reference_number == q))
+             .first())
+    if exact is not None:
+        return redirect(url_for("visits.study_new", patient_id=exact.id))
+    found = (apply_patient_search(Patient.query.filter(Patient.is_active.is_(True)), q)
+             .order_by(Patient.full_name).limit(20).all())
+    if len(found) == 1:
+        return redirect(url_for("visits.study_new", patient_id=found[0].id))
+    if not found:
+        flash(t("device_board.no_match", q=q), "warning")
+    return redirect(url_for("visits.device_board", q=q))
+
+
+@visits_bp.route("/studies/quick", methods=["POST"])
+@module_required(MODULE)
+def device_quick():
+    """The child is not on file: the same three fields the booking desk and
+    the bed map ask, and the study's form opens for them. Their first
+    service needs nothing more (`utils/patient_basics`)."""
+    from app.models import ActivityLog
+    from app.utils.patients import QUICK_REASONS, quick_create
+
+    patient, why = quick_create(request.form.get("full_name"),
+                                request.form.get("gender"),
+                                request.form.get("date_of_birth"))
+    if patient is None:
+        db.session.rollback()
+        flash(t(QUICK_REASONS[why]), "error")
+        return redirect(url_for("visits.device_board",
+                                q=request.form.get("full_name") or None))
+    ActivityLog.record("patient.create", user_id=current_user.id, entity="patient",
+                       entity_id=patient.id, detail=patient.patient_number,
+                       ip_address=client_ip())
+    db.session.commit()
     return redirect(url_for("visits.study_new", patient_id=patient.id))
 
 

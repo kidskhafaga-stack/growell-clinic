@@ -7407,7 +7407,25 @@
     "incomplete": "Details missing",
     "missing_n": "{n} missing",
     "none_required": "This clinic asks for no extra details.",
-    "title": "Basic details on file"
+    "title": "Basic details on file",
+    "window_title": "Complete the child's details",
+    "window_hint": "This child was registered quickly and has already had a service. Before this one, only these missing details are needed.",
+    "guardian_name": "Guardian's name",
+    "guardian_relation": "Relation",
+    "save_and_continue": "Save and continue",
+    "open_file": "Open the file",
+    "completed": "Details saved.",
+    "still_missing": "Some details are still missing.",
+    "complete_first": "This child had a service on a quick registration — complete the missing details first.",
+    "policy_on": "Quick registration for one service only",
+    "policy_hint": "When on: a file missing the details above gets one service; before the next (another booking, another bill, more than one service on a bill, or a study) a window asks for them. It never holds a child in the emergency department or admitted.",
+    "err_no_patient": "No such child.",
+    "err_need_guardian": "Write the guardian's name.",
+    "err_need_phone": "Write a valid phone number.",
+    "err_need_guardian_id": "Write the guardian's national ID.",
+    "err_need_address": "Write the address.",
+    "err_need_national_id": "Write the child's national ID.",
+    "err_need_blood_type": "Choose the blood type."
   },
   "imaging": {
     "already_reported": "That order already has a report.",
@@ -9237,7 +9255,11 @@
     "doctors_foot": "Recorded figures only, no rating. \"Back within 7 days\" = the same child seen again within a week. \"First time\" = the child's first visit to the clinic. \"Without a code\" = diagnoses written as words only.",
     "tab_medical": "Medical",
     "tab_management": "Management",
-    "tab_mine": "My patients"
+    "tab_mine": "My patients",
+    "ages_roster": "Every patient file by age group",
+    "ages_period": "Seen in the period",
+    "ages_all": "All files",
+    "ages_roster_hint": "Every active file, at today's age — the split the patient analytics page showed."
   },
   "board_admin": {
     "title": "Management board",
@@ -9580,9 +9602,9 @@
     "unbooked": "Booking cancelled.",
     "recorded": "{device} study recorded.",
     "answers": "This result answers the order: {name}",
-    "start_label": "A new study with no order — file number",
-    "start_ph": "Child's file number",
-    "start": "Start a study",
+    "start_label": "A new study with no order — file number, name or phone",
+    "start_ph": "File number, child's name or phone",
+    "start": "Search",
     "no_such_file": "No file numbered {number}",
     "how_orders_come": "A study appears here when a doctor orders it from a visit, the emergency or a ward — or start one directly above by file number.",
     "none_defined": "No test is defined as a «device study» in the tests list — the echo, EEG and ultrasound must be defined that way for their orders to arrive here.",
@@ -9590,7 +9612,10 @@
     "filed_elsewhere": "{n} open orders for a test tied to a device are filed under radiology or the lab — change its room in the tests list so they arrive here.",
     "no_devices": "No devices recorded yet (echo, ECG, EEG…).",
     "recent": "Done in the last {n} days",
-    "recent_none": "No studies done in these days."
+    "recent_none": "No studies done in these days.",
+    "no_match": "No child matches “{q}” — register them quickly below.",
+    "choose_child": "Found {n} — choose the child:",
+    "quick_and_start": "Register and start the study"
   },
   "lab_hand": {
     "age_ph": "As on the sheet: 6-23 months · <1 year · all",

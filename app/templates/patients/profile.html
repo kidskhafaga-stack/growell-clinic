@@ -171,10 +171,11 @@
            somebody has everything in front of them to finish it. Derived on
            every render, so it is gone the moment the last box is filled. #}
         {% if basics_missing %}
-        <span class="badge badge--warn" data-basics-missing
-              title="{% for k in basics_missing %}{{ t('basics.f_' ~ k) }}{{ ' · ' if not loop.last }}{% endfor %}">
+        <a class="badge badge--warn" data-basics-missing
+           href="{{ url_for('basics.window_page', patient_id=patient.id, next=request.path) }}"
+           title="{% for k in basics_missing %}{{ t('basics.f_' ~ k) }}{{ ' · ' if not loop.last }}{% endfor %}">
           <i class="bi bi-person-exclamation"></i>
-          {{ t('basics.missing_n', n=basics_missing|length) }}</span>
+          {{ t('basics.missing_n', n=basics_missing|length) }}</a>
         {% endif %}
       </div>
       <div class="meta-row">

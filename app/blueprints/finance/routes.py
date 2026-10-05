@@ -3410,6 +3410,18 @@ def _checkout_screen(appt, patient):
     doctor_id = _screen_doctor(appt, patient_id)
     lang = getattr(g, "lang", "ar")
 
+    # A quick registration has had its one service, or this bill is more
+    # than one: what the clinic asks for is filled in first — where the
+    # clinic switched that on, and never for a child in the emergency
+    # department or a bed (`utils/patient_basics.needs_completion`).
+    from app.utils import patient_basics as _basics
+
+    if request.method == "POST":
+        lines_now = sum(1 for d in request.form.getlist("line_desc") if (d or "").strip())
+        if _basics.needs_completion(patient, services_now=lines_now):
+            flash(t("basics.complete_first"), "error")
+            return redirect(_checkout_url(appt, patient_id) + "?complete=1")
+
     if request.method == "POST":
         # One invoice per visit-day: append to today's invoice when it exists
         # (exam collected first, then a procedure/vaccine added later) instead
@@ -3777,8 +3789,14 @@ def _checkout_screen(appt, patient):
     _my_services, _other_services = _split_services(
         db.session.get(User, doctor_id) if doctor_id else None, _services)
     from app.utils.vaccine_sale import as_json, sellable
+    from app.blueprints.basics.routes import window as _window
+
+    asked = (_basics.needs_completion(patient)
+             or (_basics.needs_completion(patient, services_now=2)
+                 if request.args.get("complete") == "1" else []))
     return render_template(
         "finance/checkout.html", appt=appt, patient=patient, lines=lines,
+        **(_window(patient, _checkout_url(appt, patient_id)) if asked else {}),
         post_url=_checkout_url(appt, patient_id),
         doctor=db.session.get(User, doctor_id) if doctor_id else None,
         # The picker belongs here, on the path reception actually walks. It

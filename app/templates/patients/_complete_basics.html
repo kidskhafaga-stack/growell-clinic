@@ -1,0 +1,33 @@
+{# The window that fills a quick registration's gaps before a second service
+   (`utils/patient_basics.needs_completion`). Needs `complete_patient`,
+   `complete_gaps`, `complete_next`, `complete_relations`,
+   `complete_blood_types` — `complete_routes.window()` makes them. Only the
+   details this clinic asks for and this file lacks are asked. #}
+{% if complete_patient and complete_gaps %}
+<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;" data-complete-window role="dialog" aria-modal="true" aria-labelledby="cb-title">
+  <form method="post" action="{{ url_for('basics.save', patient_id=complete_patient.id) }}" class="card" style="max-width:520px;width:100%;max-height:90vh;overflow:auto;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ complete_next }}">
+    <h2 class="section-title" id="cb-title" style="margin-top:0;"><i class="bi bi-person-lines-fill"></i> {{ t('basics.window_title') }}</h2>
+    <p style="margin:0 0 4px;"><strong>{{ complete_patient.display_name(current_lang) }}</strong> <span class="badge badge--muted" dir="ltr">{{ complete_patient.patient_number }}</span></p>
+    <p class="hint" style="margin:0 0 12px;">{{ t('basics.window_hint') }}</p>
+    {% if 'guardian' in complete_gaps %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div class="form-row" style="margin:0;flex:1;min-width:200px;"><label for="cb_gname">{{ t('basics.guardian_name') }}</label><input class="input" id="cb_gname" name="guardian_name" maxlength="120" required></div>
+      <div class="form-row" style="margin:0;"><label for="cb_rel">{{ t('basics.guardian_relation') }}</label>
+        <select class="input" id="cb_rel" name="guardian_relation">{% for r in complete_relations %}<option value="{{ r }}">{{ t('relations.' ~ r) }}</option>{% endfor %}</select></div>
+    </div>
+    {% endif %}
+    {% if 'phone' in complete_gaps %}<div class="form-row" style="margin:8px 0 0;"><label for="cb_phone">{{ t('basics.f_phone') }}</label><input class="input" id="cb_phone" name="phone" type="tel" dir="ltr" maxlength="30" required></div>{% endif %}
+    {% if 'guardian_id' in complete_gaps %}<div class="form-row" style="margin:8px 0 0;"><label for="cb_gid">{{ t('basics.f_guardian_id') }}</label><input class="input" id="cb_gid" name="guardian_national_id" dir="ltr" maxlength="20" required></div>{% endif %}
+    {% if 'address' in complete_gaps %}<div class="form-row" style="margin:8px 0 0;"><label for="cb_addr">{{ t('basics.f_address') }}</label><input class="input" id="cb_addr" name="address" maxlength="255" required dir="auto"></div>{% endif %}
+    {% if 'national_id' in complete_gaps %}<div class="form-row" style="margin:8px 0 0;"><label for="cb_nid">{{ t('basics.f_national_id') }}</label><input class="input" id="cb_nid" name="national_id" dir="ltr" maxlength="20" required></div>{% endif %}
+    {% if 'blood_type' in complete_gaps %}<div class="form-row" style="margin:8px 0 0;"><label for="cb_bt">{{ t('basics.f_blood_type') }}</label>
+      <select class="input" id="cb_bt" name="blood_type" required><option value="">—</option>{% for b in complete_blood_types %}<option value="{{ b }}" dir="ltr">{{ b }}</option>{% endfor %}</select></div>{% endif %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+      <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('basics.save_and_continue') }}</button>
+      <a class="btn btn-outline gc-press" href="{{ url_for('patients.view', patient_id=complete_patient.id) }}">{{ t('basics.open_file') }}</a>
+    </div>
+  </form>
+</div>
+{% endif %}

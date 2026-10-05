@@ -152,3 +152,159 @@ def missing(patient, keys=None):
 def is_complete(patient, keys=None):
     """Whether the file has everything this clinic asks for."""
     return not missing(patient, keys=keys)
+
+
+# ===================================== one service on a quick registration ==
+#
+# Asked for in the same breath as the badge, a step further:
+# «الناس الى اضافة بطريقة سريعة لازم البرنامج يحط سياسة انه مقبول اداء خدمة
+# واحدة بالتسجيل السريع لاكن لو كذا خدمة او اخد خدمة واحدة ومشى وجه تانى لازم
+# استكمال البيانات ويطلعله بوب اب لاستكمال البيانات وحفظ».
+#
+# So, **where the clinic switches it on**: a file still missing what this
+# clinic asks for may have one service; before the next one — another
+# booking, another bill, a study — the desk is asked for the missing details
+# in a window on the same screen, and the service waits until they are saved.
+#
+# **Off until switched on** — an update changes nothing in a running clinic.
+# **And never for an emergency or a child in a bed**: a child in the
+# emergency department or admitted is never held for a phone number. That is
+# the rule this program keeps everywhere (a critical case is never held for
+# money or paperwork), and the badge still says what is missing.
+
+POLICY_SETTING = "patient_basics_one_service"
+
+
+class BasicsError(ValueError):
+    """A refusal with a key the screen can name (``basics.err_<key>``)."""
+
+
+def policy_on():
+    from app.models import Setting
+
+    try:
+        return Setting.get(POLICY_SETTING) == "1"
+    except Exception:      # noqa: BLE001 — no settings table yet
+        return False
+
+
+def had_service(patient):
+    """Whether this child already had a service **before this one**: a bill
+    raised, or a visit or a study on an earlier day.
+
+    Not "has a visit": the visit for today's first service is written at the
+    door, before the desk takes the money, and counting it would stop the
+    very first service the quick registration exists for."""
+    if patient is None or patient.id is None:
+        return False
+    from app.models import DeviceStudy, Invoice, Visit
+    from app.utils.clock import local_today
+
+    today = local_today()
+    if Invoice.query.filter_by(patient_id=patient.id).first() is not None:
+        return True
+    if (Visit.query.filter(Visit.patient_id == patient.id,
+                           Visit.visit_date < today).first() is not None):
+        return True
+    return (DeviceStudy.query.filter(DeviceStudy.patient_id == patient.id,
+                                     DeviceStudy.study_date < today).first()
+            is not None)
+
+
+def in_acute_care(patient):
+    """In the emergency department now, or admitted — never held."""
+    if patient is None or patient.id is None:
+        return False
+    from app.models import Admission
+    from app.models.emergency_visit import EmergencyVisit
+
+    if (Admission.query.filter_by(patient_id=patient.id)
+            .filter(Admission.discharged_at.is_(None)).first() is not None):
+        return True
+    return (EmergencyVisit.query.filter_by(patient_id=patient.id)
+            .filter(EmergencyVisit.departed_at.is_(None)).first() is not None)
+
+
+def needs_completion(patient, services_now=1):
+    """The details to ask for before this service — an empty list when
+    nothing is to be asked. ``services_now`` is how many services this one
+    act is for (the lines on a bill): more than one is a second service
+    even on a first day."""
+    if not policy_on() or patient is None:
+        return []
+    gaps = missing(patient)
+    if not gaps or in_acute_care(patient):
+        return []
+    if services_now <= 1 and not had_service(patient):
+        return []
+    return gaps
+
+
+RELATIONS = ("father", "mother", "guardian")
+
+
+def complete(patient, data):
+    """Write what the window asked for. Returns what is still missing.
+
+    Only the details this clinic asks for and the file lacks are written; a
+    detail already on file is never overwritten from here — this is a window
+    for filling gaps, not an edit form."""
+    from app.extensions import db
+    from app.models import BLOOD_TYPES, Family, Parent
+
+    if patient is None:
+        raise BasicsError("no_patient")
+    gaps = missing(patient)
+
+    def value(key, limit):
+        return " ".join(str(data.get(key) or "").split())[:limit]
+
+    if GUARDIAN in gaps:
+        name = value("guardian_name", 120)
+        if not name:
+            raise BasicsError("need_guardian")
+        relation = data.get("guardian_relation")
+        relation = relation if relation in RELATIONS else "father"
+        if patient.family is None:
+            family = Family(family_name=patient.full_name)
+            db.session.add(family)
+            db.session.flush()
+            patient.family_id = family.id
+            patient.family = family
+        db.session.add(Parent(family_id=patient.family_id, relation=relation,
+                              full_name=name, is_primary_contact=True))
+        db.session.flush()
+        db.session.refresh(patient.family)
+    if PHONE in gaps:
+        phone = value("phone", 30)
+        digits = "".join(ch for ch in phone if ch.isdigit())
+        if len(digits) < 7:
+            raise BasicsError("need_phone")
+        guardian = patient.primary_guardian
+        if guardian is not None:
+            guardian.phone = phone
+        else:
+            patient.own_phone = phone[:20]
+    guardian = patient.primary_guardian
+    if GUARDIAN_ID in gaps:
+        nid = value("guardian_national_id", 20)
+        if not nid or guardian is None:
+            raise BasicsError("need_guardian_id")
+        guardian.national_id = nid
+    if ADDRESS in gaps:
+        address = value("address", 255)
+        if not address or guardian is None:
+            raise BasicsError("need_address")
+        guardian.address = address
+    if NATIONAL_ID in gaps:
+        nid = value("national_id", 20)
+        if not nid:
+            raise BasicsError("need_national_id")
+        patient.national_id = nid
+    if BLOOD_TYPE in gaps:
+        blood = data.get("blood_type")
+        if blood not in BLOOD_TYPES:
+            raise BasicsError("need_blood_type")
+        patient.blood_type = blood
+    db.session.flush()
+    return missing(patient)

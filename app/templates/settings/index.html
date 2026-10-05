@@ -261,6 +261,12 @@
     {% if not basics_required %}
     <p class="hint" style="margin-bottom:0;">{{ t('basics.none_required') }}</p>
     {% endif %}
+    {# One service on a quick registration; the missing details in a window
+       before the next — off until the clinic switches it on. #}
+    <label class="check" style="margin-top:12px;display:flex;gap:6px;align-items:center;" data-basics-policy>
+      <input type="checkbox" name="{{ basics_policy_setting }}" value="1" {{ 'checked' if basics_policy else '' }}>
+      <span><strong>{{ t('basics.policy_on') }}</strong></span></label>
+    <p class="hint" style="margin:4px 0 0;">{{ t('basics.policy_hint') }}</p>
   </div>
 
   <!-- Logo -->

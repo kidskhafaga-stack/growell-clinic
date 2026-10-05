@@ -587,6 +587,16 @@ def create():
         # time in the same instant waits for this one and is told it is gone.
         hold_the_diary(doctor_id)
         error = _validate_booking(patient_id, doctor_id, on_date, slot)
+        # A quick registration has had its one service: what the clinic asks
+        # for is filled in before the next — where the clinic switched that on
+        # (`utils/patient_basics.needs_completion`). Never for a child in the
+        # emergency department or a bed.
+        from app.utils import patient_basics as _basics
+
+        incomplete = (_basics.needs_completion(db.session.get(Patient, patient_id))
+                      if not error and patient_id else [])
+        if incomplete:
+            error = t("basics.complete_first")
         # A payment block stops the booking unless somebody with financial
         # authority says otherwise on this booking, and that override is
         # recorded with their name — the point of the block is that a decision
@@ -620,8 +630,12 @@ def create():
             db.session.rollback()
             flash(error, "danger")
             chosen = db.session.get(Patient, patient_id) if patient_id else None
+            from app.blueprints.basics.routes import window as _window
+
             return render_template(
                 "appointments/form.html", doctors=doctors, form=request.form,
+                **(_window(chosen, url_for("appointments.create"))
+                   if incomplete else {}),
                 today=local_today().isoformat(),
                 selected_patient=_patient_brief(chosen) if chosen else None,
                 appt_types=APPOINTMENT_TYPES, vaccine_brands=_vaccine_brands(),

@@ -26,13 +26,40 @@
   <p class="page-sub" style="margin:0;">{{ t('device_board.sub') }}</p>
 </div>
 
-{# A study with no order — the child in front of the echo now. #}
+{# A study with no order — the child in front of the echo now: file number,
+   name or phone, the same search every desk uses; and the quick
+   registration when they are not on file. #}
 <form method="get" action="{{ url_for('visits.device_start') }}" class="card gc-scale-in"
       style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:14px;" data-device-start>
-  <div class="form-row" style="margin:0;flex:1;min-width:200px;"><label>{{ t('device_board.start_label') }}</label>
-    <input class="input" name="number" required dir="ltr" placeholder="{{ t('device_board.start_ph') }}"></div>
-  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('device_board.start') }}</button>
+  <div class="form-row" style="margin:0;flex:1;min-width:200px;"><label for="ds_q">{{ t('device_board.start_label') }}</label>
+    <input class="input" id="ds_q" name="q" required dir="auto" value="{{ q or '' }}" placeholder="{{ t('device_board.start_ph') }}"></div>
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('device_board.start') }}</button>
 </form>
+{% if q %}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-device-found>
+  {% if found %}
+  <p class="hint" style="margin:0 0 8px;">{{ t('device_board.choose_child', n=found|length) }}</p>
+  <div style="display:flex;flex-direction:column;gap:6px;">
+    {% for p in found %}
+    <a class="btn btn-outline gc-press" style="justify-content:flex-start;" href="{{ url_for('visits.study_new', patient_id=p.id) }}" data-found-child="{{ p.id }}">
+      <i class="bi bi-person"></i> {{ p.display_name(current_lang) }} <span class="badge badge--muted" dir="ltr">{{ p.patient_number }}</span>
+      {% if p.contact_phone %}<span class="hint" dir="ltr">{{ p.contact_phone }}</span>{% endif %}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <details style="margin-top:10px;" {{ 'open' if not found else '' }} data-device-quick>
+    <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-person-plus"></i> {{ t('patients.quick_add') }}</summary>
+    <form method="post" action="{{ url_for('visits.device_quick') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label for="dq_name">{{ t('patients.full_name') }}</label><input class="input" id="dq_name" name="full_name" required value="{{ q if q and not q[0].isdigit() else '' }}"></div>
+      <div class="form-row" style="margin:0;"><label for="dq_dob">{{ t('patients.dob') }}</label><input class="input" type="date" id="dq_dob" name="date_of_birth" required dir="ltr"></div>
+      <div class="form-row" style="margin:0;"><label for="dq_g">{{ t('patients.gender') }}</label>
+        <select class="input" id="dq_g" name="gender" required><option value="">—</option><option value="male">{{ t('genders.male') }}</option><option value="female">{{ t('genders.female') }}</option></select></div>
+      <button class="btn btn-primary gc-press" type="submit">{{ t('device_board.quick_and_start') }}</button>
+    </form>
+  </details>
+</div>
+{% endif %}
 
 {% if not rows %}
 <div class="card gc-scale-in" data-board-empty>
