@@ -118,6 +118,12 @@ class RiskAssessment(db.Model):
     #: prevention measures."* Three states again: an empty box is not a family
     #: who was not told.
     family_told = db.Column(db.Boolean)
+    #: GAHAR ICD.10 evidence 4 — an outpatient screening is tied to the visit
+    #: it was done in, and keeps which of the hospital's criteria applied, in
+    #: the hospital's words (`utils/fall_screen`). Empty on every inpatient
+    #: assessment.
+    visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), index=True)
+    criteria = db.Column(db.Text)
 
     patient = db.relationship("Patient", backref="risk_assessments")
     admission = db.relationship("Admission", backref="risk_assessments")

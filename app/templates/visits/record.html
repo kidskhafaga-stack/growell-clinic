@@ -267,6 +267,27 @@
   </div>
   {% endif %}
 
+  {# GAHAR ICD.10 evidence 4 — fall screening in the clinic, by the
+     hospital's own criteria. Only where it was switched on; its own form,
+     never inside the visit form. #}
+  {% if fall_on %}
+  <form method="post" action="{{ url_for('visits.fall_screen_save', visit_id=visit.id) }}" class="card gc-scale-in" id="fall-screen" x-show="tab==='case'" style="margin-bottom:14px;" data-fall-screen>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-person-walking"></i> {{ t('fall_screen.title') }}
+      {% if fall_row %}<span class="badge {{ 'badge--warn' if fall_row.at_risk else 'badge--green' }}" data-fall-result="{{ 'positive' if fall_row.at_risk else 'negative' }}">{{ t('fall_screen.positive') if fall_row.at_risk else t('fall_screen.negative') }} · {{ fall_row.at|clinic_stamp }}</span>{% endif %}</h2>
+    <p class="hint" style="margin-top:0;">{{ t('fall_screen.hint') }}</p>
+    <div style="display:flex;gap:6px 16px;flex-wrap:wrap;">
+      {% set had = (fall_row.criteria or '').splitlines() if fall_row else [] %}
+      {% for c in fall_criteria %}<label style="display:inline-flex;gap:6px;align-items:center;"><input type="checkbox" name="criteria" value="{{ c }}" {{ 'checked' if c in had else '' }}> <span dir="auto">{{ c }}</span></label>{% endfor %}
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+      <label style="display:inline-flex;gap:6px;align-items:center;"><input type="checkbox" name="family_told" value="1" {{ 'checked' if fall_row and fall_row.family_told else '' }}> {{ t('fall_screen.family_told') }}</label>
+      <input class="input" name="note" maxlength="1000" dir="auto" style="flex:1;min-width:200px;" placeholder="{{ t('fall_screen.note_ph') }}">
+      <button class="btn btn-outline gc-press" type="submit">{{ t('fall_screen.save') }}</button>
+    </div>
+  </form>
+  {% endif %}
+
   <!-- Vitals + clinical (single form) -->
   <form method="post" id="visitForm" x-show="tab==='case'">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

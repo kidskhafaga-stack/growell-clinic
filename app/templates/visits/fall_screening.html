@@ -1,0 +1,37 @@
+{% extends "shell.html" %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('fall_screen.report_title') }}{% endblock %}
+{% block page_heading %}{{ t('fall_screen.report_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ICD.10 evidence 4–5 — the clinic's fall screening over a period. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-person-walking"></i> {{ t('fall_screen.report_title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('fall_screen.report_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('visits.index') }}"><i class="bi bi-list-ul"></i> {{ t('nav.visits') }}</a>
+</div>
+{% if not on %}<p class="alert-pill warn" style="margin:0 0 12px;" data-fall-off>{{ t('fall_screen.off_hint') }}</p>{% endif %}
+<form method="get" action="{{ url_for('visits.fall_screening') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+  <div class="form-row" style="margin:0;"><label for="from">{{ t('lab_reception.from') }}</label><input class="input" type="date" id="from" name="from" value="{{ start.isoformat() }}"></div>
+  <div class="form-row" style="margin:0;"><label for="to">{{ t('lab_reception.to') }}</label><input class="input" type="date" id="to" name="to" value="{{ end.isoformat() }}"></div>
+  <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('lab_reception.show') }}</button>
+</form>
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-fall-summary>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <span class="badge badge--muted">{{ t('fall_screen.n_visits', n=data.visits) }}</span>
+    <span class="badge badge--muted" data-n-screened>{{ t('fall_screen.n_screened', n=data.screened) }}</span>
+    <span class="badge {{ 'badge--warn' if data.positive else 'badge--muted' }}" data-n-positive>{{ t('fall_screen.n_positive', n=data.positive) }}</span>
+    {% if data.positive %}<span class="badge {{ 'badge--green' if data.told == data.positive else 'badge--danger' }}" data-n-told>{{ t('fall_screen.n_told', n=data.told, m=data.positive) }}</span>{% endif %}
+  </div>
+</div>
+<div class="card gc-scale-in" style="overflow-x:auto;" data-fall-criteria>
+  <h2 class="section-title" style="margin-top:0;">{{ t('fall_screen.by_criterion') }}</h2>
+  {% if data.criteria %}
+  <table class="table" style="font-variant-numeric:tabular-nums;"><tbody>
+    {% for c, n in data.criteria %}<tr><td dir="auto">{{ c }}</td><td>{{ n }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="hint" style="margin:0;">{{ t('fall_screen.none_positive') }}</p>{% endif %}
+</div>
+{% endblock %}

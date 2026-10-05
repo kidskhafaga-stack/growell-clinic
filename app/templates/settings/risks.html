@@ -145,6 +145,21 @@
       <div class="hint">{{ t('sedation.criteria_hint') }}</div>
     </div>
 
+    {# وسابعة: فرز السقوط في العيادة — `ICD.10` (د) ودليل ٤. معايير المستشفى
+       بكلامها، والبرنامج ما عندوش قايمة. مقفول = شاشة الزيارة زي ما هي. #}
+    <div style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;" data-fall-outpatient-policy>
+      <label style="display:inline-flex;gap:6px;align-items:center;font-weight:600;">
+        <input type="checkbox" name="fall_outpatient" value="1" {{ 'checked' if fall_outpatient.on else '' }}>
+        {{ t('fall_screen.policy_on') }} <span class="hint" dir="ltr">ICD.10</span></label>
+      <div class="form-row" style="margin:8px 0 0;"><label for="fall_outpatient_criteria">{{ t('fall_screen.criteria') }}</label>
+        <textarea class="input" id="fall_outpatient_criteria" name="fall_outpatient_criteria" rows="4" maxlength="2000" style="max-width:520px;" dir="auto" placeholder="{{ t('fall_screen.criteria_ph') }}">{{ fall_outpatient.criteria }}</textarea>
+        <div class="hint">{{ t('fall_screen.criteria_hint') }}</div></div>
+      <div class="form-row" style="margin:8px 0 0;"><label for="fall_outpatient_measures">{{ t('fall_screen.measures') }}</label>
+        <textarea class="input" id="fall_outpatient_measures" name="fall_outpatient_measures" rows="2" maxlength="1000" style="max-width:520px;" dir="auto">{{ fall_outpatient.measures }}</textarea>
+        <div class="hint">{{ t('fall_screen.measures_hint') }}</div></div>
+      <p style="margin:8px 0 0;"><a href="{{ url_for('visits.fall_screening') }}" data-to-fall-report>{{ t('fall_screen.report_title') }}</a></p>
+    </div>
+
     <button class="btn btn-primary gc-press" type="submit" style="margin-top:14px;">
       <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
   </form>

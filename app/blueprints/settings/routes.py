@@ -962,6 +962,13 @@ def risks():
         # وسادسة، نص مش رقم: معايير الخروج من الإفاقة — `SAS.20` (ح).
         Setting.set(sed_rules.CRITERIA_SETTING,
                     (request.form.get("recovery_criteria") or "").strip()[:500])
+        # وسابعة: فرز السقوط في العيادة — `ICD.10` (د) ودليل ٤. معايير
+        # المستشفى بكلامها، سطر لكل معيار، ومقفول لحد ما يتشغّل.
+        from app.utils import fall_screen
+
+        fall_screen.save_policy(bool(request.form.get("fall_outpatient")),
+                                request.form.get("fall_outpatient_criteria"),
+                                request.form.get("fall_outpatient_measures"))
         ActivityLog.record("settings.risks", user_id=current_user.id,
                            entity="setting", detail="risk policy",
                            ip_address=client_ip())
@@ -996,6 +1003,13 @@ def risks():
 
         return sed_rules.criteria()
 
+    def _fall_outpatient():
+        from app.utils import fall_screen
+
+        return {"on": fall_screen._get(fall_screen.ON_SETTING) == "1",
+                "criteria": "\n".join(fall_screen.criteria()),
+                "measures": fall_screen.measures()}
+
     return render_template(
         "settings/risks.html", kinds=RISK_KINDS, standards=STANDARDS,
         blood_watch_minutes=blood_rules.interval_minutes() or "",
@@ -1004,6 +1018,7 @@ def risks():
         verbal_order_minutes=_verbal_minutes() or "",
         consultation_minutes=_consultation_minutes() or "",
         recovery_criteria=_recovery_criteria() or "",
+        fall_outpatient=_fall_outpatient(),
         policy={k: {"on": k in enabled,
                     "hours": risk_rules.interval_hours(k) or "",
                     "tool": risk_rules.tool_name(k)} for k in RISK_KINDS})
