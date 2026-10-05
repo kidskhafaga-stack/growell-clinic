@@ -9,8 +9,14 @@
     <h1 class="page-title"><i class="bi bi-activity"></i> {{ t('nav.observations') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('observations.board_sub') }}</p>
   </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('observations.calls') }}" data-to-calls
+     {% if open_calls %}style="border-color:var(--danger);color:var(--danger);"{% endif %}>
+    <i class="bi bi-megaphone"></i> {{ t('deterioration.list_title') }}
+    {% if open_calls %}<span class="badge badge--danger">{{ open_calls|length }}</span>{% endif %}</a>
   <a class="btn btn-outline gc-press" href="{{ url_for('patients.index') }}">
     <i class="bi bi-search"></i> {{ t('observations.find_a_child') }}</a>
+  </div>
 </div>
 
 {# One row per child under observation, worst first. The order comes from

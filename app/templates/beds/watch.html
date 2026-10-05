@@ -152,6 +152,27 @@
 
 {# إنعاش لسه مفتوح: مش سجل ناقص، ده إنعاش محدّش قفله — والاتنين شكلهم
    واحد على شاشة ما بتفرّقش. CSS.05 (ح). #}
+{# GSR.10 / ICD.22 — a call for help for a child getting worse, still open:
+   nobody at the bed yet, or nobody wrote what was done. Red when nobody came
+   or the hospital's own time frame passed. #}
+{% if calls_open %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:16px;"
+     data-watch-calls>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('deterioration.list_title') }}</strong>
+  </div>
+  <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;">
+    {% for row in calls_open %}
+    <a class="badge {{ 'badge--danger' if not row.arrived_at or call_late(row) else 'badge--warning' }}"
+       data-watch-call="{{ row.id }}"
+       href="{{ url_for('observations.call_view', call_id=row.id) }}">
+      {{ row.patient.display_name(current_lang) if row.patient else '—' }} ·
+      {{ t('deterioration.came') if row.arrived_at else t('deterioration.nobody_yet') }}</a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 {% if resus_running or resus_unanswered %}
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:16px;"
      data-resus>

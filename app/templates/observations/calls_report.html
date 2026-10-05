@@ -1,0 +1,48 @@
+{% extends "shell.html" %}
+{% set active_module = 'observations' %}
+{% block title %}{{ t('deterioration.report_title') }}{% endblock %}
+{% block page_heading %}{{ t('deterioration.report_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ICD.22 evidence 4 and (و): the calls of a period, the time from the
+   call to the bed, the calls past the hospital's own time frame (only when it
+   wrote one), the outcomes — and the same response by weekday and by time of
+   day, which is what "uniform 24 hours a day and seven days a week" asks a
+   hospital to be able to show. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-bar-chart-line"></i> {{ t('deterioration.report_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('deterioration.report_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('observations.calls') }}"><i class="bi bi-megaphone"></i> {{ t('deterioration.list_title') }}</a>
+</div>
+<form method="get" action="{{ url_for('observations.calls_report') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+  <div class="form-row" style="margin:0;"><label for="from">{{ t('lab_reception.from') }}</label><input class="input" type="date" id="from" name="from" value="{{ start.isoformat() }}"></div>
+  <div class="form-row" style="margin:0;"><label for="to">{{ t('lab_reception.to') }}</label><input class="input" type="date" id="to" name="to" value="{{ end.isoformat() }}"></div>
+  <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('lab_reception.show') }}</button>
+</form>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-report-summary>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <span class="badge badge--muted">{{ t('deterioration.n_calls', n=data.count) }}</span>
+    <span class="badge badge--muted">{{ t('deterioration.median', n=data.median) if data.median is not none else t('deterioration.no_median') }}</span>
+    {% if data.limit %}<span class="badge {{ 'badge--danger' if data.late else 'badge--green' }}" data-report-late>{{ t('deterioration.n_late', n=data.late|length, m=data.limit) }}</span>
+    {% else %}<span class="badge badge--muted" data-no-limit>{{ t('deterioration.no_limit') }}</span>{% endif %}
+    {% if data.unanswered %}<span class="badge badge--danger">{{ t('deterioration.n_unanswered', n=data.unanswered|length) }}</span>{% endif %}
+    {% for o, n in data.outcomes.items() %}<span class="badge badge--muted">{{ t('deterioration.outcome_' ~ o) }}: {{ n }}</span>{% endfor %}
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">
+  <div class="card gc-scale-in" style="overflow-x:auto;" data-by-weekday>
+    <h2 class="section-title" style="margin-top:0;">{{ t('deterioration.by_weekday') }}</h2>
+    <table class="table" style="font-variant-numeric:tabular-nums;"><thead><tr><th>{{ t('deterioration.col_day') }}</th><th>{{ t('deterioration.col_n') }}</th><th>{{ t('deterioration.col_median') }}</th></tr></thead>
+    <tbody>{% for w in data.by_weekday %}<tr><td>{{ t('deterioration.wd_' ~ w.day) }}</td><td>{{ w.count }}</td><td>{{ t('deterioration.min', n=w.median) if w.median is not none else '—' }}</td></tr>{% endfor %}</tbody></table>
+  </div>
+  <div class="card gc-scale-in" style="overflow-x:auto;" data-by-block>
+    <h2 class="section-title" style="margin-top:0;">{{ t('deterioration.by_block') }}</h2>
+    <table class="table" style="font-variant-numeric:tabular-nums;"><thead><tr><th>{{ t('deterioration.col_hours') }}</th><th>{{ t('deterioration.col_n') }}</th><th>{{ t('deterioration.col_median') }}</th></tr></thead>
+    <tbody>{% for b in data.by_block %}<tr><td dir="ltr">{{ '%02d:00–%02d:00'|format(b.block * 6, b.block * 6 + 6) }}</td><td>{{ b.count }}</td><td>{{ t('deterioration.min', n=b.median) if b.median is not none else '—' }}</td></tr>{% endfor %}</tbody></table>
+  </div>
+</div>
+{% endblock %}

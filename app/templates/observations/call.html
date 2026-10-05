@@ -1,0 +1,62 @@
+{% extends "shell.html" %}
+{% set active_module = 'observations' %}
+{% block title %}{{ t('deterioration.call_page') }}{% endblock %}
+{% block page_heading %}{{ t('deterioration.call_page') }}{% endblock %}
+
+{% block content %}
+{# One call for help, as GAHAR ICD.22 (ز) asks it recorded: what was seen and
+   by whom, how and whom help was called, who came and when — against the
+   hospital's own time frame, when it wrote one — and what was done. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-megaphone"></i> {{ row.patient.display_name(current_lang) }} <span class="hint" dir="ltr">#{{ row.patient.patient_number }}</span></h1>
+    <p class="page-sub" style="margin:0;">{% if row.is_open %}<span class="badge badge--danger">{{ t('deterioration.state_open') }}</span>{% else %}<span class="badge badge--green">{{ t('deterioration.state_closed') }}</span>{% endif %}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('observations.chart', patient_id=row.patient_id) }}"><i class="bi bi-activity"></i> {{ t('deterioration.to_chart') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('observations.calls') }}"><i class="bi bi-list-ul"></i> {{ t('deterioration.list_title') }}</a>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <div class="info-grid" data-call-facts>
+    <div class="info-item"><div class="k">{{ t('deterioration.seen') }}</div><div class="v">
+      {% if row.reading %}<span class="badge badge--danger" dir="ltr">{{ row.reading }}</span>{% endif %}
+      {% if row.concern %}<div dir="auto">{{ row.concern }}</div>{% endif %}</div></div>
+    <div class="info-item"><div class="k">{{ t('deterioration.noticed') }}</div><div class="v">{{ row.noticer.display_name(current_lang) if row.noticer else '—' }} · {{ row.noticed_at|clinic_stamp }}</div></div>
+    <div class="info-item"><div class="k">{{ t('deterioration.called') }}</div><div class="v">
+      {% if row.code_key %}<strong>{{ code_label(row.code_key) }}</strong>{% endif %}{% if row.called_whom %} {{ row.called_whom }}{% endif %} · {{ row.called_at|clinic_stamp }}</div></div>
+    <div class="info-item"><div class="k">{{ t('deterioration.arrival') }}</div><div class="v">
+      {% if row.arrived_at %}{{ row.responder.display_name(current_lang) if row.responder else '—' }} · {{ row.arrived_at|clinic_stamp }} · {{ t('deterioration.min', n=row.minutes_to_arrive()) }}
+      {% else %}<span class="badge badge--danger" data-nobody>{{ t('deterioration.nobody_yet') }}</span>{% endif %}
+      {% if late %}<span class="badge badge--danger" data-call-late>{{ t('deterioration.late', n=limit) }}</span>{% endif %}</div></div>
+  </div>
+</div>
+
+{% if row.is_open %}
+  {% if not row.arrived_at %}
+  <form method="post" action="{{ url_for('observations.call_arrive', call_id=row.id) }}" class="card gc-scale-in" style="margin-bottom:14px;" data-arrive-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-person-check"></i> {{ t('deterioration.i_am_here') }}</button>
+  </form>
+  {% else %}
+  <form method="post" action="{{ url_for('observations.call_close', call_id=row.id) }}" class="card gc-scale-in" data-close-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row"><label for="actions">{{ t('deterioration.actions') }}</label>
+      <textarea class="input" id="actions" name="actions" rows="3" required dir="auto"></textarea></div>
+    <div class="form-row"><label for="outcome">{{ t('deterioration.outcome') }}</label>
+      <select class="input" id="outcome" name="outcome" required><option value="">—</option>{% for o in outcomes %}<option value="{{ o }}">{{ t('deterioration.outcome_' ~ o) }}</option>{% endfor %}</select></div>
+    {% if arrests %}
+    <div class="form-row"><label for="resuscitation_id">{{ t('deterioration.which_arrest') }}</label>
+      <select class="input" id="resuscitation_id" name="resuscitation_id"><option value="">—</option>{% for a in arrests %}<option value="{{ a.id }}">{{ a.recognised_at|clinic_stamp }}</option>{% endfor %}</select></div>
+    {% endif %}
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('deterioration.close') }}</button>
+  </form>
+  {% endif %}
+{% else %}
+<div class="card gc-scale-in" data-call-closed>
+  <p style="margin:0 0 6px;"><strong>{{ t('deterioration.outcome_' ~ row.outcome) }}</strong> · {{ row.closer.display_name(current_lang) if row.closer else '—' }} · {{ row.closed_at|clinic_stamp }}</p>
+  <p style="margin:0;white-space:pre-line;" dir="auto">{{ row.actions }}</p>
+</div>
+{% endif %}
+{% endblock %}
