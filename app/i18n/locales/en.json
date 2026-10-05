@@ -10978,5 +10978,33 @@
     "err_no_area": "No such place.",
     "err_nothing_decided": "No medicine has a decision — it cannot be closed.",
     "err_still_out": "Record the power return first."
+  },
+  "fall_screen": {
+    "title": "Fall screening in the clinic",
+    "hint": "Tick what applies from the hospital's criteria. Any criterion that applies makes the screening positive, and the family must be told.",
+    "positive": "Positive",
+    "negative": "Negative",
+    "family_told": "The family was told the prevention measures",
+    "note_ph": "Note (optional)",
+    "save": "Save the screening",
+    "saved": "Screening recorded.",
+    "policy_on": "Fall screening in outpatient clinics",
+    "criteria": "Screening criteria (one per line)",
+    "criteria_ph": "e.g. dizziness or fainting — after sedation — mobility impairment",
+    "criteria_hint": "The hospital's criteria in its own words: the conditions, places and situations that raise the risk of falling. The program has no list of its own; without one the visit screen is unchanged.",
+    "measures": "General measures written to the record when a screening is positive",
+    "measures_hint": "Copied into the child's record as written (evidence 6).",
+    "report_title": "Fall screening in clinics",
+    "report_sub": "Visits in the period, how many were screened, how many were positive, and how many families were told — and the criteria that applied most.",
+    "off_hint": "Fall screening in clinics is off or has no criteria — turn it on in the risk settings.",
+    "n_visits": "{n} visits",
+    "n_screened": "{n} screened",
+    "n_positive": "{n} positive",
+    "n_told": "Family told {n} of {m}",
+    "by_criterion": "By criterion",
+    "none_positive": "No positive screenings in the period.",
+    "err_no_visit": "No such visit.",
+    "err_off": "Fall screening in clinics is off.",
+    "err_need_family": "The screening is positive — tick that the family was told."
   }
 }

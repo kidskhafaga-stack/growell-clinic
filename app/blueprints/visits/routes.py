@@ -403,8 +403,16 @@ def record(visit_id):
     if panel_on and panel_key and panel_key not in mine:
         mine = mine + [panel_key]
 
+    # GAHAR ICD.10 evidence 4 — the clinic's fall screening, only where the
+    # hospital switched it on and wrote its criteria; otherwise nothing.
+    from app.utils import fall_screen
+
+    fall_on = fall_screen.on()
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
+        fall_on=fall_on,
+        fall_criteria=fall_screen.criteria() if fall_on else [],
+        fall_row=fall_screen.for_visit(visit.id) if fall_on else None,
         # A test the lab answers line by line is typed line by line here too
         # — the paper a family brought, by the same form and the same ranges
         # the bench uses — and this visit's numbers drawn against the child's

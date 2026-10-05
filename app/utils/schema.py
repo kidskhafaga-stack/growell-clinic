@@ -784,6 +784,10 @@ ADDITIONS = [
     ("stock_movements", "lot_number", "VARCHAR(60)"),
     ("stock_movements", "expiry_date", "DATE"),
     ("prescription_items", "lot_number", "VARCHAR(60)"),
+    # GAHAR ICD.10 دليل ٤ — فرز السقوط في العيادة: الزيارة اللي اتعمل فيها،
+    # والمعايير اللي انطبقت بكلام المستشفى. فاضيين على كل تقييم داخلي.
+    ("risk_assessments", "visit_id", "INTEGER"),
+    ("risk_assessments", "criteria", "TEXT"),
     # The survey after a stay, and its money side; and why a family left
     # against advice. Empty on every row already there: nobody was asked.
     ("feedback", "finance_rating", "INTEGER"),
