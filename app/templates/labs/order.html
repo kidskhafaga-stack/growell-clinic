@@ -244,6 +244,13 @@
     {% if order.resulted_at %} · {{ order.resulted_at|clinic_stamp }}{% if order.resulter %} · {{ order.resulter.display_name(current_lang) }}{% endif %}{% endif %}
     {% if late %} · <span class="badge badge--danger" data-late>{{ t('lab_result.late') }}</span>{% endif %}
   </p>
+  {# GAHAR DAS.11 — a word when the person writing has no standing
+     competency assessment for this section; never a wall. #}
+  {% if competency_warning is not none %}
+  <p class="alert-pill warn" style="margin:0 0 10px;" data-competency-warning>
+    <i class="bi bi-person-exclamation"></i>
+    {{ t('lab_comp.not_assessed_for', section=competency_warning or t('lab_comp.whole_lab')) }}</p>
+  {% endif %}
   <form method="post" action="{{ url_for('labs.result', order_id=order.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div style="overflow-x:auto;">
@@ -299,6 +306,13 @@
     {% if order.resulter %} · {{ order.resulter.display_name(current_lang) }}{% endif %}</p>
   {% endif %}
 
+  {# GAHAR DAS.11 — a word when the person writing has no standing
+     competency assessment for this section; never a wall. #}
+  {% if competency_warning is not none %}
+  <p class="alert-pill warn" style="margin:0 0 10px;" data-competency-warning>
+    <i class="bi bi-person-exclamation"></i>
+    {{ t('lab_comp.not_assessed_for', section=competency_warning or t('lab_comp.whole_lab')) }}</p>
+  {% endif %}
   <form method="post" action="{{ url_for('labs.result', order_id=order.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">

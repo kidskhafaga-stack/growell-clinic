@@ -1162,6 +1162,15 @@
     </div>
     <p class="hint" style="margin:6px 0 0;"><i class="bi bi-info-circle"></i> {{ t('settings.ai_dx_hint') }}</p>
 
+    {# A fourth switch: the clinic's figures, not a child's file — what the
+       boards show, with no name a child can be found by. #}
+    <h3 style="margin:16px 0 6px;font-size:0.95rem;"><i class="bi bi-stars"></i> {{ t('settings.ai_boards_section') }}</h3>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="ai_boards" name="ai_boards" value="1" {{ 'checked' if values.get('ai_boards')=='1' else '' }}>
+      <label for="ai_boards" style="margin:0;font-weight:400;">{{ t('settings.ai_boards') }}</label>
+    </div>
+    <p class="hint" style="margin:6px 0 0;"><i class="bi bi-info-circle"></i> {{ t('settings.ai_boards_hint') }}</p>
+
     {# ICD-11 sits on the AI tab because it is the other thing on this screen
        that needs credentials from an outside body — not because WHO has
        anything to do with the assistant. It is imported once and then the

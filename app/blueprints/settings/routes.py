@@ -92,6 +92,8 @@ TEXT_KEYS = [
 TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled",
                "ai_patient_context", "ai_anonymize", "ai_discussion",
                "ai_dx_suggest",
+               # The assistant reads the medical and management boards.
+               "ai_boards",
                # The clinician has read the jaundice table and accepted it.
                # Until then the calculator answers nothing.
                "jaundice_table_confirmed",

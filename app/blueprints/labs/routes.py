@@ -107,6 +107,7 @@ def index():
                            expired_lots=_reagents().expired_on_shelf(),
                            qc_failures=_quality().failed_without_action(),
                            poct_attention=_poct_util().needing_attention(),
+                           staff_attention=_competency().attention(),
                            at_door=request.args.get("receive") == "1",
                            # Where the child is, when they are in a bed: the
                            # sample is drawn at the bed, not at the desk.
@@ -151,6 +152,10 @@ def order(order_id):
                            may_read=lab_results.reads_results(current_user),
                            waited=bench.waiting_minutes(row),
                            doctors=_doctor_names(),
+                           # GAHAR DAS.11 — the person writing has no
+                           # standing assessment for this section.
+                           competency_warning=_competency().warning_for(
+                               row, current_user),
                            # GAHAR DAS.20 — where this tube is kept.
                            **_storage_for(row))
 
@@ -1312,6 +1317,12 @@ def _release():
     from app.utils import lab_release
 
     return lab_release
+
+
+def _competency():
+    from app.utils import lab_competency
+
+    return lab_competency
 
 
 def _reception():

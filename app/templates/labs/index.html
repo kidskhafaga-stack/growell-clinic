@@ -75,6 +75,11 @@
     {# Each test's written procedure and verification (GAHAR DAS.16 / 17). #}
     <a class="btn btn-outline gc-press" data-to-documents href="{{ url_for('labs.documents') }}">
       <i class="bi bi-journal-check"></i> {{ t('lab_docs.title') }}</a>
+    {# Who is competent for which section (GAHAR DAS.11) — nobody assessed,
+       past the date or not competent, once the lab keeps the files. #}
+    <a class="btn btn-outline gc-press" data-to-staff href="{{ url_for('labs.staff') }}">
+      <i class="bi bi-person-badge"></i> {{ t('lab_comp.title') }}
+      {% if staff_attention %}<span class="badge badge--warn" data-staff-attention>{{ staff_attention }}</span>{% endif %}</a>
     {# Where the tubes are kept after their result (GAHAR DAS.20). #}
     <a class="btn btn-outline gc-press" data-to-storage href="{{ url_for('labs.storage') }}">
       <i class="bi bi-inboxes"></i> {{ t('lab_storage.title') }}</a>

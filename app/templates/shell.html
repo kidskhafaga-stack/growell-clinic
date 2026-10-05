@@ -130,6 +130,18 @@
         <span class="nav-tip">{{ t('mine.nav') }}</span>
       </a>
       {% endif %}
+      {# «مرضايا» — the doctor's own work list (`visits.mine`). It had a
+         button on the visits list and a tab on the boards, and was asked
+         after as «مش ظاهرة اوصلها منين». The route decides who sees whom;
+         this asks only what the tab on the boards asks. #}
+      {% if current_user.can_open('visits') and current_user.can('patient_medical') %}
+      <a class="nav-item gc-press {{ 'active' if active_module == 'my_patients' else '' }}"
+         href="{{ url_for('visits.mine') }}" data-nav-mine>
+        <i class="bi bi-person-lines-fill"></i>
+        <span>{{ t('board_med.tab_mine') }}</span>
+        <span class="nav-tip">{{ t('board_med.tab_mine') }}</span>
+      </a>
+      {% endif %}
       {# Till operator (reception) without full finance access: a direct link to
          the cashier, so collecting money never needs the whole finance module. #}
       {% if current_user.can('cashier') and not current_user.can_access('finance') and module_enabled('finance') %}

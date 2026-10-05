@@ -1027,7 +1027,44 @@ def medical_board():
     """Counts and illnesses from one date to another, beside the same stretch
     just before — see ``utils/med_board``. Names only reach whoever may open
     a child's file; everybody else sees how many."""
-    from app.utils import med_board
+    return _medical_board()
+
+
+@reports_bp.route("/medical/ai", methods=["POST"])
+@module_required(MODULE)
+def medical_board_ai():
+    """The same board, with the assistant's reading of it underneath —
+    ``utils/board_ai``. The window and the filters ride on the query string,
+    so the board read is the board on the screen."""
+    return _medical_board(asked=True)
+
+
+def _board_ai_reply(kind, facts_of):
+    """Ask the assistant about a board, log that it was asked, keep nothing
+    of the answer. ``facts_of`` builds the figures only when it is asked."""
+    from app.models import ActivityLog
+    from app.utils import ai, board_ai
+    from app.utils.decorators import client_ip
+
+    if not board_ai.enabled():
+        reply = {"ok": False, "error": "boards_disabled"}
+    elif not ai.is_ready():
+        reply = {"ok": False, "error": "not_configured"}
+    else:
+        facts, codes = facts_of()
+        reply = board_ai.ask(facts, codes, request.form.get("question"),
+                             lang=getattr(g, "lang", "ar"))
+    if reply.get("ok"):
+        ActivityLog.record(f"ai.board_{kind}", user_id=current_user.id,
+                           ip_address=client_ip())
+        db.session.commit()
+    else:
+        reply["message"] = ai.error_sentence(reply.get("error"))
+    return reply
+
+
+def _medical_board(asked=False):
+    from app.utils import board_ai, med_board
 
     w = _board_window()
     on = med_board.parts()
@@ -1055,16 +1092,23 @@ def medical_board():
     choices = med_board.places(on)
     if place not in {k for k, _ in choices}:
         place = ""
+    ages = med_board.ages(w["from"], w["to"])
+    wards = med_board.wards(w["from"], w["to"]) if on["beds"] else []
+    er = med_board.emergency(w["from"], w["to"]) if on["emergency"] else None
+    doctors = med_board.doctors(w["from"], w["to"], place or None, on)
+    ai_reply = None
+    if asked:
+        ai_reply = _board_ai_reply("medical", lambda: board_ai.medical_facts(
+            w, on, now, before, dx, ages, wards, er, doctors))
     return render_template(
         "reports/medical_board.html", w=w, on=on, now=now, before=before,
         change=med_board.change, dx=dx, show_all=show_all,
         rising=med_board.rising(dx["coded"] + dx["free"]), detail=detail,
-        ages=med_board.ages(w["from"], w["to"]),
-        wards=med_board.wards(w["from"], w["to"]) if on["beds"] else [],
-        er=med_board.emergency(w["from"], w["to"]) if on["emergency"] else None,
-        doctors=med_board.doctors(w["from"], w["to"], place or None, on),
+        ages=ages, wards=wards, er=er, doctors=doctors,
         place=place, places=choices, presets=med_board.PRESETS,
-        buckets=med_board.AGE_BUCKETS)
+        buckets=med_board.AGE_BUCKETS,
+        ai_board=board_ai.ready(), ai_reply=ai_reply,
+        ai_endpoint="reports.medical_board_ai")
 
 
 @reports_bp.route("/medical/diagnoses.csv")
@@ -1123,10 +1167,28 @@ def medical_board_cases():
 def management_board():
     """The money and the work of each part of the clinic — see
     ``utils/admin_board``. Behind the finance capability: it is the P&L."""
-    from app.utils import admin_board, med_board
+    return _management_board()
+
+
+@reports_bp.route("/management/ai", methods=["POST"])
+@module_required(MODULE)
+@capability_required("finance_manage")
+def management_board_ai():
+    return _management_board(asked=True)
+
+
+def _management_board(asked=False):
+    from app.utils import admin_board, board_ai, med_board
 
     w = _board_window()
+    data = admin_board.board(w)
+    ai_reply = None
+    if asked:
+        ai_reply = _board_ai_reply("management",
+                                   lambda: board_ai.management_facts(w, data))
     return render_template("reports/management_board.html", w=w,
                            presets=med_board.PRESETS,
                            open_centre=request.args.get("centre", type=int),
-                           **admin_board.board(w))
+                           ai_board=board_ai.ready(), ai_reply=ai_reply,
+                           ai_endpoint="reports.management_board_ai",
+                           **data)
