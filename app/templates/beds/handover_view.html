@@ -1,0 +1,87 @@
+{% extends "shell.html" %}
+{% import "beds/_handover_card.html" as hc with context %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('handover.view_title') }}{% endblock %}
+{% block page_heading %}{{ t('handover.view_title') }}{% endblock %}
+
+{% block content %}
+{# One handover as it was given: each card is the snapshot taken when it was
+   signed, not today's record. Under each child, the question the receiver
+   asked and the answer — ACT.08's "opportunity to ask and respond" — and the
+   acceptance at the bottom, which waits while a question has no answer. #}
+<div class="no-print gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-arrow-left-right"></i>
+      {% if row.occasion == 'transfer' %}{{ t('handover.transfer_title', frm=row.from_unit.display_name(current_lang) if row.from_unit else '—', to=row.unit.display_name(current_lang) if row.unit else '—') }}
+      {% else %}{{ t('handover.kind_' ~ row.discipline) }} · {{ row.unit.display_name(current_lang) if row.unit else t('handover.all_units') }}{% endif %}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('handover.method_line', method=t('handover.method_' ~ row.method)) }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="btn btn-outline gc-press" type="button" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('beds.handovers') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  </div>
+</div>
+
+<div class="card gc-scale-in print-area">
+  <div class="info-grid" style="margin-bottom:12px;" data-handover-head>
+    <div class="info-item"><div class="k">{{ t('handover.handed_by') }}</div><div class="v">{{ row.giver.display_name(current_lang) if row.giver else '—' }} · {{ row.handed_at|clinic_stamp }}</div></div>
+    {% if row.offered %}<div class="info-item"><div class="k">{{ t('handover.offered_to') }}</div><div class="v">{{ row.offered.display_name(current_lang) }}</div></div>{% endif %}
+    <div class="info-item"><div class="k">{{ t('handover.accepted_by') }}</div><div class="v">
+      {% if row.accepted_at %}<span data-handover-accepted>{{ row.receiver.display_name(current_lang) if row.receiver else '—' }} · {{ row.accepted_at|clinic_stamp }}</span>
+      {% else %}<span class="badge badge--warn" data-handover-open>{{ t('handover.not_accepted') }}</span>{% endif %}</div></div>
+  </div>
+  {% if row.note %}<p style="margin:0 0 12px;" dir="auto"><strong>{{ t('handover.unit_note') }}:</strong> {{ row.note }}</p>{% endif %}
+
+  {% if not row.items %}<p class="hint" data-no-children>{{ t('handover.no_children') }}</p>{% endif %}
+  {% for item in row.items %}
+    {% set watch_text %}{% if item.watch %}<strong dir="auto">{{ item.watch }}</strong>{% else %}<span class="hint">{{ t('handover.nothing_said') }}</span>{% endif %}{% endset %}
+    {% set severity_text %}{% if item.severity %}<span class="badge {{ 'badge--danger' if item.severity == 'unstable' else ('badge--warn' if item.severity == 'watcher' else 'badge--green') }}">{{ t('handover.severity_' ~ item.severity) }}</span>{% else %}—{% endif %}{% endset %}
+    {% call hc.card(item.card, row.method, watch_text, severity_text, anchor='item-' ~ item.id) %}
+      <div style="border-top:1px dashed var(--line);padding-top:6px;" data-item-qa="{{ item.id }}">
+        <a class="hint no-print" href="{{ url_for('beds.admission', admission_id=item.admission_id) }}"><i class="bi bi-folder2-open"></i> {{ t('handover.open_stay') }}</a>
+        {% if item.question %}
+          <div style="margin-top:4px;"><i class="bi bi-question-circle"></i> <span dir="auto">{{ item.question }}</span> <span class="hint">— {{ item.asker.display_name(current_lang) if item.asker else '—' }}</span></div>
+          {% if item.answer %}<div><i class="bi bi-reply"></i> <span dir="auto">{{ item.answer }}</span> <span class="hint">— {{ item.answerer.display_name(current_lang) if item.answerer else '—' }}</span></div>
+          {% elif row.is_open %}<span class="badge badge--warn" data-unanswered>{{ t('handover.unanswered') }}</span>
+            {% if current_user.id != item.asked_by %}
+            <form method="post" action="{{ url_for('beds.handover_answer', item_id=item.id) }}" class="no-print" style="display:flex;gap:6px;margin-top:4px;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input class="input" name="answer" required maxlength="1000" placeholder="{{ t('handover.answer_ph') }}" aria-label="{{ t('handover.answer') }}" style="flex:1;">
+              <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('handover.answer') }}</button></form>
+            {% endif %}
+          {% endif %}
+        {% elif row.is_open and current_user.id != row.handed_by %}
+          <form method="post" action="{{ url_for('beds.handover_ask', item_id=item.id) }}" class="no-print" style="display:flex;gap:6px;margin-top:4px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="input" name="question" required maxlength="1000" placeholder="{{ t('handover.ask_ph') }}" aria-label="{{ t('handover.ask') }}" style="flex:1;">
+            <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('handover.ask') }}</button></form>
+        {% endif %}
+      </div>
+    {% endcall %}
+  {% endfor %}
+</div>
+
+{% if row.is_open %}
+<div class="card gc-scale-in no-print" style="margin-top:14px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;">
+  {% if current_user.id == row.handed_by %}
+    <p class="hint" style="margin:0;">{{ t('handover.waiting_for_other') }}</p>
+    <form method="post" action="{{ url_for('beds.handover_withdraw', handover_id=row.id) }}" style="margin:0;" data-withdraw-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-arrow-counterclockwise"></i> {{ t('handover.withdraw') }}</button></form>
+  {% elif may_receive %}
+    <form method="post" action="{{ url_for('beds.handover_accept', handover_id=row.id) }}" style="margin:0;display:flex;gap:12px;flex-wrap:wrap;align-items:center;" data-accept-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if row.method == 'ipass' %}
+      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" name="synthesis" value="1" required> {{ t('handover.synthesis') }}</label>
+      {% endif %}
+      {% if row.open_questions %}<span class="badge badge--warn">{{ t('handover.err_open_questions') }}</span>{% endif %}
+      <button class="btn btn-primary gc-press gc-ripple" type="submit" {{ 'disabled' if row.open_questions }}><i class="bi bi-check2-circle"></i> {{ t('handover.accept') }}</button>
+    </form>
+  {% else %}
+    <p class="hint" style="margin:0;">{{ t('handover.err_wrong_discipline') }}</p>
+  {% endif %}
+</div>
+{% elif row.synthesis %}
+<p class="hint" style="margin-top:10px;">{{ t('handover.synthesis_done') }}</p>
+{% endif %}
+{% endblock %}

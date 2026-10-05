@@ -1356,6 +1356,10 @@ def watch():
                            # إنها مشيت.
                            mrp_missing=_who.without_mrp(limit=20),
                            mrp_limbo=_who.in_limbo(limit=20),
+                           # وأربعتاشر: **تسليم مستني الاستلام** — `ACT.08`.
+                           # وردية سلّمت ومحدّش استلم، وطفل اتنقل لقسم
+                           # والقسم ما استلموش.
+                           handovers_waiting=_handover_waiting(),
                            # وتلتاشر: **الألم** — `ICD.09`. اتفرز وطلع
                            # فيه ألم ومحدّش قيّمه؛ وإقامة محدّش فرزها
                            # خالص؛ وتقييم محدّش رجع له. والأولانية هي
@@ -2001,6 +2005,12 @@ def _back_from_dose(order_row):
 
 
 # ------------------------------------------ المسؤولية `ACT.07` ----------
+def _handover_waiting():
+    from app.utils import handover
+
+    return handover.waiting(limit=20)
+
+
 def _doctors():
     """مين ينفع يبقى مسؤول.
 

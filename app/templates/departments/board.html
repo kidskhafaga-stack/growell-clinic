@@ -42,6 +42,8 @@
       <i class="bi bi-capsule"></i> {{ t('meds.round') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.index') }}">
       <i class="bi bi-grid-3x3"></i> {{ t('beds.board') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('beds.handovers') }}" data-to-handovers>
+      <i class="bi bi-arrow-left-right"></i> {{ t('handover.to_handovers') }}</a>
     {# الشاشة دي بتقرا **الأسرّة**، والطفل اللي لسه ماخدش سرير — ويمكن ما
        ياخدش خالص — مش عليها. فالسجل جنبها مش مكانها: دي «الأسرّة فيها
        مين»، وده «القسم فيه مين». #}

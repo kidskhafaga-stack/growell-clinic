@@ -1,0 +1,81 @@
+{% extends "shell.html" %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('handover.title') }}{% endblock %}
+{% block page_heading %}{{ t('handover.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ACT.08 / GSR.04 — every department, and for each of the doctors and
+   the nurses: the handover still waiting to be accepted, the last one, and
+   the button to hand over now. "All departments" first, for the resident who
+   covers the whole hospital at night. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-arrow-left-right"></i> {{ t('handover.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('handover.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('beds.handover_report') }}" data-to-handover-report><i class="bi bi-bar-chart-line"></i> {{ t('handover.report_title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('beds.index') }}"><i class="bi bi-hospital"></i> {{ t('handover.to_beds') }}</a>
+  </div>
+</div>
+
+{% if waiting %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-color:var(--warn);" data-handovers-waiting>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-hourglass-split"></i> {{ t('handover.waiting_title', n=waiting|length) }}</h2>
+  <ul style="margin:0;padding-inline-start:18px;">
+    {% for row in waiting %}
+    <li data-waiting-row="{{ row.id }}"><a href="{{ url_for('beds.handover_view', handover_id=row.id) }}">
+      {% if row.occasion == 'transfer' %}{{ t('handover.transfer_line', child=row.items[0].patient.display_name(current_lang) if row.items else '—', frm=row.from_unit.display_name(current_lang) if row.from_unit else '—', to=row.unit.display_name(current_lang) if row.unit else '—') }}
+      {% else %}{{ t('handover.kind_' ~ row.discipline) }} · {{ row.unit.display_name(current_lang) if row.unit else t('handover.all_units') }}{% endif %}</a>
+      <span class="hint">— {{ row.giver.display_name(current_lang) if row.giver else '—' }} · {{ row.handed_at|clinic_stamp }}</span></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;overflow-x:auto;" data-handover-units>
+  <table class="table" style="min-width:640px;">
+    <thead><tr><th>{{ t('handover.unit') }}</th><th>{{ t('handover.children') }}</th>
+      {% for d in disciplines %}<th>{{ t('handover.kind_' ~ d) }} <span class="hint">({{ t('handover.method_' ~ methods[d]) }})</span></th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr data-handover-unit="{{ r.unit.id if r.unit else 0 }}">
+      <td><strong>{{ r.unit.display_name(current_lang) if r.unit else t('handover.all_units') }}</strong></td>
+      <td>{{ r.count }}</td>
+      {% for d in disciplines %}{% set k = r.kinds[d] %}
+      <td>
+        {% if k.open %}
+          <a class="badge badge--warn" href="{{ url_for('beds.handover_view', handover_id=k.open.id) }}" data-open-handover="{{ k.open.id }}">{{ t('handover.open_since', when=k.open.handed_at|clinic_stamp) }}</a>
+        {% else %}
+          {% if k.last %}<a class="hint" href="{{ url_for('beds.handover_view', handover_id=k.last.id) }}">{{ t('handover.last_line', when=k.last.handed_at|clinic_stamp) }}</a><br>{% endif %}
+          <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('beds.handover_new', unit=r.unit.id if r.unit else 0, discipline=d) }}" data-to-handover-new><i class="bi bi-box-arrow-right"></i> {{ t('handover.hand_now') }}</a>
+        {% endif %}
+      </td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if current_user.is_admin %}
+<form method="post" action="{{ url_for('beds.handover_settings') }}" class="card gc-scale-in" data-handover-settings>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin-top:0;">{{ t('handover.settings_title') }}</h2>
+  <p class="hint" style="margin-top:0;">{{ t('handover.settings_hint') }}</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+    {% for k in kinds %}
+    <div class="form-row" style="margin:0;"><label for="method_{{ k }}">{{ t('handover.method_for_' ~ k) }}</label>
+      <select class="input" id="method_{{ k }}" name="method_{{ k }}">
+        {% for m in all_methods %}<option value="{{ m }}" {{ 'selected' if methods[k] == m }}>{{ t('handover.method_' ~ m) }}</option>{% endfor %}
+      </select></div>
+    {% endfor %}
+    {% for d in disciplines %}
+    <div class="form-row" style="margin:0;"><label for="per_day_{{ d }}">{{ t('handover.per_day_for_' ~ d) }}</label>
+      <input class="input" type="number" min="1" max="12" id="per_day_{{ d }}" name="per_day_{{ d }}" value="{{ per_day[d] or '' }}" placeholder="{{ t('handover.per_day_ph') }}"></div>
+    {% endfor %}
+  </div>
+  <button class="btn btn-primary gc-press" type="submit" style="margin-top:10px;">{{ t('common.save') }}</button>
+</form>
+{% endif %}
+{% endblock %}

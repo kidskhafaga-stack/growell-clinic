@@ -1,0 +1,61 @@
+{% extends "shell.html" %}
+{% import "beds/_handover_card.html" as hc with context %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('handover.new_title') }}{% endblock %}
+{% block page_heading %}{{ t('handover.new_title') }}{% endblock %}
+
+{% block content %}
+{# The handover sheet. Every child in the department, each card filled from
+   the record; the one box per child is "watch for", and it is optional —
+   a child nobody wrote about is still on the handover, which tells the
+   receiver something too. Last shift's line is shown under the box as a
+   reminder, never copied into it: a note carried forward unread is how a
+   stale instruction outlives the child's condition. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-box-arrow-right"></i> {{ t('handover.kind_' ~ discipline) }} · {{ unit.display_name(current_lang) if unit else t('handover.all_units') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('handover.method_line', method=t('handover.method_' ~ method)) }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('beds.handovers') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+</div>
+
+{% if open_row %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-color:var(--warn);" data-already-open>
+  <p style="margin:0;">{{ t('handover.err_already_open') }} <a href="{{ url_for('beds.handover_view', handover_id=open_row.id) }}">{{ t('handover.open_it') }}</a></p>
+</div>
+{% else %}
+<form method="post" action="{{ url_for('beds.handover_create') }}" data-handover-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="unit_id" value="{{ unit.id if unit else 0 }}">
+  <input type="hidden" name="discipline" value="{{ discipline }}">
+
+  {% if not stays %}<div class="card" style="margin-bottom:14px;"><p class="hint" style="margin:0;" data-no-children>{{ t('handover.no_children') }}</p></div>{% endif %}
+
+  {% for stay in stays %}{% set c = cards[stay.id] %}{% set prev = before.get(stay.id) %}
+    {% set watch_box %}
+      <textarea class="input" name="watch_{{ stay.id }}" rows="2" maxlength="1000" placeholder="{{ t('handover.watch_ph') }}" aria-label="{{ t('handover.watch') }}" style="width:100%;"></textarea>
+      {% if prev and prev.watch %}<div class="hint" style="font-size:.8rem;" data-last-watch>{{ t('handover.last_shift_said') }}: <span dir="auto">{{ prev.watch }}</span></div>{% endif %}
+    {% endset %}
+    {% set severity_box %}
+      <div style="display:flex;gap:10px;flex-wrap:wrap;" role="radiogroup" aria-label="{{ t('handover.sec_illness') }}">
+        {% for s in severities %}
+        <label style="display:flex;gap:4px;align-items:center;"><input type="radio" name="severity_{{ stay.id }}" value="{{ s }}" required> {{ t('handover.severity_' ~ s) }}</label>
+        {% endfor %}
+      </div>
+    {% endset %}
+    {{ hc.card(c, method, watch_box, severity_box, anchor='stay-' ~ stay.id) }}
+  {% endfor %}
+
+  <div class="card gc-scale-in" style="margin-bottom:14px;">
+    <div class="form-row"><label for="note">{{ t('handover.unit_note') }}</label>
+      <textarea class="input" id="note" name="note" rows="2" maxlength="2000" placeholder="{{ t('handover.unit_note_ph') }}"></textarea></div>
+    <div class="form-row" style="margin-bottom:0;"><label for="offered_to">{{ t('handover.offered_to') }}</label>
+      <select class="input" id="offered_to" name="offered_to">
+        <option value="">{{ t('handover.offered_anyone') }}</option>
+        {% for p in people if p.id != current_user.id %}<option value="{{ p.id }}">{{ p.display_name(current_lang) }}</option>{% endfor %}
+      </select></div>
+  </div>
+  <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-send-check"></i> {{ t('handover.sign_hand') }}</button>
+</form>
+{% endif %}
+{% endblock %}

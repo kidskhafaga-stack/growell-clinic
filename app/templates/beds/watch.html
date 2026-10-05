@@ -433,6 +433,30 @@
 </div>
 {% endif %}
 
+{# ---- التسليم — `ACT.08` --------------------------------------------------- #}
+
+{# وردية سلّمت ومحدّش استلم، أو طفل اتنقل لقسم والقسم ما استلموش. نفس
+   شكل «سلّم ومحدّش استلم» في المسؤولية: الصف بيبان مكتمل، واللي ناقصه
+   الطرف التاني. #}
+{% if handovers_waiting %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:16px;border-inline-start:4px solid var(--warn);"
+     data-handover-watch>
+  <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('handover.watch_board') }}</strong>
+    <a class="hint" style="margin-inline-start:8px;" href="{{ url_for('beds.handovers') }}">{{ t('handover.to_handovers') }}</a>
+  </div>
+  <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;">
+    {% for row in handovers_waiting %}
+    <a class="badge badge--warn" data-handover-waiting-row="{{ row.id }}"
+       href="{{ url_for('beds.handover_view', handover_id=row.id) }}">
+      {% if row.occasion == 'transfer' %}{{ row.items[0].patient.display_name(current_lang) if row.items else '—' }} → {{ row.unit.display_name(current_lang) if row.unit else '—' }}
+      {% else %}{{ t('handover.kind_' ~ row.discipline) }} · {{ row.unit.display_name(current_lang) if row.unit else t('handover.all_units') }}{% endif %}
+      · {{ row.handed_at|clinic_stamp }}</a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 {# ---- الألم — `ICD.09` --------------------------------------------------- #}
 
 {# النية بتبدأ بجملة مش إجرائية: *Each patient has the **right to a
