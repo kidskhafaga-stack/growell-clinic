@@ -1,0 +1,66 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('med_store.outage_title') }}{% endblock %}
+{% block page_heading %}{{ t('med_store.outages_title') }}{% endblock %}
+
+{% block content %}
+{# One outage: when, where, and the pharmacist's decision for each medicine
+   it reached. Closed only once the power is back and something was decided. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-lightning-charge"></i> {{ t('med_store.outage_title') }}
+      {% if row.closed_at %}<span class="badge badge--green">{{ t('med_store.closed') }}</span>{% else %}<span class="badge badge--danger">{{ t('med_store.open') }}</span>{% endif %}</h1>
+    <p class="page-sub" style="margin:0;">{{ row.started_at|clinic_stamp }} → {{ row.ended_at|clinic_stamp if row.ended_at else t('med_store.still_out') }}{% if row.minutes is not none %} · {{ t('med_store.n_minutes', n=row.minutes) }}{% endif %}{% if row.highest_temp is not none %} · <span dir="ltr">{{ row.highest_temp }} °C</span>{% endif %}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.storage_outages') }}"><i class="bi bi-list-ul"></i> {{ t('med_store.outages_title') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <strong>{{ t('med_store.affected') }}:</strong> {% for a in affected %}<span class="badge badge--muted">{{ a.name }}</span> {% endfor %}
+  {% if row.note %}<p style="margin:8px 0 0;" dir="auto">{{ row.note }}</p>{% endif %}
+</div>
+
+{% if not row.closed_at and not row.ended_at %}
+<form method="post" action="{{ url_for('med_storage.storage_outage_end', outage_id=row.id) }}" class="card gc-scale-in" style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:end;" data-outage-end>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="form-row" style="margin:0;"><label for="e_end">{{ t('med_store.ended') }}</label><input class="input" type="datetime-local" id="e_end" name="ended_at"></div>
+  <div class="form-row" style="margin:0;"><label for="e_high">{{ t('med_store.highest_temp') }}</label><input class="input" type="number" step="0.1" dir="ltr" id="e_high" name="highest_temp" style="width:110px;"></div>
+  <button class="btn btn-primary gc-press" type="submit">{{ t('med_store.power_back') }}</button>
+</form>
+{% endif %}
+
+<div class="card gc-scale-in" style="overflow-x:auto;margin-bottom:14px;" data-decisions>
+  <h2 class="section-title" style="margin-top:0;">{{ t('med_store.decisions') }}</h2>
+  {% if row.decisions %}
+  <table class="table" style="min-width:560px;">
+    <thead><tr><th>{{ t('med_store.medicine') }}</th><th>{{ t('inventory.lot_number') }}</th><th>{{ t('med_store.decision') }}</th><th>{{ t('med_store.reason') }}</th><th>{{ t('med_store.by') }}</th></tr></thead>
+    <tbody>{% for d in row.decisions %}
+    <tr data-decision="{{ d.id }}"><td>{{ d.item.name if d.item else '' }}{% if d.medicine %} {{ d.medicine }}{% endif %}</td>
+      <td dir="ltr">{{ d.lot_number or '—' }}</td>
+      <td><span class="badge {{ 'badge--danger' if d.decision == 'discard' else ('badge--warn' if d.decision == 'quarantine' else 'badge--green') }}">{{ t('med_store.d_' ~ d.decision) }}</span></td>
+      <td dir="auto">{{ d.reason }}</td><td>{{ d.decider.display_name(current_lang) if d.decider else '—' }}</td></tr>
+    {% endfor %}</tbody></table>
+  {% else %}<p class="hint" style="margin:0;">{{ t('med_store.no_decisions') }}</p>{% endif %}
+</div>
+
+{% if may_manage and not row.closed_at %}
+<form method="post" action="{{ url_for('med_storage.storage_outage_decide', outage_id=row.id) }}" class="card gc-scale-in" style="margin-bottom:14px;" data-decide-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin-top:0;">{{ t('med_store.decide') }}</h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <div class="form-row" style="margin:0;min-width:200px;"><label for="d_item">{{ t('med_store.store_item') }}</label>
+      <select class="input" id="d_item" name="store_item_id"><option value="">—</option>{% for i in items %}<option value="{{ i.id }}">{{ i.name }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="d_med">{{ t('med_store.or_medicine') }}</label><input class="input" id="d_med" name="medicine" maxlength="200" dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="d_lot">{{ t('inventory.lot_number') }}</label><input class="input" id="d_lot" name="lot_number" maxlength="60" dir="ltr" style="width:120px;"></div>
+    <div class="form-row" style="margin:0;"><label for="d_dec">{{ t('med_store.decision') }}</label>
+      <select class="input" id="d_dec" name="decision" required><option value="">—</option>{% for d in decisions %}<option value="{{ d }}">{{ t('med_store.d_' ~ d) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:200px;"><label for="d_reason">{{ t('med_store.reason') }}</label><input class="input" id="d_reason" name="reason" maxlength="400" required dir="auto"></div>
+    <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+  </div>
+</form>
+<form method="post" action="{{ url_for('med_storage.storage_outage_close', outage_id=row.id) }}" data-outage-close>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('med_store.close_outage') }}</button>
+</form>
+{% endif %}
+{% endblock %}

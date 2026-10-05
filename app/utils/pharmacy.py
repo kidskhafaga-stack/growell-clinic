@@ -226,6 +226,8 @@ def take_off_shelf(rows, invoice, user=None, lang="ar"):
             reason=_reason(line, lang),
             unit_cost=issue_unit_cost(line.store_item),
             cost_centre_id=pharmacy_centre,
+            # GAHAR MMS.04 — the lot the pharmacist picked on the shelf.
+            lot_number=getattr(line, "lot_number", None),
             created_by=getattr(user, "id", None), document_id=document.id)
         db.session.add(movement)
         db.session.flush()

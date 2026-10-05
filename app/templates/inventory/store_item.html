@@ -36,6 +36,12 @@
             {% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
           </select></div>
         <div class="form-row"><label>{{ t('store.reason') }}</label><input class="input" name="reason"></div>
+        {# GAHAR MMS.04 — optional. On a receipt, the box's lot and expiry;
+           on an issue or a removal, the lot it came from. #}
+        <div class="form-row"><label>{{ t('inventory.lot_number') }}</label>
+          <input class="input" name="lot_number" dir="ltr" maxlength="60" list="lot_list" data-move-lot></div>
+        <div class="form-row"><label>{{ t('med_store.expiry_on_receipt') }}</label><input class="input" type="date" name="expiry_date"></div>
+        <datalist id="lot_list">{% for l in lots %}<option value="{{ l.lot }}">{{ l.expiry.isoformat() if l.expiry else '' }}</option>{% endfor %}</datalist>
       </div>
       <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('store.record_move') }}</button>
     </form>
@@ -78,6 +84,21 @@
 
   <!-- Ledger -->
   <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+    {# GAHAR MMS.04 — what is left of each lot, earliest expiry first. An
+       issue with no lot named is counted against the lot that expired first
+       among those still good that day (`utils/med_storage.lots`). #}
+    {% if lots %}
+    <div style="padding:14px 18px 0;" data-item-lots>
+      <h3 class="section-title" style="margin:0 0 6px;font-size:.95rem;"><i class="bi bi-upc"></i> {{ t('med_store.lots_title') }}</h3>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      {% for l in lots %}
+        <span class="badge {{ 'badge--danger' if l.state == 'expired' else ('badge--warn' if l.state == 'near' else 'badge--muted') }}" data-lot-state="{{ l.state }}">
+          <bdi dir="ltr">{{ l.lot }}</bdi> · {{ l.left }}{% if l.expiry %} · <bdi dir="ltr">{{ l.expiry.isoformat() }}</bdi>{% endif %}</span>
+      {% endfor %}
+      </div>
+      <p class="hint" style="margin:6px 0 0;">{{ t('med_store.lots_hint') }}</p>
+    </div>
+    {% endif %}
     <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-list-ul"></i> {{ t('store.movements') }}</h2>
     {% if movements %}
     <table class="table">
@@ -88,7 +109,8 @@
           <td dir="ltr" style="white-space:nowrap;">{{ m.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
           <td><span class="badge {{ 'badge--green' if m.qty>0 else 'badge--danger' }}">{{ t('store.' ~ m.kind) }}</span></td>
           <td style="font-weight:700;color:{{ 'var(--green-700)' if m.qty>0 else 'var(--danger)' }};">{{ '+' if m.qty>0 else '' }}{{ m.qty }}</td>
-          <td style="color:var(--muted);">{{ m.reason or '—' }}{% if m.supplier %} · {{ m.supplier.name }}{% endif %}</td>
+          <td style="color:var(--muted);">{{ m.reason or '—' }}{% if m.supplier %} · {{ m.supplier.name }}{% endif %}
+            {% if m.lot_number %} · <span dir="ltr" data-move-lot-shown>{{ m.lot_number }}{% if m.expiry_date %} ({{ m.expiry_date.isoformat() }}){% endif %}</span>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>

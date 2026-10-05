@@ -9,9 +9,14 @@
     <h1 class="page-title">{{ t('watch.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('watch.subtitle', n=open_stays) }}</p>
   </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+  {# The ward's fridge and cupboard are read here too (GAHAR MMS.04). #}
+  <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.storage') }}" data-to-storage>
+    <i class="bi bi-thermometer-snow"></i> {{ t('med_store.title') }}</a>
   <a class="btn btn-outline gc-press" href="{{ url_for('beds.index') }}">
     <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i>
     {{ t('beds.board') }}</a>
+  </div>
 </div>
 
 {# Three *now* questions on one board, because a ward manager asks all three

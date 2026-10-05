@@ -1,0 +1,18 @@
+{# The fields of a storage place — new or edited. `area` may be undefined. #}
+<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+  <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label for="a_name">{{ t('med_store.place') }}</label>
+    <input class="input" id="a_name" name="name" maxlength="120" required value="{{ area.name if area else '' }}"></div>
+  <div class="form-row" style="margin:0;"><label for="a_kind">{{ t('med_store.kind') }}</label>
+    <select class="input" id="a_kind" name="kind">{% for k in kinds %}<option value="{{ k }}" {{ 'selected' if area and area.kind == k else '' }}>{{ t('med_store.kind_' ~ k) }}</option>{% endfor %}</select></div>
+  <div class="form-row" style="margin:0;"><label for="a_wh">{{ t('med_store.warehouse') }}</label>
+    <select class="input" id="a_wh" name="warehouse_id"><option value="">—</option>{% for w in warehouses %}<option value="{{ w.id }}" {{ 'selected' if area and area.warehouse_id == w.id else '' }}>{{ w.display_name(current_lang) }}</option>{% endfor %}</select></div>
+  <div class="form-row" style="margin:0;"><label for="a_min">{{ t('med_store.temp_min') }}</label>
+    <input class="input" id="a_min" name="temp_min" type="number" step="0.1" dir="ltr" style="width:100px;" value="{{ area.temp_min if area and area.temp_min is not none else '' }}"></div>
+  <div class="form-row" style="margin:0;"><label for="a_max">{{ t('med_store.temp_max') }}</label>
+    <input class="input" id="a_max" name="temp_max" type="number" step="0.1" dir="ltr" style="width:100px;" value="{{ area.temp_max if area and area.temp_max is not none else '' }}"></div>
+  <div class="form-row" style="margin:0;"><label for="a_hum">{{ t('med_store.humidity_max') }}</label>
+    <input class="input" id="a_hum" name="humidity_max" type="number" step="1" dir="ltr" style="width:100px;" value="{{ area.humidity_max if area and area.humidity_max is not none else '' }}"></div>
+  <div class="form-row" style="margin:0;"><label for="a_per">{{ t('med_store.per_day') }}</label>
+    <input class="input" id="a_per" name="readings_per_day" type="number" min="1" max="24" dir="ltr" style="width:90px;" value="{{ area.readings_per_day if area and area.readings_per_day else '' }}"></div>
+</div>
+<p class="hint" style="margin:8px 0 0;">{{ t('med_store.range_hint') }}</p>

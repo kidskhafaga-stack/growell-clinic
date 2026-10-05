@@ -706,6 +706,26 @@ def store_move(item_id):
     from app.utils.store_docs import open_document
 
     signed = qty if kind == "in" else -qty
+    # GAHAR MMS.04 — the lot, optional. A receipt names the lot and expiry
+    # of the boxes; an issue or a removal names the lot it took from, which
+    # must be one the store holds (an expired one may be removed, never
+    # issued).
+    from app.utils import med_storage
+
+    lot = (request.form.get("lot_number") or "").strip()[:60] or None
+    expiry = None
+    try:
+        if kind == "in":
+            expiry = med_storage._day(request.form.get("expiry_date"))
+        elif lot:
+            held = {row["lot"]: row for row in med_storage.lots(item)}
+            if lot not in held:
+                raise med_storage.StorageError("lot_unknown")
+            if kind == "out" and held[lot]["state"] == "expired":
+                raise med_storage.StorageError("lot_expired")
+    except med_storage.StorageError as err:
+        flash(t(f"med_store.err_{err}"), "danger")
+        return redirect(url_for("inventory.store_item", item_id=item.id))
     doc_kind = {"in": "grn", "out": "issue", "waste": "waste"}.get(kind, "adjust")
     doc = open_document(doc_kind,
                         reference=(request.form.get("reason") or "").strip() or None,
@@ -719,6 +739,7 @@ def store_move(item_id):
                   or (issue_unit_cost(item) if kind != "in" else None),
         supplier_id=request.form.get("supplier_id", type=int) or None,
         created_by=current_user.id,
+        lot_number=lot, expiry_date=expiry,
     ))
     # A costed receipt is a new purchase price → honour the item's sell-price
     # policy (auto margin) and stamp آخر سعر شراء.
@@ -743,7 +764,10 @@ def store_item(item_id):
     )
     from app.utils.store_seed import (store_categories, store_purchase_units,
                                        store_units)
+    from app.utils import med_storage
+
     return render_template("inventory/store_item.html", item=item,
+                           lots=med_storage.lots(item),
                            movements=movements, suppliers=_suppliers(),
                            categories=store_categories(), units=store_units(),
                            purchase_units=store_purchase_units(),
@@ -1334,6 +1358,9 @@ def purchase_receive(po_id):
                 reason=t("purchases.grn_reason", po=po.po_number),
                 unit_cost=item.unit_cost, supplier_id=po.supplier_id,
                 created_by=current_user.id, document_id=grn.id,
+                # GAHAR MMS.04 — the lot and expiry, when the store wrote them.
+                lot_number=(request.form.get(f"lot_{item.id}") or "").strip()[:60] or None,
+                expiry_date=_parse_date(f"exp_{item.id}"),
             ))
             if item.store_item:
                 apply_purchase_cost(item.store_item, item.unit_cost)

@@ -39,6 +39,9 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.lasa') }}">
       <i class="bi bi-arrow-left-right"></i> {{ t('lasa.title') }}</a>
     {% endif %}
+    {# Where medicines are kept (GAHAR MMS.04 / GSR.19). #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.storage') }}" data-to-storage>
+      <i class="bi bi-thermometer-snow"></i> {{ t('med_store.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.supply') }}">
       <i class="bi bi-bag-plus"></i> {{ t('cpharm.supply') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.index') }}">
