@@ -1,0 +1,91 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_docs.test_title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_docs.test_title') }}{% endblock %}
+
+{% block content %}
+{# One test: its written procedure (every version, the newest in force) and
+   its verifications. Read by anybody at the bench — DAS.17 asks that the
+   procedure be "readily available when needed"; written by the head of the
+   laboratory or whoever builds the lists. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-journal-check"></i> {{ test.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lab_docs.test_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.documents') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('lab_docs.title') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-procedure-box data-p-state="{{ p_state }}">
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_docs.procedure') }}
+    {% if p_state == 'none' %}<span class="badge badge--warn">{{ t('lab_docs.state_none') }}</span>
+    {% elif p_state == 'overdue' %}<span class="badge badge--danger">{{ t('lab_docs.review_overdue') }}</span>{% endif %}</h2>
+  {% if procedures %}{% set p = procedures[0] %}
+  <p style="margin:0 0 8px;" data-procedure-current>
+    <strong>{{ t('lab_docs.version_n', v=p.version) }}</strong>{% if p.code %} · <span dir="ltr">{{ p.code }}</span>{% endif %}
+    · {{ t('lab_docs.effective', day=p.effective_on.isoformat()) }}
+    {% if p.review_due %} · {{ t('lab_docs.review_on', day=p.review_due.isoformat()) }}{% endif %}
+    {% if p.approved_by %} · {{ t('lab_docs.approved_by', who=p.approved_by) }}{% endif %}<br>
+    {% if p.is_link %}<a href="{{ p.location }}" target="_blank" rel="noopener" data-procedure-link><i class="bi bi-box-arrow-up-right"></i> {{ t('lab_docs.open') }}</a>
+    {% else %}<i class="bi bi-geo-alt"></i> <span dir="auto">{{ p.location }}</span>{% endif %}
+  </p>
+  {% if procedures|length > 1 %}
+  <details><summary class="hint">{{ t('lab_docs.older_versions', n=procedures|length - 1) }}</summary>
+    <ul style="margin:6px 0 0;padding-inline-start:18px;">{% for o in procedures[1:] %}<li>{{ t('lab_docs.version_n', v=o.version) }} · {{ o.effective_on.isoformat() }}{% if o.approved_by %} · {{ o.approved_by }}{% endif %}</li>{% endfor %}</ul>
+  </details>
+  {% endif %}
+  {% else %}<p class="hint" style="margin:0 0 8px;">{{ t('lab_docs.no_procedure') }}</p>{% endif %}
+
+  {% if may_write %}
+  <form method="post" action="{{ url_for('labs.test_procedure', test_id=test.id) }}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-top:10px;" data-procedure-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="version">{{ t('lab_docs.version') }}</label><input class="input" id="version" name="version" required maxlength="20" dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label for="code">{{ t('lab_docs.code') }}</label><input class="input" id="code" name="code" maxlength="40" dir="ltr"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="location">{{ t('lab_docs.location') }}</label><input class="input" id="location" name="location" required maxlength="255" placeholder="{{ t('lab_docs.location_ph') }}"></div>
+    <div class="form-row" style="margin:0;"><label for="effective_on">{{ t('lab_docs.effective_on') }}</label><input class="input" type="date" id="effective_on" name="effective_on" required value="{{ today.isoformat() }}"></div>
+    <div class="form-row" style="margin:0;"><label for="review_due">{{ t('lab_docs.review_due') }}</label><input class="input" type="date" id="review_due" name="review_due"></div>
+    <div class="form-row" style="margin:0;"><label for="approved_by">{{ t('lab_docs.approved_by_label') }}</label><input class="input" id="approved_by" name="approved_by" maxlength="120"></div>
+    <div style="grid-column:1/-1;"><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('lab_docs.add_version') }}</button></div>
+  </form>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" data-check-box data-c-state="{{ c_state }}">
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_docs.check') }}
+    {% if c_state == 'none' %}<span class="badge badge--warn">{{ t('lab_docs.state_none') }}</span>
+    {% elif c_state == 'failed' %}<span class="badge badge--danger">{{ t('lab_docs.not_accepted') }}</span>
+    {% elif c_state == 'overdue' %}<span class="badge badge--danger">{{ t('lab_docs.check_overdue') }}</span>{% endif %}</h2>
+  {% if checks %}
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:600px;">
+    <thead><tr><th>{{ t('lab_docs.kind') }}</th><th>{{ t('lab_docs.done_on') }}</th><th>{{ t('lab_docs.summary') }}</th><th>{{ t('lab_docs.verdict') }}</th><th>{{ t('lab_docs.signed_by') }}</th><th>{{ t('lab_docs.due_again') }}</th></tr></thead>
+    <tbody>
+    {% for c in checks %}
+    <tr data-check-row="{{ c.id }}">
+      <td>{{ t('lab_docs.kind_' ~ c.kind) }}</td><td dir="ltr">{{ c.done_on.isoformat() }}</td>
+      <td dir="auto">{{ c.summary }}</td>
+      <td>{% if c.accepted %}<span class="badge badge--green">{{ t('lab_docs.accepted') }}</span>{% else %}<span class="badge badge--danger">{{ t('lab_docs.not_accepted') }}</span>{% endif %}</td>
+      <td>{{ c.signed_by }}</td><td dir="ltr">{{ c.due_again.isoformat() if c.due_again else '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="hint" style="margin:0 0 8px;">{{ t('lab_docs.no_check') }}</p>{% endif %}
+
+  {% if may_write %}
+  <form method="post" action="{{ url_for('labs.test_method_check', test_id=test.id) }}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-top:10px;" data-check-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="kind">{{ t('lab_docs.kind') }}</label>
+      <select class="input" id="kind" name="kind">{% for k in kinds %}<option value="{{ k }}">{{ t('lab_docs.kind_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="done_on">{{ t('lab_docs.done_on') }}</label><input class="input" type="date" id="done_on" name="done_on" required value="{{ today.isoformat() }}"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="summary">{{ t('lab_docs.summary') }}</label><input class="input" id="summary" name="summary" required maxlength="400" placeholder="{{ t('lab_docs.summary_ph') }}"></div>
+    <div class="form-row" style="margin:0;"><label for="accepted">{{ t('lab_docs.verdict') }}</label>
+      <select class="input" id="accepted" name="accepted" required><option value="">—</option><option value="1">{{ t('lab_docs.accepted') }}</option><option value="0">{{ t('lab_docs.not_accepted') }}</option></select></div>
+    <div class="form-row" style="margin:0;"><label for="signed_by">{{ t('lab_docs.signed_by') }}</label><input class="input" id="signed_by" name="signed_by" required maxlength="120"></div>
+    <div class="form-row" style="margin:0;"><label for="due_again">{{ t('lab_docs.due_again') }}</label><input class="input" type="date" id="due_again" name="due_again"></div>
+    <div style="grid-column:1/-1;"><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('lab_docs.add_check') }}</button></div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

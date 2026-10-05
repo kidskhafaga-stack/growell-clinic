@@ -7,7 +7,8 @@
 {% block content %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
-    <h1 class="page-title"><i class="bi bi-eyedropper"></i> {{ order.name }}</h1>
+    <h1 class="page-title"><i class="bi bi-eyedropper"></i> {{ order.name }}
+      {% if order.investigation_id and order.kind == 'lab' %}<a class="btn btn-sm btn-outline gc-press" style="vertical-align:middle;" href="{{ url_for('labs.test_documents', test_id=order.investigation_id) }}" data-to-procedure><i class="bi bi-journal-check"></i> {{ t('lab_docs.procedure') }}</a>{% endif %}</h1>
     <p class="page-sub" style="margin:0;">
       <a href="{{ url_for('patients.view', patient_id=order.patient_id) }}">
         {{ order.patient.display_name(current_lang) }}</a>

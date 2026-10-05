@@ -157,3 +157,80 @@ class PoctQc(db.Model):
 
     device = db.relationship("PoctDevice", back_populates="checks")
     runner = db.relationship("User")
+
+
+class LabProcedure(db.Model):
+    """The written procedure for a test — GAHAR DAS.17.
+
+    *"The laboratory has a written updated procedure for each analytical test
+    method"* and *"the laboratory procedures are readily available when
+    needed"*. The procedure itself is the laboratory's document — on paper
+    at the bench, or a file on its shared drive — so what the program keeps
+    is how to find it, which version is in force, who approved it, and when
+    it is due its review: an out-of-date procedure is the finding, and only
+    a date can show it.
+
+    One row per version; the newest is the one in force, and the old ones
+    stay so the version a result was produced under can be named.
+    """
+    __tablename__ = "lab_procedures"
+
+    id = db.Column(db.Integer, primary_key=True)
+    investigation_id = db.Column(db.Integer, db.ForeignKey("investigations.id"),
+                                 nullable=False, index=True)
+    code = db.Column(db.String(40))
+    version = db.Column(db.String(20), nullable=False)
+    # Where it is: a link to the file, or the shelf it sits on.
+    location = db.Column(db.String(255), nullable=False)
+    effective_on = db.Column(db.Date, nullable=False)
+    review_due = db.Column(db.Date, index=True)
+    approved_by = db.Column(db.String(120))
+    written_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    written_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    investigation = db.relationship("Investigation")
+    writer = db.relationship("User", foreign_keys=[written_by])
+
+    @property
+    def is_link(self):
+        return (self.location or "").lower().startswith(("http://", "https://"))
+
+    def __repr__(self):
+        return f"<LabProcedure {self.investigation_id} v{self.version}>"
+
+
+#: DAS.16 — a method bought as validated is *verified* here; one the
+#: laboratory built or changed is *validated*. Two words the surveyor reads.
+METHOD_CHECK_KINDS = ("verification", "validation")
+
+
+class MethodCheck(db.Model):
+    """A test method verified or validated — GAHAR DAS.16.
+
+    Evidence 4: *"records of verification and/or validation results fulfil
+    acceptable criteria"*; evidence 5: *"recorded evidence of
+    reverification/revalidation"*. The study itself — precision, accuracy,
+    the run sheets — is the laboratory's file; the row is its outcome
+    against the laboratory's own criteria, who signed it, and when it is due
+    again. Accepted is the laboratory's verdict, never the program's.
+    """
+    __tablename__ = "lab_method_checks"
+
+    id = db.Column(db.Integer, primary_key=True)
+    investigation_id = db.Column(db.Integer, db.ForeignKey("investigations.id"),
+                                 nullable=False, index=True)
+    kind = db.Column(db.String(12), nullable=False, default="verification")
+    done_on = db.Column(db.Date, nullable=False, index=True)
+    # What was checked against what — the laboratory's criteria, in its words.
+    summary = db.Column(db.String(400), nullable=False)
+    accepted = db.Column(db.Boolean, nullable=False)
+    signed_by = db.Column(db.String(120), nullable=False)
+    due_again = db.Column(db.Date, index=True)
+    written_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    written_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    investigation = db.relationship("Investigation")
+    writer = db.relationship("User", foreign_keys=[written_by])
+
+    def __repr__(self):
+        return f"<MethodCheck {self.investigation_id} {self.kind} {self.done_on}>"

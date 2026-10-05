@@ -1,0 +1,54 @@
+{% extends "shell.html" %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_docs.manual_title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_docs.manual_title') }}{% endblock %}
+
+{% block content %}
+{# The laboratory service manual — GAHAR DAS.14 evidence 2, "distributed to
+   all users". Printed from the catalogue the laboratory keeps, so the manual
+   on the ward and the bench never disagree; a blank cell is a blank the
+   laboratory has not filled, shown as such. The scope of service (DAS.10)
+   is the same list, with who last reviewed it. #}
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    {% if may_write %}
+    <form method="post" action="{{ url_for('labs.manual_reviewed') }}" style="margin:0;" data-scope-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-check2-square"></i> {{ t('lab_docs.scope_review') }}</button></form>
+    {% endif %}
+  </div>
+  <button class="btn btn-primary gc-press gc-ripple" type="button" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+</div>
+
+<div class="card gc-scale-in print-area" data-lab-manual>
+  {{ print_header(t('lab_docs.manual_title'), t('lab_release.printed_at') ~ ': <strong dir="ltr">' ~ printed_at.strftime('%Y-%m-%d') ~ '</strong>') }}
+  <p style="margin:0 0 12px;" data-scope-line>
+    {% if scope_day %}{{ t('lab_docs.scope_line', day=scope_day.isoformat(), who=scope_by or '—') }}
+    {% else %}<span class="badge badge--warn">{{ t('lab_docs.scope_never') }}</span>{% endif %}
+  </p>
+  {% if not tests %}<p class="hint">{{ t('lab_docs.no_tests') }}</p>{% else %}
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:760px;font-size:.92rem;">
+    <thead><tr><th>{{ t('lab_reception.col_test') }}</th><th>{{ t('lab.sample_type') }}</th><th>{{ t('lab_import.tube') }}</th><th>{{ t('lab_import.preparation') }}</th><th>{{ t('lab_import.tat') }}</th><th>{{ t('lab_import.tat_stat') }}</th><th>{{ t('lab_docs.where') }}</th></tr></thead>
+    <tbody>
+    {% set ns = namespace(cat=none) %}
+    {% for x in tests %}
+    {% if x.category != ns.cat %}{% set ns.cat = x.category %}
+    <tr><th colspan="7" style="background:var(--surface-2, transparent);">{{ x.category or t('lab_docs.no_category') }}</th></tr>{% endif %}
+    <tr data-manual-row="{{ x.id }}">
+      <td>{{ x.display_name(current_lang) }}</td>
+      <td>{{ x.sample_type or '—' }}</td>
+      <td>{{ x.tube or '—' }}</td>
+      <td dir="auto">{{ x.preparation or '—' }}</td>
+      <td dir="ltr">{% if x.tat_min %}{{ x.tat_min }}{% if x.tat_max and x.tat_max != x.tat_min %}–{{ x.tat_max }}{% endif %} min{% else %}—{% endif %}</td>
+      <td dir="ltr">{% if x.tat_stat_min %}{{ x.tat_stat_min }}{% if x.tat_stat_max and x.tat_stat_max != x.tat_stat_min %}–{{ x.tat_stat_max }}{% endif %} min{% else %}—{% endif %}</td>
+      <td>{% if x.referral_lab_id %}{{ t('lab_docs.where_referral') }}{% elif not x.in_house %}{{ t('lab_docs.where_outside') }}{% else %}{{ t('lab_docs.where_here') }}{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

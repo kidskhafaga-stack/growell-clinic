@@ -1141,6 +1141,9 @@
     {% endif %}
     </div>
 
+    {# What each test needs before it is drawn — the laboratory's service
+       manual (GAHAR DAS.14), one tap from where the test is ordered. #}
+    {% if module_enabled('labs') %}<p style="margin:0 0 6px;"><a class="hint" href="{{ url_for('labs.manual') }}" data-to-lab-manual><i class="bi bi-book"></i> {{ t('lab_docs.manual_title') }}</a></p>{% endif %}
     <!-- Order a new investigation -->
     <form method="post" data-add-form data-inline data-added-label="{{ t('visits.added_ok') }}" action="{{ url_for('visits.add_investigation', visit_id=visit.id) }}"
           x-data="invOrder('{{ url_for('visits.investigation_search') }}')">

@@ -55,6 +55,8 @@
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <a class="btn btn-outline gc-press" href="{{ url_for('labs.tests', q=test.name_en or test.name_ar) }}">
       <i class="bi bi-list-check"></i> {{ t('lab.tests') }}</a>
+    {% if test.kind == 'lab' %}<a class="btn btn-outline gc-press" href="{{ url_for('labs.test_documents', test_id=test.id) }}" data-to-test-documents>
+      <i class="bi bi-journal-check"></i> {{ t('lab_docs.procedure') }}</a>{% endif %}
     {% if drafts %}
     {# The laboratory director's act. Until it, every range here is a
        reference beside a result and never calls one high or low. #}

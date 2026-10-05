@@ -1967,3 +1967,125 @@ def storage_keep_days():
     db.session.commit()
     flash(t("lab_storage.days_saved"), "success")
     return redirect(url_for("labs.storage") + "#storage-settings")
+
+
+# ------------------------------- the laboratory's documents about its tests --
+@labs_bp.route("/documents")
+@module_required(MODULE)
+def documents():
+    """Every test's written procedure and method verification — the ones
+    missing or out of date first (GAHAR DAS.16 / DAS.17)."""
+    from app.utils import lab_documents
+    from app.utils.clock import local_today
+
+    return render_template("labs/documents.html",
+                           rows=lab_documents.overview(), today=local_today())
+
+
+@labs_bp.route("/tests/<int:test_id>/documents")
+@module_required(MODULE)
+def test_documents(test_id):
+    """One test's procedure, every version, and its verifications — read by
+    anybody at the bench: *readily available when needed* (DAS.17)."""
+    from app.models import METHOD_CHECK_KINDS
+    from app.utils import lab_documents
+    from app.utils.clock import local_today
+
+    row = db.get_or_404(Investigation, test_id)
+    if row.kind != "lab":
+        abort(404)
+    today = local_today()
+    procedures = lab_documents.procedures_for(row.id)
+    checks = lab_documents.checks_for(row.id)
+    return render_template(
+        "labs/test_documents.html", test=row, procedures=procedures,
+        checks=checks, today=today, kinds=METHOD_CHECK_KINDS,
+        p_state=lab_documents.procedure_state(procedures[0] if procedures else None, today),
+        c_state=lab_documents.check_state(checks[0] if checks else None, today),
+        may_write=lab_documents.may_write(current_user))
+
+
+def _documents_back(test_id):
+    return redirect(url_for("labs.test_documents", test_id=test_id))
+
+
+@labs_bp.route("/tests/<int:test_id>/procedure", methods=["POST"])
+@module_required(MODULE)
+def test_procedure(test_id):
+    from app.utils import lab_documents
+
+    if not lab_documents.may_write(current_user):
+        abort(403)
+    row = db.get_or_404(Investigation, test_id)
+    f = request.form
+    try:
+        lab_documents.add_procedure(
+            row, f.get("version"), f.get("location"), f.get("effective_on"),
+            review_due=f.get("review_due"), code=f.get("code"),
+            approved_by=f.get("approved_by"), user=current_user)
+    except lab_documents.DocumentError as err:
+        db.session.rollback()
+        flash(t(f"lab_docs.err_{err}"), "error")
+        return _documents_back(row.id)
+    db.session.commit()
+    flash(t("lab_docs.procedure_saved"), "success")
+    return _documents_back(row.id)
+
+
+@labs_bp.route("/tests/<int:test_id>/method-check", methods=["POST"])
+@module_required(MODULE)
+def test_method_check(test_id):
+    from app.utils import lab_documents
+
+    if not lab_documents.may_write(current_user):
+        abort(403)
+    row = db.get_or_404(Investigation, test_id)
+    f = request.form
+    verdict = {"1": True, "0": False}.get(f.get("accepted"))
+    try:
+        lab_documents.add_check(
+            row, f.get("kind"), f.get("done_on"), f.get("summary"), verdict,
+            f.get("signed_by"), due_again=f.get("due_again"),
+            user=current_user)
+    except lab_documents.DocumentError as err:
+        db.session.rollback()
+        flash(t(f"lab_docs.err_{err}"), "error")
+        return _documents_back(row.id)
+    db.session.commit()
+    flash(t("lab_docs.check_saved"), "success")
+    return _documents_back(row.id)
+
+
+@labs_bp.route("/manual")
+def manual():
+    """The laboratory service manual (GAHAR DAS.14 دليل ٢) — for everybody who
+    orders or draws a test, not only the lab: what each test needs, from the
+    catalogue the lab keeps. Wherever the lab module is on."""
+    from flask import current_app
+
+    from app.utils import lab_documents
+    from app.utils.facility import module_enabled
+
+    if not current_user.is_authenticated:
+        return current_app.login_manager.unauthorized()
+    if not module_enabled(MODULE):
+        abort(404)
+    scope_day, scope_by = lab_documents.scope_reviewed()
+    return render_template("labs/manual.html", tests=lab_documents.manual_rows(),
+                           scope_day=scope_day, scope_by=scope_by,
+                           may_write=lab_documents.may_write(current_user),
+                           printed_at=datetime.utcnow())
+
+
+@labs_bp.route("/manual/reviewed", methods=["POST"])
+@module_required(MODULE)
+def manual_reviewed():
+    """The scope of service was reviewed today (GAHAR DAS.10 دليل ٤)."""
+    from app.utils import lab_documents
+
+    if not lab_documents.may_write(current_user):
+        abort(403)
+    lab_documents.mark_scope_reviewed(current_user)
+    db.session.commit()
+    flash(t("lab_docs.scope_saved"), "success")
+    return redirect(url_for("labs.manual"))

@@ -72,6 +72,9 @@
       {% if poct_attention %}<span class="badge badge--danger" data-poct-attention>{{ poct_attention }}</span>{% endif %}</a>
     <a class="btn btn-outline gc-press" data-to-turnaround href="{{ url_for('labs.turnaround') }}">
       <i class="bi bi-stopwatch"></i> {{ t('lab_tat.title') }}</a>
+    {# Each test's written procedure and verification (GAHAR DAS.16 / 17). #}
+    <a class="btn btn-outline gc-press" data-to-documents href="{{ url_for('labs.documents') }}">
+      <i class="bi bi-journal-check"></i> {{ t('lab_docs.title') }}</a>
     {# Where the tubes are kept after their result (GAHAR DAS.20). #}
     <a class="btn btn-outline gc-press" data-to-storage href="{{ url_for('labs.storage') }}">
       <i class="bi bi-inboxes"></i> {{ t('lab_storage.title') }}</a>
