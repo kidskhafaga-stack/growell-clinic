@@ -150,7 +150,17 @@ def order(order_id):
                                row.patient, row.collected_at or row.created_at),
                            may_read=lab_results.reads_results(current_user),
                            waited=bench.waiting_minutes(row),
-                           doctors=_doctor_names())
+                           doctors=_doctor_names(),
+                           # GAHAR DAS.20 — where this tube is kept.
+                           **_storage_for(row))
+
+
+def _storage_for(row):
+    from app.utils import lab_storage
+
+    kept = lab_storage.current(row.sample_code) if row.sample_code else None
+    return {"kept": kept, "kept_place": lab_storage.place_label(kept),
+            "store_places": lab_storage.places()}
 
 
 def _doctor_names():
@@ -1676,6 +1686,11 @@ def test_details(test_id):
             return redirect(url_for("labs.test_ranges", test_id=row.id) + "#details")
         setattr(row, low, span[0] if span else None)
         setattr(row, high, span[1] if span else None)
+    # GAHAR DAS.20 (هـ) — how many days the tube is kept after the result.
+    if "keep_days" in request.form:
+        raw = (request.form.get("keep_days") or "").strip()
+        row.keep_days = (int(raw) if raw.isdigit() and 0 < int(raw) <= 3650
+                         else None)
     db.session.commit()
     flash(t("lab.test_saved"), "success")
     return redirect(url_for("labs.test_ranges", test_id=row.id) + "#details")
@@ -1826,3 +1841,129 @@ def _number(raw):
         return float(raw)
     except (TypeError, ValueError):
         return None
+
+
+# ---------------------------------------------- a tube kept, and thrown away --
+@labs_bp.route("/storage")
+@module_required(MODULE)
+def storage():
+    """Where the tubes are — GAHAR DAS.20 (ج)(هـ)(و): the ones to put away,
+    the ones past their day, and a search by code or by the child."""
+    from app.utils import lab_storage
+    from app.utils.clock import local_today
+
+    q = (request.args.get("q") or "").strip()
+    return render_template(
+        "labs/storage.html", q=q, found=lab_storage.find(q) if q else [],
+        waiting=lab_storage.waiting(), due=lab_storage.due(),
+        kept_n=len(lab_storage.kept()), places=lab_storage.places(),
+        default_days=lab_storage.default_days(),
+        place_label=lab_storage.place_label, today=local_today())
+
+
+@labs_bp.route("/storage/store", methods=["POST"])
+@module_required(MODULE)
+def storage_store():
+    """Put one or several tubes away — by scanning the code, or ticking the
+    tubes on the list."""
+    from app.utils import lab_storage
+
+    codes = [c for c in request.form.getlist("code") if (c or "").strip()]
+    if not codes:
+        flash(t("lab_storage.err_unknown"), "warning")
+        return redirect(url_for("labs.storage"))
+    done = 0
+    for code in codes:
+        try:
+            lab_storage.store(code, place_key=request.form.get("place_key"),
+                              place_text=request.form.get("place_text"),
+                              user=current_user)
+        except lab_storage.StorageError as err:
+            db.session.rollback()
+            flash(t(f"lab_storage.err_{err}", code=code[:24]), "warning")
+            continue
+        db.session.commit()
+        done += 1
+    if done:
+        flash(t("lab_storage.stored_n", n=done), "success")
+    back = request.form.get("back")
+    if back and back.isdigit():
+        return redirect(url_for("labs.order", order_id=int(back)))
+    return redirect(url_for("labs.storage"))
+
+
+@labs_bp.route("/storage/dispose", methods=["POST"])
+@module_required(MODULE)
+def storage_dispose():
+    """Thrown away — the tubes ticked, by whoever pressed it; before their
+    day only with a reason."""
+    from app.models import SpecimenStore
+    from app.utils import lab_storage
+
+    done = 0
+    for raw in request.form.getlist("store_id"):
+        row = db.session.get(SpecimenStore, int(raw)) if raw.isdigit() else None
+        try:
+            lab_storage.dispose(row, user=current_user,
+                                note=request.form.get("note"))
+        except lab_storage.StorageError as err:
+            db.session.rollback()
+            flash(t(f"lab_storage.err_{err}", code=row.sample_code if row else "—"),
+                  "warning")
+            continue
+        db.session.commit()
+        done += 1
+    if done:
+        flash(t("lab_storage.disposed_n", n=done), "success")
+    return redirect(url_for("labs.storage"))
+
+
+@labs_bp.route("/storage/places", methods=["POST"])
+@module_required(MODULE)
+def storage_place_add():
+    """A fridge or a rack on the laboratory's list. Admin only, like the
+    other lists the laboratory writes."""
+    from app.utils import lab_storage
+
+    if not current_user.is_admin:
+        abort(403)
+    try:
+        lab_storage.add_place(request.form.get("name"))
+    except lab_storage.StorageError as err:
+        db.session.rollback()
+        flash(t(f"lab_storage.err_{err}", code=""), "error")
+        return redirect(url_for("labs.storage") + "#storage-settings")
+    db.session.commit()
+    flash(t("lab_storage.place_added"), "success")
+    return redirect(url_for("labs.storage") + "#storage-settings")
+
+
+@labs_bp.route("/storage/places/<int:place_id>/retire", methods=["POST"])
+@module_required(MODULE)
+def storage_place_retire(place_id):
+    from app.models import Lookup
+    from app.utils import lab_storage
+
+    if not current_user.is_admin:
+        abort(403)
+    try:
+        lab_storage.retire_place(db.session.get(Lookup, place_id))
+    except lab_storage.StorageError:
+        abort(404)
+    db.session.commit()
+    flash(t("lab_storage.place_retired"), "success")
+    return redirect(url_for("labs.storage") + "#storage-settings")
+
+
+@labs_bp.route("/storage/keep-days", methods=["POST"])
+@module_required(MODULE)
+def storage_keep_days():
+    """The laboratory's general figure — used for a test that has none."""
+    from app.utils import lab_storage
+
+    if not current_user.is_admin:
+        abort(403)
+    lab_storage.set_default_days(request.form.get("days"))
+    db.session.commit()
+    flash(t("lab_storage.days_saved"), "success")
+    return redirect(url_for("labs.storage") + "#storage-settings")

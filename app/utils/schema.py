@@ -921,6 +921,9 @@ ADDITIONS = [
     # registered the usual way.
     ("patients", "identity_provisional", "BOOLEAN"),
     ("patients", "dob_estimated", "BOOLEAN"),
+    # GAHAR DAS.20 (هـ) — how long the laboratory keeps a test's tube. Empty
+    # on every test already defined: no date until the laboratory writes one.
+    ("investigations", "keep_days", "INTEGER"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

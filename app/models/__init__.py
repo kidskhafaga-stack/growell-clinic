@@ -308,7 +308,7 @@ from app.models.lab_reference import (RANGE_KINDS, RANGE_SEXES, LabAnalyte,
                                        LabConsumable, LabRange,
                                        LabResultValue, LabTestAnalyte,
                                        ReagentLot, ReferralLab,
-                                       SampleRejection)
+                                       SampleRejection, SpecimenStore)
 from app.models.unit_staff import BreakGlass, UnitStaff
 from app.models.lab_quality import (EqaRound, PoctDevice, PoctOperator, PoctQc,
                                     QcMaterial, QcReview, QcRun)
@@ -701,6 +701,7 @@ __all__ = [
     "LabRange",
     "LabResultValue",
     "SampleRejection",
+    "SpecimenStore",
     "ReferralLab",
     "ReagentLot",
     "QcMaterial",
