@@ -562,6 +562,10 @@ def index():
             chosen = request.form.getlist(_basics.SETTING)
             Setting.set(_basics.SETTING,
                         ",".join(k for k in _basics.ORDER if k in chosen))
+            # One service on a quick registration, then the missing details
+            # in a window before the next — off until the clinic says so.
+            Setting.set(_basics.POLICY_SETTING,
+                        "1" if request.form.get(_basics.POLICY_SETTING) else "0")
 
         # Who accepted the bilirubin table, and when. A tick in a box is not a
         # sign-off: the gate exists because a person took responsibility for a
@@ -667,6 +671,8 @@ def index():
         basics_fields=_basics.ORDER,
         basics_setting=_basics.SETTING,
         basics_required=_basics.required(),
+        basics_policy=_basics.policy_on(),
+        basics_policy_setting=_basics.POLICY_SETTING,
         # Whether this copy can start the external updater at all: Windows,
         # and the hand-off script actually on disk. Without it the template's
         # `{% if can_hand_off %}` is an undefined name — falsy, silent, and

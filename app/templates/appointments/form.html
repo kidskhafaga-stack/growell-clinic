@@ -30,7 +30,7 @@
 
 <div class="md" style="max-width:820px;"
      x-data="slotPicker('{{ url_for('appointments.slots') }}', '{{ form.appt_time or '' }}', '{{ url_for('appointments.next_available_slot') }}', '{{ url_for('appointments.first_available') }}')">
-  <form method="post">
+  <form method="post" data-booking-form>
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if form.from_waitlist %}<input type="hidden" name="from_waitlist" value="{{ form.from_waitlist }}">{% endif %}
     {% if booking_request %}<input type="hidden" name="from_request" value="{{ booking_request.id }}">
@@ -317,6 +317,32 @@
     </div>
   </form>
 </div>
+{# A quick registration that already had its one service: the missing
+   details, in a window, saved without leaving this page — then the booking
+   goes ahead as it was typed (`utils/patient_basics`). #}
+{% include "patients/_complete_basics.html" %}
+{% if complete_patient and complete_gaps %}
+<script>
+(function () {
+  var win = document.querySelector('[data-complete-window] form');
+  var booking = document.querySelector('form[data-booking-form]');
+  if (!win || !booking) return;
+  win.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var data = {};
+    new FormData(win).forEach(function (v, k) { data[k] = v; });
+    fetch({{ url_for('basics.save_json', patient_id=complete_patient.id)|tojson }}, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': data.csrf_token || ''},
+      body: JSON.stringify(data)
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (j && j.ok && !(j.missing || []).length) { booking.submit(); }
+      else { alert((j && j.error) || {{ t('basics.still_missing')|tojson }}); }
+    }).catch(function () { alert({{ t('common.error')|tojson }}); });
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}
 
 {% block head %}

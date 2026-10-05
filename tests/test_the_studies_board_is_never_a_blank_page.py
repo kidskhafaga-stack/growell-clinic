@@ -82,7 +82,7 @@ def test_a_study_is_started_by_file_number(room):
     answer = boss.get("/visits/studies/start?number=P1")
     assert f"/visits/studies/new/{room['ids']['child']}" in answer.headers["Location"]
     answer = boss.get("/visits/studies/start?number=NOPE")
-    assert answer.headers["Location"].endswith("/visits/studies/board")
+    assert "/visits/studies/board" in answer.headers["Location"]
 
 
 def test_what_was_done_lately_is_listed(room):

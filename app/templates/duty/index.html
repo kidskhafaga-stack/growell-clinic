@@ -79,7 +79,7 @@
     <select class="input" id="f_unit" name="unit_id" onchange="this.form.submit()">
       <option value="">{{ t('common.all') }}</option>
       {% for u in units %}
-      <option value="{{ u.id }}" {% if unit_id == u.id %}selected{% endif %}>{{ u.name }}</option>
+      <option value="{{ u.id }}" {% if unit_id == u.id %}selected{% endif %}>{{ u.display_name(current_lang) }}</option>
       {% endfor %}
     </select>
   </div>
@@ -178,7 +178,7 @@
       <label for="a_unit">{{ t('duty.unit') }} <small class="muted">{{ t('common.optional') }}</small></label>
       <select class="input" id="a_unit" name="unit_id">
         <option value="">{{ t('duty.no_unit') }}</option>
-        {% for u in units %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+        {% for u in units %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}
       </select>
     </div>
     {# **Which list, and whether they are in the building.** Three lists and

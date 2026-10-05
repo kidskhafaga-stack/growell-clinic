@@ -1092,7 +1092,8 @@ def _medical_board(asked=False):
     choices = med_board.places(on)
     if place not in {k for k, _ in choices}:
         place = ""
-    ages = med_board.ages(w["from"], w["to"])
+    roster = request.args.get("ages") == "all"
+    ages = med_board.ages(w["from"], w["to"], roster=roster)
     wards = med_board.wards(w["from"], w["to"]) if on["beds"] else []
     er = med_board.emergency(w["from"], w["to"]) if on["emergency"] else None
     doctors = med_board.doctors(w["from"], w["to"], place or None, on)
@@ -1106,7 +1107,7 @@ def _medical_board(asked=False):
         rising=med_board.rising(dx["coded"] + dx["free"]), detail=detail,
         ages=ages, wards=wards, er=er, doctors=doctors,
         place=place, places=choices, presets=med_board.PRESETS,
-        buckets=med_board.AGE_BUCKETS,
+        ages_roster=roster,
         ai_board=board_ai.ready(), ai_reply=ai_reply,
         ai_endpoint="reports.medical_board_ai")
 

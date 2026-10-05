@@ -146,7 +146,7 @@ def test_a_drill_down_counts_ages_on_the_day_and_sexes(clinic):
         _seen(clinic, kid, dx=[(None, "10", "مغص", "working")])
     with clinic["app"].app_context():
         split = med_board.breakdown(today - timedelta(days=6), today, "t:مغص")
-        assert dict(split["ages"])["<1"] == 1 and dict(split["ages"])["5-12"] == 1
+        assert dict(split["ages"])["infant"] == 1 and dict(split["ages"])["school"] == 1
         assert split["sexes"] == {"female": 1, "male": 1}
         rows, total = med_board.cases(today - timedelta(days=6), today, "t:مغص")
         assert total == 2 and len(rows) == 2

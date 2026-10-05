@@ -1,0 +1,10 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('basics.window_title') }}{% endblock %}
+{% block page_heading %}{{ t('basics.window_title') }}{% endblock %}
+{% block content %}
+{# The window on a page of its own: a study starting for a file that has
+   already had a service and is still missing what the clinic asks for. #}
+<p class="hint">{{ t('basics.window_hint') }}</p>
+{% include "patients/_complete_basics.html" %}
+{% endblock %}
