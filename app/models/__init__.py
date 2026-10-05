@@ -313,6 +313,7 @@ from app.models.lab_reference import (RANGE_KINDS, RANGE_SEXES, LabAnalyte,
                                        SampleRejection, SpecimenStore)
 from app.models.unit_staff import BreakGlass, UnitStaff
 from app.models.lab_quality import (METHOD_CHECK_KINDS, EqaRound,
+                                    LabCompetency,
                                     LabProcedure, MethodCheck, PoctDevice,
                                     PoctOperator, PoctQc, QcMaterial,
                                     QcReview, QcRun)
@@ -717,6 +718,7 @@ __all__ = [
     "EqaRound",
     "PoctDevice",
     "PoctOperator",
+    "LabCompetency",
     "PoctQc",
     "LabProcedure",
     "MethodCheck",

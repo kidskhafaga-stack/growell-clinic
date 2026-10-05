@@ -234,3 +234,63 @@ class MethodCheck(db.Model):
 
     def __repr__(self):
         return f"<MethodCheck {self.investigation_id} {self.kind} {self.done_on}>"
+
+
+#: DAS.11 (أ)–(هـ) — the five ways the standard names to assess a member of
+#: the laboratory, in its order. The laboratory picks any combination.
+COMPETENCY_METHODS = ("observe_routine", "observe_equipment", "review_records",
+                      "problem_solving", "blind_samples")
+#: The assessor's verdict — never the program's.
+COMPETENT, NEEDS_TRAINING, NOT_COMPETENT = ("competent", "needs_training",
+                                            "not_competent")
+COMPETENCY_RESULTS = (COMPETENT, NEEDS_TRAINING, NOT_COMPETENT)
+
+
+class LabCompetency(db.Model):
+    """One competency assessment of one member of the laboratory —
+    GAHAR DAS.11.
+
+    Evidence 2: *"Competency assessment is performed annually and recorded
+    in laboratory staff file"*; and the intent: privileges for laboratory
+    functions *"determined based on documented evidence of competency ...
+    reviewed and renewed as needed"*. So a row is for one **section** of the
+    laboratory (the test catalogue's own grouping — haematology,
+    chemistry…), or for the whole laboratory when ``section`` is empty.
+
+    Kept, never edited or deleted: a new assessment is a new row, and last
+    year's stays in the file as the standard asks.
+    """
+    __tablename__ = "lab_competencies"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False,
+                        index=True)
+    #: ``Investigation.category`` as the catalogue spells it; empty for
+    #: every section.
+    section = db.Column(db.String(80), index=True)
+    assessed_on = db.Column(db.Date, nullable=False, index=True)
+    #: Comma-separated keys from :data:`COMPETENCY_METHODS`.
+    methods = db.Column(db.String(120), nullable=False)
+    result = db.Column(db.String(16), nullable=False)
+    assessor_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    #: When the assessor says it is due again — the form offers a year on,
+    #: as the standard says "annually"; the assessor's date is the one kept.
+    due_on = db.Column(db.Date, index=True)
+    note = db.Column(db.String(400))
+    written_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    written_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship("User", foreign_keys=[user_id])
+    assessor = db.relationship("User", foreign_keys=[assessor_id])
+
+    @property
+    def method_list(self):
+        return [m for m in (self.methods or "").split(",") if m]
+
+    def stands_on(self, day):
+        """Competent, and not yet past the date it was due again."""
+        return (self.result == COMPETENT and self.assessed_on <= day
+                and (self.due_on is None or self.due_on >= day))
+
+    def __repr__(self):
+        return f"<LabCompetency {self.user_id} {self.section!r} {self.assessed_on}>"

@@ -1,0 +1,42 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_comp.outside_title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_comp.outside_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR DAS.11 evidence 3 — "laboratory work is scheduled and processed
+   based upon the competencies assessed": the results written or released in
+   the period by somebody with no standing assessment for that section on
+   that day. Counted, never held back. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-clipboard-x"></i> {{ t('lab_comp.outside_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lab_comp.outside_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.staff') }}"><i class="bi bi-people"></i> {{ t('lab_comp.title') }}</a>
+</div>
+<form method="get" action="{{ url_for('labs.staff_outside') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+  <div class="form-row" style="margin:0;"><label for="from">{{ t('lab_reception.from') }}</label><input class="input" type="date" id="from" name="from" value="{{ start.isoformat() }}"></div>
+  <div class="form-row" style="margin:0;"><label for="to">{{ t('lab_reception.to') }}</label><input class="input" type="date" id="to" name="to" value="{{ end.isoformat() }}"></div>
+  <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('lab_reception.show') }}</button>
+</form>
+<div class="card gc-scale-in" style="overflow-x:auto;" data-outside>
+  <p style="margin:0 0 10px;"><span class="badge {{ 'badge--danger' if rows else 'badge--green' }}" data-outside-count>{{ t('lab_comp.outside_n', n=rows|length) }}</span></p>
+  {% if rows %}
+  <table class="table" style="min-width:620px;">
+    <thead><tr><th>{{ t('lab_comp.col_day') }}</th><th>{{ t('lab_reception.col_test') }}</th><th>{{ t('lab_comp.section') }}</th><th>{{ t('lab_comp.col_person') }}</th><th>{{ t('lab_comp.col_did') }}</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr data-outside-row="{{ r.order.id }}-{{ r.role }}">
+      <td dir="ltr">{{ r.day.isoformat() }}</td>
+      <td><a href="{{ url_for('labs.order', order_id=r.order.id) }}">{{ r.order.investigation.display_name(current_lang) if r.order.investigation else '—' }}</a></td>
+      <td>{{ r.section or '—' }}</td>
+      <td>{% if r.user %}<a href="{{ url_for('labs.staff_file', user_id=r.user.id) }}">{{ r.user.display_name(current_lang) }}</a>{% else %}—{% endif %}</td>
+      <td>{{ t('lab_comp.did_' ~ r.role) }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}
