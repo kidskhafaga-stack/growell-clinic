@@ -927,6 +927,9 @@ ADDITIONS = [
     # What a referral laboratory charged for a sample, copied from its price
     # list when the sample was sent. Empty on everything already sent.
     ("visit_investigations", "sent_cost", "FLOAT"),
+    # The line of a test a specialty's lab alert watches, where the test is
+    # answered line by line. Empty on every alert already set.
+    ("panel_alert_rules", "analyte_id", "INTEGER"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

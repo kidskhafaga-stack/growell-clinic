@@ -67,6 +67,17 @@
     {# الشكل اللي بياخد رقمين بياخد خانتين. نص كيلو مش حاجة على سنة وهو
        سوائل على تلات أيام — فخانة واحدة كانت هتجمع الرقمين في رقم مالوش
        معنى. #}
+    {# «إنزيمات الكبد بتعلى» بتسمّي تحليل فيه كذا بند — وأنهي بند يتراقب
+       قرار طبي، فالعيادة هي اللي بتختاره. ومن غير اختيار التنبيه ما بيرنّش. #}
+    {% if item.lines %}
+    <div class="form-row" style="margin-bottom:0;min-width:150px;">
+      <label for="an_{{ row.key }}_{{ alert.code }}">{{ t('panel_alerts.which_line') }}</label>
+      <select class="input" id="an_{{ row.key }}_{{ alert.code }}" name="analyte_id" data-alert-line>
+        <option value="">{{ t('panel_alerts.line_none') }}</option>
+        {% for a in item.lines %}<option value="{{ a.id }}" {{ 'selected' if rule and rule.analyte_id == a.id }}>{{ a.display_name(current_lang) }}</option>{% endfor %}
+      </select>
+    </div>
+    {% endif %}
     {% if alert.watches.when in windowed %}
     <div class="form-row" style="margin-bottom:0;min-width:110px;">
       <label for="wd_{{ row.key }}_{{ alert.code }}">

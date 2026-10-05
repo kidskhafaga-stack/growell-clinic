@@ -2058,7 +2058,7 @@ def test_method_check(test_id):
 
 @labs_bp.route("/manual")
 def manual():
-    """The laboratory service manual (GAHAR DAS.14 دليل ٢) — for everybody who
+    """The laboratory service manual (GAHAR DAS.14 دليل ٢) — for whoever
     orders or draws a test, not only the lab: what each test needs, from the
     catalogue the lab keeps. Wherever the lab module is on."""
     from flask import current_app
@@ -2070,6 +2070,11 @@ def manual():
         return current_app.login_manager.unauthorized()
     if not module_enabled(MODULE):
         abort(404)
+    # Whoever works in the lab, and whoever orders — the doctors, by the same
+    # rule that lets them read results. Not the front desk or the till.
+    if not (current_user.can_access(MODULE)
+            or lab_results.reads_results(current_user)):
+        abort(403)
     scope_day, scope_by = lab_documents.scope_reviewed()
     return render_template("labs/manual.html", tests=lab_documents.manual_rows(),
                            scope_day=scope_day, scope_by=scope_by,

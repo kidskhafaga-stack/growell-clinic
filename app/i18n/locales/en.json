@@ -7008,7 +7008,9 @@
     "unit_rise": "rise, in the reading's own unit",
     "when_drop": "fell below the previous reading",
     "unit_drop": "fall, in the reading's own unit",
-    "watch_growth": "growth curve (Z-score)"
+    "watch_growth": "growth curve (Z-score)",
+    "which_line": "Which line",
+    "line_none": "Choose the line — it does not fire without one"
   },
   "cpharm": {
     "title": "Inpatient chart review",
