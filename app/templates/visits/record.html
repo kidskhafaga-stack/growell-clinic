@@ -185,6 +185,21 @@
             <span style="color:var(--muted);font-size:0.8rem;" dir="ltr">{{ x.created_at.strftime('%Y-%m-%d') }}</span>
           </div>
           {{ inv_files.files_block(x, linkable_files) }}
+          {# The paper on this order, read by the assistant into the form below
+             — a page to check and save, never a save of its own. #}
+          {% if ai_reads_papers and x.investigation and x.investigation.analyte_links %}{% set papers_x = lab_papers(x) %}
+          {% if papers_x %}
+          <form method="post" action="{{ url_for('visits.read_paper', inv_id=x.id) }}" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;" data-read-paper="{{ x.id }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if papers_x|length > 1 %}
+            <select class="input" name="attachment_id" aria-label="{{ t('lab_read.which_paper') }}" style="max-width:220px;">
+              {% for f in papers_x %}<option value="{{ f.id }}">{{ f.original_name or f.filename }}</option>{% endfor %}
+            </select>
+            {% else %}<input type="hidden" name="attachment_id" value="{{ papers_x[0].id }}">{% endif %}
+            <button class="btn btn-sm btn-outline gc-press" type="submit"><i class="bi bi-magic"></i> {{ t('lab_read.read_it') }}</button>
+            <span class="hint">{{ t('lab_read.you_confirm') }}</span>
+          </form>
+          {% endif %}{% endif %}
           <form method="post" action="{{ url_for('visits.result_investigation', inv_id=x.id) }}" style="margin-top:8px;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% set lines = analyte_sheet(x) %}
@@ -1132,6 +1147,21 @@
         {{ lab_values.report_link(x) }}
         <details style="margin-top:8px;" {{ 'open' if x.has_result else '' }}>
           <summary style="cursor:pointer;color:var(--green-800);font-size:0.9rem;"><i class="bi bi-pencil-square"></i> {{ t('visits.inv_result') }}</summary>
+          {# The paper on this order, read by the assistant into the form below
+             — a page to check and save, never a save of its own. #}
+          {% if ai_reads_papers and x.investigation and x.investigation.analyte_links %}{% set papers_x = lab_papers(x) %}
+          {% if papers_x %}
+          <form method="post" action="{{ url_for('visits.read_paper', inv_id=x.id) }}" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;" data-read-paper="{{ x.id }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if papers_x|length > 1 %}
+            <select class="input" name="attachment_id" aria-label="{{ t('lab_read.which_paper') }}" style="max-width:220px;">
+              {% for f in papers_x %}<option value="{{ f.id }}">{{ f.original_name or f.filename }}</option>{% endfor %}
+            </select>
+            {% else %}<input type="hidden" name="attachment_id" value="{{ papers_x[0].id }}">{% endif %}
+            <button class="btn btn-sm btn-outline gc-press" type="submit"><i class="bi bi-magic"></i> {{ t('lab_read.read_it') }}</button>
+            <span class="hint">{{ t('lab_read.you_confirm') }}</span>
+          </form>
+          {% endif %}{% endif %}
           <form method="post" action="{{ url_for('visits.result_investigation', inv_id=x.id) }}" style="margin-top:8px;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% set lines = analyte_sheet(x) %}

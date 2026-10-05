@@ -1,0 +1,60 @@
+{% extends "shell.html" %}
+{% import "labs/_values.html" as lab_values with context %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('lab_read.title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_read.title') }}{% endblock %}
+
+{% block content %}
+{# What the assistant read off the paper, in the form the doctor types into,
+   beside the paper itself. Every value it proposed is marked; nothing here is
+   saved until a person checks it against the picture and presses save — and
+   the save is the ordinary one, with the bench's ranges, flags and critical
+   check. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-magic"></i> {{ order.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;">{{ order.patient.display_name(current_lang) }} · <span dir="ltr">#{{ order.patient.patient_number }}</span></p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ back }}"><i class="bi bi-x-lg"></i> {{ t('lab_read.discard') }}</a>
+</div>
+
+<div class="card" style="margin-bottom:12px;border-color:var(--warn);" data-ai-warning>
+  <p style="margin:0;"><i class="bi bi-exclamation-triangle"></i> {{ t('lab_read.check_each') }}</p>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;align-items:start;">
+  <div class="card" data-paper>
+    {% set src = url_for('static', filename='uploads/patient_docs/' ~ paper.filename) %}
+    {% if is_pdf %}
+      <object data="{{ src }}" type="application/pdf" style="width:100%;height:70vh;"><a href="{{ src }}" target="_blank" rel="noopener">{{ t('lab_read.open_paper') }}</a></object>
+    {% else %}
+      <a href="{{ src }}" target="_blank" rel="noopener"><img src="{{ src }}" alt="{{ paper.original_name or paper.filename }}" style="max-width:100%;height:auto;border-radius:8px;"></a>
+    {% endif %}
+  </div>
+
+  <form method="post" action="{{ url_for('visits.result_investigation', inv_id=order.id) }}" class="card" data-read-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ back }}">
+    <div style="overflow-x:auto;">
+      <table class="table" style="min-width:340px;font-variant-numeric:tabular-nums;">
+        <thead><tr><th>{{ t('lab_result.analyte') }}</th><th style="width:150px;">{{ t('lab_result.value') }}</th><th>{{ t('lab.unit') }}</th></tr></thead>
+        <tbody>
+        {% for line in lines %}{% set a = line.analyte %}{% set v = line.row %}
+        {% set from_ai = a.id in proposed %}
+        <tr data-line="{{ a.id }}" {% if from_ai %}data-ai-read style="background:var(--warn-50, rgba(255,193,7,.12));"{% endif %}>
+          <td><label for="r_{{ a.id }}" dir="ltr">{{ a.name }}</label>{% if a.name_ar and a.name_ar != a.name %}<div class="hint" style="margin:0;">{{ a.name_ar }}</div>{% endif %}</td>
+          <td><input class="input" id="r_{{ a.id }}" name="a_{{ a.id }}" dir="ltr" maxlength="120" inputmode="decimal" autocomplete="off"
+                     value="{{ proposed[a.id] if from_ai else (v.shown() if v else '') }}">
+            {% if from_ai %}<div class="hint" style="margin-top:2px;font-size:.78rem;"><i class="bi bi-magic"></i> {{ t('lab_read.read_by_ai') }}</div>{% endif %}</td>
+          <td dir="ltr" class="hint">{{ line.unit or '' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="form-row"><label for="result_comment">{{ t('visits.inv_comment') }}</label>
+      <textarea class="input" id="result_comment" name="result_comment" rows="2" dir="auto">{{ order.result_comment or '' }}</textarea></div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit" data-confirm-save><i class="bi bi-check2-circle"></i> {{ t('lab_read.checked_save') }}</button>
+  </form>
+</div>
+{% endblock %}

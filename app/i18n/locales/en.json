@@ -2790,7 +2790,8 @@
     "dx_off_switch": "AI diagnosis suggestions exist and are switched off. Turn them on in Settings → AI.",
     "dx_off_provider": "AI diagnosis suggestions need an AI provider configured first, in Settings → AI.",
     "dx_off_where": "Open settings",
-    "dx_classified_as": "the classification calls it"
+    "dx_classified_as": "the classification calls it",
+    "err_unsupported_part": "This provider is not set up here to read this kind of file. Take a photo of the paper (JPG or PNG) and upload it, or choose Claude in the AI settings to read PDFs."
   },
   "rx": {
     "title": "Drugs & Prescriptions",
@@ -10668,5 +10669,24 @@
     "err_need_invoice_number": "Write the invoice number.",
     "err_bad_period": "The period is not right.",
     "err_bad_amount": "The amount could not be read."
+  },
+  "lab_read": {
+    "title": "Check what was read off the paper",
+    "read_it": "Read the paper with AI",
+    "you_confirm": "You check and save",
+    "which_paper": "Which paper",
+    "discard": "Leave without saving",
+    "open_paper": "Open the paper",
+    "check_each": "This is the assistant's reading — compare each number with the paper before saving. Nothing has been saved yet.",
+    "read_by_ai": "Read by AI — check it",
+    "checked_save": "Checked — save",
+    "err_no_lines": "This test has no lines in the lab list.",
+    "err_no_paper": "No paper is attached to this order.",
+    "err_not_readable": "This file is not an image or a PDF.",
+    "err_ai_off": "The assistant is switched off in settings.",
+    "err_no_consent": "The clinic has not agreed to send patient data to the assistant — the setting is on the AI page.",
+    "err_pdf_provider": "This provider does not read PDFs here — photograph the paper and upload the photo, or use Claude.",
+    "err_too_big": "The file is too large to send — take a smaller photo.",
+    "err_nothing_found": "The assistant did not find the test's lines on the paper — type them in."
   }
 }
