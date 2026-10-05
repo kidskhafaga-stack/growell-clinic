@@ -308,10 +308,13 @@ from app.models.lab_reference import (RANGE_KINDS, RANGE_SEXES, LabAnalyte,
                                        LabConsumable, LabRange,
                                        LabResultValue, LabTestAnalyte,
                                        ReagentLot, ReferralLab,
-                                       SampleRejection)
+                                       ReferralInvoice, ReferralLabPrice,
+                                       SampleRejection, SpecimenStore)
 from app.models.unit_staff import BreakGlass, UnitStaff
-from app.models.lab_quality import (EqaRound, PoctDevice, PoctOperator, PoctQc,
-                                    QcMaterial, QcReview, QcRun)
+from app.models.lab_quality import (METHOD_CHECK_KINDS, EqaRound,
+                                    LabProcedure, MethodCheck, PoctDevice,
+                                    PoctOperator, PoctQc, QcMaterial,
+                                    QcReview, QcRun)
 from app.models.accounting import (
     ACCOUNT_TYPES,
     PERIOD_STATUSES,
@@ -701,6 +704,9 @@ __all__ = [
     "LabRange",
     "LabResultValue",
     "SampleRejection",
+    "SpecimenStore",
+    "ReferralLabPrice",
+    "ReferralInvoice",
     "ReferralLab",
     "ReagentLot",
     "QcMaterial",
@@ -710,6 +716,9 @@ __all__ = [
     "PoctDevice",
     "PoctOperator",
     "PoctQc",
+    "LabProcedure",
+    "MethodCheck",
+    "METHOD_CHECK_KINDS",
     "RANGE_KINDS",
     "RANGE_SEXES",
 ]

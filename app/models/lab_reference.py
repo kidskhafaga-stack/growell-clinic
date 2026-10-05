@@ -258,6 +258,109 @@ class LabConsumable(db.Model):
     item = db.relationship("StoreItem")
 
 
+class ReferralLabPrice(db.Model):
+    """What a referral laboratory charges for one test — its agreement's price
+    list (GAHAR DAS.13 asks for the agreement; the account follows from it).
+
+    The price a sample is charged at is copied onto the sample when it is sent
+    (``VisitInvestigation.sent_cost``), so a price changed in March does not
+    rewrite February's statement — the rule ``BedCharge.unit_price`` keeps.
+    """
+    __tablename__ = "referral_lab_prices"
+    __table_args__ = (db.UniqueConstraint("lab_id", "investigation_id",
+                                          name="uq_referral_lab_price"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    lab_id = db.Column(db.Integer, db.ForeignKey("referral_labs.id"),
+                       nullable=False, index=True)
+    investigation_id = db.Column(db.Integer, db.ForeignKey("investigations.id"),
+                                 nullable=False, index=True)
+    price = db.Column(db.Float, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow,
+                           onupdate=datetime.utcnow)
+
+    lab = db.relationship("ReferralLab")
+    investigation = db.relationship("Investigation")
+
+
+class ReferralInvoice(db.Model):
+    """A referral laboratory's invoice, matched against what the program says
+    was sent. A statement, not a ledger entry: the payment is recorded where
+    every other payment is (the expenses screen), and nothing here posts.
+
+    ``our_total`` is what the samples sent in the period came to when the
+    invoice was checked — kept, so the difference read later is the one the
+    person saw, even if a sample is recalled afterwards.
+    """
+    __tablename__ = "referral_invoices"
+
+    id = db.Column(db.Integer, primary_key=True)
+    lab_id = db.Column(db.Integer, db.ForeignKey("referral_labs.id"),
+                       nullable=False, index=True)
+    number = db.Column(db.String(60), nullable=False)
+    period_start = db.Column(db.Date, nullable=False)
+    period_end = db.Column(db.Date, nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    our_total = db.Column(db.Float, nullable=False)
+    note = db.Column(db.String(255))
+    checked_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    checked_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    lab = db.relationship("ReferralLab")
+    checker = db.relationship("User", foreign_keys=[checked_by])
+
+    @property
+    def difference(self):
+        return round((self.amount or 0) - (self.our_total or 0), 2)
+
+
+class SpecimenStore(db.Model):
+    """A tube kept after its result — GAHAR DAS.20 (ج)(هـ)(و).
+
+    *"Criteria for specimen storage … the defined retention time of patient
+    samples … specimens' disposal"*, and evidence 6: *"required specimens
+    are easily retrieved"* — which is the reason any of it is written down:
+    a doctor asks for one more test on this morning's blood, and somebody
+    has to know which shelf it is on and whether it is still there.
+
+    **One row per tube, not per test.** One tube often carries three tests
+    under one code; the tube is what sits on the shelf and what is thrown
+    away. The tests are found by the code (``VisitInvestigation.sample_code``).
+    """
+    __tablename__ = "specimen_stores"
+
+    id = db.Column(db.Integer, primary_key=True)
+    sample_code = db.Column(db.String(24), nullable=False, index=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"),
+                           nullable=False, index=True)
+    # Where — a line of the laboratory's own list (`Lookup` domain
+    # ``sample_store``): «ثلاجة ١ — رف ٢».
+    place_key = db.Column(db.String(40))
+    place_text = db.Column(db.String(80))
+    stored_at = db.Column(db.DateTime, default=datetime.utcnow,
+                          nullable=False, index=True)
+    stored_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # The day it may go, worked out from the laboratory's figure when it was
+    # put away. Empty when the laboratory wrote none — never called due.
+    keep_until = db.Column(db.Date, index=True)
+
+    disposed_at = db.Column(db.DateTime, index=True)
+    disposed_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # Thrown away before its day says why.
+    disposed_note = db.Column(db.String(200))
+
+    patient = db.relationship("Patient")
+    storer = db.relationship("User", foreign_keys=[stored_by])
+    disposer = db.relationship("User", foreign_keys=[disposed_by])
+
+    @property
+    def is_kept(self):
+        return self.disposed_at is None
+
+    def __repr__(self):
+        return f"<SpecimenStore {self.sample_code}>"
+
+
 class SampleRejection(db.Model):
     """A specimen the laboratory refused — GAHAR DAS.15 (ب-٢).
 

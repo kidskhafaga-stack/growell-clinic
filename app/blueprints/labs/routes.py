@@ -150,7 +150,17 @@ def order(order_id):
                                row.patient, row.collected_at or row.created_at),
                            may_read=lab_results.reads_results(current_user),
                            waited=bench.waiting_minutes(row),
-                           doctors=_doctor_names())
+                           doctors=_doctor_names(),
+                           # GAHAR DAS.20 — where this tube is kept.
+                           **_storage_for(row))
+
+
+def _storage_for(row):
+    from app.utils import lab_storage
+
+    kept = lab_storage.current(row.sample_code) if row.sample_code else None
+    return {"kept": kept, "kept_place": lab_storage.place_label(kept),
+            "store_places": lab_storage.places()}
 
 
 def _doctor_names():
@@ -1676,6 +1686,11 @@ def test_details(test_id):
             return redirect(url_for("labs.test_ranges", test_id=row.id) + "#details")
         setattr(row, low, span[0] if span else None)
         setattr(row, high, span[1] if span else None)
+    # GAHAR DAS.20 (هـ) — how many days the tube is kept after the result.
+    if "keep_days" in request.form:
+        raw = (request.form.get("keep_days") or "").strip()
+        row.keep_days = (int(raw) if raw.isdigit() and 0 < int(raw) <= 3650
+                         else None)
     db.session.commit()
     flash(t("lab.test_saved"), "success")
     return redirect(url_for("labs.test_ranges", test_id=row.id) + "#details")
@@ -1826,3 +1841,332 @@ def _number(raw):
         return float(raw)
     except (TypeError, ValueError):
         return None
+
+
+# ---------------------------------------------- a tube kept, and thrown away --
+@labs_bp.route("/storage")
+@module_required(MODULE)
+def storage():
+    """Where the tubes are — GAHAR DAS.20 (ج)(هـ)(و): the ones to put away,
+    the ones past their day, and a search by code or by the child."""
+    from app.utils import lab_storage
+    from app.utils.clock import local_today
+
+    q = (request.args.get("q") or "").strip()
+    return render_template(
+        "labs/storage.html", q=q, found=lab_storage.find(q) if q else [],
+        waiting=lab_storage.waiting(), due=lab_storage.due(),
+        kept_n=len(lab_storage.kept()), places=lab_storage.places(),
+        default_days=lab_storage.default_days(),
+        place_label=lab_storage.place_label, today=local_today())
+
+
+@labs_bp.route("/storage/store", methods=["POST"])
+@module_required(MODULE)
+def storage_store():
+    """Put one or several tubes away — by scanning the code, or ticking the
+    tubes on the list."""
+    from app.utils import lab_storage
+
+    codes = [c for c in request.form.getlist("code") if (c or "").strip()]
+    if not codes:
+        flash(t("lab_storage.err_unknown"), "warning")
+        return redirect(url_for("labs.storage"))
+    done = 0
+    for code in codes:
+        try:
+            lab_storage.store(code, place_key=request.form.get("place_key"),
+                              place_text=request.form.get("place_text"),
+                              user=current_user)
+        except lab_storage.StorageError as err:
+            db.session.rollback()
+            flash(t(f"lab_storage.err_{err}", code=code[:24]), "warning")
+            continue
+        db.session.commit()
+        done += 1
+    if done:
+        flash(t("lab_storage.stored_n", n=done), "success")
+    back = request.form.get("back")
+    if back and back.isdigit():
+        return redirect(url_for("labs.order", order_id=int(back)))
+    return redirect(url_for("labs.storage"))
+
+
+@labs_bp.route("/storage/dispose", methods=["POST"])
+@module_required(MODULE)
+def storage_dispose():
+    """Thrown away — the tubes ticked, by whoever pressed it; before their
+    day only with a reason."""
+    from app.models import SpecimenStore
+    from app.utils import lab_storage
+
+    done = 0
+    for raw in request.form.getlist("store_id"):
+        row = db.session.get(SpecimenStore, int(raw)) if raw.isdigit() else None
+        try:
+            lab_storage.dispose(row, user=current_user,
+                                note=request.form.get("note"))
+        except lab_storage.StorageError as err:
+            db.session.rollback()
+            flash(t(f"lab_storage.err_{err}", code=row.sample_code if row else "—"),
+                  "warning")
+            continue
+        db.session.commit()
+        done += 1
+    if done:
+        flash(t("lab_storage.disposed_n", n=done), "success")
+    return redirect(url_for("labs.storage"))
+
+
+@labs_bp.route("/storage/places", methods=["POST"])
+@module_required(MODULE)
+def storage_place_add():
+    """A fridge or a rack on the laboratory's list. Admin only, like the
+    other lists the laboratory writes."""
+    from app.utils import lab_storage
+
+    if not current_user.is_admin:
+        abort(403)
+    try:
+        lab_storage.add_place(request.form.get("name"))
+    except lab_storage.StorageError as err:
+        db.session.rollback()
+        flash(t(f"lab_storage.err_{err}", code=""), "error")
+        return redirect(url_for("labs.storage") + "#storage-settings")
+    db.session.commit()
+    flash(t("lab_storage.place_added"), "success")
+    return redirect(url_for("labs.storage") + "#storage-settings")
+
+
+@labs_bp.route("/storage/places/<int:place_id>/retire", methods=["POST"])
+@module_required(MODULE)
+def storage_place_retire(place_id):
+    from app.models import Lookup
+    from app.utils import lab_storage
+
+    if not current_user.is_admin:
+        abort(403)
+    try:
+        lab_storage.retire_place(db.session.get(Lookup, place_id))
+    except lab_storage.StorageError:
+        abort(404)
+    db.session.commit()
+    flash(t("lab_storage.place_retired"), "success")
+    return redirect(url_for("labs.storage") + "#storage-settings")
+
+
+@labs_bp.route("/storage/keep-days", methods=["POST"])
+@module_required(MODULE)
+def storage_keep_days():
+    """The laboratory's general figure — used for a test that has none."""
+    from app.utils import lab_storage
+
+    if not current_user.is_admin:
+        abort(403)
+    lab_storage.set_default_days(request.form.get("days"))
+    db.session.commit()
+    flash(t("lab_storage.days_saved"), "success")
+    return redirect(url_for("labs.storage") + "#storage-settings")
+
+
+# ------------------------------- the laboratory's documents about its tests --
+@labs_bp.route("/documents")
+@module_required(MODULE)
+def documents():
+    """Every test's written procedure and method verification — the ones
+    missing or out of date first (GAHAR DAS.16 / DAS.17)."""
+    from app.utils import lab_documents
+    from app.utils.clock import local_today
+
+    return render_template("labs/documents.html",
+                           rows=lab_documents.overview(), today=local_today())
+
+
+@labs_bp.route("/tests/<int:test_id>/documents")
+@module_required(MODULE)
+def test_documents(test_id):
+    """One test's procedure, every version, and its verifications — read by
+    anybody at the bench: *readily available when needed* (DAS.17)."""
+    from app.models import METHOD_CHECK_KINDS
+    from app.utils import lab_documents
+    from app.utils.clock import local_today
+
+    row = db.get_or_404(Investigation, test_id)
+    if row.kind != "lab":
+        abort(404)
+    today = local_today()
+    procedures = lab_documents.procedures_for(row.id)
+    checks = lab_documents.checks_for(row.id)
+    return render_template(
+        "labs/test_documents.html", test=row, procedures=procedures,
+        checks=checks, today=today, kinds=METHOD_CHECK_KINDS,
+        p_state=lab_documents.procedure_state(procedures[0] if procedures else None, today),
+        c_state=lab_documents.check_state(checks[0] if checks else None, today),
+        may_write=lab_documents.may_write(current_user))
+
+
+def _documents_back(test_id):
+    return redirect(url_for("labs.test_documents", test_id=test_id))
+
+
+@labs_bp.route("/tests/<int:test_id>/procedure", methods=["POST"])
+@module_required(MODULE)
+def test_procedure(test_id):
+    from app.utils import lab_documents
+
+    if not lab_documents.may_write(current_user):
+        abort(403)
+    row = db.get_or_404(Investigation, test_id)
+    f = request.form
+    try:
+        lab_documents.add_procedure(
+            row, f.get("version"), f.get("location"), f.get("effective_on"),
+            review_due=f.get("review_due"), code=f.get("code"),
+            approved_by=f.get("approved_by"), user=current_user)
+    except lab_documents.DocumentError as err:
+        db.session.rollback()
+        flash(t(f"lab_docs.err_{err}"), "error")
+        return _documents_back(row.id)
+    db.session.commit()
+    flash(t("lab_docs.procedure_saved"), "success")
+    return _documents_back(row.id)
+
+
+@labs_bp.route("/tests/<int:test_id>/method-check", methods=["POST"])
+@module_required(MODULE)
+def test_method_check(test_id):
+    from app.utils import lab_documents
+
+    if not lab_documents.may_write(current_user):
+        abort(403)
+    row = db.get_or_404(Investigation, test_id)
+    f = request.form
+    verdict = {"1": True, "0": False}.get(f.get("accepted"))
+    try:
+        lab_documents.add_check(
+            row, f.get("kind"), f.get("done_on"), f.get("summary"), verdict,
+            f.get("signed_by"), due_again=f.get("due_again"),
+            user=current_user)
+    except lab_documents.DocumentError as err:
+        db.session.rollback()
+        flash(t(f"lab_docs.err_{err}"), "error")
+        return _documents_back(row.id)
+    db.session.commit()
+    flash(t("lab_docs.check_saved"), "success")
+    return _documents_back(row.id)
+
+
+@labs_bp.route("/manual")
+def manual():
+    """The laboratory service manual (GAHAR DAS.14 دليل ٢) — for whoever
+    orders or draws a test, not only the lab: what each test needs, from the
+    catalogue the lab keeps. Wherever the lab module is on."""
+    from flask import current_app
+
+    from app.utils import lab_documents
+    from app.utils.facility import module_enabled
+
+    if not current_user.is_authenticated:
+        return current_app.login_manager.unauthorized()
+    if not module_enabled(MODULE):
+        abort(404)
+    # Whoever works in the lab, and whoever orders — the doctors, by the same
+    # rule that lets them read results. Not the front desk or the till.
+    if not (current_user.can_access(MODULE)
+            or lab_results.reads_results(current_user)):
+        abort(403)
+    scope_day, scope_by = lab_documents.scope_reviewed()
+    return render_template("labs/manual.html", tests=lab_documents.manual_rows(),
+                           scope_day=scope_day, scope_by=scope_by,
+                           may_write=lab_documents.may_write(current_user),
+                           printed_at=datetime.utcnow())
+
+
+@labs_bp.route("/manual/reviewed", methods=["POST"])
+@module_required(MODULE)
+def manual_reviewed():
+    """The scope of service was reviewed today (GAHAR DAS.10 دليل ٤)."""
+    from app.utils import lab_documents
+
+    if not lab_documents.may_write(current_user):
+        abort(403)
+    lab_documents.mark_scope_reviewed(current_user)
+    db.session.commit()
+    flash(t("lab_docs.scope_saved"), "success")
+    return redirect(url_for("labs.manual"))
+
+
+# ---------------------------------------------- a referral laboratory's account --
+def _may_check_invoices():
+    return current_user.is_admin or current_user.can_access("finance")
+
+
+@labs_bp.route("/referral-labs/<int:lab_id>/account")
+@module_required(MODULE)
+def referral_account(lab_id):
+    """What the samples sent to this laboratory came to in a period, at its
+    agreed prices, and its invoices matched against it. A statement — the
+    payment is recorded on the expenses screen; nothing here posts."""
+    from app.models import ReferralLab
+    from app.utils import lab_sendout
+    from app.utils.clock import local_today
+
+    lab = db.get_or_404(ReferralLab, lab_id)
+    end = _day(request.args.get("to")) or local_today()
+    start = _day(request.args.get("from")) or end.replace(day=1)
+    if start > end:
+        start, end = end, start
+    return render_template(
+        "labs/referral_account.html", lab=lab, start=start, end=end,
+        data=lab_sendout.statement(lab, start, end),
+        tests=lab_sendout.priced_tests(lab), prices=lab_sendout.price_list(lab),
+        invoices=lab_sendout.invoices(lab),
+        may_price=current_user.is_admin, may_check=_may_check_invoices())
+
+
+@labs_bp.route("/referral-labs/<int:lab_id>/prices", methods=["POST"])
+@module_required(MODULE)
+def referral_prices(lab_id):
+    from app.models import ReferralLab
+    from app.utils import lab_sendout
+
+    if not current_user.is_admin:
+        abort(403)
+    lab = db.get_or_404(ReferralLab, lab_id)
+    raw = {int(k[6:]): v for k, v in request.form.items()
+           if k.startswith("price_") and k[6:].isdigit()}
+    try:
+        lab_sendout.set_prices(lab, raw)
+    except lab_sendout.SendError as err:
+        db.session.rollback()
+        flash(t(f"lab_account.err_{err}"), "error")
+        return redirect(url_for("labs.referral_account", lab_id=lab.id))
+    db.session.commit()
+    flash(t("lab_account.prices_saved"), "success")
+    return redirect(url_for("labs.referral_account", lab_id=lab.id))
+
+
+@labs_bp.route("/referral-labs/<int:lab_id>/invoice", methods=["POST"])
+@module_required(MODULE)
+def referral_invoice(lab_id):
+    from app.models import ReferralLab
+    from app.utils import lab_sendout
+
+    if not _may_check_invoices():
+        abort(403)
+    lab = db.get_or_404(ReferralLab, lab_id)
+    f = request.form
+    start, end = _day(f.get("from")), _day(f.get("to"))
+    try:
+        lab_sendout.check_invoice(lab, f.get("number"), start, end,
+                                  f.get("amount"), note=f.get("note"),
+                                  user=current_user)
+    except lab_sendout.SendError as err:
+        db.session.rollback()
+        flash(t(f"lab_account.err_{err}"), "error")
+    else:
+        db.session.commit()
+        flash(t("lab_account.invoice_saved"), "success")
+    return redirect(url_for("labs.referral_account", lab_id=lab.id,
+                            **({"from": start.isoformat(), "to": end.isoformat()}
+                               if start and end else {})))

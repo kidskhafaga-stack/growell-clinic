@@ -29,8 +29,13 @@
   <svg viewBox="0 0 {{ width }} {{ height }}" width="100%" height="{{ height }}"
        preserveAspectRatio="none" role="img" style="overflow:visible;">
     {# The reference band, from the most recent report that stated one. #}
-    {% set last_low = (points | selectattr('low', '!=', None) | map(attribute='low') | list | last) %}
-    {% set last_high = (points | selectattr('high', '!=', None) | map(attribute='high') | list | last) %}
+    {# A curve with no stated range at all has no band — and `last` of an
+       empty list is not «none», it is an error, so the lists are asked
+       whether they hold anything first. #}
+    {% set band_lows = points | selectattr('low', '!=', None) | map(attribute='low') | list %}
+    {% set band_highs = points | selectattr('high', '!=', None) | map(attribute='high') | list %}
+    {% set last_low = band_lows[-1] if band_lows else none %}
+    {% set last_high = band_highs[-1] if band_highs else none %}
     {% if last_low is not none and last_high is not none %}
       {% set y1 = height - ((last_high - bottom) / range_) * height %}
       {% set y2 = height - ((last_low - bottom) / range_) * height %}

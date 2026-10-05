@@ -55,6 +55,8 @@
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <a class="btn btn-outline gc-press" href="{{ url_for('labs.tests', q=test.name_en or test.name_ar) }}">
       <i class="bi bi-list-check"></i> {{ t('lab.tests') }}</a>
+    {% if test.kind == 'lab' %}<a class="btn btn-outline gc-press" href="{{ url_for('labs.test_documents', test_id=test.id) }}" data-to-test-documents>
+      <i class="bi bi-journal-check"></i> {{ t('lab_docs.procedure') }}</a>{% endif %}
     {% if drafts %}
     {# The laboratory director's act. Until it, every range here is a
        reference beside a result and never calls one high or low. #}
@@ -74,6 +76,7 @@
     <span>{{ t('lab_import.tat') }}: <strong dir="ltr">{% if test.tat_min %}{{ test.tat_min }}{% if test.tat_max and test.tat_max != test.tat_min %}–{{ test.tat_max }}{% endif %} min{% else %}—{% endif %}</strong></span>
     <span>{{ t('lab_import.tat_stat') }}: <strong dir="ltr">{% if test.tat_stat_min %}{{ test.tat_stat_min }}{% if test.tat_stat_max and test.tat_stat_max != test.tat_stat_min %}–{{ test.tat_stat_max }}{% endif %} min{% else %}—{% endif %}</strong></span>
     <span>{{ t('lab_import.preparation') }}: <strong>{{ test.preparation or '—' }}</strong></span>
+    <span>{{ t('lab_storage.keep_days') }}: <strong>{{ t('lab_storage.days_n', n=test.keep_days) if test.keep_days else '—' }}</strong></span>
   </div>
   {% if drafts %}
   <p class="hint" style="margin:10px 0 0;" data-drafts-note><i class="bi bi-info-circle"></i> {{ t('lab_import.drafts_note') }}</p>
@@ -125,6 +128,8 @@
                value="{% if test.tat_stat_min %}{{ test.tat_stat_min }}{% if test.tat_stat_max and test.tat_stat_max != test.tat_stat_min %}-{{ test.tat_stat_max }}{% endif %}{% endif %}"></div>
       <div class="form-row rng-wide"><label>{{ t('lab_import.preparation') }}</label>
         <input class="input" name="preparation" maxlength="255" value="{{ test.preparation or '' }}"></div>
+      <div class="form-row"><label for="keep_days">{{ t('lab_storage.keep_days') }}</label>
+        <input class="input" type="number" min="1" max="3650" id="keep_days" name="keep_days" value="{{ test.keep_days or '' }}" placeholder="{{ t('lab_storage.keep_days_ph') }}" data-keep-days></div>
     </div>
     <p class="hint" style="margin:6px 0;">{{ t('lab_steps.tat_hint') }}</p>
     <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>

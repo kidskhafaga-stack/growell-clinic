@@ -116,6 +116,32 @@ def rules():
             for row in PanelAlertRule.query.all()}
 
 
+def _with_line(alert, key, known):
+    """The alert, with the line of a test the clinic chose for it — «liver
+    enzymes rising» watching ALT, say. Unchanged when none was chosen."""
+    rule = (known or {}).get((key, alert.get("code")))
+    line = getattr(rule, "analyte_id", None)
+    if not line:
+        return alert
+    return {**alert, "watches": {**(alert.get("watches") or {}),
+                                 "analyte": line}}
+
+
+def lines_to_choose(alert):
+    """The lines a clinic may point a lab alert at: the watched test's own
+    analytes, when it is answered line by line. ``[]`` otherwise — a test of
+    one number has nothing to choose."""
+    from app.models import Investigation
+
+    watches = alert.get("watches") or {}
+    if watches.get("source") != "lab":
+        return []
+    test = Investigation.query.filter_by(code=watches.get("of")).first()
+    if test is None or len(test.analyte_links or []) < 2:
+        return []
+    return [link.analyte for link in test.analyte_links]
+
+
 def armed(key, code, known=None):
     """The clinic's number for this alert, or ``None`` when it has none.
 
@@ -180,22 +206,64 @@ def watchable(key):
 
 
 # ------------------------------------------------------- reading a value ----
-def _latest_lab(patient_id, code):
-    """``(value, when)`` of the newest numeric result for a test code."""
-    from app.models import Investigation, VisitInvestigation
+def _lab_readings(patient_id, code, analyte_id=None, limit=1):
+    """``[(value, when)]``, newest first, for what a lab alert watches.
 
-    row = (VisitInvestigation.query
-           .join(Investigation,
-                 VisitInvestigation.investigation_id == Investigation.id)
-           .filter(VisitInvestigation.patient_id == patient_id,
-                   Investigation.code == code,
-                   VisitInvestigation.result_value.isnot(None))
-           .order_by(VisitInvestigation.resulted_at.desc(),
-                     VisitInvestigation.id.desc())
-           .first())
-    if row is None:
-        return None, None
-    return row.result_value, (row.resulted_at or row.created_at)
+    Three places a number can be, tried in order:
+
+    1. **the line the clinic chose** (``analyte_id``) — for a test answered
+       line by line, «liver enzymes rising» names a panel, not a number, and
+       which enzyme is a clinical choice the program does not make;
+    2. **the test's own number**, by its code — a test of one value, or a
+       test of one analyte whose number is mirrored onto the order;
+    3. **a line of a bigger test that *is* the watched reading** — ANC is a
+       line of the CBC. Matched by name only where a name, alias or the code
+       itself is exactly the analyte's name or alias; nothing is guessed.
+    """
+    from app.models import (Investigation, LabAnalyte, LabResultValue,
+                            VisitInvestigation)
+
+    def lines(ids):
+        rows = (LabResultValue.query
+                .join(VisitInvestigation,
+                      LabResultValue.order_id == VisitInvestigation.id)
+                .filter(VisitInvestigation.patient_id == patient_id,
+                        LabResultValue.analyte_id.in_(ids),
+                        LabResultValue.value.isnot(None))
+                .order_by(VisitInvestigation.resulted_at.desc(),
+                          LabResultValue.id.desc())
+                .limit(limit).all())
+        return [(v.value, v.order.resulted_at or v.order.created_at)
+                for v in rows]
+
+    if analyte_id:
+        return lines([analyte_id])
+    rows = (VisitInvestigation.query
+            .join(Investigation,
+                  VisitInvestigation.investigation_id == Investigation.id)
+            .filter(VisitInvestigation.patient_id == patient_id,
+                    Investigation.code == code,
+                    VisitInvestigation.result_value.isnot(None))
+            .order_by(VisitInvestigation.resulted_at.desc(),
+                      VisitInvestigation.id.desc())
+            .limit(limit).all())
+    if rows:
+        return [(r.result_value, r.resulted_at or r.created_at) for r in rows]
+    names = {(code or "").strip().casefold()}
+    test = Investigation.query.filter_by(code=code).first() if code else None
+    if test is not None:
+        names |= {(n or "").strip().casefold() for n in
+                  [test.name_ar, test.name_en] + (test.aliases or "").split(";")}
+    names.discard("")
+    ids = [a.id for a in LabAnalyte.query.all()
+           if names & {n.strip().casefold() for n in a.names() if n}]
+    return lines(ids) if ids else []
+
+
+def _latest_lab(patient_id, code, analyte_id=None):
+    """``(value, when)`` of the newest numeric result for a test code."""
+    found = _lab_readings(patient_id, code, analyte_id)
+    return found[0] if found else (None, None)
 
 
 def _latest_vital(patient_id, field):
@@ -380,7 +448,7 @@ def _growth_z(patient_id, indicator, limit=2):
     return out
 
 
-def _last_two(patient_id, source, code):
+def _last_two(patient_id, source, code, analyte_id=None):
     """The two newest readings of one thing, newest first.
 
     **A trend is the one question that needs more than the latest value**, and
@@ -388,8 +456,7 @@ def _last_two(patient_id, source, code):
     survey — was dormant for want of a reader that looks back one step. There
     is no new data here: every reading it compares was already in the table.
     """
-    from app.models import (Investigation, Measurement, VisitInvestigation,
-                            Visit, VitalSigns)
+    from app.models import Measurement, Visit, VitalSigns
 
     if source == "panel":
         rows = (Measurement.query
@@ -401,16 +468,7 @@ def _last_two(patient_id, source, code):
                 .limit(2).all())
         return [(r.value_num, r.recorded_at) for r in rows]
     if source == "lab":
-        rows = (VisitInvestigation.query
-                .join(Investigation,
-                      VisitInvestigation.investigation_id == Investigation.id)
-                .filter(VisitInvestigation.patient_id == patient_id,
-                        Investigation.code == code,
-                        VisitInvestigation.result_value.isnot(None))
-                .order_by(VisitInvestigation.resulted_at.desc(),
-                          VisitInvestigation.id.desc())
-                .limit(2).all())
-        return [(r.result_value, r.resulted_at or r.created_at) for r in rows]
+        return _lab_readings(patient_id, code, analyte_id, limit=2)
     if source == "growth":
         return _growth_z(patient_id, code)
     if source == "vital":
@@ -445,7 +503,8 @@ def _moved(patient_id, watches, threshold, within_days=None):
     rule = (watches or {}).get("when")
     for code in [c.strip() for c in ((watches or {}).get("of") or "").split(",")
                  if c.strip()]:
-        pair = _last_two(patient_id, (watches or {}).get("source"), code)
+        pair = _last_two(patient_id, (watches or {}).get("source"), code,
+                         (watches or {}).get("analyte"))
         if len(pair) < 2:
             continue
         # Sliced, not unpacked. A reader that returned three readings — a
@@ -526,7 +585,7 @@ def measure(patient_id, watches):
     source = (watches or {}).get("source")
     of = (watches or {}).get("of") or ""
     if source == "lab":
-        return _latest_lab(patient_id, of)
+        return _latest_lab(patient_id, of, (watches or {}).get("analyte"))
     if source == "vital":
         return _latest_vital(patient_id, of)
     if source == "panel":
@@ -649,7 +708,8 @@ def evaluate(patient_id, keys):
                                 in WINDOWED_SHAPES)
                 if limit is not None and not (needs_window
                                               and window is None):
-                    detail = _answer(patient_id, alert, limit, window)
+                    detail = _answer(patient_id, _with_line(alert, key, known),
+                                     limit, window)
 
             # **One gate for both kinds, and both polarities.** A live alert
             # and an armed one can each be about something the record already

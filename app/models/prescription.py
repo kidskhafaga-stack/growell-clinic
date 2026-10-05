@@ -471,6 +471,10 @@ class Investigation(db.Model):
     # test is drawn here and shipped by the lab — on the bench's worklist,
     # not handed to the family (`labs.goes_outside`).
     referral_lab_id = db.Column(db.Integer, db.ForeignKey("referral_labs.id"))
+    # How many days the laboratory keeps this test's tube after the result
+    # (GAHAR DAS.20 هـ). Empty: the laboratory's general figure, and with
+    # none of either the tube has no date to be thrown away on.
+    keep_days = db.Column(db.Integer)
 
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name_ar

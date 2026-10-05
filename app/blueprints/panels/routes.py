@@ -95,7 +95,9 @@ def alerts():
             continue
         rows.append({
             "key": key, "meta": meta,
-            "alerts": [{"alert": a, "rule": known.get((key, a["code"]))}
+            "alerts": [{"alert": a, "rule": known.get((key, a["code"])),
+                        # A test answered line by line: which line it watches.
+                        "lines": panel_alerts.lines_to_choose(a)}
                        for a in answerable],
             # What this specialty asked for that nothing can answer yet. Said
             # on the same screen, because a clinic filling in four numbers
@@ -150,6 +152,12 @@ def set_alert():
         row.within_days = int(float(window)) if window else None
     except ValueError:
         row.within_days = None
+    # The line it watches, for a test answered line by line — only one of the
+    # watched test's own lines is taken.
+    alert = next(a for a in panel_alerts.watchable(key) if a["code"] == code)
+    allowed = {a.id for a in panel_alerts.lines_to_choose(alert)}
+    line = request.form.get("analyte_id", type=int)
+    row.analyte_id = line if line in allowed else None
     row.is_active = request.form.get("is_active") == "1"
     row.note = (request.form.get("note") or "").strip()[:160] or None
     row.set_by = current_user.id

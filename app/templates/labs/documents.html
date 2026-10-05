@@ -1,0 +1,41 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_docs.title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_docs.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR DAS.16 / DAS.17 — for every test the laboratory offers: its written
+   procedure in force and its review date, and its last verification or
+   validation. Missing, failed or out of date first. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-journal-check"></i> {{ t('lab_docs.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lab_docs.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('labs.manual') }}" data-to-manual><i class="bi bi-book"></i> {{ t('lab_docs.manual_title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}"><i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="overflow-x:auto;" data-doc-overview>
+  {% if not rows %}<p class="hint" style="margin:0;">{{ t('lab_docs.no_tests') }}</p>{% else %}
+  <table class="table" style="min-width:720px;">
+    <thead><tr><th>{{ t('lab_reception.col_test') }}</th><th>{{ t('lab_docs.procedure') }}</th><th>{{ t('lab_docs.review_due') }}</th><th>{{ t('lab_docs.check') }}</th><th>{{ t('lab_docs.due_again') }}</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr data-doc-row="{{ r.test.id }}" data-p-state="{{ r.p_state }}" data-c-state="{{ r.c_state }}">
+      <td><a href="{{ url_for('labs.test_documents', test_id=r.test.id) }}">{{ r.test.display_name(current_lang) }}</a>{% if r.test.category %} <span class="hint">· {{ r.test.category }}</span>{% endif %}</td>
+      <td>{% if r.procedure %}{{ t('lab_docs.version_n', v=r.procedure.version) }}{% else %}<span class="badge badge--warn">{{ t('lab_docs.state_none') }}</span>{% endif %}</td>
+      <td>{% if r.p_state == 'overdue' %}<span class="badge badge--danger">{{ r.procedure.review_due.isoformat() }}</span>{% elif r.procedure and r.procedure.review_due %}<span dir="ltr">{{ r.procedure.review_due.isoformat() }}</span>{% else %}—{% endif %}</td>
+      <td>{% if not r.check %}<span class="badge badge--warn">{{ t('lab_docs.state_none') }}</span>
+        {% elif not r.check.accepted %}<span class="badge badge--danger">{{ t('lab_docs.not_accepted') }}</span>
+        {% else %}<span class="badge badge--green">{{ t('lab_docs.kind_' ~ r.check.kind) }} · {{ r.check.done_on.isoformat() }}</span>{% endif %}</td>
+      <td>{% if r.c_state == 'overdue' %}<span class="badge badge--danger">{{ r.check.due_again.isoformat() }}</span>{% elif r.check and r.check.due_again %}<span dir="ltr">{{ r.check.due_again.isoformat() }}</span>{% else %}—{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

@@ -405,6 +405,11 @@ def record(visit_id):
 
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
+        # A test the lab answers line by line is typed line by line here too
+        # — the paper a family brought, by the same form and the same ranges
+        # the bench uses — and this visit's numbers drawn against the child's
+        # history, whichever of the two wrote them.
+        analyte_sheet=_analyte_sheet, visit_curves=_visit_curves(visit),
         # `ICD.17` — كل طلب بيقول هو مين وليه، واللي ناقص بيتقفل على سطره.
         order_missing=_order_check.missing,
         order_orderer=_order_check.orderer,
@@ -1388,6 +1393,23 @@ def _number(raw):
         return None
 
 
+def _analyte_sheet(order):
+    """The lab's lines for this order, or ``[]`` for a test of one number."""
+    from app.utils import lab_results
+
+    return lab_results.sheet(order) if lab_results.measured(order) else []
+
+
+def _visit_curves(visit):
+    """The child's curves that have a point from this visit."""
+    from app.utils import series
+
+    if visit is None or not visit.investigations:
+        return []
+    return [c for c in series.curves_for(visit.patient_id, getattr(g, "lang", "ar"))
+            if any(p.get("visit_id") == visit.id for p in c["points"])]
+
+
 @visits_bp.route("/investigations/<int:inv_id>/result", methods=["POST"])
 @module_required(MODULE)
 def result_investigation(inv_id):
@@ -1395,6 +1417,21 @@ def result_investigation(inv_id):
     from app.utils import labs
 
     inv = db.get_or_404(VisitInvestigation, inv_id)
+    from app.utils import lab_results
+
+    if lab_results.measured(inv):
+        # Line by line, as the lab writes it — the same values, ranges, flags
+        # and critical check, so a CBC typed off a paper draws the same
+        # curves as one the hospital's bench wrote.
+        entries = {int(k[2:]): v for k, v in request.form.items()
+                   if k.startswith("a_") and k[2:].isdigit()}
+        lab_results.save(inv, entries, user=current_user,
+                         text=request.form.get("result_text") or "")
+        inv.result_comment = (request.form.get("result_comment") or "").strip() or None
+        db.session.commit()
+        flash(t("visits.inv_result_saved"), "success")
+        return redirect(request.referrer
+                        or (url_for("visits.record", visit_id=inv.visit_id) + "#inv"))
     # **One door.** The doctor typing in what a paper report said and the lab
     # bench writing what it measured are the same act, and they were two
     # copies of it — the half that drifts is always the one that decides

@@ -7,7 +7,8 @@
 {% block content %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
-    <h1 class="page-title"><i class="bi bi-eyedropper"></i> {{ order.name }}</h1>
+    <h1 class="page-title"><i class="bi bi-eyedropper"></i> {{ order.name }}
+      {% if order.investigation_id and order.kind == 'lab' %}<a class="btn btn-sm btn-outline gc-press" style="vertical-align:middle;" href="{{ url_for('labs.test_documents', test_id=order.investigation_id) }}" data-to-procedure><i class="bi bi-journal-check"></i> {{ t('lab_docs.procedure') }}</a>{% endif %}</h1>
     <p class="page-sub" style="margin:0;">
       <a href="{{ url_for('patients.view', patient_id=order.patient_id) }}">
         {{ order.patient.display_name(current_lang) }}</a>
@@ -105,6 +106,31 @@
       </form>
       {% if not reasons %}<p class="hint" style="margin:6px 0 0;">{{ t('lab_reception.no_reasons_yet') }}</p>{% endif %}
     </details>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ---- the tube kept after its result (GAHAR DAS.20 ج هـ و) ---- #}
+  {% if order.sample_code and order.status == 'resulted' and not order.sent_at %}
+  <div style="margin:10px 0 0;" data-storage-box>
+    {% if kept %}
+      <p style="margin:0;" data-kept>
+        <i class="bi bi-inboxes"></i>
+        {% if kept.disposed_at %}{{ t('lab_storage.disposed_line', when=kept.disposed_at|clinic_stamp, who=kept.disposer.display_name(current_lang) if kept.disposer else '—') }}
+        {% else %}{{ t('lab_storage.kept_line', place=kept_place, when=kept.stored_at|clinic_stamp) }}{% if kept.keep_until %} · {{ t('lab_storage.until', day=kept.keep_until.isoformat()) }}{% endif %}{% endif %}</p>
+    {% else %}
+      <form method="post" action="{{ url_for('labs.storage_store') }}" style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin:0;" data-store-form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="code" value="{{ order.sample_code }}">
+        <input type="hidden" name="back" value="{{ order.id }}">
+        {% if store_places %}
+        <select class="input" name="place_key" aria-label="{{ t('lab_storage.place') }}">
+          {% for p in store_places %}<option value="{{ p.key }}">{{ p.name_ar }}</option>{% endfor %}
+        </select>
+        {% endif %}
+        <input class="input" name="place_text" maxlength="80" placeholder="{{ t('lab_storage.place_ph') }}" aria-label="{{ t('lab_storage.place') }}" {{ 'required' if not store_places }}>
+        <button class="btn btn-sm btn-outline gc-press" type="submit"><i class="bi bi-inboxes"></i> {{ t('lab_storage.store') }}</button>
+      </form>
     {% endif %}
   </div>
   {% endif %}

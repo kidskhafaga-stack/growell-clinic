@@ -1,0 +1,108 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_account.title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_account.title') }}{% endblock %}
+
+{% block content %}
+{# A referral laboratory's account — a statement, not a ledger. Each sample
+   sent is charged at the laboratory's price when it was sent; one with no
+   agreed price is counted apart, never as zero. Its invoices are matched
+   against the statement; the payment is recorded on the expenses screen. #}
+<div class="no-print gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-receipt"></i> {{ lab.name }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lab_account.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="btn btn-outline gc-press" type="button" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('labs.referral_labs') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('lab_sendout.labs_title') }}</a>
+  </div>
+</div>
+
+<form method="get" action="{{ url_for('labs.referral_account', lab_id=lab.id) }}" class="card gc-scale-in no-print" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+  <div class="form-row" style="margin:0;"><label for="from">{{ t('lab_reception.from') }}</label><input class="input" type="date" id="from" name="from" value="{{ start.isoformat() }}"></div>
+  <div class="form-row" style="margin:0;"><label for="to">{{ t('lab_reception.to') }}</label><input class="input" type="date" id="to" name="to" value="{{ end.isoformat() }}"></div>
+  <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('lab_reception.show') }}</button>
+</form>
+
+<div class="card gc-scale-in print-area" style="margin-bottom:14px;overflow-x:auto;" data-statement>
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_account.statement', frm=start.isoformat(), to=end.isoformat()) }}</h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+    <span class="badge badge--muted" data-statement-n>{{ t('lab_account.n_sent', n=data.rows|length) }}</span>
+    <span class="badge badge--green" data-statement-total>{{ t('lab_account.total', amount='%.2f'|format(data.total)) }}</span>
+    {% if data.unpriced %}<span class="badge badge--warn" data-unpriced>{{ t('lab_account.unpriced', n=data.unpriced) }}</span>{% endif %}
+  </div>
+  {% if not data.rows %}<p class="hint" style="margin:0;">{{ t('lab_account.none_sent') }}</p>{% else %}
+  <table class="table" style="min-width:620px;font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('lab_account.col_sent') }}</th><th>{{ t('lab_sendout.batch') }}</th><th>{{ t('lab_reception.col_patient') }}</th><th>{{ t('lab_reception.col_test') }}</th><th>{{ t('lab_account.col_price') }}</th></tr></thead>
+    <tbody>
+    {% for r in data.rows %}
+    <tr data-statement-row="{{ r.id }}">
+      <td>{{ r.sent_at|clinic_stamp }}</td>
+      <td dir="ltr">{{ r.sent_batch or '—' }}</td>
+      <td>{{ r.patient.display_name(current_lang) if r.patient else '—' }}</td>
+      <td>{{ r.display_name(current_lang) }}</td>
+      <td>{% if r.sent_cost is not none %}{{ '%.2f'|format(r.sent_cost) }}{% else %}<span class="badge badge--warn">{{ t('lab_account.no_price') }}</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in no-print" style="margin-bottom:14px;overflow-x:auto;" data-referral-invoices>
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_account.invoices') }}</h2>
+  {% if invoices %}
+  <table class="table" style="min-width:620px;font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('lab_account.number') }}</th><th>{{ t('lab_account.period') }}</th><th>{{ t('lab_account.their_amount') }}</th><th>{{ t('lab_account.our_total') }}</th><th>{{ t('lab_account.difference') }}</th><th>{{ t('lab_account.checked_by') }}</th></tr></thead>
+    <tbody>
+    {% for inv in invoices %}
+    <tr data-invoice-row="{{ inv.id }}">
+      <td dir="ltr">{{ inv.number }}</td>
+      <td dir="ltr">{{ inv.period_start.isoformat() }} → {{ inv.period_end.isoformat() }}</td>
+      <td>{{ '%.2f'|format(inv.amount) }}</td><td>{{ '%.2f'|format(inv.our_total) }}</td>
+      <td>{% if inv.difference %}<span class="badge badge--danger" data-invoice-differs>{{ '%+.2f'|format(inv.difference) }}</span>{% else %}<span class="badge badge--green">{{ t('lab_account.matches') }}</span>{% endif %}</td>
+      <td>{{ inv.checker.display_name(current_lang) if inv.checker else '—' }}{% if inv.note %} <span class="hint" dir="auto">— {{ inv.note }}</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="hint" style="margin:0 0 8px;">{{ t('lab_account.no_invoices') }}</p>{% endif %}
+  {% if may_check %}
+  <form method="post" action="{{ url_for('labs.referral_invoice', lab_id=lab.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;" data-invoice-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="inv_number">{{ t('lab_account.number') }}</label><input class="input" id="inv_number" name="number" required maxlength="60" dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label for="inv_from">{{ t('lab_reception.from') }}</label><input class="input" type="date" id="inv_from" name="from" required value="{{ start.isoformat() }}"></div>
+    <div class="form-row" style="margin:0;"><label for="inv_to">{{ t('lab_reception.to') }}</label><input class="input" type="date" id="inv_to" name="to" required value="{{ end.isoformat() }}"></div>
+    <div class="form-row" style="margin:0;"><label for="inv_amount">{{ t('lab_account.their_amount') }}</label><input class="input" id="inv_amount" name="amount" required inputmode="decimal" dir="ltr"></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:160px;"><label for="inv_note">{{ t('lab_account.note') }}</label><input class="input" id="inv_note" name="note" maxlength="255"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2-square"></i> {{ t('lab_account.check') }}</button>
+  </form>
+  <p class="hint" style="margin:8px 0 0;">{{ t('lab_account.pay_hint') }}{% if current_user.can_access('finance') %} <a href="{{ url_for('finance.expenses') }}" data-to-expenses>{{ t('lab_account.to_expenses') }}</a>{% endif %}</p>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in no-print" style="overflow-x:auto;" data-price-list>
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_account.prices') }}</h2>
+  <p class="hint" style="margin-top:0;">{{ t('lab_account.prices_hint') }}</p>
+  {% if not tests %}<p class="hint" style="margin:0;">{{ t('lab_account.no_tests') }}</p>
+  {% elif may_price %}
+  <form method="post" action="{{ url_for('labs.referral_prices', lab_id=lab.id) }}" data-price-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <table class="table" style="min-width:420px;">
+      <tbody>
+      {% for x in tests %}
+      <tr><td>{{ x.display_name(current_lang) }}</td>
+        <td><input class="input" name="price_{{ x.id }}" inputmode="decimal" dir="ltr" value="{{ '%.2f'|format(prices[x.id]) if x.id in prices else '' }}" aria-label="{{ x.display_name(current_lang) }}" style="max-width:140px;"></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+  {% else %}
+  <table class="table" style="min-width:420px;"><tbody>
+    {% for x in tests %}<tr><td>{{ x.display_name(current_lang) }}</td><td dir="ltr">{{ '%.2f'|format(prices[x.id]) if x.id in prices else '—' }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% endif %}
+</div>
+{% endblock %}

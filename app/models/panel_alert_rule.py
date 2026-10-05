@@ -55,6 +55,9 @@ class PanelAlertRule(db.Model):
     # the range shapes (an INR outside a band) take two numbers of a
     # different kind, and a generic second box would have to guess which.
     within_days = db.Column(db.Integer)
+    # For a lab alert on a test answered line by line, the line it watches
+    # (ALT for «liver enzymes rising») — the clinic's choice, never ours.
+    analyte_id = db.Column(db.Integer, db.ForeignKey("lab_analytes.id"))
 
     # Switched off without losing the number. A clinic silencing an alert for
     # a month should not have to remember what it was set to.

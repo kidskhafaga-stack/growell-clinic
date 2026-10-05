@@ -23,6 +23,8 @@ chart tells a confident lie. And it never guesses a reference band: the band
 is drawn only from what the report itself said, per point, and a point whose
 report gave no range simply has none.
 """
+from datetime import datetime
+
 from app.extensions import db
 from app.models import VisitInvestigation
 
@@ -77,8 +79,61 @@ def series_for(patient_id, lang="ar"):
             "visit_id": row.visit_id,
         })
 
+    for point in analyte_points(patient_id, lang):
+        bucket = groups.setdefault(point["key"], {
+            "key": point["key"][0], "unit": point["key"][1] or None,
+            "name": point["name"], "points": [],
+        })
+        bucket["points"].append(point["point"])
+
     out = [g for g in groups.values() if len(g["points"]) >= 2]
+    for g in out:
+        g["points"].sort(key=lambda p: p["date"] or datetime.min)
     out.sort(key=lambda g: (-len(g["points"]), g["name"]))
+    return out
+
+
+def analyte_points(patient_id, lang="ar"):
+    """Every number of a test answered **line by line** — a CBC's haemoglobin,
+    its platelets, each on a curve of its own.
+
+    Each analyte is its own reading (``an:<id>``), whichever test carried it
+    and wherever it was written: the hospital's bench, or a doctor typing in
+    the paper the family brought. A test of **one** analyte is left to the
+    test's own curve — its number is mirrored onto the order
+    (``lab_results._mirror``), so drawing it twice would put one reading on
+    two lines, and splitting it would break the history it had before.
+
+    The band is the approved usual range copied onto the value when it was
+    written, or nothing — never a range this module assumed.
+    """
+    from app.models import LabResultValue
+
+    rows = (LabResultValue.query
+            .join(VisitInvestigation,
+                  LabResultValue.order_id == VisitInvestigation.id)
+            .filter(VisitInvestigation.patient_id == patient_id,
+                    VisitInvestigation.result_value.is_(None),
+                    LabResultValue.value.isnot(None))
+            .order_by(VisitInvestigation.resulted_at,
+                      VisitInvestigation.created_at, LabResultValue.id)
+            .all())
+    out = []
+    for v in rows:
+        order = v.order
+        usual = v.range_approved and v.ref_kind == "interval"
+        out.append({
+            "key": (f"an:{v.analyte_id}", (v.unit or "").strip()),
+            "name": v.analyte.display_name(lang) if v.analyte else "",
+            "point": {
+                "date": order.resulted_at or order.created_at,
+                "value": v.value,
+                "low": v.ref_low if usual else None,
+                "high": v.ref_high if usual else None,
+                "out_of_range": v.flag not in (None, "normal"),
+                "visit_id": order.visit_id,
+            },
+        })
     return out
 
 
@@ -99,14 +154,19 @@ def latest_values(patient_id, lang="ar"):
             .all())
     latest = {}
     for row in rows:                       # ordered oldest first, so last wins
-        latest[(_key(row), (row.result_unit or "").strip())] = row
-    return sorted(
-        ({"name": r.display_name(lang), "value": r.result_value,
-          "unit": r.result_unit, "low": r.result_low, "high": r.result_high,
-          "out_of_range": r.out_of_range,
-          "date": (r.resulted_at or r.created_at), "visit_id": r.visit_id}
-         for r in latest.values()),
-        key=lambda d: d["name"])
+        latest[(_key(row), (row.result_unit or "").strip())] = {
+            "name": row.display_name(lang), "value": row.result_value,
+            "unit": row.result_unit, "low": row.result_low,
+            "high": row.result_high, "out_of_range": row.out_of_range,
+            "date": (row.resulted_at or row.created_at),
+            "visit_id": row.visit_id}
+    # And each line of a test answered line by line — "what is his
+    # haemoglobin?" has an answer from the first CBC.
+    for point in analyte_points(patient_id, lang):
+        latest[point["key"]] = {"name": point["name"],
+                                "unit": point["key"][1] or None,
+                                **point["point"]}
+    return sorted(latest.values(), key=lambda d: d["name"])
 
 
 def latest_by_investigation(patient_id):

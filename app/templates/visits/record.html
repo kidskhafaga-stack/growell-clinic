@@ -2,6 +2,7 @@
 {% from "_picker.html" import drug_list with context %}
 {% import "visits/_investigation_files.html" as inv_files with context %}
 {% import "labs/_values.html" as lab_values with context %}
+{% import "patients/_lab_curves.html" as lab_curves with context %}
 {% from "patients/_macros.html" import patient_avatar, age_label with context %}
 {% set active_module = 'visits' %}
 {% block title %}{{ t('visits.record_title') }}{% endblock %}
@@ -186,6 +187,28 @@
           {{ inv_files.files_block(x, linkable_files) }}
           <form method="post" action="{{ url_for('visits.result_investigation', inv_id=x.id) }}" style="margin-top:8px;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% set lines = analyte_sheet(x) %}
+            {% if lines %}
+            {# The test's own lines, as the lab writes them — typed off the
+               paper the family brought, read against the same approved
+               ranges, flagged and checked for a critical value the same way. #}
+            <div style="overflow-x:auto;" data-analyte-entry="{{ x.id }}">
+              <table class="table" style="min-width:380px;font-variant-numeric:tabular-nums;">
+                <thead><tr><th>{{ t('lab_result.analyte') }}</th><th style="width:150px;">{{ t('lab_result.value') }}</th><th>{{ t('lab.unit') }}</th><th>{{ t('lab_result.reference') }}</th></tr></thead>
+                <tbody>
+                {% for line in lines %}{% set a = line.analyte %}{% set v = line.row %}{% set rng = line.approved or line.draft %}
+                <tr data-line="{{ a.id }}">
+                  <td><label for="a_{{ x.id }}_{{ a.id }}" dir="ltr">{{ a.name }}</label>{% if a.name_ar and a.name_ar != a.name %}<div class="hint" style="margin:0;">{{ a.name_ar }}</div>{% endif %}</td>
+                  <td><input class="input" id="a_{{ x.id }}_{{ a.id }}" name="a_{{ a.id }}" dir="ltr" maxlength="120" inputmode="decimal" autocomplete="off" value="{{ v.shown() if v else '' }}">
+                    {% if v and v.flag %}<div style="margin-top:4px;">{{ lab_values.flag_badge(v.flag) }}</div>{% endif %}</td>
+                  <td dir="ltr" class="hint">{{ line.unit or '' }}</td>
+                  <td dir="ltr" class="hint">{% if rng and rng.low is not none and rng.high is not none %}{{ '%g'|format(rng.low) }} – {{ '%g'|format(rng.high) }}{% if not line.approved %} <span class="badge badge--muted">{{ t('lab_import.draft_badge') }}</span>{% endif %}{% else %}—{% endif %}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
             <div class="form-grid">
               <div class="form-row"><label>{{ t('visits.inv_value') }}</label>
                 <input class="input" name="result_value" type="number" step="any" dir="ltr"
@@ -202,6 +225,7 @@
             </div>
             <p class="hint" style="margin:2px 0 8px;"><i class="bi bi-info-circle"></i>
               {{ t('visits.inv_number_hint') }}</p>
+            {% endif %}
             <div class="form-grid">
               <div class="form-row"><label>{{ t('visits.inv_result_text') }}</label><input class="input" name="result_text" dir="auto"></div>
               <div class="form-row"><label>{{ t('visits.inv_comment') }}</label><input class="input" name="result_comment" dir="auto"></div>
@@ -1110,6 +1134,28 @@
           <summary style="cursor:pointer;color:var(--green-800);font-size:0.9rem;"><i class="bi bi-pencil-square"></i> {{ t('visits.inv_result') }}</summary>
           <form method="post" action="{{ url_for('visits.result_investigation', inv_id=x.id) }}" style="margin-top:8px;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% set lines = analyte_sheet(x) %}
+            {% if lines %}
+            {# The test's own lines, as the lab writes them — typed off the
+               paper the family brought, read against the same approved
+               ranges, flagged and checked for a critical value the same way. #}
+            <div style="overflow-x:auto;" data-analyte-entry="{{ x.id }}">
+              <table class="table" style="min-width:380px;font-variant-numeric:tabular-nums;">
+                <thead><tr><th>{{ t('lab_result.analyte') }}</th><th style="width:150px;">{{ t('lab_result.value') }}</th><th>{{ t('lab.unit') }}</th><th>{{ t('lab_result.reference') }}</th></tr></thead>
+                <tbody>
+                {% for line in lines %}{% set a = line.analyte %}{% set v = line.row %}{% set rng = line.approved or line.draft %}
+                <tr data-line="{{ a.id }}">
+                  <td><label for="a_{{ x.id }}_{{ a.id }}" dir="ltr">{{ a.name }}</label>{% if a.name_ar and a.name_ar != a.name %}<div class="hint" style="margin:0;">{{ a.name_ar }}</div>{% endif %}</td>
+                  <td><input class="input" id="a_{{ x.id }}_{{ a.id }}" name="a_{{ a.id }}" dir="ltr" maxlength="120" inputmode="decimal" autocomplete="off" value="{{ v.shown() if v else '' }}">
+                    {% if v and v.flag %}<div style="margin-top:4px;">{{ lab_values.flag_badge(v.flag) }}</div>{% endif %}</td>
+                  <td dir="ltr" class="hint">{{ line.unit or '' }}</td>
+                  <td dir="ltr" class="hint">{% if rng and rng.low is not none and rng.high is not none %}{{ '%g'|format(rng.low) }} – {{ '%g'|format(rng.high) }}{% if not line.approved %} <span class="badge badge--muted">{{ t('lab_import.draft_badge') }}</span>{% endif %}{% else %}—{% endif %}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
             <div class="form-grid">
               <div class="form-row"><label>{{ t('visits.inv_value') }}</label>
                 <input class="input" name="result_value" type="number" step="any" dir="ltr"
@@ -1126,6 +1172,7 @@
             </div>
             <p class="hint" style="margin:2px 0 8px;"><i class="bi bi-info-circle"></i>
               {{ t('visits.inv_number_hint') }}</p>
+            {% endif %}
             <div class="form-row"><label>{{ t('visits.inv_result_text') }}</label>
               <textarea class="input" name="result_text" rows="2" dir="auto">{{ x.result_text or '' }}</textarea></div>
             <div class="form-row"><label>{{ t('visits.inv_comment') }}</label>
@@ -1141,6 +1188,13 @@
     {% endif %}
     </div>
 
+    {# This visit's numbers against the child's history — the curves that
+       have a point from this visit, whether the lab wrote it or the doctor
+       typed it off a paper. Nothing drawn when there is no history. #}
+    {% if visit_curves %}<div data-visit-curves>{{ lab_curves.panel(visit_curves, []) }}</div>{% endif %}
+    {# What each test needs before it is drawn — the laboratory's service
+       manual (GAHAR DAS.14), one tap from where the test is ordered. #}
+    {% if module_enabled('labs') %}<p style="margin:0 0 6px;"><a class="hint" href="{{ url_for('labs.manual') }}" data-to-lab-manual><i class="bi bi-book"></i> {{ t('lab_docs.manual_title') }}</a></p>{% endif %}
     <!-- Order a new investigation -->
     <form method="post" data-add-form data-inline data-added-label="{{ t('visits.added_ok') }}" action="{{ url_for('visits.add_investigation', visit_id=visit.id) }}"
           x-data="invOrder('{{ url_for('visits.investigation_search') }}')">
