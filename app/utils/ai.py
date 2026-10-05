@@ -435,6 +435,8 @@ def chat(messages, system=None, config=None, feature=None):
             result = _chat_openai(requests, cfg, messages, system_prompt)
     except requests.exceptions.RequestException as exc:  # network/timeout
         return {"ok": False, "error": _network_error(exc)}
+    except UnsupportedPart:
+        return {"ok": False, "error": "unsupported_part"}
     except (KeyError, ValueError, IndexError) as exc:  # unexpected payload
         return {"ok": False, "error": _reply_error(exc)}
     _record_usage(cfg, result, feature)
@@ -472,8 +474,88 @@ def _record_usage(cfg, result, feature):
             pass
 
 
+# ---- a message that carries a picture of a paper --------------------------
+#
+# A message's ``content`` is a string, as it always was, or a list of neutral
+# parts: ``{"type": "text", "text": ...}``, ``{"type": "image",
+# "media_type": "image/png", "data": <base64>}`` or ``{"type": "pdf",
+# "data": <base64>}``. Each provider gets them in its own shape, and every
+# shape here is the vendor's documented one — integration code is never
+# written from memory:
+#
+# * Claude — ``image`` and ``document`` content blocks with a base64 source
+#   (Anthropic's Messages API reference);
+# * OpenAI and the compatible endpoints — an ``image_url`` content part whose
+#   ``url`` carries the base64 image as a data URL (``openai-python``,
+#   ``ChatCompletionContentPartImageParam``);
+# * Gemini — an ``inline_data`` part with ``mime_type`` and ``data``
+#   (Google's REST quickstart).
+#
+# A PDF goes to Claude only: for the other two the documented PDF shape could
+# not be confirmed, so it is refused by name rather than guessed at.
+IMAGE_TYPES = ("image/jpeg", "image/png", "image/gif", "image/webp")
+
+
+class UnsupportedPart(ValueError):
+    """This provider was not given a documented way to read this part."""
+
+
+def reads_pdf(cfg=None):
+    cfg = cfg or get_config()
+    return AI_PROVIDERS.get(cfg.get("provider"), {}).get("api") == "anthropic"
+
+
+def _parts_anthropic(content):
+    if isinstance(content, str):
+        return content
+    out = []
+    for part in content:
+        if part["type"] == "text":
+            out.append({"type": "text", "text": part["text"]})
+        elif part["type"] == "image":
+            out.append({"type": "image", "source": {
+                "type": "base64", "media_type": part["media_type"],
+                "data": part["data"]}})
+        elif part["type"] == "pdf":
+            out.append({"type": "document", "source": {
+                "type": "base64", "media_type": "application/pdf",
+                "data": part["data"]}})
+    return out
+
+
+def _parts_openai(content):
+    if isinstance(content, str):
+        return content
+    out = []
+    for part in content:
+        if part["type"] == "text":
+            out.append({"type": "text", "text": part["text"]})
+        elif part["type"] == "image":
+            out.append({"type": "image_url", "image_url": {
+                "url": f"data:{part['media_type']};base64,{part['data']}"}})
+        else:
+            raise UnsupportedPart(part["type"])
+    return out
+
+
+def _parts_gemini(content):
+    if isinstance(content, str):
+        return [{"text": content}]
+    out = []
+    for part in content:
+        if part["type"] == "text":
+            out.append({"text": part["text"]})
+        elif part["type"] == "image":
+            out.append({"inline_data": {"mime_type": part["media_type"],
+                                        "data": part["data"]}})
+        else:
+            raise UnsupportedPart(part["type"])
+    return out
+
+
 def _chat_openai(requests, cfg, messages, system_prompt):
-    payload_msgs = list(messages)
+    payload_msgs = [{"role": m["role"], "content": _parts_openai(m["content"])}
+                    for m in messages]
     if system_prompt:
         payload_msgs = [{"role": "system", "content": system_prompt}] + payload_msgs
     headers = {"Content-Type": "application/json"}
@@ -498,7 +580,8 @@ def _chat_anthropic(requests, cfg, messages, system_prompt):
         "model": cfg["model"],
         "max_tokens": 1024,
         "messages": [
-            {"role": m["role"], "content": m["content"]} for m in messages
+            {"role": m["role"], "content": _parts_anthropic(m["content"])}
+            for m in messages
         ],
     }
     if system_prompt:
@@ -528,7 +611,7 @@ def _chat_gemini(requests, cfg, messages, system_prompt):
     contents = [
         {
             "role": "model" if m["role"] == "assistant" else "user",
-            "parts": [{"text": m["content"]}],
+            "parts": _parts_gemini(m["content"]),
         }
         for m in messages
     ]
@@ -754,6 +837,9 @@ ERROR_KEYS = {
     "err_reply": "ai.err_reply",
     "err_library": "ai.err_library",
     "unknown": "ai.err_unknown",
+    # A picture or a PDF to a provider this program has no documented way to
+    # send it to — said, rather than sent in a shape somebody guessed.
+    "unsupported_part": "ai.err_unsupported_part",
 }
 
 

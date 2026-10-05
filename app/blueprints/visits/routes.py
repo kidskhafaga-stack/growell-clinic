@@ -410,6 +410,10 @@ def record(visit_id):
         # the bench uses — and this visit's numbers drawn against the child's
         # history, whichever of the two wrote them.
         analyte_sheet=_analyte_sheet, visit_curves=_visit_curves(visit),
+        # The paper on the order, read by the assistant into that same form —
+        # offered only where the clinic switched the assistant on and agreed
+        # to send it a child's papers.
+        lab_papers=_lab_papers, ai_reads_papers=_ai_reads_papers(),
         # `ICD.17` — كل طلب بيقول هو مين وليه، واللي ناقص بيتقفل على سطره.
         order_missing=_order_check.missing,
         order_orderer=_order_check.orderer,
@@ -1400,6 +1404,22 @@ def _analyte_sheet(order):
     return lab_results.sheet(order) if lab_results.measured(order) else []
 
 
+def _lab_papers(order):
+    from app.utils import lab_read
+
+    return lab_read.papers(order)
+
+
+def _ai_reads_papers():
+    from app.utils import ai
+
+    try:
+        return bool(ai.get_config().get("enabled")
+                    and ai.patient_context_enabled())
+    except Exception:          # noqa: BLE001 - a settings read never breaks a visit
+        return False
+
+
 def _visit_curves(visit):
     """The child's curves that have a point from this visit."""
     from app.utils import series
@@ -1408,6 +1428,37 @@ def _visit_curves(visit):
         return []
     return [c for c in series.curves_for(visit.patient_id, getattr(g, "lang", "ar"))
             if any(p.get("visit_id") == visit.id for p in c["points"])]
+
+
+@visits_bp.route("/investigations/<int:inv_id>/read-paper", methods=["POST"])
+@module_required(MODULE)
+def read_paper(inv_id):
+    """The assistant reads the paper on this order into the line-by-line
+    form — and stops there. The page it returns is the form, filled and
+    marked, beside the paper; nothing is written until a person presses save
+    (``lab_read``)."""
+    from app.models import PatientAttachment
+    from app.utils import lab_read, lab_results
+
+    inv = db.get_or_404(VisitInvestigation, inv_id)
+    back = url_for("visits.record", visit_id=inv.visit_id) + "#inv"
+    lines = lab_results.sheet(inv) if lab_results.measured(inv) else []
+    paper = db.session.get(PatientAttachment,
+                           request.form.get("attachment_id", type=int) or 0)
+    try:
+        proposed = lab_read.read(inv, paper, lines)
+    except lab_read.ReadError as err:
+        key = str(err)
+        if key.startswith("ai:"):
+            from app.utils import ai
+
+            flash(ai.error_sentence(key[3:]), "error")
+        else:
+            flash(t(f"lab_read.err_{key}"), "error")
+        return redirect(back)
+    return render_template("visits/read_paper.html", order=inv, paper=paper,
+                           lines=lines, proposed=proposed, back=back,
+                           is_pdf=lab_read.readable(paper) == "application/pdf")
 
 
 @visits_bp.route("/investigations/<int:inv_id>/result", methods=["POST"])
@@ -1430,6 +1481,9 @@ def result_investigation(inv_id):
         inv.result_comment = (request.form.get("result_comment") or "").strip() or None
         db.session.commit()
         flash(t("visits.inv_result_saved"), "success")
+        nxt = request.form.get("next") or ""
+        if nxt.startswith("/") and not nxt.startswith("//"):
+            return redirect(nxt)
         return redirect(request.referrer
                         or (url_for("visits.record", visit_id=inv.visit_id) + "#inv"))
     # **One door.** The doctor typing in what a paper report said and the lab
