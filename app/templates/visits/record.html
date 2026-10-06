@@ -834,7 +834,8 @@
         <div class="alert-pill danger" style="display:block;" data-referred>
           <i class="bi bi-hospital-fill"></i>
           <strong>{{ t('visits.referred_badge') }}</strong>
-          {% if visit.referral_where %} — {{ visit.referral_where }}{% endif %}
+          {% if er_sent %} — <a href="{{ url_for('emergency.attendance', attendance_id=er_sent.id) }}" data-er-inhouse>{{ t('visits.er_inhouse') }}</a>
+          {% elif visit.referral_where %} — {{ visit.referral_where }}{% endif %}
           {% if visit.referral_when %}
           <span dir="ltr">{{ visit.referral_when.strftime('%Y-%m-%d %H:%M') }}</span>
           {% endif %}
@@ -847,12 +848,19 @@
         {# **خانتين بس.** دليل ٤ عايز تمن بنود على الورقة، بس مش كلهم في
            اللحظة اللي بيتبعت فيها طفل لطوارئ. الباقي بيتكتب من صف
            الورقة نفسه في شاشة الإحالات. #}
-        <select class="input" name="kind" style="max-width:180px;">
+        {# «طوارئ المستشفى عندنا» first where the hospital has one: the
+           child goes downstairs and appears on the department's own list.
+           The other two are papers to another hospital (ACT.14). #}
+        <div x-data="{ kind: '{{ 'in_house' if er_here else 'referral' }}' }">
+        <select class="input" name="kind" style="max-width:240px;" x-model="kind" data-refer-kind>
+          {% if er_here %}<option value="in_house">{{ t('visits.er_inhouse') }}</option>{% endif %}
           <option value="referral">{{ t('referrals.kind_referral') }}</option>
           <option value="transfer">{{ t('referrals.kind_transfer') }}</option>
         </select>
         <input class="input" name="referred_to" placeholder="{{ t('visits.refer_where') }}"
-               style="margin-top:6px;">
+               style="margin-top:6px;" x-show="kind !== 'in_house'" {% if er_here %}x-cloak{% endif %}>
+        <p class="hint" style="margin:6px 0 0;" x-show="kind === 'in_house'" {% if not er_here %}x-cloak{% endif %}>{{ t('visits.er_inhouse_hint') }}</p>
+        </div>
         <input class="input" name="referral_note" placeholder="{{ t('visits.refer_why') }}"
                style="margin-top:6px;" required>
         <button class="btn btn-danger btn-sm gc-press" type="submit" style="margin-top:6px;align-self:start;">

@@ -948,7 +948,11 @@
     "inv_where_saved": "Where it is done was recorded",
     "inv_where_too_late": "This order already has a result — where it was done is part of what happened, not a plan to revise.",
     "search_ph": "Child's name, file number or phone",
-    "no_match": "No visits match these filters"
+    "no_match": "No visits match these filters",
+    "er_inhouse": "Our hospital's emergency department",
+    "er_inhouse_hint": "Opens an attendance in the hospital's emergency department with this reason; the child appears on their screen at once.",
+    "er_sent_ok": "The child was sent to the hospital's emergency department and is on their screen with the reason.",
+    "er_started": "The emergency department has already started with this child, so the transfer cannot be undone here. If it was a mistake, speak to the department."
   },
   "diagnosis_types": {
     "working": "Working",
@@ -6504,7 +6508,9 @@
     "arr_ambulance": "Ambulance",
     "arr_referred": "Referred",
     "arr_transfer": "Transfer in",
-    "still_here": "Still in the department"
+    "still_here": "Still in the department",
+    "from_clinic": "Sent from the clinic",
+    "from_clinic_visit": "the clinic visit"
   },
   "nicu": {
     "sub": "The incubators: hours of life, gestation, weight and jaundice"

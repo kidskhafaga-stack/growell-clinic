@@ -58,6 +58,15 @@
   <a class="btn btn-outline gc-press" href="{{ url_for('emergency.register') }}">
     <i class="bi bi-list-ul"></i> {{ t('emergency.register_title') }}</a>
 </div>
+{# Sent down from a clinic visit in this hospital: who sent them and why. #}
+{% if row.from_visit %}
+<div class="card gc-scale-in" style="margin-bottom:12px;border-inline-start:4px solid var(--danger);" data-from-clinic>
+  <b><i class="bi bi-hospital"></i> {{ t('emergency.from_clinic') }}</b>
+  {% if row.from_visit.doctor %} — {{ row.from_visit.doctor.display_name(current_lang) }}{% endif %}
+  · {% if current_user.can_access('visits') %}<a href="{{ url_for('visits.record', visit_id=row.from_visit_id) }}">{{ t('emergency.from_clinic_visit') }}</a>{% else %}{{ t('emergency.from_clinic_visit') }}{% endif %}
+  {% if row.sent_reason %}<div dir="auto" style="margin-top:4px;">{{ row.sent_reason }}</div>{% endif %}
+</div>
+{% endif %}
 
 {# **Whose move it is.** Read off what was written and done — nobody types
    it — with a countdown while a timed treatment runs. #}
