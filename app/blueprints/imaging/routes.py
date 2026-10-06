@@ -122,9 +122,17 @@ def order(order_id):
 
     row = _scan(order_id)
     from app.utils import lab_critical, lab_results
+    from app.utils import radiation_safety as rs
 
+    is_mri = rs.is_mri(row)
+    screening = rs.last_screening(row) if is_mri else None
     return render_template(
         "imaging/order.html", order=row, bench=bench, radiation=radiation,
+        # GAHAR DAS.09 (f) — the hospital's MRI screening questions, only on an
+        # MRI and only where the hospital wrote them.
+        is_mri=is_mri, mri_questions=rs.mri_questions() if is_mri else [],
+        mri_screening=screening,
+        mri_answers=rs.answers_of(screening) if screening else [],
         before=radiation.summary(row.patient_id, exclude_id=row.id),
         over=radiation.over_reference(row), ionising=radiation.ionising(row),
         # The critical box (`labs/_critical_box.html`).

@@ -45,6 +45,7 @@
     {# No door to the lab: radiology's screen is radiology's (the lab has its
        own entry in the menu). Its own review of what the children received. #}
     {% if kind == 'imaging' %}
+    <a class="btn btn-outline gc-press" data-to-safety href="{{ url_for('imaging.safety') }}"><i class="bi bi-shield-check"></i> {{ t('radsafe.title') }}</a>
     <a class="btn btn-outline gc-press" data-to-doses href="{{ url_for('imaging.doses') }}">
       <i class="bi bi-radioactive"></i> {{ t('radiation.report_title') }}</a>
     {% endif %}
