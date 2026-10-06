@@ -1,0 +1,132 @@
+{% extends "shell.html" %}
+{% set active_module = 'facility' %}
+{% block title %}{{ t('facility.title') }}{% endblock %}
+{% block page_heading %}{{ t('facility.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR EFS.03 / GSR.23, EFS.04 / GSR.24, EFS.11 / GSR.28 — the records the
+   evidence asks for. The plans are the hospital's documents. #}
+<div class="gc-animate" style="margin-bottom:16px;">
+  <h1 class="page-title"><i class="bi bi-building-check"></i> {{ t('facility.title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('facility.sub') }}</p>
+</div>
+
+{# ---- fire drills --------------------------------------------------------- #}
+<div class="card gc-scale-in" id="drills" style="margin-bottom:14px;" data-drills>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-fire"></i> {{ t('facility.drills') }} — <span dir="ltr">{{ year.year }}</span></h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;" data-drill-year>
+    {% for q, n in year.quarters.items() %}
+    <span class="badge {{ 'badge--green' if n else ('badge--danger' if q in year.missing_quarters else 'badge--muted') }}" {% if q in year.missing_quarters %}data-missing-quarter="{{ q }}"{% endif %}>{{ t('facility.quarter', q=q) }}: {{ n }}</span>
+    {% endfor %}
+    <span class="badge {{ 'badge--green' if year.unannounced else 'badge--warn' }}" data-unannounced="{{ 'yes' if year.unannounced else 'no' }}">{{ t('facility.unannounced_done') if year.unannounced else t('facility.unannounced_missing') }}</span>
+    <span class="badge {{ 'badge--green' if not year.not_yet else 'badge--warn' }}" data-not-in-drill="{{ year.not_yet|length }}">{{ t('facility.not_in_drill', n=year.not_yet|length) }}</span>
+  </div>
+  <details style="margin-bottom:10px;"><summary style="cursor:pointer;">{{ t('facility.new_drill') }}</summary>
+  <form method="post" action="{{ url_for('facility.drill') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:8px;" data-new-drill>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="d_at">{{ t('facility.when') }}</label><input class="input" type="datetime-local" id="d_at" name="held_at" required></div>
+    <div class="form-row" style="margin:0;"><label for="d_shift">{{ t('facility.shift') }}</label>
+      <select class="input" id="d_shift" name="shift" required><option value=""></option>{% for s in shifts %}<option value="{{ s }}">{{ t('facility.shift_' ~ s) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="d_areas">{{ t('facility.areas') }}</label><input class="input" id="d_areas" name="areas" maxlength="400" required></div>
+    <div class="form-row" style="margin:0;"><label for="d_min">{{ t('facility.evac_minutes') }}</label><input class="input" id="d_min" name="evacuation_minutes" inputmode="numeric" dir="ltr"></div>
+    <label style="align-self:end;"><input type="checkbox" name="unannounced" value="1"> {{ t('facility.unannounced') }}</label>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="d_people">{{ t('facility.participants') }}</label>
+      <select class="input" id="d_people" name="participants" multiple size="6">{% for u in staff %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="d_others">{{ t('facility.others') }}</label><input class="input" id="d_others" name="others" inputmode="numeric" dir="ltr"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="d_eval">{{ t('facility.evaluation') }}</label><textarea class="input" id="d_eval" name="evaluation" rows="2" required></textarea></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="d_act">{{ t('facility.corrective') }}</label><textarea class="input" id="d_act" name="corrective_action" rows="2" required></textarea></div>
+    <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+  </form></details>
+  {% if year.drills %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:640px;">
+    <thead><tr><th>{{ t('facility.when') }}</th><th>{{ t('facility.shift') }}</th><th>{{ t('facility.areas') }}</th><th>{{ t('facility.participants') }}</th><th>{{ t('facility.corrective') }}</th></tr></thead>
+    <tbody>{% for d in year.drills %}<tr data-drill="{{ d.id }}">
+      <td dir="ltr">{{ d.held_at.strftime('%Y-%m-%d %H:%M') }}{% if d.unannounced %} <span class="badge badge--warn">{{ t('facility.unannounced') }}</span>{% endif %}</td>
+      <td>{{ t('facility.shift_' ~ d.shift) }}</td><td dir="auto">{{ d.areas }}</td>
+      <td>{{ d.participants|length + (d.others or 0) }}</td><td dir="auto">{{ d.corrective_action }}</td></tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('facility.no_drills') }}</p>{% endif %}
+</div>
+
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-bottom:14px;">
+  {# ---- fire systems ------------------------------------------------------ #}
+  <div class="card gc-scale-in" id="fire" data-fire-systems>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-bell"></i> {{ t('facility.fire_systems') }}</h2>
+    <form method="post" action="{{ url_for('facility.fire_check') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;"><label for="f_sys">{{ t('facility.system') }}</label>
+        <select class="input" id="f_sys" name="system" required><option value=""></option>{% for s in fire_systems %}<option value="{{ s }}">{{ t('facility.fs_' ~ s) }}</option>{% endfor %}</select></div>
+      <div class="form-row" style="margin:0;"><label for="f_loc">{{ t('facility.location') }}</label><input class="input" id="f_loc" name="location" maxlength="160"></div>
+      <div class="form-row" style="margin:0;"><label for="f_on">{{ t('facility.checked_on') }}</label><input class="input" type="date" id="f_on" name="checked_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+      <div class="form-row" style="margin:0;"><label for="f_res">{{ t('facility.result') }}</label>
+        <select class="input" id="f_res" name="result" required><option value=""></option>{% for r in results %}<option value="{{ r }}">{{ t('facility.r_' ~ r) }}</option>{% endfor %}</select></div>
+      <div class="form-row" style="margin:0;"><label for="f_by">{{ t('facility.done_by') }}</label><input class="input" id="f_by" name="done_by" maxlength="160"></div>
+      <div class="form-row" style="margin:0;"><label for="f_next">{{ t('facility.next_due') }}</label><input class="input" type="date" id="f_next" name="next_due"></div>
+      <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="f_act">{{ t('facility.action') }}</label><input class="input" id="f_act" name="action" placeholder="{{ t('facility.action_if_fail') }}"></div>
+      <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+    </form>
+    {% if fire %}<table class="table" style="margin-top:10px;"><tbody>{% for r in fire %}{% set c = r.check %}
+      <tr data-fire-check="{{ c.id }}"><td>{{ t('facility.fs_' ~ c.system) }}{% if c.location %}<div class="hint">{{ c.location }}</div>{% endif %}</td><td dir="ltr">{{ c.checked_on.isoformat() }}</td>
+        <td><span class="badge {{ 'badge--green' if c.result == 'pass' else 'badge--danger' }}">{{ t('facility.r_' ~ c.result) }}</span>{% if r.overdue %} <span class="badge badge--danger" data-fire-overdue>{{ t('facility.overdue') }}</span>{% endif %}</td>
+        <td dir="auto">{{ c.action or '' }}</td></tr>{% endfor %}</tbody></table>
+    {% else %}<p class="hint" style="margin:10px 0 0;">{{ t('facility.no_checks') }}</p>{% endif %}
+  </div>
+
+  {# ---- fire training ----------------------------------------------------- #}
+  <div class="card gc-scale-in" id="training" data-fire-training>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-mortarboard"></i> {{ t('facility.training') }}</h2>
+    <p class="hint" style="margin-top:0;" data-untrained="{{ untrained|length }}">{{ t('facility.untrained_n', n=untrained|length) }}</p>
+    <form method="post" action="{{ url_for('facility.training') }}" style="display:grid;gap:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;"><label for="t_people">{{ t('facility.trained_people') }}</label>
+        <select class="input" id="t_people" name="user_ids" multiple size="6" required>{% for u in untrained %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+      <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
+        <div class="form-row" style="margin:0;"><label for="t_on">{{ t('facility.trained_on') }}</label><input class="input" type="date" id="t_on" name="trained_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+        <div class="form-row" style="margin:0;"><label for="t_by">{{ t('facility.trainer') }}</label><input class="input" id="t_by" name="trainer" maxlength="160"></div>
+      </div>
+      <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+    </form>
+    {% if trainings %}<table class="table" style="margin-top:10px;"><tbody>{% for tr in trainings %}
+      <tr><td>{{ tr.user.display_name(current_lang) }}</td><td dir="ltr">{{ tr.trained_on.isoformat() }}</td><td>{{ tr.trainer or '' }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+  </div>
+</div>
+
+{# ---- utilities --------------------------------------------------------------- #}
+<div class="card gc-scale-in" id="utilities" data-utilities>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-lightning-charge"></i> {{ t('facility.utilities') }}</h2>
+  {% if utilities %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:720px;">
+    <thead><tr><th>{{ t('facility.utility') }}</th><th>{{ t('facility.last_check') }}</th><th>{{ t('facility.next_due') }}</th><th>{{ t('facility.record_check') }}</th></tr></thead>
+    <tbody>{% for r in utilities %}{% set u = r.system %}
+    <tr data-utility="{{ u.id }}">
+      <td><b>{{ u.name }}</b> <span class="hint">{{ t('facility.uk_' ~ u.kind) }}</span>
+        {% if u.is_critical %}<span class="badge badge--danger">{{ t('facility.critical') }}</span><div class="hint">{{ t('facility.backup') }}: {{ u.backup }}</div>{% endif %}</td>
+      <td>{% if r.last %}<span class="badge {{ 'badge--green' if r.last.result == 'pass' else 'badge--danger' }}">{{ t('facility.uc_' ~ r.last.kind) }}</span> <span dir="ltr">{{ r.last.done_on.isoformat() }}</span>{% else %}—{% endif %}</td>
+      <td>{% if r.due %}<span class="{{ 'badge badge--danger' if r.overdue else '' }}" {% if r.overdue %}data-utility-overdue{% endif %} dir="ltr">{{ r.due.isoformat() }}</span>{% else %}<span class="hint">—</span>{% endif %}</td>
+      <td><details><summary style="cursor:pointer;">{{ t('facility.record_check') }}</summary>
+        <form method="post" action="{{ url_for('facility.utility_check', system_id=u.id) }}" style="display:grid;gap:6px;margin-top:6px;min-width:260px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <select class="input" name="kind" required aria-label="{{ t('facility.check_kind') }}"><option value=""></option>{% for k in utility_checks %}<option value="{{ k }}">{{ t('facility.uc_' ~ k) }}</option>{% endfor %}</select>
+          <input class="input" type="date" name="done_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required aria-label="{{ t('facility.checked_on') }}">
+          <select class="input" name="result" required aria-label="{{ t('facility.result') }}"><option value=""></option>{% for res in results %}<option value="{{ res }}">{{ t('facility.r_' ~ res) }}</option>{% endfor %}</select>
+          <input class="input" name="done_by" maxlength="160" placeholder="{{ t('facility.done_by') }}">
+          {% if u.kind == 'generator' %}<input class="input" name="fuel" maxlength="60" placeholder="{{ t('facility.fuel') }}">{% endif %}
+          <input class="input" name="details" placeholder="{{ t('facility.details') }}">
+          <input class="input" name="action" placeholder="{{ t('facility.action_if_fail') }}">
+          <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+        </form></details></td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint">{{ t('facility.no_utilities') }}</p>{% endif %}
+  <details style="margin-top:10px;"><summary style="cursor:pointer;">{{ t('facility.new_utility') }}</summary>
+  <form method="post" action="{{ url_for('facility.utility_new') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-top:8px;" data-new-utility>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="u_name">{{ t('facility.utility') }}</label><input class="input" id="u_name" name="name" maxlength="160" required></div>
+    <div class="form-row" style="margin:0;"><label for="u_kind">{{ t('facility.kind') }}</label>
+      <select class="input" id="u_kind" name="kind" required><option value=""></option>{% for k in utility_kinds %}<option value="{{ k }}">{{ t('facility.uk_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="u_loc">{{ t('facility.location') }}</label><input class="input" id="u_loc" name="location" maxlength="160"></div>
+    <div class="form-row" style="margin:0;"><label for="u_every">{{ t('facility.every_days') }}</label><input class="input" id="u_every" name="check_every_days" inputmode="numeric" dir="ltr"></div>
+    <label style="align-self:end;"><input type="checkbox" name="is_critical" value="1"> {{ t('facility.critical') }}</label>
+    <div class="form-row" style="margin:0;"><label for="u_backup">{{ t('facility.backup') }}</label><input class="input" id="u_backup" name="backup" maxlength="200"></div>
+    <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+  </form></details>
+</div>
+{% endblock %}
