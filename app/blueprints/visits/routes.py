@@ -1460,7 +1460,10 @@ def read_paper(inv_id):
     paper = db.session.get(PatientAttachment,
                            request.form.get("attachment_id", type=int) or 0)
     try:
-        proposed = lab_read.read(inv, paper, lines)
+        # A test answered line by line fills its lines; a scan's report or a
+        # test of one value fills the report — the same review, either way.
+        proposed = (lab_read.read(inv, paper, lines) if lines
+                    else lab_read.read_report(inv, paper))
     except lab_read.ReadError as err:
         key = str(err)
         if key.startswith("ai:"):
@@ -1472,6 +1475,7 @@ def read_paper(inv_id):
         return redirect(back)
     return render_template("visits/read_paper.html", order=inv, paper=paper,
                            lines=lines, proposed=proposed, back=back,
+                           save_url=url_for("visits.result_investigation", inv_id=inv.id),
                            is_pdf=lab_read.readable(paper) == "application/pdf")
 
 
@@ -1518,6 +1522,11 @@ def result_investigation(inv_id):
                 user=current_user)
     db.session.commit()
     flash(t("visits.inv_result_saved"), "success")
+    # The review of a paper the assistant read says where to go back to —
+    # its own page was a POST and cannot be returned to.
+    nxt = request.form.get("next") or ""
+    if nxt.startswith("/") and not nxt.startswith("//"):
+        return redirect(nxt)
     # Return to the page the result was entered from (e.g. the follow-up
     # consultation reviewing a previous visit's pending test).
     return redirect(request.referrer or (url_for("visits.record", visit_id=inv.visit_id) + "#inv"))

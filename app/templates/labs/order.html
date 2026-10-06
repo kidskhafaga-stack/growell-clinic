@@ -231,6 +231,37 @@
 </div>
 {% endif %}
 
+{# ---- the outside laboratory's paper ------------------------------------ #}
+{# A result that came back as a photo or a PDF: kept on the order, and — where
+   the assistant is on and the clinic agreed to send it a child's papers —
+   read into the form below for the bench to check and save. #}
+<div class="card gc-scale-in" id="paper" style="margin-bottom:14px;" data-lab-paper>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-file-earmark-medical"></i> {{ t('lab_paper.title') }}</h2>
+  {% if papers %}
+  <ul style="margin:0 0 10px;padding-inline-start:18px;">
+    {% for f in papers %}<li><a href="{{ url_for('static', filename='uploads/patient_docs/' ~ f.filename) }}" target="_blank" rel="noopener">{{ f.original_name or f.filename }}</a> <span class="hint">{{ f.created_at|clinic_stamp }}</span></li>{% endfor %}
+  </ul>
+  {% if ai_reads_papers %}
+  <form method="post" action="{{ url_for('labs.read_paper', order_id=order.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;" data-lab-read-paper>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if papers|length > 1 %}
+    <select class="input" name="attachment_id" aria-label="{{ t('lab_read.which_paper') }}" style="max-width:220px;">
+      {% for f in papers %}<option value="{{ f.id }}">{{ f.original_name or f.filename }}</option>{% endfor %}
+    </select>
+    {% else %}<input type="hidden" name="attachment_id" value="{{ papers[0].id }}">{% endif %}
+    <button class="btn btn-sm btn-outline gc-press" type="submit"><i class="bi bi-magic"></i> {{ t('lab_read.read_it') }}</button>
+    <span class="hint">{{ t('lab_read.you_confirm') }}</span>
+  </form>
+  {% endif %}
+  {% endif %}
+  <form method="post" action="{{ url_for('labs.paper_upload', order_id=order.id) }}" enctype="multipart/form-data" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="paper_file">{{ t('lab_paper.upload') }}</label>
+      <input class="input" id="paper_file" type="file" name="file" accept=".pdf,image/*" required></div>
+    <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-upload"></i> {{ t('lab_paper.attach') }}</button>
+  </form>
+</div>
+
 {# ---- the answer -------------------------------------------------------- #}
 {% if lines %}
 {# **Line by line**, as the laboratory's report prints it. Each value is read

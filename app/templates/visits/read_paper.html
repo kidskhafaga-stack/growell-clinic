@@ -32,9 +32,32 @@
     {% endif %}
   </div>
 
-  <form method="post" action="{{ url_for('visits.result_investigation', inv_id=order.id) }}" class="card" data-read-form>
+  <form method="post" action="{{ save_url }}" class="card" data-read-form>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="next" value="{{ back }}">
+    {% if not lines %}
+    {# A scan's report, or a test of one value: the same marked review, with
+       the fields the result is saved in. #}
+    {% macro ai_mark(key) %}{% if key in proposed %}<div class="hint" style="margin-top:2px;font-size:.78rem;"><i class="bi bi-magic"></i> {{ t('lab_read.read_by_ai') }}</div>{% endif %}{% endmacro %}
+    {% if order.kind != 'imaging' %}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;">
+      {% for key, label in (('value', t('lab.value')), ('unit', t('lab.unit')), ('low', t('lab.low')), ('high', t('lab.high'))) %}
+      {% set current = order['result_' ~ key] %}
+      <div class="form-row" style="margin:0;" {% if key in proposed %}data-ai-read{% endif %}>
+        <label for="rp_{{ key }}">{{ label }}</label>
+        <input class="input" id="rp_{{ key }}" name="result_{{ key }}" dir="ltr" maxlength="40" autocomplete="off"
+               {% if key in proposed %}style="background:var(--warn-50, rgba(255,193,7,.12));"{% endif %}
+               value="{{ proposed[key] if key in proposed else ('%g'|format(current) if current is number else (current or '')) }}">
+        {{ ai_mark(key) }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <div class="form-row" {% if 'text' in proposed %}data-ai-read{% endif %}>
+      <label for="rp_text">{{ t('lab.report') }}</label>
+      <textarea class="input" id="rp_text" name="result_text" rows="10" dir="auto"
+                {% if 'text' in proposed %}style="background:var(--warn-50, rgba(255,193,7,.12));"{% endif %}>{{ proposed.text if 'text' in proposed else (order.result_text or '') }}</textarea>
+      {{ ai_mark('text') }}</div>
+    {% else %}
     <div style="overflow-x:auto;">
       <table class="table" style="min-width:340px;font-variant-numeric:tabular-nums;">
         <thead><tr><th>{{ t('lab_result.analyte') }}</th><th style="width:150px;">{{ t('lab_result.value') }}</th><th>{{ t('lab.unit') }}</th></tr></thead>
@@ -52,6 +75,7 @@
         </tbody>
       </table>
     </div>
+    {% endif %}
     <div class="form-row"><label for="result_comment">{{ t('visits.inv_comment') }}</label>
       <textarea class="input" id="result_comment" name="result_comment" rows="2" dir="auto">{{ order.result_comment or '' }}</textarea></div>
     <button class="btn btn-primary gc-press gc-ripple" type="submit" data-confirm-save><i class="bi bi-check2-circle"></i> {{ t('lab_read.checked_save') }}</button>

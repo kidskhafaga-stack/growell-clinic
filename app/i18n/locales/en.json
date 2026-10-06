@@ -10740,7 +10740,8 @@
     "err_no_consent": "The clinic has not agreed to send patient data to the assistant — the setting is on the AI page.",
     "err_pdf_provider": "This provider does not read PDFs here — photograph the paper and upload the photo, or use Claude.",
     "err_too_big": "The file is too large to send — take a smaller photo.",
-    "err_nothing_found": "The assistant did not find the test's lines on the paper — type them in."
+    "err_nothing_found": "The assistant did not find the test's lines on the paper — type them in.",
+    "err_nothing_found_report": "The assistant found no result or report it could read on the paper — type it in."
   },
   "deterioration": {
     "call_title": "Call for help — the child is getting worse",
@@ -11231,5 +11232,10 @@
     "err_bad_target": "The target is a number from 1 to 100.",
     "err_no_person": "Choose the staff member.",
     "err_until_before": "«Valid until» must be after the training day."
+  },
+  "lab_paper": {
+    "title": "The result paper from outside",
+    "upload": "Photo or PDF of the result",
+    "attach": "Attach to the order"
   }
 }

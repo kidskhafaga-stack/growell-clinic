@@ -187,7 +187,7 @@
           {{ inv_files.files_block(x, linkable_files) }}
           {# The paper on this order, read by the assistant into the form below
              — a page to check and save, never a save of its own. #}
-          {% if ai_reads_papers and x.investigation and x.investigation.analyte_links %}{% set papers_x = lab_papers(x) %}
+          {% if ai_reads_papers %}{% set papers_x = lab_papers(x) %}
           {% if papers_x %}
           <form method="post" action="{{ url_for('visits.read_paper', inv_id=x.id) }}" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;" data-read-paper="{{ x.id }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -1178,7 +1178,7 @@
           <summary style="cursor:pointer;color:var(--green-800);font-size:0.9rem;"><i class="bi bi-pencil-square"></i> {{ t('visits.inv_result') }}</summary>
           {# The paper on this order, read by the assistant into the form below
              — a page to check and save, never a save of its own. #}
-          {% if ai_reads_papers and x.investigation and x.investigation.analyte_links %}{% set papers_x = lab_papers(x) %}
+          {% if ai_reads_papers %}{% set papers_x = lab_papers(x) %}
           {% if papers_x %}
           <form method="post" action="{{ url_for('visits.read_paper', inv_id=x.id) }}" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;" data-read-paper="{{ x.id }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
