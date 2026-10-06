@@ -153,6 +153,19 @@ def followups(doctor_id, search=None, today=None):
     return out
 
 
+def found_elsewhere(search, limit=5):
+    """The files a search matches when none of them is on the follow-up list
+    — so «nobody by that name» is said only when there is nobody."""
+    from app.models import Patient
+    from app.utils.patients import apply_patient_search
+
+    search = (search or "").strip()
+    if not search:
+        return []
+    return (apply_patient_search(Patient.query.filter(Patient.is_active.is_(True)), search)
+            .order_by(Patient.full_name).limit(limit).all())
+
+
 def chronic_unseen(doctor_id, months=DEFAULT_CHRONIC_MONTHS, today=None, seen=None):
     """Children of this doctor with an active problem on their list who have
     not been seen for ``months`` — longest first."""

@@ -118,7 +118,7 @@
           {% for row in investigations %}
           <tr>
             <td style="white-space:nowrap;" dir="ltr">{{ row.created_at.date() }}</td>
-            <td>{{ row.name }}</td>
+            <td>{{ row.display_name(current_lang) }}</td>
             <td>{{ row.result_text or row.result_value or t('summary.awaiting') }}</td>
           </tr>
           {% endfor %}

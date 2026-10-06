@@ -498,6 +498,7 @@ class VisitInvestigation(db.Model):
     operation = db.relationship("Operation", backref="investigations",
                                 foreign_keys=[operation_id])
 
+
     @property
     def has_result(self):
         return bool((self.result_text or "").strip()
@@ -556,8 +557,15 @@ class VisitInvestigation(db.Model):
         return min(times) if times else None
 
     def display_name(self, lang="ar"):
-        if lang == "en" and (self.name_en or "").strip():
-            return self.name_en
+        """The English snapshot taken when it was ordered, else the
+        catalogue's English name — an order placed before the catalogue had
+        one is still named in English on the English screen."""
+        if lang == "en":
+            if (self.name_en or "").strip():
+                return self.name_en
+            inv = self.investigation
+            if inv is not None and (inv.name_en or "").strip():
+                return inv.name_en
         return self.name
 
     def __repr__(self):

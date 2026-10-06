@@ -27,7 +27,7 @@
     <tbody>
     {% for e in per_test %}
     <tr data-test-row>
-      <td>{{ e.name }}{% if e.urgent %} <span class="badge badge--danger">{{ t('lab_reception.urgent') }}</span>{% endif %}</td>
+      <td>{{ e.sample.display_name(current_lang) }}{% if e.urgent %} <span class="badge badge--danger">{{ t('lab_reception.urgent') }}</span>{% endif %}</td>
       <td>{{ e.count }}</td>
       <td>{{ t('lab_tat.min', n=e.median) if e.median is not none else '—' }}</td>
       <td>{{ t('lab_tat.min', n=e.p90) if e.p90 is not none else '—' }}</td>

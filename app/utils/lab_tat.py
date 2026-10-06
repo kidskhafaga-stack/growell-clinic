@@ -109,7 +109,7 @@ def report(start, end):
     for row in rows:
         took = minutes(row)
         key = (row.investigation_id or row.name, bool(row.urgent))
-        entry = groups.setdefault(key, {"name": row.name, "urgent": bool(row.urgent),
+        entry = groups.setdefault(key, {"name": row.name, "sample": row, "urgent": bool(row.urgent),
                                         "values": [], "limit": limit_minutes(row),
                                         "within": 0, "late": 0})
         entry["values"].append(took)

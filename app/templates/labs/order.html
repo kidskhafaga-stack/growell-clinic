@@ -1,13 +1,13 @@
 {% extends "shell.html" %}
 {% import "labs/_values.html" as lv with context %}
 {% set active_module = 'labs' %}
-{% block title %}{{ order.name }}{% endblock %}
-{% block page_heading %}{{ order.name }}{% endblock %}
+{% block title %}{{ order.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ order.display_name(current_lang) }}{% endblock %}
 
 {% block content %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
-    <h1 class="page-title"><i class="bi bi-eyedropper"></i> {{ order.name }}
+    <h1 class="page-title"><i class="bi bi-eyedropper"></i> {{ order.display_name(current_lang) }}
       {% if order.investigation_id and order.kind == 'lab' %}<a class="btn btn-sm btn-outline gc-press" style="vertical-align:middle;" href="{{ url_for('labs.test_documents', test_id=order.investigation_id) }}" data-to-procedure><i class="bi bi-journal-check"></i> {{ t('lab_docs.procedure') }}</a>{% endif %}</h1>
     <p class="page-sub" style="margin:0;">
       <a href="{{ url_for('patients.view', patient_id=order.patient_id) }}">
@@ -304,6 +304,16 @@
   {% if order.resulted_at %}
   <p class="hint" data-resulted>{{ order.resulted_at|clinic_stamp }}
     {% if order.resulter %} · {{ order.resulter.display_name(current_lang) }}{% endif %}</p>
+  {% endif %}
+  {# One box because the test has not been broken into what it measures —
+     said, with the way to do it, rather than leaving a CBC looking like a
+     single number. #}
+  {% if order.investigation and not order.resulted_at %}
+  <p class="alert-pill" style="margin:0 0 10px;" data-no-analytes>
+    <i class="bi bi-info-circle"></i> {{ t('lab_result.no_analytes') }}
+    {% if current_user.is_admin %}
+    <a href="{{ url_for('labs.test_ranges', test_id=order.investigation_id) }}">{{ t('lab_result.add_analytes') }}</a>
+    · <a href="{{ url_for('labs.import_tests') }}">{{ t('lab_result.import_sheet') }}</a>{% endif %}</p>
   {% endif %}
 
   {# GAHAR DAS.11 — a word when the person writing has no standing

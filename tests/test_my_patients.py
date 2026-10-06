@@ -193,3 +193,47 @@ def test_whose_list_it_is(clinic):
         clinic["db"].session.commit()
     assert clinic["sign_in"]("clerk").get("/visits/mine").status_code in (302, 403)
     assert "data-mine-link" in clinic["sign_in"]("doc").get("/visits/").get_data(as_text=True)
+
+
+def test_the_doctor_is_picked_by_search_and_the_list_searches_as_you_type(clinic):
+    """«ممكن نخلي بحث حي + اختيار عادي» — the shared picker, which searches
+    as you type and opens to the whole list; and the follow-up search that
+    follows the typing and says when a child is in the files but not on it."""
+    other = _doctor(clinic, "doc4", "د. سلمى")
+    late = _child(clinic, "S1")
+    _visit(clinic, late, 20, doctor=other, due_in=3)
+    _child(clinic, "S2")                                    # in the files, no follow-up
+    boss = clinic["sign_in"]("boss")
+    page = boss.get(f"/visits/mine?doctor={other}").get_data(as_text=True)
+    assert "gcDoctorPicker" in page and '<select class="input" id="doctor"' not in page
+    assert 'data-live-search="#followups-results"' in page and 'id="followups-results"' in page
+    found = boss.get(f"/visits/mine?doctor={other}&q=S1").get_data(as_text=True)
+    assert f'data-visit=' in found and "data-found-elsewhere" not in found
+    elsewhere = boss.get(f"/visits/mine?doctor={other}&q=S2").get_data(as_text=True)
+    assert "data-found-elsewhere" in elsewhere and "طفل S2" in elsewhere
+    nobody = boss.get(f"/visits/mine?doctor={other}&q=مفيش حد كده").get_data(as_text=True)
+    assert "data-found-elsewhere" not in nobody and "مفيش طفل بالاسم ده في الملفات" in nobody
+
+
+def test_the_lab_names_a_test_in_the_screen_s_language_and_says_why_one_box(clinic):
+    """«ليه ظاهر عربي فى الشاشة الانجليزي» and «صورة الدم الكاملة ليه ظاهر
+    كده» — the order's English name on the English screen, and the single
+    box explained when the test has no components yet."""
+    from app.models import Investigation, Setting, VisitInvestigation
+
+    with clinic["app"].app_context():
+        Setting.set("mod_enabled:labs", "1")
+        inv = Investigation(name_ar="صورة دم كاملة", name_en="Complete blood count", kind="lab")
+        clinic["db"].session.add(inv)
+        clinic["db"].session.flush()
+        row = VisitInvestigation(visit_id=clinic["ids"]["visit"], patient_id=clinic["ids"]["child"],
+                                 investigation_id=inv.id, kind="lab", name="صورة دم كاملة")
+        clinic["db"].session.add(row)
+        clinic["db"].session.commit()
+        oid = row.id
+    boss = clinic["sign_in"]("boss")
+    boss.get("/lang/en")
+    board = boss.get("/labs/").get_data(as_text=True)
+    assert "Complete blood count" in board and "صورة دم كاملة" not in board
+    page = boss.get(f"/labs/order/{oid}").get_data(as_text=True)
+    assert "data-no-analytes" in page and "/ranges" in page

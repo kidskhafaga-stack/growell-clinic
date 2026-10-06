@@ -61,7 +61,7 @@
   <div class="im-row st-{{ row.status }}" data-status="{{ row.status }}">
     <div class="im-row__who">
       <div class="im-name">
-        <a href="{{ url_for('imaging.order', order_id=row.id) if kind == 'imaging' else url_for('labs.order', order_id=row.id) }}">{{ row.name }}</a>
+        <a href="{{ url_for('imaging.order', order_id=row.id) if kind == 'imaging' else url_for('labs.order', order_id=row.id) }}">{{ row.display_name(current_lang) }}</a>
       </div>
       <div class="hint">
         <a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">

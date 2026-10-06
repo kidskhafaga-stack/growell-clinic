@@ -34,7 +34,7 @@
       <tbody>
       {% for row in rows %}
       <tr data-to-send-row="{{ row.id }}">
-        <td><input type="checkbox" name="order_id" value="{{ row.id }}" aria-label="{{ row.name }}" {{ 'checked' if row.investigation and row.investigation.referral_lab_id else '' }}></td>
+        <td><input type="checkbox" name="order_id" value="{{ row.id }}" aria-label="{{ row.display_name(current_lang) }}" {{ 'checked' if row.investigation and row.investigation.referral_lab_id else '' }}></td>
         <td>{{ row.display_name(current_lang) }}{% if row.investigation and row.investigation.referral_lab_id %} <span class="badge badge--muted">{{ (labs|selectattr('id', 'equalto', row.investigation.referral_lab_id)|map(attribute='name')|first) or '' }}</span>{% endif %}
           {% if row.urgent %} <span class="badge badge--danger">{{ t('lab_reception.urgent') }}</span>{% endif %}</td>
         <td>{{ row.patient.display_name(current_lang) }}{% if beds and beds.get(row.patient_id) %} · <span class="hint">{{ beds[row.patient_id] }}</span>{% endif %}</td>

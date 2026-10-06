@@ -2508,10 +2508,11 @@ def study_print(study_id):
 def _whose():
     """The doctor this list is for: yourself, or — for an admin — whoever
     they pick. ``(doctor, doctors_to_pick_from)``."""
-    from app.models import User
+    from app.utils.appointments import list_doctors
 
-    doctors = (User.query.filter(User.role == "doctor", User.is_active.is_(True))
-               .order_by(User.full_name).all())
+    # The same set the shared picker searches (`main.doctor_search`), so a
+    # name it offers is one this list can open.
+    doctors = list_doctors()
     if current_user.is_admin:
         chosen = request.args.get("doctor", type=int)
         pick = next((d for d in doctors if d.id == chosen), None)
@@ -2534,6 +2535,7 @@ def mine():
     months = request.args.get("months", my_patients.DEFAULT_CHRONIC_MONTHS, type=int)
     search = (request.args.get("q") or "").strip()
     rows = my_patients.followups(doctor.id, search)
+    elsewhere = my_patients.found_elsewhere(search) if search and not rows else []
     page = max(1, request.args.get("page", 1, type=int))
     pages = max(1, (len(rows) + my_patients.PER_PAGE - 1) // my_patients.PER_PAGE)
     page = min(page, pages)
@@ -2545,6 +2547,7 @@ def mine():
         children=len(my_patients.mine(doctor.id, seen)),
         followups=rows[(page - 1) * my_patients.PER_PAGE:page * my_patients.PER_PAGE],
         followups_total=len(rows), page=page, pages=pages, search=search,
+        elsewhere=elsewhere,
         months=months if months in my_patients.CHRONIC_MONTHS
         else my_patients.DEFAULT_CHRONIC_MONTHS,
         month_choices=my_patients.CHRONIC_MONTHS,
