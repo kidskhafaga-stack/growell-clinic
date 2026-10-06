@@ -157,7 +157,23 @@ def order(order_id):
                            competency_warning=_competency().warning_for(
                                row, current_user),
                            # GAHAR DAS.20 — where this tube is kept.
+                           papers=_papers(row), ai_reads_papers=_ai_reads(),
                            **_storage_for(row))
+
+
+def _papers(row):
+    from app.utils import lab_read
+
+    return lab_read.papers(row)
+
+
+def _ai_reads():
+    from app.utils import ai
+
+    try:
+        return bool(ai.get_config().get("enabled") and ai.patient_context_enabled())
+    except Exception:          # noqa: BLE001 - a settings read never breaks the bench
+        return False
 
 
 def _storage_for(row):
@@ -1059,6 +1075,65 @@ def result(order_id):
     flash(t("lab.resulted") if row.status == bench.RESULTED
           else t("lab.result_cleared"), "success")
     return redirect(url_for("labs.order", order_id=row.id))
+
+
+@labs_bp.route("/order/<int:order_id>/paper", methods=["POST"])
+@module_required(MODULE)
+def paper_upload(order_id):
+    """The outside laboratory's paper — a photo or a PDF — kept on the order
+    it answers, where the assistant can be asked to read it."""
+    from app.models import PatientAttachment
+    from app.utils.uploads import save_document
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    file = request.files.get("file")
+    if not file or not file.filename:
+        flash(t("visits.att_need_file"), "error")
+        return redirect(url_for("labs.order", order_id=row.id) + "#paper")
+    stored = save_document(file)
+    if not stored:
+        flash(t("visits.att_bad_type"), "warning")
+        return redirect(url_for("labs.order", order_id=row.id) + "#paper")
+    db.session.add(PatientAttachment(
+        patient_id=row.patient_id, visit_id=row.visit_id, investigation_id=row.id,
+        filename=stored, original_name=file.filename, kind="result",
+        uploaded_by=current_user.id, linked_by=current_user.id,
+        linked_at=datetime.utcnow()))
+    db.session.commit()
+    flash(t("visits.att_uploaded"), "success")
+    return redirect(url_for("labs.order", order_id=row.id) + "#paper")
+
+
+@labs_bp.route("/order/<int:order_id>/read-paper", methods=["POST"])
+@module_required(MODULE)
+def read_paper(order_id):
+    """The assistant reads the outside laboratory's paper into this order's
+    form — and stops there. The bench checks it against the paper and saves
+    through the ordinary save (``lab_read``)."""
+    from app.models import PatientAttachment
+    from app.utils import lab_read
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    back = url_for("labs.order", order_id=row.id)
+    lines = lab_results.sheet(row) if lab_results.measured(row) else []
+    paper = db.session.get(PatientAttachment,
+                           request.form.get("attachment_id", type=int) or 0)
+    try:
+        proposed = (lab_read.read(row, paper, lines) if lines
+                    else lab_read.read_report(row, paper))
+    except lab_read.ReadError as err:
+        key = str(err)
+        if key.startswith("ai:"):
+            from app.utils import ai
+
+            flash(ai.error_sentence(key[3:]), "error")
+        else:
+            flash(t(f"lab_read.err_{key}"), "error")
+        return redirect(back + "#paper")
+    return render_template("visits/read_paper.html", order=row, paper=paper,
+                           lines=lines, proposed=proposed, back=back,
+                           save_url=url_for("labs.result", order_id=row.id),
+                           is_pdf=lab_read.readable(paper) == "application/pdf")
 
 
 def _result_by_analyte(row):

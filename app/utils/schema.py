@@ -940,6 +940,10 @@ ADDITIONS = [
     # The line of a test a specialty's lab alert watches, where the test is
     # answered line by line. Empty on every alert already set.
     ("panel_alert_rules", "analyte_id", "INTEGER"),
+    # A child sent from a clinic visit to the hospital's own emergency
+    # department, and why. Empty on every attendance already open or closed.
+    ("emergency_visits", "from_visit_id", "INTEGER"),
+    ("emergency_visits", "sent_reason", "TEXT"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

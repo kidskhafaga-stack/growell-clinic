@@ -99,25 +99,19 @@ def parse_reply(text, lines):
     return out
 
 
-def read(order, attachment, lines, config=None):
-    """Ask the assistant for this order's lines off this paper.
-
-    Returns ``{analyte_id: value}`` — proposals, never saved here. Raises
-    :class:`ReadError` with a key the screen can say.
-    """
+def _paper_part(order, attachment, cfg):
+    """The paper as a message part — after every check the assistant must pass
+    before it may see a child's paper. Raises :class:`ReadError`."""
     from flask import current_app
 
     from app.utils import ai
     from app.utils.uploads import docs_dir
 
-    if not lines:
-        raise ReadError("no_lines")
     if attachment is None or attachment.investigation_id != order.id:
         raise ReadError("no_paper")
     media = readable(attachment)
     if media is None:
         raise ReadError("not_readable")
-    cfg = config or ai.get_config()
     if not cfg.get("enabled"):
         raise ReadError("ai_off")
     if not ai.patient_context_enabled():
@@ -134,9 +128,22 @@ def read(order, attachment, lines, config=None):
     except OSError:
         current_app.logger.warning("lab_read: cannot open %s", attachment.filename)
         raise ReadError("no_paper") from None
-
-    part = ({"type": "pdf", "data": data} if media == "application/pdf"
+    return ({"type": "pdf", "data": data} if media == "application/pdf"
             else {"type": "image", "media_type": media, "data": data})
+
+
+def read(order, attachment, lines, config=None):
+    """Ask the assistant for this order's lines off this paper.
+
+    Returns ``{analyte_id: value}`` — proposals, never saved here. Raises
+    :class:`ReadError` with a key the screen can say.
+    """
+    from app.utils import ai
+
+    if not lines:
+        raise ReadError("no_lines")
+    cfg = config or ai.get_config()
+    part = _paper_part(order, attachment, cfg)
     result = ai.chat(
         [{"role": "user", "content": [
             part,
@@ -148,4 +155,79 @@ def read(order, attachment, lines, config=None):
     found = parse_reply(result.get("text"), lines)
     if not found:
         raise ReadError("nothing_found")
+    return found
+
+
+# ======================================== a report, or a test of one value ==
+#
+# «او تقرير اشعة» — a scan's report, or a test the laboratory has not broken
+# into lines, has no list to fill. What the assistant is asked for is still
+# narrow: the text **as printed**, and for a test of one value the value, its
+# unit and the printed range — copied, never worked out, never judged.
+
+REPORT_SYSTEM = (
+    "You read a photo or scan of a paediatric medical report: a radiology "
+    "report or a laboratory result. Copy, do not interpret. Answer with one "
+    "JSON object only, with these keys and nothing else: \"text\" — the "
+    "report's findings and conclusion copied exactly as printed (keep the "
+    "printed language, line breaks allowed); for a laboratory result also "
+    "\"value\" — the single numeric result as printed, \"unit\" — its unit "
+    "as printed, \"low\" and \"high\" — the printed reference range limits. "
+    "Leave out any key you cannot read clearly. Never add a diagnosis, an "
+    "opinion, a calculation or a unit conversion."
+)
+
+REPORT_KEYS = ("text", "value", "unit", "low", "high")
+_NUMERIC = ("value", "low", "high")
+
+
+def parse_report(text, imaging=False):
+    """``{key: string}`` out of the assistant's answer — only the known keys,
+    numbers only where a number belongs, the text bounded. A scan has text
+    and nothing else."""
+    match = re.search(r"\{.*\}", text or "", re.S)
+    if not match:
+        return {}
+    try:
+        data = json.loads(match.group(0))
+    except ValueError:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    out = {}
+    for key in (("text",) if imaging else REPORT_KEYS):
+        value = data.get(key)
+        if value is None or isinstance(value, (dict, list)):
+            continue
+        value = str(value).strip()
+        if not value:
+            continue
+        if key in _NUMERIC:
+            # A plain number or nothing: «<5» is not 5, and a box that holds
+            # a number would drop the sign that changes its meaning.
+            value = value.replace(",", ".")
+            if not re.fullmatch(r"-?\d+(\.\d+)?", value):
+                continue
+        out[key] = value[:4000] if key == "text" else value[:40]
+    return out
+
+
+def read_report(order, attachment, config=None):
+    """Ask the assistant for the report off this paper — for a scan, or a
+    test with no lines. Returns proposals, never saved here."""
+    from app.utils import ai
+
+    cfg = config or ai.get_config()
+    part = _paper_part(order, attachment, cfg)
+    imaging = order.kind == "imaging"
+    ask = ("This is a radiology report: give \"text\" only."
+           if imaging else "This is a laboratory result for: " + (order.name or ""))
+    result = ai.chat(
+        [{"role": "user", "content": [part, {"type": "text", "text": ask}]}],
+        system=REPORT_SYSTEM, config=cfg, feature="lab_read")
+    if not result.get("ok"):
+        raise ReadError("ai:" + str(result.get("error") or "unknown"))
+    found = parse_report(result.get("text"), imaging=imaging)
+    if not found:
+        raise ReadError("nothing_found_report")
     return found

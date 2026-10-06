@@ -115,9 +115,15 @@ class EmergencyVisit(db.Model):
     # (`utils/er_pay_first`). Empty everywhere else, always.
     pay_cleared_at = db.Column(db.DateTime)
     pay_cleared_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # Sent down from a clinic visit in the same hospital — «حوّل للطوارئ»
+    # with «طوارئ المستشفى عندنا» — and why, in the clinic doctor's words.
+    # Empty on every child who walked in.
+    from_visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), index=True)
+    sent_reason = db.Column(db.Text)
 
     patient = db.relationship("Patient", backref="emergency_visits")
-    visit = db.relationship("Visit")
+    visit = db.relationship("Visit", foreign_keys=[visit_id])
+    from_visit = db.relationship("Visit", foreign_keys=[from_visit_id])
     admission = db.relationship("Admission")
     triaged_by = db.relationship("User", foreign_keys=[triaged_by_id])
     by = db.relationship("User", foreign_keys=[by_id])

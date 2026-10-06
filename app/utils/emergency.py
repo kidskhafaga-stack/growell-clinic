@@ -202,6 +202,72 @@ def arrive(patient, user=None, arrival=None, visit=None, at=None,
     return row
 
 
+def send_from_clinic(visit, reason, user=None):
+    """«حوّل للطوارئ» → «طوارئ المستشفى عندنا»: the child arrives in this
+    hospital's own emergency department, sent from a clinic visit, with the
+    clinic doctor's reason on the attendance. The caller commits.
+
+    A child already in the department is not opened twice — the clinic's
+    reason is added to the attendance they are in.
+    """
+    from app.models.emergency_visit import REFERRED
+
+    if visit is None:
+        raise ValueError("no visit")
+    why = (reason or "").strip()
+    if not why:
+        raise ValueError("no reason")
+    row = (EmergencyVisit.query
+           .filter(EmergencyVisit.patient_id == visit.patient_id,
+                   EmergencyVisit.departed_at.is_(None))
+           .order_by(EmergencyVisit.arrived_at.desc()).first())
+    if row is None:
+        row = arrive(visit.patient, user=user, arrival=REFERRED)
+    if row.from_visit_id is None:
+        row.from_visit_id = visit.id
+    row.sent_reason = why if not row.sent_reason else row.sent_reason
+    db.session.flush()
+    return row
+
+
+def sent_from(visit):
+    """The attendance this clinic visit sent the child to, if any."""
+    if visit is None:
+        return None
+    return (EmergencyVisit.query.filter_by(from_visit_id=visit.id)
+            .order_by(EmergencyVisit.arrived_at.desc()).first())
+
+
+def take_back(visit):
+    """Undo «طوارئ المستشفى عندنا» — only while nobody in the department has
+    touched the child: no triage, no order, not left. ``True`` when undone;
+    ``False`` when the department has started, and the attendance stays.
+    The caller commits."""
+    from app.models.emergency_order import EmergencyOrder
+
+    from app.models.emergency_visit import REFERRED
+
+    row = sent_from(visit)
+    if row is None:
+        return True
+    # A child who was already in the department when the clinic sent them
+    # keeps their attendance; only the clinic's word comes off it.
+    ours = (row.arrival == REFERRED and visit.referred_at is not None
+            and row.arrived_at is not None
+            and abs((row.arrived_at - visit.referred_at).total_seconds()) < 60)
+    if not ours:
+        row.from_visit_id = None
+        row.sent_reason = None
+        return True
+    started = (row.triaged_at is not None or row.departed_at is not None
+               or row.visit_id is not None
+               or EmergencyOrder.query.filter_by(emergency_visit_id=row.id).first())
+    if started:
+        return False
+    db.session.delete(row)
+    return True
+
+
 def triage(row, level=None, scale=None, urgent=None, note=None, user=None,
            at=None):
     """الفرز ومستواه — البند i. المتصل بيعمل commit.

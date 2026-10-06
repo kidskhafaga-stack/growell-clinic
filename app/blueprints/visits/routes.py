@@ -408,9 +408,15 @@ def record(visit_id):
     from app.utils import fall_screen
 
     fall_on = fall_screen.on()
+    # «طوارئ المستشفى عندنا» — offered only where the hospital runs its own
+    # emergency department.
+    er_here = module_enabled("emergency")
+    from app.utils import emergency as _er
+
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
-        fall_on=fall_on,
+        fall_on=fall_on, er_here=er_here,
+        er_sent=_er.sent_from(visit) if er_here else None,
         fall_criteria=fall_screen.criteria() if fall_on else [],
         fall_row=fall_screen.for_visit(visit.id) if fall_on else None,
         # A test the lab answers line by line is typed line by line here too
@@ -1454,7 +1460,10 @@ def read_paper(inv_id):
     paper = db.session.get(PatientAttachment,
                            request.form.get("attachment_id", type=int) or 0)
     try:
-        proposed = lab_read.read(inv, paper, lines)
+        # A test answered line by line fills its lines; a scan's report or a
+        # test of one value fills the report — the same review, either way.
+        proposed = (lab_read.read(inv, paper, lines) if lines
+                    else lab_read.read_report(inv, paper))
     except lab_read.ReadError as err:
         key = str(err)
         if key.startswith("ai:"):
@@ -1466,6 +1475,7 @@ def read_paper(inv_id):
         return redirect(back)
     return render_template("visits/read_paper.html", order=inv, paper=paper,
                            lines=lines, proposed=proposed, back=back,
+                           save_url=url_for("visits.result_investigation", inv_id=inv.id),
                            is_pdf=lab_read.readable(paper) == "application/pdf")
 
 
@@ -1512,6 +1522,11 @@ def result_investigation(inv_id):
                 user=current_user)
     db.session.commit()
     flash(t("visits.inv_result_saved"), "success")
+    # The review of a paper the assistant read says where to go back to —
+    # its own page was a POST and cannot be returned to.
+    nxt = request.form.get("next") or ""
+    if nxt.startswith("/") and not nxt.startswith("//"):
+        return redirect(nxt)
     # Return to the page the result was entered from (e.g. the follow-up
     # consultation reviewing a previous visit's pending test).
     return redirect(request.referrer or (url_for("visits.record", visit_id=inv.visit_id) + "#inv"))
@@ -1984,8 +1999,17 @@ def refer(visit_id):
     from app.models.referral import KINDS as REFERRAL_KINDS, REFERRAL
     from app.utils import referrals as refs
 
+    from app.utils import emergency as er
+    from app.utils.facility import module_enabled
+
     visit = db.get_or_404(Visit, visit_id)
     if request.form.get("undo"):
+        # Sent to our own emergency department: undone only while nobody
+        # there has touched the child.
+        if module_enabled("emergency") and not er.take_back(visit):
+            db.session.rollback()
+            flash(t("visits.er_started"), "warning")
+            return redirect(request.referrer or url_for("visits.record", visit_id=visit.id))
         # **إلغاء مش مسح** على الجدول الجديد؛ والأعمدة القديمة بتتفضّى
         # زي ما كانت، علشان إحالة قديمة اتلغت تختفي زي الأول بالظبط.
         row = refs.latest_for_visit(visit.id)
@@ -2005,13 +2029,27 @@ def refer(visit_id):
     # وليه. والباقي (النقل · المراقبة · الحالة) بيتكتب من نفس الصف بعد
     # دقيقة، واللي بيقرا بيشوف ناقص إيه بالاسم.
     kind = (request.form.get("kind") or REFERRAL).strip()
-    if kind not in REFERRAL_KINDS:
-        kind = REFERRAL
     reason = (request.form.get("referral_note") or "").strip()
     sent_to = (request.form.get("referred_to") or "").strip() or None
     if not reason:
         flash(t("referrals.reason_required"), "error")
         return redirect(request.referrer or url_for("visits.record", visit_id=visit.id))
+    if kind == "in_house" and module_enabled("emergency"):
+        # Not a referral paper to another hospital (ACT.14): the child goes
+        # downstairs, and the department sees them on its own list with the
+        # reason. The visit is marked on every screen the same way.
+        attendance = er.send_from_clinic(visit, reason, user=current_user)
+        visit.referred_at = datetime.utcnow()
+        visit.referred_to = None
+        visit.referral_note = reason
+        ActivityLog.record("visit.refer_er", user_id=current_user.id, entity="visit",
+                           entity_id=visit.id, detail=str(attendance.id),
+                           ip_address=client_ip())
+        db.session.commit()
+        flash(t("visits.er_sent_ok"), "warning")
+        return redirect(request.referrer or url_for("visits.record", visit_id=visit.id))
+    if kind not in REFERRAL_KINDS:
+        kind = REFERRAL
 
     refs.refer(visit.patient, reason, kind=kind, user=current_user,
                visit=visit, sent_to=sent_to)
