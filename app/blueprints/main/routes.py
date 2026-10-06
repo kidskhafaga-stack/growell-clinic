@@ -348,6 +348,44 @@ def icd_search():
     return jsonify(search_icd(request.args.get("q"), limit=15))
 
 
+#: Who asks "which child?" on a screen of their own — the desk, the till,
+#: the inbox, the clinical rooms. Anybody else has no list of children to
+#: search.
+_PATIENT_SEARCHERS = ("patients", "appointments", "visits", "messages",
+                      "emergency", "beds", "finance")
+
+
+@main_bp.route("/patient-search")
+@login_required
+def patient_search():
+    """JSON: the children a search matches, for every screen that picks one.
+
+    Several screens rendered the first five hundred active files into a
+    ``<select>`` — or filtered them in the browser — which is a long list in a
+    clinic and, past the five hundredth child, a child who cannot be found at
+    all. This searches every file, the way every patient search does
+    (``apply_patient_search``: name in either language, file number, guardian,
+    phone, date of birth), and answers fifteen at a time.
+    """
+    from flask import abort, g, jsonify
+
+    from app.models import Patient
+    from app.utils.patients import apply_patient_search
+
+    user = current_user
+    if not (user.is_admin or getattr(user, "can_collect", False)
+            or any(user.can_access(m) for m in _PATIENT_SEARCHERS)):
+        abort(403)
+    query = (request.args.get("q") or "").strip()
+    if len(query) < 2:
+        return jsonify([])
+    lang = getattr(g, "lang", "ar")
+    rows = (apply_patient_search(Patient.query.filter(Patient.is_active.is_(True)), query)
+            .order_by(Patient.full_name).limit(15).all())
+    return jsonify([{"id": p.id, "name": p.display_name(lang),
+                     "number": p.patient_number} for p in rows])
+
+
 @main_bp.route("/doctor-search")
 @login_required
 def doctor_search():

@@ -104,10 +104,7 @@
     <form method="post" action="{{ url_for('messages.inbox_link', key=key) }}"
           style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <select class="select" name="patient_id" required style="max-width:340px;">
-        <option value="">{{ t('inbox.link_pick') }}</option>
-        {% for p in patients %}<option value="{{ p.id }}">{{ p.display_name(current_lang) }} · {{ p.patient_number }}</option>{% endfor %}
-      </select>
+      {{ pickers.patient_picker('patient_id', None, placeholder=t('inbox.link_pick'), required=True) }}
       <button class="btn btn-primary btn-sm gc-press" type="submit">
         <i class="bi bi-link-45deg"></i> {{ t('inbox.link') }}</button>
     </form>

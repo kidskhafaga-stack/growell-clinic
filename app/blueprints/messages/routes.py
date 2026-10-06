@@ -458,9 +458,7 @@ def inbox():
         "messages/inbox.html", conversations=convs, search=search, view=view,
         total=len(every), open_count=sum(1 for c in every if c["open"]),
         mine_count=mine_count, stats=ibx.response_stats(),
-        staff=_desk_staff(), waiting_label=waiting_label,
-        patients=Patient.query.filter_by(is_active=True)
-        .order_by(Patient.full_name).limit(500).all())
+        staff=_desk_staff(), waiting_label=waiting_label)
 
 
 def waiting_label(hours):
@@ -607,9 +605,6 @@ def inbox_thread(key):
         opted_out=bool(patient is not None and patient.wa_opt_out),
         canned=canned, ai_ready=ai_available(),
         topics=TRIAGE_TOPICS,
-        patients=(Patient.query.filter_by(is_active=True)
-                  .order_by(Patient.full_name).limit(500).all()
-                  if patient is None else []),
         **_booking_from_thread(key, patient, phone, msgs, lang))
 
 

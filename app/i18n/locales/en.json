@@ -11237,5 +11237,9 @@
     "title": "The result paper from outside",
     "upload": "Photo or PDF of the result",
     "attach": "Attach to the order"
+  },
+  "pickers": {
+    "patient_ph": "Child's name, file number or phone",
+    "patient_none": "No child matches this search."
   }
 }

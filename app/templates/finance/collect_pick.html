@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
 {% set active_module = 'finance' %}
 {% block title %}{{ t('checkout.pick_title') }}{% endblock %}
 {% block page_heading %}{{ t('checkout.pick_title') }}{% endblock %}
@@ -32,40 +33,11 @@
 </div>
 {% endif %}
 
-{# `|forceescape` is not decoration: a patient name carrying a quote would
-   close this attribute at that quote and hand the rest to the parser. #}
-<div class="card gc-scale-in" x-data="collectPick({{ rows|tojson|forceescape }})">
-  <div class="form-row" style="margin:0 0 10px;">
-    <input class="input" type="search" x-model="q" autofocus
-           placeholder="{{ t('checkout.pick_search') }}">
-  </div>
-  <div style="display:flex;flex-direction:column;gap:4px;max-height:60vh;overflow-y:auto;">
-    <template x-for="p in shown()" :key="p.id">
-      <a class="btn btn-outline btn-sm gc-press" :href="p.url"
-         style="justify-content:flex-start;text-align:start;">
-        <span x-text="p.name"></span>
-        <span class="hint" style="margin-inline-start:8px;" dir="ltr" x-text="p.number"></span>
-      </a>
-    </template>
-  </div>
-  {# Only when the search really found nothing — a "no results" line sitting
-     under a list of results is worse than no line at all. #}
-  <p class="hint" x-show="q && !shown().length" x-cloak style="margin:8px 0 0;">
-    {{ t('checkout.pick_none') }}</p>
+{# Searched on the server across every file — the list it replaced held the
+   first five hundred, and the five hundred and first child could not be
+   found from here at all. Choosing a child opens their checkout. #}
+<div class="card gc-scale-in" data-collect-search>
+  {{ pickers.patient_picker('patient_id', None, placeholder=t('checkout.pick_search'),
+                            go_url=url_for('finance.collect', patient_id=0)|replace('/0', '/__ID__')) }}
 </div>
-
-<script>
-  function collectPick(rows) {
-    return {
-      q: '', rows: rows,
-      // Matched on the three things a parent actually says at the desk: the
-      // name, the file number, and the phone they were reached on.
-      shown() {
-        const q = this.q.trim().toLowerCase();
-        if (!q) return this.rows;
-        return this.rows.filter(p => p.hay.includes(q));
-      },
-    };
-  }
-</script>
 {% endblock %}

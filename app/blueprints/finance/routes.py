@@ -3330,23 +3330,8 @@ def collect_pick():
     appointment board, the visit, the cashier's list — now goes straight to
     their checkout. This one is what is left: a search, and nothing else.
     """
-    lang = getattr(g, "lang", "ar")
-    patients = (Patient.query.filter_by(is_active=True)
-                .order_by(Patient.full_name).limit(500).all())
-    # The haystack is built once here rather than matched in the template, so
-    # the search covers what a parent actually says at the desk — the name in
-    # either language, the file number, the paper reference, the phone.
-    rows = [{
-        "id": p.id,
-        "url": url_for("finance.collect", patient_id=p.id),
-        "name": p.display_name(lang),
-        "number": p.patient_number,
-        "hay": " ".join(filter(None, [
-            p.full_name, p.full_name_en, p.patient_number,
-            p.reference_number, p.contact_phone])).lower(),
-    } for p in patients]
     return render_template("finance/collect_pick.html",
-                           owing=_uncollected_by_patient(), rows=rows)
+                           owing=_uncollected_by_patient())
 
 
 @finance_bp.route("/collect/<int:patient_id>", methods=["GET", "POST"])
@@ -4353,7 +4338,6 @@ def invoice_view(invoice_id):
         services_active=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
         doctors=_doctors_active(),
-        patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
         # What has been done to this bill, so an accountant reviewing the month
         # can see a correction rather than only its result.
         history=invoice_history(invoice.id),
