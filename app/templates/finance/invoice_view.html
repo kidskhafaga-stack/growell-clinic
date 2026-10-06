@@ -86,9 +86,8 @@
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('invoices.patient') }}</label>
-        <select class="select" name="patient_id">
-          {% for p in patients %}<option value="{{ p.id }}" {{ 'selected' if invoice.patient_id==p.id else '' }}>{{ p.display_name(current_lang) }} — {{ p.patient_number }}</option>{% endfor %}
-        </select></div>
+        {# Searched across every file — not a list of the first five hundred. #}
+        {{ pickers.patient_picker('patient_id', invoice.patient) }}</div>
       <div class="form-row"><label>{{ t('invoices.doctor') }}</label>
         {{ pickers.doctor_picker('doctor_id', invoice.doctor_id, None,
                                  doctors=doctors, allow_all=True,

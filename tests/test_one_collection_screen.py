@@ -154,8 +154,10 @@ def test_the_chooser_asks_that_and_nothing_else(clinic, desk):
 
 
 def test_the_chooser_leads_to_the_checkout(clinic, desk):
+    """Choosing the child opens their checkout — the picker carries the
+    checkout's address with the child's id to be put in."""
     body = desk.get("/finance/collect").get_data(as_text=True)
-    assert f"/finance/collect/{clinic['ids']['child']}" in body
+    assert "/finance/collect/__ID__" in body and "data-patient-picker" in body
 
 
 def test_whoever_owes_money_is_already_on_it(owing, desk):
@@ -166,14 +168,19 @@ def test_whoever_owes_money_is_already_on_it(owing, desk):
 
 
 def test_the_search_covers_what_a_parent_says_at_the_desk(clinic, desk):
-    """The name, the file number, the phone — not just the name."""
+    """The name, the file number, the phone — not just the name. Searched on
+    the server across every file (`main.patient_search`), not filtered in
+    the page over the first five hundred."""
     from app.models import Patient
 
-    body = desk.get("/finance/collect").get_data(as_text=True)
     with clinic["app"].app_context():
         child = clinic["db"].session.get(Patient, clinic["ids"]["child"])
-        number = child.patient_number
-    assert number in body
+        child.own_phone = "01055554444"
+        clinic["db"].session.commit()
+        number, name = child.patient_number, child.full_name
+    for asked in (number, name, "01055554444"):
+        found = desk.get(f"/patient-search?q={asked}").get_json()
+        assert clinic["ids"]["child"] in [r["id"] for r in found], asked
 
 
 def test_the_invoices_list_collects_instead_of_building(clinic):

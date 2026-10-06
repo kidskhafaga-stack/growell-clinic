@@ -58,3 +58,42 @@
   </div>
 </div>
 {% endmacro %}
+
+
+{# The one "which child?" control. Searches every file on the server
+   (`main.patient_search`), fifteen at a time — never a list of the first
+   five hundred. ``chosen`` is the child already on the form, shown as its
+   name; ``go_url`` (with ``__ID__``) opens the chosen child's page instead
+   of filling a field. #}
+{% macro patient_picker(name, chosen=None, label=None, placeholder=None,
+                        required=False, go_url=None) %}
+<div class="form-row" style="position:relative;max-width:420px;margin:0;"
+     x-data="gcPatientPicker('{{ url_for('main.patient_search') }}',
+                             {{ (chosen.id if chosen else 'null') }},
+                             {{ ((chosen.display_name(current_lang) ~ ' — ' ~ chosen.patient_number) if chosen else '')|tojson|forceescape }},
+                             {{ (go_url or '')|tojson|forceescape }})">
+  {% if label %}<label>{{ label }}</label>{% endif %}
+  <input type="hidden" name="{{ name }}" :value="chosenId" {% if required %}required{% endif %}>
+  <input class="input" x-model="q" autocomplete="off" data-patient-picker
+         placeholder="{{ placeholder or t('pickers.patient_ph') }}"
+         role="combobox" aria-autocomplete="list"
+         :aria-expanded="picker.open ? 'true' : 'false'"
+         x-on:input.debounce.250ms="ask()"
+         x-on:keydown.arrow-down.prevent="picker.move(1)"
+         x-on:keydown.arrow-up.prevent="picker.move(-1)"
+         x-on:keydown.enter="enter($event)"
+         x-on:keydown.escape="picker.close()"
+         x-on:blur="setTimeout(() => picker.close(), 150)">
+  <div class="gc-picker" x-show="picker.open" x-cloak role="listbox">
+    <template x-for="(p, idx) in picker.items" :key="p.id">
+      <button type="button" class="gc-picker-item" role="option"
+              :aria-selected="idx === picker.active ? 'true' : 'false'"
+              x-on:mouseenter="picker.active = idx" x-on:click="choose(p)">
+        <span x-text="p.name"></span>
+        <span class="badge badge--role" dir="ltr" x-text="p.number"></span>
+      </button>
+    </template>
+    <div class="gc-picker-item" x-show="picker.searched && !picker.items.length" style="cursor:default;color:var(--muted);">{{ t('pickers.patient_none') }}</div>
+  </div>
+</div>
+{% endmacro %}

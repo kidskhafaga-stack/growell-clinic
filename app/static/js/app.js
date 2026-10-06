@@ -880,6 +880,37 @@ window.gcDoctorPicker = function (url, initialId, initialName, allowAll, field,
   };
 };
 
+// gcPatientPicker — "which child?", searched on the server across every file.
+// The same picker as the doctor's, with two differences: it never opens on an
+// empty box (a clinic has thousands of children, and the whole list is the
+// thing this replaces), and it can open the chosen child's page instead of
+// filling a field (`goUrl`, with __ID__ in it).
+window.gcPatientPicker = function (url, initialId, initialName, goUrl) {
+  return {
+    q: initialName || "",
+    chosenId: initialId === null || initialId === undefined ? "" : String(initialId),
+    picker: window.gcPicker({ url: url, minChars: 2 }),
+    ask() {
+      // Typing again is choosing somebody else: an old id left attached is a
+      // form sent for a child whose name is no longer in the box.
+      this.chosenId = "";
+      this.picker.q = this.q;
+      this.picker.search();
+    },
+    choose(p) {
+      this.picker.close();
+      this.chosenId = String(p.id);
+      this.q = p.name + " — " + p.number;
+      if (goUrl) window.location.href = goUrl.replace("__ID__", p.id);
+    },
+    enter(ev) {
+      var p = this.picker.take();
+      if (p) { ev.preventDefault(); this.choose(p); }
+      else if (!this.chosenId) ev.preventDefault();
+    },
+  };
+};
+
 // ------------------------------------------------- remembered fold state ---
 // A collapse that comes back open on the next page is worse than no collapse:
 // you re-do it all day and it never sticks. The same reasoning the sidebar
