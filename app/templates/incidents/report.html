@@ -1,0 +1,44 @@
+{% extends "shell.html" %}
+{% set active_module = 'incident_report' %}
+{% block title %}{{ t('incident.report_title') }}{% endblock %}
+{% block page_heading %}{{ t('incident.report_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR QPI.10 — anybody signed in reports; nobody is asked who made a
+   mistake. With «من غير اسم» the reporter is not stored at all. #}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title"><i class="bi bi-exclamation-triangle"></i> {{ t('incident.report_title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('incident.report_sub') }}</p>
+</div>
+<form method="post" action="{{ url_for('incidents.report') }}" class="card gc-scale-in" style="display:grid;gap:10px;max-width:820px;" data-incident-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+    <div class="form-row" style="margin:0;"><label for="i_when">{{ t('incident.when') }}</label>
+      <input class="input" type="datetime-local" id="i_when" name="occurred_at" value="{{ form.get('occurred_at') or now.strftime('%Y-%m-%dT%H:%M') }}" required></div>
+    <div class="form-row" style="margin:0;"><label for="i_cat">{{ t('incident.category') }}</label>
+      <select class="input" id="i_cat" name="category" required><option value=""></option>
+        {% for c in categories %}<option value="{{ c }}" {{ 'selected' if form.get('category') == c }}>{{ t('incident.c_' ~ c) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="i_aff">{{ t('incident.affected') }}</label>
+      <select class="input" id="i_aff" name="affected" required><option value=""></option>
+        {% for a in affected %}<option value="{{ a }}" {{ 'selected' if form.get('affected') == a }}>{{ t('incident.a_' ~ a) }}</option>{% endfor %}</select></div>
+    {% if units %}
+    <div class="form-row" style="margin:0;"><label for="i_unit">{{ t('incident.unit') }}</label>
+      <select class="input" id="i_unit" name="unit_id"><option value="">{{ t('incident.other_area') }}</option>
+        {% for u in units %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    {% endif %}
+    <div class="form-row" style="margin:0;"><label for="i_area">{{ t('incident.area') }}</label>
+      <input class="input" id="i_area" name="area" maxlength="120" value="{{ form.get('area') or '' }}"></div>
+    <div class="form-row" style="margin:0;"><label for="i_pt">{{ t('incident.patient_number') }}</label>
+      <input class="input" id="i_pt" name="patient_number" maxlength="40" dir="ltr" value="{{ form.get('patient_number') or '' }}"></div>
+  </div>
+  <div class="form-row" style="margin:0;"><label for="i_what">{{ t('incident.what') }}</label>
+    <textarea class="input" id="i_what" name="what_happened" rows="4" required>{{ form.get('what_happened') or '' }}</textarea></div>
+  <div class="form-row" style="margin:0;"><label for="i_now">{{ t('incident.immediate') }}</label>
+    <textarea class="input" id="i_now" name="immediate_action" rows="2">{{ form.get('immediate_action') or '' }}</textarea></div>
+  <label class="alert-pill danger" style="display:flex;gap:8px;align-items:center;"><input type="checkbox" name="serious" value="1" data-serious> {{ t('incident.serious') }}</label>
+  <label style="display:flex;gap:8px;align-items:center;"><input type="checkbox" name="anonymous" value="1" data-anonymous> {{ t('incident.anonymous') }}</label>
+  <p class="hint" style="margin:0;">{{ t('incident.no_blame') }}
+    {% if current_user.can_access('pharmacy') %} · <a href="{{ url_for('pharmacy.errors') }}">{{ t('incident.med_error_link') }}</a>{% endif %}</p>
+  <button class="btn btn-primary gc-press" type="submit" style="justify-self:start;"><i class="bi bi-send"></i> {{ t('incident.send') }}</button>
+</form>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "shell.html" %}
+{% set active_module = 'incidents' %}
+{% block title %}{{ row.number }}{% endblock %}
+{% block page_heading %}{{ t('incident.board_title') }}{% endblock %}
+
+{% block content %}
+{# The report as written, and the review: classification in QPI.11's words,
+   the investigation, the action, the family, and — for a sentinel event —
+   the root cause analysis and the external report. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-clipboard2-pulse"></i> <span dir="ltr">{{ row.number }}</span> · {{ t('incident.c_' ~ row.category) }}
+      {% if row.serious %}<span class="badge badge--danger">{{ t('incident.serious_badge') }}</span>{% endif %}</h1>
+    <p class="page-sub" style="margin:0;"><span dir="ltr">{{ row.occurred_at|clinic_stamp }}</span> · {{ row.area_name(current_lang) }} · {{ t('incident.a_' ~ row.affected) }}
+      · {{ row.reporter.display_name(current_lang) if row.reporter else t('incident.anonymous_reporter') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('incidents.index') }}"><i class="bi bi-list-ul"></i> {{ t('incident.board_title') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-incident-report>
+  <p dir="auto" style="margin-top:0;white-space:pre-wrap;">{{ row.what_happened }}</p>
+  {% if row.immediate_action %}<p class="hint" style="margin:0;">{{ t('incident.immediate') }}:</p><p dir="auto" style="margin-top:2px;">{{ row.immediate_action }}</p>{% endif %}
+  {% if row.patient %}<p style="margin:0;"><a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">{{ row.patient.display_name(current_lang) }}</a> <span class="hint" dir="ltr">{{ row.patient.patient_number }}</span></p>{% endif %}
+</div>
+
+<form method="post" action="{{ url_for('incidents.review', incident_id=row.id) }}" class="card gc-scale-in" style="display:grid;gap:10px;" data-incident-review>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin:0;">{{ t('incident.review') }} — <span class="badge {{ 'badge--green' if row.status == 'closed' else 'badge--warn' }}">{{ t('incident.s_' ~ row.status) }}</span></h2>
+  {% set ro = row.status == 'closed' %}
+  <div class="form-row" style="margin:0;"><label for="r_cls">{{ t('incident.classification') }}</label>
+    <select class="input" id="r_cls" name="classification" required {{ 'disabled' if ro }}><option value=""></option>
+      {% for c in classes %}<option value="{{ c }}" {{ 'selected' if row.classification == c }}>{{ t('incident.cl_' ~ c) }}</option>{% endfor %}</select>
+    <div class="hint">{{ t('incident.class_hint') }}</div></div>
+  {% for field, rows_n in (('findings', 3), ('root_cause', 3), ('action', 3), ('family_told', 2), ('external_report', 2)) %}
+  <div class="form-row" style="margin:0;"><label for="r_{{ field }}">{{ t('incident.f_' ~ field) }}</label>
+    <textarea class="input" id="r_{{ field }}" name="{{ field }}" rows="{{ rows_n }}" {{ 'readonly' if ro }}>{{ row[field] or '' }}</textarea></div>
+  {% endfor %}
+  <div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+    <div class="form-row" style="margin:0;"><label for="r_owner">{{ t('incident.f_action_owner') }}</label><input class="input" id="r_owner" name="action_owner" maxlength="160" value="{{ row.action_owner or '' }}" {{ 'readonly' if ro }}></div>
+    <div class="form-row" style="margin:0;"><label for="r_due">{{ t('incident.f_action_due') }}</label><input class="input" type="date" id="r_due" name="action_due" value="{{ row.action_due.isoformat() if row.action_due else '' }}" {{ 'readonly' if ro }}></div>
+  </div>
+  {% if not ro %}
+  {% if missing %}<p class="hint" style="margin:0;" data-still-missing>{{ t('incident.to_close') }} {% for m in missing %}<span class="badge badge--muted">{{ t('incident.m_' ~ m) }}</span> {% endfor %}</p>{% endif %}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+    <button class="btn btn-primary gc-press" type="submit" name="close" value="1" data-close-incident>{{ t('incident.close') }}</button>
+  </div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('incident.closed_on', when=row.closed_at|clinic_stamp) }} · {{ row.reviewer.display_name(current_lang) if row.reviewer else '' }}</p>{% endif %}
+</form>
+{% endblock %}

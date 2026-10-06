@@ -163,6 +163,22 @@
         <span class="nav-tip">{{ t('cmp.nav') }}</span>
       </a>
       {% endif %}
+      {# GAHAR QPI.10 — anybody who works here reports an incident, from any
+         screen; the board is for whoever reviews them. #}
+      <a class="nav-item gc-press {{ 'active' if active_module == 'incident_report' else '' }}"
+         href="{{ url_for('incidents.report') }}" data-nav-incident-report>
+        <i class="bi bi-exclamation-triangle"></i>
+        <span>{{ t('incident.nav_report') }}</span>
+        <span class="nav-tip">{{ t('incident.nav_report') }}</span>
+      </a>
+      {% if current_user.can('incident_manage') %}
+      <a class="nav-item gc-press {{ 'active' if active_module == 'incidents' else '' }}"
+         href="{{ url_for('incidents.index') }}" data-nav-incidents>
+        <i class="bi bi-clipboard2-pulse"></i>
+        <span>{{ t('incident.nav_board') }}</span>
+        <span class="nav-tip">{{ t('incident.nav_board') }}</span>
+      </a>
+      {% endif %}
       <a class="nav-item gc-press {{ 'active' if active_module == 'guide' else '' }}"
          href="{{ url_for('main.guide') }}">
         <i class="bi bi-life-preserver"></i>
