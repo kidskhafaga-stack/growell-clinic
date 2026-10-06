@@ -396,6 +396,12 @@
   <div class="card gc-scale-in" x-show="tab==='phrases'" x-cloak>
     <h2 class="section-title"><i class="bi bi-chat-square-text"></i> {{ t('settings.visit_chips_title') }}</h2>
     <p class="hint" style="margin-top:-4px;">{{ t('settings.visit_chips_hint') }}</p>
+    {# Each doctor's own list is a screen of its own (`visits.phrases_screen`)
+       — said here at the top, not only in a line at the bottom of the tab. #}
+    <div class="alert-pill" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 12px;" data-to-my-phrases>
+      <i class="bi bi-person-badge"></i> <span style="flex:1;min-width:200px;">{{ t('phrases.clinic_is_a_start') }}</span>
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.phrases_screen') }}"><i class="bi bi-lightning-charge"></i> {{ t('phrases.title') }}</a>
+    </div>
     <div class="form-grid">
       <div class="form-row">
         <label><i class="bi bi-clipboard2-pulse"></i> {{ t('settings.complaint_chips') }}</label>
@@ -415,9 +421,6 @@
     </div>
     <p class="hint" style="margin-top:10px;"><i class="bi bi-lightning-charge"></i>
       {{ t('phrases.code_hint') }}</p>
-    <p class="hint"><i class="bi bi-person-badge"></i>
-      {{ t('phrases.clinic_is_a_start') }}
-      <a href="{{ url_for('visits.phrases_screen') }}">{{ t('phrases.mine_link') }}</a></p>
     <p class="hint" style="margin-top:12px;"><i class="bi bi-info-circle"></i> {{ t('settings.visit_chips_lang_hint') }}</p>
 
     <hr style="border:0;border-top:1px solid var(--line);margin:18px 0;">

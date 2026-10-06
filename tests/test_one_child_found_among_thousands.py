@@ -98,3 +98,10 @@ def test_an_unknown_number_is_linked_by_search(crowd):
         crowd["db"].session.commit()
     page = crowd["sign_in"]("desk").get("/messages/inbox/01099999999").get_data(as_text=True)
     assert "data-patient-picker" in page and "آخر طفل" not in page
+
+
+def test_the_doctor_s_own_phrases_are_a_button_at_the_top_of_the_tab(clinic):
+    """«الشاشة دي فين فى الاعدادات ؟» — the doctor's own phrases screen, a
+    button at the top of «القوايم السريعة» rather than a line at its end."""
+    page = clinic["sign_in"]().get("/settings/").get_data(as_text=True)
+    assert "data-to-my-phrases" in page and "/visits/phrases" in page
