@@ -1,5 +1,6 @@
 {% extends "shell.html" %}
 {% from "patients/_macros.html" import age_label with context %}
+{% import "_pickers.html" as pickers with context %}
 {% set active_module = 'my_patients' %}
 {% block title %}{{ t('board_mine.title') }}{% endblock %}
 {% block page_heading %}{{ t('board_mine.title') }}{% endblock %}
@@ -39,10 +40,9 @@
 {% if doctors %}
 <form method="get" class="mn-me" data-pick-doctor>
   {% for k, v in keep.items() if k != 'doctor' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
-  <label for="doctor">{{ t('board_med.doctor') }}</label>
-  <select class="input" id="doctor" name="doctor" onchange="this.form.submit()">
-    {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if d.id == doctor.id }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
-  </select>
+  {# The shared picker: type to search, or open it for the whole list — a
+     dropdown at four doctors and still usable at forty. #}
+  {{ pickers.doctor_picker('doctor', doctor.id, t('board_med.doctor'), doctors=doctors) }}
   <noscript><button class="btn btn-outline btn-sm" type="submit">{{ t('board_med.show') }}</button></noscript>
   <span class="hint" style="margin:0;">{{ t('board_mine.admin_picks') }}</span>
 </form>
@@ -75,13 +75,14 @@
 {# ------------------------------------------------------------ follow-ups #}
 <div class="card gc-scale-in" id="followups" style="margin-bottom:14px;">
   <h2 class="section-title mb-h">{{ t('board_mine.followups') }} <small class="hint">{{ t('board_mine.followups_hint') }}</small></h2>
-  <form method="get" class="mn-listbar" action="#followups">
+  <form method="get" class="mn-listbar" action="{{ url_for('visits.mine') }}" data-live-search="#followups-results">
     {% for k, v in keep.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
     <input class="input" type="search" name="q" value="{{ search }}" placeholder="{{ t('board_mine.search_ph') }}" aria-label="{{ t('board_mine.search_ph') }}">
     <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-search"></i></button>
     <span style="flex:1;"></span>
     <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.mine_followups_csv', q=search or None, **board_extra) }}" data-followups-csv><i class="bi bi-download"></i> CSV</a>
   </form>
+  <div id="followups-results">
   {% if followups %}
   <div style="overflow-x:auto;"><table class="table" data-followups>
     <thead><tr><th>{{ t('board_med.child') }}</th><th>{{ t('board_mine.last_visit') }}</th><th>{{ t('board_mine.due') }}</th><th>{{ t('board_mine.late') }}</th><th>{{ t('board_mine.why') }}</th><th>{{ t('board_mine.phone') }}</th><th></th></tr></thead>
@@ -114,7 +115,15 @@
     {% if page < pages %}<a href="{{ url_for('visits.mine', page=page + 1, q=search or None, **keep) }}#followups">{{ t('board_med.next_page') }}</a>{% endif %}
   </div>
   {% endif %}
-  {% else %}<p class="hint" data-no-followups>{{ t('board_mine.no_followups_q' if search else 'board_mine.no_followups') }}</p>{% endif %}
+  {% elif search and elsewhere %}
+  {# Found, but not on this list: say so, rather than «nobody by that name»
+     about a child who is in the files. #}
+  <div data-no-followups data-found-elsewhere>
+    <p class="hint" style="margin:0 0 6px;">{{ t('board_mine.not_on_list') }}</p>
+    <ul style="margin:0;padding-inline-start:18px;">{% for p in elsewhere %}<li>{{ who(p) }}</li>{% endfor %}</ul>
+  </div>
+  {% else %}<p class="hint" data-no-followups>{{ t('board_mine.no_child_q' if search else 'board_mine.no_followups') }}</p>{% endif %}
+  </div>
 </div>
 
 <div class="mb-grid">

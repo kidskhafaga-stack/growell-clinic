@@ -39,7 +39,7 @@
       <tr {{ 'style=background:#fdecec;'|safe if above else '' }} data-dose-row="{{ 'over' if above else 'ok' }}">
         <td dir="ltr">{{ (r.performed_at or r.created_at)|clinic_stamp }}</td>
         <td><a href="{{ url_for('patients.view', patient_id=r.patient_id) }}">{{ r.patient.display_name(current_lang) }}</a></td>
-        <td><a href="{{ url_for('imaging.order', order_id=r.id) }}">{{ r.name }}</a></td>
+        <td><a href="{{ url_for('imaging.order', order_id=r.id) }}">{{ r.display_name(current_lang) }}</a></td>
         <td>{% if r.dose_value is not none %}<span dir="ltr">{{ t('radiation.kind_' ~ r.dose_kind) }} {{ r.dose_value }} {{ t('radiation.u_' ~ (r.dose_unit or radiation.base_unit(r.dose_kind))) }}</span>
           {% if above %}<span class="badge badge--danger">{{ t('radiation.above_reference') }}</span>{% endif %}{% else %}—{% endif %}</td>
         <td>{% if r.contrast_agent %}<span dir="auto">{{ r.contrast_agent }}</span>

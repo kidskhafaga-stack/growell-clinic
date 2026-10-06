@@ -1,7 +1,7 @@
 {% extends "shell.html" %}
 {% set active_module = 'imaging' %}
-{% block title %}{{ order.name }}{% endblock %}
-{% block page_heading %}{{ order.name }}{% endblock %}
+{% block title %}{{ order.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ order.display_name(current_lang) }}{% endblock %}
 
 {% macro dose_line(totals) -%}
   {%- for kind, pair in totals.items() -%}
@@ -15,7 +15,7 @@
    doses and any contrast reaction come first, before this scan is done. #}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
-    <h1 class="page-title"><i class="bi bi-radioactive"></i> {{ order.name }}</h1>
+    <h1 class="page-title"><i class="bi bi-radioactive"></i> {{ order.display_name(current_lang) }}</h1>
     <p class="page-sub" style="margin:0;">
       <a href="{{ url_for('patients.view', patient_id=order.patient_id) }}">{{ order.patient.display_name(current_lang) }}</a>
       · <span class="badge badge--muted" data-status>{{ t('lab.state_' ~ order.status) }}</span>
@@ -56,7 +56,7 @@
     <table class="table" style="min-width:520px;">
       <tbody>
         {% for r in before.rows %}
-        <tr><td dir="ltr">{{ (r.performed_at or r.created_at)|clinic_stamp }}</td><td>{{ r.name }}</td>
+        <tr><td dir="ltr">{{ (r.performed_at or r.created_at)|clinic_stamp }}</td><td>{{ r.display_name(current_lang) }}</td>
           <td>{% if r.dose_value is not none %}<span dir="ltr">{{ t('radiation.kind_' ~ r.dose_kind) }} {{ r.dose_value }} {{ t('radiation.u_' ~ (r.dose_unit or radiation.base_unit(r.dose_kind))) }}</span>{% else %}—{% endif %}</td>
           <td>{% if r.contrast_agent %}<span dir="auto">{{ r.contrast_agent }}</span>{% if r.contrast_ml %} · <span dir="ltr">{{ r.contrast_ml }} ml</span>{% endif %}{% else %}—{% endif %}</td></tr>
         {% endfor %}

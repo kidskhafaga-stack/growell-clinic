@@ -130,7 +130,7 @@
   <div class="lb-row st-{{ row.status }}{{ ' is-urgent' if row.urgent else '' }}" data-status="{{ row.status }}">
     <div class="lb-row__who">
       <div class="lb-name">
-        <a href="{{ url_for('labs.order', order_id=row.id) }}">{{ row.name }}</a>
+        <a href="{{ url_for('labs.order', order_id=row.id) }}">{{ row.display_name(current_lang) }}</a>
         {% if row.urgent %}<span class="badge badge--danger" data-urgent><i class="bi bi-lightning-charge"></i> {{ t('lab_reception.urgent') }}</span>{% endif %}
       </div>
       <div class="hint">

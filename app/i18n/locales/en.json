@@ -9342,7 +9342,9 @@
     "late_hint": "The clinic's own vaccines-due sweep — courses started here only.",
     "my_dx": "My top diagnoses",
     "my_rx": "Drugs I prescribed most",
-    "no_rx": "No prescriptions in this period."
+    "no_rx": "No prescriptions in this period.",
+    "not_on_list": "Found in the files, but with no missed follow-up with this doctor:",
+    "no_child_q": "No child by that name in the files."
   },
   "survey_out": {
     "sending": "Sending your answers…",
@@ -9469,7 +9471,10 @@
     "flag_low": "Low",
     "flag_high": "High",
     "flag_critical_low": "Critical — low",
-    "flag_critical_high": "Critical — high"
+    "flag_critical_high": "Critical — high",
+    "no_analytes": "This test has no components in the test list yet, so its result is one value or a report.",
+    "add_analytes": "Add its components",
+    "import_sheet": "or import the lab sheet"
   },
   "er_orders": {
     "title": "Emergency attendance",
