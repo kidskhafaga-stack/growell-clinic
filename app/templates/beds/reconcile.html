@@ -1,0 +1,81 @@
+{% extends "shell.html" %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('medrec.title') }}{% endblock %}
+{% block page_heading %}{{ t('medrec.title') }}{% endblock %}
+
+{% block content %}
+{# **One moment, one form** (GAHAR MMS.10): every medicine on this moment's
+   list with continue, stop or change — nothing chosen for the doctor, and
+   saved together or not at all (`utils/med_reconciliation`). #}
+<style>
+  .mr-row { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; padding:10px 0;
+            border-top:1px solid var(--line); }
+  .mr-row:first-child { border-top:0; }
+  .mr-name { flex:1 1 240px; min-width:0; }
+  .mr-from { font-size:.75rem; }
+  .mr-pick { display:flex; gap:4px; flex-wrap:wrap; }
+  .mr-pick label { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; margin:0;
+                   border:1px solid var(--line); border-radius:999px; cursor:pointer; font-size:.86rem; }
+  .mr-pick input:checked + span { font-weight:700; }
+  .mr-pick label:has(input:checked) { border-color:var(--green-600); background:var(--green-050); }
+  .mr-pick label:focus-within { outline:2px solid var(--green-600); outline-offset:1px; }
+  .mr-note { flex:1 1 200px; }
+</style>
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-arrow-left-right"></i>
+      {{ t('medrec.at_' ~ interface, unit=stay.bed.unit.display_name(current_lang) if stay and stay.bed and stay.bed.unit else '—') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ admission.patient.display_name(current_lang) }} · {{ t('medrec.sub_' ~ interface) }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('beds.admission', admission_id=admission.id) }}#reconcile">
+    <i class="bi bi-hospital"></i> {{ t('theatre.the_stay') }}</a>
+</div>
+
+{% if saved %}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-recon-saved>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-check-circle"></i> {{ t('medrec.decided') }}</h2>
+  <ul style="margin:0;padding-inline-start:18px;">
+    {% for r in saved %}
+    <li><b><bdi>{{ r.name }}</bdi></b> — {{ t('medrec.d_' ~ r.decision ~ ('_discharge' if interface == 'discharge' and r.decision == 'continue' else '')) }}
+      {% if r.note %}<span class="hint">· {{ r.note }}</span>{% endif %}
+      <span class="hint">· {{ r.decider.display_name(current_lang) if r.decider else '—' }} · {{ r.decided_at|clinic_stamp }}</span></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if not items %}
+<div class="card gc-scale-in"><p class="hint" style="margin:0;" data-recon-empty>{{ t('medrec.nothing_' ~ interface) }}</p></div>
+{% else %}
+<form method="post" class="card gc-scale-in" data-recon-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if stay %}<input type="hidden" name="stay" value="{{ stay.id }}">{% endif %}
+  <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
+    <p class="hint" style="margin:0;">{{ t('medrec.how_' ~ interface) }}</p>
+    {# One press for the common case — a choice the doctor makes, not one
+       made for them. #}
+    <button type="button" class="btn btn-sm btn-outline gc-press" data-recon-all
+            onclick="this.form.querySelectorAll('input[type=radio][value=continue]').forEach(function (r) { r.checked = true; });">
+      <i class="bi bi-check2-all"></i> {{ t('medrec.all_continue') }}</button>
+  </div>
+  {% for kind, row in items %}
+  {% set key = kind ~ '_' ~ row.id %}
+  <div class="mr-row" data-recon-item="{{ key }}">
+    <div class="mr-name"><b><bdi>{{ label(kind, row) }}</bdi></b><br>
+      <span class="badge badge--muted mr-from">{{ t('medrec.from_' ~ kind) }}</span></div>
+    <div class="mr-pick" role="radiogroup" aria-label="{{ label(kind, row) }}">
+      {% for d in decisions %}
+      <label><input type="radio" name="d_{{ key }}" value="{{ d }}" {{ 'checked' if chosen.get('d_' ~ key) == d else '' }}>
+        <span>{{ t('medrec.d_' ~ d ~ ('_discharge' if interface == 'discharge' and d == 'continue' else '')) }}</span></label>
+      {% endfor %}
+    </div>
+    <input class="input mr-note" name="n_{{ key }}" maxlength="200" value="{{ chosen.get('n_' ~ key, '') }}"
+           placeholder="{{ t('medrec.note_ph') }}" aria-label="{{ t('medrec.note_ph') }}">
+  </div>
+  {% endfor %}
+  {% if interface == 'discharge' %}<p class="hint" style="margin:10px 0 0;" data-recon-effect>{{ t('medrec.discharge_effect') }}</p>{% endif %}
+  <button class="btn btn-primary gc-press" type="submit" style="margin-top:12px;">
+    <i class="bi bi-check2"></i> {{ t('medrec.save') }}</button>
+</form>
+{% endif %}
+{% endblock %}

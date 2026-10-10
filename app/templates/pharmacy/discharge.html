@@ -25,6 +25,13 @@
     <a class="btn btn-outline gc-press"
        href="{{ url_for('beds.admission', admission_id=admission.id) }}">
       <i class="bi bi-hospital"></i> {{ t('theatre.the_stay') }}</a>
+    {# The decisions themselves are written on the stay (GAHAR MMS.10):
+       this screen compares, that one records. #}
+    {% if current_user.can_access('beds') %}
+    <a class="btn btn-primary gc-press" data-to-discharge-recon
+       href="{{ url_for('beds.reconcile', admission_id=admission.id, interface='discharge') }}">
+      <i class="bi bi-check2-square"></i> {{ t('medrec.at_discharge') }}</a>
+    {% endif %}
   </div>
 </div>
 

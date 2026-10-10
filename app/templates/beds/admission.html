@@ -29,7 +29,7 @@
 {% set here_bed = admission.bed if admission.is_open else none %}
 <div class="stay" x-data="{
         inside: { nursing: 'care', pain: 'care', food: 'care', risks: 'care',
-                  medicines: 'treatment', tests: 'treatment', lines: 'treatment',
+                  medicines: 'treatment', reconcile: 'treatment', tests: 'treatment', lines: 'treatment',
                   blood: 'treatment', theatre: 'treatment',
                   restraint: 'safety', arrest: 'safety',
                   'discharge-summary': 'discharge', mrp: 'overview',
@@ -1065,6 +1065,36 @@
 
 <div class="gc-tab-panel stay-panel" data-stay-panel="treatment" x-show="tab==='treatment'" x-cloak>
 {# ---- the chart --------------------------------------------------------- #}
+{# ---- medication reconciliation — GAHAR MMS.10 / GSR.18 -------------------
+   The four moments a child's medicines are looked at again: coming in, each
+   move into another unit, and going home (or to another hospital). Which are
+   done, which are open — and nothing waits for them (`utils/med_reconciliation`). #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="reconcile" data-reconcile>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-arrow-left-right"></i> {{ t('medrec.title') }}
+    {% if recon.open %}<span class="badge badge--warn" data-recon-open>{{ t('medrec.open_n', n=recon.open) }}</span>{% endif %}</h2>
+  <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;">
+    <li data-recon-step="admission">
+      <i class="bi bi-{{ 'check-circle-fill' if recon.admission.done else 'circle' }}" style="color:{{ 'var(--green-600)' if recon.admission.done else '#b45309' }};"></i>
+      {{ t('medrec.at_admission') }}
+      <a href="{{ url_for('beds.reconcile', admission_id=admission.id, interface='admission') }}">
+        {{ t('medrec.see' if recon.admission.done else 'medrec.do') }}</a></li>
+    {% for tr in recon.transfers %}
+    <li data-recon-step="transfer">
+      <i class="bi bi-{{ 'check-circle-fill' if tr.done else 'circle' }}" style="color:{{ 'var(--green-600)' if tr.done else '#b45309' }};"></i>
+      {{ t('medrec.at_transfer', unit=tr.stay.bed.unit.display_name(current_lang) if tr.stay.bed and tr.stay.bed.unit else '—') }}
+      <a href="{{ url_for('beds.reconcile', admission_id=admission.id, interface='transfer', stay=tr.stay.id) }}">
+        {{ t('medrec.see' if tr.done else 'medrec.do') }}</a></li>
+    {% endfor %}
+    <li data-recon-step="discharge">
+      <i class="bi bi-{{ 'check-circle-fill' if recon.discharge.done else ('circle' if recon.discharge.owed else 'dash-circle') }}" style="color:{{ 'var(--green-600)' if recon.discharge.done else ('#b45309' if recon.discharge.owed else 'var(--muted, #6b7280)') }};"></i>
+      {{ t('medrec.at_discharge') }}
+      <a href="{{ url_for('beds.reconcile', admission_id=admission.id, interface='discharge') }}">
+        {{ t('medrec.see' if recon.discharge.done else 'medrec.do') }}</a></li>
+  </ul>
+  <p class="hint" style="margin:8px 0 0;">{{ t('medrec.never_waits') }}</p>
+</div>
+
 {# What this child is on, and what the clinic's own safety check makes of it.
    Not a second check: `rx_safety` is the one the prescription screen uses,
    and the child's pre-existing medicines are in it too — the carbamazepine
