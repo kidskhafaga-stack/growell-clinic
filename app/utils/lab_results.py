@@ -185,6 +185,9 @@ def save(order, entries, user=None, text=None, at=None):
         if aid not in lines:
             continue
         i, line = lines[aid]
+        # A calculated analyte is worked out below, never typed.
+        if line["analyte"].formula:
+            continue
         number, words = parse(raw)
         row = existing.get(aid)
         if number is None and words is None:
@@ -206,10 +209,19 @@ def save(order, entries, user=None, text=None, at=None):
         rng = line["approved"] or line["draft"]
         _snapshot(row, rng)
         row.flag = judge(number, line["approved"])
+        # Against the child's own last value — said, never blocking
+        # (`utils/lab_delta`).
+        if changed:
+            from app.utils import lab_delta
+            lab_delta.check(row, order, at=now)
         if changed:
             row.entered_at = now
             row.entered_by = getattr(user, "id", None)
 
+    _work_out(order, existing, user, now)
+    # The laboratory's own «then order» rules (`utils/lab_reflex`).
+    from app.utils import lab_reflex
+    lab_reflex.evaluate(order, user=user)
     values = [v for v in order.analyte_values if v.has_value]
     order.analytes_resulted = len(values) or None
     order.abnormal_count = sum(1 for v in values if v.abnormal) or None
@@ -231,6 +243,40 @@ def save(order, entries, user=None, text=None, at=None):
     bench.settle(order, user=user, at=now)
     invalidate()
     return critical
+
+
+def _work_out(order, existing, user, now):
+    """The calculated analytes, from the values just written
+    (`utils/lab_calc`). One whose inputs are not all there has no value —
+    a sum with a missing term is not a smaller sum."""
+    from app.models import LabResultValue
+    from app.utils import lab_calc, lab_delta
+
+    for i, line in enumerate(sheet(order)):
+        analyte = line["analyte"]
+        if not analyte.formula:
+            continue
+        value, _why = lab_calc.work_out(analyte, order)
+        row = existing.get(analyte.id)
+        if value is None:
+            if row is not None and row.calculated:
+                order.analyte_values.remove(row)
+                db.session.delete(row)
+                existing.pop(analyte.id, None)
+            continue
+        if row is None:
+            row = LabResultValue(analyte_id=analyte.id, analyte=analyte)
+            order.analyte_values.append(row)
+            existing[analyte.id] = row
+        changed = row.value != value or row.id is None
+        row.calculated, row.sort_order = True, i
+        row.value, row.text, row.unit = value, None, line["unit"]
+        _snapshot(row, line["approved"] or line["draft"])
+        row.flag = judge(value, line["approved"])
+        if changed:
+            row.entered_at = now
+            row.entered_by = getattr(user, "id", None)
+            lab_delta.check(row, order, at=now)
 
 
 def _mirror(order, values):

@@ -298,6 +298,93 @@
       <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('common.add') }}</button>
     </form>
   </details>
+  {# **Calculated** — the laboratory picks a published formula and which of
+     this test's analytes feed it; the bench then works it out
+     (`utils/lab_calc`). #}
+  {% set cur = a.formula or '' %}{% set cur_in = formula_inputs(a) %}
+  <details class="rng-hand" style="margin-top:6px;" data-formula-box="{{ a.id }}"{{ ' open' if a.formula else '' }}
+           x-data="{ f: '{{ cur }}' }">
+    <summary><i class="bi bi-calculator"></i> {{ t('lab_calc.title') }}
+      {% if a.formula %}<span class="badge badge--muted" data-formula-on dir="ltr">{{ formulas[a.formula].text }}</span>{% endif %}</summary>
+    <form method="post" action="{{ url_for('labs.analyte_formula', test_id=test.id, analyte_id=a.id) }}"
+          style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;max-width:420px;"><label>{{ t('lab_calc.formula') }}</label>
+        <select class="select" name="formula" x-model="f">
+          <option value="">{{ t('lab_calc.none') }}</option>
+          {% for key, spec in formulas.items() %}<option value="{{ key }}" {{ 'selected' if key == cur else '' }} dir="ltr">{{ spec.text }}</option>{% endfor %}
+        </select></div>
+      {% for key, spec in formulas.items() %}
+      <div x-show="f === '{{ key }}'"{% if key != cur %} x-cloak{% endif %} style="display:flex;gap:8px;flex-wrap:wrap;">
+        {% for slot, label, unit in spec.inputs %}
+        <div class="form-row" style="margin:0;min-width:170px;"><label dir="ltr">{{ label }}{% if unit != 'same' %} ({{ unit }}){% endif %}</label>
+          <select class="select" name="in_{{ key }}_{{ slot }}">
+            <option value="">—</option>
+            {% for link in test.analyte_links if link.analyte_id != a.id %}
+            <option value="{{ link.analyte_id }}" {{ 'selected' if key == cur and cur_in.get(slot) == link.analyte_id else '' }} dir="ltr">{{ link.analyte.name }}{% if link.analyte.unit %} ({{ link.analyte.unit }}){% endif %}</option>
+            {% endfor %}
+          </select></div>
+        {% endfor %}
+        {% if spec.height %}<p class="hint" style="margin:0;flex-basis:100%;">{{ t('lab_calc.height_hint') }}</p>{% endif %}
+      </div>
+      {% endfor %}
+      <p class="hint" style="margin:0;">{{ t('lab_calc.explain') }}</p>
+      <div><button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button></div>
+    </form>
+  </details>
+  {# **The delta check** — the laboratory's figures for «too far from last
+     time»; empty, nothing is compared (`utils/lab_delta`). #}
+  <details class="rng-hand" style="margin-top:6px;" data-delta-box="{{ a.id }}"{{ ' open' if a.delta_abs or a.delta_pct else '' }}>
+    <summary><i class="bi bi-arrow-left-right"></i> {{ t('lab_delta.title') }}
+      {% if a.delta_abs or a.delta_pct %}<span class="badge badge--muted" data-delta-on>{{ t('lab_delta.on') }}</span>{% endif %}</summary>
+    <form method="post" action="{{ url_for('labs.analyte_delta', test_id=test.id, analyte_id=a.id) }}"
+          style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;min-width:130px;"><label>{{ t('lab_delta.abs', unit=a.unit or '') }}</label>
+        <input class="input" name="delta_abs" dir="ltr" inputmode="decimal" value="{{ a.delta_abs if a.delta_abs is not none else '' }}"></div>
+      <div class="form-row" style="margin:0;min-width:110px;"><label>{{ t('lab_delta.pct') }}</label>
+        <input class="input" name="delta_pct" dir="ltr" inputmode="decimal" value="{{ a.delta_pct if a.delta_pct is not none else '' }}"></div>
+      <div class="form-row" style="margin:0;min-width:110px;"><label>{{ t('lab_delta.days') }}</label>
+        <input class="input" name="delta_days" dir="ltr" inputmode="numeric" value="{{ a.delta_days if a.delta_days is not none else '' }}"></div>
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+      <p class="hint" style="margin:0;flex-basis:100%;">{{ t('lab_delta.explain') }}</p>
+    </form>
+  </details>
 </div>
 {% endfor %}
+
+{# **Then order** — the laboratory's reflex rules for this test
+   (`utils/lab_reflex`): a value above or below its figure suggests the next
+   test to the doctor, or orders it where the rule says so. #}
+{% if test.analyte_links %}
+<div class="card gc-scale-in" style="margin-bottom:12px;" id="reflex" data-reflex-rules>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-diagram-2"></i> {{ t('lab_reflex.title') }}</h2>
+  <p class="hint" style="margin-top:0;">{{ t('lab_reflex.explain') }}</p>
+  {% for r in reflex_rules %}
+  <form method="post" action="{{ url_for('labs.reflex_remove', test_id=test.id, rule_id=r.id) }}" data-reflex-rule="{{ r.id }}"
+        style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 6px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <span style="flex:1;"><bdi dir="ltr">{{ r.analyte.name }}</bdi> {{ t('lab_reflex.op_' ~ r.op) }} <bdi dir="ltr">{{ '%g'|format(r.value) }}</bdi>
+      {{ '←' if current_lang == 'ar' else '→' }} <b>{{ r.then.display_name(current_lang) }}</b>
+      <span class="badge {{ 'badge--warn' if r.mode == 'order' else 'badge--muted' }}">{{ t('lab_reflex.mode_' ~ r.mode) }}</span></span>
+    <button class="btn btn-sm btn-outline gc-press" type="submit"><i class="bi bi-x-lg"></i> {{ t('lab_reflex.remove') }}</button>
+  </form>
+  {% endfor %}
+  <form method="post" action="{{ url_for('labs.reflex_add', test_id=test.id) }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;min-width:150px;"><label>{{ t('lab_reflex.when') }}</label>
+      <select class="select" name="analyte_id">{% for link in test.analyte_links %}<option value="{{ link.analyte_id }}" dir="ltr">{{ link.analyte.name }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;min-width:110px;"><label>&nbsp;</label>
+      <select class="select" name="op"><option value="above">{{ t('lab_reflex.op_above') }}</option><option value="below">{{ t('lab_reflex.op_below') }}</option></select></div>
+    <div class="form-row" style="margin:0;width:110px;"><label>{{ t('lab_reflex.value') }}</label>
+      <input class="input" name="value" dir="ltr" inputmode="decimal" required></div>
+    <div class="form-row" style="margin:0;min-width:180px;"><label>{{ t('lab_reflex.then') }}</label>
+      <select class="select" name="then_id">{% for x in reflex_targets %}<option value="{{ x.id }}">{{ x.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;min-width:170px;"><label>{{ t('lab_reflex.how') }}</label>
+      <select class="select" name="mode"><option value="suggest">{{ t('lab_reflex.mode_suggest') }}</option><option value="order">{{ t('lab_reflex.mode_order') }}</option></select></div>
+    <button class="btn btn-sm btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+  </form>
+</div>
+{% endif %}
 {% endblock %}

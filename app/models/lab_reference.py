@@ -54,6 +54,18 @@ class LabAnalyte(db.Model):
     # Other names the same analyte goes by — «Hb; HGB» — separated by «;».
     aliases = db.Column(db.String(400))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    #: **The delta check** (`utils/lab_delta`): a result further than this
+    #: from the child's previous one — in the analyte's unit, or as a
+    #: percentage of the previous — is flagged for a second look, if the
+    #: previous is no older than ``delta_days``. The laboratory's figures;
+    #: all empty, nothing is compared.
+    delta_abs = db.Column(db.Float)
+    delta_pct = db.Column(db.Float)
+    delta_days = db.Column(db.Integer)
+    #: **Calculated** (`utils/lab_calc`): one of its published formulas, and
+    #: ``{slot: analyte id}`` for the inputs — chosen by the laboratory.
+    formula = db.Column(db.String(30))
+    formula_inputs = db.Column(db.Text)
 
     ranges = db.relationship("LabRange", back_populates="analyte",
                              cascade="all, delete-orphan",
@@ -199,6 +211,13 @@ class LabResultValue(db.Model):
     ref_note = db.Column(db.String(255))
 
     flag = db.Column(db.String(14))
+    #: What the delta check compared this with, copied at the moment the
+    #: value was written — like the range — and whether it moved too far.
+    delta_prev = db.Column(db.Float)
+    delta_prev_at = db.Column(db.DateTime)
+    delta_hit = db.Column(db.Boolean)
+    #: Worked out from the order's other values, not typed (`utils/lab_calc`).
+    calculated = db.Column(db.Boolean)
 
     entered_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     entered_by = db.Column(db.Integer, db.ForeignKey("users.id"))
@@ -481,3 +500,45 @@ class ReagentLot(db.Model):
     def __repr__(self):
         return f"<ReagentLot {self.lot_number} {self.expiry_date}>"
 
+
+
+class LabReflexRule(db.Model):
+    """**The next test, by the laboratory's rule** (`utils/lab_reflex`): when
+    an analyte of ``investigation_id`` comes back above or below ``value``,
+    ``then_id`` is suggested to the doctor — or, if the laboratory and its
+    doctors chose ``order``, ordered at once and said to be the rule's."""
+    __tablename__ = "lab_reflex_rules"
+
+    id = db.Column(db.Integer, primary_key=True)
+    investigation_id = db.Column(db.Integer, db.ForeignKey("investigations.id"),
+                                 nullable=False, index=True)
+    analyte_id = db.Column(db.Integer, db.ForeignKey("lab_analytes.id"), nullable=False)
+    op = db.Column(db.String(6), nullable=False)          # above | below
+    value = db.Column(db.Float, nullable=False)
+    then_id = db.Column(db.Integer, db.ForeignKey("investigations.id"), nullable=False)
+    mode = db.Column(db.String(8), default="suggest", nullable=False)   # suggest | order
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    analyte = db.relationship("LabAnalyte")
+    then = db.relationship("Investigation", foreign_keys=[then_id])
+
+
+class LabReflexHit(db.Model):
+    """A rule that fired on one result — the suggestion, and what came of it."""
+    __tablename__ = "lab_reflex_hits"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey("visit_investigations.id"),
+                         nullable=False, index=True)
+    rule_id = db.Column(db.Integer, db.ForeignKey("lab_reflex_rules.id"), nullable=False)
+    value = db.Column(db.Float)
+    #: open → ordered | dismissed | withdrawn (the value was corrected).
+    status = db.Column(db.String(10), default="open", nullable=False, index=True)
+    new_order_id = db.Column(db.Integer, db.ForeignKey("visit_investigations.id"))
+    decided_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    rule = db.relationship("LabReflexRule")
+    order = db.relationship("VisitInvestigation", foreign_keys=[order_id])
