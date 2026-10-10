@@ -298,9 +298,17 @@
           {# The flag sits under the box and not in a column of its own: on a
              phone the table scrolls, and the column that scrolls away is the
              one that says «critical». #}
-          <td><input class="input" id="a_{{ a.id }}" name="a_{{ a.id }}" dir="ltr" maxlength="120"
+          <td>{% if a.formula %}
+            {# Worked out from the lines beside it, never typed (`utils/lab_calc`). #}
+            <input class="input" id="a_{{ a.id }}" dir="ltr" readonly tabindex="-1" data-calculated="{{ a.id }}"
+                   value="{{ v.shown() if v else '' }}" aria-describedby="calc_{{ a.id }}">
+            <div class="hint" id="calc_{{ a.id }}" style="margin:2px 0 0;font-size:.75rem;">
+              <i class="bi bi-calculator"></i> <bdi>{{ formula_text(a) }}</bdi>
+              {% if calc_why.get(a.id) %} — <span data-calc-why="{{ calc_why[a.id] }}">{{ t('lab_calc.why_' ~ calc_why[a.id]) }}</span>{% endif %}</div>
+            {% else %}
+            <input class="input" id="a_{{ a.id }}" name="a_{{ a.id }}" dir="ltr" maxlength="120"
                      inputmode="decimal" autocomplete="off"
-                     value="{{ v.shown() if v else '' }}">
+                     value="{{ v.shown() if v else '' }}">{% endif %}
             {% if v and v.flag %}<div style="margin-top:4px;">{{ lv.flag_badge(v.flag) }}</div>{% endif %}
             {% if v and v.delta_hit %}<div style="margin-top:4px;">{{ lv.delta_badge(v) }}</div>{% endif %}</td>
           <td dir="ltr" class="hint" style="margin:0;">{{ line.unit or '' }}</td>

@@ -11600,5 +11600,23 @@
     "hint": "This is far from the child's last result of the same component — look again before releasing: redraw, confirm the name, or call.",
     "saved": "Comparison figures saved",
     "bad_number": "Write a number above zero, or leave the box empty."
+  },
+  "lab_calc": {
+    "title": "Calculated",
+    "formula": "Formula",
+    "none": "Not calculated — typed by hand",
+    "explain": "Published formulas with their published constants; the lab chooses the ones it uses and which of the same test's components feed them. Units must be the formula's own — nothing is converted out of sight.",
+    "height_hint": "Height is taken from the same visit. With no height on that visit, it is not worked out and says why.",
+    "saved": "Formula saved",
+    "not_saved": "The formula was not saved.",
+    "unknown": "Unknown formula.",
+    "need_input": "Choose the component that is «{what}» from this test.",
+    "wrong_unit": "«{what}» must be in {want} — this component is in {got}.",
+    "units_differ": "The components must share one unit.",
+    "result_unit": "The calculated component's unit must be {want} — it is {got}.",
+    "why_missing": "Waiting for the other components",
+    "why_over_limit": "Not worked out: triglycerides above the formula's limit",
+    "why_no_height": "Not worked out: no height on this visit",
+    "why_unknown": "Unknown formula"
   }
 }

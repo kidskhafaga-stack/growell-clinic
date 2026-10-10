@@ -955,6 +955,12 @@ ADDITIONS = [
     ("lab_result_values", "delta_prev", "FLOAT"),
     ("lab_result_values", "delta_prev_at", "DATETIME"),
     ("lab_result_values", "delta_hit", "BOOLEAN"),
+    # **Calculated results** (`utils/lab_calc`): the formula the laboratory
+    # chose for an analyte and which of the test's analytes feed it; and on
+    # the value, that it was worked out rather than typed.
+    ("lab_analytes", "formula", "VARCHAR(30)"),
+    ("lab_analytes", "formula_inputs", "TEXT"),
+    ("lab_result_values", "calculated", "BOOLEAN"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

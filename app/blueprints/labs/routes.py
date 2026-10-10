@@ -147,6 +147,9 @@ def order(order_id):
                            critical_late=_critical().late_call(row),
                            reason_label=lab_reception.reason_label,
                            lines=lines, late=lab_results.late(row),
+                           # Why a calculated line has no number yet.
+                           calc_why=_calc_why(row, lines),
+                           formula_text=_lab_calc().text_of,
                            age_days=lab_results.age_days(
                                row.patient, row.collected_at or row.created_at),
                            may_read=lab_results.reads_results(current_user),
@@ -1602,6 +1605,7 @@ def test_ranges(test_id):
         store_items=(StoreItem.query.filter(StoreItem.is_active.is_(True))
                      .order_by(StoreItem.name).all()),
         lab_store=lab_stock.store(),
+        formulas=_lab_calc().FORMULAS, formula_inputs=_lab_calc().inputs_of,
         used_cost=lab_stock.consumables_cost(row),
         double_taken=lab_stock.double_taken(row))
 
@@ -1703,6 +1707,33 @@ def analyte_delta(test_id, analyte_id):
         except ValueError:
             raise hand.Refused("lab_delta.bad_number") from None
     return _hand(test_id, work, "lab_delta.saved")
+
+
+@labs_bp.route("/tests/<int:test_id>/analytes/<int:analyte_id>/formula",
+               methods=["POST"])
+@module_required(MODULE)
+def analyte_formula(test_id, analyte_id):
+    """Mark one analyte calculated — the formula and its inputs are the
+    laboratory's choice (`utils/lab_calc`)."""
+    from app.models import ActivityLog, LabAnalyte
+    from app.utils import lab_calc
+
+    def work(row, hand):
+        if analyte_id not in {link.analyte_id for link in row.analyte_links}:
+            abort(404)
+        analyte = db.get_or_404(LabAnalyte, analyte_id)
+        formula = (request.form.get("formula") or "").strip()
+        spec = lab_calc.FORMULAS.get(formula) or {"inputs": ()}
+        chosen = {slot: request.form.get(f"in_{formula}_{slot}", type=int)
+                  for slot, _l, _u in spec["inputs"]}
+        try:
+            lab_calc.configure(analyte, row, formula, chosen)
+        except lab_calc.CalcRefused as why:
+            flash(t("lab_calc." + why.key, **why.words), "error")
+            raise hand.Refused("lab_calc.not_saved") from None
+        ActivityLog.record("lab.formula", user_id=current_user.id, entity="lab_analyte",
+                           entity_id=analyte.id, detail=formula or "—")
+    return _hand(test_id, work, "lab_calc.saved")
 
 
 @labs_bp.route("/tests/<int:test_id>/ranges/<int:range_id>", methods=["POST"])
@@ -1849,6 +1880,22 @@ def edit_test(test_id):
     test and every order already written keeps the name it was written with,
     because the order snapshots it."""
     return catalogue.edit(test_id)
+
+
+def _lab_calc():
+    from app.utils import lab_calc
+
+    return lab_calc
+
+
+def _calc_why(order, lines):
+    """``{analyte id: reason}`` for the calculated lines with no value."""
+    out = {}
+    for line in lines or []:
+        a = line["analyte"]
+        if a.formula and not (line["row"] and line["row"].has_value):
+            out[a.id] = _lab_calc().work_out(a, order)[1]
+    return out
 
 
 def _admin_only():

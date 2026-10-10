@@ -62,6 +62,10 @@ class LabAnalyte(db.Model):
     delta_abs = db.Column(db.Float)
     delta_pct = db.Column(db.Float)
     delta_days = db.Column(db.Integer)
+    #: **Calculated** (`utils/lab_calc`): one of its published formulas, and
+    #: ``{slot: analyte id}`` for the inputs — chosen by the laboratory.
+    formula = db.Column(db.String(30))
+    formula_inputs = db.Column(db.Text)
 
     ranges = db.relationship("LabRange", back_populates="analyte",
                              cascade="all, delete-orphan",
@@ -212,6 +216,8 @@ class LabResultValue(db.Model):
     delta_prev = db.Column(db.Float)
     delta_prev_at = db.Column(db.DateTime)
     delta_hit = db.Column(db.Boolean)
+    #: Worked out from the order's other values, not typed (`utils/lab_calc`).
+    calculated = db.Column(db.Boolean)
 
     entered_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     entered_by = db.Column(db.Integer, db.ForeignKey("users.id"))
