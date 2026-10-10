@@ -1,0 +1,148 @@
+{% extends "shell.html" %}
+{% set active_module = 'imaging' %}
+{% block title %}{{ t('radsafe.title') }}{% endblock %}
+{% block page_heading %}{{ t('radsafe.title') }}{% endblock %}
+
+{% macro worker_select(id) -%}
+<select class="input" id="{{ id }}" name="user_id" required>
+  <option value=""></option>
+  {% for r in rows %}<option value="{{ r.worker.user_id }}">{{ r.worker.user.display_name(current_lang) }}</option>{% endfor %}
+</select>
+{%- endmacro %}
+
+{% block content %}
+{# GAHAR DAS.09 / GSR.12 evidence 4 — the staff's dose badges and blood
+   counts, the areas' readings and the aprons. The limits are the hospital's;
+   without one, a number is recorded and nothing is called over. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-shield-check"></i> {{ t('radsafe.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('radsafe.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('imaging.index') }}"><i class="bi bi-radioactive"></i> {{ t('nav.imaging') }}</a>
+</div>
+
+{# ---- who is monitored --------------------------------------------------- #}
+<div class="card gc-scale-in" id="workers" style="overflow-x:auto;margin-bottom:14px;" data-rad-workers>
+  <h2 class="section-title" style="margin-top:0;">{{ t('radsafe.workers') }}</h2>
+  {% if not rows %}<p class="hint" style="margin:0 0 10px;">{{ t('radsafe.no_workers') }}</p>{% else %}
+  <table class="table" style="min-width:680px;">
+    <thead><tr><th>{{ t('radsafe.person') }}</th><th>{{ t('radsafe.area') }}</th><th>{{ t('radsafe.last_badge') }}</th><th>{{ t('radsafe.last_cbc') }}</th><th>{{ t('radsafe.cbc_due') }}</th><th></th></tr></thead>
+    <tbody>{% for r in rows %}{% set w = r.worker %}
+    <tr data-rad-worker="{{ w.user_id }}" data-cbc-state="{{ r.cbc_state }}">
+      <td>{{ w.user.display_name(current_lang) }}{% if w.badge_number %}<div class="hint" dir="ltr">{{ w.badge_number }}</div>{% endif %}</td>
+      <td>{{ w.area or '—' }}</td>
+      <td>{% if r.badge %}<span dir="ltr">{{ r.badge.dose_msv }} mSv</span>
+        {% if r.badge_over %}<span class="badge badge--danger" data-badge-over>{{ t('radsafe.over') }}</span>{% endif %}
+        <div class="hint" dir="ltr">{{ r.badge.period_to.isoformat() }}</div>{% else %}—{% endif %}</td>
+      <td>{% if r.cbc %}<span class="badge {{ 'badge--green' if r.cbc.result == 'normal' else 'badge--danger' }}">{{ t('radsafe.cbc_' ~ r.cbc.result) }}</span>
+        <div class="hint" dir="ltr">{{ r.cbc.done_on.isoformat() }}</div>{% else %}—{% endif %}</td>
+      <td>{% if r.cbc_state == 'never' %}<span class="badge badge--warn">{{ t('radsafe.never') }}</span>
+        {% elif r.cbc_state == 'overdue' %}<span class="badge badge--danger" data-cbc-overdue dir="ltr">{{ r.cbc_due.isoformat() }}</span>
+        {% else %}<span dir="ltr">{{ r.cbc_due.isoformat() }}</span>{% endif %}</td>
+      <td><form method="post" action="{{ url_for('imaging.safety_worker_stop', worker_id=w.id) }}" style="margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('radsafe.stop') }}</button></form></td>
+    </tr>{% endfor %}</tbody>
+  </table>
+  {% endif %}
+  <form method="post" action="{{ url_for('imaging.safety_worker') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;" data-add-worker>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="w_user">{{ t('radsafe.person') }}</label>
+      <select class="input" id="w_user" name="user_id" required><option value=""></option>
+        {% for u in staff if u.id not in workers %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="w_area">{{ t('radsafe.area') }}</label><input class="input" id="w_area" name="area" maxlength="120"></div>
+    <div class="form-row" style="margin:0;"><label for="w_badge">{{ t('radsafe.badge_number') }}</label><input class="input" id="w_badge" name="badge_number" maxlength="60" dir="ltr"></div>
+    <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('radsafe.add_worker') }}</button>
+  </form>
+</div>
+
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-bottom:14px;">
+  {# ---- dose badges -------------------------------------------------------- #}
+  <div class="card gc-scale-in" id="badges" data-rad-badges>
+    <h2 class="section-title" style="margin-top:0;">{{ t('radsafe.badges') }}</h2>
+    <p class="hint" style="margin-top:0;">{{ t('radsafe.level_line', level=level) if level else t('radsafe.no_level') }}</p>
+    {% if rows %}
+    <form method="post" action="{{ url_for('imaging.safety_badge') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;"><label for="b_user">{{ t('radsafe.person') }}</label>{{ worker_select('b_user') }}</div>
+      <div class="form-row" style="margin:0;"><label for="b_from">{{ t('radsafe.from') }}</label><input class="input" type="date" id="b_from" name="period_from" max="{{ today.isoformat() }}" required></div>
+      <div class="form-row" style="margin:0;"><label for="b_to">{{ t('radsafe.to') }}</label><input class="input" type="date" id="b_to" name="period_to" max="{{ today.isoformat() }}" required></div>
+      <div class="form-row" style="margin:0;"><label for="b_dose">{{ t('radsafe.dose') }}</label><input class="input" id="b_dose" name="dose_msv" inputmode="decimal" dir="ltr" required></div>
+      <div class="form-row" style="margin:0;"><label for="b_by">{{ t('radsafe.reported_by') }}</label><input class="input" id="b_by" name="reported_by" maxlength="160"></div>
+      <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="b_action">{{ t('radsafe.action') }}</label><input class="input" id="b_action" name="action" placeholder="{{ t('radsafe.action_if_over') }}"></div>
+      <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+    </form>
+    {% endif %}
+    {% if badges %}<table class="table" style="margin-top:10px;"><tbody>{% for b in badges[:10] %}
+      <tr><td>{{ b.user.display_name(current_lang) }}</td><td dir="ltr">{{ b.period_from.isoformat() }} → {{ b.period_to.isoformat() }}</td><td dir="ltr">{{ b.dose_msv }} mSv</td><td dir="auto">{{ b.action or '' }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+  </div>
+
+  {# ---- blood counts ------------------------------------------------------- #}
+  <div class="card gc-scale-in" id="counts" data-rad-counts>
+    <h2 class="section-title" style="margin-top:0;">{{ t('radsafe.counts') }}</h2>
+    <p class="hint" style="margin-top:0;">{{ t('radsafe.counts_hint') }}</p>
+    {% if rows %}
+    <form method="post" action="{{ url_for('imaging.safety_cbc') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;"><label for="c_user">{{ t('radsafe.person') }}</label>{{ worker_select('c_user') }}</div>
+      <div class="form-row" style="margin:0;"><label for="c_on">{{ t('radsafe.done_on') }}</label><input class="input" type="date" id="c_on" name="done_on" max="{{ today.isoformat() }}" value="{{ today.isoformat() }}" required></div>
+      <div class="form-row" style="margin:0;"><label for="c_res">{{ t('radsafe.result') }}</label>
+        <select class="input" id="c_res" name="result" required><option value=""></option>
+          {% for r in cbc_results %}<option value="{{ r }}">{{ t('radsafe.cbc_' ~ r) }}</option>{% endfor %}</select></div>
+      <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="c_action">{{ t('radsafe.followup') }}</label><input class="input" id="c_action" name="action" placeholder="{{ t('radsafe.followup_ph') }}"></div>
+      <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+    </form>
+    {% endif %}
+    {% if counts %}<table class="table" style="margin-top:10px;"><tbody>{% for c in counts[:10] %}
+      <tr><td>{{ c.user.display_name(current_lang) }}</td><td dir="ltr">{{ c.done_on.isoformat() }}</td><td>{{ t('radsafe.cbc_' ~ c.result) }}</td><td dir="auto">{{ c.action or '' }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+  </div>
+
+  {# ---- areas -------------------------------------------------------------- #}
+  <div class="card gc-scale-in" id="areas" data-rad-areas>
+    <h2 class="section-title" style="margin-top:0;">{{ t('radsafe.areas') }}</h2>
+    <form method="post" action="{{ url_for('imaging.safety_area') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;"><label for="a_area">{{ t('radsafe.area') }}</label><input class="input" id="a_area" name="area" maxlength="120" required></div>
+      <div class="form-row" style="margin:0;"><label for="a_on">{{ t('radsafe.measured_on') }}</label><input class="input" type="date" id="a_on" name="measured_on" max="{{ today.isoformat() }}" value="{{ today.isoformat() }}" required></div>
+      <div class="form-row" style="margin:0;"><label for="a_val">{{ t('radsafe.reading') }}</label><input class="input" id="a_val" name="value" inputmode="decimal" dir="ltr" required></div>
+      <div class="form-row" style="margin:0;"><label for="a_lim">{{ t('radsafe.limit') }}</label><input class="input" id="a_lim" name="limit" inputmode="decimal" dir="ltr"></div>
+      <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="a_action">{{ t('radsafe.action') }}</label><input class="input" id="a_action" name="action" placeholder="{{ t('radsafe.action_if_over') }}"></div>
+      <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+    </form>
+    {% if areas %}<table class="table" style="margin-top:10px;"><tbody>{% for a in areas[:10] %}
+      <tr data-area-row="{{ a.id }}"><td>{{ a.area }}</td><td dir="ltr">{{ a.measured_on.isoformat() }}</td><td dir="ltr">{{ a.value_usv_h }} µSv/h{% if a.limit_usv_h is not none %} / {{ a.limit_usv_h }}{% endif %}</td>
+        <td>{% if a.over %}<span class="badge badge--danger">{{ t('radsafe.over') }}</span>{% endif %} <span dir="auto">{{ a.action or '' }}</span></td></tr>{% endfor %}</tbody></table>{% endif %}
+  </div>
+
+  {# ---- aprons ------------------------------------------------------------- #}
+  <div class="card gc-scale-in" id="aprons" data-rad-aprons>
+    <h2 class="section-title" style="margin-top:0;">{{ t('radsafe.aprons') }}</h2>
+    <form method="post" action="{{ url_for('imaging.safety_apron') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;"><label for="p_apron">{{ t('radsafe.apron') }}</label><input class="input" id="p_apron" name="apron" maxlength="80" required></div>
+      <div class="form-row" style="margin:0;"><label for="p_on">{{ t('radsafe.checked_on') }}</label><input class="input" type="date" id="p_on" name="checked_on" max="{{ today.isoformat() }}" value="{{ today.isoformat() }}" required></div>
+      <div class="form-row" style="margin:0;"><label for="p_method">{{ t('radsafe.method') }}</label><input class="input" id="p_method" name="method" maxlength="120"></div>
+      <div class="form-row" style="margin:0;"><label for="p_res">{{ t('radsafe.result') }}</label>
+        <select class="input" id="p_res" name="result" required><option value=""></option>
+          {% for r in apron_results %}<option value="{{ r }}">{{ t('radsafe.apron_' ~ r) }}</option>{% endfor %}</select></div>
+      <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="p_action">{{ t('radsafe.action') }}</label><input class="input" id="p_action" name="action" placeholder="{{ t('radsafe.action_if_fail') }}"></div>
+      <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+    </form>
+    {% if aprons %}<table class="table" style="margin-top:10px;"><tbody>{% for p in aprons[:10] %}
+      <tr><td>{{ p.apron }}</td><td dir="ltr">{{ p.checked_on.isoformat() }}</td><td><span class="badge {{ 'badge--green' if p.result == 'pass' else 'badge--danger' }}">{{ t('radsafe.apron_' ~ p.result) }}</span></td><td dir="auto">{{ p.action or '' }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+  </div>
+</div>
+
+{# ---- the program's own figures --------------------------------------------- #}
+<form method="post" action="{{ url_for('imaging.safety_settings') }}" class="card gc-scale-in" id="program" data-rad-program>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin-top:0;">{{ t('radsafe.program') }}</h2>
+  <p class="hint" style="margin-top:0;">{{ t('radsafe.program_hint') }}</p>
+  <div class="form-row"><label for="s_level">{{ t('radsafe.level') }}</label>
+    <input class="input" id="s_level" name="badge_level" inputmode="decimal" dir="ltr" value="{{ level or '' }}" style="max-width:160px;"></div>
+  <div class="form-row"><label for="s_mri">{{ t('radsafe.mri_questions') }}</label>
+    <textarea class="input" id="s_mri" name="mri_questions" rows="6" dir="auto" placeholder="{{ t('radsafe.mri_questions_ph') }}">{{ questions|join('\n') }}</textarea></div>
+  <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+</form>
+{% endblock %}
