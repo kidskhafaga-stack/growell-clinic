@@ -70,6 +70,39 @@
   <span class="hint" style="margin:0;" data-total>{{ t('lab_import.showing', n=rows|length, total=total) }}</span>
 </form>
 
+{# **Two copies of one test** (`utils/investigation_merge`): suggested from
+   the names, merged only when somebody says which copy stays. Everything on
+   the other moves to it — orders, results, components, prices — and its name
+   stays searchable. #}
+{% if twins %}
+<div class="card gc-scale-in" id="twins" data-twins style="margin-bottom:14px;border-inline-start:4px solid #d97706;">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-files"></i> {{ t('merge.title', n=twins|length) }}</h2>
+  <p class="hint" style="margin-top:0;">{{ t('merge.hint') }}</p>
+  {% for p in twins %}
+  <form method="post" action="{{ url_for('labs.merge_tests') }}" data-twin="{{ p.a.id }}-{{ p.b.id }}"
+        style="display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:10px 0;border-top:1px solid var(--line);"
+        onsubmit="return confirm({{ t('merge.confirm')|tojson }});">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="a_id" value="{{ p.a.id }}"><input type="hidden" name="b_id" value="{{ p.b.id }}">
+    <span class="hint" style="margin:0;">{{ t('merge.keep') }}</span>
+    {% for row, u in ((p.a, p.ua), (p.b, p.ub)) %}
+    <label class="twin-pick">
+      <input type="radio" name="keep_id" value="{{ row.id }}" {{ 'checked' if row.id == p.keep.id else '' }}>
+      <span><b><bdi>{{ row.name_ar }}</bdi></b>{% if row.code %} <span class="badge badge--muted" dir="ltr">{{ row.code }}</span>{% endif %}<br>
+        <span class="hint" style="margin:0;">{{ t('merge.usage', orders=u.orders, rx=u.rx) }}</span></span></label>
+    {% endfor %}
+    <button class="btn btn-sm btn-outline gc-press" type="submit"><i class="bi bi-intersect"></i> {{ t('merge.do') }}</button>
+  </form>
+  {% endfor %}
+</div>
+<style>
+  .twin-pick { display:inline-flex; gap:6px; align-items:center; margin:0; padding:6px 10px;
+               border:1px solid var(--line); border-radius:10px; cursor:pointer; }
+  .twin-pick:has(input:checked) { border-color:var(--green-600); background:var(--green-050); }
+  .twin-pick:focus-within { outline:2px solid var(--green-600); outline-offset:1px; }
+</style>
+{% endif %}
+
 {# Folded until it is wanted — the list is what this page is for; open
    on its own when there is no list yet. #}
 <details class="card gc-scale-in tc-add" style="margin-bottom:14px;" data-add-box{{ ' open' if not rows and not q else '' }}>

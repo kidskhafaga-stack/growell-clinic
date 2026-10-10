@@ -112,10 +112,23 @@ def page(kind):
         # The lab's own: what the laboratory told us of each test, and
         # where a test is sent out. Its policy is on `labs.settings`.
         reference=lab._reference_state(rows) if is_lab else {},
+        # Two copies of one test, suggested — merged only when somebody says
+        # which stays (`utils/investigation_merge`).
+        twins=_twins(kind) if is_lab and not q and page_no == 1 else [],
         referral_labs=lab._sendout().laboratories() if is_lab else [],
         devices=lab._devices() if kind == "diagnostic" else [],
         modalities=rad.MODALITIES, dose_measures=rad.measures(),
         radiation_base=rad.base_unit)
+
+
+def _twins(kind):
+    from app.utils import investigation_merge as im
+
+    out = []
+    for a, b in im.twins(kind):
+        out.append({"a": a, "b": b, "ua": im.usage(a), "ub": im.usage(b),
+                    "keep": im.suggested_keep(a, b)})
+    return out
 
 
 # =================================================================== add ==
