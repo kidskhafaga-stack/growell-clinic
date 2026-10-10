@@ -263,7 +263,9 @@
 </div>
 
 {# ---- the answer -------------------------------------------------------- #}
-{% if lines %}
+{% if culture_mode %}
+{% include "labs/_culture.html" %}
+{% elif lines %}
 {# **Line by line**, as the laboratory's report prints it. Each value is read
    against this child's range — age on the day the sample was drawn, and sex
    — and only an approved range calls one high or low. #}

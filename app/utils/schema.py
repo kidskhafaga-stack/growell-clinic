@@ -963,6 +963,8 @@ ADDITIONS = [
     ("lab_result_values", "calculated", "BOOLEAN"),
     # The order the laboratory's reflex rule wrote (`utils/lab_reflex`).
     ("visit_investigations", "reflex_of", "INTEGER"),
+    # A culture, answered with what grew (`models/micro`) — the lab's tick.
+    ("investigations", "is_culture", "BOOLEAN"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

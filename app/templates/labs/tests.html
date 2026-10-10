@@ -195,6 +195,7 @@
         <i class="bi bi-cash"></i> {{ ns.price.get(row.service_id) or t('lab_stock.not_charged') }}</span>
       {% if not row.is_active %}<span class="badge badge--muted" data-stopped>{{ t('lab.stopped_short') }}</span>{% endif %}
       {% if row.in_house is false %}<span class="badge badge--warn" data-sent-out>{{ t('lab.sent_out_short') }}</span>{% endif %}
+      {% if row.is_culture %}<span class="badge badge--muted" data-culture-chip><i class="bi bi-virus2"></i> {{ t('micro.culture') }}</span>{% endif %}
     </span>
     {% if row.kind == 'lab' %}
     <a class="tc-ref" data-ref-line="{{ row.id }}" href="{{ url_for('labs.test_ranges', test_id=row.id) }}">
@@ -294,6 +295,10 @@
       <input type="checkbox" name="in_house" value="1" data-in-house
              {{ 'checked' if row.in_house is not false else '' }}>
       {{ t('lab.in_house') }}</label>
+    {% if row.kind == 'lab' %}
+    <label class="hint" style="min-width:110px;" title="{{ t('micro.is_culture_hint') }}">
+      <input type="checkbox" name="is_culture" value="1" data-is-culture {{ 'checked' if row.is_culture else '' }}> {{ t('micro.culture') }}</label>
+    {% endif %}
     {# Drawn here and sent by the lab to its referral laboratory (DAS.13). #}
     {% if row.kind == 'lab' and referral_labs %}
     <div class="form-row" style="margin-bottom:0;min-width:160px;" data-referral-lab>

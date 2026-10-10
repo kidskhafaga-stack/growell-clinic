@@ -27,6 +27,7 @@
     {{ door('poct', 'labs.poct', 'phone', t('lab_poct.title'), 'data-to-poct', s.poct_attention, 'data-poct-attention') }}
     {{ door('rejections', 'labs.rejections', 'x-octagon', t('lab_reception.register_title'), 'data-to-rejections') }}
     {{ door('turnaround', 'labs.turnaround', 'stopwatch', t('lab_tat.title'), 'data-to-turnaround') }}
+    {{ door('antibiogram', 'labs.antibiogram', 'grid-3x3', t('micro.antibiogram'), 'data-to-antibiogram') }}
     </span>
   </div>
   <div class="lab-group" data-lab-group="running">
@@ -44,6 +45,7 @@
     <span class="lab-group__doors">
     {{ door('tests', 'labs.tests', 'list-check', t('lab.tests'), 'data-to-tests') }}
     {{ door('settings', 'labs.settings', 'sliders', t('lab_settings.title'), 'data-to-lab-settings') }}
+    {{ door('micro', 'labs.micro_lists', 'virus2', t('micro.lists_title'), 'data-to-micro') }}
     </span>
   </div>
   {% endif %}
