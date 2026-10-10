@@ -7,7 +7,7 @@
 {# GAHAR QPI.10 — anybody signed in reports; nobody is asked who made a
    mistake. With «من غير اسم» the reporter is not stored at all. #}
 <div class="gc-animate" style="margin-bottom:14px;">
-  <h1 class="page-title"><i class="bi bi-exclamation-triangle"></i> {{ t('incident.report_title') }}</h1>
+  <h1 class="page-title"><i class="bi bi-flag"></i> {{ t('incident.report_title') }}</h1>
   <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('incident.report_sub') }}</p>
 </div>
 <form method="post" action="{{ url_for('incidents.report') }}" class="card gc-scale-in" style="display:grid;gap:10px;max-width:820px;" data-incident-form>

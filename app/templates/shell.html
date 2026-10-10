@@ -167,7 +167,10 @@
          screen; the board is for whoever reviews them. #}
       <a class="nav-item gc-press {{ 'active' if active_module == 'incident_report' else '' }}"
          href="{{ url_for('incidents.report') }}" data-nav-incident-report>
-        <i class="bi bi-exclamation-triangle"></i>
+        {# A flag, not the warning triangle: that one means «look at this»
+           on the screens it is on, and a triangle on every page's menu
+           would be one more on every one of them. #}
+        <i class="bi bi-flag"></i>
         <span>{{ t('incident.nav_report') }}</span>
         <span class="nav-tip">{{ t('incident.nav_report') }}</span>
       </a>
