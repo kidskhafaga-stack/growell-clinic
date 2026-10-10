@@ -54,6 +54,14 @@ class LabAnalyte(db.Model):
     # Other names the same analyte goes by — «Hb; HGB» — separated by «;».
     aliases = db.Column(db.String(400))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    #: **The delta check** (`utils/lab_delta`): a result further than this
+    #: from the child's previous one — in the analyte's unit, or as a
+    #: percentage of the previous — is flagged for a second look, if the
+    #: previous is no older than ``delta_days``. The laboratory's figures;
+    #: all empty, nothing is compared.
+    delta_abs = db.Column(db.Float)
+    delta_pct = db.Column(db.Float)
+    delta_days = db.Column(db.Integer)
 
     ranges = db.relationship("LabRange", back_populates="analyte",
                              cascade="all, delete-orphan",
@@ -199,6 +207,11 @@ class LabResultValue(db.Model):
     ref_note = db.Column(db.String(255))
 
     flag = db.Column(db.String(14))
+    #: What the delta check compared this with, copied at the moment the
+    #: value was written — like the range — and whether it moved too far.
+    delta_prev = db.Column(db.Float)
+    delta_prev_at = db.Column(db.DateTime)
+    delta_hit = db.Column(db.Boolean)
 
     entered_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     entered_by = db.Column(db.Integer, db.ForeignKey("users.id"))

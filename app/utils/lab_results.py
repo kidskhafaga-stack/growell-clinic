@@ -206,6 +206,11 @@ def save(order, entries, user=None, text=None, at=None):
         rng = line["approved"] or line["draft"]
         _snapshot(row, rng)
         row.flag = judge(number, line["approved"])
+        # Against the child's own last value — said, never blocking
+        # (`utils/lab_delta`).
+        if changed:
+            from app.utils import lab_delta
+            lab_delta.check(row, order, at=now)
         if changed:
             row.entered_at = now
             row.entered_by = getattr(user, "id", None)

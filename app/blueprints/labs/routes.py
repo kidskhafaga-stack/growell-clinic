@@ -1687,6 +1687,24 @@ def add_range(test_id, analyte_id):
     return _hand(test_id, work, "lab_hand.range_added")
 
 
+@labs_bp.route("/tests/<int:test_id>/analytes/<int:analyte_id>/delta",
+               methods=["POST"])
+@module_required(MODULE)
+def analyte_delta(test_id, analyte_id):
+    """The laboratory's «too far from last time» for one analyte."""
+    from app.models import LabAnalyte
+    from app.utils import lab_delta
+
+    def work(row, hand):
+        if analyte_id not in {link.analyte_id for link in row.analyte_links}:
+            abort(404)
+        try:
+            lab_delta.set_limits(db.get_or_404(LabAnalyte, analyte_id), request.form)
+        except ValueError:
+            raise hand.Refused("lab_delta.bad_number") from None
+    return _hand(test_id, work, "lab_delta.saved")
+
+
 @labs_bp.route("/tests/<int:test_id>/ranges/<int:range_id>", methods=["POST"])
 @module_required(MODULE)
 def correct_range(test_id, range_id):

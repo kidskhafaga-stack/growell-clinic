@@ -944,6 +944,17 @@ ADDITIONS = [
     # department, and why. Empty on every attendance already open or closed.
     ("emergency_visits", "from_visit_id", "INTEGER"),
     ("emergency_visits", "sent_reason", "TEXT"),
+    # **The delta check** — how far a result may move from the child's last
+    # one before somebody looks twice (`utils/lab_delta`). The laboratory's
+    # own figures; empty, nothing is compared — an upgraded clinic sees no
+    # flag until it writes one.
+    ("lab_analytes", "delta_abs", "FLOAT"),
+    ("lab_analytes", "delta_pct", "FLOAT"),
+    ("lab_analytes", "delta_days", "INTEGER"),
+    # What the result was compared with, kept on it like its range is.
+    ("lab_result_values", "delta_prev", "FLOAT"),
+    ("lab_result_values", "delta_prev_at", "DATETIME"),
+    ("lab_result_values", "delta_hit", "BOOLEAN"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

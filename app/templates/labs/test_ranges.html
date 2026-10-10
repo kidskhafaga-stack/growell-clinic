@@ -298,6 +298,24 @@
       <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('common.add') }}</button>
     </form>
   </details>
+  {# **The delta check** — the laboratory's figures for «too far from last
+     time»; empty, nothing is compared (`utils/lab_delta`). #}
+  <details class="rng-hand" style="margin-top:6px;" data-delta-box="{{ a.id }}"{{ ' open' if a.delta_abs or a.delta_pct else '' }}>
+    <summary><i class="bi bi-arrow-left-right"></i> {{ t('lab_delta.title') }}
+      {% if a.delta_abs or a.delta_pct %}<span class="badge badge--muted" data-delta-on>{{ t('lab_delta.on') }}</span>{% endif %}</summary>
+    <form method="post" action="{{ url_for('labs.analyte_delta', test_id=test.id, analyte_id=a.id) }}"
+          style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;min-width:130px;"><label>{{ t('lab_delta.abs', unit=a.unit or '') }}</label>
+        <input class="input" name="delta_abs" dir="ltr" inputmode="decimal" value="{{ a.delta_abs if a.delta_abs is not none else '' }}"></div>
+      <div class="form-row" style="margin:0;min-width:110px;"><label>{{ t('lab_delta.pct') }}</label>
+        <input class="input" name="delta_pct" dir="ltr" inputmode="decimal" value="{{ a.delta_pct if a.delta_pct is not none else '' }}"></div>
+      <div class="form-row" style="margin:0;min-width:110px;"><label>{{ t('lab_delta.days') }}</label>
+        <input class="input" name="delta_days" dir="ltr" inputmode="numeric" value="{{ a.delta_days if a.delta_days is not none else '' }}"></div>
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+      <p class="hint" style="margin:0;flex-basis:100%;">{{ t('lab_delta.explain') }}</p>
+    </form>
+  </details>
 </div>
 {% endfor %}
 {% endblock %}

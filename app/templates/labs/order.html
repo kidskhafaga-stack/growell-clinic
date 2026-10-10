@@ -301,7 +301,8 @@
           <td><input class="input" id="a_{{ a.id }}" name="a_{{ a.id }}" dir="ltr" maxlength="120"
                      inputmode="decimal" autocomplete="off"
                      value="{{ v.shown() if v else '' }}">
-            {% if v and v.flag %}<div style="margin-top:4px;">{{ lv.flag_badge(v.flag) }}</div>{% endif %}</td>
+            {% if v and v.flag %}<div style="margin-top:4px;">{{ lv.flag_badge(v.flag) }}</div>{% endif %}
+            {% if v and v.delta_hit %}<div style="margin-top:4px;">{{ lv.delta_badge(v) }}</div>{% endif %}</td>
           <td dir="ltr" class="hint" style="margin:0;">{{ line.unit or '' }}</td>
           <td dir="ltr" class="hint" style="margin:0;" data-ref="{{ 'approved' if line.approved else ('draft' if line.draft else 'none') }}">
             {% if rng %}

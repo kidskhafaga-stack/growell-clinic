@@ -11588,5 +11588,17 @@
     "err_same": "That is the same test.",
     "err_kinds": "A test cannot be merged into a scan or a study.",
     "err_missing": "Choose which of the two stays."
+  },
+  "lab_delta": {
+    "title": "Compare with the last result",
+    "on": "On",
+    "abs": "A difference over ({unit})",
+    "pct": "or over %",
+    "days": "if the last is within (days)",
+    "explain": "The lab's own figures. A result further than this from the child's last one of the same component is marked for review — it may be another child's sample. Nothing is blocked; empty boxes mean no comparison.",
+    "badge": "Far from the last result ({prev} — {when})",
+    "hint": "This is far from the child's last result of the same component — look again before releasing: redraw, confirm the name, or call.",
+    "saved": "Comparison figures saved",
+    "bad_number": "Write a number above zero, or leave the box empty."
   }
 }

@@ -12,6 +12,15 @@
   {%- endif -%}
 {%- endmacro %}
 
+{# **Far from the child's last one** (`utils/lab_delta`): said beside the
+   value with what it was compared with — for a second look, never a block. #}
+{% macro delta_badge(v) -%}
+  {%- if v and v.delta_hit -%}
+  <span class="badge badge--warn" data-delta-hit="{{ v.id }}" title="{{ t('lab_delta.hint') }}"><i class="bi bi-arrow-left-right"></i>
+    {{ t('lab_delta.badge', prev='%g'|format(v.delta_prev), when=v.delta_prev_at|clinic_stamp if v.delta_prev_at else '—') }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
 {% macro flag_badge(flag) -%}
   {%- if flag in ('critical_low', 'critical_high') -%}
   <span class="badge badge--danger" data-flag="{{ flag }}"><i class="bi bi-exclamation-octagon"></i> {{ t('lab_result.flag_' ~ flag) }}</span>
@@ -51,7 +60,7 @@
       {# The flag beside the value, not in a column of its own that a phone
          scrolls out of sight. #}
       <td><span dir="ltr"><strong>{{ v.shown() }}</strong>{% if v.unit %} <span class="hint" style="margin:0;">{{ v.unit }}</span>{% endif %}</span>
-        {% if v.flag %} {{ flag_badge(v.flag) }}{% endif %}</td>
+        {% if v.flag %} {{ flag_badge(v.flag) }}{% endif %}{% if v.delta_hit %} {{ delta_badge(v) }}{% endif %}</td>
       <td dir="ltr" class="hint" style="margin:0;">
         {% set r = ref(v) %}{% if r|trim %}{{ r }}{% if not v.range_approved %} <span class="badge badge--muted" dir="auto">{{ t('lab_import.draft_badge') }}</span>{% endif %}{% else %}—{% endif %}
       </td>
