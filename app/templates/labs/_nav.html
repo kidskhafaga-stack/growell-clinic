@@ -1,0 +1,71 @@
+{# **The lab's own bar** — every door of the lab, grouped, on every lab page
+   (`blueprints/labs/nav.py`). ``active`` names the page it is drawn on. A
+   count that needs somebody on it is red, wherever the bar is open; the
+   ``data-to-*`` and badge attributes are the ones the rack always carried. #}
+{% macro lab_nav(active) %}
+{% set s = lab_nav_state() %}
+{% macro door(key, endpoint, icon, label, data, count=0, count_attr='', tone='danger') %}
+  <a class="lab-door{{ ' on' if key == active else '' }}{{ ' hot' if count else '' }}" {{ data }}
+     href="{{ url_for(endpoint) }}"{% if key == active %} aria-current="page"{% endif %}>
+    <i class="bi bi-{{ icon }}"></i> {{ label }}
+    {% if count %}<span class="badge badge--{{ tone }}"{% if count_attr %} {{ count_attr }}{% endif %}>{{ count }}</span>{% endif %}</a>
+{% endmacro %}
+<nav class="lab-nav gc-animate" data-lab-nav aria-label="{{ t('lab_nav.aria') }}">
+  <div class="lab-group" data-lab-group="work">
+    <span class="lab-group__name">{{ t('lab_nav.work') }}</span>
+    <span class="lab-group__doors">
+    {{ door('rack', 'labs.index', 'list-ul', t('lab.the_rack'), 'data-to-rack') }}
+    {% if s.release_on %}{{ door('verify', 'labs.to_verify', 'patch-check', t('lab_release.to_verify'), 'data-to-verify', s.to_release, '', 'warn') }}{% endif %}
+    {% if s.sent_labs %}{{ door('send_out', 'labs.send_out', 'truck', t('lab_sendout.title'), 'data-to-send-out') }}{% endif %}
+    {{ door('critical', 'labs.critical', 'exclamation-octagon', t('lab_result.critical_title'), 'data-to-critical', s.critical_open) }}
+    </span>
+  </div>
+  <div class="lab-group" data-lab-group="quality">
+    <span class="lab-group__name">{{ t('lab_nav.quality') }}</span>
+    <span class="lab-group__doors">
+    {{ door('quality', 'labs.quality', 'graph-up', t('lab_quality.title'), 'data-to-quality', s.qc_failures, 'data-qc-failures') }}
+    {{ door('poct', 'labs.poct', 'phone', t('lab_poct.title'), 'data-to-poct', s.poct_attention, 'data-poct-attention') }}
+    {{ door('rejections', 'labs.rejections', 'x-octagon', t('lab_reception.register_title'), 'data-to-rejections') }}
+    {{ door('turnaround', 'labs.turnaround', 'stopwatch', t('lab_tat.title'), 'data-to-turnaround') }}
+    </span>
+  </div>
+  <div class="lab-group" data-lab-group="running">
+    <span class="lab-group__name">{{ t('lab_nav.running') }}</span>
+    <span class="lab-group__doors">
+    {{ door('reagents', 'labs.reagents', 'box2', t('lab_reagents.title'), 'data-to-reagents', s.expired_lots, 'data-expired-lots') }}
+    {{ door('storage', 'labs.storage', 'inboxes', t('lab_storage.title'), 'data-to-storage') }}
+    {{ door('documents', 'labs.documents', 'journal-check', t('lab_docs.title'), 'data-to-documents') }}
+    {{ door('staff', 'labs.staff', 'person-badge', t('lab_comp.title'), 'data-to-staff', s.staff_attention, 'data-staff-attention', 'warn') }}
+    </span>
+  </div>
+  {% if s.may_build %}
+  <div class="lab-group" data-lab-group="setup">
+    <span class="lab-group__name">{{ t('lab_nav.setup') }}</span>
+    <span class="lab-group__doors">
+    {{ door('tests', 'labs.tests', 'list-check', t('lab.tests'), 'data-to-tests') }}
+    {{ door('settings', 'labs.settings', 'sliders', t('lab_settings.title'), 'data-to-lab-settings') }}
+    </span>
+  </div>
+  {% endif %}
+</nav>
+<style>
+  /* A line per group, its name in one column, so the four read as four
+     and a wrapped door never lands under the wrong name. */
+  .lab-nav { display:grid; grid-template-columns:max-content 1fr; gap:4px 14px; align-items:center;
+             margin:0 0 16px; padding:10px 14px; border:1px solid var(--line); border-radius:12px;
+             background:var(--card); }
+  .lab-group { display:contents; }
+  .lab-group__name { font-size:.74rem; font-weight:700; color:var(--muted, #6b7280); white-space:nowrap; }
+  .lab-group__doors { display:flex; flex-wrap:wrap; gap:2px 4px; align-items:center; }
+  .lab-door { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:8px;
+              font-size:.86rem; color:inherit; text-decoration:none; white-space:nowrap; }
+  .lab-door:hover { background:var(--green-050); }
+  .lab-door:focus-visible { outline:2px solid var(--green-600); outline-offset:1px; }
+  .lab-door.on { background:var(--green-600); color:#fff; font-weight:600; }
+  .lab-door.hot:not(.on) { color:var(--danger); }
+  @media (max-width: 640px) {
+    .lab-nav { grid-template-columns:1fr; }
+    .lab-group__name { margin-top:6px; }
+  }
+</style>
+{% endmacro %}

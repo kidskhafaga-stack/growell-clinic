@@ -46,62 +46,14 @@
     {% if urgent_open %}
     <span class="badge badge--danger" data-urgent-open><i class="bi bi-lightning-charge"></i> {{ t('lab_reception.urgent_n', n=urgent_open) }}</span>
     {% endif %}
-    {% if to_release %}
-    <a class="btn btn-outline gc-press" data-to-verify href="{{ url_for('labs.to_verify') }}">
-      <i class="bi bi-patch-check"></i> {{ t('lab_release.to_verify') }} <span class="badge badge--warn">{{ to_release }}</span></a>
-    {% endif %}
-    {# Samples for a referral laboratory (GAHAR DAS.13). Always here once the
-       lab has one, so an empty list is seen to be empty. #}
-    {% if sent_labs %}
-    <a class="btn btn-outline gc-press" data-to-send-out href="{{ url_for('labs.send_out') }}">
-      <i class="bi bi-truck"></i> {{ t('lab_sendout.title') }}</a>
-    {% endif %}
-    {# Reagent lots — and an expired one still on the shelf said in red
-       until somebody takes it off (GAHAR DAS.12 ج). #}
-    <a class="btn btn-outline gc-press{{ ' lb-critical' if expired_lots else '' }}" data-to-reagents href="{{ url_for('labs.reagents') }}">
-      <i class="bi bi-box2"></i> {{ t('lab_reagents.title') }}
-      {% if expired_lots %}<span class="badge badge--danger" data-expired-lots>{{ expired_lots }}</span>{% endif %}</a>
-    {# Quality control (GAHAR DAS.18/19) — a failed control with no action
-       written is said in red. #}
-    <a class="btn btn-outline gc-press{{ ' lb-critical' if qc_failures else '' }}" data-to-quality href="{{ url_for('labs.quality') }}">
-      <i class="bi bi-graph-up"></i> {{ t('lab_quality.title') }}
-      {% if qc_failures %}<span class="badge badge--danger" data-qc-failures>{{ qc_failures }}</span>{% endif %}</a>
-    {# Point-of-care devices (GAHAR DAS.24) — a failed or overdue control in red. #}
-    <a class="btn btn-outline gc-press{{ ' lb-critical' if poct_attention else '' }}" data-to-poct href="{{ url_for('labs.poct') }}">
-      <i class="bi bi-phone"></i> {{ t('lab_poct.title') }}
-      {% if poct_attention %}<span class="badge badge--danger" data-poct-attention>{{ poct_attention }}</span>{% endif %}</a>
-    <a class="btn btn-outline gc-press" data-to-turnaround href="{{ url_for('labs.turnaround') }}">
-      <i class="bi bi-stopwatch"></i> {{ t('lab_tat.title') }}</a>
-    {# Each test's written procedure and verification (GAHAR DAS.16 / 17). #}
-    <a class="btn btn-outline gc-press" data-to-documents href="{{ url_for('labs.documents') }}">
-      <i class="bi bi-journal-check"></i> {{ t('lab_docs.title') }}</a>
-    {# Who is competent for which section (GAHAR DAS.11) — nobody assessed,
-       past the date or not competent, once the lab keeps the files. #}
-    <a class="btn btn-outline gc-press" data-to-staff href="{{ url_for('labs.staff') }}">
-      <i class="bi bi-person-badge"></i> {{ t('lab_comp.title') }}
-      {% if staff_attention %}<span class="badge badge--warn" data-staff-attention>{{ staff_attention }}</span>{% endif %}</a>
-    {# Where the tubes are kept after their result (GAHAR DAS.20). #}
-    <a class="btn btn-outline gc-press" data-to-storage href="{{ url_for('labs.storage') }}">
-      <i class="bi bi-inboxes"></i> {{ t('lab_storage.title') }}</a>
-    {# The refused tubes, a register of their own (GAHAR DAS.15). #}
-    <a class="btn btn-outline gc-press" data-to-rejections href="{{ url_for('labs.rejections') }}">
-      <i class="bi bi-x-octagon"></i> {{ t('lab_reception.register_title') }}</a>
-    {# Critical values nobody has read yet: the one list the lab chases by
-       telephone. Always here, so an empty one is seen to be empty. #}
-    <a class="btn btn-outline gc-press{{ ' lb-critical' if critical_open else '' }}"
-       data-to-critical href="{{ url_for('labs.critical') }}">
-      <i class="bi bi-exclamation-octagon"></i> {{ t('lab_result.critical_title') }}
-      {% if critical_open %}<span class="badge badge--danger">{{ critical_open }}</span>{% endif %}</a>
-    {# No door to radiology or to the device studies here. «وليه فى شورت كات
-       للاشعات؟ … الفني هيحتار» — the lab technician's screen is the lab's;
-       each of those rooms has its own entry in the menu, for the people who
-       work there. #}
-    {% if may_build %}
-    <a class="btn btn-outline gc-press" href="{{ url_for('labs.tests') }}">
-      <i class="bi bi-list-check"></i> {{ t('lab.tests') }}</a>
-    {% endif %}
+    {# Every other door of the lab is on the lab's own bar below, grouped
+       (`labs/_nav.html`) — not eleven buttons in one block. No door to
+       radiology or the device studies: «الفني هيحتار». #}
   </div>
 </div>
+
+{% from "labs/_nav.html" import lab_nav with context %}
+{{ lab_nav('rack') }}
 
 {# **Scan to open.** A barcode reader types the tube's code and presses
    Enter; this box is focused on arrival so the bench scans without touching
@@ -140,7 +92,9 @@
         · <span class="badge badge--muted" data-lab-bed><i class="bi bi-hospital"></i> {{ beds[row.patient_id] }}</span>{% endif %}
         {% if row.investigation and row.investigation.sample_type %}
         · {{ row.investigation.sample_type }}{% endif %}
-        {% if row.request_notes %} · {{ row.request_notes }}{% endif %}
+        {# The doctor's own word on the order — marked as theirs, not read as
+           part of the child's name. #}
+        {% if row.request_notes %} · <span data-request-note title="{{ t('lab.request_note') }}"><i class="bi bi-chat-left-text"></i> {{ row.request_notes }}</span>{% endif %}
       </div>
     </div>
 

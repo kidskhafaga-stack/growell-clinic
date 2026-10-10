@@ -12,7 +12,6 @@
     <h1 class="page-title"><i class="bi bi-box2"></i> {{ t('lab_reagents.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('lab_reagents.sub', n=warn_days) }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}"><i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
 </div>
 
 <form method="post" action="{{ url_for('labs.reagent_receive') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;" data-receive-lot>
@@ -58,6 +57,8 @@
   </table>
   {% endif %}
 </div>
+{% from "labs/_nav.html" import lab_nav with context %}
+{{ lab_nav('reagents') }}
 
 <div class="card gc-scale-in" style="margin-bottom:14px;" data-low-items>
   <h2 class="section-title" style="margin-top:0;">{{ t('lab_reagents.low') }}</h2>

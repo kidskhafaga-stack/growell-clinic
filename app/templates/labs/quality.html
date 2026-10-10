@@ -13,9 +13,10 @@
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <a class="btn btn-outline gc-press" data-to-eqa href="{{ url_for('labs.eqa') }}"><i class="bi bi-globe"></i> {{ t('lab_quality.eqa_title') }}</a>
-    <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}"><i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
   </div>
 </div>
+{% from "labs/_nav.html" import lab_nav with context %}
+{{ lab_nav('quality') }}
 
 {% if open_failures %}<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--danger);"><p style="margin:0;" data-open-failures>{{ t('lab_quality.open_failures', n=open_failures) }}</p></div>{% endif %}
 

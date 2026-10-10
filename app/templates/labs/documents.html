@@ -14,9 +14,10 @@
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <a class="btn btn-outline gc-press" href="{{ url_for('labs.manual') }}" data-to-manual><i class="bi bi-book"></i> {{ t('lab_docs.manual_title') }}</a>
-    <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}"><i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
   </div>
 </div>
+{% from "labs/_nav.html" import lab_nav with context %}
+{{ lab_nav('documents') }}
 
 <div class="card gc-scale-in" style="overflow-x:auto;" data-doc-overview>
   {% if not rows %}<p class="hint" style="margin:0;">{{ t('lab_docs.no_tests') }}</p>{% else %}

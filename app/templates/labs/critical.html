@@ -11,8 +11,6 @@
     <p class="page-sub" style="margin:0;">{{ t('lab_result.critical_sub') }}</p>
   </div>
   <a class="btn btn-outline gc-press" data-to-critical-report href="{{ url_for('labs.critical_report') }}"><i class="bi bi-journal-text"></i> {{ t('lab_critical.report_title') }}</a>
-  <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}">
-    <i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
 </div>
 
 {% if not rows %}
@@ -59,5 +57,7 @@
   {% else %}<p style="margin:0;white-space:pre-line;" dir="auto">{% if row.result_value is not none %}<strong dir="ltr">{{ '%g'|format(row.result_value) }} {{ row.result_unit or '' }}</strong> {% endif %}{{ row.result_comment or row.result_text or '' }}</p>{% endif %}
   {% if row.critical_manual %}<p class="hint" style="margin:6px 0 0;" dir="auto">{{ row.critical_manual }}</p>{% endif %}
 </div>
+{% from "labs/_nav.html" import lab_nav with context %}
+{{ lab_nav('critical') }}
 {% endfor %}
 {% endblock %}

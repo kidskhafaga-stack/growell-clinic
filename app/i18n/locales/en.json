@@ -6979,7 +6979,10 @@
     "test_added_imaging": "Scan added",
     "test_added_diagnostic": "Study added",
     "no_tests_imaging": "No scans on the list yet",
-    "no_tests_diagnostic": "No diagnostic studies on the list yet"
+    "no_tests_diagnostic": "No diagnostic studies on the list yet",
+    "stopped_short": "Stopped",
+    "sent_out_short": "Sent out",
+    "request_note": "The doctor's note on the order"
   },
   "pharm": {
     "sub": "The queue: who is waiting, and what for",
@@ -9462,7 +9465,9 @@
     "tat_stat": "Urgent",
     "preparation": "Preparation",
     "template": "Empty template",
-    "done_money": "{priced} tests took their price from the sheet · {unmatched} consumables are not in the store (left out — add them to the store first)."
+    "done_money": "{priced} tests took their price from the sheet · {unmatched} consumables are not in the store (left out — add them to the store first).",
+    "search_ph_imaging": "Scan name — chest X-ray, CT, MRI…",
+    "search_ph_diagnostic": "Study name — echo, ECG, ultrasound…"
   },
   "lab_result": {
     "critical_saved": "{n} critical value(s) saved — the child's responsible doctor and the doctor on shift have been alerted. Phone the doctor as well.",
@@ -11528,5 +11533,16 @@
     "err_missing_family": "Harm to a patient — write how the family was told.",
     "err_missing_rca": "A sentinel event needs the root cause analysis.",
     "err_missing_external": "A sentinel event — write the external report."
+  },
+  "lab_nav": {
+    "aria": "Laboratory sections",
+    "work": "Today's work",
+    "quality": "Quality",
+    "running": "Running the lab",
+    "setup": "Set-up"
+  },
+  "lab_settings": {
+    "title": "Laboratory settings",
+    "sub": "The lab's store, result release, why a sample is refused, and the laboratories it sends to — the lab's policy, set once."
   }
 }

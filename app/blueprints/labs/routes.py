@@ -382,6 +382,19 @@ def to_verify():
                            beds=bench.beds_of(lab_release.waiting()))
 
 
+@labs_bp.route("/settings")
+@module_required(MODULE)
+def settings():
+    """The lab's policy, set once: the store its strips come from, whether a
+    result waits for release, why a tube is turned away, and where samples
+    are sent — off the tests list, where it stood above the list itself."""
+    _admin_only()
+    return render_template("labs/settings.html",
+                           warehouses=_warehouses(), lab_store=_lab_store(),
+                           release_required=_release().required(),
+                           reject_reasons=_reception().reasons())
+
+
 @labs_bp.route("/verify-setting", methods=["POST"])
 @module_required(MODULE)
 def verify_setting():
@@ -397,7 +410,7 @@ def verify_setting():
                        detail="on" if on else "off")
     db.session.commit()
     flash(t("lab_release.setting_saved"), "success")
-    return redirect(url_for("labs.tests") + "#verify-setting")
+    return redirect(url_for("labs.settings") + "#verify-setting")
 
 
 @labs_bp.route("/report")
@@ -1033,10 +1046,10 @@ def reject_reason_add():
     except lab_reception.ReceptionError as err:
         db.session.rollback()
         flash(t(f"lab_reception.err_{err}"), "error")
-        return redirect(url_for("labs.tests") + "#reject-reasons")
+        return redirect(url_for("labs.settings") + "#reject-reasons")
     db.session.commit()
     flash(t("lab_reception.reason_added"), "success")
-    return redirect(url_for("labs.tests") + "#reject-reasons")
+    return redirect(url_for("labs.settings") + "#reject-reasons")
 
 
 @labs_bp.route("/reject-reasons/<int:reason_id>/retire", methods=["POST"])
@@ -1054,7 +1067,7 @@ def reject_reason_retire(reason_id):
         abort(404)
     db.session.commit()
     flash(t("lab_reception.reason_retired"), "success")
-    return redirect(url_for("labs.tests") + "#reject-reasons")
+    return redirect(url_for("labs.settings") + "#reject-reasons")
 
 
 @labs_bp.route("/order/<int:order_id>/result", methods=["POST"])
@@ -1777,7 +1790,7 @@ def lab_store():
     lab_stock.set_store(request.form.get("warehouse_id", type=int))
     db.session.commit()
     flash(t("lab_stock.store_saved"), "success")
-    return redirect(url_for("labs.tests"))
+    return redirect(url_for("labs.settings"))
 
 
 @labs_bp.route("/tests/add", methods=["POST"])

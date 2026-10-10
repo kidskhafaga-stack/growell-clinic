@@ -154,5 +154,5 @@ def test_only_whoever_builds_the_lists_switches_release_on(lab):
     lab["sign_in"]("doc").post("/labs/verify-setting", data={"required": "1"})
     with lab["app"].app_context():
         assert lab_release.required() is False
-    page = lab["sign_in"]("boss").get("/labs/tests").get_data(as_text=True)
+    page = lab["sign_in"]("boss").get("/labs/settings").get_data(as_text=True)
     assert "data-verify-setting" in page

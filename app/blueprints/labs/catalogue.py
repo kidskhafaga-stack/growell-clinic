@@ -29,15 +29,12 @@ from app.models.prescription import INVESTIGATION_KINDS
 
 #: ``module`` gates it, ``home`` is the room's worklist, ``active`` the
 #: sidebar entry lit while it is open.
-Room = namedtuple("Room", "kind module list add edit home active")
+Room = namedtuple("Room", "kind module list home active")
 ROOMS = {
-    "lab": Room("lab", "labs", "labs.tests", "labs.add_test", "labs.edit_test",
-                "labs.index", "labs"),
-    "imaging": Room("imaging", "imaging", "imaging.catalogue_page", "imaging.catalogue_add",
-                    "imaging.catalogue_edit", "imaging.index", "imaging"),
-    "diagnostic": Room("diagnostic", "visits", "visits.study_catalogue",
-                       "visits.study_catalogue_add", "visits.study_catalogue_edit",
-                       "visits.device_board", "device_board"),
+    "lab": Room("lab", "labs", "labs.tests", "labs.index", "labs"),
+    "imaging": Room("imaging", "imaging", "imaging.catalogue_page", "imaging.index", "imaging"),
+    "diagnostic": Room("diagnostic", "visits", "visits.study_catalogue", "visits.device_board",
+                       "device_board"),
 }
 
 
@@ -112,13 +109,9 @@ def page(kind):
         pages=max(1, -(-total // lab.PAGE)), total=total,
         services=(Service.query.filter(Service.is_active.is_(True))
                   .order_by(Service.name).all()),
-        # The lab's own things — its sheet, its store, its release policy,
-        # why a tube is turned away, where it sends out — on the lab's page.
+        # The lab's own: what the laboratory told us of each test, and
+        # where a test is sent out. Its policy is on `labs.settings`.
         reference=lab._reference_state(rows) if is_lab else {},
-        warehouses=lab._warehouses() if is_lab else [],
-        lab_store=lab._lab_store() if is_lab else None,
-        reject_reasons=lab._reception().reasons() if is_lab else [],
-        release_required=lab._release().required() if is_lab else False,
         referral_labs=lab._sendout().laboratories() if is_lab else [],
         devices=lab._devices() if kind == "diagnostic" else [],
         modalities=rad.MODALITIES, dose_measures=rad.measures(),

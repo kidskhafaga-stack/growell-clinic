@@ -53,7 +53,11 @@ def test_the_scans_page_carries_nothing_of_the_lab(rooms):
                      "data-reject-reasons", "data-verify-setting", 'name="unit"'):
         assert lab_only not in scans, lab_only
     lab = boss.get("/labs/tests").get_data(as_text=True)
-    assert "data-lab-store" in lab and "data-lab-import" in lab
+    assert "data-lab-import" in lab and "data-to-lab-settings" in lab
+    # The lab's policy has a page of its own, off the list.
+    settings = boss.get("/labs/settings").get_data(as_text=True)
+    assert "data-lab-store" in settings and "data-reject-reasons" in settings
+    assert rooms["sign_in"]("doc").get("/labs/settings").status_code == 403
     # Each room's door to its own list.
     assert "/imaging/catalogue" in boss.get("/imaging/").get_data(as_text=True)
     assert "/visits/studies/catalogue" in boss.get("/visits/studies/board").get_data(as_text=True)
