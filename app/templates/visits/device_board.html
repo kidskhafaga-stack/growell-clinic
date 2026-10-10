@@ -21,9 +21,15 @@
   .db-book form { display:flex; gap:6px; flex-wrap:wrap; align-items:end; margin-top:6px; }
 </style>
 
-<div class="gc-animate" style="margin-bottom:16px;">
-  <h1 class="page-title"><i class="bi bi-activity"></i> {{ t('nav.diagnostics') }}</h1>
-  <p class="page-sub" style="margin:0;">{{ t('device_board.sub') }}</p>
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-activity"></i> {{ t('nav.diagnostics') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('device_board.sub') }}</p>
+  </div>
+  {# The studies' own list — beside their board, not on the lab's page. #}
+  {% if current_user.is_admin %}
+  <a class="btn btn-outline gc-press" data-to-catalogue href="{{ url_for('visits.study_catalogue') }}"><i class="bi bi-list-check"></i> {{ t('lab.tests_diagnostic') }}</a>
+  {% endif %}
 </div>
 
 {# A study with no order — the child in front of the echo now: file number,
@@ -68,10 +74,10 @@
   <ul class="hint" style="margin:0;padding-inline-start:18px;line-height:1.9;">
     <li>{{ t('device_board.how_orders_come') }}</li>
     {% if not defined %}<li data-none-defined style="color:#b45309;">{{ t('device_board.none_defined') }}
-      {% if current_user.is_admin %}<a href="{{ url_for('labs.tests', kind='diagnostic') }}">{{ t('lab.tests') }}</a>{% endif %}</li>
+      {% if current_user.is_admin %}<a href="{{ url_for('visits.study_catalogue') }}">{{ t('lab.tests_diagnostic') }}</a>{% endif %}</li>
     {% else %}<li>{{ t('device_board.defined_n', n=defined) }}</li>{% endif %}
     {% if elsewhere %}<li data-filed-elsewhere style="color:var(--danger);">{{ t('device_board.filed_elsewhere', n=elsewhere) }}
-      {% if current_user.is_admin %}<a href="{{ url_for('labs.tests', kind='imaging') }}">{{ t('lab.tests') }}</a>{% endif %}</li>{% endif %}
+      {% if current_user.is_admin and module_enabled('imaging') %}<a href="{{ url_for('imaging.catalogue_page') }}">{{ t('lab.tests_imaging') }}</a>{% endif %}</li>{% endif %}
     {% if not device_count %}<li>{{ t('device_board.no_devices') }}</li>{% endif %}
   </ul>
 </div>

@@ -2401,6 +2401,33 @@ def device_board():
                            **board.context())
 
 
+# The device studies' own list — names, prices, the device each is done on,
+# whether it is booked — beside their board, not on the lab's page
+# (`labs/catalogue.py`).
+@visits_bp.route("/studies/catalogue")
+@module_required(MODULE)
+def study_catalogue():
+    from app.blueprints.labs import catalogue
+
+    return catalogue.page("diagnostic")
+
+
+@visits_bp.route("/studies/catalogue/add", methods=["POST"])
+@module_required(MODULE)
+def study_catalogue_add():
+    from app.blueprints.labs import catalogue
+
+    return catalogue.add("diagnostic")
+
+
+@visits_bp.route("/studies/catalogue/<int:test_id>", methods=["POST"])
+@module_required(MODULE)
+def study_catalogue_edit(test_id):
+    from app.blueprints.labs import catalogue
+
+    return catalogue.edit(test_id, kind="diagnostic")
+
+
 @visits_bp.route("/studies/start")
 @module_required(MODULE)
 def device_start():

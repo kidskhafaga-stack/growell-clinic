@@ -22,7 +22,7 @@ from flask import (abort, flash, g, redirect, render_template, request,
                    url_for)
 from flask_login import current_user
 
-from app.blueprints.labs import labs_bp
+from app.blueprints.labs import catalogue, labs_bp
 from app.extensions import db
 from app.i18n import t
 from app.models import Investigation, VisitInvestigation
@@ -1299,57 +1299,16 @@ PAGE = 50
 @labs_bp.route("/tests")
 @module_required(MODULE)
 def tests():
-    """The catalogue, and what each test is charged as — searched, and a page
-    at a time, because a laboratory's list is hundreds long."""
-    _admin_only()
-    from sqlalchemy import or_
-
-    from app.models.service import Service
-
-    q = (request.args.get("q") or "").strip()
-    category = (request.args.get("category") or "").strip()
-    page = max(1, request.args.get("page", type=int) or 1)
-    # **A tab per kind.** The list held blood tests, films and echoes in one
-    # column, each with a sample box and a unit box — which is how an echo
-    # came to read like a blood test («شايف اشعة الايكو … انها تحليل؟»).
+    """The laboratory's tests, and what each is charged as — searched, and a
+    page at a time, because a laboratory's list is hundreds long. The scans
+    and the device studies keep theirs in their own rooms
+    (`labs/catalogue.py`); an old link to them here is sent there."""
     kind = request.args.get("kind")
-    if kind not in INVESTIGATION_KINDS:
-        kind = "lab"
-    query = Investigation.query
-    if q:
-        like = f"%{q}%"
-        query = query.filter(or_(Investigation.name_ar.ilike(like),
-                                 Investigation.name_en.ilike(like),
-                                 Investigation.aliases.ilike(like),
-                                 Investigation.code.ilike(like)))
-    if category:
-        query = query.filter(Investigation.category == category)
-    # Counted per kind *after* the search, so a search that found the echo
-    # under the other tab says so on that tab.
-    per_kind = dict(query.with_entities(Investigation.kind, db.func.count())
-                    .group_by(Investigation.kind).all())
-    query = query.filter(Investigation.kind == kind)
-    total = query.count()
-    rows = (query.order_by(Investigation.kind, Investigation.name_ar)
-            .offset((page - 1) * PAGE).limit(PAGE).all())
-    categories = [c for (c,) in db.session.query(Investigation.category)
-                  .filter(Investigation.category.isnot(None))
-                  .distinct().order_by(Investigation.category).all()]
-    return render_template(
-        "labs/tests.html", rows=rows, kinds=INVESTIGATION_KINDS,
-        kind=kind, per_kind=per_kind,
-        q=q, category=category, categories=categories, page=page,
-        pages=max(1, -(-total // PAGE)), total=total,
-        reference=_reference_state(rows),
-        warehouses=_warehouses(), lab_store=_lab_store(),
-        services=(Service.query.filter(Service.is_active.is_(True))
-                  .order_by(Service.name).all()),
-        devices=_devices() if kind == "diagnostic" else [],
-        modalities=_radiation().MODALITIES, dose_measures=_radiation().measures(),
-        radiation_base=_radiation().base_unit,
-        reject_reasons=_reception().reasons() if kind == "lab" else [],
-        release_required=_release().required(),
-        referral_labs=_sendout().laboratories() if kind == "lab" else [])
+    if kind in INVESTIGATION_KINDS and kind != "lab":
+        return redirect(catalogue.url(kind, q=request.args.get("q"),
+                                      category=request.args.get("category"),
+                                      page=request.args.get("page")))
+    return catalogue.page("lab")
 
 
 def _poct_util():
@@ -1824,39 +1783,7 @@ def lab_store():
 @labs_bp.route("/tests/add", methods=["POST"])
 @module_required(MODULE)
 def add_test():
-    _admin_only()
-    kind = request.form.get("kind")
-    kind = kind if kind in INVESTIGATION_KINDS else "lab"
-    # Said in the kind's own words — a film is not «an analysis».
-    kx = "" if kind == "lab" else f"_{kind}"
-    name = (request.form.get("name_ar") or "").strip()[:160]
-    if not name:
-        flash(t("lab.need_name" + kx), "error")
-        return redirect(url_for("labs.tests", kind=kind))
-    # A scan has no sample and no unit — the add form hides both for it, and
-    # anything that arrives anyway is not kept.
-    is_lab = kind == "lab"
-    row = Investigation(
-        name_ar=name,
-        name_en=(request.form.get("name_en") or "").strip()[:160] or None,
-        kind=kind,
-        unit=((request.form.get("unit") or "").strip()[:20] or None) if is_lab else None,
-        sample_type=((request.form.get("sample_type") or "").strip()[:40] or None)
-        if is_lab else None,
-        # Ticked by default on the add form, so a clinic that never touches
-        # this box builds a catalogue of things it does — which is what a
-        # catalogue has always meant here.
-        in_house=request.form.get("in_house") == "1",
-        service_id=request.form.get("service_id", type=int))
-    db.session.add(row)
-    db.session.commit()
-    flash(t("lab.test_added" + kx), "success")
-    # **Step by step from here** — «اضافة واحد لواحد بالخطوات المطلوبة». A
-    # lab test lands on its own page, where the steps it still needs are
-    # listed in order; a scan has nothing more to define.
-    if row.kind == "lab":
-        return redirect(url_for("labs.test_ranges", test_id=row.id))
-    return redirect(url_for("labs.tests", kind=kind))
+    return catalogue.add(request.form.get("kind") or "lab")
 
 
 @labs_bp.route("/tests/<int:test_id>", methods=["POST"])
@@ -1865,55 +1792,7 @@ def edit_test(test_id):
     """The unit, the sample, and the price. The name too — a clinic renames a
     test and every order already written keeps the name it was written with,
     because the order snapshots it."""
-    _admin_only()
-    row = db.get_or_404(Investigation, test_id)
-    name = (request.form.get("name_ar") or "").strip()[:160]
-    if name:
-        row.name_ar = name
-    row.name_en = (request.form.get("name_en") or "").strip()[:160] or None
-    # A scan's row has no sample box and no unit box, so a save from it must
-    # not read their absence as «cleared».
-    if row.kind == "lab":
-        row.unit = (request.form.get("unit") or "").strip()[:20] or None
-        row.sample_type = (request.form.get("sample_type") or "").strip()[:40] or None
-    elif row.kind == "diagnostic":
-        # The device it is done on — recording it opens that device's
-        # template — and whether it is booked rather than done on the spot.
-        row.device_id = request.form.get("device_id", type=int) or None
-        row.needs_booking = request.form.get("needs_booking") == "1"
-    elif row.kind == "imaging":
-        # The machine, and the hospital's reference level for the dose — a
-        # figure only the hospital sets; a blank box clears it.
-        from app.utils import radiation
-
-        modality = (request.form.get("modality") or "").strip()
-        row.modality = modality if modality in radiation.MODALITIES else None
-        ref = request.form.get("dose_ref_value", type=float)
-        kind, unit = radiation.parse_measure(request.form.get("dose_ref_measure"))
-        if ref and ref > 0 and kind:
-            row.dose_ref_value, row.dose_ref_kind, row.dose_ref_unit = ref, kind, unit
-        else:
-            row.dose_ref_value = row.dose_ref_kind = row.dose_ref_unit = None
-    # Cleared on purpose when the box is empty: a clinic that stops charging
-    # for a test has to be able to say so, and an empty select means nobody
-    # rather than "leave it as it was".
-    row.service_id = request.form.get("service_id", type=int)
-    row.is_active = request.form.get("is_active") == "1"
-    # **«ما عندناش إيكو» — قالتها العيادة مرة واحدة.** A different question
-    # from `is_active`: a test the clinic sends out still belongs in the
-    # search, because the *order* is written here whoever performs it. All
-    # this decides is whether the order joins this building's own worklist.
-    row.in_house = request.form.get("in_house") == "1"
-    if row.kind == "lab" and "referral_lab_id" in request.form:
-        from app.models import ReferralLab
-
-        wanted = request.form.get("referral_lab_id", type=int)
-        row.referral_lab_id = (wanted if wanted and db.session.get(ReferralLab, wanted)
-                               else None)
-    _move_kind(row, request.form.get("move_kind"))
-    db.session.commit()
-    flash(t("lab.test_saved"), "success")
-    return redirect(url_for("labs.tests", kind=row.kind))
+    return catalogue.edit(test_id)
 
 
 def _admin_only():

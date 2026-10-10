@@ -226,9 +226,9 @@ def test_the_catalogue_sets_a_studys_device_and_booking(room):
         room["db"].session.commit()
         test_id = row.id
     boss = room["sign_in"]("boss")
-    page = boss.get("/labs/tests?kind=diagnostic").get_data(as_text=True)
+    page = boss.get("/visits/studies/catalogue").get_data(as_text=True)
     assert "data-device-pick" in page
-    boss.post(f"/labs/tests/{test_id}", data={"name_ar": "إيكو", "is_active": "1",
+    boss.post(f"/visits/studies/catalogue/{test_id}", data={"name_ar": "إيكو", "is_active": "1",
                                                "in_house": "1", "device_id": str(room["ids"]["eeg"]),
                                                "needs_booking": "1"})
     with room["app"].app_context():

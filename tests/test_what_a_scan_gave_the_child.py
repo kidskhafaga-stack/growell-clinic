@@ -155,15 +155,15 @@ def test_the_test_list_sets_the_machine_and_the_reference(xray):
     from app.models import Investigation
 
     boss = xray["sign_in"]("boss")
-    assert "data-modality-pick" in boss.get("/labs/tests?kind=imaging").get_data(as_text=True)
-    boss.post(f"/labs/tests/{xray['ids']['ct']}", data={
+    assert "data-modality-pick" in boss.get("/imaging/catalogue").get_data(as_text=True)
+    boss.post(f"/imaging/catalogue/{xray['ids']['ct']}", data={
         "name_ar": "مقطعية مخ", "is_active": "1", "in_house": "1",
         "modality": "fluoro", "dose_ref_value": "250", "dose_ref_measure": "dap:gycm2"})
     with xray["app"].app_context():
         row = xray["db"].session.get(Investigation, xray["ids"]["ct"])
         assert (row.modality, row.dose_ref_value, row.dose_ref_kind, row.dose_ref_unit) == (
             "fluoro", 250.0, "dap", "gycm2")
-    boss.post(f"/labs/tests/{xray['ids']['ct']}", data={
+    boss.post(f"/imaging/catalogue/{xray['ids']['ct']}", data={
         "name_ar": "مقطعية مخ", "is_active": "1", "in_house": "1", "modality": "fluoro"})
     with xray["app"].app_context():
         assert xray["db"].session.get(Investigation, xray["ids"]["ct"]).dose_ref_value is None
