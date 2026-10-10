@@ -821,6 +821,9 @@ def admission(admission_id):
         # seven times. Empty when the module is off, and the screen draws
         # nothing: a module off is a module absent, not a dead button.
         theatre_rooms=_theatre_rooms(),
+        # GAHAR MMS.10 — which of the stay's moments have their medicines
+        # reconciled (`utils/med_reconciliation`).
+        recon=_med_rec().status(row),
         stopped=[o for o in row.medication_orders if not o.is_running],
         safety=drug_round.safety(row, lang=getattr(g, "lang", "ar")),
         routes=ROUTES, dose_outcomes=DOSE_OUTCOMES,
@@ -845,6 +848,47 @@ def admission(admission_id):
                        if row.is_open
                        and bed_billing.basis_for(row.bed) == bed_billing.HOUR
                        else 0))
+
+
+def _med_rec():
+    from app.utils import med_reconciliation
+
+    return med_reconciliation
+
+
+@beds_bp.route("/admission/<int:admission_id>/reconcile/<interface>",
+               methods=["GET", "POST"])
+@module_required(MODULE)
+def reconcile(admission_id, interface):
+    """One moment's reconciliation (GAHAR MMS.10): every medicine on its list
+    with continue, stop or change — saved together, or not at all."""
+    rec = _med_rec()
+    if interface not in rec.INTERFACES:
+        abort(404)
+    row = db.get_or_404(Admission, admission_id)
+    guard = _glass(row)
+    if guard is not None:
+        return guard
+    stay = None
+    if interface == rec.TRANSFER:
+        stay = next((s for s in rec.transfers(row)
+                     if s.id == request.values.get("stay", type=int)), None)
+        if stay is None:
+            abort(404)
+    chosen = {}
+    if request.method == "POST":
+        missing = rec.save(row, interface, request.form, user=current_user, stay=stay)
+        if not missing:
+            db.session.commit()
+            flash(t("medrec.saved"), "success")
+            return redirect(url_for("beds.admission", admission_id=row.id) + "#reconcile")
+        db.session.rollback()
+        flash(t("medrec.need_all", n=len(missing)), "error")
+        chosen = request.form
+    return render_template(
+        "beds/reconcile.html", admission=row, interface=interface, stay=stay,
+        items=rec.items(row, interface), label=rec.label, decisions=rec.DECISIONS,
+        saved=rec.decisions(row, interface, stay), chosen=chosen)
 
 
 @beds_bp.route("/admission/<int:admission_id>/nights", methods=["POST"])
