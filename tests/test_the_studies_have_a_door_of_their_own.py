@@ -150,6 +150,31 @@ def test_adding_a_scan_keeps_no_sample_and_lands_on_its_tab(catalogue):
         assert row.kind == "imaging" and row.unit is None and row.sample_type is None
 
 
+def test_each_tab_names_its_own_kind_not_an_analysis(catalogue):
+    """«ده مش طبيعي ان الاجهزة بتاعت الفحوصات التشخية اسمها اضف تحليل ؟ وطبعاً
+    الاشعة برده» — the add form, the name field, each row and the subtitle
+    say «أشعة» or «فحص» on their tabs, and «تحليل» only on the lab's."""
+    client = catalogue["sign_in"]("boss")
+
+    def add_box(page):
+        """What the add form's title reads before Alpine touches it."""
+        return page.split("data-add-title", 1)[1].split("</h2>", 1)[0].rsplit("'>", 1)[1]
+
+    lab = client.get("/labs/tests").get_data(as_text=True)
+    assert "إضافة تحليل" in add_box(lab) and "الأشعة" not in lab.split("data-tests-sub", 1)[1][:200]
+    for kind, title, name in (("imaging", "إضافة أشعة", "اسم الأشعة"),
+                              ("diagnostic", "إضافة فحص تشخيصي", "اسم الفحص")):
+        page = client.get(f"/labs/tests?kind={kind}").get_data(as_text=True)
+        assert title in add_box(page) and "تحليل" not in add_box(page)
+        assert f'>{name}</label>' in page
+        row = page.split('data-test="', 1)[1].split("</form>", 1)[0]
+        assert name in row and "اسم التحليل" not in row
+        assert "التحاليل" not in page.split("data-tests-sub", 1)[1][:300]
+    answer = client.post("/labs/tests/add", data={"name_ar": "", "kind": "diagnostic"},
+                         follow_redirects=True).get_data(as_text=True)
+    assert "اكتب اسم الفحص" in answer
+
+
 def test_no_badge_is_handed_to_the_number_animation_without_a_number():
     """**Both racks' badges read a bare «0».** `app.js` rewrites every
     `[data-count]` to the number in the attribute, and the lab's and the

@@ -6963,7 +6963,21 @@
     "scan_unknown": "No sample numbered {code}.",
     "label_printed": "label printed as",
     "reprint_label": "Reprint the label",
-    "move_kind": "Room (if filed wrongly)"
+    "move_kind": "Room (if filed wrongly)",
+    "tests_imaging": "Imaging list",
+    "tests_diagnostic": "Diagnostic studies list",
+    "tests_sub_imaging": "The scans the department does, the machine each is done on, and what each is charged as",
+    "tests_sub_diagnostic": "The diagnostic studies done on devices, the device each is done on, and what each is charged as",
+    "add_test_imaging": "Add a scan",
+    "add_test_diagnostic": "Add a diagnostic study",
+    "test_name_imaging": "Scan name",
+    "test_name_diagnostic": "Study name",
+    "need_name_imaging": "Type the scan's name",
+    "need_name_diagnostic": "Type the study's name",
+    "test_added_imaging": "Scan added",
+    "test_added_diagnostic": "Study added",
+    "no_tests_imaging": "No scans on the list yet",
+    "no_tests_diagnostic": "No diagnostic studies on the list yet"
   },
   "pharm": {
     "sub": "The queue: who is waiting, and what for",

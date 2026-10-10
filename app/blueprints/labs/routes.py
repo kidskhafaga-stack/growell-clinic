@@ -1825,12 +1825,14 @@ def lab_store():
 @module_required(MODULE)
 def add_test():
     _admin_only()
-    name = (request.form.get("name_ar") or "").strip()[:160]
-    if not name:
-        flash(t("lab.need_name"), "error")
-        return redirect(url_for("labs.tests"))
     kind = request.form.get("kind")
     kind = kind if kind in INVESTIGATION_KINDS else "lab"
+    # Said in the kind's own words — a film is not «an analysis».
+    kx = "" if kind == "lab" else f"_{kind}"
+    name = (request.form.get("name_ar") or "").strip()[:160]
+    if not name:
+        flash(t("lab.need_name" + kx), "error")
+        return redirect(url_for("labs.tests", kind=kind))
     # A scan has no sample and no unit — the add form hides both for it, and
     # anything that arrives anyway is not kept.
     is_lab = kind == "lab"
@@ -1848,7 +1850,7 @@ def add_test():
         service_id=request.form.get("service_id", type=int))
     db.session.add(row)
     db.session.commit()
-    flash(t("lab.test_added"), "success")
+    flash(t("lab.test_added" + kx), "success")
     # **Step by step from here** — «اضافة واحد لواحد بالخطوات المطلوبة». A
     # lab test lands on its own page, where the steps it still needs are
     # listed in order; a scan has nothing more to define.
