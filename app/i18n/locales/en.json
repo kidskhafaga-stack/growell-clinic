@@ -11618,5 +11618,29 @@
     "why_over_limit": "Not worked out: triglycerides above the formula's limit",
     "why_no_height": "Not worked out: no height on this visit",
     "why_unknown": "Unknown formula"
+  },
+  "lab_reflex": {
+    "title": "After the result: the next test",
+    "explain": "The laboratory's own rules: when a component comes back above or below the lab's figure, the next test is suggested to the doctor — or ordered on its own where the lab and its doctors agreed. The program sets no rules of its own.",
+    "when": "If",
+    "op_above": "above",
+    "op_below": "below",
+    "value": "Figure",
+    "then": "Next test",
+    "how": "How",
+    "mode_suggest": "Suggest to the doctor",
+    "mode_order": "Order it on its own",
+    "remove": "Remove",
+    "rule_added": "Rule added",
+    "rule_removed": "Rule removed",
+    "need_analyte": "Choose a component of this test.",
+    "need_op": "Choose above or below.",
+    "need_value": "Write the figure.",
+    "need_then": "Choose another test.",
+    "suggests": "The lab suggests «{test}» — {analyte} {value} is {op} {limit}",
+    "order_it": "Order it",
+    "no": "No",
+    "ordered": "Test ordered",
+    "dismissed": "Noted that you do not want it"
   }
 }

@@ -311,7 +311,8 @@ from app.models.lab_reference import (RANGE_KINDS, RANGE_SEXES, LabAnalyte,
                                        LabResultValue, LabTestAnalyte,
                                        ReagentLot, ReferralLab,
                                        ReferralInvoice, ReferralLabPrice,
-                                       SampleRejection, SpecimenStore)
+                                       SampleRejection, SpecimenStore,
+                                       LabReflexRule, LabReflexHit)
 from app.models.unit_staff import BreakGlass, UnitStaff
 from app.models.equipment import (Equipment, EquipmentEvent,
                                   EquipmentTraining)
@@ -722,6 +723,8 @@ __all__ = [
     "LabAnalyte",
     "LabConsumable",
     "LabTestAnalyte",
+    "LabReflexRule",
+    "LabReflexHit",
     "LabRange",
     "LabResultValue",
     "SampleRejection",

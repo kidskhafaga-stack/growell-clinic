@@ -1606,6 +1606,11 @@ def test_ranges(test_id):
                      .order_by(StoreItem.name).all()),
         lab_store=lab_stock.store(),
         formulas=_lab_calc().FORMULAS, formula_inputs=_lab_calc().inputs_of,
+        reflex_rules=_reflex_rules(row),
+        reflex_targets=(Investigation.query.filter(Investigation.kind == "lab",
+                                                   Investigation.id != row.id,
+                                                   Investigation.is_active.is_(True))
+                        .order_by(Investigation.name_ar).all()),
         used_cost=lab_stock.consumables_cost(row),
         double_taken=lab_stock.double_taken(row))
 
@@ -1734,6 +1739,33 @@ def analyte_formula(test_id, analyte_id):
         ActivityLog.record("lab.formula", user_id=current_user.id, entity="lab_analyte",
                            entity_id=analyte.id, detail=formula or "—")
     return _hand(test_id, work, "lab_calc.saved")
+
+
+@labs_bp.route("/tests/<int:test_id>/reflex", methods=["POST"])
+@module_required(MODULE)
+def reflex_add(test_id):
+    """The laboratory's «then order» rule for this test (`utils/lab_reflex`)."""
+    from app.utils import lab_reflex
+
+    def work(row, hand):
+        try:
+            lab_reflex.add_rule(row, request.form, current_user)
+        except ValueError as why:
+            raise hand.Refused(f"lab_reflex.{why}") from None
+    return _hand(test_id, work, "lab_reflex.rule_added")
+
+
+@labs_bp.route("/tests/<int:test_id>/reflex/<int:rule_id>/remove", methods=["POST"])
+@module_required(MODULE)
+def reflex_remove(test_id, rule_id):
+    from app.models import LabReflexRule
+
+    def work(row, hand):
+        rule = db.get_or_404(LabReflexRule, rule_id)
+        if rule.investigation_id != row.id:
+            abort(404)
+        rule.is_active = False
+    return _hand(test_id, work, "lab_reflex.rule_removed")
 
 
 @labs_bp.route("/tests/<int:test_id>/ranges/<int:range_id>", methods=["POST"])
@@ -1880,6 +1912,12 @@ def edit_test(test_id):
     test and every order already written keeps the name it was written with,
     because the order snapshots it."""
     return catalogue.edit(test_id)
+
+
+def _reflex_rules(row):
+    from app.utils import lab_reflex
+
+    return lab_reflex.rules_for(row.id)
 
 
 def _lab_calc():

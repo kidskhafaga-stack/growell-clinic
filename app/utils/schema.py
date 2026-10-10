@@ -961,6 +961,8 @@ ADDITIONS = [
     ("lab_analytes", "formula", "VARCHAR(30)"),
     ("lab_analytes", "formula_inputs", "TEXT"),
     ("lab_result_values", "calculated", "BOOLEAN"),
+    # The order the laboratory's reflex rule wrote (`utils/lab_reflex`).
+    ("visit_investigations", "reflex_of", "INTEGER"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

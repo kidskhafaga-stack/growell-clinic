@@ -526,6 +526,8 @@ def record(visit_id):
         ongoing_meds=_meds.current(visit.patient),
         reviewed_meds=_meds.reviewed_ids(visit.patient, visit),
         meds_reconciled=_meds.reconciled(visit.patient, visit),
+        # The laboratory's «then order» suggestions waiting on the doctor.
+        reflex_open=_reflex().open_for_visit(visit.id),
         my_services=my_services, other_services=other_services,
         vac_panel=vac_panel, addable_vaccines=addable_vaccines,
         complaint_chips=_visit_chips("complaint"),
@@ -991,6 +993,34 @@ def investigation_search():
                      "name_en": x.name_en or "", "kind": x.kind,
                      "in_house": x.in_house is not False,
                      "category": x.category or ""} for x in rows])
+
+
+def _reflex():
+    from app.utils import lab_reflex
+
+    return lab_reflex
+
+
+@visits_bp.route("/reflex/<int:hit_id>", methods=["POST"])
+@module_required(MODULE)
+def reflex_answer(hit_id):
+    """The doctor's answer to the laboratory's suggestion: order it, or no."""
+    from app.models import LabReflexHit
+
+    hit = db.get_or_404(LabReflexHit, hit_id)
+    visit_id = hit.order.visit_id
+    if hit.status == "open":
+        if request.form.get("answer") == "order":
+            placed = _reflex().place(hit.order, hit.rule, current_user,
+                                     ordered_by=current_user.id)
+            hit.status, hit.new_order_id = "ordered", placed.id
+            flash(t("lab_reflex.ordered"), "success")
+        else:
+            hit.status = "dismissed"
+            flash(t("lab_reflex.dismissed"), "success")
+        hit.decided_by = current_user.id
+        db.session.commit()
+    return redirect(url_for("visits.record", visit_id=visit_id) + "#inv")
 
 
 @visits_bp.route("/<int:visit_id>/investigations", methods=["POST"])

@@ -500,3 +500,45 @@ class ReagentLot(db.Model):
     def __repr__(self):
         return f"<ReagentLot {self.lot_number} {self.expiry_date}>"
 
+
+
+class LabReflexRule(db.Model):
+    """**The next test, by the laboratory's rule** (`utils/lab_reflex`): when
+    an analyte of ``investigation_id`` comes back above or below ``value``,
+    ``then_id`` is suggested to the doctor — or, if the laboratory and its
+    doctors chose ``order``, ordered at once and said to be the rule's."""
+    __tablename__ = "lab_reflex_rules"
+
+    id = db.Column(db.Integer, primary_key=True)
+    investigation_id = db.Column(db.Integer, db.ForeignKey("investigations.id"),
+                                 nullable=False, index=True)
+    analyte_id = db.Column(db.Integer, db.ForeignKey("lab_analytes.id"), nullable=False)
+    op = db.Column(db.String(6), nullable=False)          # above | below
+    value = db.Column(db.Float, nullable=False)
+    then_id = db.Column(db.Integer, db.ForeignKey("investigations.id"), nullable=False)
+    mode = db.Column(db.String(8), default="suggest", nullable=False)   # suggest | order
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    analyte = db.relationship("LabAnalyte")
+    then = db.relationship("Investigation", foreign_keys=[then_id])
+
+
+class LabReflexHit(db.Model):
+    """A rule that fired on one result — the suggestion, and what came of it."""
+    __tablename__ = "lab_reflex_hits"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey("visit_investigations.id"),
+                         nullable=False, index=True)
+    rule_id = db.Column(db.Integer, db.ForeignKey("lab_reflex_rules.id"), nullable=False)
+    value = db.Column(db.Float)
+    #: open → ordered | dismissed | withdrawn (the value was corrected).
+    status = db.Column(db.String(10), default="open", nullable=False, index=True)
+    new_order_id = db.Column(db.Integer, db.ForeignKey("visit_investigations.id"))
+    decided_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    rule = db.relationship("LabReflexRule")
+    order = db.relationship("VisitInvestigation", foreign_keys=[order_id])

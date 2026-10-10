@@ -1100,6 +1100,24 @@
   <div class="card gc-scale-in" data-add-panel id="inv" x-show="tab==='inv'" style="animation-delay:0.24s;">
     <h2 class="section-title"><i class="bi bi-clipboard2-data"></i> {{ t('visits.investigations') }}</h2>
 
+    {# **The laboratory's next test** (`utils/lab_reflex`): its rule fired on
+       a result here; the doctor orders it with one press, or says no. #}
+    {% if reflex_open %}
+    <div data-reflex-open style="border:1px solid #d97706;border-radius:10px;padding:10px 12px;margin-bottom:12px;">
+      {% for hit in reflex_open %}
+      <form method="post" action="{{ url_for('visits.reflex_answer', hit_id=hit.id) }}" data-reflex="{{ hit.id }}"
+            style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0;{{ 'padding-top:8px;border-top:1px solid var(--line);margin-top:8px;' if not loop.first else '' }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <span style="flex:1;min-width:220px;"><i class="bi bi-lightbulb"></i>
+          {{ t('lab_reflex.suggests', test=hit.rule.then.display_name(current_lang),
+               analyte=hit.rule.analyte.name, value='%g'|format(hit.value), op=t('lab_reflex.op_' ~ hit.rule.op), limit='%g'|format(hit.rule.value)) }}</span>
+        <button class="btn btn-sm btn-primary gc-press" type="submit" name="answer" value="order"><i class="bi bi-plus-lg"></i> {{ t('lab_reflex.order_it') }}</button>
+        <button class="btn btn-sm btn-outline gc-press" type="submit" name="answer" value="no">{{ t('lab_reflex.no') }}</button>
+      </form>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     <div data-add-list>
     {% if visit.investigations %}
     <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">

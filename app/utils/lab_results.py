@@ -219,6 +219,9 @@ def save(order, entries, user=None, text=None, at=None):
             row.entered_by = getattr(user, "id", None)
 
     _work_out(order, existing, user, now)
+    # The laboratory's own «then order» rules (`utils/lab_reflex`).
+    from app.utils import lab_reflex
+    lab_reflex.evaluate(order, user=user)
     values = [v for v in order.analyte_values if v.has_value]
     order.analytes_resulted = len(values) or None
     order.abnormal_count = sum(1 for v in values if v.abnormal) or None

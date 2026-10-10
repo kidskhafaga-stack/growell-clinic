@@ -442,6 +442,9 @@ class VisitInvestigation(db.Model):
     # the STAT figure for months and no order could say it was STAT, so the
     # figure was never used. ``None`` is «nobody said», read as routine.
     urgent = db.Column(db.Boolean)
+    #: Written by the laboratory's rule after this order's result
+    #: (`utils/lab_reflex`) — why a test nobody typed is on the file.
+    reflex_of = db.Column(db.Integer, db.ForeignKey("visit_investigations.id"))
     # DAS.15 (ب-١): an accepted specimen is recorded with the date and time
     # it reached the lab and who received it — and (ب-٣) a suboptimal one
     # accepted anyway says why. Empty on every order received before this.
