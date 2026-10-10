@@ -81,7 +81,7 @@
   {% for p in twins %}
   <form method="post" action="{{ url_for('labs.merge_tests') }}" data-twin="{{ p.a.id }}-{{ p.b.id }}"
         style="display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:10px 0;border-top:1px solid var(--line);"
-        onsubmit="return confirm({{ t('merge.confirm')|tojson }});">
+        onsubmit="return confirm({{ t('merge.confirm')|tojson|forceescape }});">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="a_id" value="{{ p.a.id }}"><input type="hidden" name="b_id" value="{{ p.b.id }}">
     <span class="hint" style="margin:0;">{{ t('merge.keep') }}</span>
