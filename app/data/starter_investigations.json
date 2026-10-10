@@ -2,23 +2,23 @@
  "_about": "The starter list of tests and scans a new clinic is given, loaded once into the clinic's own catalogue (utils/investigations.seed_investigations). Data, not code: after that the list is the clinic's to add to, rename or hide. `code` is what the specialty panels (specialty_panels.json) find a test by — keep it when editing this file.",
  "investigations": [
   {
-   "code": null,
+   "code": "cbc",
    "name_ar": "صورة دم كاملة",
-   "name_en": "CBC",
+   "name_en": "Complete Blood Count (CBC)",
    "kind": "lab",
    "category": "أمراض الدم",
    "unit": null
   },
   {
-   "code": null,
+   "code": "crp",
    "name_ar": "بروتين سي التفاعلي",
-   "name_en": "CRP",
+   "name_en": "C-Reactive Protein (CRP)",
    "kind": "lab",
    "category": "التهابات",
    "unit": "mg/L"
   },
   {
-   "code": null,
+   "code": "esr",
    "name_ar": "سرعة الترسيب",
    "name_en": "ESR",
    "kind": "lab",
@@ -34,7 +34,7 @@
    "unit": null
   },
   {
-   "code": null,
+   "code": "urine_culture",
    "name_ar": "مزرعة بول",
    "name_en": "Urine Culture",
    "kind": "lab",
@@ -130,7 +130,7 @@
    "unit": "g/dL"
   },
   {
-   "code": null,
+   "code": "blood_culture",
    "name_ar": "زرع دم",
    "name_en": "Blood Culture",
    "kind": "lab",
@@ -322,30 +322,6 @@
    "unit": "mg/dL"
   },
   {
-   "code": "crp",
-   "name_ar": "بروتين سي التفاعلي (CRP)",
-   "name_en": "C-Reactive Protein",
-   "kind": "lab",
-   "category": "التهابات",
-   "unit": "mg/L"
-  },
-  {
-   "code": "esr",
-   "name_ar": "سرعة الترسيب (ESR)",
-   "name_en": "ESR",
-   "kind": "lab",
-   "category": "التهابات",
-   "unit": "mm/hr"
-  },
-  {
-   "code": "cbc",
-   "name_ar": "صورة دم كاملة (CBC)",
-   "name_en": "Complete Blood Count",
-   "kind": "lab",
-   "category": "أمراض الدم",
-   "unit": null
-  },
-  {
    "code": "anc",
    "name_ar": "العدلات المطلقة ANC",
    "name_en": "Absolute Neutrophil Count",
@@ -392,22 +368,6 @@
    "kind": "lab",
    "category": "أيض",
    "unit": "mmol/L"
-  },
-  {
-   "code": "blood_culture",
-   "name_ar": "زرع دم (مزرعة)",
-   "name_en": "Blood Culture",
-   "kind": "lab",
-   "category": "التهابات",
-   "unit": null
-  },
-  {
-   "code": "urine_culture",
-   "name_ar": "مزرعة بول (زرع)",
-   "name_en": "Urine Culture",
-   "kind": "lab",
-   "category": "بول/كلى",
-   "unit": null
   },
   {
    "code": "vit_b12",

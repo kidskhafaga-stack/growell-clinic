@@ -11,7 +11,6 @@
     <h1 class="page-title"><i class="bi bi-phone"></i> {{ t('lab_poct.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('lab_poct.sub') }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}"><i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
 </div>
 
 <form method="post" action="{{ url_for('labs.poct_supervisor') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;" data-poct-supervisor>
@@ -45,4 +44,6 @@
   </form>
   {% endif %}
 </div>
+{% from "labs/_nav.html" import lab_nav with context %}
+{{ lab_nav('poct') }}
 {% endblock %}

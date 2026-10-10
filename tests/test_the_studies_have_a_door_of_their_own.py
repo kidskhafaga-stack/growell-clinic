@@ -101,7 +101,7 @@ def test_the_tests_list_has_a_tab_per_kind(catalogue):
     client = catalogue["sign_in"]("boss")
     lab = client.get("/labs/tests").get_data(as_text=True)
     assert "صورة دم كاملة" in lab and "أشعة صدر" not in lab and "إيكو قلب" not in lab
-    studies = client.get("/labs/tests?kind=diagnostic").get_data(as_text=True)
+    studies = client.get("/visits/studies/catalogue").get_data(as_text=True)
     assert "إيكو قلب" in studies and "صورة دم كاملة" not in studies
     # The search counts across every tab, so a match elsewhere is said.
     found = client.get("/labs/tests?q=إيكو").get_data(as_text=True)
@@ -113,12 +113,12 @@ def test_a_study_has_no_sample_box_and_saving_it_keeps_what_was_there(catalogue)
     from app.models import Investigation
 
     client = catalogue["sign_in"]("boss")
-    page = client.get("/labs/tests?kind=diagnostic").get_data(as_text=True)
+    page = client.get("/visits/studies/catalogue").get_data(as_text=True)
     form = page.split(f'data-test="{catalogue["ids"]["echo"]}"', 1)[1].split("</form>", 1)[0]
     assert 'name="unit"' not in form and 'name="sample_type"' not in form
     # A device study shows its device and booking instead (device board).
     assert "data-device-pick" in form and "data-needs-booking-box" in form
-    client.post(f"/labs/tests/{catalogue['ids']['echo']}",
+    client.post(f"/visits/studies/catalogue/{catalogue['ids']['echo']}",
                 data={"name_ar": "إيكو على القلب", "is_active": "1", "in_house": "1"})
     with catalogue["app"].app_context():
         row = catalogue["db"].session.get(Investigation, catalogue["ids"]["echo"])
@@ -142,9 +142,9 @@ def test_adding_a_scan_keeps_no_sample_and_lands_on_its_tab(catalogue):
     from app.models import Investigation
 
     answer = catalogue["sign_in"]("boss").post(
-        "/labs/tests/add", data={"name_ar": "بانوراما أسنان", "kind": "imaging",
-                                 "unit": "x", "sample_type": "y", "in_house": "1"})
-    assert "kind=imaging" in answer.headers["Location"]
+        "/imaging/catalogue/add", data={"name_ar": "بانوراما أسنان",
+                                        "unit": "x", "sample_type": "y", "in_house": "1"})
+    assert answer.headers["Location"].endswith("/imaging/catalogue")
     with catalogue["app"].app_context():
         row = Investigation.query.filter_by(name_ar="بانوراما أسنان").one()
         assert row.kind == "imaging" and row.unit is None and row.sample_type is None
@@ -157,20 +157,19 @@ def test_each_tab_names_its_own_kind_not_an_analysis(catalogue):
     client = catalogue["sign_in"]("boss")
 
     def add_box(page):
-        """What the add form's title reads before Alpine touches it."""
-        return page.split("data-add-title", 1)[1].split("</h2>", 1)[0].rsplit("'>", 1)[1]
+        return page.split("data-add-title>", 1)[1].split("</span>", 1)[0]
 
     lab = client.get("/labs/tests").get_data(as_text=True)
     assert "إضافة تحليل" in add_box(lab) and "الأشعة" not in lab.split("data-tests-sub", 1)[1][:200]
-    for kind, title, name in (("imaging", "إضافة أشعة", "اسم الأشعة"),
-                              ("diagnostic", "إضافة فحص تشخيصي", "اسم الفحص")):
-        page = client.get(f"/labs/tests?kind={kind}").get_data(as_text=True)
+    for where, title, name in (("/imaging/catalogue", "إضافة أشعة", "اسم الأشعة"),
+                               ("/visits/studies/catalogue", "إضافة فحص تشخيصي", "اسم الفحص")):
+        page = client.get(where).get_data(as_text=True)
         assert title in add_box(page) and "تحليل" not in add_box(page)
         assert f'>{name}</label>' in page
         row = page.split('data-test="', 1)[1].split("</form>", 1)[0]
         assert name in row and "اسم التحليل" not in row
         assert "التحاليل" not in page.split("data-tests-sub", 1)[1][:300]
-    answer = client.post("/labs/tests/add", data={"name_ar": "", "kind": "diagnostic"},
+    answer = client.post("/visits/studies/catalogue/add", data={"name_ar": ""},
                          follow_redirects=True).get_data(as_text=True)
     assert "اكتب اسم الفحص" in answer
 

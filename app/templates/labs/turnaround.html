@@ -11,7 +11,6 @@
     <h1 class="page-title"><i class="bi bi-stopwatch"></i> {{ t('lab_tat.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('lab_tat.sub') }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}"><i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
 </div>
 <form method="get" action="{{ url_for('labs.turnaround') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
   <div class="form-row" style="margin:0;"><label for="from">{{ t('lab_reception.from') }}</label><input class="input" type="date" id="from" name="from" value="{{ start.isoformat() }}"></div>
@@ -40,6 +39,8 @@
   </table>
   {% endif %}
 </div>
+{% from "labs/_nav.html" import lab_nav with context %}
+{{ lab_nav('turnaround') }}
 
 <div class="card gc-scale-in" style="margin-bottom:14px;overflow-x:auto;" data-late-list>
   <h2 class="section-title" style="margin-top:0;">{{ t('lab_tat.late_list') }}</h2>

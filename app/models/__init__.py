@@ -320,6 +320,7 @@ from app.models.radiation_safety import (ApronCheck, AreaMeasurement,
 from app.models.facility_safety import (FireDrill, FireSystemCheck,
                                         FireTraining, UtilityCheck,
                                         UtilitySystem)
+from app.models.incident import Incident
 from app.models.hand_hygiene import (HandHygieneAction,
                                      HandHygieneFacilityCheck,
                                      HandHygieneOpportunity,
@@ -747,6 +748,7 @@ __all__ = [
     "FireTraining",
     "UtilityCheck",
     "UtilitySystem",
+    "Incident",
     "HandHygieneAction",
     "HandHygieneFacilityCheck",
     "HandHygieneOpportunity",

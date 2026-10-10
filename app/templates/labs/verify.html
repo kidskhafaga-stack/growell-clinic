@@ -12,7 +12,6 @@
     <h1 class="page-title"><i class="bi bi-patch-check"></i> {{ t('lab_release.to_verify') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('lab_release.list_sub') if required else t('lab_release.off_sub') }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}"><i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
 </div>
 {% if not rows %}
 <div class="card gc-scale-in"><p class="hint" style="margin:0;" data-none-to-verify>{{ t('lab_release.none_waiting') }}</p></div>
@@ -41,5 +40,7 @@
   {% if row.analytes_resulted %}{{ lv.table(row) }}
   {% else %}<p style="margin:0;" dir="auto">{% if row.result_value is not none %}<strong dir="ltr">{{ '%g'|format(row.result_value) }} {{ row.result_unit or '' }}</strong> {% endif %}{{ row.result_text or '' }}</p>{% endif %}
 </div>
+{% from "labs/_nav.html" import lab_nav with context %}
+{{ lab_nav('verify') }}
 {% endfor %}
 {% endblock %}

@@ -309,6 +309,11 @@ CAPABILITIES = [
     # result is not thereby authorized to release it; the hospital grants
     # this to the people its laboratory policy names (`utils/lab_release`).
     "lab_release",
+    # «الجودة وسلامة المرضى» — classifying, investigating and closing incident
+    # reports (GAHAR QPI.10/11, ``models/incident``). **Not** reporting one:
+    # anybody who works here reports, with or without their name. The person
+    # who reviews is not the one who reported, and the hospital names them.
+    "incident_manage",
 ]
 
 ROLE_CAPABILITIES = {

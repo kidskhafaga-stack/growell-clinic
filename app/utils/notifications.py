@@ -279,6 +279,21 @@ def _compute():
     except Exception:  # noqa: BLE001
         pass
 
+    # Incident reports nobody has picked up, and the serious ones — QPI.10
+    # (d): what needs management at once is told at once, to whoever reviews.
+    try:
+        from app.utils.incidents import open_counts as incident_counts
+
+        c = incident_counts()
+        if c["attention"]:
+            items.append({"key": "incidents", "module": "dashboard",
+                          "capability": "incident_manage", "icon": "exclamation-triangle",
+                          "severity": "danger" if c["serious"] else "warning",
+                          "count": c["attention"], "endpoint": "incidents.index",
+                          "kwargs": {}})
+    except Exception:  # noqa: BLE001
+        pass
+
     # A newer version of the program, as the last launch found it. Read from
     # what was stored rather than asked here: see `updates.remembered`. Under
     # `settings`, which is admin-only — updating is not a receptionist's

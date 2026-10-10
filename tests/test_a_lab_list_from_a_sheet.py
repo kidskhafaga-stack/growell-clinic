@@ -177,6 +177,14 @@ def test_our_tests_meet_the_sheet_by_name_and_nothing_on_a_hunch(lab):
     from app.utils import lab_import
 
     with lab["app"].app_context():
+        # A clinic from before the starter list was cleaned has CBC and CRP
+        # twice — the later copies the panels brought, under another name.
+        lab["db"].session.add_all([
+            Investigation(name_ar="صورة دم كاملة (CBC)", name_en="Complete Blood Count",
+                          kind="lab", is_active=True),
+            Investigation(name_ar="بروتين سي التفاعلي (CRP)", name_en="C-Reactive Protein",
+                          kind="lab", is_active=True)])
+        lab["db"].session.commit()
         plan = lab_import.read(_sheet())
         found = lab_import.match(plan)
         by = {t["key"]: t["name_en"] for t in plan["tests"]}
@@ -185,9 +193,10 @@ def test_our_tests_meet_the_sheet_by_name_and_nothing_on_a_hunch(lab):
         asked = {ours[q["id"]].name_ar: q for q in found["questions"]}
     assert auto["Fasting Blood Glucose"] == "سكر صائم"
     assert auto["Hemoglobin"] == "نسبة الهيموجلوبين"
-    # A clinic with CBC twice has one CBC: both copies get it.
-    for copy in ("صورة دم كاملة", "صورة دم كاملة (CBC)"):
-        assert by[asked[copy]["pick"]] == "Complete Blood Count (CBC)"
+    # A clinic with CBC twice has one CBC: both copies get it — the starter's
+    # own by its name, the older twin offered it.
+    assert auto["Complete Blood Count (CBC)"] == "صورة دم كاملة"
+    assert by[asked["صورة دم كاملة (CBC)"]["pick"]] == "Complete Blood Count (CBC)"
     # «CRP» is the adult test the other copy took, not the neonatal one.
     assert by[asked["بروتين سي التفاعلي"]["pick"]] == "C-Reactive Protein"
     # Offered, never preselected: sweat chloride is not serum chloride.

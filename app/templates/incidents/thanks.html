@@ -1,0 +1,12 @@
+{% extends "shell.html" %}
+{% set active_module = 'incident_report' %}
+{% block title %}{{ t('incident.report_title') }}{% endblock %}
+{% block page_heading %}{{ t('incident.report_title') }}{% endblock %}
+{% block content %}
+<div class="card gc-scale-in" style="max-width:640px;" data-incident-thanks>
+  <h1 class="page-title" style="margin-top:0;"><i class="bi bi-check2-circle"></i> {{ t('incident.thanks') }}</h1>
+  <p>{{ t('incident.thanks_number') }} <b dir="ltr">{{ row.number }}</b></p>
+  {% if row.serious %}<p class="alert-pill danger" style="margin:0 0 10px;">{{ t('incident.serious_told') }}</p>{% endif %}
+  <a class="btn btn-outline gc-press" href="{{ url_for('incidents.report') }}">{{ t('incident.another') }}</a>
+</div>
+{% endblock %}

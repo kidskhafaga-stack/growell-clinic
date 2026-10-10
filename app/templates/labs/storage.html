@@ -12,7 +12,6 @@
     <h1 class="page-title"><i class="bi bi-inboxes"></i> {{ t('lab_storage.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('lab_storage.sub', n=kept_n) }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}"><i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
 </div>
 
 <form method="get" action="{{ url_for('labs.storage') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;" data-storage-find>
@@ -48,6 +47,8 @@
   </table>
   {% endif %}
 </div>
+{% from "labs/_nav.html" import lab_nav with context %}
+{{ lab_nav('storage') }}
 {% endif %}
 
 {# Put away: scan the tube (a reader types the code and Enter) or tick it on

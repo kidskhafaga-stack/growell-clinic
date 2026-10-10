@@ -1,0 +1,71 @@
+{% extends "shell.html" %}
+{% set active_module = 'incidents' %}
+{% block title %}{{ t('incident.board_title') }}{% endblock %}
+{% block page_heading %}{{ t('incident.board_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR QPI.10 (e) — the period's reports, the medication errors and the
+   equipment incidents beside them (written on their own screens), and the
+   period counted by category and classification. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-clipboard2-pulse"></i> {{ t('incident.board_title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('incident.board_sub') }}</p>
+  </div>
+  <a class="btn btn-primary gc-press" href="{{ url_for('incidents.report') }}"><i class="bi bi-plus"></i> {{ t('incident.report_title') }}</a>
+</div>
+
+<form method="get" action="{{ url_for('incidents.index') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+  <div class="form-row" style="margin:0;"><label for="from">{{ t('lab_reception.from') }}</label><input class="input" type="date" id="from" name="from" value="{{ start.isoformat() }}"></div>
+  <div class="form-row" style="margin:0;"><label for="to">{{ t('lab_reception.to') }}</label><input class="input" type="date" id="to" name="to" value="{{ end.isoformat() }}"></div>
+  <div class="form-row" style="margin:0;"><label for="status">{{ t('incident.status') }}</label>
+    <select class="input" id="status" name="status"><option value="">{{ t('incident.all') }}</option>{% for s in statuses %}<option value="{{ s }}" {{ 'selected' if status == s }}>{{ t('incident.s_' ~ s) }}</option>{% endfor %}</select></div>
+  <div class="form-row" style="margin:0;"><label for="category">{{ t('incident.category') }}</label>
+    <select class="input" id="category" name="category"><option value="">{{ t('incident.all') }}</option>{% for c in categories %}<option value="{{ c }}" {{ 'selected' if category == c }}>{{ t('incident.c_' ~ c) }}</option>{% endfor %}</select></div>
+  <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('lab_reception.show') }}</button>
+</form>
+
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:14px;" data-incident-analysis>
+  <div class="card"><div class="hint">{{ t('incident.total') }}</div><div style="font-size:1.6rem;font-weight:700;">{{ data.total }}</div><div class="hint">{{ t('incident.open_n', n=data.open) }}</div></div>
+  <div class="card"><div class="hint">{{ t('incident.by_class') }}</div>
+    {% for k, v in data.by_class %}<div style="display:flex;justify-content:space-between;"><span>{{ t('incident.cl_' ~ k) }}</span><b>{{ v }}</b></div>{% endfor %}
+    {% if data.unclassified %}<div style="display:flex;justify-content:space-between;"><span>{{ t('incident.unclassified') }}</span><b>{{ data.unclassified }}</b></div>{% endif %}</div>
+  <div class="card"><div class="hint">{{ t('incident.by_category') }}</div>
+    {% for k, v in data.by_category %}<div style="display:flex;justify-content:space-between;"><span>{{ t('incident.c_' ~ k) }}</span><b>{{ v }}</b></div>{% else %}<span class="hint">—</span>{% endfor %}</div>
+</div>
+
+<div class="card gc-scale-in" style="overflow-x:auto;" data-incident-list>
+  {% if not rows %}<p class="hint" style="margin:0;">{{ t('incident.none') }}</p>{% else %}
+  <table class="table" style="min-width:720px;">
+    <thead><tr><th>{{ t('incident.when') }}</th><th>{{ t('incident.what_kind') }}</th><th>{{ t('incident.area') }}</th><th>{{ t('incident.classification') }}</th><th>{{ t('incident.status') }}</th></tr></thead>
+    <tbody>{% for item in rows %}{% set r = item.row %}
+    {% if item.kind == 'incident' %}
+    <tr data-incident="{{ r.id }}" {% if r.serious or r.classification == 'sentinel' %}style="background:var(--danger-50, rgba(220,38,38,.08));"{% endif %}>
+      <td dir="ltr">{{ r.occurred_at|clinic_stamp }}</td>
+      <td><a href="{{ url_for('incidents.view', incident_id=r.id) }}"><b dir="ltr">{{ r.number }}</b></a> · {{ t('incident.c_' ~ r.category) }}
+        {% if r.serious %}<span class="badge badge--danger" data-serious-row>{{ t('incident.serious_badge') }}</span>{% endif %}
+        <div class="hint" dir="auto">{{ r.what_happened|truncate(90) }}</div></td>
+      <td>{{ r.area_name(current_lang) }}</td>
+      <td>{{ t('incident.cl_' ~ r.classification) if r.classification else '—' }}</td>
+      <td><span class="badge {{ 'badge--green' if r.status == 'closed' else ('badge--warn' if r.status == 'investigating' else 'badge--danger') }}">{{ t('incident.s_' ~ r.status) }}</span></td>
+    </tr>
+    {% elif item.kind == 'medication' %}
+    <tr data-med-error="{{ r.id }}">
+      <td dir="ltr">{{ r.happened_at|clinic_stamp }}</td>
+      <td><span class="badge badge--muted">{{ t('incident.k_medication') }}</span> {{ r.drug_name or '' }}<div class="hint" dir="auto">{{ r.what_happened|truncate(90) }}</div></td>
+      <td>—</td><td>{{ r.outcome }}</td>
+      <td>{% if current_user.can_access('pharmacy') %}<a href="{{ url_for('pharmacy.errors') }}">{{ t('incident.on_its_screen') }}</a>{% else %}—{% endif %}</td>
+    </tr>
+    {% else %}
+    <tr data-equipment-incident="{{ r.id }}">
+      <td dir="ltr">{{ r.at|clinic_stamp }}</td>
+      <td><span class="badge badge--muted">{{ t('incident.k_equipment') }}</span> {{ r.equipment.name }}<div class="hint" dir="auto">{{ r.details|truncate(90) }}</div></td>
+      <td>{{ r.equipment.location or '—' }}</td><td>—</td>
+      <td><a href="{{ url_for('equipment.view', equipment_id=r.equipment_id) }}">{{ t('incident.on_its_screen') }}</a></td>
+    </tr>
+    {% endif %}
+    {% endfor %}</tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

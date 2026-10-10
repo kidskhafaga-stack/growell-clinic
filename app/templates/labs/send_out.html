@@ -14,9 +14,10 @@
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <a class="btn btn-outline gc-press" data-to-send-register href="{{ url_for('labs.send_register') }}"><i class="bi bi-journal-text"></i> {{ t('lab_sendout.register_title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('labs.referral_labs') }}"><i class="bi bi-building"></i> {{ t('lab_sendout.labs_title') }}</a>
-    <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}"><i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
   </div>
 </div>
+{% from "labs/_nav.html" import lab_nav with context %}
+{{ lab_nav('send_out') }}
 
 {% if not labs %}
 <div class="card gc-scale-in" style="margin-bottom:14px;"><p class="hint" style="margin:0;" data-no-referral-labs>{{ t('lab_sendout.no_labs') }}</p></div>

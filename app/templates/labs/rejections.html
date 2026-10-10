@@ -12,8 +12,6 @@
     <h1 class="page-title"><i class="bi bi-x-octagon"></i> {{ t('lab_reception.register_title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('lab_reception.register_sub') }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}">
-    <i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
 </div>
 
 <form method="get" action="{{ url_for('labs.rejections') }}" class="card gc-scale-in"
@@ -34,6 +32,8 @@
     {% for label, n in tally %}<span class="badge badge--muted">{{ label }} · {{ n }}</span>{% endfor %}
   </div>
 </div>
+{% from "labs/_nav.html" import lab_nav with context %}
+{{ lab_nav('rejections') }}
 <div class="card gc-scale-in" style="overflow-x:auto;">
   <table class="table" style="width:100%;font-variant-numeric:tabular-nums;">
     <thead><tr>

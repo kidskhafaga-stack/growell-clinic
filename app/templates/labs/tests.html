@@ -1,119 +1,63 @@
 {% extends "shell.html" %}
-{% set active_module = 'labs' %}
-{# Each tab in its own words: a film is not «an analysis», nor an EEG. The
-   lab keeps the original keys; the others take ``_<kind>``. #}
-{% block title %}{{ t('lab.tests' ~ ('' if kind == 'lab' else '_' ~ kind)) }}{% endblock %}
-{% block page_heading %}{{ t('lab.tests' ~ ('' if kind == 'lab' else '_' ~ kind)) }}{% endblock %}
+{# **Each room's own list** — the lab's tests, radiology's scans, the device
+   studies — served by that room's module (`labs/catalogue.py`), and each in
+   its own words: a film is not «an analysis». ``kx`` is the locale keys'
+   ending: none for the lab, ``_<kind>`` for the others. #}
+{% set active_module = room.active %}
+{% block title %}{{ t('lab.tests' ~ kx) }}{% endblock %}
+{% block page_heading %}{{ t('lab.tests' ~ kx) }}{% endblock %}
 
 {% block content %}
-{% set kx = '' if kind == 'lab' else '_' ~ kind %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
     <h1 class="page-title"><i class="bi bi-list-check"></i> {{ t('lab.tests' ~ kx) }}</h1>
     <p class="page-sub" style="margin:0;" data-tests-sub>{{ t('lab.tests_sub' ~ kx) }}</p>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
-    <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}">
-      <i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
+    {% if kind != 'lab' %}
+    <a class="btn btn-outline gc-press" href="{{ url_for(room.home) }}" data-room-home>
+      <i class="bi bi-list-ul"></i> {{ t('nav.imaging' if kind == 'imaging' else 'nav.diagnostics') }}</a>
+    {% endif %}
     {# The laboratory's sheet in, and the catalogue out for it to complete.
        Both here, in the lab module, and nowhere a clinic without one goes. #}
+    {% if kind == 'lab' %}
     <a class="btn btn-outline gc-press" href="{{ url_for('labs.import_tests') }}" data-lab-import>
       <i class="bi bi-file-earmark-arrow-up"></i> {{ t('lab_import.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('labs.export_tests') }}" data-lab-export>
       <i class="bi bi-file-earmark-arrow-down"></i> {{ t('lab_import.export') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('labs.tests_template') }}" data-lab-template>
       <i class="bi bi-file-earmark-spreadsheet"></i> {{ t('lab_import.template') }}</a>
+    {% endif %}
   </div>
 </div>
 
-{# One tab per kind: a blood test, a film and an echo are three different
-   things to define. The count on each tab follows the search. #}
+{% if kind == 'lab' %}{% from "labs/_nav.html" import lab_nav with context %}{{ lab_nav('tests') }}{% endif %}
+
+{# A tab per room this person can open: a blood test, a film and an echo are
+   three different things to define, each kept in its own room. The count on
+   each tab follows the search, so a match in another room is said. #}
+{% if tabs|length > 1 %}
 <nav class="kind-tabs gc-animate" data-kind-tabs>
-  {% for one in kinds %}
+  {% for one in tabs %}
   <a class="kind-tab{{ ' on' if one == kind else '' }}" data-kind-tab="{{ one }}"
-     href="{{ url_for('labs.tests', kind=one, q=q or None, category=category or None) }}">
+     href="{{ tab_url(one, q=q, category=category) }}">
     <i class="bi bi-{{ 'eyedropper' if one == 'lab' else ('radioactive' if one == 'imaging' else 'activity') }}"></i>
     {{ t('studies.tab_' ~ one) }} <span class="badge badge--muted">{{ per_kind.get(one, 0) }}</span></a>
   {% endfor %}
 </nav>
+{% endif %}
 <style>
   .kind-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
   .kind-tab { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border:1px solid var(--line);
               border-radius:999px; color:inherit; text-decoration:none; font-weight:600; background:var(--card); }
   .kind-tab.on { border-color:var(--green-600); background:var(--green-050); }
 </style>
-{# **The lab's store.** Where a test's strips and reagents are taken from
-   when it is run. None chosen, nothing is ever taken — a clinic that has
-   not set this up sees exactly what it saw before. #}
-<form method="post" action="{{ url_for('labs.lab_store') }}" class="card gc-scale-in" data-lab-store
-      style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="form-row" style="margin-bottom:0;min-width:220px;flex:1;">
-    <label for="warehouse_id"><i class="bi bi-box-seam"></i> {{ t('lab_stock.store') }}</label>
-    <select class="select" id="warehouse_id" name="warehouse_id">
-      <option value="">{{ t('lab_stock.no_store') }}</option>
-      {% for w in warehouses %}
-      <option value="{{ w.id }}" {{ 'selected' if lab_store and lab_store.id == w.id else '' }}>{{ w.display_name(current_lang) }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
-  <p class="hint" style="margin:0;flex-basis:100%;">{{ t('lab_stock.store_hint') }}</p>
-</form>
-
-{# **Releasing results** (GAHAR DAS.20 ب) — the laboratory's policy: off,
-   and results are final as written; on, each waits for somebody holding
-   «lab_release» and says so wherever it is shown. #}
-{% if kind == 'lab' %}
-<form method="post" action="{{ url_for('labs.verify_setting') }}" class="card gc-scale-in" id="verify-setting" data-verify-setting
-      style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <label style="display:flex;gap:8px;align-items:center;margin:0;flex:1;min-width:240px;">
-    <input type="checkbox" name="required" value="1" {{ 'checked' if release_required else '' }}>
-    <span><strong>{{ t('lab_release.setting') }}</strong><br><span class="hint" style="margin:0;">{{ t('lab_release.setting_hint') }}</span></span></label>
-  <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
-</form>
-{% endif %}
-
-{% if kind == 'lab' %}
-<p style="margin:0 0 14px;"><a class="btn btn-outline gc-press" data-to-referral-labs href="{{ url_for('labs.referral_labs') }}"><i class="bi bi-building"></i> {{ t('lab_sendout.labs_title') }}</a></p>
-{% endif %}
-
-{# **Why a tube is turned away** — the laboratory's acceptance criteria are
-   its policy (GAHAR DAS.15 أ), so the list starts empty and is its own. #}
-{% if kind == 'lab' %}
-<div class="card gc-scale-in" id="reject-reasons" data-reject-reasons style="margin-bottom:14px;">
-  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-x-octagon"></i> {{ t('lab_reception.reasons_title') }}</h2>
-  <p class="hint" style="margin-top:0;">{{ t('lab_reception.reasons_hint') }}</p>
-  {% if reject_reasons %}
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-    {% for r in reject_reasons %}
-    <form method="post" action="{{ url_for('labs.reject_reason_retire', reason_id=r.id) }}" style="margin:0;" data-reason="{{ r.key }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <span class="badge badge--muted">{{ r.name_ar }}
-        <button type="submit" class="btn btn-sm" style="padding:0 4px;" title="{{ t('lab_reception.retire') }}" aria-label="{{ t('lab_reception.retire') }}"><i class="bi bi-x"></i></button></span>
-    </form>
-    {% endfor %}
-  </div>
-  {% else %}
-  <p class="hint" data-no-reasons>{{ t('lab_reception.no_reasons') }}</p>
-  {% endif %}
-  <form method="post" action="{{ url_for('labs.reject_reason_add') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="form-row" style="margin:0;flex:1;min-width:200px;"><label for="reason_name">{{ t('lab_reception.reason_new') }}</label>
-      <input class="input" id="reason_name" name="name" maxlength="80" required></div>
-    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('lab_reception.add') }}</button>
-  </form>
-</div>
-{% endif %}
-
 {# A laboratory's list is hundreds long: searched, and a page at a time. #}
-<form method="get" action="{{ url_for('labs.tests') }}" class="card gc-scale-in"
+<form method="get" action="{{ url_for(room.list) }}" class="card gc-scale-in"
       style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;" data-lab-search>
-  <input type="hidden" name="kind" value="{{ kind }}">
   <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
     <label for="q">{{ t('lab_import.search') }}</label>
-    <input class="input" id="q" name="q" value="{{ q }}" placeholder="{{ t('lab_import.search_ph') }}">
+    <input class="input" id="q" name="q" value="{{ q }}" placeholder="{{ t('lab_import.search_ph' ~ kx) }}">
   </div>
   <div class="form-row" style="margin-bottom:0;min-width:200px;">
     <label for="category">{{ t('lab_import.category') }}</label>
@@ -126,36 +70,37 @@
   <span class="hint" style="margin:0;" data-total>{{ t('lab_import.showing', n=rows|length, total=total) }}</span>
 </form>
 
-<div class="card gc-scale-in" style="margin-bottom:14px;">
-  <h2 class="section-title" style="margin-top:0;">
-    <i class="bi bi-plus-lg"></i> <span data-add-title x-text='{"lab": {{ t('lab.add_test')|tojson }}, "imaging": {{ t('lab.add_test_imaging')|tojson }}, "diagnostic": {{ t('lab.add_test_diagnostic')|tojson }}}[k]'>{{ t('lab.add_test' ~ kx) }}</span></h2>
-  <form method="post" action="{{ url_for('labs.add_test') }}" x-data="{ k: '{{ kind }}' }"
+{# Folded until it is wanted — the list is what this page is for; open
+   on its own when there is no list yet. #}
+<details class="card gc-scale-in tc-add" style="margin-bottom:14px;" data-add-box{{ ' open' if not rows and not q else '' }}>
+  <summary class="section-title" style="margin:0;cursor:pointer;">
+    <i class="bi bi-plus-lg"></i> <span data-add-title>{{ t('lab.add_test' ~ kx) }}</span></summary>
+  {# Each room's own endpoint, named here in full so the door test can see
+     every form that posts to it. #}
+  {% set add_url = {'lab': url_for('labs.add_test'), 'imaging': url_for('imaging.catalogue_add'),
+                    'diagnostic': url_for('visits.study_catalogue_add')}[kind] %}
+  <form method="post" action="{{ add_url }}" data-add-form
         style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="kind" value="{{ kind }}">
     <div class="form-row" style="margin-bottom:0;min-width:180px;flex:1;">
-      <label for="name_ar" data-add-name x-text='{"lab": {{ t('lab.test_name')|tojson }}, "imaging": {{ t('lab.test_name_imaging')|tojson }}, "diagnostic": {{ t('lab.test_name_diagnostic')|tojson }}}[k]'>{{ t('lab.test_name' ~ kx) }}</label>
+      <label for="name_ar" data-add-name>{{ t('lab.test_name' ~ kx) }}</label>
       <input class="input" id="name_ar" name="name_ar" maxlength="160" required>
     </div>
     <div class="form-row" style="margin-bottom:0;min-width:150px;">
       <label for="name_en">{{ t('lab.test_name_en') }}</label>
       <input class="input" id="name_en" name="name_en" maxlength="160" dir="ltr">
     </div>
-    <div class="form-row" style="margin-bottom:0;min-width:120px;">
-      <label for="kind">{{ t('lab.kind') }}</label>
-      <select class="select" id="kind" name="kind" x-model="k">
-        {% for one in kinds %}
-        <option value="{{ one }}" {{ 'selected' if one == kind else '' }}>{{ t('lab.kind_' ~ one) }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="form-row" style="margin-bottom:0;min-width:110px;" x-show="k === 'lab'"{% if kind != 'lab' %} x-cloak{% endif %}>
+    {% if kind == 'lab' %}
+    <div class="form-row" style="margin-bottom:0;min-width:110px;">
       <label for="unit">{{ t('lab.unit') }}</label>
       <input class="input" id="unit" name="unit" maxlength="20" dir="ltr">
     </div>
-    <div class="form-row" style="margin-bottom:0;min-width:130px;" x-show="k === 'lab'"{% if kind != 'lab' %} x-cloak{% endif %}>
+    <div class="form-row" style="margin-bottom:0;min-width:130px;">
       <label for="sample_type">{{ t('lab.sample_type') }}</label>
       <input class="input" id="sample_type" name="sample_type" maxlength="40">
     </div>
+    {% endif %}
     <div class="form-row" style="margin-bottom:0;min-width:170px;">
       {# What it is charged as. Empty means the clinic does not bill this test
          separately — nothing is ever charged and no figure is ever shown. #}
@@ -179,26 +124,62 @@
     <button class="btn btn-primary gc-press" type="submit">
       <i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
   </form>
-</div>
+</details>
 
 {% if not rows %}
 <div class="card gc-scale-in">
   <p class="hint" style="margin:0;">{{ t('lab.no_tests' ~ kx) }}</p>
 </div>
 {% else %}
-{# One form per test, each a block of its own rather than a row in an editable
-   table. A `<form>` cannot be a child of `<tr>` — the browser hoists it out of
-   the table and every input inside it silently stops belonging to it, which is
-   the same class of bug as `test_a_form_inside_a_form.py`. #}
-<div class="card gc-scale-in">
+{# **A line per test, read at a glance**: its names, what it is (sample and
+   unit, machine, device), what it is charged as, and whether it is stopped
+   or sent out. Its form folds under the line — fifty open forms made a page
+   eleven thousand pixels long, and the list could not be read for them.
+   A `<form>` is never a child of `<tr>` (the browser hoists it out), so
+   these are blocks, not a table: `test_a_form_inside_a_form.py`. #}
+{% set ns = namespace(price={}) %}
+{% for service in services %}{% set _ = ns.price.update({service.id: service.display_name(current_lang)}) %}{% endfor %}
+<div class="card gc-scale-in tc-list" data-test-list>
   {% for row in rows %}
+  {% set ref = reference.get(row.id) %}
+  <details class="tc-row{{ ' is-off' if not row.is_active else '' }}" data-row="{{ row.id }}">
+  <summary class="tc-head">
+    {# The screen's language first, the other beneath it. #}
+    {% set first, second = (row.name_en, row.name_ar) if current_lang == 'en' and row.name_en else (row.name_ar, row.name_en) %}
+    {# `bdi`, not `dir="auto"`: «ASOT» keeps its own direction without
+       pulling its line to the other side of an Arabic page. #}
+    <span class="tc-name"><strong><bdi>{{ first }}</bdi></strong>
+      {% if second and second != first %}<span class="tc-en"><bdi>{{ second }}</bdi></span>{% endif %}</span>
+    <span class="tc-facts">
+      {% if row.kind == 'lab' %}
+        {% if row.sample_type %}<span class="tc-chip">{{ row.sample_type }}</span>{% endif %}
+        {% if row.unit %}<span class="tc-chip" dir="ltr">{{ row.unit }}</span>{% endif %}
+      {% elif row.kind == 'imaging' and row.modality %}<span class="tc-chip">{{ t('radiation.modality_' ~ row.modality) }}</span>
+      {% elif row.kind == 'diagnostic' and row.device %}<span class="tc-chip">{{ row.device.display_name(current_lang) }}</span>
+        {% if row.needs_booking %}<span class="tc-chip">{{ t('device_board.needs_booking') }}</span>{% endif %}
+      {% endif %}
+      <span class="tc-chip{{ ' tc-chip--quiet' if not ns.price.get(row.service_id) else '' }}" data-price-chip>
+        <i class="bi bi-cash"></i> {{ ns.price.get(row.service_id) or t('lab_stock.not_charged') }}</span>
+      {% if not row.is_active %}<span class="badge badge--muted" data-stopped>{{ t('lab.stopped_short') }}</span>{% endif %}
+      {% if row.in_house is false %}<span class="badge badge--warn" data-sent-out>{{ t('lab.sent_out_short') }}</span>{% endif %}
+    </span>
+    {% if row.kind == 'lab' %}
+    <a class="tc-ref" data-ref-line="{{ row.id }}" href="{{ url_for('labs.test_ranges', test_id=row.id) }}">
+      <i class="bi bi-rulers"></i>
+      {% if ref and ref.analytes %}{{ t('lab_import.ref_line', analytes=ref.analytes, ranges=ref.ranges) }}{% if ref.drafts %} · <span class="badge badge--warn">{{ t('lab_import.drafts_n', n=ref.drafts) }}</span>{% endif %}
+      {% else %}{{ t('lab_import.ref_none') }}{% endif %}</a>
+    {% endif %}
+    <span class="tc-edit"><i class="bi bi-pencil"></i> {{ t('common.edit') }}</span>
+  </summary>
+  {% if kind == 'lab' %}{% set edit_url = url_for('labs.edit_test', test_id=row.id) %}
+  {% elif kind == 'imaging' %}{% set edit_url = url_for('imaging.catalogue_edit', test_id=row.id) %}
+  {% else %}{% set edit_url = url_for('visits.study_catalogue_edit', test_id=row.id) %}{% endif %}
   <form method="post" data-test="{{ row.id }}"
-        action="{{ url_for('labs.edit_test', test_id=row.id) }}"
-        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;
-               padding:11px 0;border-top:1px dashed var(--line);">
+        action="{{ edit_url }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;padding:4px 0 12px;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row" style="margin-bottom:0;min-width:190px;flex:1;">
-      <label>{{ t('lab.test_name' ~ ('' if row.kind == 'lab' else '_' ~ row.kind)) }}
+      <label>{{ t('lab.test_name' ~ kx) }}
         <span class="badge badge--muted">{{ t('lab.kind_' ~ row.kind) }}</span></label>
       <input class="input" name="name_ar" maxlength="160" value="{{ row.name_ar }}">
     </div>
@@ -299,22 +280,34 @@
     </div>
     <button class="btn btn-sm btn-outline gc-press" type="submit">
       {{ t('common.save') }}</button>
-    {% set ref = reference.get(row.id) %}
-    {% if row.kind == 'lab' %}
-    <a class="hint" style="flex-basis:100%;margin:0;" data-ref-line="{{ row.id }}"
-       href="{{ url_for('labs.test_ranges', test_id=row.id) }}">
-      <i class="bi bi-rulers"></i>
-      {% if ref and ref.analytes %}{{ t('lab_import.ref_line', analytes=ref.analytes, ranges=ref.ranges) }}{% if ref.drafts %} · <span class="badge badge--warn">{{ t('lab_import.drafts_n', n=ref.drafts) }}</span>{% endif %}
-      {% else %}{{ t('lab_import.ref_none') }}{% endif %}</a>
-    {% endif %}
   </form>
+  </details>
   {% endfor %}
 </div>
+<style>
+  .tc-list { padding-top:4px; padding-bottom:4px; }
+  .tc-row { border-top:1px solid var(--line); }
+  .tc-row:first-child { border-top:0; }
+  .tc-head { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; padding:10px 2px;
+             cursor:pointer; list-style:none; }
+  .tc-head::-webkit-details-marker { display:none; }
+  .tc-head:focus-visible { outline:2px solid var(--green-600); outline-offset:2px; border-radius:6px; }
+  .tc-name { flex:1 1 220px; min-width:0; display:flex; flex-direction:column; }
+  .tc-en { font-size:.8rem; color:var(--muted, #6b7280); }
+  .tc-facts { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+  .tc-chip { font-size:.78rem; padding:2px 8px; border-radius:999px; background:var(--green-050);
+             white-space:nowrap; }
+  .tc-chip--quiet { background:transparent; border:1px dashed var(--line); color:var(--muted, #6b7280); }
+  .tc-ref { font-size:.8rem; white-space:nowrap; }
+  .tc-edit { font-size:.8rem; color:var(--green-700); white-space:nowrap; }
+  .tc-row[open] > .tc-head .tc-edit { font-weight:700; }
+  .tc-row.is-off .tc-name strong { color:var(--muted, #6b7280); text-decoration:line-through; }
+</style>
 {% if pages > 1 %}
 <nav style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:12px;" data-pages>
   {% for n in range(1, pages + 1) %}
   <a class="btn btn-sm {{ 'btn-primary' if n == page else 'btn-outline' }}"
-     href="{{ url_for('labs.tests', kind=kind, q=q or None, category=category or None, page=n) }}">{{ n }}</a>
+     href="{{ tab_url(kind, q=q, category=category, page=n) }}">{{ n }}</a>
   {% endfor %}
 </nav>
 {% endif %}

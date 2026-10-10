@@ -2626,6 +2626,8 @@ CAPABILITY_LABELS = {
                          "Write drug orders for admitted children"),
     "complaints_manage": ("متابعة الشكاوى والرد عليها وقفلها",
                           "Handle, answer and close complaints"),
+    "incident_manage": ("مراجعة بلاغات الحوادث وتصنيفها والتحقيق فيها وقفلها",
+                        "Classify, investigate and close incident reports"),
 }
 
 

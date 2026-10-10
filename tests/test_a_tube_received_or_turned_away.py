@@ -174,7 +174,7 @@ def test_the_reasons_are_the_lab_s_own_list(lab):
     from app.utils import lab_reception
 
     boss = lab["sign_in"]("boss")
-    page = boss.get("/labs/tests").get_data(as_text=True)
+    page = boss.get("/labs/settings").get_data(as_text=True)
     assert "data-reject-reasons" in page and "data-no-reasons" in page
     boss.post("/labs/reject-reasons", data={"name": "عينة متكسّرة الدم"})
     with lab["app"].app_context():
