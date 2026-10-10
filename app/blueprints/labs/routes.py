@@ -1799,6 +1799,31 @@ def add_test():
     return catalogue.add(request.form.get("kind") or "lab")
 
 
+@labs_bp.route("/tests/merge", methods=["POST"])
+@module_required(MODULE)
+def merge_tests():
+    """Two copies of one test made one — the person says which stays
+    (`utils/investigation_merge`)."""
+    from app.utils import investigation_merge as im
+
+    _admin_only()
+    # The pair, and which of the two stays — the other is the one merged in.
+    pair = [request.form.get("a_id", type=int), request.form.get("b_id", type=int)]
+    keep_id = request.form.get("keep_id", type=int)
+    drop_id = next((i for i in pair if i and i != keep_id), None) if keep_id in pair else None
+    keep = db.session.get(Investigation, keep_id or 0)
+    drop = db.session.get(Investigation, drop_id or 0)
+    try:
+        moved = im.merge(keep, drop, user=current_user)
+    except im.MergeError as exc:
+        db.session.rollback()
+        flash(t(f"merge.err_{exc}"), "error")
+        return redirect(url_for("labs.tests") + "#twins")
+    db.session.commit()
+    flash(t("merge.done", name=keep.name_ar, orders=moved["orders"]), "success")
+    return redirect(url_for("labs.tests") + "#twins")
+
+
 @labs_bp.route("/tests/<int:test_id>", methods=["POST"])
 @module_required(MODULE)
 def edit_test(test_id):
