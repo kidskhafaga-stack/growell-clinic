@@ -134,3 +134,19 @@ def test_the_antibiogram_counts_the_first_isolate_per_child(bench):
         assert row["n"] == 1 and row["cells"][bench["abx"]["Ampicillin"]] == (0, 1)
     page = bench["sign_in"]("boss").get("/labs/antibiogram?start=2000-01-01&end=2100-01-01").get_data(as_text=True)
     assert "data-antibiogram" in page and f'data-org="{bench["org"]["Escherichia coli"]}"' in page
+
+
+def test_an_isolate_taken_off_leaves_the_summary_without_it(bench):
+    from app.models import CultureIsolate
+
+    order = _order(bench)
+    keep = _isolate(bench, order, "Escherichia coli", {"Ampicillin": "R"})
+    gone = _isolate(bench, order, "Staphylococcus aureus (MRSA)", {"Ceftriaxone": "S"})
+    page = bench["sign_in"]("boss").post(f"/labs/order/{order}/culture/isolate/{gone}",
+                                         data={"remove": "1"})
+    assert page.status_code == 302
+    with bench["app"].app_context():
+        assert bench["db"].session.get(CultureIsolate, gone) is None
+        assert bench["db"].session.get(CultureIsolate, keep) is not None
+    text = _order_row(bench, order).result_text
+    assert "Escherichia coli" in text and "Staphylococcus" not in text

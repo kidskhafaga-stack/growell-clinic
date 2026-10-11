@@ -965,6 +965,8 @@ ADDITIONS = [
     ("visit_investigations", "reflex_of", "INTEGER"),
     # A culture, answered with what grew (`models/micro`) — the lab's tick.
     ("investigations", "is_culture", "BOOLEAN"),
+    # What infection control advises when an alert organism grows (`ipc`).
+    ("micro_organisms", "precaution", "VARCHAR(20)"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

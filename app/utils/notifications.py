@@ -294,6 +294,21 @@ def _compute():
     except Exception:  # noqa: BLE001
         pass
 
+    # An organism the laboratory marks alert has grown and infection control
+    # has not answered yet — told the moment the lab reports it, preliminary
+    # or final, to whoever holds ``infection_control`` (`utils/ipc`).
+    try:
+        from app.utils.ipc import open_count as ipc_open
+
+        n = ipc_open()
+        if n:
+            items.append({"key": "ipc_alerts", "module": "dashboard",
+                          "capability": "infection_control", "icon": "shield-exclamation",
+                          "severity": "danger", "count": n,
+                          "endpoint": "ipc.index", "kwargs": {}})
+    except Exception:  # noqa: BLE001
+        pass
+
     # A newer version of the program, as the last launch found it. Read from
     # what was stored rather than asked here: see `updates.remembered`. Under
     # `settings`, which is admin-only — updating is not a receptionist's
