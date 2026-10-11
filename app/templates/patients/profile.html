@@ -157,6 +157,14 @@
   {% endif %}
 
 
+  {# A file merged into another — its history is there now
+     (`utils/patient_merge`). #}
+  {% if patient.archive_reason == 'merged' and patient.merged_into %}
+  <div class="card gc-scale-in" style="margin-bottom:12px;border-inline-start:4px solid var(--primary);" data-merged-into>
+    <b><i class="bi bi-intersect"></i> {{ t('pmerge.this_was_merged') }}</b>
+    <a href="{{ url_for('patients.view', patient_id=patient.merged_into) }}">{{ t('pmerge.open_kept') }}</a>
+  </div>
+  {% endif %}
   <!-- Header -->
   <div class="card profile-header gc-scale-in">
     {{ patient_avatar(patient, 'lg') }}
@@ -166,6 +174,7 @@
         <span class="badge badge--role" title="{{ t('patients.system_number') }}">{{ patient.patient_number }}</span>
         {% if patient.reference_number %}<span class="badge badge--muted" title="{{ t('patients.reference_number') }}"><i class="bi bi-archive"></i> {{ patient.reference_number }}</span>{% endif %}
         {% if not patient.is_active %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}
+        {% if current_user.is_admin and patient.archive_reason != 'merged' %}<a class="badge badge--muted" href="{{ url_for('patients.merge_page', keep=patient.patient_number) }}" data-merge-from-file title="{{ t('pmerge.title') }}"><i class="bi bi-intersect"></i> {{ t('pmerge.from_file') }}</a>{% endif %}
         {% if patient.is_active and patient.archive_exempt %}<span class="badge badge--green"><i class="bi bi-pin-angle-fill"></i> {{ t('archive.exempt_badge') }}</span>{% endif %}
         {# A half-written file, said on the file itself — the one screen where
            somebody has everything in front of them to finish it. Derived on

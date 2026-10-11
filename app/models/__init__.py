@@ -152,6 +152,7 @@ from app.models.med_reconciliation import MedReconciliation
 from app.models.micro import (CultureIsolate, CultureResult,
                               CultureSusceptibility, IpcAlert, MicroAntibiotic,
                               MicroOrganism)
+from app.models.patient_merge import PatientMerge
 from app.models.user_capability import UserCapability
 from app.models.permissions import MODULES, ROLE_PERMISSIONS, ROLES
 from app.models.role import Role
@@ -533,6 +534,7 @@ __all__ = [
     "MedReconciliation",
     "MicroOrganism",
     "IpcAlert",
+    "PatientMerge",
     "MicroAntibiotic",
     "CultureResult",
     "CultureIsolate",

@@ -35,6 +35,11 @@
     <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.archive') }}">
       <i class="bi bi-archive"></i> {{ t('archive.title') }}
     </a>
+    {% if current_user.is_admin %}
+    <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.merge_page') }}" data-merge-link>
+      <i class="bi bi-intersect"></i> {{ t('pmerge.nav') }}
+    </a>
+    {% endif %}
     {# ICD.15 (هـ) بيطلب مُدد، و(ز) بيطلب متابعة. مدة محدّش بيبصّ عليها مش
        مدة — ودي الشاشة اللي بتخلّي الاتنين يعملوا حاجة. #}
     {% if current_user.can('patient_medical') %}
