@@ -1171,6 +1171,25 @@
     </div>
     <p class="hint" style="margin:6px 0 0;"><i class="bi bi-info-circle"></i> {{ t('settings.ai_dx_hint') }}</p>
 
+    {# Its own switch: the laboratory's verifier asking for a second look at
+       a written result — the lines and the child's age and sex, nothing a
+       child can be found by (`utils/lab_review`). #}
+    <h3 style="margin:16px 0 6px;font-size:0.95rem;"><i class="bi bi-eye"></i> {{ t('settings.ai_lab_review_section') }}</h3>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="ai_lab_review" name="ai_lab_review" value="1" {{ 'checked' if values.get('ai_lab_review')=='1' else '' }}>
+      <label for="ai_lab_review" style="margin:0;font-weight:400;">{{ t('settings.ai_lab_review') }}</label>
+    </div>
+    <p class="hint" style="margin:6px 0 0;"><i class="bi bi-info-circle"></i> {{ t('settings.ai_lab_review_hint') }}</p>
+
+    {# A control's insert carries no child at all — its own switch, so a
+       laboratory can have the typing saved without anything else. #}
+    <h3 style="margin:16px 0 6px;font-size:0.95rem;"><i class="bi bi-file-earmark-text"></i> {{ t('settings.ai_lab_insert_section') }}</h3>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="ai_lab_insert" name="ai_lab_insert" value="1" {{ 'checked' if values.get('ai_lab_insert')=='1' else '' }}>
+      <label for="ai_lab_insert" style="margin:0;font-weight:400;">{{ t('settings.ai_lab_insert') }}</label>
+    </div>
+    <p class="hint" style="margin:6px 0 0;"><i class="bi bi-info-circle"></i> {{ t('settings.ai_lab_insert_hint') }}</p>
+
     {# A fourth switch: the clinic's figures, not a child's file — what the
        boards show, with no name a child can be found by. #}
     <h3 style="margin:16px 0 6px;font-size:0.95rem;"><i class="bi bi-stars"></i> {{ t('settings.ai_boards_section') }}</h3>

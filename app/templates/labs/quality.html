@@ -48,6 +48,21 @@
     <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('lab_reception.add') }}</button>
     <p class="hint" style="margin:0;flex-basis:100%;">{{ t('lab_quality.target_hint') }}</p>
   </form>
+  {# The assistant reads a new lot's insert into the form below — nothing is
+     saved until a person ticks the lines (`utils/lab_insert`). #}
+  {% if insert_ready %}
+  <form method="post" action="{{ url_for('labs.qc_insert_read') }}" enctype="multipart/form-data"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);" data-insert-read>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <strong style="flex-basis:100%;"><i class="bi bi-stars"></i> {{ t('lab_insert.title') }}</strong>
+    <div class="form-row" style="margin:0;min-width:220px;"><label for="insert_file">{{ t('lab_insert.file') }}</label>
+      <input class="input" type="file" id="insert_file" name="insert" required accept=".pdf,.png,.jpg,.jpeg,.webp,.gif"></div>
+    <div class="form-row" style="margin:0;min-width:180px;flex:1;"><label for="insert_instrument">{{ t('lab_insert.instrument') }}</label>
+      <input class="input" id="insert_instrument" name="instrument" maxlength="120" dir="ltr" placeholder="Cobas c311"></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-magic"></i> {{ t('lab_insert.read') }}</button>
+    <p class="hint" style="margin:0;flex-basis:100%;">{{ t('lab_insert.hint') }}</p>
+  </form>
+  {% endif %}
   {% endif %}
 </div>
 
@@ -76,6 +91,30 @@
       <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('lab_quality.review') }}</button></form>
     {% else %}<span class="badge badge--warn">{{ t('lab_quality.not_reviewed') }}</span>{% endif %}
   </div>
+  {# What the reviewer reads before signing: the month's own figures per
+     control — arithmetic, no verdict (`lab_quality.month_stats`). #}
+  {% set stats = month_stats(month) %}
+  {% if stats %}
+  <details style="padding:4px 0 8px;" data-month-stats="{{ month }}">
+    <summary class="hint" style="cursor:pointer;margin:0;">{{ t('lab_quality.stats_open') }}</summary>
+    <div style="overflow-x:auto;">
+    <table class="table" style="min-width:640px;font-variant-numeric:tabular-nums;">
+      <thead><tr><th>{{ t('lab_quality.materials') }}</th><th>n</th><th>{{ t('lab_quality.f_mean') }}</th><th>SD</th><th>CV %</th><th>{{ t('lab_quality.bias') }} %</th><th>{{ t('lab_quality.rejected') }}</th></tr></thead>
+      <tbody>{% for r in stats %}
+      <tr data-stat-material="{{ r.material.id }}">
+        <td>{{ r.material.label(current_lang) }} <span class="hint" dir="ltr">{{ '%g'|format(r.material.target_mean) }} ± {{ '%g'|format(r.material.target_sd) }}</span></td>
+        <td>{{ r.n }}</td>
+        <td dir="ltr">{{ '%.4g'|format(r.mean) }}</td>
+        <td dir="ltr">{{ '%.3g'|format(r.sd) if r.sd is not none else '—' }}</td>
+        <td dir="ltr">{{ '%.1f'|format(r.cv) if r.cv is not none else '—' }}</td>
+        <td dir="ltr">{{ '%+.1f'|format(r.bias) if r.bias is not none else '—' }}</td>
+        <td>{{ r.rejected }}{% if r.no_action %} <span class="badge badge--danger">{{ t('lab_quality.no_action_n', n=r.no_action) }}</span>{% endif %}</td>
+      </tr>{% endfor %}</tbody>
+    </table>
+    </div>
+    <p class="hint" style="margin:4px 0 0;">{{ t('lab_quality.stats_hint') }}</p>
+  </details>
+  {% endif %}
   {% endfor %}
 </div>
 {% endblock %}

@@ -92,6 +92,10 @@ TEXT_KEYS = [
 TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled",
                "ai_patient_context", "ai_anonymize", "ai_discussion",
                "ai_dx_suggest",
+               # The assistant's second look at a lab result before release.
+               "ai_lab_review",
+               # The assistant reads a control's insert into the QC form.
+               "ai_lab_insert",
                # The assistant reads the medical and management boards.
                "ai_boards",
                # The clinician has read the jaundice table and accepted it.

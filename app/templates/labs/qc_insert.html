@@ -1,0 +1,55 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_insert.title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_insert.title') }}{% endblock %}
+
+{% block content %}
+{# What the assistant read off the insert (`utils/lab_insert`) — proposals
+   in a form. Only the ticked lines are saved, each through the same door
+   as a control typed by hand; nothing here is saved by being shown. #}
+{% from "labs/_nav.html" import lab_nav with context %}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-stars"></i> {{ t('lab_insert.title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('lab_insert.check_sub') }}</p>
+</div>
+{{ lab_nav('quality') }}
+
+<form method="post" action="{{ url_for('labs.qc_insert_save') }}" class="card gc-scale-in" data-insert-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="count" value="{{ found.rows|length }}">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px;">
+    <div class="form-row" style="margin:0;min-width:220px;flex:1;"><label for="name_all">{{ t('lab_quality.f_name') }}</label>
+      <input class="input" id="name_all" name="name_all" value="{{ name }}" maxlength="120" dir="auto"></div>
+    <div class="form-row" style="margin:0;min-width:140px;"><label for="lot_all">{{ t('lab_reagents.lot') }}</label>
+      <input class="input" id="lot_all" name="lot_all" value="{{ found.lot or '' }}" maxlength="60" dir="ltr"></div>
+    <div class="form-row" style="margin:0;min-width:150px;"><label for="expiry_all">{{ t('lab_reagents.expiry') }}</label>
+      <input class="input" type="date" id="expiry_all" name="expiry_all" value="{{ found.expiry.isoformat() if found.expiry and found.expiry.isoformat is defined else (found.expiry or '') }}"></div>
+  </div>
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:820px;font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('lab_insert.take') }}</th><th>{{ t('lab_insert.printed') }}</th><th>{{ t('lab_quality.f_analyte') }}</th><th>{{ t('lab_quality.f_level') }}</th><th>{{ t('lab_quality.f_mean') }}</th><th>{{ t('lab_quality.f_sd') }}</th><th>{{ t('lab_quality.f_unit') }}</th></tr></thead>
+    <tbody>
+    {% for r in found.rows %}{% set i = loop.index0 %}
+    <tr data-insert-row="{{ i }}">
+      <td><input type="checkbox" name="take" value="{{ i }}" aria-label="{{ t('lab_insert.take') }}" {{ 'checked' if r.ticked or (r.ticked is not defined and r.match and r.sd) }}></td>
+      <td dir="ltr"><input type="hidden" name="printed_{{ i }}" value="{{ r.analyte }}">{{ r.analyte }}</td>
+      <td><select class="select" name="analyte_id_{{ i }}" aria-label="{{ t('lab_quality.f_analyte') }}">
+        <option value="">—</option>{% for a in analytes %}<option value="{{ a.id }}" {{ 'selected' if r.match and r.match.id == a.id }}>{{ a.display_name(current_lang) }}</option>{% endfor %}</select>
+        {% if not r.match %}<div class="hint" style="margin:2px 0 0;" data-insert-unmatched>{{ t('lab_insert.no_match') }}</div>{% endif %}</td>
+      <td><input class="input" name="level_{{ i }}" value="{{ r.level or '' }}" maxlength="40" style="width:110px;" aria-label="{{ t('lab_quality.f_level') }}"></td>
+      <td><input class="input" name="target_mean_{{ i }}" value="{{ ('%g'|format(r.mean)) if r.mean is number else (r.mean or '') }}" inputmode="decimal" dir="ltr" style="width:100px;" aria-label="{{ t('lab_quality.f_mean') }}"></td>
+      <td><input class="input" name="target_sd_{{ i }}" value="{{ ('%g'|format(r.sd)) if r.sd is number else (r.sd or '') }}" inputmode="decimal" dir="ltr" style="width:90px;" aria-label="{{ t('lab_quality.f_sd') }}">
+        {% if not r.sd %}<div class="hint" style="margin:2px 0 0;" data-insert-no-sd>{{ t('lab_insert.no_sd') }}</div>{% endif %}</td>
+      <td><input class="input" name="unit_{{ i }}" value="{{ r.unit or '' }}" maxlength="30" dir="ltr" style="width:90px;" aria-label="{{ t('lab_quality.f_unit') }}"></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="hint">{{ t('lab_insert.you_check') }}</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2"></i> {{ t('lab_insert.save') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('labs.quality') }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+{% endblock %}

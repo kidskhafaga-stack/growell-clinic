@@ -231,6 +231,37 @@
 </div>
 {% endif %}
 
+{# ---- the assistant's second look (`utils/lab_review`) ------------------
+   Before release: what a verifier would check — the sample, the possible,
+   the consistent, the change from last time. Sent nothing a child can be
+   found by; shown here once and kept nowhere; releasing is still above. #}
+{% if order.kind == 'lab' and order.status == 'resulted' and not order.verified_at and (ai_review_ready or ai_review) %}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-lab-review>
+  <form method="post" action="{{ url_for('labs.ai_review', order_id=order.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <strong><i class="bi bi-stars"></i> {{ t('lab_review.title') }}</strong>
+    <span style="flex:1;"></span>
+    <button class="btn btn-outline btn-sm gc-press" type="submit" data-lab-review-ask><i class="bi bi-eye"></i> {{ t('lab_review.ask') }}</button>
+  </form>
+  <p class="hint" style="margin:6px 0 0;"><i class="bi bi-shield-check"></i> {{ t('lab_review.privacy') }}</p>
+  {% if ai_review %}
+    {% if ai_review.ok %}
+    <div style="margin-top:10px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;" data-lab-review-reply>
+      <div class="hint" style="margin:0 0 6px;"><i class="bi bi-robot"></i> {{ t('lab_review.from_assistant') }}</div>
+      {% if ai_review.points %}
+      <ul style="margin:0;padding-inline-start:18px;line-height:1.8;">
+        {% for p in ai_review.points %}<li data-lab-review-point="{{ p.kind }}"><span class="badge badge--warn">{{ t('lab_review.kind_' ~ p.kind) }}</span> <span dir="auto">{{ p.text }}</span></li>{% endfor %}
+      </ul>
+      {% else %}<p style="margin:0;" data-lab-review-nothing>{{ t('lab_review.nothing') }}</p>{% endif %}
+      <p class="hint" style="margin:8px 0 0;">{{ t('lab_review.you_release') }}</p>
+    </div>
+    {% else %}
+    <p class="alert-pill warn" style="margin:10px 0 0;" data-lab-review-error>{{ ai_review.message }}</p>
+    {% endif %}
+  {% endif %}
+</div>
+{% endif %}
+
 {# ---- the outside laboratory's paper ------------------------------------ #}
 {# A result that came back as a photo or a PDF: kept on the order, and — where
    the assistant is on and the clinic agreed to send it a child's papers —
