@@ -238,6 +238,10 @@ def restore_patient(patient, user=None, today=None):
     """
     if patient.is_active:
         return False
+    # A merged file's history is on the file it went into; bringing back the
+    # empty one would make two files again. Undoing the merge is the way back.
+    if patient.archive_reason == "merged":
+        return False
     patient.is_active = True
     patient.archived_at = None
     patient.archive_reason = None

@@ -127,6 +127,9 @@ class Patient(db.Model):
     # ("auto" = the inactivity sweep, "manual" = a user archived it deliberately).
     archived_at = db.Column(db.DateTime)
     archive_reason = db.Column(db.String(20))
+    # A file merged into another (``archive_reason = "merged"``) — the one
+    # that carries its history now. See ``models/patient_merge``.
+    merged_into = db.Column(db.Integer)
     # «ما يتأرشفش». A file someone decided stays on the roster whatever the
     # sweep thinks of it — a child followed for years between visits, a
     # family the clinic knows. Nullable: every file before this column has

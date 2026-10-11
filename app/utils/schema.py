@@ -967,6 +967,8 @@ ADDITIONS = [
     ("investigations", "is_culture", "BOOLEAN"),
     # What infection control advises when an alert organism grows (`ipc`).
     ("micro_organisms", "precaution", "VARCHAR(20)"),
+    # The file a merged file's history went to (`models/patient_merge`).
+    ("patients", "merged_into", "INTEGER"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"
