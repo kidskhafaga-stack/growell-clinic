@@ -134,8 +134,15 @@ def order(order_id):
     # A test the laboratory has broken into what it measures is answered
     # line by line, each against this child's range; one it has not is
     # answered the way it always was.
+    return _render_order(row)
+
+
+def _render_order(row, **extra):
+    """The order page — shared by the page itself and the answers that are
+    shown on it once and kept nowhere (the assistant's second look)."""
     lines = lab_results.sheet(row) if lab_results.measured(row) else None
     from app.utils import lab_reception
+    from app.utils import lab_review
 
     return render_template("labs/order.html", order=row, bench=bench,
                            reasons=lab_reception.reasons(),
@@ -162,7 +169,36 @@ def order(order_id):
                                row, current_user),
                            # GAHAR DAS.20 — where this tube is kept.
                            papers=_papers(row), ai_reads_papers=_ai_reads(),
-                           **_storage_for(row))
+                           # The assistant's second look before release.
+                           ai_review_ready=lab_review.ready(),
+                           **_storage_for(row), **extra)
+
+
+@labs_bp.route("/order/<int:order_id>/ai-review", methods=["POST"])
+@module_required(MODULE)
+def ai_review(order_id):
+    """The assistant looks the written result over before it is released —
+    and stops there (``lab_review``). Shown once, kept nowhere; releasing is
+    still ``verify``, by whoever may."""
+    from app.utils import lab_review
+
+    row = db.get_or_404(VisitInvestigation, order_id)
+    if row.kind != "lab":
+        abort(404)
+    from app.i18n import get_locale
+
+    try:
+        points = lab_review.review(row, lang=get_locale())
+    except lab_review.ReviewError as err:
+        key = str(err)
+        if key.startswith("ai:"):
+            from app.utils import ai
+
+            message = ai.error_sentence(key[3:])
+        else:
+            message = t(f"lab_review.err_{key}")
+        return _render_order(row, ai_review={"ok": False, "message": message})
+    return _render_order(row, ai_review={"ok": True, "points": points})
 
 
 def _papers(row):
@@ -712,7 +748,73 @@ def quality():
                            months=lab_quality.months(),
                            may_review=lab_quality.may_review(current_user),
                            may_build=current_user.is_admin,
-                           open_failures=lab_quality.failed_without_action())
+                           open_failures=lab_quality.failed_without_action(),
+                           month_stats=lab_quality.month_stats,
+                           insert_ready=_lab_insert().ready())
+
+
+def _lab_insert():
+    from app.utils import lab_insert
+
+    return lab_insert
+
+
+@labs_bp.route("/quality/insert", methods=["POST"])
+@module_required(MODULE)
+def qc_insert_read():
+    """The assistant reads a control's insert into a form — and stops there
+    (``lab_insert``). Nothing is saved until the lines are ticked."""
+    from app.models import LabAnalyte
+    from app.utils import lab_quality
+
+    ins = _lab_insert()
+    if not lab_quality.may_review(current_user):
+        abort(403, description=t("auth.no_permission"))
+    upload = request.files.get("insert")
+    try:
+        found = ins.read(upload, request.form.get("instrument"))
+    except ins.InsertError as err:
+        key = str(err)
+        if key.startswith("ai:"):
+            from app.utils import ai
+
+            flash(ai.error_sentence(key[3:]), "error")
+        else:
+            flash(t(f"lab_insert.err_{key}"), "error")
+        return redirect(url_for("labs.quality"))
+    return render_template("labs/qc_insert.html", found=found,
+                           name=(getattr(upload, "filename", "") or "").rsplit(".", 1)[0][:120],
+                           analytes=LabAnalyte.query.order_by(LabAnalyte.name).all())
+
+
+@labs_bp.route("/quality/insert/save", methods=["POST"])
+@module_required(MODULE)
+def qc_insert_save():
+    """The ticked lines, each saved as a control through the ordinary door."""
+    from app.utils import lab_quality
+
+    ins = _lab_insert()
+    if not lab_quality.may_review(current_user):
+        abort(403, description=t("auth.no_permission"))
+    try:
+        rows = ins.save_ticked(request.form)
+    except ins.InsertError as err:
+        db.session.rollback()
+        key = str(err)
+        if key.startswith("line:"):
+            _, n, why = key.split(":", 2)
+            flash(t("lab_insert.err_line", n=n, why=t(f"lab_quality.err_{why}")), "error")
+        else:
+            flash(t(f"lab_insert.err_{key}"), "error")
+        # The form again, as the person left it — not a blank page.
+        from app.models import LabAnalyte
+
+        return render_template("labs/qc_insert.html", found=ins.from_form(request.form),
+                               name=request.form.get("name_all", ""),
+                               analytes=LabAnalyte.query.order_by(LabAnalyte.name).all())
+    db.session.commit()
+    flash(t("lab_insert.saved", n=len(rows)), "success")
+    return redirect(url_for("labs.quality"))
 
 
 @labs_bp.route("/quality/materials", methods=["POST"])

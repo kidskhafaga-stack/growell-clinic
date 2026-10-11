@@ -1706,7 +1706,13 @@
     "vb_warn_high": "Tolerated to",
     "ai_boards_section": "The assistant on the medical and management boards",
     "ai_boards": "Let the assistant read the medical and management boards",
-    "ai_boards_hint": "It is sent the board's totals only: counts, diagnoses, departments and money. No child's name or file number, and doctors as codes whose names are put back on the screen. The reply is not saved."
+    "ai_boards_hint": "It is sent the board's totals only: counts, diagnoses, departments and money. No child's name or file number, and doctors as codes whose names are put back on the screen. The reply is not saved.",
+    "ai_lab_review_section": "Laboratory: a second look before release",
+    "ai_lab_review": "The assistant looks over a written result before release, when somebody asks",
+    "ai_lab_review_hint": "It says only what needs checking: the sample (haemolysis, contamination, wrong tube), an impossible value, an inconsistent result, or a large change from last time. It does not diagnose, set ranges or release. Only the test's lines, the age and the sex are sent.",
+    "ai_lab_insert_section": "Laboratory: reading a control's insert",
+    "ai_lab_insert": "The assistant reads a control material's insert into the form",
+    "ai_lab_insert_hint": "An insert carries no child's data. The assistant reads the printed mean and SD only, and nothing is saved except what you tick."
   },
   "errors": {
     "403_title": "Forbidden",
@@ -2812,7 +2818,9 @@
     "feature_discussion": "Case discussion",
     "feature_dx_suggest": "Diagnosis suggestions",
     "feature_lab_read": "Reading a lab paper",
-    "feature_rx_find": "Finding a drug"
+    "feature_rx_find": "Finding a drug",
+    "feature_lab_review": "Lab second look",
+    "feature_lab_insert": "Control insert reading"
   },
   "rx": {
     "title": "Drugs & Prescriptions",
@@ -10389,7 +10397,12 @@
     "err_bad_month": "The month is not understood.",
     "err_need_provider": "Write the provider.",
     "err_bad_kind": "The kind is not understood.",
-    "err_bad_outcome": "The grade is not understood."
+    "err_bad_outcome": "The grade is not understood.",
+    "stats_open": "The month's figures per control",
+    "bias": "Bias",
+    "rejected": "Rejected",
+    "no_action_n": "{n} without action",
+    "stats_hint": "Arithmetic only: the month's mean and SD, the CV, and the distance from the laboratory's target in percent. What is acceptable is the laboratory's policy."
   },
   "lab_poct": {
     "title": "Point-of-care testing",
@@ -11731,5 +11744,43 @@
     "err_precautions": "Tick at least one precaution — «standard precautions only» is a valid answer.",
     "err_isolation": "Choose the isolation decision.",
     "err_precaution": "Unknown precaution."
+  },
+  "lab_review": {
+    "title": "A second look before release",
+    "ask": "Ask the assistant to look",
+    "privacy": "The assistant is sent the test's lines and the child's age in days and sex only — no name, file number or date. Nothing is saved.",
+    "from_assistant": "From the assistant — for review, not a decision",
+    "nothing": "The assistant found nothing that needs a pause.",
+    "you_release": "Releasing is for whoever may release, whatever the assistant said or did not say.",
+    "kind_preanalytical": "Sample",
+    "kind_implausible": "Not physiologically possible",
+    "kind_inconsistent": "Inconsistent",
+    "kind_delta": "Change from last time",
+    "err_off": "The second look is switched off in the assistant settings.",
+    "err_nothing_written": "There is no written result to look at yet.",
+    "err_unreadable": "The assistant's reply could not be read — try again."
+  },
+  "lab_insert": {
+    "title": "Read a control's insert with the assistant",
+    "file": "The insert (image or PDF)",
+    "instrument": "Your analyser or method",
+    "read": "Read the insert",
+    "hint": "The assistant reads the printed mean and SD for your analyser and shows them in a form — nothing is saved except the lines you tick.",
+    "check_sub": "Check each line against the insert: the analyte, the level, the mean and the SD. Only the ticked lines are saved as controls.",
+    "take": "Save",
+    "printed": "As printed",
+    "no_match": "This analyte is not in your list — choose it.",
+    "no_sd": "No SD printed on the insert — type it from the insert.",
+    "you_check": "The assistant only reads — the mean and SD are the laboratory's target, saved by whoever checked them.",
+    "save": "Save the ticked lines",
+    "saved": "{n} controls saved.",
+    "err_off": "Reading inserts is switched off in the assistant settings.",
+    "err_not_readable": "The file must be an image or a PDF.",
+    "err_pdf_provider": "The current provider does not read PDFs — upload a picture of the insert.",
+    "err_no_file": "Choose the insert file.",
+    "err_too_big": "The file is larger than 8 MB.",
+    "err_nothing_found": "The assistant found no clear lines on the insert.",
+    "err_none_ticked": "No line was ticked.",
+    "err_line": "Line {n}: {why}"
   }
 }

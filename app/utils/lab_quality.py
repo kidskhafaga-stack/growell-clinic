@@ -188,6 +188,45 @@ def months():
     return [(m, c[0], c[1], reviews.get(m)) for m, c in sorted(counts.items(), reverse=True)]
 
 
+def month_stats(month):
+    """What the reviewer reads before signing the month — per control:
+    ``{material, n, mean, sd, cv, bias, rejected, no_action}``.
+
+    Arithmetic only: the month's own mean and SD (n − 1), CV as SD over
+    mean, and bias as the distance of that mean from the laboratory's
+    target, in percent. No limit is applied here and no verdict is given —
+    what an acceptable CV or bias is belongs to the laboratory's policy.
+    """
+    from app.models import QcMaterial, QcRun
+
+    try:
+        start = datetime.strptime(month, "%Y-%m")
+    except (TypeError, ValueError):
+        return []
+    end = (start.replace(year=start.year + 1, month=1) if start.month == 12
+           else start.replace(month=start.month + 1))
+    runs = (QcRun.query.filter(QcRun.run_at >= start, QcRun.run_at < end)
+            .order_by(QcRun.material_id, QcRun.run_at).all())
+    by = {}
+    for r in runs:
+        by.setdefault(r.material_id, []).append(r)
+    out = []
+    for mid, rows in by.items():
+        m = db.session.get(QcMaterial, mid)
+        values = [r.value for r in rows]
+        n = len(values)
+        mean = sum(values) / n
+        sd = ((sum((v - mean) ** 2 for v in values) / (n - 1)) ** 0.5) if n > 1 else None
+        out.append({
+            "material": m, "n": n, "mean": mean, "sd": sd,
+            "cv": (sd / mean * 100) if sd is not None and mean else None,
+            "bias": ((mean - m.target_mean) / m.target_mean * 100) if m.target_mean else None,
+            "rejected": sum(1 for r in rows if not r.accepted),
+            "no_action": sum(1 for r in rows if not r.accepted and not r.action),
+        })
+    return sorted(out, key=lambda x: (x["material"].name, x["material"].level or ""))
+
+
 def review(month, user, note=None):
     from app.models import QcReview
 
