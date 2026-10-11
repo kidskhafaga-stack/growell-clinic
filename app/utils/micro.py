@@ -100,8 +100,11 @@ def save_isolate(order, isolate, form, user=None):
     if culture is None or isolate.culture_id != culture.id:
         raise MicroError("isolate")
     if form.get("remove") == "1":
+        from app.utils import ipc
+        ipc.isolate_gone(isolate)
+        # Off the list is enough: the relationship deletes an orphan, and a
+        # second, explicit delete of the same row broke the flush.
         culture.isolates.remove(isolate)
-        db.session.delete(isolate)
         return _write(order, culture, user)
     isolate.count = (form.get("count") or "").strip()[:60] or None
     have = {r.antibiotic_id: r for r in isolate.readings}
@@ -163,6 +166,9 @@ def _write(order, culture, user):
     culture.updated_at = datetime.utcnow()
     db.session.flush()
     bench.record(order, text=summary(culture), comment=None, user=user)
+    # An alert organism tells infection control now — preliminary or not.
+    from app.utils import ipc
+    ipc.raise_for(order, culture)
     return culture
 
 

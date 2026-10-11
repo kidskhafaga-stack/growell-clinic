@@ -150,7 +150,7 @@ from app.models.medication_review import (MedicationReview,
                                           REVIEW_DECISIONS)
 from app.models.med_reconciliation import MedReconciliation
 from app.models.micro import (CultureIsolate, CultureResult,
-                              CultureSusceptibility, MicroAntibiotic,
+                              CultureSusceptibility, IpcAlert, MicroAntibiotic,
                               MicroOrganism)
 from app.models.user_capability import UserCapability
 from app.models.permissions import MODULES, ROLE_PERMISSIONS, ROLES
@@ -532,6 +532,7 @@ __all__ = [
     "MedicationReview",
     "MedReconciliation",
     "MicroOrganism",
+    "IpcAlert",
     "MicroAntibiotic",
     "CultureResult",
     "CultureIsolate",

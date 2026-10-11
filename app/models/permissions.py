@@ -314,6 +314,12 @@ CAPABILITIES = [
     # anybody who works here reports, with or without their name. The person
     # who reviews is not the one who reported, and the hospital names them.
     "incident_manage",
+    # «مكافحة العدوى» — told when an organism the laboratory marks alert
+    # grows, and answering it: the precautions and whether the child is
+    # isolated (``models/micro.IpcAlert``). Also reads the hand-hygiene
+    # reports. The hospital names its infection-control team; nobody holds
+    # it by role but the admin.
+    "infection_control",
 ]
 
 ROLE_CAPABILITIES = {

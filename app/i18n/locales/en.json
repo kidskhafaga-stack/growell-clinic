@@ -3607,7 +3607,8 @@
     "er_outside": "{count} outside prescription(s) in emergency waiting for a doctor",
     "holds_today": "{count} files on hold booked today or in a bed",
     "contracts_lapsed": "{count} contracts ended with no renewal while members still hold valid cards",
-    "incidents": "{count} incident reports awaiting review"
+    "incidents": "{count} incident reports awaiting review",
+    "ipc_alerts": "{count} alert organisms waiting for infection control"
   },
   "analytics": {
     "title": "Patient analytics",
@@ -4495,7 +4496,8 @@
     "complaints_manage": "Handle complaints",
     "duty_manager": "Manager on duty (approves files on hold)",
     "lab_release": "Release lab results",
-    "incident_manage": "Review incident reports"
+    "incident_manage": "Review incident reports",
+    "infection_control": "Infection control"
   },
   "survey": {
     "title": "Survey builder",
@@ -11688,5 +11690,46 @@
     "isolates_n": "{n} isolates",
     "antibiogram_empty": "No cultures with susceptibility in this period.",
     "few_hint": "Fewer than {few} isolates — not enough to guide a choice (CLSI M39)."
+  },
+  "ipc": {
+    "nav": "Infection control",
+    "title": "Infection control — alert organisms",
+    "sub": "When the lab reports an organism marked «alert» on a culture — preliminary or final — it reaches you here at once. The program says what it knows: the precaution you set for that organism, where the child is, and the free isolation beds. The decision is yours.",
+    "hand_hygiene": "Hand hygiene",
+    "open": "Waiting for your answer",
+    "none_open": "No alert waiting.",
+    "preliminary": "Preliminary report",
+    "suggested": "Suggested — for review",
+    "no_precaution_set": "No precaution set for this organism yet (below, under «Precaution per organism»).",
+    "in_bed": "The child is in:",
+    "space_isolates": "this space isolates",
+    "space_open": "this space does not isolate",
+    "admitted_no_bed": "The child is admitted with no bed recorded.",
+    "free_isolation": "Free isolation beds:",
+    "no_free_isolation": "No isolation bed is free now.",
+    "not_admitted": "The child is not admitted now.",
+    "you_decide": "The program moves no child and sets no precaution — this is a suggestion, and the decision is in the name of whoever records it.",
+    "isolation": "Isolation",
+    "iso_isolated": "Isolated (moved, or already in an isolation space)",
+    "iso_advised": "Ward and doctor told to isolate",
+    "iso_not_needed": "No isolation needed",
+    "note": "Note",
+    "save": "Record the decision",
+    "reviewed": "Decision recorded.",
+    "organisms": "Precaution per alert organism",
+    "organisms_sub": "What you set here is shown as the suggestion on every alert for that organism. The lab marks an organism «alert» in its own lists.",
+    "no_alert_organisms": "The lab has not marked any organism «alert» yet.",
+    "precaution_unset": "— not set —",
+    "done": "Answered",
+    "none_done": "None in this period.",
+    "when": "Raised",
+    "organism": "Organism",
+    "child": "Child",
+    "by": "Answered by",
+    "told": "Infection control has been told of the alert organism.",
+    "chip_open": "waiting for infection control",
+    "err_precautions": "Tick at least one precaution — «standard precautions only» is a valid answer.",
+    "err_isolation": "Choose the isolation decision.",
+    "err_precaution": "Unknown precaution."
   }
 }

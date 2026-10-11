@@ -63,13 +63,15 @@ def _text(value, limit):
 def may_observe(user):
     return bool(user is not None and (
         user.is_admin or any(user.can_access(m) for m in _CLINICAL)
-        or user.can_access("reports")))
+        or user.can_access("reports") or user.can("infection_control")))
 
 
 def may_manage(user):
     """The month's actions, the training record and the target — the
-    infection-control lead, who reads the reports."""
-    return bool(user is not None and (user.is_admin or user.can_access("reports")))
+    infection-control lead, who reads the reports — whoever holds the
+    reports, as before, or ``infection_control`` (`utils/ipc`)."""
+    return bool(user is not None and (user.is_admin or user.can_access("reports")
+                                      or user.can("infection_control")))
 
 
 def _place(form, need=True):

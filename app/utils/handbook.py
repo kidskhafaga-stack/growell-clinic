@@ -2628,6 +2628,8 @@ CAPABILITY_LABELS = {
                           "Handle, answer and close complaints"),
     "incident_manage": ("مراجعة بلاغات الحوادث وتصنيفها والتحقيق فيها وقفلها",
                         "Classify, investigate and close incident reports"),
+    "infection_control": ("مكافحة العدوى: تنبيه الميكروبات المنذرة والرد عليه، وتقارير نظافة الأيدي",
+                          "Infection control: alert organisms and their answer, and hand-hygiene reports"),
 }
 
 

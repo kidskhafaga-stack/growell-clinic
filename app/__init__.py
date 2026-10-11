@@ -163,6 +163,7 @@ def create_app(config_name="default"):
     from app.blueprints.hand_hygiene import hand_hygiene_bp
     from app.blueprints.facility import facility_bp
     from app.blueprints.incidents import incidents_bp
+    from app.blueprints.ipc import ipc_bp
     from app.blueprints.webhooks import webhooks_bp
     from app.blueprints.finance import finance_bp
     from app.blueprints.dentistry import dentistry_bp
@@ -226,6 +227,7 @@ def create_app(config_name="default"):
     app.register_blueprint(hand_hygiene_bp)
     app.register_blueprint(facility_bp)
     app.register_blueprint(incidents_bp)
+    app.register_blueprint(ipc_bp)
     app.register_blueprint(webhooks_bp)
     # The providers post from their own servers and cannot carry a token of
     # ours; they prove themselves by signature instead (see webhook_auth).
@@ -281,6 +283,13 @@ def create_app(config_name="default"):
         from app.utils import patient_flags
         return patient_flags.active(patient_id) if patient_id else None
 
+    def _patient_precautions(patient_id, since=None):
+        """Alert organisms on this child that infection control has not
+        answered, or answered with more than standard precautions — for the
+        stay (`utils/ipc`)."""
+        from app.utils import ipc
+        return ipc.for_patient(patient_id, since=since) if patient_id else []
+
     @app.context_processor
     def inject_navigation():
         from app.models import Setting
@@ -292,6 +301,7 @@ def create_app(config_name="default"):
             "module_enabled": module_enabled,
             "device_board_shown": _device_board_shown,
             "patient_hold": _patient_hold,
+            "patient_precautions": _patient_precautions,
             "clinic_name": app.config.get("CLINIC_NAME", "PediaPro"),
             "now_date": local_today().isoformat(),
             "now_weekday": datetime.utcnow().weekday(),

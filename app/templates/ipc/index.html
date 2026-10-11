@@ -1,0 +1,125 @@
+{% extends "shell.html" %}
+{% set active_module = 'ipc' %}
+{% block title %}{{ t('ipc.title') }}{% endblock %}
+{% block page_heading %}{{ t('ipc.title') }}{% endblock %}
+
+{% block content %}
+{# An organism the laboratory marks alert grew (`utils/ipc`). The program
+   says what it knows — the precaution set below for that organism, where
+   the child is, the free isolation beds — and a person decides. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-shield-exclamation"></i> {{ t('ipc.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('ipc.sub') }}</p>
+  </div>
+  {% if hand_hygiene %}<a class="btn btn-outline gc-press" href="{{ url_for('hand_hygiene.index') }}"><i class="bi bi-droplet-half"></i> {{ t('ipc.hand_hygiene') }}</a>{% endif %}
+</div>
+
+<h2 class="section-title">{{ t('ipc.open') }} <span class="badge {{ 'badge--danger' if data.open else 'badge--muted' }}">{{ data.open|length }}</span></h2>
+{% if not data.open %}<p class="hint" data-ipc-none>{{ t('ipc.none_open') }}</p>{% endif %}
+<div style="display:grid;gap:12px;margin-bottom:18px;">
+{% for a, s in data.open %}
+<div class="card gc-scale-in" id="alert-{{ a.id }}" data-ipc-alert="{{ a.id }}" style="border-inline-start:4px solid var(--danger);">
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline;">
+    <div>
+      <b dir="ltr" style="font-size:1.1rem;"><i>{{ a.organism.name }}</i></b>
+      {% if a.order.culture and not a.order.culture.final %}<span class="badge badge--warn">{{ t('ipc.preliminary') }}</span>{% endif %}
+      <div>
+        {% if current_user.can_access('patients') %}<a href="{{ url_for('patients.view', patient_id=a.patient_id) }}">{{ a.patient.display_name(current_lang) }}</a>{% else %}{{ a.patient.display_name(current_lang) }}{% endif %}
+        · {% if current_user.can_access('labs') %}<a href="{{ url_for('labs.order', order_id=a.order_id) }}">{{ a.order.display_name(current_lang) }}</a>{% else %}{{ a.order.display_name(current_lang) }}{% endif %}
+      </div>
+    </div>
+    <span class="hint" dir="ltr">{{ a.raised_at|clinic_stamp }}</span>
+  </div>
+
+  <div class="alert-pill warn" style="display:block;margin:10px 0;border-radius:12px;font-weight:400;padding:10px 14px;" data-ipc-suggestion>
+    <b><i class="bi bi-lightbulb"></i> {{ t('ipc.suggested') }}</b>
+    <ul style="margin:4px 0 0;padding-inline-start:18px;line-height:1.9;">
+      <li data-ipc-suggest-precaution>{% if s.precaution %}{{ t('theatre.precaution_' ~ s.precaution) }}{% else %}{{ t('ipc.no_precaution_set') }}{% endif %}</li>
+      {% if s.admission %}
+        {% if s.bed %}
+        <li data-ipc-where>{{ t('ipc.in_bed') }} {{ s.bed.unit.display_name(current_lang) }} · {{ s.bed.space.display_name(current_lang) }} · {{ s.bed.display_name(current_lang) }}
+          — {{ t('ipc.space_isolates') if s.isolated else t('ipc.space_open') }}</li>
+        {% else %}
+        <li data-ipc-where>{{ t('ipc.admitted_no_bed') }}</li>
+        {% endif %}
+        {% if not s.isolated %}
+        <li data-ipc-free="{{ s.free|length }}">{% if s.free %}{{ t('ipc.free_isolation') }}
+          {% for b in s.free[:5] %}<span class="badge badge--muted">{{ b.unit.display_name(current_lang) }} · {{ b.display_name(current_lang) }}</span> {% endfor %}{% if s.free|length > 5 %}<span class="hint">+{{ s.free|length - 5 }}</span>{% endif %}
+          {% else %}{{ t('ipc.no_free_isolation') }}{% endif %}</li>
+        {% endif %}
+      {% else %}
+        <li data-ipc-where>{{ t('ipc.not_admitted') }}</li>
+      {% endif %}
+    </ul>
+    <div class="hint" style="margin:4px 0 0;">{{ t('ipc.you_decide') }}</div>
+  </div>
+
+  <form method="post" action="{{ url_for('ipc.review', alert_id=a.id) }}" style="display:grid;gap:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <fieldset style="border:0;padding:0;margin:0;">
+      <legend style="font-weight:600;margin-bottom:4px;">{{ t('theatre.precautions') }}</legend>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;">
+      {% for p in precautions %}
+        <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" name="precautions" value="{{ p }}" {{ 'checked' if p == s.precaution }}> {{ t('theatre.precaution_' ~ p) }}</label>
+      {% endfor %}
+      </div>
+    </fieldset>
+    <fieldset style="border:0;padding:0;margin:0;">
+      <legend style="font-weight:600;margin-bottom:4px;">{{ t('ipc.isolation') }}</legend>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;">
+      {% for i in isolation %}
+        <label style="display:flex;gap:6px;align-items:center;"><input type="radio" name="isolation" value="{{ i }}" required {{ 'checked' if i == 'isolated' and s.isolated }}> {{ t('ipc.iso_' ~ i) }}</label>
+      {% endfor %}
+      </div>
+    </fieldset>
+    <div class="form-row" style="margin:0;"><label for="note_{{ a.id }}">{{ t('ipc.note') }}</label>
+      <textarea class="input" id="note_{{ a.id }}" name="note" rows="2" dir="auto"></textarea></div>
+    <div><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2"></i> {{ t('ipc.save') }}</button></div>
+  </form>
+</div>
+{% endfor %}
+</div>
+
+<div class="card gc-scale-in" id="organisms" data-ipc-organisms style="margin-bottom:18px;">
+  <h2 class="section-title" style="margin-top:0;">{{ t('ipc.organisms') }}</h2>
+  <p class="hint">{{ t('ipc.organisms_sub') }}</p>
+  {% if not data.organisms %}<p class="hint" style="margin:0;">{{ t('ipc.no_alert_organisms') }}</p>{% endif %}
+  <div style="display:flex;flex-direction:column;gap:6px;">
+  {% for o in data.organisms %}
+  <form method="post" action="{{ url_for('ipc.organism_precaution', organism_id=o.id) }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0;" data-ipc-organism="{{ o.id }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <span dir="ltr" style="flex:1;min-width:160px;"><i>{{ o.name }}</i></span>
+    <select class="input" name="precaution" aria-label="{{ t('theatre.precautions') }}" style="width:auto;">
+      <option value="">{{ t('ipc.precaution_unset') }}</option>
+      {% for p in extra %}<option value="{{ p }}" {{ 'selected' if o.precaution == p }}>{{ t('theatre.precaution_' ~ p) }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+  {% endfor %}
+  </div>
+</div>
+
+<h2 class="section-title">{{ t('ipc.done') }}</h2>
+<form method="get" action="{{ url_for('ipc.index') }}" class="card" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:10px;">
+  <div class="form-row" style="margin:0;"><label for="from">{{ t('lab_reception.from') }}</label><input class="input" type="date" id="from" name="from" value="{{ start.isoformat() }}"></div>
+  <div class="form-row" style="margin:0;"><label for="to">{{ t('lab_reception.to') }}</label><input class="input" type="date" id="to" name="to" value="{{ end.isoformat() }}"></div>
+  <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('lab_reception.show') }}</button>
+</form>
+<div class="card" style="overflow-x:auto;" data-ipc-done>
+  {% if not data.done %}<p class="hint" style="margin:0;">{{ t('ipc.none_done') }}</p>{% else %}
+  <table class="table" style="min-width:640px;">
+    <thead><tr><th>{{ t('ipc.when') }}</th><th>{{ t('ipc.organism') }}</th><th>{{ t('ipc.child') }}</th><th>{{ t('theatre.precautions') }}</th><th>{{ t('ipc.isolation') }}</th><th>{{ t('ipc.by') }}</th></tr></thead>
+    <tbody>{% for a in data.done %}
+    <tr data-ipc-done-row="{{ a.id }}">
+      <td dir="ltr">{{ a.raised_at|clinic_stamp }}</td>
+      <td dir="ltr"><i>{{ a.organism.name }}</i></td>
+      <td>{{ a.patient.display_name(current_lang) }}</td>
+      <td>{% for p in a.precaution_list %}{{ t('theatre.precaution_' ~ p) }}{{ '، ' if current_lang == 'ar' and not loop.last else (', ' if not loop.last else '') }}{% endfor %}</td>
+      <td>{{ t('ipc.iso_' ~ a.isolation) if a.isolation else '—' }}{% if a.note %}<div class="hint" dir="auto">{{ a.note }}</div>{% endif %}</td>
+      <td>{{ a.reviewer.display_name(current_lang) if a.reviewer else '—' }}<div class="hint" dir="ltr">{{ a.reviewed_at|clinic_stamp }}</div></td>
+    </tr>{% endfor %}</tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

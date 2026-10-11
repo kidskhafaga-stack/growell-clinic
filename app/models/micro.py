@@ -38,6 +38,11 @@ class MicroOrganism(db.Model):
     #: Said wherever it is reported — the laboratory's and infection
     #: control's list of what needs acting on (MRSA, ESBL, CRE…).
     alert = db.Column(db.Boolean, default=False, nullable=False)
+    #: What infection control advises when it grows — ``contact``,
+    #: ``droplet`` or ``airborne`` (the theatre's quoted vocabulary). Set by
+    #: infection control on its own screen, never preset: which precaution an
+    #: organism calls for is the hospital's policy, not the program's.
+    precaution = db.Column(db.String(20))
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -106,3 +111,61 @@ class CultureSusceptibility(db.Model):
 
     isolate = db.relationship("CultureIsolate", back_populates="readings")
     antibiotic = db.relationship("MicroAntibiotic")
+
+
+#: What infection control decided about where the child is cared for.
+#: ``isolated`` — moved, or already in an isolation space; ``advised`` — told
+#: the ward and the doctor, the move is theirs to make; ``not_needed`` — the
+#: reviewer judged it unnecessary (a colonised outpatient, a known carrier
+#: already managed).
+ISOLATION = ("isolated", "advised", "not_needed")
+
+
+class IpcAlert(db.Model):
+    """An alert organism grew — infection control is told, and answers.
+
+    Raised by the program the moment the laboratory reports an isolate whose
+    organism it marked *alert*, preliminary or final: the point is that
+    infection control hears of it **before** the final report, not after.
+    The program raises and suggests; **a person decides** — the precautions
+    and the isolation are written by whoever holds ``infection_control``,
+    with their name and the time. Nothing here moves a child or changes an
+    order.
+
+    One alert per isolate. It keeps the organism, the order and the child on
+    itself, so an isolate the laboratory later takes back leaves an answered
+    alert readable (an unanswered one goes with it — nothing to answer).
+    """
+    __tablename__ = "ipc_alerts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"),
+                           nullable=False, index=True)
+    order_id = db.Column(db.Integer, db.ForeignKey("visit_investigations.id"),
+                         nullable=False, index=True)
+    isolate_id = db.Column(db.Integer, db.ForeignKey("culture_isolates.id"),
+                           unique=True)
+    organism_id = db.Column(db.Integer, db.ForeignKey("micro_organisms.id"),
+                            nullable=False)
+    raised_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False,
+                          index=True)
+
+    reviewed_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    reviewed_at = db.Column(db.DateTime, index=True)
+    #: Comma list from the theatre's ``PRECAUTIONS``.
+    precautions = db.Column(db.String(60))
+    isolation = db.Column(db.String(14))
+    note = db.Column(db.Text)
+
+    patient = db.relationship("Patient")
+    order = db.relationship("VisitInvestigation")
+    organism = db.relationship("MicroOrganism")
+    reviewer = db.relationship("User", foreign_keys=[reviewed_by])
+
+    @property
+    def is_open(self):
+        return self.reviewed_at is None
+
+    @property
+    def precaution_list(self):
+        return [p for p in (self.precautions or "").split(",") if p]

@@ -6,6 +6,7 @@
   <h2 class="section-title" style="margin-top:0;"><i class="bi bi-virus2"></i> {{ t('micro.culture') }}
     {% if culture and culture.outcome %}<span class="badge {{ 'badge--role' if culture.final else 'badge--warn' }}" data-culture-stage>{{ t('micro.final' if culture.final else 'micro.preliminary') }}</span>{% endif %}
     {% for o in culture_alerts %}<span class="badge badge--danger" data-alert-organism><i class="bi bi-exclamation-octagon"></i> {{ o.name }}</span>{% endfor %}</h2>
+  {% if culture_alerts %}<p class="hint" style="margin:0 0 8px;" data-ipc-told><i class="bi bi-shield-check"></i> {{ t('ipc.told') }}</p>{% endif %}
 
   {% if not organisms or not antibiotics %}
   <p class="hint" data-micro-empty>{{ t('micro.lists_empty') }}

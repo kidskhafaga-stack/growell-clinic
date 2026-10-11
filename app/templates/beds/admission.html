@@ -130,6 +130,13 @@
         <a class="stay-chip stay-chip--warn" data-stay-consent="missing" href="{{ url_for('beds.admission_consent', admission_id=admission.id) }}">
           <i class="bi bi-pen"></i> {{ t('beds.consent_chip_missing') }}</a>
         {% endif %}
+        {# An alert organism grew on this stay — open, or answered with more
+           than standard precautions (`utils/ipc`). #}
+        {% for pa in patient_precautions(admission.patient_id, admission.admitted_at) %}
+        <span class="stay-chip stay-chip--danger" data-stay-ipc="{{ 'open' if pa.is_open else 'answered' }}">
+          <i class="bi bi-shield-exclamation"></i> <i dir="ltr">{{ pa.organism.name }}</i> ·
+          {% if pa.is_open %}{{ t('ipc.chip_open') }}{% else %}{% for p in pa.precaution_list %}{{ t('theatre.precaution_' ~ p) }}{{ ' · ' if not loop.last }}{% endfor %}{% if pa.isolation %} · {{ t('ipc.iso_' ~ pa.isolation) }}{% endif %}{% endif %}</span>
+        {% endfor %}
         <span class="stay-chip {{ '' if mrp_now else 'stay-chip--danger' }}" data-stay-mrp>
           <i class="bi bi-person-badge"></i>
           {{ mrp_now.doctor.display_name(current_lang) if mrp_now else t('mrp.nobody') }}</span>
