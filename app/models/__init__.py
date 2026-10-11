@@ -149,6 +149,9 @@ from app.models.patient_medication import PatientMedication
 from app.models.medication_review import (MedicationReview,
                                           REVIEW_DECISIONS)
 from app.models.med_reconciliation import MedReconciliation
+from app.models.micro import (CultureIsolate, CultureResult,
+                              CultureSusceptibility, MicroAntibiotic,
+                              MicroOrganism)
 from app.models.user_capability import UserCapability
 from app.models.permissions import MODULES, ROLE_PERMISSIONS, ROLES
 from app.models.role import Role
@@ -528,6 +531,11 @@ __all__ = [
     "PatientMedication",
     "MedicationReview",
     "MedReconciliation",
+    "MicroOrganism",
+    "MicroAntibiotic",
+    "CultureResult",
+    "CultureIsolate",
+    "CultureSusceptibility",
     "REVIEW_DECISIONS",
     "UserCapability",
     "ROLE_PERMISSIONS",

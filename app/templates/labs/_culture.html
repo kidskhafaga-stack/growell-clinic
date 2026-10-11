@@ -1,0 +1,79 @@
+{# **A culture, answered in its own shape** (`utils/micro`): growth or none,
+   the isolates from the laboratory's list, and each one's susceptibility as
+   the laboratory read it. Every save writes the summary into the report
+   text, so the doctor's inbox, the file and the print read it unchanged. #}
+<div class="card gc-scale-in" id="culture" data-culture>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-virus2"></i> {{ t('micro.culture') }}
+    {% if culture and culture.outcome %}<span class="badge {{ 'badge--role' if culture.final else 'badge--warn' }}" data-culture-stage>{{ t('micro.final' if culture.final else 'micro.preliminary') }}</span>{% endif %}
+    {% for o in culture_alerts %}<span class="badge badge--danger" data-alert-organism><i class="bi bi-exclamation-octagon"></i> {{ o.name }}</span>{% endfor %}</h2>
+
+  {% if not organisms or not antibiotics %}
+  <p class="hint" data-micro-empty>{{ t('micro.lists_empty') }}
+    {% if current_user.is_admin %}<a href="{{ url_for('labs.micro_lists') }}">{{ t('micro.lists_title') }}</a>{% endif %}</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('labs.culture_outcome', order_id=order.id) }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px;" data-culture-outcome>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;min-width:200px;"><label>{{ t('micro.outcome') }}</label>
+      <select class="select" name="outcome">
+        <option value="">—</option>
+        {% for o in ('no_growth', 'growth', 'mixed', 'contaminated') %}
+        <option value="{{ o }}" {{ 'selected' if culture and culture.outcome == o else '' }}>{{ t('micro.o_' ~ o) }}</option>{% endfor %}
+      </select></div>
+    <label style="display:flex;gap:6px;align-items:center;margin:0;"><input type="checkbox" name="final" value="1" {{ 'checked' if culture and culture.final else '' }}> {{ t('micro.final') }}</label>
+    <div class="form-row" style="margin:0;flex:1;min-width:220px;"><label>{{ t('micro.comment') }}</label>
+      <input class="input" name="comment" maxlength="400" value="{{ culture.comment if culture and culture.comment else '' }}"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-save"></i> {{ t('common.save') }}</button>
+  </form>
+
+  {% for iso in (culture.isolates if culture else []) %}
+  <form method="post" action="{{ url_for('labs.culture_isolate', order_id=order.id, isolate_id=iso.id) }}"
+        data-isolate="{{ iso.id }}" style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:8px;">
+      <strong style="flex:1;" dir="ltr"><i>{{ iso.organism.name }}</i>
+        {% if iso.organism.alert %}<span class="badge badge--danger">{{ t('micro.alert') }}</span>{% endif %}</strong>
+      <div class="form-row" style="margin:0;width:200px;"><label>{{ t('micro.count') }}</label>
+        <input class="input" name="count" dir="ltr" maxlength="60" value="{{ iso.count or '' }}"></div>
+    </div>
+    {% set got = {} %}{% for r in iso.readings %}{% set _ = got.update({r.antibiotic_id: r}) %}{% endfor %}
+    <div style="overflow-x:auto;">
+      <table class="table" style="min-width:420px;">
+        <thead><tr><th>{{ t('micro.antibiotic') }}</th><th>S</th><th>I</th><th>R</th><th>—</th><th>{{ t('micro.mic') }}</th></tr></thead>
+        <tbody>
+        {% for abx in antibiotics %}{% set r = got.get(abx.id) %}
+        <tr data-abx="{{ abx.id }}">
+          <td dir="ltr">{{ abx.name }}</td>
+          {% for k in ('S', 'I', 'R', '') %}
+          <td><input type="radio" name="r_{{ abx.id }}" value="{{ k }}" aria-label="{{ abx.name }} {{ k or '—' }}"
+                     {{ 'checked' if (r and r.reading == k) or (not r and k == '') else '' }}></td>{% endfor %}
+          <td><input class="input" name="v_{{ abx.id }}" dir="ltr" maxlength="20" style="width:90px;" value="{{ r.value if r and r.value else '' }}"></td>
+        </tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn btn-sm btn-primary gc-press" type="submit"><i class="bi bi-save"></i> {{ t('common.save') }}</button>
+      <button class="btn btn-sm btn-outline gc-press" type="submit" name="remove" value="1"
+              onclick="return confirm({{ t('micro.remove_confirm')|tojson|forceescape }});"><i class="bi bi-x-lg"></i> {{ t('micro.remove') }}</button>
+    </div>
+  </form>
+  {% endfor %}
+
+  {% if organisms %}
+  <form method="post" action="{{ url_for('labs.culture_add_isolate', order_id=order.id) }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;" data-add-isolate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;min-width:220px;"><label>{{ t('micro.organism') }}</label>
+      <select class="select" name="organism_id" required>
+        <option value="">—</option>
+        {% for o in organisms %}<option value="{{ o.id }}" dir="ltr">{{ o.name }}{% if o.alert %} ⚠{% endif %}</option>{% endfor %}
+      </select></div>
+    <div class="form-row" style="margin:0;width:200px;"><label>{{ t('micro.count') }}</label>
+      <input class="input" name="count" dir="ltr" maxlength="60" placeholder=">10^5 CFU/mL"></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('micro.add_isolate') }}</button>
+  </form>
+  {% endif %}
+  <p class="hint" style="margin:12px 0 0;">{{ t('micro.reading_is_the_labs') }}</p>
+</div>

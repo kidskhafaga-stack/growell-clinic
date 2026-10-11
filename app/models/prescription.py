@@ -475,6 +475,9 @@ class Investigation(db.Model):
     # (GAHAR DAS.20 هـ). Empty: the laboratory's general figure, and with
     # none of either the tube has no date to be thrown away on.
     keep_days = db.Column(db.Integer)
+    #: A culture — answered with what grew and its susceptibility
+    #: (`models/micro`), not with a number. The laboratory's tick.
+    is_culture = db.Column(db.Boolean)
 
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name_ar

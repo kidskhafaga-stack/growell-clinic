@@ -149,6 +149,7 @@ def order(order_id):
                            lines=lines, late=lab_results.late(row),
                            # Why a calculated line has no number yet.
                            calc_why=_calc_why(row, lines),
+                           **_culture_context(row),
                            formula_text=_lab_calc().text_of,
                            age_days=lab_results.age_days(
                                row.patient, row.collected_at or row.created_at),
@@ -1918,6 +1919,18 @@ def _reflex_rules(row):
     from app.utils import lab_reflex
 
     return lab_reflex.rules_for(row.id)
+
+
+def _culture_context(row):
+    """The culture's parts, when the order is a culture (`utils/micro`)."""
+    from app.utils import micro
+
+    if not micro.is_culture(row):
+        return {"culture_mode": False}
+    culture = micro.culture_of(row)
+    return {"culture_mode": True, "culture": culture,
+            "culture_alerts": micro.alerts(culture),
+            "organisms": micro.organisms(), "antibiotics": micro.antibiotics()}
 
 
 def _lab_calc():

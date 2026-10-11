@@ -214,6 +214,9 @@ def edit(test_id, kind=None):
     # search, because the *order* is written here whoever performs it. All
     # this decides is whether the order joins this building's own worklist.
     row.in_house = request.form.get("in_house") == "1"
+    if row.kind == "lab":
+        # A culture is answered with what grew (`utils/micro`) — the lab's tick.
+        row.is_culture = request.form.get("is_culture") == "1" or None
     if row.kind == "lab" and "referral_lab_id" in request.form:
         from app.models import ReferralLab
 
