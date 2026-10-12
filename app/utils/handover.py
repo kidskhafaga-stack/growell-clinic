@@ -169,6 +169,9 @@ def cards(admissions, now=None):
             "bed": _both(bed),
             "unit": _both(unit),
             "isolation": bool(bed is not None and bed.is_isolation),
+            # IPC.12 ev. 4 — the precautions go with the child, in handover
+            # and in transfer.
+            "precautions": list(getattr(stay, "precaution_list", []) or []),
             "admitted_at": _iso(stay.admitted_at),
             "days": days,
             "doctor": _both(doctor),

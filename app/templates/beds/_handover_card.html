@@ -40,6 +40,7 @@
     {% if not c.reason and not c.diagnoses %}<span class="hint">{{ t('handover.no_reason') }}</span>{% endif %}
     {% if c.days is not none %}<span class="badge badge--muted">{{ t('handover.day_n', n=c.days + 1) }}</span>{% endif %}
     {% if c.isolation %}<span class="badge badge--warn">{{ t('handover.isolation') }}</span>{% endif %}
+    {% for p in (c.precautions or []) %}<span class="badge badge--danger" data-handover-prec>{{ t('theatre.precaution_' ~ p) }}</span>{% endfor %}
   </div>
 {% elif name == 'background' %}
   <div data-piece="background">

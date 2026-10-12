@@ -309,6 +309,20 @@ def _compute():
     except Exception:  # noqa: BLE001
         pass
 
+    # A suspected notifiable disease not yet reported (GAHAR IPC.18 ev. 2) —
+    # the law's clock, so it rings until somebody records the report.
+    try:
+        from app.models import DiseaseReport
+
+        n = DiseaseReport.query.filter(DiseaseReport.reported_on.is_(None)).count()
+        if n:
+            items.append({"key": "disease_reports", "module": "dashboard",
+                          "capability": "infection_control", "icon": "send-exclamation",
+                          "severity": "danger", "count": n,
+                          "endpoint": "ipc.disease_reports", "kwargs": {}})
+    except Exception:  # noqa: BLE001
+        pass
+
     # A newer version of the program, as the last launch found it. Read from
     # what was stored rather than asked here: see `updates.remembered`. Under
     # `settings`, which is admin-only — updating is not a receptionist's

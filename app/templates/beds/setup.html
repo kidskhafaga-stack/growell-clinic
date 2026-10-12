@@ -362,7 +362,19 @@
       {% if block.space.is_isolation %}
       <span class="alert-pill warn"><i class="bi bi-shield-exclamation"></i>
         {{ t('beds.isolation') }}</span>
+      {# GAHAR IPC.12 — the negative-pressure room for airborne precautions. #}
+      <form method="post" action="{{ url_for('beds.space_aiir', space_id=block.space.id) }}" style="display:inline;margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm {{ 'btn-primary' if block.space.is_aiir else 'btn-outline' }} gc-press" type="submit" data-aiir-toggle="{{ block.space.id }}" title="{{ t('stayprec.aiir_hint') }}">
+          <i class="bi bi-wind"></i> {{ t('stayprec.aiir') }}</button>
+      </form>
       {% endif %}
+      {# GAHAR IPC.07 — the area for suspected respiratory infections. #}
+      <form method="post" action="{{ url_for('beds.space_respiratory', space_id=block.space.id) }}" style="display:inline;margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm {{ 'btn-primary' if block.space.is_respiratory else 'btn-outline' }} gc-press" type="submit" data-resp-toggle="{{ block.space.id }}" title="{{ t('resp.area_hint') }}">
+          <i class="bi bi-lungs"></i> {{ t('resp.area') }}</button>
+      </form>
       {% if row.unit.is_active %}{{ closure_control('space', block.space) }}{% endif %}
 
       {# The level most hospitals actually price at: a single room and a

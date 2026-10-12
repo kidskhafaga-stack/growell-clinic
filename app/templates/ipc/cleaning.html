@@ -1,0 +1,83 @@
+{% extends "shell.html" %}
+{% set active_module = 'ipc' %}
+{% block title %}{{ t('clean.title') }}{% endblock %}
+{% block page_heading %}{{ t('clean.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR IPC.09 — each area with its risk, and what is due today: every
+   shift, every day, and the deep clean by the hospital's own interval. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-bucket"></i> {{ t('clean.title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('clean.sub') }}</p>
+</div>
+{% from "ipc/_nav.html" import ipc_nav with context %}
+{{ ipc_nav('cleaning') }}
+
+{% if not data %}<p class="hint" data-no-areas>{{ t('clean.no_areas') }}</p>{% endif %}
+<div style="display:grid;gap:12px;margin-bottom:16px;">
+{% for block in data %}{% set a = block.area %}
+<div class="card gc-scale-in" id="area-{{ a.id }}" data-clean-area="{{ a.id }}">
+  <h2 class="section-title" style="margin-top:0;">{{ a.name }}
+    <span class="badge {{ 'badge--danger' if a.risk == 'high' else ('badge--warn' if a.risk == 'medium' else 'badge--muted') }}">{{ t('clean.risk_' ~ a.risk) }}</span>
+    {% if a.unit %}<span class="hint">{{ a.unit.display_name(current_lang) }}</span>{% endif %}</h2>
+  {% if not block.rows %}<p class="hint" style="margin:0;">{{ t('clean.no_tasks') }}</p>{% endif %}
+  {% for r in block.rows %}{% set task = r.task %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);padding:8px 0;" data-clean-task="{{ task.id }}" {{ 'data-late' if r.late }}>
+    <div style="flex:1;min-width:220px;">
+      <b dir="auto">{{ task.activity }}</b>
+      <span class="badge badge--muted">{{ t('clean.freq_' ~ task.frequency) }}{% if task.frequency == 'deep' %} · {{ t('clean.every_n', n=task.every_days) }}{% endif %}</span>
+      {% if task.disinfectant or task.method %}<div class="hint" dir="auto" style="margin:2px 0 0;">{{ task.disinfectant or '' }}{% if task.disinfectant and task.method %} — {% endif %}{{ task.method or '' }}</div>{% endif %}
+    </div>
+    <div class="hint" style="margin:0;">
+      {% if r.today %}{{ t('clean.done_today') }}: {% for d in r.today %}<span dir="ltr">{{ d.done_at|clinic_stamp }}</span>{% if d.doer %} ({{ d.doer.display_name(current_lang) }}){% endif %}{{ '، ' if not loop.last }}{% endfor %}
+      {% elif r.late %}<span class="badge badge--danger">{{ t('clean.due_now') }}</span>
+      {% endif %}
+      {% if task.frequency == 'deep' and r.due %}<div>{{ t('clean.next_due') }} <span dir="ltr">{{ r.due }}</span></div>{% endif %}
+    </div>
+    <form method="post" action="{{ url_for('ipc.cleaning_done', task_id=task.id) }}" style="display:flex;gap:6px;margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="note" maxlength="255" dir="auto" placeholder="{{ t('ipc.note') }}" aria-label="{{ t('ipc.note') }}" style="min-width:120px;">
+      <button class="btn btn-sm btn-primary gc-press" type="submit"><i class="bi bi-check2"></i> {{ t('clean.mark_done') }}</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+</div>
+
+{% if may_setup %}
+<div class="card gc-scale-in" id="setup" data-clean-setup>
+  <h2 class="section-title" style="margin-top:0;">{{ t('clean.setup') }}</h2>
+  <p class="hint" style="margin-top:0;">{{ t('clean.setup_hint') }}</p>
+  <form method="post" action="{{ url_for('ipc.cleaning_area') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label for="ca_name">{{ t('clean.area') }}</label><input class="input" id="ca_name" name="name" required maxlength="120" dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="ca_risk">{{ t('clean.risk') }}</label>
+      <select class="select" id="ca_risk" name="risk">{% for r in risks %}<option value="{{ r }}">{{ t('clean.risk_' ~ r) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="ca_unit">{{ t('ipco.unit') }}</label>
+      <select class="select" id="ca_unit" name="unit_id"><option value="">—</option>{% for u in units %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('clean.add_area') }}</button>
+  </form>
+  {% for a in areas %}
+  <details style="border-top:1px solid var(--line);padding:8px 0;" data-clean-setup-area="{{ a.id }}">
+    <summary style="cursor:pointer;"><b>{{ a.name }}</b> <span class="hint">{{ t('clean.risk_' ~ a.risk) }} · {{ t('clean.n_tasks', n=a.tasks|length) }}</span></summary>
+    <ul style="margin:6px 0;padding-inline-start:18px;">
+      {% for task in a.tasks %}<li style="{{ 'opacity:.55;' if not task.is_active else '' }}"><span dir="auto">{{ task.activity }}</span> · {{ t('clean.freq_' ~ task.frequency) }}
+        <form method="post" action="{{ url_for('ipc.cleaning_task_stop', task_id=task.id) }}" style="display:inline;margin:0;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('micro.stop' if task.is_active else 'micro.resume') }}</button></form></li>{% endfor %}
+    </ul>
+    <form method="post" action="{{ url_for('ipc.cleaning_task_add', area_id=a.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;flex:2;min-width:200px;"><label for="ct_a_{{ a.id }}">{{ t('clean.activity') }}</label><input class="input" id="ct_a_{{ a.id }}" name="activity" required maxlength="200" dir="auto"></div>
+      <div class="form-row" style="margin:0;"><label for="ct_f_{{ a.id }}">{{ t('clean.frequency') }}</label>
+        <select class="select" id="ct_f_{{ a.id }}" name="frequency">{% for f in frequencies %}<option value="{{ f }}">{{ t('clean.freq_' ~ f) }}</option>{% endfor %}</select></div>
+      <div class="form-row" style="margin:0;max-width:130px;"><label for="ct_e_{{ a.id }}">{{ t('clean.every_days') }}</label><input class="input" type="number" min="1" id="ct_e_{{ a.id }}" name="every_days"></div>
+      <div class="form-row" style="margin:0;flex:1;min-width:160px;"><label for="ct_d_{{ a.id }}">{{ t('clean.disinfectant') }}</label><input class="input" id="ct_d_{{ a.id }}" name="disinfectant" maxlength="160" dir="auto"></div>
+      <div class="form-row" style="margin:0;flex:1;min-width:160px;"><label for="ct_m_{{ a.id }}">{{ t('clean.method') }}</label><input class="input" id="ct_m_{{ a.id }}" name="method" maxlength="255" dir="auto"></div>
+      <button class="btn btn-sm btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+    </form>
+  </details>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

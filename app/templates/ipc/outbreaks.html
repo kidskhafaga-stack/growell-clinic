@@ -1,0 +1,59 @@
+{% extends "shell.html" %}
+{% set active_module = 'ipc' %}
+{% block title %}{{ t('ipco.outbreaks_title') }}{% endblock %}
+{% block page_heading %}{{ t('ipco.outbreaks_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR IPC.18 — what clusters (listed, never declared), the outbreaks the
+   team opened, and the door to open one. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-radioactive"></i> {{ t('ipco.outbreaks_title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('ipco.outbreaks_sub') }}</p>
+</div>
+{% from "ipc/_nav.html" import ipc_nav with context %}
+{{ ipc_nav('outbreaks') }}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-clusters>
+  <h2 class="section-title" style="margin-top:0;">{{ t('ipco.clusters') }}</h2>
+  <p class="hint" style="margin-top:0;">{{ t('ipco.clusters_sub') }}</p>
+  {% if not clusters %}<p class="hint" style="margin:0;">{{ t('ipco.no_clusters') }}</p>{% endif %}
+  {% for c in clusters %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);padding:6px 0;" data-cluster>
+    <b>{% if c.kind == 'hai' %}{{ t('ipcp.kind_' ~ c.label) }}{% else %}<i dir="ltr">{{ c.label }}</i>{% endif %}</b>
+    <span>{{ c.unit.display_name(current_lang) if c.unit else t('ipco.no_unit') }}</span>
+    <span class="badge badge--warn">{{ t('ipco.n_children', n=c.n) }}</span>
+    <span class="hint" style="margin:0;">{{ t('ipco.last') }} <span dir="ltr">{{ c.last }}</span></span>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;overflow-x:auto;" data-outbreaks>
+  <h2 class="section-title" style="margin-top:0;">{{ t('ipco.outbreaks') }}</h2>
+  {% if not rows %}<p class="hint" style="margin:0;">{{ t('ipco.no_outbreaks') }}</p>{% else %}
+  <table class="table" style="min-width:600px;">
+    <thead><tr><th>{{ t('ipco.title') }}</th><th>{{ t('ipco.opened_on') }}</th><th>{{ t('ipco.cases') }}</th><th>{{ t('ipco.steps_done') }}</th><th>{{ t('ipcp.status') }}</th></tr></thead>
+    <tbody>{% for o in rows %}{% set s = summary(o, today) %}
+    <tr data-outbreak-row="{{ o.id }}">
+      <td><a href="{{ url_for('ipc.outbreak', outbreak_id=o.id) }}">{{ o.title }}</a>{% if o.agent %} <i class="hint" dir="ltr">{{ o.agent }}</i>{% endif %}</td>
+      <td dir="ltr">{{ o.opened_on }}</td><td>{{ s.cases }}</td><td>{{ s.steps }}/10</td>
+      <td>{% if o.is_open %}<span class="badge badge--danger">{{ t('ipco.open_days', n=s.days) }}</span>{% else %}<span class="badge badge--muted">{{ t('ipco.closed') }}</span>{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table>
+  {% endif %}
+</div>
+
+<form method="post" action="{{ url_for('ipc.outbreak_open') }}" class="card gc-scale-in" style="display:grid;gap:10px;" data-outbreak-new>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin:0;">{{ t('ipco.open_new') }}</h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;flex:1;min-width:200px;"><label for="o_title">{{ t('ipco.title') }}</label><input class="input" id="o_title" name="title" required maxlength="160" dir="auto"></div>
+    <div class="form-row" style="margin:0;min-width:180px;"><label for="o_agent">{{ t('ipco.agent') }}</label><input class="input" id="o_agent" name="agent" maxlength="160" dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label for="o_unit">{{ t('ipco.unit') }}</label>
+      <select class="select" id="o_unit" name="unit_id"><option value="">—</option>{% for u in units %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="o_on">{{ t('ipco.opened_on') }}</label><input class="input" type="date" id="o_on" name="opened_on" required value="{{ today.isoformat() }}"></div>
+  </div>
+  <div class="form-row" style="margin:0;"><label for="o_team">{{ t('ipco.team') }}</label><textarea class="input" id="o_team" name="team" rows="2" required dir="auto" placeholder="{{ t('ipcp.attendees_ph') }}"></textarea></div>
+  <div class="form-row" style="margin:0;"><label for="o_def">{{ t('ipco.case_definition') }}</label><textarea class="input" id="o_def" name="case_definition" rows="2" dir="auto"></textarea></div>
+  <div><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('ipco.open_do') }}</button></div>
+</form>
+{% endblock %}

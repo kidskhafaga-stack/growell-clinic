@@ -77,6 +77,19 @@ class Admission(db.Model):
     discharged_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     outcome = db.Column(db.String(16))
     discharge_note = db.Column(db.Text)
+    # GAHAR IPC.12 — the transmission-based precautions in force on this
+    # stay, as the theatre list writes them (``theatre.PRECAUTIONS``), with
+    # whether they are empiric (*"while waiting for a clear diagnosis"*) and
+    # who set them. Read wherever the child is shown, and on the door sign.
+    precautions = db.Column(db.String(60))
+    precautions_empiric = db.Column(db.Boolean)
+    precautions_note = db.Column(db.String(160))
+    precautions_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    precautions_at = db.Column(db.DateTime)
+
+    @property
+    def precaution_list(self):
+        return [p for p in (self.precautions or "").split(",") if p and p != "standard"]
     # **Why the family took the child home against advice**, in one tap —
     # a key from the clinic's list (``utils/leave_reasons``) and their own
     # words. Only ever set when ``outcome`` is ``self_discharge``; NULL on
