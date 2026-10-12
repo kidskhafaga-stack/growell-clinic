@@ -1,0 +1,66 @@
+{% extends "shell.html" %}
+{% set active_module = 'incidents' %}
+{% block title %}{{ t('qual.tab_projects') }}{% endblock %}
+{% block page_heading %}{{ t('qual.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR QPI.12 — improvement projects: the problem, the aim, the method the
+   hospital uses, what was tested and what came of it, whether it was put in
+   place; and whether this year has a utilization project (ev. 5). #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-lightbulb"></i> {{ t('qual.tab_projects') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('qual.projects_sub') }}</p>
+</div>
+{% from "quality/_nav.html" import quality_nav with context %}
+{{ quality_nav('projects') }}
+
+{% if not data.utilization_this_year %}<p data-no-utilization><span class="badge badge--warn">{{ t('qual.no_utilization', year=data.year) }}</span></p>{% endif %}
+
+<div style="display:grid;gap:10px;margin-bottom:14px;">
+{% for p in data.rows %}
+<div class="card" id="p-{{ p.id }}" data-project="{{ p.id }}">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <b dir="auto">{{ p.title }}</b>
+    {% if p.utilization %}<span class="badge badge--muted">{{ t('qual.utilization') }}</span>{% endif %}
+    {% if p.method %}<span class="badge badge--muted" dir="auto">{{ p.method }}</span>{% endif %}
+    {% if p.implemented %}<span class="badge badge--ok">{{ t('qual.implemented') }}</span>{% endif %}
+    {% if p.closed_on %}<span class="badge badge--muted">{{ t('qual.closed') }} <span dir="ltr">{{ p.closed_on }}</span></span>{% endif %}
+    <span class="hint" dir="ltr">{{ p.started_on }}</span>
+  </div>
+  <p style="margin:6px 0 0;"><span class="hint">{{ t('qual.problem') }}:</span> <span dir="auto">{{ p.problem }}</span></p>
+  <p style="margin:2px 0 0;"><span class="hint">{{ t('qual.aim') }}:</span> <span dir="auto">{{ p.aim }}</span>{% if p.measure %} · <a href="{{ url_for('quality.measure', measure_id=p.measure_id) }}">{{ p.measure.name }}</a>{% endif %}</p>
+  {% if not p.closed_on %}
+  <form method="post" action="{{ url_for('quality.project_update', project_id=p.id) }}" style="display:grid;gap:6px;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="pt{{ p.id }}">{{ t('qual.tests') }}</label><textarea class="input" id="pt{{ p.id }}" name="tests" rows="2" dir="auto">{{ p.tests or '' }}</textarea></div>
+    <div><label class="label" for="pr{{ p.id }}">{{ t('qual.result') }}</label><textarea class="input" id="pr{{ p.id }}" name="result" rows="2" dir="auto">{{ p.result or '' }}</textarea></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+      <label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" name="implemented" value="1" {{ 'checked' if p.implemented }}> {{ t('qual.implemented') }}</label>
+      <label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" name="close" value="1"> {{ t('qual.close_project') }}</label>
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('qual.save') }}</button>
+    </div>
+  </form>
+  {% else %}
+  {% if p.tests %}<p style="margin:2px 0 0;"><span class="hint">{{ t('qual.tests') }}:</span> <span dir="auto">{{ p.tests }}</span></p>{% endif %}
+  <p style="margin:2px 0 0;"><span class="hint">{{ t('qual.result') }}:</span> <span dir="auto">{{ p.result }}</span></p>
+  {% endif %}
+</div>
+{% else %}<p class="hint">{{ t('qual.no_projects') }}</p>{% endfor %}
+</div>
+
+<details class="card" {{ 'open' if not data.rows }}>
+  <summary>{{ t('qual.new_project') }}</summary>
+  <form method="post" action="{{ url_for('quality.projects') }}" style="display:grid;gap:8px;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:220px;"><label class="label" for="n_t">{{ t('qual.project') }}</label><input class="input" id="n_t" name="title" maxlength="200" required dir="auto"></div>
+      <div><label class="label" for="n_m">{{ t('qual.method_q') }}</label><input class="input" id="n_m" name="method" maxlength="80" dir="auto" placeholder="PDSA"></div>
+      <div><label class="label" for="n_ms">{{ t('qual.measure') }}</label><select class="select" id="n_ms" name="measure_id"><option value="">—</option>{% for m in measures %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}</select></div>
+      <label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" name="utilization" value="1"> {{ t('qual.utilization') }}</label>
+    </div>
+    <div><label class="label" for="n_p">{{ t('qual.problem') }}</label><textarea class="input" id="n_p" name="problem" rows="2" required dir="auto"></textarea></div>
+    <div><label class="label" for="n_a">{{ t('qual.aim') }}</label><textarea class="input" id="n_a" name="aim" rows="2" required dir="auto"></textarea></div>
+    <div><button class="btn btn-primary gc-press" type="submit">{{ t('qual.add') }}</button></div>
+  </form>
+</details>
+{% endblock %}

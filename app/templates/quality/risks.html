@@ -1,0 +1,78 @@
+{% extends "shell.html" %}
+{% set active_module = 'incidents' %}
+{% block title %}{{ t('qual.tab_risks') }}{% endblock %}
+{% block page_heading %}{{ t('qual.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR QPI.09 — the risk register (categories in the standard's words,
+   the hospital's own rating, high risks need a mitigation), reviews past
+   their date, this year's proactive assessment of a high-risk process
+   (ev. 4) and the quarterly reports to the governing body (ev. 5). #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-exclamation-triangle"></i> {{ t('qual.tab_risks') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('qual.risks_sub') }}</p>
+</div>
+{% from "quality/_nav.html" import quality_nav with context %}
+{{ quality_nav('risks') }}
+
+{% if not data.proactive_this_year %}<p data-no-proactive><span class="badge badge--warn">{{ t('qual.no_proactive', year=data.year) }}</span></p>{% endif %}
+
+<div class="card gc-scale-in" style="overflow-x:auto;margin-bottom:14px;" data-risks>
+  {% if not data.open %}<p class="hint" style="margin:0;">{{ t('qual.no_risks') }}</p>{% else %}
+  <table class="table" style="min-width:680px;">
+    <thead><tr><th>{{ t('qual.risk') }}</th><th>{{ t('qual.category') }}</th><th>{{ t('qual.rating') }}</th><th>{{ t('qual.owner') }}</th><th>{{ t('qual.review_on') }}</th><th></th></tr></thead>
+    <tbody>{% for r in data.open %}
+    <tr data-risk="{{ r.id }}"><td dir="auto">{{ r.title }}{% if r.high %} <span class="badge badge--danger">{{ t('qual.high') }}</span>{% endif %}{% if r.mitigation %}<div class="hint" style="margin:0;" dir="auto">{{ r.mitigation }}</div>{% endif %}</td>
+      <td>{{ t('qual.c_' ~ r.category) }}</td><td dir="auto">{{ r.rating or '' }}</td><td dir="auto">{{ r.owner }}</td>
+      <td dir="ltr">{{ r.review_on or '—' }}{% if r in data.review_due %} <span class="badge badge--warn" data-review-due>{{ t('qual.review_due') }}</span>{% endif %}</td>
+      <td><form method="post" action="{{ url_for('quality.risk_close', risk_id=r.id) }}" style="margin:0;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline" type="submit">{{ t('qual.close') }}</button></form></td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% endif %}
+</div>
+
+<details class="card" style="margin-bottom:12px;" {{ 'open' if not data.open }}>
+  <summary>{{ t('qual.new_risk') }}</summary>
+  <form method="post" action="{{ url_for('quality.risks') }}" style="display:grid;gap:8px;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="what" value="risk">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:220px;"><label class="label" for="r_t">{{ t('qual.risk') }}</label><input class="input" id="r_t" name="title" maxlength="200" required dir="auto"></div>
+      <div><label class="label" for="r_c">{{ t('qual.category') }}</label><select class="select" id="r_c" name="category">{% for c in categories %}<option value="{{ c }}">{{ t('qual.c_' ~ c) }}</option>{% endfor %}</select></div>
+      <div><label class="label" for="r_r">{{ t('qual.rating') }}</label><input class="input" id="r_r" name="rating" maxlength="60" dir="auto" placeholder="{{ t('qual.rating_ph') }}"></div>
+      <label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" name="high" value="1"> {{ t('qual.high_q') }}</label>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div><label class="label" for="r_o">{{ t('qual.owner') }}</label><input class="input" id="r_o" name="owner" maxlength="120" required dir="auto"></div>
+      <div style="flex:1;min-width:220px;"><label class="label" for="r_m">{{ t('qual.mitigation') }}</label><input class="input" id="r_m" name="mitigation" dir="auto"></div>
+      <div><label class="label" for="r_v">{{ t('qual.review_on') }}</label><input class="input" type="date" id="r_v" name="review_on"></div>
+    </div>
+    <div><button class="btn btn-primary gc-press" type="submit">{{ t('qual.add') }}</button></div>
+  </form>
+</details>
+
+<div class="card" style="margin-bottom:12px;" data-proactive>
+  <h2 class="section-title" style="margin-top:0;">{{ t('qual.proactive') }}</h2>
+  {% for p in data.proactive %}<p style="margin:0 0 4px;"><span dir="ltr">{{ p.year }}</span> · <span dir="auto">{{ p.process }}</span> · <span dir="ltr">{{ p.tool }}</span><span class="hint" dir="auto"> — {{ p.findings }}</span></p>{% endfor %}
+  <form method="post" action="{{ url_for('quality.risks') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="what" value="proactive">
+    <div><label class="label" for="p_y">{{ t('qual.year') }}</label><input class="input" type="number" id="p_y" name="year" value="{{ data.year }}" dir="ltr" style="max-width:100px;"></div>
+    <div style="flex:1;min-width:180px;"><label class="label" for="p_p">{{ t('qual.process') }}</label><input class="input" id="p_p" name="process" maxlength="200" required dir="auto"></div>
+    <div><label class="label" for="p_t">{{ t('qual.tool') }}</label><input class="input" id="p_t" name="tool" maxlength="60" required dir="ltr" placeholder="FMEA"></div>
+    <div style="flex:1;min-width:180px;"><label class="label" for="p_f">{{ t('qual.findings') }}</label><input class="input" id="p_f" name="findings" required dir="auto"></div>
+    <div style="flex:1;min-width:180px;"><label class="label" for="p_a">{{ t('qual.actions') }}</label><input class="input" id="p_a" name="actions" dir="auto"></div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('qual.add') }}</button>
+  </form>
+</div>
+
+<div class="card" data-risk-reports>
+  <h2 class="section-title" style="margin-top:0;">{{ t('qual.risk_reports') }}</h2>
+  {% for r in data.reports %}<p style="margin:0 0 4px;"><bdi dir="ltr">{{ r.quarter }}</bdi> · <span dir="auto">{{ r.sent_to }}</span>{% if r.note %} · <span class="hint" dir="auto">{{ r.note }}</span>{% endif %}</p>{% endfor %}
+  <form method="post" action="{{ url_for('quality.risks') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="what" value="report">
+    <div><label class="label" for="q_q">{{ t('qual.quarter') }}</label><input class="input" id="q_q" name="quarter" maxlength="7" required dir="ltr" placeholder="2026-Q4" style="max-width:110px;"></div>
+    <div style="flex:1;min-width:180px;"><label class="label" for="q_s">{{ t('qual.sent_to') }}</label><input class="input" id="q_s" name="sent_to" maxlength="160" required dir="auto"></div>
+    <div style="flex:1;min-width:160px;"><label class="label" for="q_n">{{ t('ipc.note') }}</label><input class="input" id="q_n" name="note" maxlength="255" dir="auto"></div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('qual.add') }}</button>
+  </form>
+</div>
+{% endblock %}

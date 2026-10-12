@@ -163,6 +163,7 @@ def create_app(config_name="default"):
     from app.blueprints.hand_hygiene import hand_hygiene_bp
     from app.blueprints.facility import facility_bp
     from app.blueprints.incidents import incidents_bp
+    from app.blueprints.quality import quality_bp
     from app.blueprints.ipc import ipc_bp
     from app.blueprints.webhooks import webhooks_bp
     from app.blueprints.finance import finance_bp
@@ -229,6 +230,7 @@ def create_app(config_name="default"):
     app.register_blueprint(hand_hygiene_bp)
     app.register_blueprint(facility_bp)
     app.register_blueprint(incidents_bp)
+    app.register_blueprint(quality_bp)
     app.register_blueprint(ipc_bp)
     app.register_blueprint(webhooks_bp)
     # The providers post from their own servers and cannot carry a token of

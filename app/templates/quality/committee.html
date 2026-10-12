@@ -1,0 +1,82 @@
+{% extends "shell.html" %}
+{% set active_module = 'incidents' %}
+{% block title %}{{ t('qual.tab_committee') }}{% endblock %}
+{% block page_heading %}{{ t('qual.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR QPI.01 — the quality committee's meetings and decisions, the open
+   ones and the overdue ones, and the committee's annual self-evaluation
+   (ev. 5). Also the hospital's working week, which the sentinel-event clock
+   counts "two working days" by (QPI.11). #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-people"></i> {{ t('qual.tab_committee') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('qual.committee_sub') }}</p>
+</div>
+{% from "quality/_nav.html" import quality_nav with context %}
+{{ quality_nav('committee') }}
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-q-open>
+  <h2 class="section-title" style="margin-top:0;">{{ t('dtc.open_decisions') }}</h2>
+  {% for d in data.open %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);padding:6px 0;" data-q-decision="{{ d.id }}">
+    <span dir="auto" style="flex:1;min-width:200px;">{{ d.text }}</span>
+    <span class="hint">{{ d.owner }}{% if d.due_on %} · <span dir="ltr">{{ d.due_on }}</span>{% endif %}</span>
+    {% if d.due_on and d.due_on < today %}<span class="badge badge--danger">{{ t('dtc.overdue') }}</span>{% endif %}
+    <form method="post" action="{{ url_for('quality.decision_done', row_id=d.id) }}" style="display:flex;gap:6px;margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="note" maxlength="255" required dir="auto" placeholder="{{ t('dtc.done_note') }}" aria-label="{{ t('dtc.done_note') }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('dtc.done') }}</button>
+    </form>
+  </div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('dtc.none_open') }}</p>{% endfor %}
+</div>
+
+<details class="card" style="margin-bottom:12px;" {{ 'open' if not data.meetings }}>
+  <summary>{{ t('dtc.new_meeting') }}</summary>
+  <form method="post" action="{{ url_for('quality.committee') }}" style="display:grid;gap:8px;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div><label class="label" for="qm_d">{{ t('dtc.held_on') }}</label><input class="input" type="date" id="qm_d" name="held_on" required></div>
+      <div style="flex:1;min-width:240px;"><label class="label" for="qm_a">{{ t('dtc.attendees') }}</label><input class="input" id="qm_a" name="attendees" required dir="auto"></div>
+    </div>
+    <div><label class="label" for="qm_m">{{ t('dtc.minutes') }}</label><textarea class="input" id="qm_m" name="minutes" rows="4" required dir="auto"></textarea></div>
+    {% for i in range(3) %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;"><label class="label" for="qd{{ i }}">{{ t('dtc.decision') }}</label><input class="input" id="qd{{ i }}" name="decision" dir="auto"></div>
+      <div><label class="label" for="qo{{ i }}">{{ t('dtc.owner') }}</label><input class="input" id="qo{{ i }}" name="owner" maxlength="120" dir="auto"></div>
+      <div><label class="label" for="qu{{ i }}">{{ t('dtc.due') }}</label><input class="input" type="date" id="qu{{ i }}" name="due_on"></div>
+    </div>
+    {% endfor %}
+    <div><button class="btn btn-primary gc-press" type="submit">{{ t('dtc.save_meeting') }}</button></div>
+  </form>
+</details>
+
+{% for m in data.meetings %}
+<details class="card" style="margin-bottom:8px;" data-q-meeting="{{ m.id }}">
+  <summary><span dir="ltr">{{ m.held_on }}</span> · <span dir="auto">{{ m.attendees }}</span></summary>
+  <div dir="auto" style="white-space:pre-line;margin-top:8px;">{{ m.minutes }}</div>
+</details>
+{% endfor %}
+
+{% set ev = data.evaluations.get(year) %}
+<div class="card gc-scale-in" style="margin-top:12px;" data-q-evaluation>
+  <h2 class="section-title" style="margin-top:0;">{{ t('qual.self_evaluation') }} <span dir="ltr">{{ year }}</span>
+    {% if not ev %}<span class="badge badge--warn" data-evaluation-missing>{{ t('dtc.not_reviewed') }}</span>{% endif %}</h2>
+  <form method="post" action="{{ url_for('quality.evaluation', year=year) }}" style="display:grid;gap:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <textarea class="input" name="text" rows="4" required dir="auto" aria-label="{{ t('qual.self_evaluation') }}">{{ ev.text if ev else '' }}</textarea>
+    <div><button class="btn btn-outline gc-press" type="submit">{{ t('qual.save') }}</button></div>
+  </form>
+</div>
+
+<div class="card" style="margin-top:12px;" data-weekend>
+  <h2 class="section-title" style="margin-top:0;">{{ t('qual.weekend') }}</h2>
+  <p class="hint" style="margin-top:0;">{{ t('qual.weekend_hint') }}</p>
+  {% set off = weekend.split(',') %}
+  <form method="post" action="{{ url_for('quality.weekend') }}" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for d in range(7) %}<label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" name="day" value="{{ d }}" {{ 'checked' if d|string in off }}> {{ t('qual.day_' ~ d) }}</label>{% endfor %}
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('qual.save') }}</button>
+  </form>
+</div>
+{% endblock %}

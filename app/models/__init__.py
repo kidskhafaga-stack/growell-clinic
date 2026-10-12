@@ -174,6 +174,9 @@ from app.models.staff_certificate import StaffCertificate
 from app.models.palliative import PalliativePlan, PalliativeReview
 from app.models.tranquilization import RapidTranquilization
 from app.models.care_program import ProgramEnrollment, ProgramSession, ViralMarker
+from app.models.quality import (ImprovementProject, MeasureValue, PerformanceMeasure,
+                                ProactiveAssessment, QualityDecision, QualityMeeting,
+                                QualitySelfEvaluation, RiskItem, RiskReport)
 from app.models.user_capability import UserCapability
 from app.models.permissions import MODULES, ROLE_PERMISSIONS, ROLES
 from app.models.role import Role
@@ -582,6 +585,15 @@ __all__ = [
     "ProgramEnrollment",
     "ProgramSession",
     "ViralMarker",
+    "PerformanceMeasure",
+    "MeasureValue",
+    "RiskItem",
+    "ProactiveAssessment",
+    "RiskReport",
+    "ImprovementProject",
+    "QualityMeeting",
+    "QualityDecision",
+    "QualitySelfEvaluation",
     "CleaningArea", "CleaningDone", "CleaningTask",
     "HldTest", "SterilizationReview", "Sterilizer", "SterilizerCycle",
     "DiseaseReport", "Outbreak", "OutbreakCase", "OutbreakStep",

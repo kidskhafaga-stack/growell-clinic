@@ -12,7 +12,7 @@ the reasons are in ``app/models/incident.py``.
 * a report marked serious, or classified sentinel, is told to management at
   once (QPI.10 d) — through the bell, to whoever reviews.
 """
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from app.extensions import db
 from app.models.incident import (AFFECTED, CATEGORIES, CLASSES, CLOSED, HARM,
@@ -151,6 +151,50 @@ def still_missing(row):
         if not (row.external_report or "").strip():
             out.append("external")
     return out
+
+
+#: GAHAR QPI.11 — the standard's own clocks: *"communicated to GAHAR within
+#: two working days of the event or of becoming aware of it"*, and the root
+#: cause analysis and action *"completed within 45 days"*.
+SENTINEL_GAHAR_WORKING_DAYS = 2
+SENTINEL_RCA_DAYS = 45
+#: Which weekdays the hospital does not work (0 = Monday), comma-separated.
+#: Empty: every day counts, which can only make the date earlier, never late.
+WEEKEND_SETTING = "weekend_days"
+
+
+def _weekend():
+    from app.models import Setting
+
+    return {int(x) for x in (Setting.get(WEEKEND_SETTING) or "").split(",") if x.strip().isdigit()}
+
+
+def _add_working_days(day, n, weekend):
+    while n > 0:
+        day += timedelta(days=1)
+        if day.weekday() not in weekend:
+            n -= 1
+    return day
+
+
+def sentinel_clock(row, today=None):
+    """``None`` unless a sentinel event; otherwise the two due dates from the
+    day the hospital became aware (the report), and whether each is done or
+    late."""
+    from app.utils.clock import local_date, local_today
+
+    if row is None or row.classification != SENTINEL:
+        return None
+    today = today or local_today()
+    aware = local_date(row.reported_at) or row.reported_at.date()
+    gahar_due = _add_working_days(aware, SENTINEL_GAHAR_WORKING_DAYS, _weekend())
+    rca_due = aware + timedelta(days=SENTINEL_RCA_DAYS)
+    gahar_done = bool((row.external_report or "").strip())
+    rca_done = bool((row.root_cause or "").strip() and (row.action or "").strip())
+    return {"gahar_due": gahar_due, "gahar_done": gahar_done,
+            "gahar_late": not gahar_done and today > gahar_due,
+            "rca_due": rca_due, "rca_done": rca_done,
+            "rca_late": not rca_done and today > rca_due}
 
 
 def urgent(row):
