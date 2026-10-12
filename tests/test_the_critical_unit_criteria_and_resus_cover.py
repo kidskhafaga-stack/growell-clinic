@@ -58,3 +58,12 @@ def test_a_shift_without_a_valid_resus_course_is_named(picu):
                                               "expires_on": (date.today() + timedelta(days=300)).isoformat()})
     page = boss.get("/duty/").get_data(as_text=True)
     assert "data-resus-gaps" not in page and "data-to-certificates" in page
+
+
+def test_hours_past_the_hospital_limit_are_named(picu):
+    boss = picu["sign_in"]("boss")
+    assert "data-over-hours" not in boss.get("/duty/").get_data(as_text=True), "no limit, nothing judged"
+    boss.post("/duty/certificates/add", data={"what": "hours", "hours": "6"})
+    assert "data-over-hours" in boss.get("/duty/").get_data(as_text=True), "a 12-hour night is over 6"
+    boss.post("/duty/certificates/add", data={"what": "hours", "hours": "48"})
+    assert "data-over-hours" not in boss.get("/duty/").get_data(as_text=True)

@@ -171,6 +171,8 @@ from app.models.dtc import DrugShortage, DtcAnnualReview, DtcDecision, DtcMeetin
 from app.models.med_family import (FirstDoseObservation, FirstDoseWatch, MedCounselling,
                                   SelfAdministration)
 from app.models.staff_certificate import StaffCertificate
+from app.models.staff_file import (StaffCredential, StaffEducation, StaffEvaluation, StaffJob,
+                                   StaffOrientation)
 from app.models.palliative import PalliativePlan, PalliativeReview
 from app.models.tranquilization import RapidTranquilization
 from app.models.care_program import ProgramEnrollment, ProgramSession, ViralMarker
@@ -579,6 +581,11 @@ __all__ = [
     "FirstDoseWatch",
     "FirstDoseObservation",
     "StaffCertificate",
+    "StaffCredential",
+    "StaffJob",
+    "StaffOrientation",
+    "StaffEducation",
+    "StaffEvaluation",
     "PalliativePlan",
     "PalliativeReview",
     "RapidTranquilization",

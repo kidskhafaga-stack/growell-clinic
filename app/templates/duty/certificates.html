@@ -27,6 +27,19 @@
   {% endif %}
 </div>
 
+{# GAHAR WFM.17 — the hospital's weekly working-hours limit. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-hours-limit>
+  <h2 class="section-title" style="margin-top:0;">{{ t('certs.hours_limit') }}</h2>
+  <p style="margin:0 0 8px;">{% if hours_limit %}<span dir="ltr">{{ '%g'|format(hours_limit) }}</span> {{ t('sfile.hours') }}{% else %}<span class="hint">{{ t('milk.not_set') }}</span>{% endif %}</p>
+  {% if may_edit %}
+  <form method="post" action="{{ url_for('duty.certificate_add') }}" style="display:flex;gap:8px;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="what" value="hours">
+    <input class="input" type="number" min="0" step="any" name="hours" value="{{ '%g'|format(hours_limit) if hours_limit else '' }}" aria-label="{{ t('certs.hours_limit') }}" style="max-width:120px;">
+    <button class="btn btn-outline gc-press" type="submit">{{ t('certs.save') }}</button>
+  </form>
+  {% endif %}
+</div>
+
 <div class="card gc-scale-in" style="overflow-x:auto;margin-bottom:14px;" data-certificates>
   {% if not rows %}<p class="hint" style="margin:0;">{{ t('certs.none') }}</p>{% else %}
   <table class="table" style="min-width:560px;">
