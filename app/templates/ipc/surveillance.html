@@ -1,0 +1,99 @@
+{% extends "shell.html" %}
+{% set active_module = 'ipc' %}
+{% block title %}{{ t('ipcp.surv_title') }}{% endblock %}
+{% block page_heading %}{{ t('ipcp.surv_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR IPC.17 — healthcare-associated infections written down, confirmed
+   by the team against the hospital's own criteria, and counted against the
+   device-days and patient-days the program already has. Arithmetic only. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-graph-up"></i> {{ t('ipcp.surv_title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('ipcp.surv_sub') }}</p>
+</div>
+{% from "ipc/_nav.html" import ipc_nav with context %}
+{{ ipc_nav('surveillance') }}
+
+<form method="get" action="{{ url_for('ipc.surveillance') }}" class="card" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:12px;">
+  <div class="form-row" style="margin:0;"><label for="q">{{ t('ipcp.quarter') }}</label>
+    <select class="select" id="q" name="q" dir="ltr">{% for q in quarters %}<option value="{{ q }}" {{ 'selected' if q == quarter }}>{{ q }}</option>{% endfor %}</select></div>
+  <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('lab_reception.show') }}</button>
+</form>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;overflow-x:auto;" data-hai-rates>
+  <h2 class="section-title" style="margin-top:0;">{{ t('ipcp.rates_t') }} <bdi dir="ltr">{{ quarter }}</bdi></h2>
+  <table class="table" style="min-width:560px;font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('ipcp.kind') }}</th><th>{{ t('ipcp.confirmed_cases') }}</th><th>{{ t('ipcp.denominator') }}</th><th>{{ t('ipcp.rate') }}</th></tr></thead>
+    <tbody>{% for r in data.kinds %}
+    <tr data-hai-rate="{{ r.kind }}">
+      <td>{{ t('ipcp.kind_' ~ r.kind) }}</td>
+      <td>{{ r.cases }}</td>
+      <td>{{ r.denominator }} <span class="hint">{{ t('ipcp.unit_' ~ r.unit) }}</span></td>
+      <td dir="ltr">{{ '%.2f'|format(r.rate) if r.rate is not none else '—' }}</td>
+    </tr>{% endfor %}</tbody>
+  </table>
+  <p class="hint" style="margin:6px 0 0;">{{ t('ipcp.rates_hint') }}</p>
+</div>
+
+{% if open_rows %}
+<h2 class="section-title">{{ t('ipcp.suspected') }} <span class="badge badge--warn">{{ open_rows|length }}</span></h2>
+<div style="display:grid;gap:10px;margin-bottom:14px;">
+{% for c in open_rows %}
+<div class="card" data-hai-open="{{ c.id }}" style="border-inline-start:4px solid #d97706;">
+  <b>{{ t('ipcp.kind_' ~ c.kind) }}{% if c.kind_note %} — {{ c.kind_note }}{% endif %}</b>
+  · {{ c.patient.display_name(current_lang) }} <span class="badge badge--muted" dir="ltr">{{ c.patient.patient_number }}</span>
+  · <span dir="ltr">{{ c.onset_on }}</span>{% if c.unit %} · {{ c.unit.display_name(current_lang) }}{% endif %}
+  {% if c.organism %}<div class="hint" dir="ltr" style="margin:4px 0 0;"><i>{{ c.organism }}</i></div>{% endif %}
+  {% if c.criteria %}<div class="hint" dir="auto" style="margin:4px 0 0;">{{ c.criteria }}</div>{% endif %}
+  {% if c.line %}<div class="hint" style="margin:4px 0 0;" data-hai-line>{{ t('ipcp.counted_line') }}</div>{% endif %}
+  <form method="post" action="{{ url_for('ipc.surveillance_decide', case_id=c.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;flex:1;min-width:220px;"><label for="note_{{ c.id }}">{{ t('ipcp.decision_note') }}</label>
+      <input class="input" id="note_{{ c.id }}" name="note" required dir="auto"></div>
+    <button class="btn btn-sm btn-primary gc-press" type="submit" name="status" value="confirmed">{{ t('ipcp.confirm') }}</button>
+    <button class="btn btn-sm btn-outline gc-press" type="submit" name="status" value="ruled_out">{{ t('ipcp.rule_out') }}</button>
+  </form>
+</div>
+{% endfor %}
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('ipc.surveillance_report') }}" class="card gc-scale-in" style="display:grid;gap:10px;margin-bottom:14px;" data-hai-report>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin:0;">{{ t('ipcp.report') }}</h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;min-width:150px;"><label for="patient_number">{{ t('pmerge.number_ph') }}</label>
+      <input class="input" id="patient_number" name="patient_number" required dir="ltr"></div>
+    <div class="form-row" style="margin:0;min-width:160px;"><label for="kind">{{ t('ipcp.kind') }}</label>
+      <select class="select" id="kind" name="kind">{% for k in kinds %}<option value="{{ k }}">{{ t('ipcp.kind_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;min-width:160px;"><label for="kind_note">{{ t('ipcp.kind_note') }}</label>
+      <input class="input" id="kind_note" name="kind_note" maxlength="120" dir="auto"></div>
+    <div class="form-row" style="margin:0;min-width:150px;"><label for="onset_on">{{ t('ipcp.onset') }}</label>
+      <input class="input" type="date" id="onset_on" name="onset_on" required value="{{ today.isoformat() }}"></div>
+    <div class="form-row" style="margin:0;min-width:200px;flex:1;"><label for="organism">{{ t('ipc.organism') }}</label>
+      <input class="input" id="organism" name="organism" maxlength="160" dir="ltr"></div>
+  </div>
+  <div class="form-row" style="margin:0;"><label for="criteria">{{ t('ipcp.criteria') }}</label>
+    <textarea class="input" id="criteria" name="criteria" rows="2" dir="auto"></textarea></div>
+  <p class="hint" style="margin:0;">{{ t('ipcp.report_hint') }}</p>
+  <div><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('ipcp.report_do') }}</button></div>
+</form>
+
+<div class="card" style="overflow-x:auto;" data-hai-list>
+  <h2 class="section-title" style="margin-top:0;">{{ t('ipcp.cases_t') }} <bdi dir="ltr">{{ quarter }}</bdi></h2>
+  {% if not rows %}<p class="hint" style="margin:0;">{{ t('ipcp.no_cases') }}</p>{% else %}
+  <table class="table" style="min-width:640px;">
+    <thead><tr><th>{{ t('ipcp.onset') }}</th><th>{{ t('ipcp.kind') }}</th><th>{{ t('ipc.child') }}</th><th>{{ t('ipc.organism') }}</th><th>{{ t('ipcp.status') }}</th></tr></thead>
+    <tbody>{% for c in rows %}
+    <tr data-hai-row="{{ c.id }}">
+      <td dir="ltr">{{ c.onset_on }}</td>
+      <td>{{ t('ipcp.kind_' ~ c.kind) }}{% if c.kind_note %} — {{ c.kind_note }}{% endif %}</td>
+      <td>{{ c.patient.display_name(current_lang) }}</td>
+      <td dir="ltr"><i>{{ c.organism or '—' }}</i></td>
+      <td><span class="badge {{ 'badge--danger' if c.status == 'confirmed' else ('badge--muted' if c.status == 'ruled_out' else 'badge--warn') }}">{{ t('ipcp.st_' ~ c.status) }}</span>
+        {% if c.decider %}<div class="hint" style="margin:2px 0 0;">{{ c.decider.display_name(current_lang) }}{% if c.decision_note %} — <span dir="auto">{{ c.decision_note }}</span>{% endif %}</div>{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

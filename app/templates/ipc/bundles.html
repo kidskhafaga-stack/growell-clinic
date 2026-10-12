@@ -1,0 +1,95 @@
+{% extends "shell.html" %}
+{% set active_module = 'ipc' %}
+{% block title %}{{ t('ipcp.bundles_title') }}{% endblock %}
+{% block page_heading %}{{ t('ipcp.bundles_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR IPC.11 — the hospital's own bundles, checked each day on each line
+   (or stay) they apply to; met only when every element is: all or none. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-ui-checks"></i> {{ t('ipcp.bundles_title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('ipcp.bundles_sub') }}</p>
+</div>
+{% from "ipc/_nav.html" import ipc_nav with context %}
+{{ ipc_nav('bundles') }}
+
+<h2 class="section-title">{{ t('ipcp.due_today') }} <span class="badge badge--muted" dir="ltr">{{ today }}</span></h2>
+{% if not bundles %}<p class="hint" data-no-bundles>{{ t('ipcp.no_bundles') }}</p>
+{% elif not due %}<p class="hint">{{ t('ipcp.nothing_due') }}</p>{% endif %}
+<div style="display:grid;gap:8px;margin-bottom:16px;">
+{% for b, target, done in due %}
+<details class="card" style="padding:10px 14px;" data-bundle-due="{{ b.id }}" {{ 'data-done' if done }}>
+  <summary style="cursor:pointer;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <b>{{ b.name }}</b>
+    <span>· {{ target.patient.display_name(current_lang) }}</span>
+    {% if target.line %}<span class="hint" style="margin:0;">· {{ t('ipcp.line_since', kind=t('lines.kind_' ~ target.line.kind)) }} <span dir="ltr">{{ target.line.inserted_at|clinic_stamp }}</span></span>{% endif %}
+    {% if done %}<span class="badge badge--green">{{ t('ipcp.checked_today') }}</span>{% else %}<span class="badge badge--warn">{{ t('ipcp.not_checked') }}</span>{% endif %}
+  </summary>
+  {% if not done %}
+  <form method="post" action="{{ url_for('ipc.bundle_check', bundle_id=b.id) }}" style="display:grid;gap:6px;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if target.line %}<input type="hidden" name="line_id" value="{{ target.line.id }}">{% else %}<input type="hidden" name="admission_id" value="{{ target.admission.id }}">{% endif %}
+    {% for e in b.elements if e.is_active %}
+    <fieldset style="border:0;padding:0;margin:0;display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+      <legend style="flex-basis:100%;margin-bottom:2px;" dir="auto">{{ e.text }}</legend>
+      {% for a in answers %}<label style="display:flex;gap:4px;align-items:center;"><input type="radio" name="e_{{ e.id }}" value="{{ a }}" required> {{ t('ipcp.ans_' ~ a) }}</label>{% endfor %}
+    </fieldset>
+    {% endfor %}
+    <input class="input" name="note" maxlength="255" placeholder="{{ t('ipc.note') }}" aria-label="{{ t('ipc.note') }}" dir="auto">
+    <div><button class="btn btn-sm btn-primary gc-press" type="submit"><i class="bi bi-check2"></i> {{ t('ipcp.save_check') }}</button></div>
+  </form>
+  {% endif %}
+</details>
+{% endfor %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;overflow-x:auto;" data-bundle-compliance>
+  <h2 class="section-title" style="margin-top:0;">{{ t('ipcp.compliance') }}</h2>
+  <table class="table" style="min-width:480px;font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('ipcp.bundle') }}</th><th>{{ t('ipcp.checks') }}</th><th>{{ t('ipcp.all_met') }}</th><th>%</th></tr></thead>
+    <tbody>{% for r in compliance %}
+    <tr><td>{{ r.bundle.name }}</td><td>{{ r.checks }}</td><td>{{ r.met }}</td><td dir="ltr">{{ '%.0f'|format(r.pct) if r.pct is not none else '—' }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  <p class="hint" style="margin:6px 0 0;">{{ t('ipcp.all_or_none') }}</p>
+</div>
+
+{% if may_setup %}
+<div class="card gc-scale-in" id="setup" data-bundle-setup>
+  <h2 class="section-title" style="margin-top:0;">{{ t('ipcp.setup') }}</h2>
+  {% for b in bundles %}
+  <div style="border-bottom:1px solid var(--line);padding:8px 0;" data-bundle="{{ b.id }}">
+    <b>{{ b.name }}</b> <span class="badge badge--muted">{{ t('ipcp.kind_' ~ b.kind) }}</span>
+    <span class="hint">{% if b.scope == 'line' %}{{ t('ipcp.scope_line') }}: {% for k in b.kinds %}{{ t('lines.kind_' ~ k) }}{{ '، ' if not loop.last }}{% endfor %}{% else %}{{ t('ipcp.scope_stay') }}{% endif %}</span>
+    <ol style="margin:6px 0 0;padding-inline-start:20px;">
+      {% for e in b.elements %}
+      <li style="{{ 'opacity:.55;' if not e.is_active else '' }}">
+        <span dir="auto">{{ e.text }}</span>
+        <form method="post" action="{{ url_for('ipc.bundle_element', element_id=e.id) }}" style="display:inline;margin:0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('micro.stop' if e.is_active else 'micro.resume') }}</button></form>
+      </li>{% endfor %}
+    </ol>
+  </div>
+  {% endfor %}
+  <form method="post" action="{{ url_for('ipc.bundle_add') }}" style="display:grid;gap:8px;margin-top:12px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div class="form-row" style="margin:0;flex:1;min-width:200px;"><label for="b_name">{{ t('ipcp.bundle_name') }}</label><input class="input" id="b_name" name="name" required maxlength="160" dir="auto"></div>
+      <div class="form-row" style="margin:0;"><label for="b_kind">{{ t('ipcp.kind') }}</label>
+        <select class="select" id="b_kind" name="kind">{% for k in kinds %}<option value="{{ k }}">{{ t('ipcp.kind_' ~ k) }}</option>{% endfor %}</select></div>
+      <div class="form-row" style="margin:0;"><label for="b_scope">{{ t('ipcp.scope') }}</label>
+        <select class="select" id="b_scope" name="scope">{% for s in scopes %}<option value="{{ s }}">{{ t('ipcp.scope_' ~ s) }}</option>{% endfor %}</select></div>
+    </div>
+    <fieldset style="border:0;padding:0;margin:0;display:flex;gap:12px;flex-wrap:wrap;">
+      <legend style="flex-basis:100%;">{{ t('ipcp.line_kinds') }}</legend>
+      {% for k in line_kinds %}<label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" name="line_kinds" value="{{ k }}"> {{ t('lines.kind_' ~ k) }}</label>{% endfor %}
+    </fieldset>
+    <div class="form-row" style="margin:0;"><label for="b_elements">{{ t('ipcp.elements') }}</label>
+      <textarea class="input" id="b_elements" name="elements" rows="5" dir="auto" placeholder="{{ t('ipcp.elements_ph') }}"></textarea></div>
+    <p class="hint" style="margin:0;">{{ t('ipcp.setup_hint') }}</p>
+    <div><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button></div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

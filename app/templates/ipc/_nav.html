@@ -1,0 +1,17 @@
+{# Infection control's own bar — the alerts, surveillance, the bundles,
+   the committee, and hand hygiene beside them. A ward user sees only the
+   bundles they check. #}
+{% macro ipc_nav(active) %}
+{% set team = current_user.can('infection_control') %}
+<nav style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;" aria-label="{{ t('ipc.nav') }}" data-ipc-nav>
+  {% if team %}
+  <a class="btn btn-sm {{ 'btn-primary' if active == 'alerts' else 'btn-outline' }} gc-press" href="{{ url_for('ipc.index') }}"><i class="bi bi-shield-exclamation"></i> {{ t('ipcp.tab_alerts') }}</a>
+  <a class="btn btn-sm {{ 'btn-primary' if active == 'surveillance' else 'btn-outline' }} gc-press" href="{{ url_for('ipc.surveillance') }}"><i class="bi bi-graph-up"></i> {{ t('ipcp.tab_surveillance') }}</a>
+  {% endif %}
+  <a class="btn btn-sm {{ 'btn-primary' if active == 'bundles' else 'btn-outline' }} gc-press" href="{{ url_for('ipc.bundles') }}"><i class="bi bi-ui-checks"></i> {{ t('ipcp.tab_bundles') }}</a>
+  {% if team %}
+  <a class="btn btn-sm {{ 'btn-primary' if active == 'committee' else 'btn-outline' }} gc-press" href="{{ url_for('ipc.committee') }}"><i class="bi bi-people"></i> {{ t('ipcp.tab_committee') }}</a>
+  <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('hand_hygiene.index') }}"><i class="bi bi-droplet-half"></i> {{ t('ipc.hand_hygiene') }}</a>
+  {% endif %}
+</nav>
+{% endmacro %}

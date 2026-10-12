@@ -146,6 +146,9 @@
        moved between departments waiting to be accepted. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.handovers') }}" data-to-handovers>
       <i class="bi bi-arrow-left-right"></i> {{ t('handover.to_handovers') }}</a>
+    {# GAHAR IPC.11 — the day's bundle checks on the lines in place. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('ipc.bundles') }}" data-to-bundles>
+      <i class="bi bi-ui-checks"></i> {{ t('ipcp.tab_bundles') }}</a>
     {% if may_build %}
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.setup') }}">
       <i class="bi bi-diagram-3"></i> {{ t('beds.setup') }}</a>
