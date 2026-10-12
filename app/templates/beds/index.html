@@ -149,6 +149,12 @@
     {# GAHAR IPC.11 — the day's bundle checks on the lines in place. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('ipc.bundles') }}" data-to-bundles>
       <i class="bi bi-ui-checks"></i> {{ t('ipcp.tab_bundles') }}</a>
+    {# GAHAR IPC.20 (h) — expressed breast milk kept for the babies. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('beds.milk_board') }}" data-to-milk>
+      <i class="bi bi-cup-straw"></i> {{ t('milk.board') }}</a>
+    {# GAHAR IPC.09 — the day's cleaning by area. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('ipc.cleaning') }}" data-to-cleaning>
+      <i class="bi bi-bucket"></i> {{ t('clean.tab') }}</a>
     {% if may_build %}
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.setup') }}">
       <i class="bi bi-diagram-3"></i> {{ t('beds.setup') }}</a>

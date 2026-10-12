@@ -21,7 +21,7 @@ from datetime import datetime
 
 from app.extensions import db
 
-AREA_KINDS = ("store", "pharmacy", "ward", "fridge", "cart", "other")
+AREA_KINDS = ("store", "pharmacy", "ward", "fridge", "milk", "food", "cart", "other")
 
 #: Evidence 1, 2, 4 and 5 and the intent, in the order an inspector walks
 #: them. Each is answered yes, no, or not applicable.

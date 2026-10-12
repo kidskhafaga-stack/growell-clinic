@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ t('stayprec.sign') }}</title>
+{# GAHAR IPC.12 ev. 5 — the room labelled. The precaution and the bed;
+   never the child's name or diagnosis, because a door is read by everyone
+   walking past it. What each precaution asks of whoever enters is the
+   hospital's policy, said there, not here. #}
+<style>
+  :root { --ink:#111; --line:#bbb; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#fff; color:var(--ink);
+         font-family:"Segoe UI", Tahoma, "Noto Sans Arabic", system-ui, sans-serif; }
+  .toolbar { display:flex; justify-content:center; gap:10px; padding:12px; border-bottom:1px solid var(--line); }
+  .toolbar button { border:1px solid var(--line); background:#fff; border-radius:9px; padding:9px 16px; font-weight:600; cursor:pointer; }
+  .sign { max-width:760px; margin:24px auto; border:6px solid var(--ink); border-radius:18px; padding:36px 32px; text-align:center; }
+  .stop { font-size:2.6rem; font-weight:900; letter-spacing:.02em; margin:0 0 12px; }
+  .kinds { display:flex; flex-direction:column; gap:12px; margin:18px 0; }
+  .kind { font-size:2.2rem; font-weight:800; border:3px solid var(--ink); border-radius:12px; padding:14px; }
+  .empiric { font-size:1.2rem; font-weight:700; margin:6px 0 0; }
+  .where { font-size:1.1rem; margin:18px 0 0; }
+  .ask { font-size:1.25rem; font-weight:700; margin:22px 0 0; line-height:1.7; }
+  @media print { .toolbar { display:none; } .sign { margin:0 auto; } }
+</style>
+</head>
+<body>
+<div class="toolbar"><button type="button" onclick="window.print()">{{ t('stayprec.print') }}</button></div>
+<div class="sign" data-sign>
+  <p class="stop">{{ t('stayprec.sign_head') }}</p>
+  <div class="kinds">
+    {% for p in admission.precaution_list %}<div class="kind" data-sign-kind="{{ p }}">{{ t('theatre.precaution_' ~ p) }}</div>{% endfor %}
+  </div>
+  {% if admission.precautions_empiric %}<p class="empiric">{{ t('theatre.precaution_empiric') }}</p>{% endif %}
+  {% if admission.bed %}<p class="where">{{ admission.bed.unit.display_name(current_lang) }} · {{ admission.bed.space.display_name(current_lang) }} · {{ admission.bed.display_name(current_lang) }}</p>{% endif %}
+  <p class="ask">{{ t('stayprec.sign_ask') }}</p>
+</div>
+</body>
+</html>

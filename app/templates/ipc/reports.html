@@ -1,0 +1,58 @@
+{% extends "shell.html" %}
+{% set active_module = 'ipc' %}
+{% block title %}{{ t('ipco.reports_title') }}{% endblock %}
+{% block page_heading %}{{ t('ipco.reports_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR IPC.18 ev. 2 — a suspected notifiable disease, and when, to whom
+   and under what number it was reported. The list is the Ministry's. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-send-exclamation"></i> {{ t('ipco.reports_title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('ipco.reports_sub') }}</p>
+</div>
+{% from "ipc/_nav.html" import ipc_nav with context %}
+{{ ipc_nav('reports') }}
+
+<h2 class="section-title">{{ t('ipco.to_report') }} <span class="badge {{ 'badge--danger' if pending else 'badge--muted' }}">{{ pending|length }}</span></h2>
+{% if not pending %}<p class="hint">{{ t('ipco.none_to_report') }}</p>{% endif %}
+<div style="display:grid;gap:10px;margin-bottom:14px;">
+{% for r in pending %}
+<div class="card" style="border-inline-start:4px solid var(--danger);" data-report-pending="{{ r.id }}">
+  <b dir="auto">{{ r.disease }}</b> · {{ r.patient.display_name(current_lang) }} <span class="badge badge--muted" dir="ltr">{{ r.patient.patient_number }}</span>
+  · {{ t('ipco.suspected_on') }} <span dir="ltr">{{ r.suspected_on }}</span>
+  {% if r.note %}<div class="hint" dir="auto" style="margin:4px 0 0;">{{ r.note }}</div>{% endif %}
+  <form method="post" action="{{ url_for('ipc.disease_report_sent', report_id=r.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="ro_{{ r.id }}">{{ t('ipco.reported_on') }}</label><input class="input" type="date" id="ro_{{ r.id }}" name="reported_on" required value="{{ today.isoformat() }}"></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label for="rt_{{ r.id }}">{{ t('ipco.reported_to') }}</label><input class="input" id="rt_{{ r.id }}" name="reported_to" required maxlength="160" dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="rf_{{ r.id }}">{{ t('ipco.reference') }}</label><input class="input" id="rf_{{ r.id }}" name="reference" maxlength="80" dir="ltr"></div>
+    <button class="btn btn-sm btn-primary gc-press" type="submit"><i class="bi bi-check2"></i> {{ t('ipco.mark_reported') }}</button>
+  </form>
+</div>
+{% endfor %}
+</div>
+
+<form method="post" action="{{ url_for('ipc.disease_report_add') }}" class="card gc-scale-in" style="display:grid;gap:10px;margin-bottom:14px;" data-report-new>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin:0;">{{ t('ipco.new_report') }}</h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;min-width:150px;"><label for="pn">{{ t('pmerge.number_ph') }}</label><input class="input" id="pn" name="patient_number" required dir="ltr"></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:200px;"><label for="disease">{{ t('ipco.disease') }}</label><input class="input" id="disease" name="disease" required maxlength="160" dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="so">{{ t('ipco.suspected_on') }}</label><input class="input" type="date" id="so" name="suspected_on" required value="{{ today.isoformat() }}"></div>
+  </div>
+  <div class="form-row" style="margin:0;"><label for="rnote">{{ t('ipc.note') }}</label><input class="input" id="rnote" name="note" dir="auto"></div>
+  <div><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('ipco.add_report') }}</button></div>
+</form>
+
+<div class="card" style="overflow-x:auto;" data-reports-done>
+  <h2 class="section-title" style="margin-top:0;">{{ t('ipco.reported_list') }}</h2>
+  {% if not done %}<p class="hint" style="margin:0;">{{ t('ipco.none_reported') }}</p>{% else %}
+  <table class="table" style="min-width:600px;">
+    <thead><tr><th>{{ t('ipco.reported_on') }}</th><th>{{ t('ipco.disease') }}</th><th>{{ t('ipc.child') }}</th><th>{{ t('ipco.reported_to') }}</th><th>{{ t('ipco.reference') }}</th></tr></thead>
+    <tbody>{% for r in done %}
+    <tr><td dir="ltr">{{ r.reported_on }}</td><td dir="auto">{{ r.disease }}</td><td>{{ r.patient.display_name(current_lang) }}</td><td dir="auto">{{ r.reported_to }}</td><td dir="ltr">{{ r.reference or '—' }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

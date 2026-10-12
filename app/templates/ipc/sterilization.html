@@ -1,0 +1,121 @@
+{% extends "shell.html" %}
+{% set active_module = 'ipc' %}
+{% block title %}{{ t('steril.title') }}{% endblock %}
+{% block page_heading %}{{ t('steril.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR IPC.15 — each sterilizer's logbook: today's air-removal test, the
+   cycles with their physical values and indicators, the biological
+   indicator against «at least weekly», the HLD strips, and the month signed. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-fire"></i> {{ t('steril.title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('steril.sub') }}</p>
+</div>
+{% from "ipc/_nav.html" import ipc_nav with context %}
+{{ ipc_nav('sterilization') }}
+
+{% if not data %}<p class="hint" data-no-sterilizers>{{ t('steril.no_sterilizers') }}</p>{% endif %}
+<div style="display:grid;gap:12px;margin-bottom:16px;">
+{% for b in data %}{% set s = b.sterilizer %}
+<div class="card gc-scale-in" id="st-{{ s.id }}" data-sterilizer="{{ s.id }}">
+  <h2 class="section-title" style="margin-top:0;">{{ s.name }} {% if s.location %}<span class="hint">{{ s.location }}</span>{% endif %}</h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+    {% if b.test_today %}<span class="badge badge--green" data-bd-today>{{ t('steril.test_done_today') }}</span>{% else %}<span class="badge badge--danger" data-bd-missing>{{ t('steril.test_missing_today') }}</span>{% endif %}
+    {% if b.bi_days is none %}<span class="badge badge--danger" data-bi-late>{{ t('steril.bi_never') }}</span>
+    {% elif b.bi_late %}<span class="badge badge--danger" data-bi-late>{{ t('steril.bi_days', n=b.bi_days) }}</span>
+    {% else %}<span class="badge badge--green">{{ t('steril.bi_days', n=b.bi_days) }}</span>{% endif %}
+    <span class="hint" style="margin:0;">{{ t('steril.standard_says', n=every) }}</span>
+  </div>
+
+  {% for c in b.pending %}
+  <form method="post" action="{{ url_for('ipc.sterilizer_bi', cycle_id=c.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 6px;" data-bi-pending="{{ c.id }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <span>{{ t('steril.bi_pending') }} <span dir="ltr">{{ c.run_at|clinic_stamp }}</span>{% if c.cycle_no %} · <span dir="ltr">#{{ c.cycle_no }}</span>{% endif %}</span>
+    <select class="select" name="bi" aria-label="{{ t('steril.bi') }}" style="width:auto;">{% for r in results %}<option value="{{ r }}">{{ t('steril.res_' ~ r) }}</option>{% endfor %}</select>
+    <input class="input" name="action" maxlength="255" dir="auto" placeholder="{{ t('steril.action_if_fail') }}" aria-label="{{ t('steril.action') }}" style="min-width:180px;">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+  {% endfor %}
+
+  <details style="margin:6px 0;"><summary class="btn btn-sm btn-primary gc-press" style="display:inline-flex;">{{ t('steril.new_cycle') }}</summary>
+  <form method="post" action="{{ url_for('ipc.sterilizer_cycle', sterilizer_id=s.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="k_{{ s.id }}">{{ t('steril.kind') }}</label>
+      <select class="select" id="k_{{ s.id }}" name="kind">{% for k in kinds %}<option value="{{ k }}">{{ t('steril.kind_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;max-width:110px;"><label for="n_{{ s.id }}">{{ t('steril.cycle_no') }}</label><input class="input" id="n_{{ s.id }}" name="cycle_no" dir="ltr"></div>
+    <div class="form-row" style="margin:0;max-width:110px;"><label for="t_{{ s.id }}">{{ t('steril.temperature') }}</label><input class="input" id="t_{{ s.id }}" name="temperature" inputmode="decimal" dir="ltr"></div>
+    <div class="form-row" style="margin:0;max-width:110px;"><label for="m_{{ s.id }}">{{ t('steril.minutes') }}</label><input class="input" id="m_{{ s.id }}" name="minutes" inputmode="numeric" dir="ltr"></div>
+    <div class="form-row" style="margin:0;max-width:110px;"><label for="p_{{ s.id }}">{{ t('steril.pressure') }}</label><input class="input" id="p_{{ s.id }}" name="pressure" inputmode="decimal" dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label for="c_{{ s.id }}">{{ t('steril.chemical') }}</label>
+      <select class="select" id="c_{{ s.id }}" name="chemical">{% for r in results %}<option value="{{ r }}">{{ t('steril.res_' ~ r) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="b_{{ s.id }}">{{ t('steril.bi') }}</label>
+      <select class="select" id="b_{{ s.id }}" name="bi"><option value="">—</option>{% for r in bi_results %}<option value="{{ r }}">{{ t('steril.res_' ~ r) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label for="a_{{ s.id }}">{{ t('steril.action') }}</label><input class="input" id="a_{{ s.id }}" name="action" maxlength="255" dir="auto" placeholder="{{ t('steril.action_if_fail') }}"></div>
+    <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+  </form></details>
+
+  {% if b.today %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:560px;font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('steril.time') }}</th><th>{{ t('steril.kind') }}</th><th>{{ t('steril.temperature') }}</th><th>{{ t('steril.minutes') }}</th><th>{{ t('steril.pressure') }}</th><th>{{ t('steril.chemical') }}</th><th>{{ t('steril.bi') }}</th></tr></thead>
+    <tbody>{% for c in b.today %}
+    <tr data-cycle="{{ c.id }}" {% if c.failed %}style="background:var(--danger-50, rgba(220,38,38,.08));"{% endif %}>
+      <td dir="ltr">{{ c.run_at|clinic_stamp }}</td><td>{{ t('steril.kind_' ~ c.kind) }}</td>
+      <td dir="ltr">{{ c.temperature if c.temperature is not none else '—' }}</td><td dir="ltr">{{ c.minutes if c.minutes is not none else '—' }}</td><td dir="ltr">{{ c.pressure if c.pressure is not none else '—' }}</td>
+      <td>{{ t('steril.res_' ~ c.chemical) }}</td><td>{{ t('steril.res_' ~ c.bi) if c.bi else '—' }}{% if c.action %}<div class="hint" dir="auto">{{ c.action }}</div>{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+</div>
+{% endfor %}
+</div>
+
+<div class="card gc-scale-in" id="hld" style="margin-bottom:14px;" data-hld>
+  <h2 class="section-title" style="margin-top:0;">{{ t('steril.hld') }}</h2>
+  <form method="post" action="{{ url_for('ipc.hld_test') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label for="hld_s">{{ t('steril.solution') }}</label><input class="input" id="hld_s" name="solution" required maxlength="120" dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="hld_r">{{ t('steril.result') }}</label>
+      <select class="select" id="hld_r" name="result">{% for r in results %}<option value="{{ r }}">{{ t('steril.res_' ~ r) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:180px;"><label for="hld_a">{{ t('steril.action') }}</label><input class="input" id="hld_a" name="action" maxlength="255" dir="auto" placeholder="{{ t('steril.action_if_fail') }}"></div>
+    <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+  {% for h in hld %}<div class="hint" style="margin:0;" data-hld-row><span dir="ltr">{{ h.tested_at|clinic_stamp }}</span> · <span dir="auto">{{ h.solution }}</span> · {{ t('steril.res_' ~ h.result) }}{% if h.action %} — <span dir="auto">{{ h.action }}</span>{% endif %}</div>{% endfor %}
+</div>
+
+<div class="card gc-scale-in" id="review" style="margin-bottom:14px;" data-steril-review>
+  <h2 class="section-title" style="margin-top:0;">{{ t('steril.review') }}</h2>
+  {% if not months %}<p class="hint" style="margin:0;">{{ t('steril.no_cycles') }}</p>{% endif %}
+  {% for month, n, failed, rev in months %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);padding:6px 0;">
+    <b dir="ltr">{{ month }}</b> <span class="hint" style="margin:0;">{{ t('steril.month_line', n=n, f=failed) }}</span>
+    {% if rev %}<span class="badge badge--green">{{ rev.reviewer.display_name(current_lang) if rev.reviewer else '—' }} · <span dir="ltr">{{ rev.reviewed_at|clinic_stamp }}</span></span>{% if rev.note %}<span class="hint" dir="auto">{{ rev.note }}</span>{% endif %}
+    {% elif may_setup %}
+    <form method="post" action="{{ url_for('ipc.sterilization_review') }}" style="display:flex;gap:6px;margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="month" value="{{ month }}">
+      <input class="input" name="note" maxlength="255" dir="auto" placeholder="{{ t('ipc.note') }}" aria-label="{{ t('ipc.note') }}">
+      <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('steril.sign') }}</button></form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+{% if may_setup %}
+<div class="card gc-scale-in" id="setup" data-steril-setup>
+  <h2 class="section-title" style="margin-top:0;">{{ t('steril.setup') }}</h2>
+  <p class="hint" style="margin-top:0;">{{ t('steril.setup_hint') }}</p>
+  {% for s in sterilizers + [none] %}
+  <form method="post" action="{{ url_for('ipc.sterilizer_save') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;border-top:1px solid var(--line);padding:8px 0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% if s %}<input type="hidden" name="id" value="{{ s.id }}">{% endif %}
+    <div class="form-row" style="margin:0;flex:1;min-width:150px;"><label>{{ t('steril.name') }}<input class="input" name="name" required maxlength="120" value="{{ s.name if s else '' }}" dir="auto"></label></div>
+    <div class="form-row" style="margin:0;max-width:130px;"><label>{{ t('steril.location') }}<input class="input" name="location" maxlength="120" value="{{ s.location if s and s.location else '' }}" dir="auto"></label></div>
+    <div class="form-row" style="margin:0;max-width:95px;"><label>{{ t('steril.temp_min') }}<input class="input" name="temp_min" value="{{ s.temp_min if s and s.temp_min is not none else '' }}" dir="ltr"></label></div>
+    <div class="form-row" style="margin:0;max-width:95px;"><label>{{ t('steril.temp_max') }}<input class="input" name="temp_max" value="{{ s.temp_max if s and s.temp_max is not none else '' }}" dir="ltr"></label></div>
+    <div class="form-row" style="margin:0;max-width:95px;"><label>{{ t('steril.minutes_min') }}<input class="input" name="minutes_min" value="{{ s.minutes_min if s and s.minutes_min is not none else '' }}" dir="ltr"></label></div>
+    <div class="form-row" style="margin:0;max-width:95px;"><label>{{ t('steril.pressure_min') }}<input class="input" name="pressure_min" value="{{ s.pressure_min if s and s.pressure_min is not none else '' }}" dir="ltr"></label></div>
+    <div class="form-row" style="margin:0;max-width:95px;"><label>{{ t('steril.pressure_max') }}<input class="input" name="pressure_max" value="{{ s.pressure_max if s and s.pressure_max is not none else '' }}" dir="ltr"></label></div>
+    <button class="btn btn-sm {{ 'btn-outline' if s else 'btn-primary' }} gc-press" type="submit">{{ t('common.save') if s else t('common.add') }}</button>
+  </form>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -90,6 +90,11 @@ class EmergencyVisit(db.Model):
     # البند الوحيد اللي البرنامج بيقراه. تلات حالات: `None` محدّش قال.
     urgent = db.Column(db.Boolean)
     triage_note = db.Column(db.Text)
+    # GAHAR IPC.07 — respiratory symptoms seen at the first point of entry
+    # (cough, congestion, rhinorrhoea, secretions), and whether the child
+    # was given a mask; ev. 4: identified, and placed in the designated area.
+    resp_symptoms = db.Column(db.Boolean)
+    resp_mask = db.Column(db.Boolean)
 
     # --- البنود v و vii و viii ---
     # **جاي ينفّذ علاج بس** — الـ walk-in: طفل داخل الطوارئ بروشتة، حقنة

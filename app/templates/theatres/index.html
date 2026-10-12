@@ -83,6 +83,9 @@
        كامل ولا لأ» — و`SAS.23` دليل ٤ بيطلب إنه **يكون كامل**. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('theatres.sedation_board') }}">
       <i class="bi bi-lungs"></i> {{ t('sedation.title') }}</a>
+    {# GAHAR IPC.15 — the sterilizers' logbook (CSSD). #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('ipc.sterilization') }}" data-to-sterilization>
+      <i class="bi bi-fire"></i> {{ t('steril.tab') }}</a>
     {# SAS.10 — كل نسيج اتشال لسه في طريقه، والمتأخر الأول. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('theatres.pathology') }}">
       <i class="bi bi-eyedropper"></i> {{ t('specimen.board_title') }}</a>

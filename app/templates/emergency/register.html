@@ -149,6 +149,11 @@
               <option value="yes">{{ t('emergency.urgent_yes') }}</option>
               <option value="no">{{ t('emergency.urgent_no') }}</option>
             </select>
+            {# GAHAR IPC.07 — respiratory symptoms at the first point of entry. #}
+            <label style="display:flex;gap:4px;align-items:center;font-weight:400;" title="{{ t('resp.hint') }}">
+              <input type="checkbox" name="resp" value="1" data-triage-resp> {{ t('resp.symptoms') }}</label>
+            <label style="display:flex;gap:4px;align-items:center;font-weight:400;">
+              <input type="checkbox" name="mask" value="1"> {{ t('resp.mask') }}</label>
             <button class="btn btn-sm btn-primary gc-press" type="submit">
               {{ t('emergency.save_triage') }}</button>
           </form>
@@ -186,6 +191,8 @@
           {{ row.patient.display_name(current_lang) if row.patient else '—' }}</a>
           {% if row.treatment_only %}<span class="badge badge--muted" data-walk-in>{{ t('er_orders.walk_in') }}</span>{% endif %}
           {% if row.from_visit_id %}<span class="badge badge--danger" data-from-clinic title="{{ row.sent_reason or '' }}">{{ t('emergency.from_clinic') }}</span>{% endif %}
+          {% if row.resp_symptoms %}<span class="badge badge--warn" data-resp-flag><i class="bi bi-lungs"></i> {{ t('resp.flag') }}{% if row.resp_mask %} · {{ t('resp.masked') }}{% else %} · {{ t('resp.no_mask') }}{% endif %}</span>
+            {% if resp_free %}<span class="hint" data-resp-free>{{ t('resp.free_in_area', n=resp_free|length) }}</span>{% endif %}{% endif %}
           {% set st = order_states.get(row.id) or {} %}
           {% if st.get('waiting_doctor') %}<span class="badge badge--danger" data-waiting-doctor>{{ t('er_orders.waiting_doctor_n', n=st.waiting_doctor) }}</span>{% endif %}
           {% if st.get('ready') %}<span class="badge badge--warn" data-ready>{{ t('er_orders.ready_n', n=st.ready) }}</span>{% endif %}

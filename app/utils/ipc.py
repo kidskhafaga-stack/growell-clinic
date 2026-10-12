@@ -83,6 +83,10 @@ def suggestion(alert):
     bed = stay.bed if stay is not None else None
     isolated = bool(bed is not None and bed.is_isolation)
     free = beds.free_beds(isolation=True) if stay is not None and not isolated else []
+    # Airborne precautions want the negative-pressure room (IPC.12) — the
+    # free ones are put first; the rest stay listed beneath them.
+    if alert.organism.precaution == "airborne":
+        free = sorted(free, key=lambda b: not (b.space and b.space.is_aiir))
     return {"precaution": alert.organism.precaution, "admission": stay,
             "bed": bed, "isolated": isolated, "free": free}
 
@@ -106,10 +110,38 @@ def review(alert, form, user):
     alert.note = (form.get("note") or "").strip() or None
     alert.reviewed_by = getattr(user, "id", None)
     alert.reviewed_at = datetime.utcnow()
+    # The decision is the child's while in a bed: it becomes the stay's
+    # precautions, in the reviewer's name, where the ward and the door read it.
+    from app.utils import beds
+
+    stay = beds.open_admission(alert.patient_id)
+    if stay is not None:
+        set_stay_precautions(stay, keep, note=f"{alert.organism.name}"[:160],
+                             empiric=False, user=user)
     db.session.flush()
     from app.utils import notifications
     notifications.invalidate()
     return alert
+
+
+def set_stay_precautions(stay, chosen, note=None, empiric=False, user=None):
+    """The precautions in force on a stay (IPC.12), as the theatre list
+    writes them: ``standard`` dropped beside a transmission-based one, and
+    ``standard`` alone meaning «nothing beyond the usual» — which is how
+    precautions end. ``empiric`` only means something with an extra one."""
+    from app.models.theatre import EXTRA_PRECAUTIONS, PRECAUTIONS
+
+    keep = [p for p in PRECAUTIONS if p in set(chosen or ())]
+    if not keep:
+        raise IpcError("precautions")
+    extra = [p for p in keep if p in EXTRA_PRECAUTIONS]
+    stay.precautions = ",".join(extra or ["standard"])
+    stay.precautions_empiric = bool(empiric) if extra else None
+    stay.precautions_note = (note or "").strip()[:160] or None
+    stay.precautions_by = getattr(user, "id", None)
+    stay.precautions_at = datetime.utcnow()
+    db.session.flush()
+    return stay
 
 
 def set_precaution(organism, value):
@@ -157,4 +189,4 @@ def board(start, end):
 
 __all__ = ["CAPABILITY", "IpcError", "board", "for_patient", "isolate_gone",
            "may_review", "open_count", "raise_for", "review", "set_precaution",
-           "suggestion"]
+           "set_stay_precautions", "suggestion"]

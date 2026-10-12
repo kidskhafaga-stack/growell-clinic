@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ t('milk.label') }} {{ bag.code }}</title>
+{# GAHAR IPC.20 (h) — the bag labelled: the baby by name, file number and
+   date of birth, when it was expressed, where it is kept and when it
+   runs out, and the code the nurse checks on the baby's page. #}
+<style>
+  :root { --ink:#111; --line:#bbb; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#fff; color:var(--ink);
+         font-family:"Segoe UI", Tahoma, "Noto Sans Arabic", system-ui, sans-serif; }
+  .toolbar { display:flex; justify-content:center; gap:10px; padding:12px; border-bottom:1px solid var(--line); }
+  .toolbar button { border:1px solid var(--line); background:#fff; border-radius:9px; padding:9px 16px; font-weight:600; cursor:pointer; }
+  .label { width:78mm; margin:18px auto; border:2px solid var(--ink); border-radius:6px; padding:10px 12px; }
+  .code { font:800 1.5rem/1.1 ui-monospace, Consolas, monospace; letter-spacing:.06em; text-align:center; margin:0 0 6px; }
+  .who { font-size:1.15rem; font-weight:800; margin:0; }
+  .row { display:flex; justify-content:space-between; gap:8px; font-size:.95rem; margin:4px 0 0; }
+  .row b { font-variant-numeric:tabular-nums; }
+  @media print { .toolbar { display:none; } .label { margin:0; } @page { margin:4mm; } }
+</style>
+</head>
+<body>
+<div class="toolbar"><button type="button" onclick="window.print()">{{ t('stayprec.print') }}</button></div>
+<div class="label" data-milk-label>
+  <p class="code" dir="ltr">{{ bag.code }}</p>
+  <p class="who">{{ bag.patient.display_name(current_lang) }}</p>
+  {% if bag.patient.patient_number %}<p class="row"><span>{{ t('milk.file_no') }}</span><b dir="ltr">{{ bag.patient.patient_number }}</b></p>{% endif %}
+  <p class="row"><span>{{ t('milk.dob') }}</span><b dir="ltr">{{ bag.patient.date_of_birth.strftime('%Y-%m-%d') }}</b></p>
+  <p class="row"><span>{{ t('milk.expressed_at') }}</span><b dir="ltr">{{ bag.expressed_at|clinic_stamp }}</b></p>
+  <p class="row"><span>{{ t('milk.storage') }}</span><b>{{ t('milk.storage_' ~ bag.storage) }}</b></p>
+  <p class="row"><span>{{ t('milk.expires') }}</span><b dir="ltr">{{ bag.expires_at|clinic_stamp }}</b></p>
+  {% if bag.volume_ml %}<p class="row"><span>{{ t('milk.volume') }}</span><b dir="ltr">{{ '%g'|format(bag.volume_ml) }} ml</b></p>{% endif %}
+</div>
+</body>
+</html>

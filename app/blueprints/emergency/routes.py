@@ -83,6 +83,7 @@ def register():
     open_visits = er.open_visits()
     return render_template("emergency/register.html",
                            open_visits=open_visits,
+                           resp_free=_resp_free(),
                            waiting=waiting_on.for_attendances(open_visits),
                            order_states=eo.states_by_attendance(
                                [r.id for r in open_visits]),
@@ -163,6 +164,17 @@ def arrive_now():
     return redirect(url_for("emergency.attendance", attendance_id=row.id))
 
 
+def _resp_free():
+    """Free beds in the space designated for suspected respiratory
+    infections (IPC.07 ev. 3) — said beside a child flagged at triage."""
+    from app.utils import beds
+
+    try:
+        return [b for b in beds.free_beds() if b.space and b.space.is_respiratory]
+    except Exception:  # noqa: BLE001 — a hint never breaks the board
+        return []
+
+
 @emergency_bp.route("/triage/<int:visit_id>", methods=["POST"])
 @module_required(MODULE)
 def triage(visit_id):
@@ -184,6 +196,9 @@ def triage(visit_id):
     except ValueError:
         db.session.rollback()
         return _back(t("emergency.needs_a_level"), "error")
+    # IPC.07 — respiratory symptoms seen at the door, and the mask given.
+    row.resp_symptoms = request.form.get("resp") == "1"
+    row.resp_mask = (request.form.get("mask") == "1") if row.resp_symptoms else None
     db.session.commit()
     return _back(t("emergency.triaged"), "success")
 

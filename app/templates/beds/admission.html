@@ -28,10 +28,10 @@
 {% set mrp_now = admission.responsibility %}
 {% set here_bed = admission.bed if admission.is_open else none %}
 <div class="stay" x-data="{
-        inside: { nursing: 'care', pain: 'care', food: 'care', risks: 'care',
+        inside: { nursing: 'care', pain: 'care', food: 'care', milk: 'care', risks: 'care',
                   medicines: 'treatment', reconcile: 'treatment', tests: 'treatment', lines: 'treatment',
                   blood: 'treatment', theatre: 'treatment',
-                  restraint: 'safety', arrest: 'safety',
+                  restraint: 'safety', arrest: 'safety', precautions: 'safety',
                   'discharge-summary': 'discharge', mrp: 'overview',
                   rounds: 'overview' },
         known: [],
@@ -132,6 +132,11 @@
         {% endif %}
         {# An alert organism grew on this stay — open, or answered with more
            than standard precautions (`utils/ipc`). #}
+        {% if admission.precaution_list %}
+        <a class="stay-chip stay-chip--danger" href="#precautions" data-stay-prec>
+          <i class="bi bi-shield-exclamation"></i>
+          {% for p in admission.precaution_list %}{{ t('theatre.precaution_' ~ p) }}{{ ' · ' if not loop.last }}{% endfor %}{% if admission.precautions_empiric %} · {{ t('theatre.precaution_empiric') }}{% endif %}</a>
+        {% endif %}
         {% for pa in patient_precautions(admission.patient_id, admission.admitted_at) %}
         <span class="stay-chip stay-chip--danger" data-stay-ipc="{{ 'open' if pa.is_open else 'answered' }}">
           <i class="bi bi-shield-exclamation"></i> <i dir="ltr">{{ pa.organism.name }}</i> ·
@@ -926,6 +931,69 @@
     {% endif %}
   </div>
   {% endfor %}
+</div>
+{% endif %}
+{# ===================== لبن الأم المسحوب — IPC.20 (h) =====================
+   الكيس بتاع طفل واحد: بيتسجّل بالملصق، وبيتدّي لصاحبه بس قبل ما يخلص.
+   الإدّا بيتعمل من صفحة الطفل نفسه، فكيس طفل تاني بيترفض قبل أي كتابة.
+   مدد الحفظ بتاعة المستشفى — لحد ما تتكتب، الممرضة بتكتب الانتهاء. #}
+{% if admission.is_open or milk_bags %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="milk" data-milk>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-cup-straw"></i> {{ t('milk.title') }}
+    <span class="hint" dir="ltr">IPC.20</span>
+    <a class="btn btn-sm btn-outline gc-press" style="margin-inline-start:auto;" href="{{ url_for('beds.milk_board') }}" data-to-milk-board>{{ t('milk.board') }}</a></h2>
+  {% if milk_bags %}
+  <div style="display:grid;gap:6px;margin-bottom:10px;">
+    {% for b in milk_bags %}
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;" data-milk-bag="{{ b.id }}">
+      <b dir="ltr">{{ b.code }}</b>
+      <span class="badge badge--muted">{{ t('milk.storage_' ~ b.storage) }}</span>
+      {% if b.expires_at <= milk_now %}<span class="badge badge--danger" data-milk-expired>{{ t('milk.expired') }}</span>{% endif %}
+      <span class="hint">{{ t('milk.expires') }} <span dir="ltr">{{ b.expires_at|clinic_stamp }}</span></span>
+      {% if b.volume_ml %}<span class="hint"><span dir="ltr">{{ '%g'|format(b.volume_ml) }}</span> {{ t('milk.ml') }}</span>{% endif %}
+      <a class="hint" href="{{ url_for('beds.milk_label', bag_id=b.id) }}" target="_blank" rel="noopener">{{ t('milk.label') }}</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0 0 10px;">{{ t('milk.none_stored') }}</p>
+  {% endif %}
+  {% if admission.is_open and milk_bags %}
+  <form method="post" action="{{ url_for('beds.milk_give', admission_id=admission.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;border-top:1px solid var(--line);padding-top:12px;" data-milk-give>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="milk_code">{{ t('milk.code') }}</label>
+      <input class="input" id="milk_code" name="code" dir="ltr" required autocomplete="off" placeholder="EBM000001"></div>
+    <div><label class="label" for="milk_second">{{ t('milk.second_check') }}</label>
+      <input class="input" id="milk_second" name="second_check" maxlength="120" dir="auto"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('milk.give') }}</button>
+  </form>
+  {% endif %}
+  {% if admission.is_open %}
+  <details style="margin-top:12px;">
+    <summary>{{ t('milk.receive') }}</summary>
+    <form method="post" action="{{ url_for('beds.milk_receive', admission_id=admission.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;" data-milk-receive>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div><label class="label" for="milk_expressed">{{ t('milk.expressed_at') }}</label>
+        <input class="input" type="datetime-local" id="milk_expressed" name="expressed_at" required></div>
+      <div><label class="label" for="milk_storage">{{ t('milk.storage') }}</label>
+        <select class="input" id="milk_storage" name="storage">
+          <option value="fridge">{{ t('milk.storage_fridge') }}</option>
+          <option value="freezer">{{ t('milk.storage_freezer') }}</option>
+        </select></div>
+      {% if not (milk_hours.fridge and milk_hours.freezer) %}
+      <div><label class="label" for="milk_expires">{{ t('milk.expires_at') }}</label>
+        <input class="input" type="datetime-local" id="milk_expires" name="expires_at"></div>
+      {% endif %}
+      <div><label class="label" for="milk_volume">{{ t('milk.volume') }}</label>
+        <input class="input" type="number" min="0" step="any" id="milk_volume" name="volume_ml" style="max-width:110px;"></div>
+      <div style="flex:1;min-width:160px;"><label class="label" for="milk_note">{{ t('ipc.note') }}</label>
+        <input class="input" id="milk_note" name="note" maxlength="255" dir="auto"></div>
+      <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-tag"></i> {{ t('milk.receive_btn') }}</button>
+    </form>
+    {% if not (milk_hours.fridge and milk_hours.freezer) %}<p class="hint" style="margin:6px 0 0;" data-milk-no-hours>{{ t('milk.no_hours') }}</p>{% endif %}
+  </details>
+  {% endif %}
 </div>
 {% endif %}
 {# ===================== التغذية — ICD.13 ==========================
@@ -1915,6 +1983,29 @@
    والفعل بيتعمل جنب الطفل. #}
 {% if admission.is_open %}
 <div class="gc-tab-panel stay-panel" data-stay-panel="safety" x-show="tab==='safety'" x-cloak>
+{# GAHAR IPC.12 — the transmission-based precautions in force on this stay,
+   set at the bedside (empiric ones before any result) or by infection
+   control's decision on an alert organism; and the sign for the door. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="precautions" data-stay-precautions>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-shield-exclamation"></i> {{ t('stayprec.title') }}
+    {% if admission.precaution_list %}<a class="btn btn-sm btn-outline gc-press" href="{{ url_for('beds.isolation_sign', admission_id=admission.id) }}" target="_blank" data-isolation-sign><i class="bi bi-printer"></i> {{ t('stayprec.sign') }}</a>{% endif %}</h2>
+  {% if admission.precautions %}
+  <p style="margin:0 0 8px;">{% if admission.precaution_list %}{% for p in admission.precaution_list %}<span class="badge badge--danger">{{ t('theatre.precaution_' ~ p) }}</span> {% endfor %}{% if admission.precautions_empiric %}<span class="badge badge--warn">{{ t('theatre.precaution_empiric') }}</span>{% endif %}{% else %}<span class="badge badge--muted">{{ t('theatre.precaution_standard') }}</span>{% endif %}
+    {% if admission.precautions_note %}<span class="hint" dir="auto">{{ admission.precautions_note }}</span>{% endif %}</p>
+  {% else %}<p class="hint" style="margin:0 0 8px;">{{ t('theatre.precautions_unasked') }}</p>{% endif %}
+  <form method="post" action="{{ url_for('beds.stay_precautions', admission_id=admission.id) }}" style="display:grid;gap:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;">
+      {% for p in ('standard', 'contact', 'droplet', 'airborne') %}
+      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" name="precautions" value="{{ p }}" {{ 'checked' if p in (admission.precautions or '').split(',') }}> {{ t('theatre.precaution_' ~ p) }}</label>
+      {% endfor %}
+      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" name="empiric" value="1" {{ 'checked' if admission.precautions_empiric }}> {{ t('theatre.precaution_empiric') }}</label>
+    </div>
+    <input class="input" name="note" maxlength="160" dir="auto" value="{{ admission.precautions_note or '' }}" placeholder="{{ t('theatre.precaution_note') }}" aria-label="{{ t('theatre.precaution_note') }}">
+    <p class="hint" style="margin:0;">{{ t('stayprec.hint') }}</p>
+    <div><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form>
+</div>
 <div class="card gc-scale-in" style="margin-bottom:16px;" id="restraint"
      data-restraint-form>
   <h2 class="section-title" style="margin-top:0;">

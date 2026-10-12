@@ -967,6 +967,18 @@ ADDITIONS = [
     ("investigations", "is_culture", "BOOLEAN"),
     # What infection control advises when an alert organism grows (`ipc`).
     ("micro_organisms", "precaution", "VARCHAR(20)"),
+    # GAHAR IPC.12 — the airborne isolation room, and the precautions in
+    # force on a stay.
+    ("care_spaces", "is_aiir", "BOOLEAN"),
+    # GAHAR IPC.07 — respiratory symptoms at triage, and the designated area.
+    ("emergency_visits", "resp_symptoms", "BOOLEAN"),
+    ("emergency_visits", "resp_mask", "BOOLEAN"),
+    ("care_spaces", "is_respiratory", "BOOLEAN"),
+    ("admissions", "precautions", "VARCHAR(60)"),
+    ("admissions", "precautions_empiric", "BOOLEAN"),
+    ("admissions", "precautions_note", "VARCHAR(160)"),
+    ("admissions", "precautions_by", "INTEGER"),
+    ("admissions", "precautions_at", "DATETIME"),
     # The file a merged file's history went to (`models/patient_merge`).
     ("patients", "merged_into", "INTEGER"),
 ]

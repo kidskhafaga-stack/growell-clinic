@@ -152,9 +152,15 @@ from app.models.med_reconciliation import MedReconciliation
 from app.models.micro import (CultureIsolate, CultureResult,
                               CultureSusceptibility, IpcAlert, MicroAntibiotic,
                               MicroOrganism)
+from app.models.cleaning import CleaningArea, CleaningDone, CleaningTask
+from app.models.sterilization import (HldTest, SterilizationReview, Sterilizer,
+                                      SterilizerCycle)
+from app.models.ipc_outbreak import (DiseaseReport, Outbreak, OutbreakCase,
+                                     OutbreakStep)
 from app.models.ipc_program import (BundleCheck, BundleElement, CareBundle,
                                     HaiCase, IpcDecision, IpcMeeting)
 from app.models.patient_merge import PatientMerge
+from app.models.breast_milk import MilkBag
 from app.models.user_capability import UserCapability
 from app.models.permissions import MODULES, ROLE_PERMISSIONS, ROLES
 from app.models.role import Role
@@ -537,6 +543,10 @@ __all__ = [
     "MicroOrganism",
     "IpcAlert",
     "PatientMerge",
+    "MilkBag",
+    "CleaningArea", "CleaningDone", "CleaningTask",
+    "HldTest", "SterilizationReview", "Sterilizer", "SterilizerCycle",
+    "DiseaseReport", "Outbreak", "OutbreakCase", "OutbreakStep",
     "BundleCheck", "BundleElement", "CareBundle", "HaiCase", "IpcDecision", "IpcMeeting",
     "MicroAntibiotic",
     "CultureResult",

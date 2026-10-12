@@ -1,0 +1,58 @@
+{% extends "shell.html" %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('milk.board') }}{% endblock %}
+{% block page_heading %}{{ t('milk.board') }}{% endblock %}
+
+{% block content %}
+{# GAHAR IPC.20 (h) — every bag kept, soonest to expire first: what is in the
+   fridge and the freezer, whose it is, and what has run out. The keeping
+   times are the hospital's; the program holds none. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-cup-straw"></i> {{ t('milk.board') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('milk.board_sub') }}</p>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:16px;" data-milk-hours>
+  <h2 class="section-title" style="margin-top:0;">{{ t('milk.hours_title') }}</h2>
+  {% if current_user.is_admin %}
+  <form method="post" action="{{ url_for('beds.milk_hours') }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for s in ('fridge', 'freezer', 'thawed') %}
+    <div><label class="label" for="h_{{ s }}">{{ t('milk.storage_' ~ s) }} ({{ t('milk.hours') }})</label>
+      <input class="input" type="number" min="0" step="any" id="h_{{ s }}" name="{{ s }}" value="{{ '%g'|format(hours[s]) if hours[s] else '' }}" style="max-width:120px;"></div>
+    {% endfor %}
+    <button class="btn btn-outline gc-press" type="submit">{{ t('milk.hours_save') }}</button>
+  </form>
+  {% else %}
+  <p class="hint" style="margin:0;">{% for s in ('fridge', 'freezer', 'thawed') %}{{ t('milk.storage_' ~ s) }}: {% if hours[s] %}<span dir="ltr">{{ '%g'|format(hours[s]) }}</span> {{ t('milk.hours') }}{% else %}{{ t('milk.not_set') }}{% endif %}{{ ' · ' if not loop.last }}{% endfor %}</p>
+  {% endif %}
+  <p class="hint" style="margin:8px 0 0;">{{ t('milk.hours_hint') }}</p>
+</div>
+
+{% if not bags %}<p class="hint" data-milk-empty>{{ t('milk.none_kept') }}</p>{% endif %}
+<div style="display:grid;gap:10px;">
+{% for b in bags %}{% set out = b.expires_at <= now %}
+<div class="card" data-milk-row="{{ b.id }}" {{ 'data-expired' if out }} style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+  <div style="flex:1;min-width:220px;">
+    <b dir="ltr">{{ b.code }}</b> · <b>{{ b.patient.display_name(current_lang) }}</b>{% if b.patient.patient_number %} <span class="hint" dir="ltr">{{ b.patient.patient_number }}</span>{% endif %}
+    <span class="badge badge--muted">{{ t('milk.storage_' ~ b.storage) }}</span>
+    {% if out %}<span class="badge badge--danger">{{ t('milk.expired') }}</span>{% endif %}
+    <div class="hint" style="margin:2px 0 0;">{{ t('milk.expressed_at') }} <span dir="ltr">{{ b.expressed_at|clinic_stamp }}</span> · {{ t('milk.expires') }} <span dir="ltr">{{ b.expires_at|clinic_stamp }}</span>{% if b.volume_ml %} · <span dir="ltr">{{ '%g'|format(b.volume_ml) }}</span> {{ t('milk.ml') }}{% endif %}</div>
+  </div>
+  <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('beds.milk_label', bag_id=b.id) }}" target="_blank" rel="noopener"><i class="bi bi-printer"></i> {{ t('milk.label') }}</a>
+  {% if b.admission_id %}<a class="btn btn-sm btn-outline gc-press" href="{{ url_for('beds.admission', admission_id=b.admission_id) }}#milk">{{ t('milk.to_stay') }}</a>{% endif %}
+  {% if b.storage == 'freezer' and not out %}
+  <form method="post" action="{{ url_for('beds.milk_thaw', bag_id=b.id) }}" style="margin:0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-sm btn-outline gc-press" type="submit" {{ 'disabled' if not hours.thawed }} title="{{ '' if hours.thawed else t('milk.err_thawed_hours') }}">{{ t('milk.thaw') }}</button>
+  </form>
+  {% endif %}
+  <form method="post" action="{{ url_for('beds.milk_discard', bag_id=b.id) }}" style="display:flex;gap:6px;margin:0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input class="input" name="reason" maxlength="160" required dir="auto" placeholder="{{ t('milk.discard_reason') }}" aria-label="{{ t('milk.discard_reason') }}" value="{{ t('milk.expired') if out else '' }}" style="min-width:140px;">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('milk.discard') }}</button>
+  </form>
+</div>
+{% endfor %}
+</div>
+{% endblock %}

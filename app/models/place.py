@@ -141,6 +141,13 @@ class Space(db.Model):
     # keeping the fact in a place nothing can query.
     is_isolation = db.Column(db.Boolean, default=False, nullable=False,
                              index=True)
+    # GAHAR IPC.12: *"at least one negative pressure room (AIIR)"* for
+    # airborne infections — the one isolation space that can take airborne
+    # precautions. Only meaningful on an isolation space.
+    is_aiir = db.Column(db.Boolean)
+    # GAHAR IPC.07 ev. 3 — the space designated for patients with suspected
+    # respiratory infections, kept apart from the others.
+    is_respiratory = db.Column(db.Boolean)
 
     sort_order = db.Column(db.Integer, default=0, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
