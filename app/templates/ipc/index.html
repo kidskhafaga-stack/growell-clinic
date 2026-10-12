@@ -12,8 +12,9 @@
     <h1 class="page-title"><i class="bi bi-shield-exclamation"></i> {{ t('ipc.title') }}</h1>
     <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('ipc.sub') }}</p>
   </div>
-  {% if hand_hygiene %}<a class="btn btn-outline gc-press" href="{{ url_for('hand_hygiene.index') }}"><i class="bi bi-droplet-half"></i> {{ t('ipc.hand_hygiene') }}</a>{% endif %}
 </div>
+{% from "ipc/_nav.html" import ipc_nav with context %}
+{{ ipc_nav('alerts') }}
 
 <h2 class="section-title">{{ t('ipc.open') }} <span class="badge {{ 'badge--danger' if data.open else 'badge--muted' }}">{{ data.open|length }}</span></h2>
 {% if not data.open %}<p class="hint" data-ipc-none>{{ t('ipc.none_open') }}</p>{% endif %}

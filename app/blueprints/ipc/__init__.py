@@ -5,3 +5,4 @@ from flask import Blueprint
 ipc_bp = Blueprint("ipc", __name__, url_prefix="/infection-control")
 
 from app.blueprints.ipc import routes  # noqa: E402,F401
+from app.blueprints.ipc import program_routes  # noqa: E402,F401
