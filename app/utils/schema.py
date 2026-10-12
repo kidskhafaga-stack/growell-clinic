@@ -997,6 +997,10 @@ ADDITIONS = [
     # authority's reference.
     ("medication_errors", "informed", "VARCHAR(80)"),
     ("medication_errors", "authority_ref", "VARCHAR(80)"),
+    # GAHAR CSS.01 (b) — a critical unit's admission and discharge criteria,
+    # in the hospital's words.
+    ("care_units", "admit_criteria", "TEXT"),
+    ("care_units", "discharge_criteria", "TEXT"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

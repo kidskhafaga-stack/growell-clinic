@@ -80,6 +80,16 @@
 </div>
 {% endif %}
 
+{# GAHAR CSS.01 (b) — the critical unit's admission and discharge criteria,
+   where the people deciding who comes in and who goes out can read them. #}
+{% for u in units if u.admit_criteria or u.discharge_criteria %}
+<details class="card" style="margin-bottom:12px;" data-criteria="{{ u.id }}">
+  <summary>{{ t('crit.title') }} — {{ u.display_name(current_lang) }}</summary>
+  {% if u.admit_criteria %}<p style="margin:8px 0 0;"><b>{{ t('crit.admit') }}</b></p><div dir="auto" style="white-space:pre-line;">{{ u.admit_criteria }}</div>{% endif %}
+  {% if u.discharge_criteria %}<p style="margin:8px 0 0;"><b>{{ t('crit.discharge') }}</b></p><div dir="auto" style="white-space:pre-line;">{{ u.discharge_criteria }}</div>{% endif %}
+</details>
+{% endfor %}
+
 {% if not units %}
 {# The department is switched on and nothing has been built. Said plainly,
    with the one door that leads somewhere — an empty screen here reads as a

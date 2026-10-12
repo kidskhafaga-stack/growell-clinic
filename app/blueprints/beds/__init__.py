@@ -9,3 +9,5 @@ from app.blueprints.beds import milk_routes  # noqa: E402,F401
 from app.blueprints.beds import own_med_routes  # noqa: E402,F401
 from app.blueprints.beds import adr_routes  # noqa: E402,F401
 from app.blueprints.beds import med_family_routes  # noqa: E402,F401
+from app.blueprints.beds import palliative_routes  # noqa: E402,F401
+from app.blueprints.beds import mental_routes  # noqa: E402,F401

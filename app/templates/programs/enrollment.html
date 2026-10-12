@@ -1,0 +1,91 @@
+{% extends "shell.html" %}
+{% set active_module = 'programs' %}
+{% block title %}{{ t('prog.p_' ~ enr.program) }} · {{ enr.patient.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ t('nav.programs') }}{% endblock %}
+
+{% block content %}
+{# GAHAR CSS.06 / .07 / .10 — one child in one programme: the plan, the
+   family's education, every session with its check before and whether it was
+   cleared, and (dialysis) the viral markers; (rehabilitation) the discharge
+   plan on ending. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-clipboard2-heart"></i> {{ enr.patient.display_name(current_lang) }} · {{ t('prog.p_' ~ enr.program) }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('prog.since') }} <span dir="ltr">{{ enr.started_on }}</span>{% if enr.cycles %} · {{ t('prog.cycles') }} <span dir="ltr">{{ enr.cycles }}</span>{% endif %}{% if not enr.is_active %} · <span class="badge badge--muted">{{ t('prog.ended') }} <span dir="ltr">{{ enr.ended_on }}</span></span>{% endif %}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('programs.index', p=enr.program) }}"><i class="bi bi-clipboard2-heart"></i> {{ t('prog.p_' ~ enr.program) }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-plan>
+  <h2 class="section-title" style="margin-top:0;">{{ t('prog.plan_' ~ enr.program) }}</h2>
+  <div dir="auto" style="white-space:pre-line;">{{ enr.plan }}</div>
+  {% if enr.educated_at %}<p class="hint" style="margin:8px 0 0;">{{ t('prog.educated') }}: <span dir="auto">{{ enr.educated_whom }}</span> · <span dir="ltr">{{ enr.educated_at|clinic_stamp }}</span></p>
+  {% elif enr.is_active %}
+  <form method="post" action="{{ url_for('programs.act', enr_id=enr.id, what='educate') }}" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0;" data-educate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input class="input" name="educated_whom" maxlength="120" required dir="auto" placeholder="{{ t('prog.educated_whom') }}" aria-label="{{ t('prog.educated_whom') }}">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('prog.record_education') }}</button>
+  </form>
+  {% endif %}
+  {% if enr.discharge_plan %}<p style="margin:8px 0 0;"><b>{{ t('prog.discharge_plan') }}</b></p><div dir="auto" style="white-space:pre-line;">{{ enr.discharge_plan }}</div>{% endif %}
+</div>
+
+{% if enr.program == 'dialysis' %}
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-markers>
+  <h2 class="section-title" style="margin-top:0;">{{ t('prog.markers') }}
+    {% if sero %}<span class="badge badge--danger" data-sero>{{ t('prog.seroconversion') }}: {% for m in sero %}{{ t('prog.m_' ~ m) }}{{ '، ' if not loop.last }}{% endfor %}</span>{% endif %}
+    {% if due %}<span class="badge badge--warn" data-markers-due>{{ t('prog.markers_due') }}</span>{% elif due is none %}<span class="hint">{{ t('prog.marker_days') }}: {{ t('milk.not_set') }}</span>{% endif %}</h2>
+  {% for m in markers|reverse %}<p class="hint" style="margin:0 0 4px;"><span dir="ltr">{{ m.taken_on }}</span> · {% for k in ('hbsag', 'hcv', 'hiv') %}{% if m|attr(k) %}{{ t('prog.m_' ~ k) }}: {{ t('prog.r_' ~ (m|attr(k))) }} {% endif %}{% endfor %}</p>{% endfor %}
+  {% if enr.is_active %}
+  <form method="post" action="{{ url_for('programs.act', enr_id=enr.id, what='markers') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="m_on">{{ t('prog.date') }}</label><input class="input" type="date" id="m_on" name="on"></div>
+    {% for k in ('hbsag', 'hcv', 'hiv') %}<div><label class="label" for="m_{{ k }}">{{ t('prog.m_' ~ k) }}</label><select class="select" id="m_{{ k }}" name="{{ k }}"><option value="">—</option><option value="negative">{{ t('prog.r_negative') }}</option><option value="positive">{{ t('prog.r_positive') }}</option></select></div>{% endfor %}
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('prog.save') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-sessions>
+  <h2 class="section-title" style="margin-top:0;">{{ t('prog.sessions') }}</h2>
+  {% for s in sessions %}
+  <div style="border-bottom:1px solid var(--line);padding:6px 0;" data-session="{{ s.id }}">
+    <span dir="ltr">{{ s.at|clinic_stamp }}</span>{% if s.cycle_no %} · {{ t('prog.cycle') }} <span dir="ltr">{{ s.cycle_no }}</span>{% endif %}
+    {% if s.cleared %}<span class="badge badge--ok">{{ t('prog.cleared') }}</span>{% else %}<span class="badge badge--danger">{{ t('prog.not_cleared') }}</span>{% endif %}
+    <div class="hint" style="margin:2px 0 0;">{{ t('prog.pre_' ~ enr.program) }}: <span dir="auto">{{ s.pre_check }}</span></div>
+    {% if s.during %}<div class="hint" style="margin:0;">{{ t('prog.during') }}: <span dir="auto">{{ s.during }}</span></div>{% endif %}
+    {% if s.complications %}<div class="hint" style="margin:0;">{{ t('prog.complications') }}: <span dir="auto">{{ s.complications }}</span> · {{ s.action }}</div>{% endif %}
+    {% if s.progress %}<div class="hint" style="margin:0;">{{ t('prog.progress') }}: <span dir="auto">{{ s.progress }}</span></div>{% endif %}
+  </div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('prog.no_sessions') }}</p>{% endfor %}
+  {% if enr.is_active %}
+  <form method="post" action="{{ url_for('programs.act', enr_id=enr.id, what='session') }}" style="display:grid;gap:8px;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      {% if enr.program == 'chemo' %}<div><label class="label" for="s_c">{{ t('prog.cycle') }}</label><input class="input" type="number" min="1" id="s_c" name="cycle_no" style="max-width:90px;"></div>{% endif %}
+      <div style="flex:1;min-width:220px;"><label class="label" for="s_p">{{ t('prog.pre_' ~ enr.program) }}</label><input class="input" id="s_p" name="pre_check" required dir="auto"></div>
+      <div><label class="label" for="s_ok">{{ t('prog.cleared_q') }}</label><select class="select" id="s_ok" name="cleared"><option value="">—</option><option value="yes">{{ t('prog.cleared') }}</option><option value="no">{{ t('prog.not_cleared') }}</option></select></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;"><label class="label" for="s_d">{{ t('prog.during') }}</label><input class="input" id="s_d" name="during" dir="auto"></div>
+      <div style="flex:1;min-width:180px;"><label class="label" for="s_x">{{ t('prog.complications') }}</label><input class="input" id="s_x" name="complications" maxlength="255" dir="auto"></div>
+      <div style="flex:1;min-width:180px;"><label class="label" for="s_a">{{ t('prog.action') }}</label><input class="input" id="s_a" name="action" maxlength="255" dir="auto"></div>
+      {% if enr.program == 'rehab' %}<div style="flex:1;min-width:180px;"><label class="label" for="s_g">{{ t('prog.progress') }}</label><input class="input" id="s_g" name="progress" maxlength="255" dir="auto"></div>{% endif %}
+    </div>
+    <div><button class="btn btn-primary gc-press" type="submit">{{ t('prog.record_session') }}</button></div>
+  </form>
+  {% endif %}
+</div>
+
+{% if enr.is_active %}
+<details class="card">
+  <summary>{{ t('prog.end') }}</summary>
+  <form method="post" action="{{ url_for('programs.act', enr_id=enr.id, what='end') }}" style="display:grid;gap:8px;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="x_d">{{ t('prog.discharge_plan') }}</label><textarea class="input" id="x_d" name="discharge_plan" rows="3" dir="auto" {{ 'required' if enr.program == 'rehab' }}></textarea></div>
+    <div><button class="btn btn-outline gc-press" type="submit">{{ t('prog.end') }}</button></div>
+  </form>
+</details>
+{% endif %}
+{% endblock %}

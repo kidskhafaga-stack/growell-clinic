@@ -170,6 +170,10 @@ from app.models.emergency_cart import CartCheck, CartItem, CartUse
 from app.models.dtc import DrugShortage, DtcAnnualReview, DtcDecision, DtcMeeting
 from app.models.med_family import (FirstDoseObservation, FirstDoseWatch, MedCounselling,
                                   SelfAdministration)
+from app.models.staff_certificate import StaffCertificate
+from app.models.palliative import PalliativePlan, PalliativeReview
+from app.models.tranquilization import RapidTranquilization
+from app.models.care_program import ProgramEnrollment, ProgramSession, ViralMarker
 from app.models.user_capability import UserCapability
 from app.models.permissions import MODULES, ROLE_PERMISSIONS, ROLES
 from app.models.role import Role
@@ -571,6 +575,13 @@ __all__ = [
     "SelfAdministration",
     "FirstDoseWatch",
     "FirstDoseObservation",
+    "StaffCertificate",
+    "PalliativePlan",
+    "PalliativeReview",
+    "RapidTranquilization",
+    "ProgramEnrollment",
+    "ProgramSession",
+    "ViralMarker",
     "CleaningArea", "CleaningDone", "CleaningTask",
     "HldTest", "SterilizationReview", "Sterilizer", "SterilizerCycle",
     "DiseaseReport", "Outbreak", "OutbreakCase", "OutbreakStep",

@@ -462,6 +462,20 @@ def unit_max_stay(unit_id):
     return redirect(url_for("beds.setup"))
 
 
+@beds_bp.route("/unit/<int:unit_id>/criteria", methods=["POST"])
+@module_required(MODULE)
+def unit_criteria(unit_id):
+    """GAHAR CSS.01 (b) — a critical unit's admission and discharge criteria,
+    the hospital's own words. Blank clears them."""
+    _admin_only()
+    unit = Unit.query.get_or_404(unit_id)
+    unit.admit_criteria = (request.form.get("admit_criteria") or "").strip() or None
+    unit.discharge_criteria = (request.form.get("discharge_criteria") or "").strip() or None
+    db.session.commit()
+    flash(t("crit.saved"), "success")
+    return redirect(url_for("beds.setup"))
+
+
 # ------------------------------------------------- closing for maintenance --
 #: القسم والحيّز والسرير — نفس الفورم للتلاتة، والمستوى جاي مع الطلب.
 _LEVELS = {"unit": Unit, "space": Space, "bed": Bed}
@@ -733,6 +747,8 @@ def admission(admission_id):
     from app.utils import own_medicine as _own
     from app.utils import adverse_reaction as _adr
     from app.utils import med_family as _fam
+    from app.utils import palliative as _pall
+    from app.utils import mental_health as _mh
     from app.utils import restraint as _tied
     from app.utils import resuscitation as _cpr
     # كام يوم في المستشفى — للرأس بس. من الختمين اللي متسجّلين، والإقامة
@@ -808,6 +824,10 @@ def admission(admission_id):
         reactions=_adr.for_patient(row.patient_id),
         # `MMS.15` / `MMS.16` ev. 2 — the family and the medicines.
         family_meds=_fam.for_stay(row),
+        # `CSS.04` — end-of-life care: the plan and the symptom reviews.
+        palliative=_pall.for_stay(row.id),
+        # `CSS.11` — the risk of harm, and rapid tranquilization.
+        mental=_mh.for_stay(row),
         milk_hours={s: _milk.hours_for(s) for s in _milk.HOURS_SETTINGS},
         line_map=_lines.map_for(row.patient_id),
         line_kinds=LINE_KINDS,

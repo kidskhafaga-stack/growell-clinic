@@ -28,10 +28,10 @@
 {% set mrp_now = admission.responsibility %}
 {% set here_bed = admission.bed if admission.is_open else none %}
 <div class="stay" x-data="{
-        inside: { nursing: 'care', pain: 'care', food: 'care', milk: 'care', risks: 'care',
+        inside: { nursing: 'care', pain: 'care', food: 'care', milk: 'care', palliative: 'care', risks: 'care',
                   medicines: 'treatment', reconcile: 'treatment', 'own-meds': 'treatment', adr: 'treatment', 'family-meds': 'treatment', tests: 'treatment', lines: 'treatment',
                   blood: 'treatment', theatre: 'treatment',
-                  restraint: 'safety', arrest: 'safety', precautions: 'safety',
+                  restraint: 'safety', arrest: 'safety', precautions: 'safety', mental: 'safety',
                   'discharge-summary': 'discharge', mrp: 'overview',
                   rounds: 'overview' },
         known: [],
@@ -931,6 +931,54 @@
     {% endif %}
   </div>
   {% endfor %}
+</div>
+{% endif %}
+{# ===================== رعاية نهاية الحياة — CSS.04 ==========================
+   أهداف الرعاية بقرار مع الأهل (مين ووصلوا لإيه)، والدعم النفسي والروحي،
+   والفريق؛ ومراجعة الأعراض اللي البند بيسمّيها، والموجود منها محتاج اللي
+   اتعمل. مفيش مقياس من عندنا. #}
+{% if palliative.plan or palliative.reviews or admission.is_open %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="palliative" data-palliative>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-flower1"></i> {{ t('pall.title') }}
+    <span class="hint" dir="ltr">CSS.04</span></h2>
+  {% set plan = palliative.plan %}
+  {% if plan %}
+  <div data-pall-plan>
+    <div dir="auto" style="white-space:pre-line;">{{ plan.goals }}</div>
+    <div class="hint" style="margin:4px 0 0;">{{ t('pall.decided_with') }}: <span dir="auto">{{ plan.decided_with }}</span> · <span dir="ltr">{{ plan.at|clinic_stamp }}</span>{% if plan.by %} · {{ plan.by.display_name(current_lang) }}{% endif %}</div>
+    {% if plan.support %}<div class="hint" style="margin:2px 0 0;">{{ t('pall.support') }}: <span dir="auto">{{ plan.support }}</span></div>{% endif %}
+    {% if plan.team %}<div class="hint" style="margin:2px 0 0;">{{ t('pall.team') }}: <span dir="auto">{{ plan.team }}</span></div>{% endif %}
+  </div>
+  {% endif %}
+  {% for r in palliative.reviews %}
+  <div class="hint" style="margin:6px 0 0;" data-pall-review="{{ r.id }}"><span dir="ltr">{{ r.at|clinic_stamp }}</span> ·
+    {% for s in r.present_list %}<span class="badge badge--warn">{{ t('pall.sym_' ~ s) }}</span> {% else %}{{ t('pall.no_symptoms') }}{% endfor %}
+    {% if r.action %} · <span dir="auto">{{ r.action }}</span>{% endif %}</div>
+  {% endfor %}
+  {% if admission.is_open %}
+  <details style="margin-top:10px;" {{ 'open' if not plan }}>
+    <summary>{{ t('pall.plan_new') if not plan else t('pall.plan_update') }}</summary>
+    <form method="post" action="{{ url_for('beds.palliative_plan', admission_id=admission.id) }}" style="display:grid;gap:8px;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div><label class="label" for="pl_g">{{ t('pall.goals') }}</label><textarea class="input" id="pl_g" name="goals" rows="3" required dir="auto">{{ plan.goals if plan else '' }}</textarea></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;"><label class="label" for="pl_d">{{ t('pall.decided_with') }}</label><input class="input" id="pl_d" name="decided_with" maxlength="160" required dir="auto" value="{{ plan.decided_with if plan else '' }}"></div>
+        <div style="flex:1;min-width:200px;"><label class="label" for="pl_s">{{ t('pall.support') }}</label><input class="input" id="pl_s" name="support" maxlength="255" dir="auto" placeholder="{{ t('pall.support_ph') }}" value="{{ plan.support or '' if plan else '' }}"></div>
+        <div style="flex:1;min-width:200px;"><label class="label" for="pl_t">{{ t('pall.team') }}</label><input class="input" id="pl_t" name="team" maxlength="255" dir="auto" value="{{ plan.team or '' if plan else '' }}"></div>
+      </div>
+      <div><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('pall.save_plan') }}</button></div>
+    </form>
+  </details>
+  {% if plan %}
+  <form method="post" action="{{ url_for('beds.palliative_review', admission_id=admission.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;border-top:1px solid var(--line);padding-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for s in ('pain', 'dyspnea', 'anxiety', 'agitation') %}<label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" name="present" value="{{ s }}"> {{ t('pall.sym_' ~ s) }}</label>{% endfor %}
+    <input class="input" name="action" maxlength="255" dir="auto" placeholder="{{ t('pall.action_ph') }}" aria-label="{{ t('pall.action') }}" style="flex:1;min-width:200px;">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('pall.save_review') }}</button>
+  </form>
+  {% endif %}
+  {% endif %}
 </div>
 {% endif %}
 {# ===================== لبن الأم المسحوب — IPC.20 (h) =====================
@@ -2162,6 +2210,51 @@
 {% endif %}
 </div>
 
+{# ======================= الصحة النفسية — CSS.11 (ب)(ح)(ي) =================
+   خطر إيذاء النفس أو الغير بأداة المستشفى، والخطة لو في خطر؛ والتهدئة
+   السريعة بالمتابعة بعدها. مقفول لحد ما حد يفتحه — مش كل طفل في سرير
+   بيتسأل السؤال ده، فمفيش «ناقص» على طفل ما اتحوّلش للصحة النفسية. #}
+{% set mh = mental %}
+<details class="card gc-scale-in" style="margin-bottom:16px;" id="mental" data-mental {{ 'open' if mh.screens or mh.rt }}>
+  <summary class="section-title" style="margin:0;">
+    <i class="bi bi-chat-heart"></i> {{ t('mental.title') }} <span class="hint" dir="ltr">CSS.11</span>
+    {% if mh.latest %}{% if mh.latest.at_risk %}<span class="badge badge--danger" data-harm-risk>{{ t('mental.at_risk') }}</span>{% else %}<span class="badge badge--ok">{{ t('mental.not_at_risk') }}</span>{% endif %}{% endif %}</summary>
+  {% for s in mh.screens[:5] %}
+  <div class="hint" style="margin:6px 0 0;" data-harm-screen="{{ s.id }}"><span dir="ltr">{{ s.at|clinic_stamp }}</span>{% if s.tool %} · <span dir="auto">{{ s.tool }}</span>{% endif %}{% if s.level %} · <span dir="auto">{{ s.level }}</span>{% endif %} · {{ t('mental.at_risk') if s.at_risk else t('mental.not_at_risk') }}{% if s.plan %}<div dir="auto" style="white-space:pre-line;">{{ s.plan }}</div>{% endif %}</div>
+  {% endfor %}
+  {% if admission.is_open %}
+  <form method="post" action="{{ url_for('beds.harm_screen', admission_id=admission.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="hs_t">{{ t('mental.tool') }}</label><input class="input" id="hs_t" name="tool" maxlength="120" dir="auto" value="{{ mh.tool or '' }}" placeholder="{{ t('mental.tool_ph') }}"></div>
+    <div><label class="label" for="hs_l">{{ t('mental.level') }}</label><input class="input" id="hs_l" name="level" maxlength="60" dir="auto" style="max-width:140px;"></div>
+    <div><label class="label" for="hs_r">{{ t('mental.risk_q') }}</label><select class="select" id="hs_r" name="at_risk"><option value="">—</option><option value="yes">{{ t('mental.yes') }}</option><option value="no">{{ t('mental.no') }}</option></select></div>
+    <div style="flex:1;min-width:220px;"><label class="label" for="hs_p">{{ t('mental.plan') }}</label><input class="input" id="hs_p" name="plan" dir="auto" placeholder="{{ t('mental.plan_ph') }}"></div>
+    <label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" name="family_told" value="1"> {{ t('mental.family_told') }}</label>
+    <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('mental.save_screen') }}</button>
+  </form>
+  {% endif %}
+  <h3 class="section-title" style="margin-top:14px;">{{ t('mental.rt_title') }}</h3>
+  {% for r in mh.rt %}
+  <div class="hint" style="margin:0 0 6px;" data-rt="{{ r.id }}"><span dir="ltr">{{ r.at|clinic_stamp }}</span> · <span dir="auto">{{ r.given }}</span> · <span dir="auto">{{ r.reason }}</span><div>{{ t('mental.monitoring') }}: <span dir="auto">{{ r.monitoring }}</span>{% if r.outcome %} · <span dir="auto">{{ r.outcome }}</span>{% endif %}</div></div>
+  {% else %}<p class="hint" style="margin:0 0 6px;">{{ t('mental.no_rt') }}</p>{% endfor %}
+  {% if admission.is_open %}
+  <form method="post" action="{{ url_for('beds.tranquilization', admission_id=admission.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:1;min-width:180px;"><label class="label" for="rt_r">{{ t('mental.reason') }}</label><input class="input" id="rt_r" name="reason" maxlength="255" required dir="auto"></div>
+    <div style="flex:1;min-width:160px;"><label class="label" for="rt_g">{{ t('mental.given') }}</label><input class="input" id="rt_g" name="given" maxlength="160" required dir="auto" placeholder="{{ t('mental.given_ph') }}"></div>
+    <div style="flex:1;min-width:200px;"><label class="label" for="rt_m">{{ t('mental.monitoring') }}</label><input class="input" id="rt_m" name="monitoring" maxlength="255" required dir="auto" placeholder="{{ t('mental.monitoring_ph') }}"></div>
+    <div style="flex:1;min-width:160px;"><label class="label" for="rt_o">{{ t('mental.outcome') }}</label><input class="input" id="rt_o" name="outcome" maxlength="255" dir="auto"></div>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('mental.save_rt') }}</button>
+  </form>
+  {% endif %}
+  {% if current_user.is_admin %}
+  <form method="post" action="{{ url_for('beds.harm_screen_tool') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:12px;border-top:1px solid var(--line);padding-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="hs_tool">{{ t('mental.hospital_tool') }}</label><input class="input" id="hs_tool" name="tool" maxlength="120" dir="auto" value="{{ mh.tool or '' }}"></div>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('mental.save_tool') }}</button>
+  </form>
+  {% endif %}
+</details>
 {# ======================= التقييد والإنعاش — CSS.12 و CSS.05 =======
    **الفورمتين دول كانوا ناقصين.** المسارات الستّة اتسلّمت ومحدّش يقدر
    يوصلها: الشاشة كانت بتقول «فيه طفل مربوط بأمر خلص» ومفيش في البرنامج
