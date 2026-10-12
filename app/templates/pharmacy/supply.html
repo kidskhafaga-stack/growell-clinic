@@ -79,8 +79,10 @@
       <span class="alert-pill ok" data-done>
         <i class="bi bi-check2-circle"></i> {{ line.prep.prepared_at|clinic_time }}
         {% if line.prep.by %} · {{ line.prep.by.display_name(current_lang) }}{% endif %}</span>
+      {# GAHAR MMS.13 — the standard label, printed from what was written. #}
+      <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('pharmacy.prep_label', prep_id=line.prep.id) }}" target="_blank" rel="noopener" data-prep-label><i class="bi bi-printer"></i> {{ t('preplabel.print') }}</a>
       {% else %}
-      <form method="post" style="display:flex;gap:8px;align-items:end;"
+      <form method="post" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;"
             action="{{ url_for('pharmacy.prepare', order_id=order.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-row" style="margin-bottom:0;min-width:170px;">
@@ -91,12 +93,33 @@
           <input class="input" id="lb_{{ order.id }}" name="label" maxlength="255"
                  placeholder="{{ t('cpharm.label_ph') }}">
         </div>
+        <div class="form-row" style="margin-bottom:0;min-width:130px;">
+          <label for="dl_{{ order.id }}">{{ t('preplabel.diluent') }}</label>
+          <input class="input" id="dl_{{ order.id }}" name="diluent" maxlength="120" dir="auto"></div>
+        <div class="form-row" style="margin-bottom:0;">
+          <label for="bu_{{ order.id }}">{{ t('preplabel.beyond_use') }}</label>
+          <input class="input" type="datetime-local" id="bu_{{ order.id }}" name="beyond_use"></div>
+        <div class="form-row" style="margin-bottom:0;min-width:130px;">
+          <label for="ca_{{ order.id }}">{{ t('preplabel.caution') }}</label>
+          <input class="input" id="ca_{{ order.id }}" name="caution" maxlength="160" dir="auto"></div>
         <button class="btn btn-primary gc-press" type="submit">
           <i class="bi bi-bag-check"></i> {{ t('cpharm.make_up') }}</button>
       </form>
       {% endif %}
     </div>
     {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% if made %}
+<div class="card" style="margin-top:16px;" data-made-today>
+  <h2 class="section-title" style="margin-top:0;">{{ t('preplabel.made_today') }}</h2>
+  {% for p in made %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);padding:6px 0;">
+    <b>{{ p.patient.display_name(current_lang) }}</b> · <span dir="auto">{{ p.order.drug_name }}</span>
+    <span class="hint" dir="ltr">{{ p.prepared_at|clinic_time }}</span>
+    <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('pharmacy.prep_label', prep_id=p.id) }}" target="_blank" rel="noopener" data-prep-label><i class="bi bi-printer"></i> {{ t('preplabel.print') }}</a>
   </div>
   {% endfor %}
 </div>

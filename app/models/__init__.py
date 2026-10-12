@@ -161,6 +161,15 @@ from app.models.ipc_program import (BundleCheck, BundleElement, CareBundle,
                                     HaiCase, IpcDecision, IpcMeeting)
 from app.models.patient_merge import PatientMerge
 from app.models.breast_milk import MilkBag
+from app.models.controlled import ControlledEntry, ControlledItem
+from app.models.own_medicine import OwnMedicine
+from app.models.adverse_reaction import AdverseReaction
+from app.models.drug_recall import DrugRecall
+from app.models.stewardship import RestrictedAntimicrobial, StewardshipReview
+from app.models.emergency_cart import CartCheck, CartItem, CartUse
+from app.models.dtc import DrugShortage, DtcAnnualReview, DtcDecision, DtcMeeting
+from app.models.med_family import (FirstDoseObservation, FirstDoseWatch, MedCounselling,
+                                  SelfAdministration)
 from app.models.user_capability import UserCapability
 from app.models.permissions import MODULES, ROLE_PERMISSIONS, ROLES
 from app.models.role import Role
@@ -544,6 +553,24 @@ __all__ = [
     "IpcAlert",
     "PatientMerge",
     "MilkBag",
+    "ControlledItem",
+    "ControlledEntry",
+    "OwnMedicine",
+    "AdverseReaction",
+    "DrugRecall",
+    "RestrictedAntimicrobial",
+    "StewardshipReview",
+    "CartItem",
+    "CartCheck",
+    "CartUse",
+    "DtcMeeting",
+    "DtcDecision",
+    "DtcAnnualReview",
+    "DrugShortage",
+    "MedCounselling",
+    "SelfAdministration",
+    "FirstDoseWatch",
+    "FirstDoseObservation",
     "CleaningArea", "CleaningDone", "CleaningTask",
     "HldTest", "SterilizationReview", "Sterilizer", "SterilizerCycle",
     "DiseaseReport", "Outbreak", "OutbreakCase", "OutbreakStep",

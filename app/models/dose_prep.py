@@ -68,6 +68,11 @@ class DosePrep(db.Model):
     # mixing instruction ever appears — this program never composes one.
     label = db.Column(db.String(255))
     note = db.Column(db.String(255))
+    #: GAHAR MMS.13 (d)(f)(g) — as the preparer writes them; the program
+    #: chooses no diluent and works out no beyond-use time.
+    diluent = db.Column(db.String(120))
+    beyond_use = db.Column(db.DateTime)
+    caution = db.Column(db.String(160))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     order = db.relationship("MedicationOrder", backref="preps")

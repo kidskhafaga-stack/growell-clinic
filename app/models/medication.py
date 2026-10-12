@@ -133,6 +133,23 @@ class MedicationOrder(db.Model):
     answered_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     ordered_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     stopped_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # GAHAR MMS.11 (e)(viii)(ix) — what it is for, the most a "when needed"
+    # may be given in a day, an infusion's rate, and how many days it runs.
+    # Written by the doctor, in their words; a PRN without the first two is
+    # shown as incomplete rather than refused, so no order that was being
+    # written yesterday stops being writable today.
+    indication = db.Column(db.String(160))
+    max_per_day = db.Column(db.String(60))
+    rate = db.Column(db.String(60))
+    course_days = db.Column(db.Integer)
+
+    @property
+    def missing_elements(self):
+        """The (e) elements a PRN line is still without — ``[key]``."""
+        if not self.is_prn:
+            return []
+        return [k for k, v in (("indication", self.indication),
+                               ("max_per_day", self.max_per_day)) if not v]
     note = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow,
                            nullable=False)

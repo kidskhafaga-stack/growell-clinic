@@ -2630,6 +2630,8 @@ CAPABILITY_LABELS = {
                         "Classify, investigate and close incident reports"),
     "infection_control": ("مكافحة العدوى: تنبيه الميكروبات المنذرة والرد عليه، وتقارير نظافة الأيدي",
                           "Infection control: alert organisms and their answer, and hand-hygiene reports"),
+    "antimicrobial_stewardship": ("ترشيد المضادات الحيوية: الموافقة على المقيّد والمراجعة بعد المزرعة",
+                                  "Antimicrobial stewardship: restricted approvals and post-culture review"),
 }
 
 

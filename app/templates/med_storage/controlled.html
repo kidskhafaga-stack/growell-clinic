@@ -1,0 +1,64 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('ctrl.title') }}{% endblock %}
+{% block page_heading %}{{ t('ctrl.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR MMS.09 ev. 4 — the controlled-drug book: one page per drug per
+   place, the balance after every line, and the last count beside it. Which
+   drugs are in the book is the hospital's list, by its law. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-journal-lock"></i> {{ t('ctrl.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('ctrl.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.storage') }}"><i class="bi bi-thermometer-snow"></i> {{ t('med_store.title') }}</a>
+</div>
+
+{% if items and areas %}
+<form class="card gc-scale-in" method="post" action="{{ url_for('med_storage.controlled_open') }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;" data-ctrl-open>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div><label class="label" for="c_item">{{ t('ctrl.drug') }}</label>
+    <select class="select" id="c_item" name="item_id">{% for i in items %}<option value="{{ i.id }}">{{ i.name }}</option>{% endfor %}</select></div>
+  <div><label class="label" for="c_area">{{ t('ctrl.place') }}</label>
+    <select class="select" id="c_area" name="area_id">{% for a in areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}</select></div>
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-journal-text"></i> {{ t('ctrl.open_page') }}</button>
+</form>
+{% elif not areas %}
+<p class="hint">{{ t('ctrl.no_areas') }}</p>
+{% endif %}
+
+<div class="card gc-scale-in" style="overflow-x:auto;margin-bottom:14px;" data-ctrl-pages>
+  {% if not pages %}<p class="hint" style="margin:0;">{{ t('ctrl.no_pages') }}</p>{% else %}
+  <table class="table" style="min-width:560px;">
+    <thead><tr><th>{{ t('ctrl.drug') }}</th><th>{{ t('ctrl.place') }}</th><th>{{ t('ctrl.balance') }}</th><th>{{ t('ctrl.last_count') }}</th></tr></thead>
+    <tbody>
+    {% for p in pages %}
+    <tr data-ctrl-page="{{ p.item.id }}-{{ p.area.id }}">
+      <td><a href="{{ url_for('med_storage.controlled_page', item_id=p.item.id, area_id=p.area.id) }}">{{ p.item.name }}</a></td>
+      <td>{{ p.area.name }}</td>
+      <td style="font-variant-numeric:tabular-nums;"><span dir="ltr">{{ '%g'|format(p.balance) }}</span> {{ p.item.unit }}</td>
+      <td>{% if p.last_count %}<span dir="ltr">{{ p.last_count.at|clinic_stamp }}</span>{% if p.last_count.qty %} <span class="badge badge--danger" data-ctrl-diff>{{ t('ctrl.differed') }} <span dir="ltr">{{ '%+g'|format(p.last_count.qty) }}</span></span>{% endif %}{% else %}<span class="badge badge--warn">{{ t('ctrl.never_counted') }}</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+{% if may_manage %}
+<details class="card" data-ctrl-items>
+  <summary>{{ t('ctrl.items_title') }}</summary>
+  <p class="hint">{{ t('ctrl.items_hint') }}</p>
+  {% if items %}<ul style="margin:0 0 10px;">{% for i in items %}<li>{{ i.name }} <span class="hint">· {{ i.unit }}</span></li>{% endfor %}</ul>{% endif %}
+  <form method="post" action="{{ url_for('med_storage.controlled_item_save') }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:1;min-width:220px;"><label class="label" for="ci_name">{{ t('ctrl.item_name') }}</label>
+      <input class="input" id="ci_name" name="name" maxlength="160" required dir="auto" placeholder="{{ t('ctrl.item_name_ph') }}"></div>
+    <div><label class="label" for="ci_unit">{{ t('ctrl.unit') }}</label>
+      <input class="input" id="ci_unit" name="unit" maxlength="30" required dir="auto" placeholder="{{ t('ctrl.unit_ph') }}" style="max-width:140px;"></div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('ctrl.add_item') }}</button>
+  </form>
+</details>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ item.name }} · {{ area.name }}{% endblock %}
+{% block page_heading %}{{ t('ctrl.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR MMS.09 ev. 4 — one page of the book. The balance after each line is
+   worked from the line before and never typed; a wrong line is answered by
+   another line. A wasted dose and a count need a second, different person. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-journal-lock"></i> {{ item.name }}</h1>
+    <p class="page-sub" style="margin:0;">{{ area.name }} · {{ t('ctrl.balance') }} <b dir="ltr" data-ctrl-book>{{ '%g'|format(book) }}</b> {{ item.unit }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.controlled_book') }}"><i class="bi bi-journal-lock"></i> {{ t('ctrl.title') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" x-data="{ kind: 'given' }" data-ctrl-form>
+  <form method="post" action="{{ url_for('med_storage.controlled_record', item_id=item.id, area_id=area.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="k">{{ t('ctrl.line') }}</label>
+      <select class="select" id="k" name="kind" x-model="kind">
+        {% for k in ('given', 'received', 'wasted', 'transfer', 'count') %}<option value="{{ k }}">{{ t('ctrl.kind_' ~ k) }}</option>{% endfor %}
+      </select></div>
+    <div x-show="kind !== 'count'"><label class="label" for="q">{{ t('ctrl.qty') }} ({{ item.unit }})</label>
+      <input class="input" type="number" min="0" step="any" id="q" name="qty" style="max-width:120px;"></div>
+    <div x-show="kind === 'count'" x-cloak><label class="label" for="cn">{{ t('ctrl.counted') }} ({{ item.unit }})</label>
+      <input class="input" type="number" min="0" step="any" id="cn" name="counted" style="max-width:120px;"></div>
+    <div x-show="kind === 'given'"><label class="label" for="st">{{ t('ctrl.patient') }}</label>
+      <select class="select" id="st" name="admission_id">
+        <option value="">—</option>
+        {% for s in stays %}<option value="{{ s.id }}">{{ s.patient.display_name(current_lang) }}{% if s.bed %} · {{ s.bed.display_name(current_lang) }}{% endif %}</option>{% endfor %}
+      </select></div>
+    <div x-show="kind === 'received'" x-cloak style="min-width:200px;"><label class="label" for="src">{{ t('ctrl.source') }}</label>
+      <input class="input" id="src" name="source" maxlength="160" dir="auto" placeholder="{{ t('ctrl.source_ph') }}"></div>
+    <div x-show="kind === 'transfer'" x-cloak><label class="label" for="oa">{{ t('ctrl.to_place') }}</label>
+      <select class="select" id="oa" name="other_area_id">{% for a in areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}</select></div>
+    <div x-show="kind === 'wasted' || kind === 'count'" x-cloak><label class="label" for="w">{{ t('ctrl.witness') }}</label>
+      <select class="select" id="w" name="witness_id">
+        <option value="">—</option>
+        {% for p in people if p.id != current_user.id %}<option value="{{ p.id }}">{{ p.display_name(current_lang) }}</option>{% endfor %}
+      </select></div>
+    <div style="flex:1;min-width:180px;"><label class="label" for="n">{{ t('ctrl.note') }}</label>
+      <input class="input" id="n" name="note" maxlength="255" dir="auto" :placeholder="kind === 'wasted' ? {{ t('ctrl.reason_ph')|tojson|forceescape }} : (kind === 'count' ? {{ t('ctrl.discrepancy_ph')|tojson|forceescape }} : '')"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-pen"></i> {{ t('ctrl.write') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in" style="overflow-x:auto;" data-ctrl-lines>
+  {% if not rows %}<p class="hint" style="margin:0;">{{ t('ctrl.empty_page') }}</p>{% else %}
+  <table class="table" style="min-width:760px;">
+    <thead><tr><th>{{ t('ctrl.when') }}</th><th>{{ t('ctrl.line') }}</th><th>{{ t('ctrl.qty') }}</th><th>{{ t('ctrl.balance') }}</th><th>{{ t('ctrl.detail') }}</th><th>{{ t('ctrl.by') }}</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr data-ctrl-line="{{ r.id }}" data-kind="{{ r.kind }}">
+      <td dir="ltr">{{ r.at|clinic_stamp }}</td>
+      <td>{{ t('ctrl.kind_' ~ r.kind) }}{% if r.kind == 'count' and r.qty %} <span class="badge badge--danger">{{ t('ctrl.differed') }}</span>{% endif %}</td>
+      <td dir="ltr" style="font-variant-numeric:tabular-nums;">{% if r.kind == 'count' %}{{ '%g'|format(r.counted) }}{% if r.qty %} ({{ '%+g'|format(r.qty) }}){% endif %}{% elif r.kind in ('received', 'transfer_in') %}+{{ '%g'|format(r.qty) }}{% else %}−{{ '%g'|format(r.qty) }}{% endif %}</td>
+      <td dir="ltr" style="font-variant-numeric:tabular-nums;"><b>{{ '%g'|format(r.balance) }}</b></td>
+      <td dir="auto">{% if r.patient %}{{ r.patient.display_name(current_lang) }}{% endif %}{% if r.source %}{{ r.source }}{% endif %}{% if r.other_area %}{{ r.other_area.name }}{% endif %}{% if r.note %}<div class="hint" style="margin:0;">{{ r.note }}</div>{% endif %}</td>
+      <td>{{ r.by.display_name(current_lang) if r.by else '' }}{% if r.witness %}<div class="hint" style="margin:0;">{{ t('ctrl.witness') }}: {{ r.witness.display_name(current_lang) }}</div>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

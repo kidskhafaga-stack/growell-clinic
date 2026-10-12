@@ -53,6 +53,10 @@ OUTCOME_BANDS = {
 }
 
 
+#: GAHAR MMS.17 (a)–(e), in the standard's order.
+INFORMED = ("prescriber", "ptc", "quality", "leaders", "authority")
+
+
 class MedicationError(db.Model):
     """One thing that went wrong, or nearly did."""
 
@@ -100,6 +104,14 @@ class MedicationError(db.Model):
     # collects nothing after the first month.
     reported_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
 
+    #: GAHAR MMS.17 (a–e) — whom it was reported to: a comma list of
+    #: ``INFORMED`` keys, and the authority's reference when (e) is among them.
+    informed = db.Column(db.String(80))
+    authority_ref = db.Column(db.String(80))
+
+    @property
+    def informed_to(self):
+        return [k for k in (self.informed or "").split(",") if k in INFORMED]
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     patient = db.relationship("Patient")

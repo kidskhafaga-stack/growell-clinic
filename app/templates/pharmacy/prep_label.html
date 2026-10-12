@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ t('preplabel.title') }}</title>
+{# GAHAR MMS.13 — the standard label of a dose prepared and not given at
+   once: (a) two identifiers, (b) the drug, (c) its strength, (d) the
+   beyond-use time, (e) directions, (f) cautions, (g) the diluent, (h) the
+   date it was prepared. Every line is what was written — the order, the
+   catalogue, the preparer — and none is composed here. #}
+<style>
+  :root { --ink:#111; --line:#bbb; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#fff; color:var(--ink);
+         font-family:"Segoe UI", Tahoma, "Noto Sans Arabic", system-ui, sans-serif; }
+  .toolbar { display:flex; justify-content:center; gap:10px; padding:12px; border-bottom:1px solid var(--line); }
+  .toolbar button { border:1px solid var(--line); background:#fff; border-radius:9px; padding:9px 16px; font-weight:600; cursor:pointer; }
+  .label { width:80mm; margin:18px auto; border:2px solid var(--ink); border-radius:6px; padding:10px 12px; }
+  .who { font-size:1.1rem; font-weight:800; margin:0; }
+  .drug { font-size:1.15rem; font-weight:800; margin:6px 0 0; }
+  .row { display:flex; justify-content:space-between; gap:8px; font-size:.92rem; margin:3px 0 0; }
+  .row b { font-variant-numeric:tabular-nums; text-align:end; }
+  .warn { border:2px solid var(--ink); border-radius:4px; padding:3px 6px; font-weight:800; margin:6px 0 0; text-align:center; }
+  @media print { .toolbar { display:none; } .label { margin:0; } @page { margin:4mm; } }
+</style>
+</head>
+<body>
+<div class="toolbar"><button type="button" onclick="window.print()">{{ t('stayprec.print') }}</button></div>
+<div class="label" data-prep-label-sheet>
+  <p class="who">{{ prep.patient.display_name(current_lang) }}</p>
+  {% if prep.patient.patient_number %}<p class="row"><span>{{ t('milk.file_no') }}</span><b dir="ltr">{{ prep.patient.patient_number }}</b></p>{% endif %}
+  <p class="row"><span>{{ t('milk.dob') }}</span><b dir="ltr">{{ prep.patient.date_of_birth.strftime('%Y-%m-%d') }}</b></p>
+  <p class="drug" dir="auto">{{ order.drug_name }}</p>
+  {% if order.drug and order.drug.strength %}<p class="row"><span>{{ t('preplabel.strength') }}</span><b dir="auto">{{ order.drug.strength }}</b></p>{% endif %}
+  <p class="row"><span>{{ t('preplabel.directions') }}</span><b dir="auto">{{ order.dose or '' }}{% if order.route %} · {{ t('meds.route_' ~ order.route) }}{% endif %}{% if order.every_hours %} · {{ t('preplabel.every', n=order.every_hours) }}{% endif %}</b></p>
+  {% if prep.diluent %}<p class="row"><span>{{ t('preplabel.diluent') }}</span><b dir="auto">{{ prep.diluent }}</b></p>{% endif %}
+  {% if prep.label %}<p class="row"><span>{{ t('cpharm.label') }}</span><b dir="auto">{{ prep.label }}</b></p>{% endif %}
+  <p class="row"><span>{{ t('preplabel.prepared') }}</span><b dir="ltr">{{ prep.prepared_at|clinic_stamp }}</b></p>
+  {% if prep.beyond_use %}<p class="row"><span>{{ t('preplabel.beyond_use') }}</span><b dir="ltr">{{ prep.beyond_use|clinic_stamp }}</b></p>{% endif %}
+  {% if high_alert %}<p class="warn" data-label-high-alert>{{ t('preplabel.high_alert') }}</p>{% endif %}
+  {% if prep.caution %}<p class="warn" dir="auto">{{ prep.caution }}</p>{% endif %}
+</div>
+</body>
+</html>

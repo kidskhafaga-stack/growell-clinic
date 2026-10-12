@@ -1,0 +1,53 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('recall.title') }} · {{ row.lot_number }}{% endblock %}
+{% block page_heading %}{{ t('recall.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR MMS.08 — one recall: who had the lot (from the counter and the ward
+   chart, read off the stock movements), what is left on the shelf, and the
+   four steps (a–d). It closes only when separated, patients decided, and
+   disposed of are all written. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-arrow-counterclockwise"></i> {{ row.item.name }} · <span dir="ltr">{{ row.lot_number }}</span></h1>
+    <p class="page-sub" style="margin:0;"><span dir="auto">{{ row.notice_from }}</span>{% if row.notice_ref %} · <span dir="ltr">{{ row.notice_ref }}</span>{% endif %}{% if row.reason %} · <span dir="auto">{{ row.reason }}</span>{% endif %}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.recalls') }}"><i class="bi bi-arrow-counterclockwise"></i> {{ t('recall.title') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-recall-trace>
+  <h2 class="section-title" style="margin-top:0;">{{ t('recall.who_had') }}</h2>
+  <p style="margin:0 0 8px;">{{ t('recall.left') }}: <b dir="ltr" data-recall-left>{{ found.left }}</b></p>
+  {% if found.dispensed or found.doses %}
+  <ul style="margin:0;">
+    {% for li in found.dispensed %}<li data-recall-patient="{{ li.prescription.patient_id }}">{{ li.prescription.patient.display_name(current_lang) }} — {{ t('recall.at_counter') }} <span dir="ltr">{{ li.dispensed_at|clinic_stamp if li.dispensed_at else '' }}</span></li>{% endfor %}
+    {% for d in found.doses %}<li data-recall-patient="{{ d.patient_id }}">{{ d.patient.display_name(current_lang) if d.patient else '' }} — {{ t('recall.on_ward') }} <span dir="ltr">{{ (d.at or d.recorded_at)|clinic_stamp }}</span></li>{% endfor %}
+  </ul>
+  {% else %}<p class="hint" style="margin:0;">{{ t('recall.nobody_recorded') }}</p>{% endif %}
+  {% if found.unlotted %}<p class="hint" style="margin:8px 0 0;" data-recall-unlotted><span class="badge badge--warn">{{ t('recall.unlotted', n=found.unlotted) }}</span></p>{% endif %}
+</div>
+
+<div class="card gc-scale-in" data-recall-steps>
+  <h2 class="section-title" style="margin-top:0;">{{ t('recall.steps') }}</h2>
+  {% for step, at, note in (('separated', row.separated_at, row.separated_note), ('patients', row.patients_at, row.patients_note), ('disposed', row.disposed_at, row.disposed_note)) %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);padding:8px 0;" data-recall-step="{{ step }}">
+    <b style="min-width:220px;">{{ t('recall.step_' ~ step) }}</b>
+    {% if at %}<span class="badge badge--ok">{{ t('recall.done') }}</span> <span class="hint" dir="ltr">{{ at|clinic_stamp }}</span> <span dir="auto">{{ note }}</span>
+    {% elif may_manage and row.is_open %}
+    <form method="post" action="{{ url_for('med_storage.recall_act', recall_id=row.id) }}" style="display:flex;gap:6px;flex:1;margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="what" value="{{ step }}">
+      <input class="input" name="note" maxlength="255" required dir="auto" placeholder="{{ t('recall.step_ph_' ~ step) }}" aria-label="{{ t('recall.step_' ~ step) }}" style="flex:1;min-width:180px;">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('recall.record') }}</button>
+    </form>
+    {% else %}<span class="badge badge--warn">{{ t('recall.pending') }}</span>{% endif %}
+  </div>
+  {% endfor %}
+  {% if row.is_open and may_manage %}
+  <form method="post" action="{{ url_for('med_storage.recall_act', recall_id=row.id) }}" style="margin:12px 0 0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="what" value="close">
+    <button class="btn btn-primary gc-press" type="submit" {{ 'disabled' if not (row.separated_at and row.patients_at and row.disposed_at) }}>{{ t('recall.close') }}</button>
+  </form>
+  {% elif not row.is_open %}<p style="margin:12px 0 0;"><span class="badge badge--ok">{{ t('recall.closed') }}</span> <span class="hint" dir="ltr">{{ row.closed_at|clinic_stamp }}</span></p>{% endif %}
+</div>
+{% endblock %}

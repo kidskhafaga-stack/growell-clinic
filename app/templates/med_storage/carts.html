@@ -1,0 +1,90 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('cart.title') }}{% endblock %}
+{% block page_heading %}{{ t('cart.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR MMS.05 — every emergency cart (a medication place of kind «cart»):
+   the last check with its seal, the uses not yet restocked and how long
+   they have waited against the hospital's hours, and the one list every cart
+   is laid out by. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-heart-pulse"></i> {{ t('cart.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('cart.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.storage') }}"><i class="bi bi-thermometer-snow"></i> {{ t('med_store.title') }}</a>
+</div>
+
+{% if not data %}<p class="hint" data-no-carts>{{ t('cart.no_carts') }}</p>{% endif %}
+{% if not items %}<p class="hint" data-no-list><span class="badge badge--warn">{{ t('cart.no_list') }}</span></p>{% endif %}
+
+<div style="display:grid;gap:12px;margin-bottom:16px;">
+{% for c in data %}{% set a = c.area %}
+<div class="card gc-scale-in" data-cart="{{ a.id }}">
+  <h2 class="section-title" style="margin-top:0;">{{ a.name }}
+    {% if c.last %}<span class="badge {{ 'badge--ok' if c.last.complete else 'badge--danger' }}">{{ t('cart.complete') if c.last.complete else t('cart.incomplete') }}</span>
+    <span class="hint">{{ t('cart.last_check') }} <span dir="ltr">{{ c.last.at|clinic_stamp }}</span>{% if c.last.seal %} · {{ t('cart.seal') }} <span dir="ltr">{{ c.last.seal }}</span>{% endif %}</span>
+    {% else %}<span class="badge badge--warn">{{ t('cart.never_checked') }}</span>{% endif %}</h2>
+  {% if c.last and c.last.missing %}<p class="hint" style="margin:0 0 8px;" dir="auto">{{ t('cart.missing') }}: {{ c.last.missing }}</p>{% endif %}
+  {% for u in c.open %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line);padding:8px 0;" data-cart-use="{{ u.use.id }}" {{ 'data-late' if u.late }}>
+    <span class="badge {{ 'badge--danger' if u.late else 'badge--warn' }}">{{ t('cart.not_restocked') }} · <span dir="ltr">{{ '%.0f'|format(u.hours) }}</span> {{ t('cart.hours') }}</span>
+    <span dir="auto">{{ u.use.what }}</span>{% if u.use.patient %} <span class="hint">· {{ u.use.patient.display_name(current_lang) }}</span>{% endif %}
+    <form method="post" action="{{ url_for('med_storage.cart_restock', use_id=u.use.id) }}" style="display:flex;gap:6px;margin:0;margin-inline-start:auto;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="seal_after" maxlength="40" required dir="ltr" placeholder="{{ t('cart.new_seal') }}" aria-label="{{ t('cart.new_seal') }}" style="max-width:140px;">
+      <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('cart.restocked') }}</button>
+    </form>
+  </div>
+  {% endfor %}
+  <div style="display:flex;gap:16px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px;">
+    <form method="post" action="{{ url_for('med_storage.cart_check', area_id=a.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin:0;" x-data="{ ok: '1' }">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div><label class="label" for="seal_{{ a.id }}">{{ t('cart.seal') }}</label>
+        <input class="input" id="seal_{{ a.id }}" name="seal" maxlength="40" dir="ltr" style="max-width:120px;"></div>
+      <div><label class="label" for="cmp_{{ a.id }}">{{ t('cart.everything') }}</label>
+        <select class="select" id="cmp_{{ a.id }}" name="complete" x-model="ok"><option value="1">{{ t('cart.complete') }}</option><option value="0">{{ t('cart.incomplete') }}</option></select></div>
+      <div x-show="ok === '0'" x-cloak><label class="label" for="mis_{{ a.id }}">{{ t('cart.missing') }}</label>
+        <input class="input" id="mis_{{ a.id }}" name="missing" maxlength="255" dir="auto"></div>
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('cart.record_check') }}</button>
+    </form>
+    <form method="post" action="{{ url_for('med_storage.cart_use', area_id=a.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div><label class="label" for="what_{{ a.id }}">{{ t('cart.used_what') }}</label>
+        <input class="input" id="what_{{ a.id }}" name="what" maxlength="255" required dir="auto"></div>
+      <div><label class="label" for="pt_{{ a.id }}">{{ t('ctrl.patient') }}</label>
+        <select class="select" id="pt_{{ a.id }}" name="admission_id"><option value="">—</option>{% for s in stays %}<option value="{{ s.id }}">{{ s.patient.display_name(current_lang) }}</option>{% endfor %}</select></div>
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('cart.record_use') }}</button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+</div>
+
+<details class="card" data-cart-list>
+  <summary>{{ t('cart.list_title') }}</summary>
+  <p class="hint">{{ t('cart.list_hint') }}</p>
+  {% if items %}
+  <table class="table" style="margin-bottom:10px;"><thead><tr><th>{{ t('cart.drawer') }}</th><th>{{ t('cart.item') }}</th><th>{{ t('cart.qty') }}</th></tr></thead><tbody>
+  {% for i in items %}<tr><td dir="auto">{{ i.drawer }}</td><td dir="auto">{{ i.name }}</td><td dir="auto">{{ i.quantity or '' }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% endif %}
+  {% if may_manage %}
+  <form method="post" action="{{ url_for('med_storage.cart_setup') }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="what" value="item">
+    <div><label class="label" for="ci_d">{{ t('cart.drawer') }}</label><input class="input" id="ci_d" name="drawer" maxlength="40" required dir="auto" style="max-width:120px;"></div>
+    <div style="flex:1;min-width:200px;"><label class="label" for="ci_n">{{ t('cart.item') }}</label><input class="input" id="ci_n" name="name" maxlength="160" required dir="auto"></div>
+    <div><label class="label" for="ci_q">{{ t('cart.qty') }}</label><input class="input" id="ci_q" name="quantity" maxlength="40" dir="auto" style="max-width:100px;"></div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('cart.add') }}</button>
+  </form>
+  <form method="post" action="{{ url_for('med_storage.cart_setup') }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="what" value="hours">
+    <div><label class="label" for="c_h">{{ t('cart.replace_hours') }}</label><input class="input" type="number" min="0" step="any" id="c_h" name="hours" value="{{ '%g'|format(hours) if hours else '' }}" style="max-width:120px;"></div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('cart.save_hours') }}</button>
+  </form>
+  {% else %}
+  <p class="hint">{{ t('cart.replace_hours') }}: {% if hours %}<span dir="ltr">{{ '%g'|format(hours) }}</span>{% else %}{{ t('milk.not_set') }}{% endif %}</p>
+  {% endif %}
+</details>
+{% endblock %}

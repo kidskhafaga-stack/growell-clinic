@@ -320,6 +320,10 @@ CAPABILITIES = [
     # reports. The hospital names its infection-control team; nobody holds
     # it by role but the admin.
     "infection_control",
+    # «ترشيد المضادات الحيوية» — deciding on a restricted antimicrobial and
+    # reviewing one once the culture is back (GAHAR MMS.02,
+    # ``models/stewardship``). The hospital names its stewardship team.
+    "antimicrobial_stewardship",
 ]
 
 ROLE_CAPABILITIES = {

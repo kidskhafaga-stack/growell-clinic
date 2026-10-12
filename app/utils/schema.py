@@ -981,6 +981,22 @@ ADDITIONS = [
     ("admissions", "precautions_at", "DATETIME"),
     # The file a merged file's history went to (`models/patient_merge`).
     ("patients", "merged_into", "INTEGER"),
+    # GAHAR MMS.13 — the prepared dose's label: the diluent, the beyond-use
+    # time and any caution, as the preparer wrote them.
+    ("dose_preps", "diluent", "VARCHAR(120)"),
+    ("dose_preps", "beyond_use", "DATETIME"),
+    ("dose_preps", "caution", "VARCHAR(160)"),
+    # GAHAR MMS.11 (e) — a ward order's indication, the most a "when needed"
+    # may be given in a day, an infusion's rate, and how many days it runs,
+    # each as the doctor wrote it.
+    ("medication_orders", "indication", "VARCHAR(160)"),
+    ("medication_orders", "max_per_day", "VARCHAR(60)"),
+    ("medication_orders", "rate", "VARCHAR(60)"),
+    ("medication_orders", "course_days", "INTEGER"),
+    # GAHAR MMS.17 (a–e) — whom a medication error was reported to, and the
+    # authority's reference.
+    ("medication_errors", "informed", "VARCHAR(80)"),
+    ("medication_errors", "authority_ref", "VARCHAR(80)"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

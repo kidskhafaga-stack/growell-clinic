@@ -730,6 +730,9 @@ def admission(admission_id):
     from app.utils import lines as _lines
     from app.utils import nutrition as _food
     from app.utils import breast_milk as _milk
+    from app.utils import own_medicine as _own
+    from app.utils import adverse_reaction as _adr
+    from app.utils import med_family as _fam
     from app.utils import restraint as _tied
     from app.utils import resuscitation as _cpr
     # كام يوم في المستشفى — للرأس بس. من الختمين اللي متسجّلين، والإقامة
@@ -799,6 +802,12 @@ def admission(admission_id):
         # the hospital has written how long they keep.
         milk_bags=_milk.stored_for(row.patient_id),
         milk_now=datetime.utcnow(),
+        # `MMS.09` ev. 5 — the bag of medicines the family brought in.
+        own_meds=_own.for_stay(row.id),
+        # `MMS.16` — adverse drug reactions in this child, every stay.
+        reactions=_adr.for_patient(row.patient_id),
+        # `MMS.15` / `MMS.16` ev. 2 — the family and the medicines.
+        family_meds=_fam.for_stay(row),
         milk_hours={s: _milk.hours_for(s) for s in _milk.HOURS_SETTINGS},
         line_map=_lines.map_for(row.patient_id),
         line_kinds=LINE_KINDS,
@@ -1911,7 +1920,12 @@ def add_medication(admission_id):
             # neither the stock nor the bill.
             store_item_id=request.form.get("store_item_id", type=int),
             units_per_dose=request.form.get("units_per_dose", type=int),
-            note=request.form.get("note"))
+            note=request.form.get("note"),
+            # GAHAR MMS.11 (e) — in the doctor's words.
+            indication=request.form.get("indication"),
+            max_per_day=request.form.get("max_per_day"),
+            rate=request.form.get("rate"),
+            course_days=request.form.get("course_days", type=int))
     except ValueError as why:
         db.session.rollback()
         # Each refusal names itself. "You did not say which drug" and "you did

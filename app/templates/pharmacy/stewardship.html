@@ -1,0 +1,90 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('asp.title') }}{% endblock %}
+{% block page_heading %}{{ t('asp.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR MMS.02 — restricted agents waiting for the team's decision (the
+   dose is never held for it), running antimicrobials whose culture came back
+   with no review since, and consumption as days of therapy per 1000
+   patient-days. The list, the rules and the classes are the hospital's. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-capsule-pill"></i> {{ t('asp.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('asp.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.ward') }}"><i class="bi bi-clipboard2-pulse"></i> {{ t('cpharm.title') }}</a>
+</div>
+
+{% macro decide_form(o, kind) %}
+<form method="post" action="{{ url_for('pharmacy.stewardship_decide', order_id=o.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 0;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="kind" value="{{ kind }}">
+  <select class="select" name="decision" aria-label="{{ t('asp.decision') }}">
+    {% for d in (('approved', 'continue', 'change', 'stop') if kind == 'approval' else ('continue', 'deescalate', 'iv_to_po', 'change', 'stop')) %}<option value="{{ d }}">{{ t('asp.dec_' ~ d) }}</option>{% endfor %}
+  </select>
+  <input class="input" name="note" maxlength="255" dir="auto" placeholder="{{ t('asp.note_ph') }}" aria-label="{{ t('asp.note') }}" style="flex:1;min-width:180px;">
+  <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('asp.save') }}</button>
+</form>
+{% endmacro %}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-asp-awaiting>
+  <h2 class="section-title" style="margin-top:0;">{{ t('asp.awaiting') }} <span class="badge {{ 'badge--warn' if data.awaiting else 'badge--muted' }}">{{ data.awaiting|length }}</span></h2>
+  {% for o, rule in data.awaiting %}
+  <div style="border-bottom:1px solid var(--line);padding:8px 0;" data-asp-order="{{ o.id }}">
+    <b dir="auto">{{ o.drug_name }}</b> · {{ o.patient.display_name(current_lang) }}
+    <span class="hint">· {{ t('asp.started') }} <span dir="ltr">{{ o.started_at|clinic_stamp }}</span></span>
+    <a class="hint" href="{{ url_for('beds.admission', admission_id=o.admission_id) }}">{{ t('milk.to_stay') }}</a>
+    <div class="hint" style="margin:2px 0 0;">{{ t('asp.rule') }}: <span dir="auto">{{ rule.rule }}</span></div>
+    {% if may_decide %}{{ decide_form(o, 'approval') }}{% endif %}
+  </div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('asp.none_awaiting') }}</p>{% endfor %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-asp-culture>
+  <h2 class="section-title" style="margin-top:0;">{{ t('asp.culture_due') }} <span class="badge {{ 'badge--warn' if data.culture else 'badge--muted' }}">{{ data.culture|length }}</span></h2>
+  {% for o, c in data.culture %}
+  <div style="border-bottom:1px solid var(--line);padding:8px 0;" data-asp-culture-order="{{ o.id }}">
+    <b dir="auto">{{ o.drug_name }}</b> · {{ o.patient.display_name(current_lang) }}
+    <span class="hint">· {{ t('asp.culture_on') }} <span dir="ltr">{{ c.updated_at|clinic_stamp }}</span>{% if not c.final %} ({{ t('asp.preliminary') }}){% endif %}</span>
+    <div class="hint" style="margin:2px 0 0;">{% for iso in c.isolates %}<span dir="ltr">{{ iso.organism.name }}</span>{{ '، ' if not loop.last }}{% else %}{{ t('asp.no_growth_listed') }}{% endfor %}</div>
+    {% if may_decide %}{{ decide_form(o, 'culture') }}{% endif %}
+  </div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('asp.none_culture') }}</p>{% endfor %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-asp-use>
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">
+    <h2 class="section-title" style="margin:0;">{{ t('asp.use') }}</h2>
+    <form method="get" style="margin:0;"><select class="select" name="q" dir="ltr" onchange="this.form.submit()" aria-label="{{ t('asp.quarter') }}">{% for qq in quarters %}<option value="{{ qq }}" {{ 'selected' if qq == quarter }}>{{ qq }}</option>{% endfor %}</select></form>
+  </div>
+  {% if not use.set %}<p class="hint" style="margin:8px 0 0;" data-asp-unset>{{ t('asp.unset') }}</p>
+  {% else %}
+  <p style="margin:8px 0 0;font-variant-numeric:tabular-nums;" data-asp-dot><b dir="ltr">{{ use.dot }}</b> {{ t('asp.dot') }} · <b dir="ltr">{{ use.patient_days }}</b> {{ t('asp.patient_days') }} · <b dir="ltr">{{ '%.1f'|format(use.per_1000) if use.per_1000 is not none else '—' }}</b> {{ t('asp.per_1000') }}</p>
+  {% if use.drugs %}<ul style="margin:6px 0 0;">{% for name, n in use.drugs %}<li><span dir="auto">{{ name }}</span> — <span dir="ltr">{{ n }}</span></li>{% endfor %}</ul>{% endif %}
+  {% endif %}
+</div>
+
+<details class="card" data-asp-setup>
+  <summary>{{ t('asp.setup') }}</summary>
+  <h3 class="section-title">{{ t('asp.restricted') }}</h3>
+  {% if restricted %}<ul>{% for r in restricted %}<li>{{ r.display_name(current_lang) }} — <span dir="auto">{{ r.rule }}</span>
+    {% if may_decide %}<form method="post" action="{{ url_for('pharmacy.stewardship_restricted_off', row_id=r.id) }}" style="display:inline;margin:0;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline" type="submit">{{ t('asp.remove') }}</button></form>{% endif %}</li>{% endfor %}</ul>
+  {% else %}<p class="hint">{{ t('asp.no_restricted') }}</p>{% endif %}
+  {% if may_decide %}
+  <form method="post" action="{{ url_for('pharmacy.stewardship_setup') }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="what" value="restricted">
+    <div><label class="label" for="as_g">{{ t('asp.drug') }}</label>
+      <select class="select" id="as_g" name="generic_id">{% for g in generics %}<option value="{{ g.id }}">{{ g.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div style="flex:1;min-width:220px;"><label class="label" for="as_r">{{ t('asp.rule') }}</label>
+      <input class="input" id="as_r" name="rule" maxlength="255" required dir="auto" placeholder="{{ t('asp.rule_ph') }}"></div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('asp.add') }}</button>
+  </form>
+  <h3 class="section-title">{{ t('asp.classes') }}</h3>
+  <form method="post" action="{{ url_for('pharmacy.stewardship_setup') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="what" value="classes">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">{% for c in classes %}<label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" name="class_id" value="{{ c.id }}" {{ 'checked' if c.id in chosen }}> {{ c.name_ar if current_lang == 'ar' else (c.name_en or c.name_ar) }}</label>{% endfor %}</div>
+    <button class="btn btn-outline gc-press" type="submit" style="margin-top:8px;">{{ t('asp.save_classes') }}</button>
+  </form>
+  {% endif %}
+</details>
+{% endblock %}

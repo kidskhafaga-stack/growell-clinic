@@ -323,6 +323,59 @@ def _compute():
     except Exception:  # noqa: BLE001
         pass
 
+    # Drugs short right now (GAHAR MMS.03 ev. 6) — for whoever prescribes.
+    try:
+        from app.utils.dtc import active_shortages
+
+        n = len(active_shortages())
+        if n:
+            items.append({"key": "drug_shortages", "module": "dashboard",
+                          "capability": "medication_order", "icon": "exclamation-octagon",
+                          "severity": "warning", "count": n,
+                          "endpoint": "pharmacy.shortages", "kwargs": {}})
+    except Exception:  # noqa: BLE001
+        pass
+
+    # An emergency cart used and not restocked within the hospital's hours
+    # (GAHAR MMS.05 ev. 4) — for whoever keeps the ward.
+    try:
+        from app.utils.emergency_cart import late_count
+
+        n = late_count()
+        if n:
+            items.append({"key": "carts_late", "module": "beds",
+                          "icon": "heart-pulse", "severity": "danger",
+                          "count": n, "endpoint": "med_storage.carts_board", "kwargs": {}})
+    except Exception:  # noqa: BLE001
+        pass
+
+    # A drug recall still open (GAHAR MMS.08) — until the lot is separated,
+    # the patients decided about, and it is disposed of.
+    try:
+        from app.utils.drug_recall import open_count as recalls_open
+
+        n = recalls_open()
+        if n:
+            items.append({"key": "drug_recalls", "module": "pharmacy",
+                          "icon": "arrow-counterclockwise", "severity": "danger",
+                          "count": n, "endpoint": "med_storage.recalls", "kwargs": {}})
+    except Exception:  # noqa: BLE001
+        pass
+
+    # An adverse drug reaction not yet reported to the national centre
+    # (GAHAR MMS.16 ev. 4) — rings for the pharmacy until the reference is
+    # written.
+    try:
+        from app.utils.adverse_reaction import unreported_count
+
+        n = unreported_count()
+        if n:
+            items.append({"key": "adr_unreported", "module": "pharmacy",
+                          "icon": "exclamation-diamond", "severity": "warning",
+                          "count": n, "endpoint": "pharmacy.adr_board", "kwargs": {}})
+    except Exception:  # noqa: BLE001
+        pass
+
     # A newer version of the program, as the last launch found it. Read from
     # what was stored rather than asked here: see `updates.remembered`. Under
     # `settings`, which is admin-only — updating is not a receptionist's
