@@ -199,11 +199,14 @@ def projects_board(today=None):
 
 # ============================================================= committee ==
 def save_meeting(form, user):
+    from app.models.quality import COMMITTEES
+
+    committee = form.get("committee") if form.get("committee") in COMMITTEES else "quality"
     held = _day(form.get("held_on"))
     attendees, minutes = _text(form.get("attendees")), _text(form.get("minutes"))
     if held is None or not attendees or not minutes:
         raise QualityError("meeting")
-    row = QualityMeeting(held_on=held, attendees=attendees, minutes=minutes,
+    row = QualityMeeting(held_on=held, attendees=attendees, minutes=minutes, committee=committee,
                          written_by=getattr(user, "id", None))
     for i, text in enumerate(form.getlist("decision")):
         text = _text(text)
@@ -240,11 +243,23 @@ def save_evaluation(year, text, user):
     return row
 
 
-def committee_board():
-    return {"meetings": QualityMeeting.query.order_by(QualityMeeting.held_on.desc()).all(),
-            "open": (QualityDecision.query.filter(QualityDecision.done_at.is_(None))
+#: PCC.01 ev. 2 — *"The committee meets at least quarterly"*: the
+#: standard's own interval, in days, for the patient-centred committee.
+QUARTER_DAYS = 92
+
+
+def committee_board(committee="quality", today=None):
+    today = today or date.today()
+    meetings = (QualityMeeting.query.filter_by(committee=committee)
+                .order_by(QualityMeeting.held_on.desc()).all())
+    last = meetings[0].held_on if meetings else None
+    return {"meetings": meetings, "committee": committee,
+            "open": (QualityDecision.query.join(QualityMeeting)
+                     .filter(QualityDecision.done_at.is_(None), QualityMeeting.committee == committee)
                      .order_by(QualityDecision.due_on.is_(None), QualityDecision.due_on).all()),
-            "evaluations": {e.year: e for e in QualitySelfEvaluation.query.all()}}
+            "evaluations": {e.year: e for e in QualitySelfEvaluation.query.all()},
+            "last": last,
+            "quarter_late": committee == "patient" and (last is None or (today - last).days > QUARTER_DAYS)}
 
 
 __all__ = ["QualityError", "add_proactive", "add_risk_report", "add_value", "close_decision",

@@ -22,8 +22,12 @@ from datetime import datetime
 from app.extensions import db
 
 #: What it was about — operational buckets, not clinical judgements.
+#: ``patient_rights`` — GAHAR PCC.03 ev. 5, *"violations against patients'
+#: rights and responsibilities are reported and analyzed"*, and ICD.01's
+#: potential discrimination events: the same report, the same review.
 CATEGORIES = ("patient_care", "fall", "injury", "infection", "security",
-              "violence", "facility", "documentation", "laboratory", "other")
+              "violence", "facility", "documentation", "laboratory",
+              "patient_rights", "other")
 #: Who it touched.
 AFFECTED = ("patient", "staff", "visitor", "none")
 #: QPI.11's own definitions.

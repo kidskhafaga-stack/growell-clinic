@@ -244,3 +244,26 @@ def lost_item(row_id, what):
     except care.StayCareError as err:
         return _board_back(err)
     return _board_back()
+
+
+# ================================================================ ICD.21 ==
+@beds_bp.route("/transfusion/<int:bag_id>/reported", methods=["POST"])
+@module_required("beds")
+def transfusion_reported(bag_id):
+    """A reaction reported to the blood bank and quality — to whom, and when."""
+    from datetime import datetime
+
+    from app.models.blood import Transfusion
+
+    bag = db.get_or_404(Transfusion, bag_id)
+    stay_id = bag.request.admission_id if bag.request else None
+    to = (request.form.get("reported_to") or "").strip()[:160]
+    if not bag.reaction or bag.reported_at is not None or not to:
+        flash(t("blood.err_report"), "error")
+    else:
+        bag.reported_to, bag.reported_at, bag.reported_by = to, datetime.utcnow(), current_user.id
+        db.session.commit()
+        flash(t("staycare.saved"), "success")
+    if stay_id:
+        return redirect(url_for("beds.admission", admission_id=stay_id) + "#blood")
+    return redirect(url_for("beds.index"))

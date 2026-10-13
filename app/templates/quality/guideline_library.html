@@ -1,0 +1,25 @@
+{% extends "shell.html" %}
+{% block title %}{{ t('cpg.library') }}{% endblock %}
+{% block page_heading %}{{ t('cpg.library') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ICD.04 ev. 3 — the guidelines in force, for whoever is at the
+   bedside. Read-only; the quality team keeps them. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-book"></i> {{ t('cpg.library') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('cpg.library_sub') }}</p>
+</div>
+{% for scope, rows in groups.items() %}{% if rows %}
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-library="{{ scope }}">
+  <h2 class="section-title" style="margin-top:0;">{{ t('cpg.scope_' ~ scope) }}</h2>
+  {% for g in rows %}
+  <div style="border-bottom:1px solid var(--line);padding:6px 0;" data-library-row="{{ g.id }}">
+    {% if g.safe_link %}<a href="{{ g.safe_link }}" target="_blank" rel="noopener" dir="auto">{{ g.title }}</a>{% else %}<span dir="auto">{{ g.title }}</span>{% endif %}
+    {% if g.topic %}<span class="badge badge--muted">{{ t('cpg.topic_' ~ g.topic) }}</span>{% endif %}
+    <span class="hint">· <span dir="ltr">{{ g.adopted_on }}</span>{% if g.source %} · <span dir="auto">{{ g.source }}</span>{% endif %}</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}{% endfor %}
+{% if not (groups.values()|sum(start=[])) %}<p class="hint" data-library-empty>{{ t('cpg.none') }}</p>{% endif %}
+{% endblock %}

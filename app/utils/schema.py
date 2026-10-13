@@ -1001,6 +1001,14 @@ ADDITIONS = [
     # in the hospital's words.
     ("care_units", "admit_criteria", "TEXT"),
     ("care_units", "discharge_criteria", "TEXT"),
+    # GAHAR ICD.21 — a transfusion reaction reported to the blood bank and
+    # quality, to whom and when.
+    ("transfusions", "reported_to", "VARCHAR(160)"),
+    ("transfusions", "reported_at", "DATETIME"),
+    ("transfusions", "reported_by", "INTEGER"),
+    # GAHAR PCC.01 — the patient-centred culture committee keeps its minutes
+    # beside the quality committee's; which one a meeting belongs to.
+    ("quality_meetings", "committee", "VARCHAR(20) DEFAULT 'quality'"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

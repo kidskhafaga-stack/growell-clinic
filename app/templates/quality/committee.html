@@ -15,6 +15,21 @@
 {% from "quality/_nav.html" import quality_nav with context %}
 {{ quality_nav('committee') }}
 
+{# PCC.01 — the patient-centred culture committee keeps its minutes here
+   too, apart from the quality committee's, and must meet every quarter. #}
+<nav style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px;" data-committees>
+  {% for c in ('quality', 'patient') %}
+  <a class="btn btn-sm {{ 'btn-primary' if data.committee == c else 'btn-outline' }} gc-press" href="{{ url_for('quality.committee', c=c) }}" data-committee="{{ c }}">{{ t('qual.committee_' ~ c) }}</a>
+  {% endfor %}
+</nav>
+{% if data.committee == 'patient' %}
+<div class="card" style="margin-bottom:12px;" data-patient-committee>
+  <p class="hint" style="margin:0;max-width:72ch;">{{ t('qual.patient_committee_sub') }}</p>
+  <p style="margin:6px 0 0;">{{ t('qual.last_meeting') }}: {% if data.last %}<span dir="ltr">{{ data.last }}</span>{% else %}—{% endif %}
+    {% if data.quarter_late %}<span class="badge badge--warn" data-quarter-late>{{ t('qual.quarter_late') }}</span>{% endif %}</p>
+</div>
+{% endif %}
+
 <div class="card gc-scale-in" style="margin-bottom:12px;" data-q-open>
   <h2 class="section-title" style="margin-top:0;">{{ t('dtc.open_decisions') }}</h2>
   {% for d in data.open %}
@@ -33,8 +48,9 @@
 
 <details class="card" style="margin-bottom:12px;" {{ 'open' if not data.meetings }}>
   <summary>{{ t('dtc.new_meeting') }}</summary>
-  <form method="post" action="{{ url_for('quality.committee') }}" style="display:grid;gap:8px;margin-top:10px;">
+  <form method="post" action="{{ url_for('quality.committee', c=data.committee) }}" style="display:grid;gap:8px;margin-top:10px;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="committee" value="{{ data.committee }}">
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <div><label class="label" for="qm_d">{{ t('dtc.held_on') }}</label><input class="input" type="date" id="qm_d" name="held_on" required></div>
       <div style="flex:1;min-width:240px;"><label class="label" for="qm_a">{{ t('dtc.attendees') }}</label><input class="input" id="qm_a" name="attendees" required dir="auto"></div>
@@ -58,6 +74,7 @@
 </details>
 {% endfor %}
 
+{% if data.committee == 'quality' %}
 {% set ev = data.evaluations.get(year) %}
 <div class="card gc-scale-in" style="margin-top:12px;" data-q-evaluation>
   <h2 class="section-title" style="margin-top:0;">{{ t('qual.self_evaluation') }} <span dir="ltr">{{ year }}</span>
@@ -79,4 +96,5 @@
     <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('qual.save') }}</button>
   </form>
 </div>
+{% endif %}
 {% endblock %}

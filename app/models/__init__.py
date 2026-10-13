@@ -182,6 +182,7 @@ from app.models.mdt import MdtMeeting
 from app.models.stay_leave import StayLeave
 from app.models.family_question import FamilyQuestion
 from app.models.belonging import Belonging, LostItem
+from app.models.guideline import ClinicalGuideline, GuidelineEvent
 from app.models.quality import (ImprovementProject, MeasureValue, PerformanceMeasure,
                                 ProactiveAssessment, QualityDecision, QualityMeeting,
                                 QualitySelfEvaluation, RiskItem, RiskReport)
@@ -603,6 +604,8 @@ __all__ = [
     "FamilyQuestion",
     "Belonging",
     "LostItem",
+    "ClinicalGuideline",
+    "GuidelineEvent",
     "ProgramSession",
     "ViralMarker",
     "PerformanceMeasure",

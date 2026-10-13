@@ -1878,6 +1878,17 @@
       {% if bag.reaction_note %}
       <p class="hint" style="margin:3px 0 0;">{{ bag.reaction_note }}</p>
       {% endif %}
+      {# ICD.21 — every reaction is reported to the blood bank and quality. #}
+      {% if bag.reaction_unreported %}
+      <p class="alert-pill danger" style="display:block;margin:6px 0 0;" data-bag-unreported>{{ t('blood.unreported') }}</p>
+      <form method="post" action="{{ url_for('beds.transfusion_reported', bag_id=bag.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="input" name="reported_to" maxlength="160" required dir="auto" placeholder="{{ t('blood.reported_to_ph') }}" aria-label="{{ t('blood.reported_to') }}" style="flex:1;min-width:200px;">
+        <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('blood.reported') }}</button>
+      </form>
+      {% elif bag.reaction and bag.reported_at %}
+      <p class="hint" style="margin:3px 0 0;" data-bag-reported>{{ t('blood.reported_to') }}: <span dir="auto">{{ bag.reported_to }}</span> · <span dir="ltr">{{ bag.reported_at|clinic_stamp }}</span></p>
+      {% endif %}
 
       {% if admission.is_open and bag.is_running %}
       <details style="margin-top:6px;">

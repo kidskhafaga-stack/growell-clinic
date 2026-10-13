@@ -1,0 +1,81 @@
+{% extends "shell.html" %}
+{% set active_module = 'incidents' %}
+{% block title %}{{ t('qual.tab_guidelines') }}{% endblock %}
+{% block page_heading %}{{ t('qual.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ICD.16 / ICD.04 — the clinical guidelines the hospital adopted:
+   where each came from, who approved it, its training, its adherence checks
+   and its review every two years (the standard's own interval); three new
+   ones a year (the standard's own number); and which of the emergencies
+   ICD.04 names have none — "when applicable", so shown, not judged. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-journal-medical"></i> {{ t('qual.tab_guidelines') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('cpg.sub') }}</p>
+</div>
+{% from "quality/_nav.html" import quality_nav with context %}
+{{ quality_nav('guidelines') }}
+
+<div class="card gc-scale-in" style="margin-bottom:12px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;" data-cpg-summary>
+  <div><span class="hint">{{ t('cpg.this_year') }} <span dir="ltr">{{ data.year }}</span>:</span>
+    <b data-cpg-count>{{ data.this_year }}</b> / <span dir="ltr">{{ data.per_year }}</span>
+    {% if data.this_year < data.per_year %}<span class="badge badge--warn">{{ t('cpg.below') }}</span>{% endif %}</div>
+  <div><span class="hint">{{ t('cpg.uncovered') }}:</span>
+    {% for tp in data.uncovered %}<span class="badge badge--muted">{{ t('cpg.topic_' ~ tp) }}</span> {% else %}—{% endfor %}</div>
+  <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('quality.guideline_library') }}"><i class="bi bi-book"></i> {{ t('cpg.library') }}</a>
+</div>
+
+<details class="card" style="margin-bottom:12px;" {{ 'open' if not data.rows }}>
+  <summary>{{ t('cpg.new') }}</summary>
+  <form method="post" action="{{ url_for('quality.guidelines') }}" style="display:grid;gap:8px;margin-top:10px;" x-data="{ scope: 'diagnosis' }">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div style="flex:2;min-width:220px;"><label class="label" for="cg_t">{{ t('cpg.title_f') }}</label><input class="input" id="cg_t" name="title" maxlength="200" required dir="auto"></div>
+      <div><label class="label" for="cg_s">{{ t('cpg.scope') }}</label>
+        <select class="select" id="cg_s" name="scope" x-model="scope">{% for s in scopes %}<option value="{{ s }}">{{ t('cpg.scope_' ~ s) }}</option>{% endfor %}</select></div>
+      <div x-show="scope === 'emergency'" x-cloak><label class="label" for="cg_tp">{{ t('cpg.topic') }}</label>
+        <select class="select" id="cg_tp" name="topic">{% for tp in topics %}<option value="{{ tp }}">{{ t('cpg.topic_' ~ tp) }}</option>{% endfor %}</select></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <div style="flex:1;min-width:200px;"><label class="label" for="cg_src">{{ t('cpg.source') }}</label><input class="input" id="cg_src" name="source" maxlength="160" dir="auto"></div>
+      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" name="is_national" value="1"> {{ t('cpg.national') }}</label>
+      <div style="flex:1;min-width:200px;"><label class="label" for="cg_ap">{{ t('cpg.approved_by') }}</label><input class="input" id="cg_ap" name="approved_by" maxlength="160" required dir="auto"></div>
+      <div><label class="label" for="cg_on">{{ t('cpg.adopted_on') }}</label><input class="input" type="date" id="cg_on" name="adopted_on" required></div>
+    </div>
+    <div><label class="label" for="cg_sel">{{ t('cpg.selection') }}</label><textarea class="input" id="cg_sel" name="selection" rows="2" dir="auto"></textarea></div>
+    <div><label class="label" for="cg_pn">{{ t('cpg.panel') }}</label><input class="input" id="cg_pn" name="panel" maxlength="255" dir="auto"></div>
+    <div><label class="label" for="cg_pl">{{ t('cpg.plan') }}</label><textarea class="input" id="cg_pl" name="plan" rows="2" dir="auto"></textarea></div>
+    <div><label class="label" for="cg_ln">{{ t('cpg.link') }}</label><input class="input" id="cg_ln" name="link" maxlength="255" dir="ltr" placeholder="https://"></div>
+    <div><button class="btn btn-primary gc-press" type="submit">{{ t('cpg.save') }}</button></div>
+  </form>
+</details>
+
+{% for g in data.rows %}
+<div class="card gc-scale-in" style="margin-bottom:8px;" id="g-{{ g.id }}" data-cpg="{{ g.id }}">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <strong dir="auto">{{ g.title }}</strong>
+    <span class="badge badge--muted">{{ t('cpg.scope_' ~ g.scope) }}{% if g.topic %} · {{ t('cpg.topic_' ~ g.topic) }}{% endif %}</span>
+    {% if g.is_national %}<span class="badge badge--green">{{ t('cpg.national') }}</span>{% endif %}
+    {% if g.id in data.overdue %}<span class="badge badge--danger" data-cpg-overdue>{{ t('cpg.review_overdue') }}</span>{% endif %}
+    {% if g.id in data.untrained %}<span class="badge badge--warn">{{ t('cpg.untrained') }}</span>{% endif %}
+  </div>
+  <div class="hint" style="margin-top:4px;">{{ t('cpg.approved_by') }}: <span dir="auto">{{ g.approved_by }}</span> · {{ t('cpg.adopted_on') }} <span dir="ltr">{{ g.adopted_on }}</span>
+    · {{ t('cpg.review_due') }} <span dir="ltr">{{ g.review_due }}</span>{% if g.source %} · <span dir="auto">{{ g.source }}</span>{% endif %}
+    {% if g.safe_link %} · <a href="{{ g.safe_link }}" target="_blank" rel="noopener">{{ t('cpg.open') }}</a>{% elif g.link %} · <span dir="auto">{{ g.link }}</span>{% endif %}</div>
+  {% for e in g.events %}
+  <div class="hint" style="margin-top:2px;"><span dir="ltr">{{ e.held_on }}</span> · {{ t('cpg.ev_' ~ e.kind) }} · <span dir="auto">{{ e.note }}</span></div>
+  {% endfor %}
+  <form method="post" action="{{ url_for('quality.guideline_update', row_id=g.id, what='event') }}" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select class="select" name="kind" aria-label="{{ t('cpg.event') }}">{% for k in event_kinds %}<option value="{{ k }}">{{ t('cpg.ev_' ~ k) }}</option>{% endfor %}</select>
+    <input class="input" type="date" name="held_on" value="{{ today }}" required aria-label="{{ t('cpg.held_on') }}">
+    <input class="input" name="note" required dir="auto" placeholder="{{ t('cpg.event_ph') }}" aria-label="{{ t('cpg.event') }}" style="flex:1;min-width:200px;">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('cpg.add_event') }}</button>
+  </form>
+  <form method="post" action="{{ url_for('quality.guideline_update', row_id=g.id, what='retire') }}" style="margin-top:6px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('cpg.retire') }}</button>
+  </form>
+</div>
+{% endfor %}
+{% endblock %}

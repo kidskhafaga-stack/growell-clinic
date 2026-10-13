@@ -178,6 +178,13 @@ class Transfusion(db.Model):
     #: the operative report's complications.
     reaction = db.Column(db.Boolean)
     reaction_note = db.Column(db.Text)
+    #: `ICD.21` intent — *"All blood transfusion reactions must be immediately
+    #: reported to the Head of the Blood Bank and Quality Department"*. Who
+    #: it was told to, in the hospital's words, and when. A reaction with no
+    #: report says so on the stay until somebody writes it.
+    reported_to = db.Column(db.String(160))
+    reported_at = db.Column(db.DateTime)
+    reported_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     #: The bag stopped before it finished. Its own fact: a transfusion that
     #: was stopped and one that ran through are not the same record, and
     #: reading it off `finished_at` would make them identical.
@@ -187,6 +194,10 @@ class Transfusion(db.Model):
     patient = db.relationship("Patient")
     giver = db.relationship("User", foreign_keys=[given_by])
     checker = db.relationship("User", foreign_keys=[checked_by])
+
+    @property
+    def reaction_unreported(self):
+        return bool(self.reaction) and self.reported_at is None
 
     @property
     def is_running(self):
