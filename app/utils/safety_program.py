@@ -15,7 +15,11 @@ EFS.09's rounds and OGM.14's leaders' rounds. Models in
 * a pre-construction assessment weighs every item (a)–(h) and gives each a
   measure; the work is not "underway" without its permit;
 * a construction check that found the contractor non-compliant needs the
-  action taken.
+  action taken;
+* EFS.09 (c), (d) — a visitor, vendor or contractor is signed in with a badge
+  and whom they came for; one let into a restricted area carries who
+  permitted it; signing out closes the pass, and whoever is still inside at
+  the end of the day shows.
 """
 from datetime import date, datetime
 
@@ -298,7 +302,73 @@ def projects_board():
             "items": PCRA_ITEMS}
 
 
+# ================================================================ visitors ==
+def save_area(form):
+    from app.models.safety_program import RestrictedArea
+
+    name, rule = _text(form.get("name"), 160), _text(form.get("rule"), 255)
+    if not name or not rule:
+        raise FacilityError("need_area_rule")
+    row = RestrictedArea(name=name, rule=rule)
+    db.session.add(row)
+    db.session.flush()
+    return row
+
+
+def sign_in_visitor(user, form):
+    from app.models.safety_program import VISITOR_KINDS, RestrictedArea, VisitorPass
+
+    kind = form.get("kind")
+    name, visiting = _text(form.get("name"), 160), _text(form.get("visiting"), 200)
+    badge = _text(form.get("badge_no"), 30)
+    if kind not in VISITOR_KINDS or not name or not visiting or not badge:
+        raise FacilityError("need_visitor")
+    if kind in ("vendor", "contractor") and not _text(form.get("company"), 160):
+        raise FacilityError("need_company")
+    area = None
+    raw = (form.get("area_id") or "").strip()
+    if raw.isdigit():
+        area = db.session.get(RestrictedArea, int(raw))
+    permitted = _text(form.get("permitted_by"), 160)
+    if area is not None and not permitted:
+        raise FacilityError("need_permission")
+    if VisitorPass.query.filter_by(badge_no=badge, out_at=None).first() is not None:
+        raise FacilityError("badge_in_use")
+    row = VisitorPass(kind=kind, name=name, company=_text(form.get("company"), 160), visiting=visiting,
+                      badge_no=badge, allowed=_text(form.get("allowed"), 255),
+                      area_id=area.id if area else None, permitted_by=permitted,
+                      in_at=datetime.utcnow(), signed_in_by=getattr(user, "id", None))
+    db.session.add(row)
+    db.session.flush()
+    return row
+
+
+def sign_out_visitor(row):
+    if row.out_at is not None:
+        raise FacilityError("already_closed")
+    row.out_at = datetime.utcnow()
+    db.session.flush()
+    return row
+
+
+def visitors_board(today=None):
+    """Who is inside now, and everyone signed in today — and anyone still
+    inside from an earlier day."""
+    from app.models.safety_program import RestrictedArea, VisitorPass
+    from app.utils.clock import to_utc
+
+    today = today or _today()
+    start = to_utc(datetime.combine(today, datetime.min.time()))
+    inside = VisitorPass.query.filter(VisitorPass.out_at.is_(None)).order_by(VisitorPass.in_at).all()
+    return {"inside": inside,
+            "overnight": [v for v in inside if v.in_at < start],
+            "today": (VisitorPass.query.filter(VisitorPass.in_at >= start)
+                      .order_by(VisitorPass.in_at.desc()).all()),
+            "areas": RestrictedArea.query.filter_by(is_active=True).order_by(RestrictedArea.name).all()}
+
+
 __all__ = ["check_project", "close_finding", "hand_over_waste", "materials_board", "permit",
            "pest_board", "pest_visit", "projects_board", "quarter_of", "quarter_summary",
            "retire_material", "rounds_board", "save_material", "save_project", "save_round",
-           "set_state", "waste_by_month"]
+           "save_area", "set_state", "sign_in_visitor", "sign_out_visitor", "visitors_board",
+           "waste_by_month"]

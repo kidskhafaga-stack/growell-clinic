@@ -7,9 +7,11 @@
 """
 import os
 import sys
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from app.utils.clock import local_today  # noqa: E402
 
 import pytest  # noqa: E402
 
@@ -52,12 +54,12 @@ def test_the_schedule_is_the_hospital_s_and_says_what_is_late(team):
         daily, deep = tasks["High-touch surfaces"].id, tasks["Walls and ceilings"].id
         team["db"].session.add(CleaningDone(task_id=deep, done_at=datetime.utcnow() - timedelta(days=3)))
         team["db"].session.commit()
-        rows = {r["task"].id: r for r in cleaning.board(date.today())[0]["rows"]}
+        rows = {r["task"].id: r for r in cleaning.board(local_today())[0]["rows"]}
         assert rows[daily]["late"] is True
-        assert rows[deep]["late"] is False and rows[deep]["due"] == date.today() + timedelta(days=4)
+        assert rows[deep]["late"] is False and rows[deep]["due"] == local_today() + timedelta(days=4)
     team["sign_in"]("doc").post(f"/infection-control/cleaning/task/{daily}/done", data={})
     with team["app"].app_context():
-        rows = {r["task"].id: r for r in cleaning.board(date.today())[0]["rows"]}
+        rows = {r["task"].id: r for r in cleaning.board(local_today())[0]["rows"]}
         assert rows[daily]["late"] is False and len(rows[daily]["today"]) == 1
 
 

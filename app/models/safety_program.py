@@ -15,7 +15,10 @@ EFS.05–EFS.09 and OGM.14.
 * :class:`PestControlVisit` — EFS.07 (d);
 * :class:`ConstructionProject` / :class:`ConstructionCheck` — EFS.08: the
   pre-construction risk assessment (a)–(h), the departments involved, the
-  work permit, and the monitoring of the work and the contractor.
+  work permit, and the monitoring of the work and the contractor;
+* :class:`RestrictedArea` / :class:`VisitorPass` — EFS.09 (c), (d): the
+  areas restricted and who may enter them, and every visitor, vendor and
+  contractor signed in with a badge and where they may go, and out.
 
 The plans themselves are the hospital's documents (``HospitalPlan``). Kept,
 never deleted: a finding is closed, not erased.
@@ -187,3 +190,39 @@ class ConstructionCheck(db.Model):
     recorded_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     project = db.relationship("ConstructionProject", back_populates="checks")
+
+
+#: EFS.09 (c) — who comes in who is not a patient or staff.
+VISITOR_KINDS = ("visitor", "vendor", "contractor", "other")
+
+
+class RestrictedArea(db.Model):
+    __tablename__ = "restricted_areas"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(160), nullable=False)
+    #: Who may enter, and on what condition, in the hospital's words.
+    rule = db.Column(db.String(255), nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+
+
+class VisitorPass(db.Model):
+    __tablename__ = "visitor_passes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(12), nullable=False, index=True)
+    name = db.Column(db.String(160), nullable=False)
+    #: The company, for a vendor or a contractor.
+    company = db.Column(db.String(160))
+    #: Whom or what they came for — a ward, a department, a job.
+    visiting = db.Column(db.String(200), nullable=False)
+    badge_no = db.Column(db.String(30), nullable=False)
+    #: Where they may go. A restricted area needs its permission written.
+    allowed = db.Column(db.String(255))
+    area_id = db.Column(db.Integer, db.ForeignKey("restricted_areas.id"))
+    permitted_by = db.Column(db.String(160))
+    in_at = db.Column(db.DateTime, nullable=False, index=True)
+    out_at = db.Column(db.DateTime)
+    signed_in_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+
+    area = db.relationship("RestrictedArea")

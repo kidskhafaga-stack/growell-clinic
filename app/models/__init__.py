@@ -366,7 +366,8 @@ from app.models.facility_safety import (FireDrill, FireSystemCheck,
                                         UtilitySystem)
 from app.models.safety_program import (ConstructionCheck, ConstructionProject,
                                        HazardousMaterial, PestControlVisit,
-                                       RoundFinding, SafetyRound, WasteHandover)
+                                       RestrictedArea, RoundFinding, SafetyRound,
+                                       VisitorPass, WasteHandover)
 from app.models.preparedness import (CallTreeEntry, EmergencyHazard,
                                      ExternalInspection, HospitalPlan)
 from app.models.governance import (CommitteeCharter, CommitteeReview,
@@ -878,6 +879,8 @@ __all__ = [
     "StaffBloodCount",
     "FireDrill",
     "SafetyRound",
+    "RestrictedArea",
+    "VisitorPass",
     "RoundFinding",
     "HazardousMaterial",
     "WasteHandover",

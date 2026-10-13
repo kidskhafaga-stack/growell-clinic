@@ -10,9 +10,11 @@
 """
 import os
 import sys
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from app.utils.clock import local_today  # noqa: E402
 
 import pytest  # noqa: E402,F401
 
@@ -46,7 +48,7 @@ def test_a_late_report_is_measured_told_and_printed(xray):
         row.status, row.resulted_at, row.result_text = "resulted", datetime.utcnow(), "نزيف بسيط"
         row.resulted_by = xray["ids"]["admin"]
         xray["db"].session.commit()
-        per_test, late_rows = lab_tat.report(date.today() - timedelta(days=1), date.today(), kind="imaging")
+        per_test, late_rows = lab_tat.report(local_today() - timedelta(days=1), local_today(), kind="imaging")
         assert [r.id for r in late_rows] == [order]
     assert "data-to-img-turnaround" in boss.get("/imaging/").get_data(as_text=True)
     assert "مقطعية مخ" in boss.get("/imaging/turnaround").get_data(as_text=True)
@@ -72,7 +74,7 @@ def test_imaging_staff_competency_and_quality_control(xray):
     boss = xray["sign_in"]("boss")
     doc = xray["ids"]["doctor"]
     assert boss.get("/imaging/staff").status_code == 200
-    boss.post(f"/imaging/staff/{doc}/assess", data={"section": "radiology", "assessed_on": date.today().isoformat(),
+    boss.post(f"/imaging/staff/{doc}/assess", data={"section": "radiology", "assessed_on": local_today().isoformat(),
                                                     "methods": ["observe_routine", "review_records"], "result": "competent"})
     with xray["app"].app_context():
         row = LabCompetency.query.one()
@@ -80,18 +82,18 @@ def test_imaging_staff_competency_and_quality_control(xray):
     assert "data-staff-row" in boss.get("/imaging/staff").get_data(as_text=True)
     assert boss.get(f"/imaging/staff/{doc}").status_code == 200
 
-    boss.post("/imaging/qc", data={"held_on": date.today().isoformat(), "device": "جهاز الأشعة ١",
+    boss.post("/imaging/qc", data={"held_on": local_today().isoformat(), "device": "جهاز الأشعة ١",
                                    "test": "اختبار الفانتوم", "passed": "no"})
     with xray["app"].app_context():
         assert ImagingQc.query.count() == 0, "a fail needs what was done"
-    boss.post("/imaging/qc", data={"held_on": date.today().isoformat(), "device": "جهاز الأشعة ١",
+    boss.post("/imaging/qc", data={"held_on": local_today().isoformat(), "device": "جهاز الأشعة ١",
                                    "test": "اختبار الفانتوم", "passed": "no", "action": "معايرة الشركة"})
-    month = date.today().strftime("%Y-%m")
+    month = local_today().strftime("%Y-%m")
     boss.post("/imaging/qc", data={"what": "review", "month": month, "note": "فشل واحد اتصلّح"})
-    boss.post("/imaging/qc", data={"what": "service", "year": date.today().year, "text": "الخدمات مناسبة"})
+    boss.post("/imaging/qc", data={"what": "service", "year": local_today().year, "text": "الخدمات مناسبة"})
     page = boss.get(f"/imaging/qc?month={month}").get_data(as_text=True)
     assert "data-qc-reviewed" in page and "data-review-missing" not in page
-    boss.post("/labs/service-review", data={"year": date.today().year, "text": "نطاق المعمل اتراجع"})
+    boss.post("/labs/service-review", data={"year": local_today().year, "text": "نطاق المعمل اتراجع"})
     with xray["app"].app_context():
         assert {r.service for r in ServiceReview.query.all()} == {"imaging", "lab"}
 
@@ -117,8 +119,8 @@ def test_a_repeat_inside_the_interval_is_flagged_never_refused(xray):
 
 def _unit_form(supplier, **over):
     form = {"unit_number": "U-100", "supplier_id": supplier, "product": "prbc", "volume_ml": "250", "abo": "O",
-            "rh": "pos", "seronegative": "yes", "storage": "٢–٦ درجة", "collected_on": date.today().isoformat(),
-            "expires_on": (date.today() + timedelta(days=20)).isoformat(), "transport_ok": "yes",
+            "rh": "pos", "seronegative": "yes", "storage": "٢–٦ درجة", "collected_on": local_today().isoformat(),
+            "expires_on": (local_today() + timedelta(days=20)).isoformat(), "transport_ok": "yes",
             "label_ok": "yes", "abo_confirmed": "yes"}
     form.update(over)
     return form

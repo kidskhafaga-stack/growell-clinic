@@ -57,6 +57,8 @@
 <div class="card gc-scale-in" id="suppliers" data-suppliers>
   <h2 class="section-title" style="margin-top:0;"><i class="bi bi-truck"></i> {{ t('gov.suppliers') }}
     <span class="badge {{ 'badge--danger' if suppliers.due else 'badge--green' }}" data-suppliers-due="{{ suppliers.due|length }}">{{ t('gov.due_n', n=suppliers.due|length) }}</span></h2>
+  {# OGM.11 ev. 3 — each item's use and every stock-out, for whoever holds the store. #}
+  {% if current_user.is_admin or current_user.can_access('inventory') %}<p style="margin:0 0 8px;"><a class="btn btn-sm btn-outline gc-press" href="{{ url_for('inventory.store_usage') }}" data-to-stock-usage><i class="bi bi-graph-down-arrow"></i> {{ t('stockwatch.title') }}</a></p>{% endif %}
   {% if suppliers.rows %}
   <div style="overflow-x:auto;"><table class="table" style="min-width:680px;">
     <thead><tr><th>{{ t('gov.supplier') }}</th><th>{{ t('gov.last_evaluation') }}</th><th>{{ t('gov.evaluate') }}</th></tr></thead>

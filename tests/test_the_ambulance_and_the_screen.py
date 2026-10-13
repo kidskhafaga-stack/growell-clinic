@@ -13,6 +13,8 @@ from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 
@@ -129,8 +131,7 @@ def test_a_remote_encounter_checks_identity_and_opens_a_visit(on):
     assert "data-tele-visit" in boss.get(f"/visits/{enc.visit_id}").get_data(as_text=True)
     boss.post(f"/telemedicine/{eid}/end", data={"outcome": "in_person"})
     with on["app"].app_context():
-        from datetime import date
-        stats = tele.evaluation(date.today() - timedelta(days=1), date.today())
+        stats = tele.evaluation(local_today() - timedelta(days=1), local_today())
         assert stats["done"] == 1 and stats["came_in"] == 1
     boss.post("/telemedicine/programme", data={"what": "review", "period_from": "2026-01-01",
                                                "period_to": "2026-03-31", "text": "نص الحالات احتاجت تيجي — راجعنا المعايير"})
