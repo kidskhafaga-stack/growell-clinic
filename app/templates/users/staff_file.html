@@ -1,0 +1,125 @@
+{% extends "shell.html" %}
+{% set active_module = 'users' %}
+{% block title %}{{ t('sfile.title') }} · {{ u.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ t('sfile.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR WFM.06 (b i–vii) — one person's file, in the standard's order:
+   credentials with their primary-source verification, work history and the
+   signed job description, the three orientations, continuing education,
+   and the evaluations with the employee's feedback and the action. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-person-vcard"></i> {{ u.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;">{% for g in gaps %}<span class="badge badge--warn" data-gap="{{ g }}">{{ t('sfile.gap_' ~ g) }}</span> {% else %}<span class="badge badge--ok">{{ t('sfile.complete') }}</span>{% endfor %}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('users.staff_files') }}"><i class="bi bi-person-vcard"></i> {{ t('sfile.board') }}</a>
+</div>
+
+<div class="card gc-scale-in" id="credential" style="margin-bottom:12px;" data-credentials>
+  <h2 class="section-title" style="margin-top:0;">{{ t('sfile.credentials') }}</h2>
+  {% for c in data.credentials %}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);padding:6px 0;" data-credential="{{ c.id }}">
+    <span class="badge badge--muted">{{ t('sfile.k_' ~ c.kind) }}</span> <b dir="auto">{{ c.title }}</b>
+    {% if c.number %}<span class="hint" dir="ltr">{{ c.number }}</span>{% endif %}
+    {% if c.expires_on %}<span class="hint">{{ t('sfile.expires') }} <span dir="ltr">{{ c.expires_on }}</span></span>{% if c.expires_on < today %} <span class="badge badge--danger">{{ t('sfile.expired') }}</span>{% endif %}{% endif %}
+    {% if c.verified_at %}<span class="badge badge--ok">{{ t('sfile.verified') }}</span> <span class="hint" dir="auto">{{ c.verification_source }}</span>
+    {% else %}
+    <form method="post" action="{{ url_for('users.staff_file_add', user_id=u.id, what='verify') }}" style="display:flex;gap:6px;margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="credential_id" value="{{ c.id }}">
+      <input class="input" name="source" maxlength="255" required dir="auto" placeholder="{{ t('sfile.source_ph') }}" aria-label="{{ t('sfile.source') }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('sfile.verify') }}</button>
+    </form>{% endif %}
+  </div>
+  {% endfor %}
+  <form method="post" action="{{ url_for('users.staff_file_add', user_id=u.id, what='credential') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="c_k">{{ t('sfile.kind') }}</label><select class="select" id="c_k" name="kind">{% for k in ('licence', 'degree', 'registration', 'other') %}<option value="{{ k }}">{{ t('sfile.k_' ~ k) }}</option>{% endfor %}</select></div>
+    <div style="flex:1;min-width:180px;"><label class="label" for="c_t">{{ t('sfile.title_l') }}</label><input class="input" id="c_t" name="title" maxlength="160" required dir="auto"></div>
+    <div><label class="label" for="c_n">{{ t('sfile.number') }}</label><input class="input" id="c_n" name="number" maxlength="80" dir="ltr" style="max-width:140px;"></div>
+    <div><label class="label" for="c_i">{{ t('sfile.issuer') }}</label><input class="input" id="c_i" name="issuer" maxlength="160" dir="auto"></div>
+    <div><label class="label" for="c_e">{{ t('sfile.expires') }}</label><input class="input" type="date" id="c_e" name="expires_on"></div>
+    <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('sfile.add') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in" id="job" style="margin-bottom:12px;" data-jobs>
+  <h2 class="section-title" style="margin-top:0;">{{ t('sfile.jobs') }}</h2>
+  {% for j in data.jobs %}
+  <div style="border-bottom:1px solid var(--line);padding:6px 0;" data-job="{{ j.id }}">
+    <b dir="auto">{{ j.title }}</b>{% if j.department %} <span class="hint">· {{ j.department }}</span>{% endif %} <span class="hint" dir="ltr">{{ j.started_on }}{% if j.ended_on %} → {{ j.ended_on }}{% endif %}</span>
+    {% if j.job_description %}<details><summary class="hint">{{ t('sfile.jd') }}</summary><div dir="auto" style="white-space:pre-line;">{{ j.job_description }}</div></details>{% endif %}
+    {% if j.jd_signed_on %}<span class="badge badge--ok">{{ t('sfile.jd_signed') }} <span dir="ltr">{{ j.jd_signed_on }}</span></span>
+    {% elif j.job_description %}
+    <form method="post" action="{{ url_for('users.staff_file_add', user_id=u.id, what='jd_signed') }}" style="display:flex;gap:6px;margin:4px 0 0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="job_id" value="{{ j.id }}">
+      <input class="input" type="date" name="signed_on" aria-label="{{ t('sfile.jd_signed') }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('sfile.mark_signed') }}</button>
+    </form>{% endif %}
+  </div>
+  {% endfor %}
+  <form method="post" action="{{ url_for('users.staff_file_add', user_id=u.id, what='job') }}" style="display:grid;gap:8px;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:180px;"><label class="label" for="j_t">{{ t('sfile.job_title') }}</label><input class="input" id="j_t" name="title" maxlength="120" required dir="auto"></div>
+      <div><label class="label" for="j_d">{{ t('sfile.department') }}</label><input class="input" id="j_d" name="department" maxlength="120" dir="auto"></div>
+      <div><label class="label" for="j_s">{{ t('sfile.started') }}</label><input class="input" type="date" id="j_s" name="started_on" required></div>
+      <div><label class="label" for="j_e">{{ t('sfile.ended') }}</label><input class="input" type="date" id="j_e" name="ended_on"></div>
+    </div>
+    <div><label class="label" for="j_jd">{{ t('sfile.jd') }}</label><textarea class="input" id="j_jd" name="job_description" rows="3" dir="auto"></textarea></div>
+    <div><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('sfile.add') }}</button></div>
+  </form>
+</div>
+
+<div class="card gc-scale-in" id="orientation" style="margin-bottom:12px;" data-orientation>
+  <h2 class="section-title" style="margin-top:0;">{{ t('sfile.orientation') }}</h2>
+  {% for level in ('general', 'department', 'job') %}{% set o = data.orientation.get(level) %}
+  <p style="margin:0 0 4px;">{{ t('sfile.o_' ~ level) }}: {% if o %}<span class="badge badge--ok">{{ t('sfile.done') }}</span> <span dir="ltr">{{ o.completed_on }}</span>{% else %}<span class="badge badge--warn">{{ t('sfile.not_done') }}</span>{% endif %}</p>
+  {% endfor %}
+  <form method="post" action="{{ url_for('users.staff_file_add', user_id=u.id, what='orientation') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:6px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="o_l">{{ t('sfile.level') }}</label><select class="select" id="o_l" name="level">{% for l in ('general', 'department', 'job') %}<option value="{{ l }}">{{ t('sfile.o_' ~ l) }}</option>{% endfor %}</select></div>
+    <div><label class="label" for="o_d">{{ t('sfile.completed') }}</label><input class="input" type="date" id="o_d" name="completed_on" required></div>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('sfile.add') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in" id="education" style="margin-bottom:12px;" data-education>
+  <h2 class="section-title" style="margin-top:0;">{{ t('sfile.education') }}</h2>
+  {% for e in data.education %}<p style="margin:0 0 4px;"><span dir="ltr">{{ e.on }}</span> · <span dir="auto">{{ e.title }}</span>{% if e.hours %} · <span dir="ltr">{{ '%g'|format(e.hours) }}</span> {{ t('sfile.hours') }}{% endif %}{% if e.provider %} · <span class="hint" dir="auto">{{ e.provider }}</span>{% endif %}</p>{% endfor %}
+  <form method="post" action="{{ url_for('users.staff_file_add', user_id=u.id, what='education') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:6px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:1;min-width:180px;"><label class="label" for="e_t">{{ t('sfile.course') }}</label><input class="input" id="e_t" name="title" maxlength="200" required dir="auto"></div>
+    <div><label class="label" for="e_d">{{ t('sfile.date') }}</label><input class="input" type="date" id="e_d" name="on" required></div>
+    <div><label class="label" for="e_h">{{ t('sfile.hours') }}</label><input class="input" type="number" min="0" step="any" id="e_h" name="hours" style="max-width:90px;"></div>
+    <div><label class="label" for="e_p">{{ t('sfile.provider') }}</label><input class="input" id="e_p" name="provider" maxlength="160" dir="auto"></div>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('sfile.add') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in" id="evaluation" data-evaluations>
+  <h2 class="section-title" style="margin-top:0;">{{ t('sfile.evaluations') }}</h2>
+  {% for e in data.evaluations %}
+  <div style="border-bottom:1px solid var(--line);padding:6px 0;" data-evaluation="{{ e.id }}">
+    <span class="badge badge--muted">{{ t('sfile.e_' ~ e.kind) }}</span> <span dir="ltr">{{ e.on }}</span> · <span dir="auto">{{ e.evaluator }}</span>
+    <div dir="auto">{{ e.result }}</div>
+    {% if e.feedback %}<div class="hint" style="margin:0;">{{ t('sfile.feedback') }}: <span dir="auto">{{ e.feedback }}</span></div>{% endif %}
+    {% if e.actions %}<div class="hint" style="margin:0;">{{ t('sfile.actions') }}: <span dir="auto">{{ e.actions }}</span></div>{% endif %}
+  </div>
+  {% endfor %}
+  <form method="post" action="{{ url_for('users.staff_file_add', user_id=u.id, what='evaluation') }}" style="display:grid;gap:8px;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div><label class="label" for="v_k">{{ t('sfile.kind') }}</label><select class="select" id="v_k" name="kind">{% for k in ('provisional', 'annual', 'oppe', 'peer_review') %}<option value="{{ k }}">{{ t('sfile.e_' ~ k) }}</option>{% endfor %}</select></div>
+      <div><label class="label" for="v_d">{{ t('sfile.date') }}</label><input class="input" type="date" id="v_d" name="on" required></div>
+      <div><label class="label" for="v_e">{{ t('sfile.evaluator') }}</label><input class="input" id="v_e" name="evaluator" maxlength="120" required dir="auto"></div>
+    </div>
+    <div><label class="label" for="v_r">{{ t('sfile.result') }}</label><textarea class="input" id="v_r" name="result" rows="2" required dir="auto"></textarea></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;"><label class="label" for="v_f">{{ t('sfile.feedback') }}</label><input class="input" id="v_f" name="feedback" dir="auto"></div>
+      <div style="flex:1;min-width:200px;"><label class="label" for="v_a">{{ t('sfile.actions') }}</label><input class="input" id="v_a" name="actions" dir="auto"></div>
+    </div>
+    <div><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('sfile.add') }}</button></div>
+  </form>
+</div>
+{% endblock %}

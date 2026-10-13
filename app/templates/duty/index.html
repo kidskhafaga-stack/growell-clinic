@@ -19,9 +19,28 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('duty.slots') }}">
       <i class="bi bi-sliders"></i> {{ t('duty.slots') }}</a>
     {% endif %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('duty.certificates') }}" data-to-certificates>
+      <i class="bi bi-patch-check"></i> {{ t('certs.title') }}</a>
   </div>
 </div>
 
+{# GAHAR WFM.17 — rostered past the hospital's weekly hours this week. #}
+{% if over_hours %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--amber-500);" data-over-hours>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-hourglass-split"></i> {{ t('certs.over_hours') }}</h2>
+  <ul style="margin:0;">{% for person, hours in over_hours %}<li>{{ person.display_name(current_lang) if person else '—' }} · <span dir="ltr">{{ '%g'|format(hours) }}</span> {{ t('sfile.hours') }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+{# GAHAR CSS.01 ev. 3 — a critical-unit shift with nobody rostered who holds
+   a resuscitation course valid that day. The courses are the hospital's. #}
+{% if resus_gaps %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--danger);" data-resus-gaps>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-heart-pulse"></i> {{ t('certs.gaps') }} <span class="badge">{{ resus_gaps|length }}</span></h2>
+  <ul style="margin:0;">{% for day, slot, unit in resus_gaps %}<li><span dir="ltr">{{ day }}</span> · {{ slot.name if slot else '—' }} · {{ unit.display_name(current_lang) }}</li>{% endfor %}</ul>
+</div>
+{% elif resus_gaps is none %}
+<p class="hint" data-resus-unset>{{ t('certs.unset') }} <a href="{{ url_for('duty.certificates') }}">{{ t('certs.title') }}</a></p>
+{% endif %}
 {# The gap, first and out loud: a rostered night whose day has gone by and
    nobody has said what happened. Left alone it becomes a month-end guess. #}
 {% if waiting %}

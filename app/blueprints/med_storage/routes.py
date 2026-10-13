@@ -55,7 +55,10 @@ def storage():
     many lots are expired or near."""
     from app.models import Warehouse
 
+    from app.utils.drug_recall import open_count
+
     return render_template("med_storage/storage.html", data=ms.board(),
+                           recalls_open=open_count(),
                            kinds=AREA_KINDS, may_manage=ms.may_manage(current_user),
                            warehouses=Warehouse.query.filter_by(is_active=True).all())
 

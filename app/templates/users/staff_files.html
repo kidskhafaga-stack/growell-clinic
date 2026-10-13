@@ -1,0 +1,26 @@
+{% extends "shell.html" %}
+{% set active_module = 'users' %}
+{% block title %}{{ t('sfile.board') }}{% endblock %}
+{% block page_heading %}{{ t('sfile.board') }}{% endblock %}
+
+{% block content %}
+{# GAHAR WFM.05–09 — every active member of staff and what their file is
+   missing: credentials, verification, expiry, the signed job description,
+   the three orientations, the annual evaluation. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-person-vcard"></i> {{ t('sfile.board') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('sfile.board_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('users.index') }}"><i class="bi bi-people"></i> {{ t('nav.users') }}</a>
+</div>
+<div class="card gc-scale-in" style="overflow-x:auto;" data-staff-files>
+  <table class="table" style="min-width:560px;">
+    <thead><tr><th>{{ t('sfile.person') }}</th><th>{{ t('sfile.missing') }}</th></tr></thead>
+    <tbody>{% for u, gaps in rows %}
+    <tr data-staff="{{ u.id }}"><td><a href="{{ url_for('users.staff_file', user_id=u.id) }}">{{ u.display_name(current_lang) }}</a>{% if u.job_title %} <span class="hint">· {{ u.job_title }}</span>{% endif %}</td>
+      <td>{% for g in gaps %}<span class="badge {{ 'badge--danger' if g in ('expired', 'evaluation_due') else 'badge--warn' }}" data-gap="{{ g }}">{{ t('sfile.gap_' ~ g) }}</span> {% else %}<span class="badge badge--ok">{{ t('sfile.complete') }}</span>{% endfor %}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+</div>
+{% endblock %}

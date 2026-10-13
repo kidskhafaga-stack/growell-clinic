@@ -263,7 +263,8 @@ def board(kind=None, now=None):
 
 def order(admission, drug_name, user=None, drug=None, dose=None, route="oral",
           every_hours=None, is_prn=False, min_gap_hours=None, note=None,
-          store_item_id=None, units_per_dose=None, when=None):
+          store_item_id=None, units_per_dose=None, when=None, indication=None,
+          max_per_day=None, rate=None, course_days=None):
     """Write a standing order, or refuse.
 
     Refuses a nameless drug, and refuses a regular order with no interval —
@@ -295,7 +296,11 @@ def order(admission, drug_name, user=None, drug=None, dose=None, route="oral",
         units_per_dose=max(1, int(units_per_dose or 1)),
         started_at=when or datetime.utcnow(),
         ordered_by=getattr(user, "id", None),
-        note=(note or "").strip()[:255] or None)
+        note=(note or "").strip()[:255] or None,
+        indication=(indication or "").strip()[:160] or None,
+        max_per_day=(max_per_day or "").strip()[:60] or None,
+        rate=(rate or "").strip()[:60] or None,
+        course_days=int(course_days) if course_days else None)
     db.session.add(row)
     return row
 

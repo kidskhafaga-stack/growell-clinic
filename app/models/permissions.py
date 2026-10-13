@@ -97,6 +97,11 @@ MODULES = [
     # night is the ordinary case, and gating this behind the inpatient module
     # would have hidden it from most of the clinics that run one.
     "duty",
+    # «برامج الرعاية الخاصة» — the dialysis, chemotherapy and rehabilitation
+    # programmes (GAHAR CSS.06, .07, .10): a child enrolled, each session
+    # with its check before and what was seen, and the programme's plan.
+    # Opt-in: a hospital without them never sees the screen.
+    "programs",
     "prescriptions",
     "inventory",
     "finance",
@@ -148,6 +153,7 @@ MODULE_ICONS = {
     "imaging": "radioactive",
     "pharmacy": "prescription2",
     "duty": "calendar-week",
+    "programs": "clipboard2-heart",
     "prescriptions": "capsule",
     "inventory": "box-seam",
     "finance": "cash-coin",
@@ -192,6 +198,7 @@ ROLE_PERMISSIONS = {
         # The rota — reading it, which is what "who is on tonight" is. What a
         # night pays and who is put on it stay admin-only inside the screen.
         "duty",
+        "programs",
         "prescriptions",
         "ai",
     ],
@@ -226,6 +233,7 @@ ROLE_PERMISSIONS = {
         # Nursing works the same nights, and "who is on with me" is the
         # question the rota exists to answer.
         "duty",
+        "programs",
     ],
     "reception": [
         "dashboard",
@@ -320,6 +328,10 @@ CAPABILITIES = [
     # reports. The hospital names its infection-control team; nobody holds
     # it by role but the admin.
     "infection_control",
+    # «ترشيد المضادات الحيوية» — deciding on a restricted antimicrobial and
+    # reviewing one once the culture is back (GAHAR MMS.02,
+    # ``models/stewardship``). The hospital names its stewardship team.
+    "antimicrobial_stewardship",
 ]
 
 ROLE_CAPABILITIES = {

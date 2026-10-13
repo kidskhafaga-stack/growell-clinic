@@ -15,6 +15,7 @@
   <a class="btn btn-sm {{ 'btn-primary' if active == 'outbreaks' else 'btn-outline' }} gc-press" href="{{ url_for('ipc.outbreaks') }}"><i class="bi bi-radioactive"></i> {{ t('ipco.tab_outbreaks') }}</a>
   <a class="btn btn-sm {{ 'btn-primary' if active == 'reports' else 'btn-outline' }} gc-press" href="{{ url_for('ipc.disease_reports') }}"><i class="bi bi-send-exclamation"></i> {{ t('ipco.tab_reports') }}</a>
   <a class="btn btn-sm {{ 'btn-primary' if active == 'committee' else 'btn-outline' }} gc-press" href="{{ url_for('ipc.committee') }}"><i class="bi bi-people"></i> {{ t('ipcp.tab_committee') }}</a>
+  {% if current_user.can('antimicrobial_stewardship') or current_user.can_access('pharmacy') %}<a class="btn btn-sm btn-outline gc-press" href="{{ url_for('pharmacy.stewardship') }}" data-to-stewardship><i class="bi bi-capsule-pill"></i> {{ t('asp.title') }}</a>{% endif %}
   <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('hand_hygiene.index') }}"><i class="bi bi-droplet-half"></i> {{ t('ipc.hand_hygiene') }}</a>
   {% endif %}
 </nav>

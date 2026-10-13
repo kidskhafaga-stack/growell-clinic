@@ -462,6 +462,20 @@ def unit_max_stay(unit_id):
     return redirect(url_for("beds.setup"))
 
 
+@beds_bp.route("/unit/<int:unit_id>/criteria", methods=["POST"])
+@module_required(MODULE)
+def unit_criteria(unit_id):
+    """GAHAR CSS.01 (b) — a critical unit's admission and discharge criteria,
+    the hospital's own words. Blank clears them."""
+    _admin_only()
+    unit = Unit.query.get_or_404(unit_id)
+    unit.admit_criteria = (request.form.get("admit_criteria") or "").strip() or None
+    unit.discharge_criteria = (request.form.get("discharge_criteria") or "").strip() or None
+    db.session.commit()
+    flash(t("crit.saved"), "success")
+    return redirect(url_for("beds.setup"))
+
+
 # ------------------------------------------------- closing for maintenance --
 #: القسم والحيّز والسرير — نفس الفورم للتلاتة، والمستوى جاي مع الطلب.
 _LEVELS = {"unit": Unit, "space": Space, "bed": Bed}
@@ -730,6 +744,11 @@ def admission(admission_id):
     from app.utils import lines as _lines
     from app.utils import nutrition as _food
     from app.utils import breast_milk as _milk
+    from app.utils import own_medicine as _own
+    from app.utils import adverse_reaction as _adr
+    from app.utils import med_family as _fam
+    from app.utils import palliative as _pall
+    from app.utils import mental_health as _mh
     from app.utils import restraint as _tied
     from app.utils import resuscitation as _cpr
     # كام يوم في المستشفى — للرأس بس. من الختمين اللي متسجّلين، والإقامة
@@ -799,6 +818,16 @@ def admission(admission_id):
         # the hospital has written how long they keep.
         milk_bags=_milk.stored_for(row.patient_id),
         milk_now=datetime.utcnow(),
+        # `MMS.09` ev. 5 — the bag of medicines the family brought in.
+        own_meds=_own.for_stay(row.id),
+        # `MMS.16` — adverse drug reactions in this child, every stay.
+        reactions=_adr.for_patient(row.patient_id),
+        # `MMS.15` / `MMS.16` ev. 2 — the family and the medicines.
+        family_meds=_fam.for_stay(row),
+        # `CSS.04` — end-of-life care: the plan and the symptom reviews.
+        palliative=_pall.for_stay(row.id),
+        # `CSS.11` — the risk of harm, and rapid tranquilization.
+        mental=_mh.for_stay(row),
         milk_hours={s: _milk.hours_for(s) for s in _milk.HOURS_SETTINGS},
         line_map=_lines.map_for(row.patient_id),
         line_kinds=LINE_KINDS,
@@ -1911,7 +1940,12 @@ def add_medication(admission_id):
             # neither the stock nor the bill.
             store_item_id=request.form.get("store_item_id", type=int),
             units_per_dose=request.form.get("units_per_dose", type=int),
-            note=request.form.get("note"))
+            note=request.form.get("note"),
+            # GAHAR MMS.11 (e) — in the doctor's words.
+            indication=request.form.get("indication"),
+            max_per_day=request.form.get("max_per_day"),
+            rate=request.form.get("rate"),
+            course_days=request.form.get("course_days", type=int))
     except ValueError as why:
         db.session.rollback()
         # Each refusal names itself. "You did not say which drug" and "you did

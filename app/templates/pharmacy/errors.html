@@ -71,6 +71,9 @@
        harmed nobody and is the cheapest possible lesson. #}
     <span class="alert-pill ok" data-near>
       {{ t('mederr.n_near', n=summary.near_misses) }}</span>
+    {# GAHAR MMS.17 — reports per 1000 doses given on the wards in the same
+       window; arithmetic, never a target. #}
+    <span class="badge badge--muted" data-error-rate>{{ t('mederr.per_1000') }}: <span dir="ltr">{{ '%.2f'|format(summary.per_1000_doses) if summary.per_1000_doses is not none else '—' }}</span> · <span dir="ltr">{{ summary.doses_given }}</span> {{ t('mederr.doses_given') }}</span>
     {% for band, count in summary.bands.items() %}
     <span class="badge badge--muted" data-band="{{ band }}">
       {{ t('mederr.band_' ~ band) }}: {{ count }}</span>
@@ -108,6 +111,16 @@
     {% if row.action_taken %}
     <div class="hint"><i class="bi bi-arrow-return-right"></i> {{ row.action_taken }}</div>
     {% endif %}
+    {# GAHAR MMS.17 (a–e) — whom it was reported to. #}
+    <form method="post" action="{{ url_for('pharmacy.error_informed', row_id=row.id) }}" id="err-{{ row.id }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:6px;" data-informed="{{ row.informed or '' }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <span class="hint">{{ t('mederr.informed') }}:</span>
+      {% for k in ('prescriber', 'ptc', 'quality', 'leaders', 'authority') %}
+      <label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" name="informed" value="{{ k }}" {{ 'checked' if k in row.informed_to }}> {{ t('mederr.to_' ~ k) }}</label>
+      {% endfor %}
+      <input class="input" name="authority_ref" maxlength="80" dir="ltr" value="{{ row.authority_ref or '' }}" placeholder="{{ t('mederr.authority_ref') }}" aria-label="{{ t('mederr.authority_ref') }}" style="max-width:150px;">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('mederr.save_informed') }}</button>
+    </form>
   </div>
   {% endfor %}
 </div>

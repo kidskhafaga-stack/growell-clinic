@@ -1162,6 +1162,29 @@ SECTIONS = [
         ],
     },
     {
+        # GAHAR CSS.06 / .07 / .10 — opt-in, for the hospitals that run them.
+        "key": "programs",
+        "module": "programs",
+        "icon": "clipboard2-heart",
+        "title": ("برامج الرعاية الخاصة", "Care programmes"),
+        "lines": [
+            ("<b>الغسيل الكلوي والعلاج الكيماوي والتأهيل</b>: الطفل بيتسجّل في البرنامج "
+             "بخطته (النوع والوصلة، البروتوكول والدورات، الأهداف)، وكل جلسة فيها التقييم "
+             "قبلها واتسمح بيها ولا لأ، والمتابعة أثناءها، والمضاعفات واللي اتعمل. "
+             "تثقيف الأهل بيتسجّل، والتأهيل ما بيتقفلش من غير خطة خروج.",
+             "<b>Dialysis, chemotherapy and rehabilitation</b>: a child is enrolled with "
+             "the plan (modality and access, protocol and cycles, goals), and each session "
+             "carries the check before it and whether it was cleared, the monitoring during "
+             "it, complications and the action. The family's education is recorded, and "
+             "rehabilitation does not end without a discharge plan."),
+            ("<b>تحاليل الفيروسات للغسيل</b> بالفترة اللي المستشفى بتحددها، والتحوّل من "
+             "سلبي لإيجابي بيبان على اللوحة. البرنامج مافيهوش بروتوكول ولا فترة من عنده.",
+             "<b>Dialysis viral markers</b> by the hospital's interval, and a "
+             "negative-to-positive change shows on the board. The program holds no "
+             "protocol and no interval of its own."),
+        ],
+    },
+    {
         # «المعمل مديول لواحده والاشعة مديول». Opt-in like the lab, and
         # switched on once on upgrade wherever the lab was on.
         "key": "imaging",
@@ -2630,6 +2653,8 @@ CAPABILITY_LABELS = {
                         "Classify, investigate and close incident reports"),
     "infection_control": ("مكافحة العدوى: تنبيه الميكروبات المنذرة والرد عليه، وتقارير نظافة الأيدي",
                           "Infection control: alert organisms and their answer, and hand-hygiene reports"),
+    "antimicrobial_stewardship": ("ترشيد المضادات الحيوية: الموافقة على المقيّد والمراجعة بعد المزرعة",
+                                  "Antimicrobial stewardship: restricted approvals and post-culture review"),
 }
 
 

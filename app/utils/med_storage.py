@@ -146,10 +146,16 @@ def lots(item, today=None):
                 row["left"] -= take
                 want -= take
     out = []
+    # GAHAR MMS.08 — a lot under an open recall is marked beside its expiry
+    # state (which every count reads unchanged), and not picked or issued.
+    from app.utils.drug_recall import recalled_lots
+
+    recalled = recalled_lots(item.id) if table else set()
     for row in table.values():
         if row["left"] <= 0:
             continue
         row["state"] = expiry_state(row["expiry"], today)
+        row["recalled"] = row["lot"] in recalled
         out.append(row)
     out.sort(key=lambda r: (r["expiry"] is None, r["expiry"] or date.max, r["lot"]))
     return out
@@ -169,7 +175,7 @@ def expiry_state(expiry, today=None):
 def suggested_lot(item, today=None):
     """The lot to hand over first: the earliest expiry that is still good."""
     for row in lots(item, today):
-        if row["state"] in ("near", "ok", "no_date"):
+        if row["state"] in ("near", "ok", "no_date") and not row["recalled"]:
             return row
     return None
 
@@ -183,6 +189,8 @@ def check_pick(item, lot, today=None):
         if row["lot"] == lot:
             if row["state"] == "expired":
                 raise StorageError("lot_expired")
+            if row["recalled"]:
+                raise StorageError("lot_recalled")
             return lot
     raise StorageError("lot_unknown")
 

@@ -161,6 +161,24 @@ from app.models.ipc_program import (BundleCheck, BundleElement, CareBundle,
                                     HaiCase, IpcDecision, IpcMeeting)
 from app.models.patient_merge import PatientMerge
 from app.models.breast_milk import MilkBag
+from app.models.controlled import ControlledEntry, ControlledItem
+from app.models.own_medicine import OwnMedicine
+from app.models.adverse_reaction import AdverseReaction
+from app.models.drug_recall import DrugRecall
+from app.models.stewardship import RestrictedAntimicrobial, StewardshipReview
+from app.models.emergency_cart import CartCheck, CartItem, CartUse
+from app.models.dtc import DrugShortage, DtcAnnualReview, DtcDecision, DtcMeeting
+from app.models.med_family import (FirstDoseObservation, FirstDoseWatch, MedCounselling,
+                                  SelfAdministration)
+from app.models.staff_certificate import StaffCertificate
+from app.models.staff_file import (StaffCredential, StaffEducation, StaffEvaluation, StaffJob,
+                                   StaffOrientation)
+from app.models.palliative import PalliativePlan, PalliativeReview
+from app.models.tranquilization import RapidTranquilization
+from app.models.care_program import ProgramEnrollment, ProgramSession, ViralMarker
+from app.models.quality import (ImprovementProject, MeasureValue, PerformanceMeasure,
+                                ProactiveAssessment, QualityDecision, QualityMeeting,
+                                QualitySelfEvaluation, RiskItem, RiskReport)
 from app.models.user_capability import UserCapability
 from app.models.permissions import MODULES, ROLE_PERMISSIONS, ROLES
 from app.models.role import Role
@@ -544,6 +562,45 @@ __all__ = [
     "IpcAlert",
     "PatientMerge",
     "MilkBag",
+    "ControlledItem",
+    "ControlledEntry",
+    "OwnMedicine",
+    "AdverseReaction",
+    "DrugRecall",
+    "RestrictedAntimicrobial",
+    "StewardshipReview",
+    "CartItem",
+    "CartCheck",
+    "CartUse",
+    "DtcMeeting",
+    "DtcDecision",
+    "DtcAnnualReview",
+    "DrugShortage",
+    "MedCounselling",
+    "SelfAdministration",
+    "FirstDoseWatch",
+    "FirstDoseObservation",
+    "StaffCertificate",
+    "StaffCredential",
+    "StaffJob",
+    "StaffOrientation",
+    "StaffEducation",
+    "StaffEvaluation",
+    "PalliativePlan",
+    "PalliativeReview",
+    "RapidTranquilization",
+    "ProgramEnrollment",
+    "ProgramSession",
+    "ViralMarker",
+    "PerformanceMeasure",
+    "MeasureValue",
+    "RiskItem",
+    "ProactiveAssessment",
+    "RiskReport",
+    "ImprovementProject",
+    "QualityMeeting",
+    "QualityDecision",
+    "QualitySelfEvaluation",
     "CleaningArea", "CleaningDone", "CleaningTask",
     "HldTest", "SterilizationReview", "Sterilizer", "SterilizerCycle",
     "DiseaseReport", "Outbreak", "OutbreakCase", "OutbreakStep",

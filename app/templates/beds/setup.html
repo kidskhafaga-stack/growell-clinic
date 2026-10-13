@@ -325,6 +325,21 @@
 
   {# «المريض الى عدى الحد فى الطوارئ ده مهم وخلي الوقت فيها فى اعدادات» —
      the department's own figure; empty means no limit and no flag. #}
+  {# GAHAR CSS.01 (b) — the critical unit's admission and discharge
+     criteria, in the hospital's words. #}
+  {% if row.unit.kind in ('icu', 'nicu') %}
+  <details style="margin-bottom:10px;" data-unit-criteria="{{ row.unit.id }}">
+    <summary>{{ t('crit.title') }}{% if not (row.unit.admit_criteria and row.unit.discharge_criteria) %} <span class="badge badge--warn">{{ t('crit.not_written') }}</span>{% endif %}</summary>
+    <form method="post" action="{{ url_for('beds.unit_criteria', unit_id=row.unit.id) }}" style="display:grid;gap:8px;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div><label class="label" for="ac{{ row.unit.id }}">{{ t('crit.admit') }}</label>
+        <textarea class="input" id="ac{{ row.unit.id }}" name="admit_criteria" rows="3" dir="auto">{{ row.unit.admit_criteria or '' }}</textarea></div>
+      <div><label class="label" for="dc{{ row.unit.id }}">{{ t('crit.discharge') }}</label>
+        <textarea class="input" id="dc{{ row.unit.id }}" name="discharge_criteria" rows="3" dir="auto">{{ row.unit.discharge_criteria or '' }}</textarea></div>
+      <div><button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('crit.save') }}</button></div>
+    </form>
+  </details>
+  {% endif %}
   {% set limit = row.unit.max_stay_minutes or 0 %}
   <form method="post" action="{{ url_for('beds.unit_max_stay', unit_id=row.unit.id) }}"
         style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:10px;" data-max-stay>

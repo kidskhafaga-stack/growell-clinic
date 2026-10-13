@@ -23,6 +23,18 @@
   {% if row.patient %}<p style="margin:0;"><a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">{{ row.patient.display_name(current_lang) }}</a> <span class="hint" dir="ltr">{{ row.patient.patient_number }}</span></p>{% endif %}
 </div>
 
+{# GAHAR QPI.11 — the standard's two clocks on a sentinel event: GAHAR told
+   within two working days of becoming aware, and the root cause analysis
+   with its action within 45 days. #}
+{% if clock %}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-sentinel-clock>
+  <h2 class="section-title" style="margin-top:0;">{{ t('incident.sentinel_clock') }}</h2>
+  <p style="margin:0 0 4px;">{{ t('incident.gahar_due') }} <b dir="ltr">{{ clock.gahar_due }}</b>
+    {% if clock.gahar_done %}<span class="badge badge--ok">{{ t('incident.done') }}</span>{% elif clock.gahar_late %}<span class="badge badge--danger" data-gahar-late>{{ t('incident.late') }}</span>{% endif %}</p>
+  <p style="margin:0;">{{ t('incident.rca_due') }} <b dir="ltr">{{ clock.rca_due }}</b>
+    {% if clock.rca_done %}<span class="badge badge--ok">{{ t('incident.done') }}</span>{% elif clock.rca_late %}<span class="badge badge--danger" data-rca-late>{{ t('incident.late') }}</span>{% endif %}</p>
+</div>
+{% endif %}
 <form method="post" action="{{ url_for('incidents.review', incident_id=row.id) }}" class="card gc-scale-in" style="display:grid;gap:10px;" data-incident-review>
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <h2 class="section-title" style="margin:0;">{{ t('incident.review') }} — <span class="badge {{ 'badge--green' if row.status == 'closed' else 'badge--warn' }}">{{ t('incident.s_' ~ row.status) }}</span></h2>

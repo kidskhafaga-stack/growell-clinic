@@ -28,6 +28,9 @@
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <a class="btn btn-outline gc-press" href="{{ url_for('users.doctors') }}">
       <i class="bi bi-clipboard2-pulse"></i> {{ t('doctors.manage') }}</a>
+    {# GAHAR WFM.05–09 — every staff file and what it is missing. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('users.staff_files') }}" data-to-staff-files>
+      <i class="bi bi-person-vcard"></i> {{ t('sfile.board') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('users.roles') }}">
       <i class="bi bi-shield-lock"></i> {{ t('roles_mgmt.manage') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('users.audit') }}">
@@ -89,6 +92,8 @@
           <a class="btn btn-outline btn-sm" href="{{ url_for('users.edit', user_id=user.id) }}">
             <i class="bi bi-pencil"></i> {{ t('common.edit') }}
           </a>
+          <a class="btn btn-outline btn-sm" href="{{ url_for('users.staff_file', user_id=user.id) }}" data-to-staff-file>
+            <i class="bi bi-person-vcard"></i> {{ t('sfile.title') }}</a>
           {% if user.id != current_user.id %}
           <form method="post" action="{{ url_for('users.delete', user_id=user.id) }}"
                 style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">

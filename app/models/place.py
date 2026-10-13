@@ -72,6 +72,10 @@ class Unit(db.Model):
     name_en = db.Column(db.String(80))
     kind = db.Column(db.String(16), nullable=False, index=True)
     sort_order = db.Column(db.Integer, default=0, nullable=False)
+    #: GAHAR CSS.01 (b) — who comes into a critical unit and who is ready to
+    #: leave it, as the hospital writes them; empty until written.
+    admit_criteria = db.Column(db.Text)
+    discharge_criteria = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 

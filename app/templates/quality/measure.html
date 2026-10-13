@@ -1,0 +1,54 @@
+{% extends "shell.html" %}
+{% set active_module = 'incidents' %}
+{% block title %}{{ m.name }}{% endblock %}
+{% block page_heading %}{{ t('qual.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR QPI.05 ev. 2, QPI.06/07 ev. 3, QPI.08 — the identity sheet, the
+   values by period as collected (numerator and denominator), the curve on
+   one scale with the hospital's target drawn on it, and who validated. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-graph-up"></i> {{ m.name }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('qual.k_' ~ m.kind) }} · {{ t('qual.a_' ~ m.area) }}{% if m.owner %} · <span dir="auto">{{ m.owner }}</span>{% endif %}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('quality.measures') }}"><i class="bi bi-graph-up"></i> {{ t('qual.tab_measures') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-sheet>
+  <h2 class="section-title" style="margin-top:0;">{{ t('qual.sheet') }}</h2>
+  {% for k, v in (('definition', m.definition), ('data_source', m.data_source), ('frequency', m.frequency), ('sampling', m.sampling), ('numerator', m.numerator), ('denominator', m.denominator), ('method', m.method)) %}{% if v %}
+  <p style="margin:0 0 4px;"><span class="hint">{{ t('qual.' ~ k) }}:</span> <span dir="auto">{{ v }}</span></p>{% endif %}{% endfor %}
+  <p style="margin:0;"><span class="hint">{{ t('qual.target') }}:</span> <span dir="ltr">{{ '%g'|format(m.target) if m.target is not none else '—' }}</span>{% if m.per %} · <span class="hint">{{ t('qual.per') }}</span> <span dir="ltr">{{ m.per }}</span>{% endif %}</p>
+</div>
+
+{% if chart %}
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-chart>
+  <svg viewBox="0 0 {{ chart.w }} {{ chart.h }}" width="100%" style="max-width:520px;height:auto;" role="img" aria-label="{{ m.name }}">
+    {% if chart.target_y is not none %}<line x1="10" x2="{{ chart.w - 10 }}" y1="{{ chart.target_y }}" y2="{{ chart.target_y }}" stroke="currentColor" stroke-dasharray="4 3" stroke-opacity=".45"/>{% endif %}
+    <polyline points="{{ chart.points }}" fill="none" stroke="var(--brand, #0b6e99)" stroke-width="2"/>
+  </svg>
+</div>
+{% endif %}
+
+<div class="card gc-scale-in" style="overflow-x:auto;margin-bottom:12px;" data-values>
+  <table class="table" style="min-width:520px;">
+    <thead><tr><th>{{ t('qual.period') }}</th><th>{{ t('qual.numerator') }}</th><th>{{ t('qual.denominator') }}</th><th>{{ t('qual.value') }}</th><th></th></tr></thead>
+    <tbody>{% for v in m.values|reverse %}{% set off = q.off_target(m, v.value) %}
+    <tr data-value="{{ v.id }}"><td dir="ltr">{{ v.period }}</td><td dir="ltr">{{ '%g'|format(v.numerator) }}</td><td dir="ltr">{{ '%g'|format(v.denominator) if v.denominator is not none else '—' }}</td>
+      <td dir="ltr" style="font-variant-numeric:tabular-nums;">{{ '%.2f'|format(v.value) if v.value is not none else '—' }}{% if off %} <span class="badge badge--danger" data-off-target>{{ t('qual.off_target') }}</span>{% endif %}</td>
+      <td>{% if v.validated_by %}<span class="badge badge--ok">{{ t('qual.validated') }}</span>{% endif %}{% if v.note %} <span class="hint" dir="auto">{{ v.note }}</span>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="5" class="hint">{{ t('qual.no_values') }}</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+
+<form class="card" method="post" action="{{ url_for('quality.measure', measure_id=m.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div><label class="label" for="v_p">{{ t('qual.period') }}</label><input class="input" id="v_p" name="period" maxlength="10" required dir="ltr" placeholder="2026-10" style="max-width:120px;"></div>
+  <div><label class="label" for="v_n">{{ t('qual.numerator') }}</label><input class="input" type="number" step="any" id="v_n" name="numerator" required dir="ltr" style="max-width:120px;"></div>
+  {% if m.denominator %}<div><label class="label" for="v_d">{{ t('qual.denominator') }}</label><input class="input" type="number" step="any" id="v_d" name="denominator" required dir="ltr" style="max-width:120px;"></div>{% endif %}
+  <label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" name="validated" value="1"> {{ t('qual.validated_q') }}</label>
+  <div style="flex:1;min-width:160px;"><label class="label" for="v_note">{{ t('ipc.note') }}</label><input class="input" id="v_note" name="note" maxlength="255" dir="auto"></div>
+  <button class="btn btn-primary gc-press" type="submit">{{ t('qual.add_value') }}</button>
+</form>
+{% endblock %}

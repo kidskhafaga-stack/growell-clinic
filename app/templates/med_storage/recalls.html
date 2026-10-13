@@ -1,0 +1,49 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('recall.title') }}{% endblock %}
+{% block page_heading %}{{ t('recall.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR MMS.08 — every recall: the item and its lot, the notice that
+   started it, and how far the four steps (a–d) have gone. While one is open
+   the lot is not picked or issued anywhere. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-arrow-counterclockwise"></i> {{ t('recall.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('recall.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.storage') }}"><i class="bi bi-thermometer-snow"></i> {{ t('med_store.title') }}</a>
+</div>
+
+{% if may_manage %}
+<details class="card gc-scale-in" style="margin-bottom:14px;" {{ 'open' if not rows }}>
+  <summary>{{ t('recall.new') }}</summary>
+  <form method="post" action="{{ url_for('med_storage.recall_open') }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="r_item">{{ t('recall.item') }}</label>
+      <select class="select" id="r_item" name="item_id">{% for i in items %}<option value="{{ i.id }}">{{ i.name }}</option>{% endfor %}</select></div>
+    <div><label class="label" for="r_lot">{{ t('recall.lot') }}</label>
+      <input class="input" id="r_lot" name="lot_number" maxlength="60" required dir="ltr" style="max-width:160px;"></div>
+    <div><label class="label" for="r_from">{{ t('recall.from') }}</label>
+      <input class="input" id="r_from" name="notice_from" maxlength="120" required dir="auto" placeholder="{{ t('recall.from_ph') }}"></div>
+    <div><label class="label" for="r_ref">{{ t('recall.ref') }}</label>
+      <input class="input" id="r_ref" name="notice_ref" maxlength="80" dir="ltr" style="max-width:160px;"></div>
+    <div style="flex:1;min-width:180px;"><label class="label" for="r_reason">{{ t('recall.reason') }}</label>
+      <input class="input" id="r_reason" name="reason" maxlength="255" dir="auto"></div>
+    <button class="btn btn-primary gc-press" type="submit">{{ t('recall.open_btn') }}</button>
+  </form>
+</details>
+{% endif %}
+
+{% if not rows %}<p class="hint" data-recall-empty>{{ t('recall.none') }}</p>{% endif %}
+<div style="display:grid;gap:10px;">
+{% for r in rows %}
+<a class="card" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;" href="{{ url_for('med_storage.recall', recall_id=r.id) }}" data-recall="{{ r.id }}">
+  <b>{{ r.item.name }}</b> <span class="hint">{{ t('recall.lot') }}</span> <b dir="ltr">{{ r.lot_number }}</b>
+  <span class="hint" dir="auto">· {{ r.notice_from }}</span>
+  <span class="hint" dir="ltr">{{ r.opened_at|clinic_stamp }}</span>
+  {% if r.is_open %}<span class="badge badge--danger">{{ t('recall.open') }}</span>{% else %}<span class="badge badge--ok">{{ t('recall.closed') }}</span>{% endif %}
+</a>
+{% endfor %}
+</div>
+{% endblock %}

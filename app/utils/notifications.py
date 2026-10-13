@@ -323,6 +323,52 @@ def _compute():
     except Exception:  # noqa: BLE001
         pass
 
+    # The pharmacy's open counts in one read (GAHAR MMS.08, MMS.16 ev. 4,
+    # MMS.03 ev. 6, MMS.05 ev. 4): a recall still open, an adverse reaction
+    # not yet reported nationally, a shortage announced to prescribers, and
+    # an emergency cart used and not yet restocked — whose lateness is read
+    # against the hospital's hours only when there is one. One query, because
+    # the bell's rebuild is a fixed cost (`test_performance`).
+    try:
+        from app.extensions import db
+        from app.models import AdverseReaction, CartUse, DrugRecall, DrugShortage
+        from app.utils.facility import module_enabled
+
+        if module_enabled("pharmacy"):
+            recalls, adr, short, carts = db.session.query(
+                db.session.query(db.func.count(DrugRecall.id))
+                .filter(DrugRecall.closed_at.is_(None)).scalar_subquery(),
+                db.session.query(db.func.count(AdverseReaction.id))
+                .filter(AdverseReaction.reported_at.is_(None)).scalar_subquery(),
+                db.session.query(db.func.count(DrugShortage.id))
+                .filter(DrugShortage.ended_at.is_(None)).scalar_subquery(),
+                db.session.query(db.func.count(CartUse.id))
+                .filter(CartUse.replaced_at.is_(None)).scalar_subquery()).one()
+            if carts:
+                from app.utils.emergency_cart import late_count
+
+                late = late_count()
+                if late:
+                    items.append({"key": "carts_late", "module": "beds",
+                                  "icon": "heart-pulse", "severity": "danger",
+                                  "count": late, "endpoint": "med_storage.carts_board",
+                                  "kwargs": {}})
+            if recalls:
+                items.append({"key": "drug_recalls", "module": "pharmacy",
+                              "icon": "arrow-counterclockwise", "severity": "danger",
+                              "count": recalls, "endpoint": "med_storage.recalls", "kwargs": {}})
+            if adr:
+                items.append({"key": "adr_unreported", "module": "pharmacy",
+                              "icon": "exclamation-diamond", "severity": "warning",
+                              "count": adr, "endpoint": "pharmacy.adr_board", "kwargs": {}})
+            if short:
+                items.append({"key": "drug_shortages", "module": "dashboard",
+                              "capability": "medication_order", "icon": "exclamation-octagon",
+                              "severity": "warning", "count": short,
+                              "endpoint": "prescriptions.shortages", "kwargs": {}})
+    except Exception:  # noqa: BLE001
+        pass
+
     # A newer version of the program, as the last launch found it. Read from
     # what was stored rather than asked here: see `updates.remembered`. Under
     # `settings`, which is admin-only — updating is not a receptionist's

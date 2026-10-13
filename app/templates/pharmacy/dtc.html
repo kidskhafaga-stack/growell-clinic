@@ -1,0 +1,95 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('dtc.title') }}{% endblock %}
+{% block page_heading %}{{ t('dtc.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR MMS.01 ev. 3 and 5, MMS.03 ev. 5 — the committee's meetings and
+   decisions (a formulary addition or removal names the ingredient), the
+   decisions still open, and the programme's annual review by element. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-people"></i> {{ t('dtc.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('dtc.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.shortages') }}" data-to-shortages><i class="bi bi-exclamation-octagon"></i> {{ t('dtc.shortages') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-dtc-open>
+  <h2 class="section-title" style="margin-top:0;">{{ t('dtc.open_decisions') }}</h2>
+  {% for d in data.open %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);padding:6px 0;" data-dtc-decision="{{ d.id }}">
+    {% if d.kind != 'general' %}<span class="badge badge--muted">{{ t('dtc.kind_' ~ d.kind) }}{% if d.generic %}: {{ d.generic.display_name(current_lang) }}{% endif %}</span>{% endif %}
+    <span dir="auto" style="flex:1;min-width:200px;">{{ d.text }}</span>
+    <span class="hint">{{ d.owner }}{% if d.due_on %} · <span dir="ltr">{{ d.due_on }}</span>{% endif %}</span>
+    {% if d.due_on and d.due_on < today %}<span class="badge badge--danger">{{ t('dtc.overdue') }}</span>{% endif %}
+    <form method="post" action="{{ url_for('pharmacy.dtc_decision_done', row_id=d.id) }}" style="display:flex;gap:6px;margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="note" maxlength="255" required dir="auto" placeholder="{{ t('dtc.done_note') }}" aria-label="{{ t('dtc.done_note') }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('dtc.done') }}</button>
+    </form>
+  </div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('dtc.none_open') }}</p>{% endfor %}
+</div>
+
+<details class="card gc-scale-in" style="margin-bottom:14px;" {{ 'open' if not data.meetings }} data-dtc-new>
+  <summary>{{ t('dtc.new_meeting') }}</summary>
+  <form method="post" action="{{ url_for('pharmacy.dtc_meeting_save') }}" style="display:grid;gap:10px;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div><label class="label" for="m_d">{{ t('dtc.held_on') }}</label><input class="input" type="date" id="m_d" name="held_on" required></div>
+      <div style="flex:1;min-width:240px;"><label class="label" for="m_a">{{ t('dtc.attendees') }}</label><input class="input" id="m_a" name="attendees" required dir="auto"></div>
+    </div>
+    <div><label class="label" for="m_m">{{ t('dtc.minutes') }}</label><textarea class="input" id="m_m" name="minutes" rows="4" required dir="auto"></textarea></div>
+    {% for i in range(3) %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+      <div><label class="label" for="k{{ i }}">{{ t('dtc.decision_kind') }}</label>
+        <select class="select" id="k{{ i }}" name="kind">{% for k in ('general', 'formulary_add', 'formulary_remove') %}<option value="{{ k }}">{{ t('dtc.kind_' ~ k) }}</option>{% endfor %}</select></div>
+      <div><label class="label" for="g{{ i }}">{{ t('dtc.drug') }}</label>
+        <select class="select" id="g{{ i }}" name="generic_id"><option value="">—</option>{% for g in generics %}<option value="{{ g.id }}">{{ g.display_name(current_lang) }}</option>{% endfor %}</select></div>
+      <div style="flex:1;min-width:200px;"><label class="label" for="d{{ i }}">{{ t('dtc.decision') }}</label><input class="input" id="d{{ i }}" name="decision" dir="auto"></div>
+      <div><label class="label" for="o{{ i }}">{{ t('dtc.owner') }}</label><input class="input" id="o{{ i }}" name="owner" maxlength="120" dir="auto"></div>
+      <div><label class="label" for="u{{ i }}">{{ t('dtc.due') }}</label><input class="input" type="date" id="u{{ i }}" name="due_on"></div>
+    </div>
+    {% endfor %}
+    <div><button class="btn btn-primary gc-press" type="submit">{{ t('dtc.save_meeting') }}</button></div>
+  </form>
+</details>
+
+{% for m in data.meetings %}
+<details class="card" style="margin-bottom:8px;" data-dtc-meeting="{{ m.id }}">
+  <summary><span dir="ltr">{{ m.held_on }}</span> · <span dir="auto">{{ m.attendees }}</span></summary>
+  <div dir="auto" style="white-space:pre-line;margin-top:8px;">{{ m.minutes }}</div>
+  {% if m.decisions %}<ul>{% for d in m.decisions %}<li dir="auto">{{ d.text }} — {{ d.owner }}{% if d.done_at %} <span class="badge badge--ok">{{ t('dtc.done') }}</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
+</details>
+{% endfor %}
+
+{% set rev = data.reviews.get(year) %}
+<div class="card gc-scale-in" id="review" style="margin-top:14px;" data-dtc-review>
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">
+    <h2 class="section-title" style="margin:0;">{{ t('dtc.annual_review') }} <span dir="ltr">{{ year }}</span></h2>
+    {% if rev %}<span class="badge badge--ok">{{ t('dtc.signed') }} <span dir="ltr">{{ rev.signed_at|clinic_stamp }}</span></span>{% else %}<span class="badge badge--warn" data-review-missing>{{ t('dtc.not_reviewed') }}</span>{% endif %}
+  </div>
+  <form method="post" action="{{ url_for('pharmacy.dtc_review_save', year=year) }}" style="display:grid;gap:8px;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for e in elements %}
+    <div><label class="label" for="r_{{ e }}">{{ t('dtc.el_' ~ e) }}</label>
+      <textarea class="input" id="r_{{ e }}" name="{{ e }}" rows="2" dir="auto">{{ (rev|attr(e)) if rev and (rev|attr(e)) else '' }}</textarea></div>
+    {% endfor %}
+    <div><button class="btn btn-outline gc-press" type="submit">{{ t('dtc.save_review') }}</button></div>
+  </form>
+</div>
+{# GAHAR MMS.16 ev. 2 — the hospital's list of medicines whose first dose is
+   watched, and for what, in its words. #}
+<div class="card gc-scale-in" id="first-dose" style="margin-top:14px;" data-first-dose-list>
+  <h2 class="section-title" style="margin-top:0;">{{ t('fammed.watch_list') }}</h2>
+  {% if watch %}<ul>{% for w in watch %}<li>{{ w.generic.display_name(current_lang) }} — <span dir="auto">{{ w.watch_for }}</span></li>{% endfor %}</ul>
+  {% else %}<p class="hint">{{ t('fammed.no_watch') }}</p>{% endif %}
+  <form method="post" action="{{ url_for('pharmacy.first_dose_watch_add') }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="fw_g">{{ t('dtc.drug') }}</label><select class="select" id="fw_g" name="generic_id">{% for g in generics %}<option value="{{ g.id }}">{{ g.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div style="flex:1;min-width:220px;"><label class="label" for="fw_w">{{ t('fammed.watch_for') }}</label><input class="input" id="fw_w" name="watch_for" maxlength="255" required dir="auto"></div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('asp.add') }}</button>
+  </form>
+</div>
+{% endblock %}

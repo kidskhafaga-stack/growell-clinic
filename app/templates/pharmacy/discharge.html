@@ -104,4 +104,18 @@
     {% endif %}
   </div>
 </div>
+{# GAHAR MMS.14 ev. 4 — the pharmacist's counselling at discharge: to whom,
+   and whether they were given the chance to ask. #}
+<div class="card gc-scale-in" id="counsel" style="margin-top:14px;" data-counsel>
+  <h2 class="section-title" style="margin-top:0;">{{ t('fammed.discharge_counsel') }}</h2>
+  {% for c in counselled %}<p style="margin:0 0 6px;" data-counselled="{{ c.id }}"><span class="badge badge--ok">{{ t('fammed.done') }}</span> <span dir="auto">{{ c.to_whom }}</span> · <span dir="ltr">{{ c.at|clinic_stamp }}</span>{% if c.by %} · {{ c.by.display_name(current_lang) }}{% endif %}{% if c.questions %} · {{ t('fammed.asked') }}{% endif %}{% if c.note %} · <span dir="auto">{{ c.note }}</span>{% endif %}</p>
+  {% else %}<p class="hint" style="margin:0 0 8px;" data-not-counselled>{{ t('fammed.not_counselled') }}</p>{% endfor %}
+  <form method="post" action="{{ url_for('pharmacy.discharge_counselled', admission_id=admission.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="c_to">{{ t('fammed.to_whom') }}</label><input class="input" id="c_to" name="to_whom" maxlength="120" required dir="auto"></div>
+    <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" name="questions" value="1"> {{ t('fammed.asked') }}</label>
+    <div style="flex:1;min-width:180px;"><label class="label" for="c_n">{{ t('ipc.note') }}</label><input class="input" id="c_n" name="note" maxlength="255" dir="auto" placeholder="{{ t('fammed.counsel_ph') }}"></div>
+    <button class="btn btn-primary gc-press" type="submit">{{ t('fammed.record_counsel') }}</button>
+  </form>
+</div>
 {% endblock %}

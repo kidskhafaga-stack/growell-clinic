@@ -723,6 +723,8 @@ def store_move(item_id):
                 raise med_storage.StorageError("lot_unknown")
             if kind == "out" and held[lot]["state"] == "expired":
                 raise med_storage.StorageError("lot_expired")
+            if kind == "out" and held[lot]["recalled"]:
+                raise med_storage.StorageError("lot_recalled")
     except med_storage.StorageError as err:
         flash(t(f"med_store.err_{err}"), "danger")
         return redirect(url_for("inventory.store_item", item_id=item.id))

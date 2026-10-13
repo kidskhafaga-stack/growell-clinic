@@ -17,6 +17,16 @@
       <i class="bi bi-calendar-x"></i> {{ t('med_store.expiry_title') }}
       {% if data.expired %}<span class="badge badge--danger" data-expired-count>{{ data.expired }}</span>{% endif %}
       {% if data.near %}<span class="badge badge--warn">{{ data.near }}</span>{% endif %}</a>
+    {# GAHAR MMS.05 — emergency medication carts. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.carts_board') }}" data-to-carts>
+      <i class="bi bi-heart-pulse"></i> {{ t('cart.title') }}</a>
+    {# GAHAR MMS.08 — drug recalls by lot. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.recalls') }}" data-to-recalls>
+      <i class="bi bi-arrow-counterclockwise"></i> {{ t('recall.title') }}
+      {% if recalls_open %}<span class="badge badge--danger">{{ recalls_open }}</span>{% endif %}</a>
+    {# GAHAR MMS.09 ev. 4 — the controlled-drug book. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.controlled_book') }}" data-to-controlled>
+      <i class="bi bi-journal-lock"></i> {{ t('ctrl.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.storage_outages') }}" data-to-outages>
       <i class="bi bi-lightning-charge"></i> {{ t('med_store.outages_title') }}
       {% if data.outages %}<span class="badge badge--danger">{{ data.outages|length }}</span>{% endif %}</a>

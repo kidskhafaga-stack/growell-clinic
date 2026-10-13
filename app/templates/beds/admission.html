@@ -28,10 +28,10 @@
 {% set mrp_now = admission.responsibility %}
 {% set here_bed = admission.bed if admission.is_open else none %}
 <div class="stay" x-data="{
-        inside: { nursing: 'care', pain: 'care', food: 'care', milk: 'care', risks: 'care',
-                  medicines: 'treatment', reconcile: 'treatment', tests: 'treatment', lines: 'treatment',
+        inside: { nursing: 'care', pain: 'care', food: 'care', milk: 'care', palliative: 'care', risks: 'care',
+                  medicines: 'treatment', reconcile: 'treatment', 'own-meds': 'treatment', adr: 'treatment', 'family-meds': 'treatment', tests: 'treatment', lines: 'treatment',
                   blood: 'treatment', theatre: 'treatment',
-                  restraint: 'safety', arrest: 'safety', precautions: 'safety',
+                  restraint: 'safety', arrest: 'safety', precautions: 'safety', mental: 'safety',
                   'discharge-summary': 'discharge', mrp: 'overview',
                   rounds: 'overview' },
         known: [],
@@ -933,6 +933,54 @@
   {% endfor %}
 </div>
 {% endif %}
+{# ===================== رعاية نهاية الحياة — CSS.04 ==========================
+   أهداف الرعاية بقرار مع الأهل (مين ووصلوا لإيه)، والدعم النفسي والروحي،
+   والفريق؛ ومراجعة الأعراض اللي البند بيسمّيها، والموجود منها محتاج اللي
+   اتعمل. مفيش مقياس من عندنا. #}
+{% if palliative.plan or palliative.reviews or admission.is_open %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="palliative" data-palliative>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-flower1"></i> {{ t('pall.title') }}
+    <span class="hint" dir="ltr">CSS.04</span></h2>
+  {% set plan = palliative.plan %}
+  {% if plan %}
+  <div data-pall-plan>
+    <div dir="auto" style="white-space:pre-line;">{{ plan.goals }}</div>
+    <div class="hint" style="margin:4px 0 0;">{{ t('pall.decided_with') }}: <span dir="auto">{{ plan.decided_with }}</span> · <span dir="ltr">{{ plan.at|clinic_stamp }}</span>{% if plan.by %} · {{ plan.by.display_name(current_lang) }}{% endif %}</div>
+    {% if plan.support %}<div class="hint" style="margin:2px 0 0;">{{ t('pall.support') }}: <span dir="auto">{{ plan.support }}</span></div>{% endif %}
+    {% if plan.team %}<div class="hint" style="margin:2px 0 0;">{{ t('pall.team') }}: <span dir="auto">{{ plan.team }}</span></div>{% endif %}
+  </div>
+  {% endif %}
+  {% for r in palliative.reviews %}
+  <div class="hint" style="margin:6px 0 0;" data-pall-review="{{ r.id }}"><span dir="ltr">{{ r.at|clinic_stamp }}</span> ·
+    {% for s in r.present_list %}<span class="badge badge--warn">{{ t('pall.sym_' ~ s) }}</span> {% else %}{{ t('pall.no_symptoms') }}{% endfor %}
+    {% if r.action %} · <span dir="auto">{{ r.action }}</span>{% endif %}</div>
+  {% endfor %}
+  {% if admission.is_open %}
+  <details style="margin-top:10px;" {{ 'open' if not plan }}>
+    <summary>{{ t('pall.plan_new') if not plan else t('pall.plan_update') }}</summary>
+    <form method="post" action="{{ url_for('beds.palliative_plan', admission_id=admission.id) }}" style="display:grid;gap:8px;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div><label class="label" for="pl_g">{{ t('pall.goals') }}</label><textarea class="input" id="pl_g" name="goals" rows="3" required dir="auto">{{ plan.goals if plan else '' }}</textarea></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;"><label class="label" for="pl_d">{{ t('pall.decided_with') }}</label><input class="input" id="pl_d" name="decided_with" maxlength="160" required dir="auto" value="{{ plan.decided_with if plan else '' }}"></div>
+        <div style="flex:1;min-width:200px;"><label class="label" for="pl_s">{{ t('pall.support') }}</label><input class="input" id="pl_s" name="support" maxlength="255" dir="auto" placeholder="{{ t('pall.support_ph') }}" value="{{ plan.support or '' if plan else '' }}"></div>
+        <div style="flex:1;min-width:200px;"><label class="label" for="pl_t">{{ t('pall.team') }}</label><input class="input" id="pl_t" name="team" maxlength="255" dir="auto" value="{{ plan.team or '' if plan else '' }}"></div>
+      </div>
+      <div><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('pall.save_plan') }}</button></div>
+    </form>
+  </details>
+  {% if plan %}
+  <form method="post" action="{{ url_for('beds.palliative_review', admission_id=admission.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;border-top:1px solid var(--line);padding-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for s in ('pain', 'dyspnea', 'anxiety', 'agitation') %}<label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" name="present" value="{{ s }}"> {{ t('pall.sym_' ~ s) }}</label>{% endfor %}
+    <input class="input" name="action" maxlength="255" dir="auto" placeholder="{{ t('pall.action_ph') }}" aria-label="{{ t('pall.action') }}" style="flex:1;min-width:200px;">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('pall.save_review') }}</button>
+  </form>
+  {% endif %}
+  {% endif %}
+</div>
+{% endif %}
 {# ===================== لبن الأم المسحوب — IPC.20 (h) =====================
    الكيس بتاع طفل واحد: بيتسجّل بالملصق، وبيتدّي لصاحبه بس قبل ما يخلص.
    الإدّا بيتعمل من صفحة الطفل نفسه، فكيس طفل تاني بيترفض قبل أي كتابة.
@@ -1140,6 +1188,173 @@
 
 <div class="gc-tab-panel stay-panel" data-stay-panel="treatment" x-show="tab==='treatment'" x-cloak>
 {# ---- the chart --------------------------------------------------------- #}
+{# ---- the family and the medicines — GAHAR MMS.15 ev. 3 and 5, MMS.16 ev. 2 --
+   A first dose of a medicine on the hospital's watch list stays here until
+   somebody writes what was seen; the family told about a medicine; and a
+   medicine the child or the family gives, taught and supervised. #}
+{% if admission.is_open or family_meds.counselling %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="family-meds" data-family-meds>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-people"></i> {{ t('fammed.title') }}
+    <span class="hint" dir="ltr">MMS.15</span></h2>
+  {% for order, watch, dose in family_meds.first_dose %}
+  <div style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px;" data-first-dose="{{ order.id }}">
+    <span class="badge badge--warn">{{ t('fammed.first_dose') }}</span> <b dir="auto">{{ order.drug_name }}</b>
+    <span class="hint">· <span dir="ltr">{{ dose.at|clinic_stamp }}</span> · {{ t('fammed.watch_for') }}: <span dir="auto">{{ watch.watch_for }}</span></span>
+    <form method="post" action="{{ url_for('beds.meds_first_dose', order_id=order.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <select class="select" name="outcome" aria-label="{{ t('fammed.seen') }}"><option value="nothing">{{ t('fammed.out_nothing') }}</option><option value="reaction">{{ t('fammed.out_reaction') }}</option></select>
+      <input class="input" name="note" maxlength="255" dir="auto" placeholder="{{ t('fammed.seen_ph') }}" aria-label="{{ t('ipc.note') }}" style="flex:1;min-width:160px;">
+      <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('fammed.record_seen') }}</button>
+    </form>
+  </div>
+  {% endfor %}
+  {% for c in family_meds.counselling %}
+  <p class="hint" style="margin:0 0 4px;" data-told="{{ c.id }}">{{ t('fammed.kind_' ~ c.kind) }}: <span dir="auto">{{ c.to_whom }}</span> · <span dir="ltr">{{ c.at|clinic_stamp }}</span>{% if c.questions %} · {{ t('fammed.asked') }}{% endif %}{% if c.note %} · <span dir="auto">{{ c.note }}</span>{% endif %}</p>
+  {% endfor %}
+  {% if admission.is_open %}
+  <form method="post" action="{{ url_for('beds.meds_told', admission_id=admission.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="ft_o">{{ t('fammed.about') }}</label>
+      <select class="select" id="ft_o" name="order_id"><option value="">{{ t('fammed.all_meds') }}</option>{% for o in admission.medication_orders if o.is_running %}<option value="{{ o.id }}">{{ o.drug_name }}</option>{% endfor %}</select></div>
+    <div><label class="label" for="ft_w">{{ t('fammed.to_whom') }}</label><input class="input" id="ft_w" name="to_whom" maxlength="120" required dir="auto"></div>
+    <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" name="questions" value="1"> {{ t('fammed.asked') }}</label>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('fammed.record_told') }}</button>
+  </form>
+  <details style="margin-top:10px;">
+    <summary>{{ t('fammed.self_title') }}</summary>
+    {% for o in admission.medication_orders if o.is_running %}
+    <div style="border-bottom:1px solid var(--line);padding:6px 0;" data-self-order="{{ o.id }}">
+      <b dir="auto">{{ o.drug_name }}</b>
+      {% set sa = family_meds.self.get(o.id) %}
+      {% if sa %}<span class="badge badge--ok" data-self-on>{{ t('fammed.by_' ~ sa.by_whom) }}</span> <span class="hint" dir="auto">{{ sa.supervision }}</span>
+      {% else %}
+      <form method="post" action="{{ url_for('beds.meds_self_admin', order_id=o.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0 0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <select class="select" name="by_whom" aria-label="{{ t('fammed.by_whom') }}"><option value="family">{{ t('fammed.by_family') }}</option><option value="patient">{{ t('fammed.by_patient') }}</option></select>
+        <label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" name="able" value="1"> {{ t('fammed.able') }}</label>
+        <input class="input" name="supervision" maxlength="255" required dir="auto" placeholder="{{ t('fammed.supervision_ph') }}" aria-label="{{ t('fammed.supervision') }}" style="flex:1;min-width:160px;">
+        <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('fammed.taught') }}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% else %}<p class="hint" style="margin:6px 0 0;">{{ t('fammed.no_running') }}</p>{% endfor %}
+  </details>
+  {% endif %}
+</div>
+{% endif %}
+{# ---- adverse drug reactions — GAHAR MMS.16 ev. 3–5 -----------------------
+   What happened, what was done, the prescriber told, and the national report
+   (filed by the pharmacy). Whether the drug goes on the allergy line is
+   ticked by the person writing it — never added by the program. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="adr" data-adr>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-exclamation-diamond"></i> {{ t('adr.title') }}
+    <span class="hint" dir="ltr">MMS.16</span></h2>
+  {% for r in reactions %}
+  <div style="border-bottom:1px solid var(--line);padding:8px 0;" data-adr-row="{{ r.id }}">
+    <b dir="auto">{{ r.drug_name }}</b>
+    <span class="badge {{ 'badge--danger' if r.severity == 'severe' else ('badge--warn' if r.severity == 'moderate' else 'badge--muted') }}">{{ t('adr.sev_' ~ r.severity) }}</span>
+    <span class="hint"><span dir="ltr">{{ r.onset_at|clinic_stamp }}</span></span>
+    {% if r.added_to_allergies %}<span class="badge badge--muted">{{ t('adr.on_allergies') }}</span>{% endif %}
+    {% if r.reported_at %}<span class="badge badge--ok">{{ t('adr.reported') }} <span dir="ltr">{{ r.report_ref }}</span></span>{% else %}<span class="badge badge--warn" data-adr-unreported>{{ t('adr.not_reported') }}</span>{% endif %}
+    <div dir="auto" style="margin-top:4px;">{{ r.what_happened }}</div>
+    <div class="hint" style="margin:2px 0 0;">{{ t('adr.action') }}: <span dir="auto">{{ r.action_taken }}</span></div>
+    {% if r.prescriber_told %}<div class="hint" style="margin:2px 0 0;">{{ t('adr.told') }}: <span dir="auto">{{ r.prescriber_told }}</span> · <span dir="ltr">{{ r.prescriber_told_at|clinic_stamp }}</span></div>
+    {% elif module_enabled('pharmacy') and current_user.can_access('pharmacy') %}
+    <form method="post" action="{{ url_for('pharmacy.adr_told', row_id=r.id) }}" style="display:flex;gap:6px;margin:6px 0 0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="prescriber_told" maxlength="120" required dir="auto" placeholder="{{ t('adr.told_ph') }}" aria-label="{{ t('adr.told') }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('adr.save_told') }}</button>
+    </form>
+    {% else %}<div class="hint" style="margin:2px 0 0;"><span class="badge badge--warn">{{ t('adr.not_told') }}</span></div>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('adr.none') }}</p>
+  {% endfor %}
+  <details style="margin-top:10px;">
+    <summary>{{ t('adr.new') }}</summary>
+    <form method="post" action="{{ url_for('beds.adr_record', admission_id=admission.id) }}" style="display:grid;gap:10px;margin-top:10px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+        <div style="flex:1;min-width:200px;"><label class="label" for="adr_drug">{{ t('adr.drug') }}</label>
+          <input class="input" id="adr_drug" name="drug_name" maxlength="160" required dir="auto" list="adr_drugs">
+          <datalist id="adr_drugs">{% for o in admission.medication_orders %}<option value="{{ o.drug_name }}">{% endfor %}</datalist></div>
+        <div><label class="label" for="adr_onset">{{ t('adr.onset') }}</label>
+          <input class="input" type="datetime-local" id="adr_onset" name="onset_at"></div>
+        <div><label class="label" for="adr_sev">{{ t('adr.severity') }}</label>
+          <select class="select" id="adr_sev" name="severity">{% for s in ('mild', 'moderate', 'severe') %}<option value="{{ s }}">{{ t('adr.sev_' ~ s) }}</option>{% endfor %}</select></div>
+      </div>
+      <div><label class="label" for="adr_what">{{ t('adr.what') }}</label>
+        <textarea class="input" id="adr_what" name="what_happened" rows="2" required dir="auto"></textarea></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+        <div style="flex:1;min-width:200px;"><label class="label" for="adr_action">{{ t('adr.action') }}</label>
+          <input class="input" id="adr_action" name="action_taken" maxlength="255" required dir="auto" placeholder="{{ t('adr.action_ph') }}"></div>
+        <div style="flex:1;min-width:180px;"><label class="label" for="adr_told">{{ t('adr.told') }}</label>
+          <input class="input" id="adr_told" name="prescriber_told" maxlength="120" dir="auto" placeholder="{{ t('adr.told_ph') }}"></div>
+      </div>
+      <label style="display:flex;gap:8px;align-items:center;"><input type="checkbox" name="add_allergy" value="1"> {{ t('adr.add_allergy') }}</label>
+      <div><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-exclamation-diamond"></i> {{ t('adr.save') }}</button></div>
+    </form>
+  </details>
+</div>
+{# ---- medicines brought from home — GAHAR MMS.09 ev. 5 ---------------------
+   The bag the family handed over: what is in it, identified before anything
+   from it is given, labelled, and to whom it went back. A bag still held on a
+   closed stay is shown — somebody's medicine is still in a cupboard. #}
+{% if admission.is_open or own_meds %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="own-meds" data-own-meds>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-bag-heart"></i> {{ t('ownmed.title') }}
+    <span class="hint" dir="ltr">MMS.09</span></h2>
+  {% for m in own_meds %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);padding:8px 0;" data-own-med="{{ m.id }}">
+    <div style="flex:1;min-width:200px;">
+      <b dir="auto">{{ m.name }}</b>{% if m.quantity %} <span class="hint" dir="auto">· {{ m.quantity }}</span>{% endif %}{% if m.expiry %} <span class="hint">· {{ t('ownmed.expiry') }} <span dir="ltr">{{ m.expiry }}</span></span>{% endif %}
+      <div class="hint" style="margin:2px 0 0;">{{ t('ownmed.received_on') }} <span dir="ltr">{{ m.received_at|clinic_stamp }}</span>{% if m.receiver %} · {{ m.receiver.display_name(current_lang) }}{% endif %}{% if m.note %} · <span dir="auto">{{ m.note }}</span>{% endif %}</div>
+    </div>
+    {% if m.decision %}<span class="badge {{ 'badge--ok' if m.decision == 'use' else 'badge--muted' }}" data-own-decision="{{ m.decision }}">{{ t('ownmed.decision_' ~ m.decision) }}</span>
+    {% else %}<span class="badge badge--warn" data-own-unidentified>{{ t('ownmed.unidentified') }}</span>{% endif %}
+    {% if m.held %}
+    <a class="hint" href="{{ url_for('beds.own_med_label', row_id=m.id) }}" target="_blank" rel="noopener">{{ t('ownmed.label') }}</a>
+    <form method="post" action="{{ url_for('beds.own_med_identify', row_id=m.id) }}" style="display:flex;gap:6px;margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <select class="select" name="decision" aria-label="{{ t('ownmed.decision') }}">{% for d in ('use', 'keep', 'home', 'destroy') %}<option value="{{ d }}" {{ 'selected' if m.decision == d }}>{{ t('ownmed.decision_' ~ d) }}</option>{% endfor %}</select>
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('ownmed.identify') }}</button>
+    </form>
+    <form method="post" action="{{ url_for('beds.own_med_out', row_id=m.id) }}" style="display:flex;gap:6px;margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="out_to" maxlength="120" required dir="auto" placeholder="{{ t('ownmed.out_to_ph') }}" aria-label="{{ t('ownmed.out_to') }}" style="min-width:150px;">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('ownmed.hand_out') }}</button>
+    </form>
+    {% if not admission.is_open %}<span class="badge badge--danger" data-own-still-held>{{ t('ownmed.still_held') }}</span>{% endif %}
+    {% else %}
+    <span class="hint">{{ t('ownmed.out_on') }} <span dir="ltr">{{ m.out_at|clinic_stamp }}</span> · <span dir="auto">{{ m.out_to }}</span></span>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('ownmed.none') }}</p>
+  {% endfor %}
+  {% if admission.is_open %}
+  <details style="margin-top:10px;">
+    <summary>{{ t('ownmed.receive') }}</summary>
+    <form method="post" action="{{ url_for('beds.own_med_receive', admission_id=admission.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="flex:1;min-width:200px;"><label class="label" for="om_name">{{ t('ownmed.name') }}</label>
+        <input class="input" id="om_name" name="name" maxlength="160" required dir="auto"></div>
+      <div><label class="label" for="om_qty">{{ t('ownmed.quantity') }}</label>
+        <input class="input" id="om_qty" name="quantity" maxlength="60" dir="auto" style="max-width:140px;"></div>
+      <div><label class="label" for="om_exp">{{ t('ownmed.expiry') }}</label>
+        <input class="input" id="om_exp" name="expiry" maxlength="20" dir="ltr" placeholder="2027-03" style="max-width:120px;"></div>
+      <div style="flex:1;min-width:160px;"><label class="label" for="om_note">{{ t('ipc.note') }}</label>
+        <input class="input" id="om_note" name="note" maxlength="255" dir="auto"></div>
+      <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-tag"></i> {{ t('ownmed.receive_btn') }}</button>
+    </form>
+  </details>
+  {% endif %}
+</div>
+{% endif %}
 {# ---- medication reconciliation — GAHAR MMS.10 / GSR.18 -------------------
    The four moments a child's medicines are looked at again: coming in, each
    move into another unit, and going home (or to another hospital). Which are
@@ -1237,7 +1452,13 @@
       {% for item in meds.orders %}
       <tr data-order="{{ item.order.id }}">
         <td><b>{{ item.order.drug_name }}</b>
-          <span class="badge badge--muted">{{ t('meds.route_' ~ item.order.route) }}</span></td>
+          <span class="badge badge--muted">{{ t('meds.route_' ~ item.order.route) }}</span>
+          {%- if item.order.indication %}<div class="hint" style="margin:0;" dir="auto">{{ t('meds.indication') }}: {{ item.order.indication }}</div>{% endif %}
+          {%- if item.order.rate or item.order.course_days or item.order.max_per_day %}<div class="hint" style="margin:0;" dir="auto">
+            {%- if item.order.rate %}{{ t('meds.rate') }}: {{ item.order.rate }} {% endif %}
+            {%- if item.order.max_per_day %}{{ t('meds.max_per_day') }}: {{ item.order.max_per_day }} {% endif %}
+            {%- if item.order.course_days %}{{ t('meds.course_n', n=item.order.course_days) }}{% endif %}</div>{% endif %}
+          {%- for k in item.order.missing_elements %} <span class="badge badge--warn" data-order-missing="{{ k }}">{{ t('meds.missing_' ~ k) }}</span>{% endfor %}</td>
         <td>{{ item.order.dose or '—' }}</td>
         <td dir="ltr">
           {%- if item.order.is_prn %}{{ t('meds.prn') }}
@@ -1377,6 +1598,21 @@
                x-bind:disabled="!prn" dir="ltr"
                placeholder="{{ t('meds.min_gap') }}">
       </div>
+      {# GAHAR MMS.11 (e)(viii)(ix) — what it is for and the most in a day
+         for a "when needed", an infusion's rate, how many days. #}
+      <div class="form-row" style="margin-bottom:0;min-width:160px;">
+        <label for="indication">{{ t('meds.indication') }}</label>
+        <input class="input" id="indication" name="indication" maxlength="160" dir="auto"
+               x-bind:placeholder="prn ? {{ t('meds.prn_needs')|tojson|forceescape }} : ''"></div>
+      <div class="form-row" style="margin-bottom:0;min-width:130px;" x-show="prn" x-cloak>
+        <label for="max_per_day">{{ t('meds.max_per_day') }}</label>
+        <input class="input" id="max_per_day" name="max_per_day" maxlength="60" dir="auto"></div>
+      <div class="form-row" style="margin-bottom:0;min-width:120px;">
+        <label for="rate">{{ t('meds.rate') }}</label>
+        <input class="input" id="rate" name="rate" maxlength="60" dir="auto" placeholder="ml/h"></div>
+      <div class="form-row" style="margin-bottom:0;min-width:100px;">
+        <label for="course_days">{{ t('meds.course_days') }}</label>
+        <input class="input" type="number" min="1" max="365" id="course_days" name="course_days" dir="ltr"></div>
       {# What comes off the shelf when this is given, and how many units of
          it. Left empty, the order is charted and given exactly as before and
          touches neither the stock nor the bill — which is how a clinic that
@@ -1974,6 +2210,51 @@
 {% endif %}
 </div>
 
+{# ======================= الصحة النفسية — CSS.11 (ب)(ح)(ي) =================
+   خطر إيذاء النفس أو الغير بأداة المستشفى، والخطة لو في خطر؛ والتهدئة
+   السريعة بالمتابعة بعدها. مقفول لحد ما حد يفتحه — مش كل طفل في سرير
+   بيتسأل السؤال ده، فمفيش «ناقص» على طفل ما اتحوّلش للصحة النفسية. #}
+{% set mh = mental %}
+<details class="card gc-scale-in" style="margin-bottom:16px;" id="mental" data-mental {{ 'open' if mh.screens or mh.rt }}>
+  <summary class="section-title" style="margin:0;">
+    <i class="bi bi-chat-heart"></i> {{ t('mental.title') }} <span class="hint" dir="ltr">CSS.11</span>
+    {% if mh.latest %}{% if mh.latest.at_risk %}<span class="badge badge--danger" data-harm-risk>{{ t('mental.at_risk') }}</span>{% else %}<span class="badge badge--ok">{{ t('mental.not_at_risk') }}</span>{% endif %}{% endif %}</summary>
+  {% for s in mh.screens[:5] %}
+  <div class="hint" style="margin:6px 0 0;" data-harm-screen="{{ s.id }}"><span dir="ltr">{{ s.at|clinic_stamp }}</span>{% if s.tool %} · <span dir="auto">{{ s.tool }}</span>{% endif %}{% if s.level %} · <span dir="auto">{{ s.level }}</span>{% endif %} · {{ t('mental.at_risk') if s.at_risk else t('mental.not_at_risk') }}{% if s.plan %}<div dir="auto" style="white-space:pre-line;">{{ s.plan }}</div>{% endif %}</div>
+  {% endfor %}
+  {% if admission.is_open %}
+  <form method="post" action="{{ url_for('beds.harm_screen', admission_id=admission.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="hs_t">{{ t('mental.tool') }}</label><input class="input" id="hs_t" name="tool" maxlength="120" dir="auto" value="{{ mh.tool or '' }}" placeholder="{{ t('mental.tool_ph') }}"></div>
+    <div><label class="label" for="hs_l">{{ t('mental.level') }}</label><input class="input" id="hs_l" name="level" maxlength="60" dir="auto" style="max-width:140px;"></div>
+    <div><label class="label" for="hs_r">{{ t('mental.risk_q') }}</label><select class="select" id="hs_r" name="at_risk"><option value="">—</option><option value="yes">{{ t('mental.yes') }}</option><option value="no">{{ t('mental.no') }}</option></select></div>
+    <div style="flex:1;min-width:220px;"><label class="label" for="hs_p">{{ t('mental.plan') }}</label><input class="input" id="hs_p" name="plan" dir="auto" placeholder="{{ t('mental.plan_ph') }}"></div>
+    <label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" name="family_told" value="1"> {{ t('mental.family_told') }}</label>
+    <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('mental.save_screen') }}</button>
+  </form>
+  {% endif %}
+  <h3 class="section-title" style="margin-top:14px;">{{ t('mental.rt_title') }}</h3>
+  {% for r in mh.rt %}
+  <div class="hint" style="margin:0 0 6px;" data-rt="{{ r.id }}"><span dir="ltr">{{ r.at|clinic_stamp }}</span> · <span dir="auto">{{ r.given }}</span> · <span dir="auto">{{ r.reason }}</span><div>{{ t('mental.monitoring') }}: <span dir="auto">{{ r.monitoring }}</span>{% if r.outcome %} · <span dir="auto">{{ r.outcome }}</span>{% endif %}</div></div>
+  {% else %}<p class="hint" style="margin:0 0 6px;">{{ t('mental.no_rt') }}</p>{% endfor %}
+  {% if admission.is_open %}
+  <form method="post" action="{{ url_for('beds.tranquilization', admission_id=admission.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:1;min-width:180px;"><label class="label" for="rt_r">{{ t('mental.reason') }}</label><input class="input" id="rt_r" name="reason" maxlength="255" required dir="auto"></div>
+    <div style="flex:1;min-width:160px;"><label class="label" for="rt_g">{{ t('mental.given') }}</label><input class="input" id="rt_g" name="given" maxlength="160" required dir="auto" placeholder="{{ t('mental.given_ph') }}"></div>
+    <div style="flex:1;min-width:200px;"><label class="label" for="rt_m">{{ t('mental.monitoring') }}</label><input class="input" id="rt_m" name="monitoring" maxlength="255" required dir="auto" placeholder="{{ t('mental.monitoring_ph') }}"></div>
+    <div style="flex:1;min-width:160px;"><label class="label" for="rt_o">{{ t('mental.outcome') }}</label><input class="input" id="rt_o" name="outcome" maxlength="255" dir="auto"></div>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('mental.save_rt') }}</button>
+  </form>
+  {% endif %}
+  {% if current_user.is_admin %}
+  <form method="post" action="{{ url_for('beds.harm_screen_tool') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:12px;border-top:1px solid var(--line);padding-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="hs_tool">{{ t('mental.hospital_tool') }}</label><input class="input" id="hs_tool" name="tool" maxlength="120" dir="auto" value="{{ mh.tool or '' }}"></div>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('mental.save_tool') }}</button>
+  </form>
+  {% endif %}
+</details>
 {# ======================= التقييد والإنعاش — CSS.12 و CSS.05 =======
    **الفورمتين دول كانوا ناقصين.** المسارات الستّة اتسلّمت ومحدّش يقدر
    يوصلها: الشاشة كانت بتقول «فيه طفل مربوط بأمر خلص» ومفيش في البرنامج

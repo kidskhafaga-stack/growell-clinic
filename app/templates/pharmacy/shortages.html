@@ -1,0 +1,40 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('dtc.shortages') }}{% endblock %}
+{% block page_heading %}{{ t('dtc.shortages') }}{% endblock %}
+
+{% block content %}
+{# GAHAR MMS.03 ev. 6 — drugs short right now, announced to every prescriber:
+   since when, expected back if known, and the alternative the committee
+   names. The program suggests none. #}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title"><i class="bi bi-exclamation-octagon"></i> {{ t('dtc.shortages') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('dtc.shortages_sub') }}</p>
+</div>
+{% if not rows %}<p class="hint" data-no-shortage>{{ t('dtc.no_shortage') }}</p>{% endif %}
+<div style="display:grid;gap:10px;margin-bottom:14px;">
+{% for r in rows %}
+<div class="card" data-shortage="{{ r.id }}">
+  <b dir="auto">{{ r.name }}</b> <span class="hint">· {{ t('dtc.since') }} <span dir="ltr">{{ r.started_on }}</span>{% if r.expected_back %} · {{ t('dtc.expected_back') }} <span dir="auto">{{ r.expected_back }}</span>{% endif %}</span>
+  {% if r.alternative %}<div style="margin-top:4px;">{{ t('dtc.alternative') }}: <b dir="auto">{{ r.alternative }}</b></div>{% endif %}
+  {% if r.note %}<div class="hint" dir="auto" style="margin:2px 0 0;">{{ r.note }}</div>{% endif %}
+  {% if may_announce %}
+  <form method="post" action="{{ url_for('pharmacy.shortage_end', row_id=r.id) }}" style="margin:6px 0 0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('dtc.back_in_stock') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endfor %}
+</div>
+{% if may_announce %}
+<form class="card" method="post" action="{{ url_for('pharmacy.shortage_announce') }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div style="flex:1;min-width:200px;"><label class="label" for="sh_n">{{ t('dtc.drug') }}</label><input class="input" id="sh_n" name="name" maxlength="160" required dir="auto"></div>
+  <div><label class="label" for="sh_s">{{ t('dtc.since') }}</label><input class="input" type="date" id="sh_s" name="started_on"></div>
+  <div><label class="label" for="sh_e">{{ t('dtc.expected_back') }}</label><input class="input" id="sh_e" name="expected_back" maxlength="60" dir="auto"></div>
+  <div style="flex:1;min-width:200px;"><label class="label" for="sh_a">{{ t('dtc.alternative') }}</label><input class="input" id="sh_a" name="alternative" maxlength="255" dir="auto" placeholder="{{ t('dtc.alternative_ph') }}"></div>
+  <button class="btn btn-primary gc-press" type="submit">{{ t('dtc.announce') }}</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "shell.html" %}
+{% set active_module = 'duty' %}
+{% block title %}{{ t('certs.title') }}{% endblock %}
+{% block page_heading %}{{ t('certs.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR CSS.01 ev. 3 — every course a person holds and until when; the
+   courses that count as resuscitation are the hospital's list, and the rota
+   names the critical-unit shift without one. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-patch-check"></i> {{ t('certs.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('certs.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('duty.index') }}"><i class="bi bi-calendar-week"></i> {{ t('duty.title') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-resus-courses>
+  <h2 class="section-title" style="margin-top:0;">{{ t('certs.resus_courses') }}</h2>
+  {% if courses %}<p style="margin:0 0 8px;">{% for c in courses %}<span class="badge badge--muted" dir="ltr">{{ c }}</span> {% endfor %}</p>{% else %}<p class="hint">{{ t('certs.unset') }}</p>{% endif %}
+  {% if may_edit %}
+  <form method="post" action="{{ url_for('duty.certificate_add') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="what" value="courses">
+    <div style="flex:1;min-width:220px;"><label class="label" for="cc">{{ t('certs.courses_label') }}</label><input class="input" id="cc" name="courses" dir="ltr" value="{{ courses|join(', ') }}" placeholder="PALS, NRP"></div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('certs.save') }}</button>
+  </form>
+  {% endif %}
+</div>
+
+{# GAHAR WFM.17 — the hospital's weekly working-hours limit. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-hours-limit>
+  <h2 class="section-title" style="margin-top:0;">{{ t('certs.hours_limit') }}</h2>
+  <p style="margin:0 0 8px;">{% if hours_limit %}<span dir="ltr">{{ '%g'|format(hours_limit) }}</span> {{ t('sfile.hours') }}{% else %}<span class="hint">{{ t('milk.not_set') }}</span>{% endif %}</p>
+  {% if may_edit %}
+  <form method="post" action="{{ url_for('duty.certificate_add') }}" style="display:flex;gap:8px;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="what" value="hours">
+    <input class="input" type="number" min="0" step="any" name="hours" value="{{ '%g'|format(hours_limit) if hours_limit else '' }}" aria-label="{{ t('certs.hours_limit') }}" style="max-width:120px;">
+    <button class="btn btn-outline gc-press" type="submit">{{ t('certs.save') }}</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="overflow-x:auto;margin-bottom:14px;" data-certificates>
+  {% if not rows %}<p class="hint" style="margin:0;">{{ t('certs.none') }}</p>{% else %}
+  <table class="table" style="min-width:560px;">
+    <thead><tr><th>{{ t('certs.person') }}</th><th>{{ t('certs.course') }}</th><th>{{ t('certs.number') }}</th><th>{{ t('certs.expires') }}</th></tr></thead>
+    <tbody>{% for r in rows %}
+    <tr data-cert="{{ r.id }}"><td>{{ r.user.display_name(current_lang) }}</td><td dir="ltr">{{ r.course }}</td><td dir="ltr">{{ r.number or '' }}</td>
+      <td dir="ltr">{{ r.expires_on or '—' }}{% if r.expires_on and r.expires_on < today %} <span class="badge badge--danger">{{ t('certs.expired') }}</span>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% endif %}
+</div>
+
+{% if may_edit %}
+<form class="card" method="post" action="{{ url_for('duty.certificate_add') }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="what" value="cert">
+  <div><label class="label" for="c_u">{{ t('certs.person') }}</label><select class="select" id="c_u" name="user_id">{% for p in people %}<option value="{{ p.id }}">{{ p.display_name(current_lang) }}</option>{% endfor %}</select></div>
+  <div><label class="label" for="c_c">{{ t('certs.course') }}</label><input class="input" id="c_c" name="course" maxlength="80" required dir="ltr" list="c_list" style="max-width:150px;"><datalist id="c_list">{% for c in courses %}<option value="{{ c }}">{% endfor %}</datalist></div>
+  <div><label class="label" for="c_n">{{ t('certs.number') }}</label><input class="input" id="c_n" name="number" maxlength="80" dir="ltr" style="max-width:140px;"></div>
+  <div><label class="label" for="c_i">{{ t('certs.issued') }}</label><input class="input" type="date" id="c_i" name="issued_on"></div>
+  <div><label class="label" for="c_e">{{ t('certs.expires') }}</label><input class="input" type="date" id="c_e" name="expires_on"></div>
+  <button class="btn btn-primary gc-press" type="submit">{{ t('certs.add') }}</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -5,3 +5,6 @@ from flask import Blueprint
 med_storage_bp = Blueprint("med_storage", __name__, url_prefix="/med-storage")
 
 from app.blueprints.med_storage import routes  # noqa: E402,F401
+from app.blueprints.med_storage import controlled_routes  # noqa: E402,F401
+from app.blueprints.med_storage import recall_routes  # noqa: E402,F401
+from app.blueprints.med_storage import cart_routes  # noqa: E402,F401

@@ -56,7 +56,8 @@ def _good_lots(item):
     """GAHAR MMS.04 — the lots on the shelf that may be handed over."""
     from app.utils import med_storage
 
-    return [row for row in med_storage.lots(item) if row["state"] != "expired"]
+    return [row for row in med_storage.lots(item)
+            if row["state"] != "expired" and not row["recalled"]]
 
 
 @pharmacy_bp.route("/line/<int:line_id>/shelf", methods=["POST"])
@@ -247,8 +248,16 @@ def supply():
 
     kind = (request.args.get("kind") or "").strip() or None
     rows = clinical_pharmacy.supply_list(kind=kind)
+    # GAHAR MMS.13 — today's prepared doses, each with its label: a child whose
+    # bag is finished leaves the list above, and the label must not leave
+    # with them.
+    from app.models import DosePrep
+    from app.utils.clock import local_today
+
+    made = (DosePrep.query.filter_by(for_date=local_today())
+            .order_by(DosePrep.prepared_at.desc()).all())
     return render_template("pharmacy/supply.html", rows=rows, kind=kind,
-                           counts=clinical_pharmacy.supply_counts(rows))
+                           counts=clinical_pharmacy.supply_counts(rows), made=made)
 
 
 @pharmacy_bp.route("/order/<int:order_id>/prepare", methods=["POST"])
@@ -261,7 +270,10 @@ def prepare(order_id):
     row = db.get_or_404(MedicationOrder, order_id)
     try:
         clinical_pharmacy.prepare(row, user=current_user,
-                                  label=request.form.get("label"))
+                                  label=request.form.get("label"),
+                                  diluent=request.form.get("diluent"),
+                                  beyond_use=_local_when(request.form.get("beyond_use")),
+                                  caution=request.form.get("caution"))
     except ValueError:
         db.session.rollback()
         # A stopped order is not supplied. Making up a drug nobody may give is
@@ -451,6 +463,25 @@ def errors():
                            summary=clinical_pharmacy.error_summary(days))
 
 
+@pharmacy_bp.route("/errors/<int:row_id>/informed", methods=["POST"])
+@module_required(MODULE)
+def error_informed(row_id):
+    """GAHAR MMS.17 (a–e) — whom this error was reported to."""
+    from app.models import MedicationError
+    from app.utils import clinical_pharmacy
+
+    row = db.get_or_404(MedicationError, row_id)
+    try:
+        clinical_pharmacy.mark_informed(row, request.form)
+    except ValueError:
+        db.session.rollback()
+        flash(t("mederr.needs_ref"), "error")
+        return redirect(url_for("pharmacy.errors"))
+    db.session.commit()
+    flash(t("mederr.informed_saved"), "success")
+    return redirect(url_for("pharmacy.errors") + f"#err-{row.id}")
+
+
 # ---------------------------------------- what they go home on --------------
 @pharmacy_bp.route("/ward/<int:admission_id>/discharge")
 @module_required(MODULE)
@@ -460,7 +491,91 @@ def discharge_meds(admission_id):
     from app.utils import clinical_pharmacy
 
     row = db.get_or_404(Admission, admission_id)
+    from app.models.med_family import MedCounselling
+
     return render_template(
         "pharmacy/discharge.html", admission=row,
+        counselled=(MedCounselling.query.filter_by(admission_id=row.id, kind="discharge")
+                    .order_by(MedCounselling.at.desc()).all()),
         **clinical_pharmacy.discharge_reconciliation(
             row, lang=getattr(g, "lang", "ar")))
+
+
+# ============================================ adverse drug reactions ===
+# GAHAR MMS.16 ev. 3–5 (``utils/adverse_reaction``). Written at the bedside
+# from the stay page; the pharmacy reads them here and files the national
+# report.
+def _adr_back(row, where):
+    if where == "board" or not row.admission_id:
+        return redirect(url_for("pharmacy.adr_board"))
+    return redirect(url_for("beds.admission", admission_id=row.admission_id) + "#adr")
+
+
+@pharmacy_bp.route("/adr")
+@module_required(MODULE)
+def adr_board():
+    from app.utils import adverse_reaction as adr
+
+    return render_template("pharmacy/adr.html", rows=adr.board())
+
+
+@pharmacy_bp.route("/adr/<int:row_id>/told", methods=["POST"])
+@module_required(MODULE)
+def adr_told(row_id):
+    from app.models.adverse_reaction import AdverseReaction
+    from app.utils import adverse_reaction as adr
+
+    row = db.get_or_404(AdverseReaction, row_id)
+    try:
+        adr.tell_prescriber(row, request.form)
+    except adr.ReactionError as err:
+        db.session.rollback()
+        flash(t("adr.err_" + str(err)), "error")
+        return _adr_back(row, request.form.get("back"))
+    db.session.commit()
+    flash(t("adr.saved"), "success")
+    return _adr_back(row, request.form.get("back"))
+
+
+@pharmacy_bp.route("/adr/<int:row_id>/reported", methods=["POST"])
+@module_required(MODULE)
+def adr_reported(row_id):
+    from app.models.adverse_reaction import AdverseReaction
+    from app.utils import adverse_reaction as adr
+    from app.utils import notifications
+
+    row = db.get_or_404(AdverseReaction, row_id)
+    try:
+        adr.mark_reported(row, request.form, current_user)
+    except adr.ReactionError as err:
+        db.session.rollback()
+        flash(t("adr.err_" + str(err)), "error")
+        return redirect(url_for("pharmacy.adr_board"))
+    db.session.commit()
+    notifications.invalidate()
+    flash(t("adr.saved"), "success")
+    return redirect(url_for("pharmacy.adr_board"))
+
+
+def _local_when(raw):
+    """A ``datetime-local`` value in the clinic's time, to UTC; or None."""
+    from datetime import datetime
+
+    from app.utils.clock import to_utc
+
+    try:
+        return to_utc(datetime.fromisoformat((raw or "").strip()))
+    except ValueError:
+        return None
+
+
+@pharmacy_bp.route("/prep/<int:prep_id>/label")
+@module_required(MODULE)
+def prep_label(prep_id):
+    """GAHAR MMS.13 — the standard label of a prepared dose (a–h)."""
+    from app.models import DosePrep
+    from app.utils import clinical_pharmacy
+
+    row = db.get_or_404(DosePrep, prep_id)
+    return render_template("pharmacy/prep_label.html", prep=row, order=row.order,
+                           high_alert=clinical_pharmacy.high_alert_for(row.order))

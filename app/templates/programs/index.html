@@ -1,0 +1,57 @@
+{% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
+{% set active_module = 'programs' %}
+{% block title %}{{ t('nav.programs') }}{% endblock %}
+{% block page_heading %}{{ t('nav.programs') }}{% endblock %}
+
+{% block content %}
+{# GAHAR CSS.06, CSS.07, CSS.10 — each programme's enrolled children, the last
+   session, and (dialysis) whether the viral markers are due by the hospital's
+   interval or have turned positive. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-clipboard2-heart"></i> {{ t('nav.programs') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('prog.sub') }}</p>
+</div>
+<nav style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;" aria-label="{{ t('nav.programs') }}">
+  {% for p in programs %}<a class="btn btn-sm {{ 'btn-primary' if p == program else 'btn-outline' }} gc-press" href="{{ url_for('programs.index', p=p) }}" data-program-tab="{{ p }}">{{ t('prog.p_' ~ p) }}</a>{% endfor %}
+</nav>
+
+{% if program == 'dialysis' %}
+<p class="hint" data-marker-days>{{ t('prog.marker_days') }}: {% if marker_days %}<span dir="ltr">{{ marker_days }}</span> {{ t('prog.days') }}{% else %}{{ t('milk.not_set') }}{% endif %}
+  {% if current_user.is_admin %}
+  <form method="post" action="{{ url_for('programs.marker_days') }}" style="display:inline-flex;gap:6px;margin:0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input class="input" type="number" min="1" name="days" value="{{ marker_days or '' }}" style="max-width:90px;" aria-label="{{ t('prog.marker_days') }}">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('prog.save') }}</button>
+  </form>
+  {% endif %}</p>
+{% endif %}
+
+{% if not rows %}<p class="hint" data-no-enrolled>{{ t('prog.none') }}</p>{% endif %}
+<div style="display:grid;gap:10px;margin-bottom:16px;">
+{% for r in rows %}{% set e = r.enr %}
+<a class="card" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;" href="{{ url_for('programs.enrollment', enr_id=e.id) }}" data-enrolled="{{ e.id }}">
+  <b>{{ e.patient.display_name(current_lang) }}</b>
+  <span class="hint">{{ t('prog.since') }} <span dir="ltr">{{ e.started_on }}</span></span>
+  {% if r.last %}<span class="hint">{{ t('prog.last_session') }} <span dir="ltr">{{ r.last.at|clinic_stamp }}</span></span>{% else %}<span class="badge badge--muted">{{ t('prog.no_sessions') }}</span>{% endif %}
+  {% if not e.educated_at %}<span class="badge badge--warn">{{ t('prog.not_educated') }}</span>{% endif %}
+  {% if r.sero %}<span class="badge badge--danger" data-sero>{{ t('prog.seroconversion') }}: {% for m in r.sero %}{{ t('prog.m_' ~ m) }}{{ '، ' if not loop.last }}{% endfor %}</span>{% endif %}
+  {% if r.due %}<span class="badge badge--warn" data-markers-due>{{ t('prog.markers_due') }}</span>{% endif %}
+</a>
+{% endfor %}
+</div>
+
+<details class="card" {{ 'open' if not rows }}>
+  <summary>{{ t('prog.enroll') }}</summary>
+  <form method="post" action="{{ url_for('programs.enroll') }}" style="display:grid;gap:10px;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="program" value="{{ program }}">
+    {{ pickers.patient_picker('patient_id', None, label=t('prog.patient'), required=True) }}
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div><label class="label" for="e_s">{{ t('prog.since') }}</label><input class="input" type="date" id="e_s" name="started_on"></div>
+      {% if program == 'chemo' %}<div><label class="label" for="e_c">{{ t('prog.cycles') }}</label><input class="input" type="number" min="1" id="e_c" name="cycles" style="max-width:100px;"></div>{% endif %}
+    </div>
+    <div><label class="label" for="e_p">{{ t('prog.plan_' ~ program) }}</label><textarea class="input" id="e_p" name="plan" rows="3" required dir="auto"></textarea></div>
+    <div><button class="btn btn-primary gc-press" type="submit">{{ t('prog.enroll') }}</button></div>
+  </form>
+</details>
+{% endblock %}

@@ -100,7 +100,25 @@ def index():
         # The rotas and the two kinds of cover, for the assign form.
         roles=_roles(), covers=DUTY_COVER,
         prev=start - timedelta(days=7), next=start + timedelta(days=7),
+        # GAHAR CSS.01 ev. 3 — critical-unit shifts with nobody rostered who
+        # holds a resuscitation course valid that day (None: the hospital has
+        # not named its courses yet).
+        resus_gaps=_resus_gaps(start, end),
+        # GAHAR WFM.17 — rostered past the hospital's weekly hours.
+        over_hours=_over_hours(start, end),
         may_edit=current_user.is_admin)
+
+
+def _over_hours(start, end):
+    from app.utils import work_hours
+
+    return work_hours.over_limit(start, end)
+
+
+def _resus_gaps(start, end):
+    from app.utils import staff_certs
+
+    return staff_certs.resus_gaps(start, end)
 
 
 def _a_role(raw):
@@ -286,3 +304,52 @@ def slot_rate(slot_id):
     db.session.commit()
     flash(t("common.saved"), "success")
     return redirect(url_for("duty.slots"))
+
+
+# ------------------------------------------- resuscitation on every shift --
+@duty_bp.route("/certificates")
+@module_required(MODULE)
+def certificates():
+    """GAHAR CSS.01 ev. 3 — who holds which course until when, and the
+    hospital's list of the courses that count as resuscitation training."""
+    from app.models.staff_certificate import StaffCertificate
+    from app.utils import staff_certs
+
+    rows = (StaffCertificate.query.order_by(StaffCertificate.expires_on.is_(None),
+                                            StaffCertificate.expires_on).all())
+    from app.utils.work_hours import limit
+
+    return render_template("duty/certificates.html", rows=rows, today=local_today(), hours_limit=limit(),
+                           courses=staff_certs.resus_courses(), people=_doctors(),
+                           may_edit=current_user.is_admin)
+
+
+@duty_bp.route("/certificates/add", methods=["POST"])
+@module_required(MODULE)
+def certificate_add():
+    from app.utils import staff_certs
+
+    _admin_only()
+    try:
+        if request.form.get("what") == "courses":
+            staff_certs.set_resus_courses(request.form.get("courses"))
+        elif request.form.get("what") == "hours":
+            from app.models import Setting
+            from app.utils.work_hours import LIMIT_SETTING
+
+            raw = (request.form.get("hours") or "").strip()
+            try:
+                if raw and float(raw) <= 0:
+                    raise ValueError
+            except ValueError:
+                raise staff_certs.CertError("hours") from None
+            Setting.set(LIMIT_SETTING, raw)
+        else:
+            staff_certs.add(request.form, current_user)
+    except staff_certs.CertError as err:
+        db.session.rollback()
+        flash(t("certs.err_" + str(err)), "error")
+        return redirect(url_for("duty.certificates"))
+    db.session.commit()
+    flash(t("certs.saved"), "success")
+    return redirect(url_for("duty.certificates"))

@@ -318,7 +318,7 @@ def supply_list(kind=None, on_date=None):
 
 
 def prepare(order, user=None, doses=None, units=None, label=None,
-            on_date=None, note=None):
+            on_date=None, note=None, diluent=None, beyond_use=None, caution=None):
     """Record that today's supply of this drug is made up. Returns the row.
 
     Making it up again on the same day updates rather than adds: a bag redone
@@ -352,6 +352,10 @@ def prepare(order, user=None, doses=None, units=None, label=None,
     row.prepared_by = getattr(user, "id", None)
     row.label = (label or "").strip()[:255] or None
     row.note = (note or "").strip()[:255] or None
+    # GAHAR MMS.13 — what the label carries beyond the order itself.
+    row.diluent = (diluent or "").strip()[:120] or None
+    row.beyond_use = beyond_use
+    row.caution = (caution or "").strip()[:160] or None
     return row
 
 
@@ -559,7 +563,16 @@ def error_summary(days=90):
                 else (row.drug_name or "").strip())
         if name:
             drugs[name] = drugs.get(name, 0) + 1
+    # GAHAR MMS.17 — a rate needs a denominator: the doses given on the
+    # wards in the same window. Arithmetic only, never a target.
+    from app.models import MedicationDose
+    from app.models.medication import GIVEN
+
+    given = (MedicationDose.query.filter(MedicationDose.outcome == GIVEN,
+                                         MedicationDose.at >= since).count())
     return {
+        "doses_given": given,
+        "per_1000_doses": (len(rows) / given * 1000) if given else None,
         "rows": rows, "total": len(rows), "bands": bands, "stages": stages,
         "near_misses": sum(1 for r in rows if r.is_near_miss),
         # Most-reported first: this is the column a pharmacy reads when it
@@ -624,3 +637,17 @@ def discharge_reconciliation(admission, lang="ar"):
                  for key in home_keys if key in ward_keys]
     return {"home": home, "ward": ward, "started": started,
             "stopped": stopped, "continued": continued}
+
+
+def mark_informed(row, form):
+    """GAHAR MMS.17 (a–e) — whom it was reported to; (e) needs a reference."""
+    from app.models.med_error import INFORMED
+
+    chosen = [k for k in INFORMED if k in form.getlist("informed")]
+    ref = (form.get("authority_ref") or "").strip()[:80] or None
+    if "authority" in chosen and not ref:
+        raise ValueError("ref")
+    row.informed = ",".join(chosen) or None
+    row.authority_ref = ref if "authority" in chosen else None
+    db.session.flush()
+    return row

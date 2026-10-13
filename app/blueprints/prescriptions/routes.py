@@ -1652,3 +1652,19 @@ def _patient_hint(patient, lang):
 
     return patient_hint(patient, lang)
 
+
+
+# ----------------------------------------------- drug shortages, read here --
+# GAHAR MMS.03 ev. 6 — what the pharmacy announced as short, read by whoever
+# writes prescriptions: so behind the prescriptions module, where the
+# writing is. Announcing and ending a shortage stay with the pharmacy.
+@prescriptions_bp.route("/shortages")
+@module_required("prescriptions")
+def shortages():
+    from app.utils import dtc
+    from app.utils.facility import module_enabled
+
+    return render_template(
+        "pharmacy/shortages.html", rows=dtc.active_shortages(),
+        may_announce=module_enabled("pharmacy") and (
+            current_user.is_admin or current_user.can_access("pharmacy")))

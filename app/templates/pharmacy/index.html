@@ -29,6 +29,19 @@
     {# Where medicines are kept (GAHAR MMS.04 / GSR.19). #}
     <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.storage') }}" data-to-storage>
       <i class="bi bi-thermometer-snow"></i> {{ t('med_store.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('med_storage.controlled_book') }}" data-to-controlled>
+      <i class="bi bi-journal-lock"></i> {{ t('ctrl.title') }}</a>
+    {# GAHAR MMS.01 / MMS.03 — the drug and therapeutics committee, and shortages. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.dtc_board') }}" data-to-dtc>
+      <i class="bi bi-people"></i> {{ t('dtc.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.shortages') }}" data-to-shortages>
+      <i class="bi bi-exclamation-octagon"></i> {{ t('dtc.shortages') }}</a>
+    {# GAHAR MMS.02 — antimicrobial stewardship. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.stewardship') }}" data-to-stewardship>
+      <i class="bi bi-capsule-pill"></i> {{ t('asp.title') }}</a>
+    {# GAHAR MMS.16 — adverse drug reactions and the national report. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.adr_board') }}" data-to-adr>
+      <i class="bi bi-exclamation-diamond"></i> {{ t('adr.board') }}</a>
     {# The other half of the profession. Drawn only where there are beds: a
        clinic with no inpatients has no charts to review, and a dead link is
        worse than no link. #}

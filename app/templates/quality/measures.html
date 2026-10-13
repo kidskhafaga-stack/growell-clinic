@@ -1,0 +1,62 @@
+{% extends "shell.html" %}
+{% set active_module = 'incidents' %}
+{% block title %}{{ t('qual.tab_measures') }}{% endblock %}
+{% block page_heading %}{{ t('qual.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR QPI.05–07 — the hospital's measures, clinical (QPI.06's areas) and
+   managerial (QPI.07's), each with its identity sheet and its last value
+   against the target the hospital set. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-graph-up"></i> {{ t('qual.tab_measures') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('qual.measures_sub') }}</p>
+</div>
+{% from "quality/_nav.html" import quality_nav with context %}
+{{ quality_nav('measures') }}
+
+{% if not rows %}<p class="hint" data-no-measures>{{ t('qual.no_measures') }}</p>{% endif %}
+<div class="card gc-scale-in" style="overflow-x:auto;margin-bottom:14px;" data-measures>
+  {% if rows %}
+  <table class="table" style="min-width:640px;">
+    <thead><tr><th>{{ t('qual.measure') }}</th><th>{{ t('qual.area') }}</th><th>{{ t('qual.last') }}</th><th>{{ t('qual.target') }}</th></tr></thead>
+    <tbody>{% for m in rows %}{% set last = m.values[-1] if m.values else none %}{% set v = last.value if last else none %}{% set off = q.off_target(m, v) %}
+    <tr data-measure="{{ m.id }}"><td><a href="{{ url_for('quality.measure', measure_id=m.id) }}">{{ m.name }}</a> <span class="badge badge--muted">{{ t('qual.k_' ~ m.kind) }}</span></td>
+      <td>{{ t('qual.a_' ~ m.area) }}</td>
+      <td style="font-variant-numeric:tabular-nums;">{% if v is not none %}<span dir="ltr">{{ '%.2f'|format(v) }}</span> <span class="hint" dir="ltr">{{ last.period }}</span>{% if off %} <span class="badge badge--danger" data-off-target>{{ t('qual.off_target') }}</span>{% elif off is sameas false %} <span class="badge badge--ok">{{ t('qual.on_target') }}</span>{% endif %}{% else %}—{% endif %}</td>
+      <td dir="ltr">{{ '%g'|format(m.target) if m.target is not none else '—' }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% endif %}
+</div>
+
+<details class="card" {{ 'open' if not rows }} x-data="{ kind: 'clinical' }">
+  <summary>{{ t('qual.new_measure') }}</summary>
+  <form method="post" action="{{ url_for('quality.measures') }}" style="display:grid;gap:8px;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:220px;"><label class="label" for="m_n">{{ t('qual.measure') }}</label><input class="input" id="m_n" name="name" maxlength="160" required dir="auto"></div>
+      <div><label class="label" for="m_k">{{ t('qual.kind') }}</label><select class="select" id="m_k" name="kind" x-model="kind"><option value="clinical">{{ t('qual.k_clinical') }}</option><option value="managerial">{{ t('qual.k_managerial') }}</option></select></div>
+      <div x-show="kind === 'clinical'"><label class="label" for="m_ac">{{ t('qual.area') }}</label><select class="select" id="m_ac" name="area" x-bind:disabled="kind !== 'clinical'">{% for a in clinical %}<option value="{{ a }}">{{ t('qual.a_' ~ a) }}</option>{% endfor %}</select></div>
+      <div x-show="kind === 'managerial'" x-cloak><label class="label" for="m_am">{{ t('qual.area') }}</label><select class="select" id="m_am" name="area" x-bind:disabled="kind !== 'managerial'">{% for a in managerial %}<option value="{{ a }}">{{ t('qual.a_' ~ a) }}</option>{% endfor %}</select></div>
+    </div>
+    <div><label class="label" for="m_d">{{ t('qual.definition') }}</label><textarea class="input" id="m_d" name="definition" rows="2" required dir="auto"></textarea></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:180px;"><label class="label" for="m_s">{{ t('qual.data_source') }}</label><input class="input" id="m_s" name="data_source" maxlength="255" required dir="auto"></div>
+      <div><label class="label" for="m_f">{{ t('qual.frequency') }}</label><input class="input" id="m_f" name="frequency" maxlength="60" required dir="auto"></div>
+      <div style="flex:1;min-width:180px;"><label class="label" for="m_sa">{{ t('qual.sampling') }}</label><input class="input" id="m_sa" name="sampling" maxlength="255" dir="auto"></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:180px;"><label class="label" for="m_nu">{{ t('qual.numerator') }}</label><input class="input" id="m_nu" name="numerator" maxlength="255" required dir="auto"></div>
+      <div style="flex:1;min-width:180px;"><label class="label" for="m_de">{{ t('qual.denominator') }}</label><input class="input" id="m_de" name="denominator" maxlength="255" dir="auto"></div>
+      <div><label class="label" for="m_p">{{ t('qual.per') }}</label><input class="input" type="number" min="1" id="m_p" name="per" dir="ltr" style="max-width:110px;" placeholder="100"></div>
+    </div>
+    <div><label class="label" for="m_me">{{ t('qual.method') }}</label><textarea class="input" id="m_me" name="method" rows="2" dir="auto"></textarea></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div><label class="label" for="m_t">{{ t('qual.target') }}</label><input class="input" type="number" step="any" id="m_t" name="target" dir="ltr" style="max-width:120px;"></div>
+      <div><label class="label" for="m_hb">{{ t('qual.direction') }}</label><select class="select" id="m_hb" name="higher_better"><option value="">—</option><option value="1">{{ t('qual.higher_better') }}</option><option value="0">{{ t('qual.lower_better') }}</option></select></div>
+      <div><label class="label" for="m_o">{{ t('qual.owner') }}</label><input class="input" id="m_o" name="owner" maxlength="120" dir="auto"></div>
+    </div>
+    <div><button class="btn btn-primary gc-press" type="submit">{{ t('qual.save_measure') }}</button></div>
+  </form>
+</details>
+{% endblock %}

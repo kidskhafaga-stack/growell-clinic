@@ -69,6 +69,13 @@ RISK_KINDS = (FALL, PRESSURE, VTE)
 #: here rather than in a locale file, beside the vocabulary it belongs to.
 STANDARDS = {FALL: "ICD.10", PRESSURE: "ICD.11", VTE: "ICD.12"}
 
+#: GAHAR CSS.11 (b) — the risk of imminent harm to self or others, screened
+#: with the hospital's tool. The same row shape as the three above, and kept
+#: **out of** ``RISK_KINDS`` on purpose: those are asked of every child in a
+#: bed, this one of the children the mental-health team sees, so it never
+#: becomes a gap on a neonate's stay (`utils/mental_health`).
+SELF_HARM = "self_harm"
+
 
 class RiskAssessment(db.Model):
     """One look at one risk, for one child, at one moment."""

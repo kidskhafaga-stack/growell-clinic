@@ -1,0 +1,51 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('adr.board') }}{% endblock %}
+{% block page_heading %}{{ t('adr.board') }}{% endblock %}
+
+{% block content %}
+{# GAHAR MMS.16 ev. 4–5 — every adverse drug reaction written on a child,
+   the ones not yet reported to the national pharmacovigilance centre first,
+   with the reference once they are. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-exclamation-diamond"></i> {{ t('adr.board') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('adr.board_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.index') }}"><i class="bi bi-prescription2"></i> {{ t('nav.pharmacy') }}</a>
+</div>
+{% if not rows %}<p class="hint" data-adr-empty>{{ t('adr.none_all') }}</p>{% endif %}
+<div style="display:grid;gap:10px;">
+{% for r in rows %}
+<div class="card" data-adr-row="{{ r.id }}">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <b dir="auto">{{ r.drug_name }}</b> ·
+    <b>{{ r.patient.display_name(current_lang) }}</b>{% if r.patient.patient_number %} <span class="hint" dir="ltr">{{ r.patient.patient_number }}</span>{% endif %}
+    <span class="badge {{ 'badge--danger' if r.severity == 'severe' else ('badge--warn' if r.severity == 'moderate' else 'badge--muted') }}">{{ t('adr.sev_' ~ r.severity) }}</span>
+    <span class="hint" dir="ltr">{{ r.onset_at|clinic_stamp }}</span>
+    {% if r.admission_id %}<a class="hint" href="{{ url_for('beds.admission', admission_id=r.admission_id) }}#adr">{{ t('milk.to_stay') }}</a>{% endif %}
+  </div>
+  <div dir="auto" style="margin-top:4px;">{{ r.what_happened }}</div>
+  <div class="hint" style="margin:2px 0 0;">{{ t('adr.action') }}: <span dir="auto">{{ r.action_taken }}</span>{% if r.prescriber_told %} · {{ t('adr.told') }}: <span dir="auto">{{ r.prescriber_told }}</span>{% endif %}</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+    {% if not r.prescriber_told %}
+    <form method="post" action="{{ url_for('pharmacy.adr_told', row_id=r.id) }}" style="display:flex;gap:6px;margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="back" value="board">
+      <input class="input" name="prescriber_told" maxlength="120" required dir="auto" placeholder="{{ t('adr.told_ph') }}" aria-label="{{ t('adr.told') }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('adr.save_told') }}</button>
+    </form>
+    {% endif %}
+    {% if r.reported_at %}
+    <span class="badge badge--ok">{{ t('adr.reported') }} <span dir="ltr">{{ r.report_ref }}</span> · <span dir="ltr">{{ r.reported_at|clinic_stamp }}</span></span>
+    {% else %}
+    <form method="post" action="{{ url_for('pharmacy.adr_reported', row_id=r.id) }}" style="display:flex;gap:6px;margin:0;" data-adr-report>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="report_ref" maxlength="80" required dir="ltr" placeholder="{{ t('adr.ref_ph') }}" aria-label="{{ t('adr.ref') }}">
+      <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('adr.mark_reported') }}</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+</div>
+{% endblock %}
