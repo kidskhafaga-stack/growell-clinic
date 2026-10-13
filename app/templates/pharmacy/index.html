@@ -34,7 +34,7 @@
     {# GAHAR MMS.01 / MMS.03 — the drug and therapeutics committee, and shortages. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.dtc_board') }}" data-to-dtc>
       <i class="bi bi-people"></i> {{ t('dtc.title') }}</a>
-    <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.shortages') }}" data-to-shortages>
+    <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.shortages') }}" data-to-shortages>
       <i class="bi bi-exclamation-octagon"></i> {{ t('dtc.shortages') }}</a>
     {# GAHAR MMS.02 — antimicrobial stewardship. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.stewardship') }}" data-to-stewardship>

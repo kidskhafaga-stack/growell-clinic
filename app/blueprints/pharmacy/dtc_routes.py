@@ -1,7 +1,7 @@
 """GAHAR MMS.01 / MMS.03 — the drug and therapeutics committee, its annual
 review, and drug shortages announced to prescribers (``utils/dtc``)."""
 from flask import flash, redirect, render_template, request, url_for
-from flask_login import current_user, login_required
+from flask_login import current_user
 
 from app.blueprints.pharmacy import pharmacy_bp
 from app.extensions import db
@@ -69,14 +69,6 @@ def dtc_review_save(year):
     return redirect(back)
 
 
-@pharmacy_bp.route("/shortages")
-@login_required
-def shortages():
-    """Read by every prescriber — the bell brings them here."""
-    return render_template("pharmacy/shortages.html", rows=dtc.active_shortages(),
-                           may_announce=current_user.is_admin or current_user.can_access(MODULE))
-
-
 @pharmacy_bp.route("/shortages/announce", methods=["POST"])
 @module_required(MODULE)
 def shortage_announce():
@@ -85,11 +77,11 @@ def shortage_announce():
     try:
         dtc.announce(request.form, current_user)
     except dtc.DtcError as err:
-        return _refused(err, url_for("pharmacy.shortages"))
+        return _refused(err, url_for("prescriptions.shortages"))
     db.session.commit()
     notifications.invalidate()
     flash(t("dtc.announced"), "success")
-    return redirect(url_for("pharmacy.shortages"))
+    return redirect(url_for("prescriptions.shortages"))
 
 
 @pharmacy_bp.route("/shortages/<int:row_id>/end", methods=["POST"])
@@ -101,7 +93,7 @@ def shortage_end(row_id):
     db.session.commit()
     notifications.invalidate()
     flash(t("dtc.saved"), "success")
-    return redirect(url_for("pharmacy.shortages"))
+    return redirect(url_for("prescriptions.shortages"))
 
 
 @pharmacy_bp.route("/ward/<int:admission_id>/counselled", methods=["POST"])

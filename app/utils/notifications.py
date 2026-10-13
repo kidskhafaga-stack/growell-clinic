@@ -365,7 +365,7 @@ def _compute():
                 items.append({"key": "drug_shortages", "module": "dashboard",
                               "capability": "medication_order", "icon": "exclamation-octagon",
                               "severity": "warning", "count": short,
-                              "endpoint": "pharmacy.shortages", "kwargs": {}})
+                              "endpoint": "prescriptions.shortages", "kwargs": {}})
     except Exception:  # noqa: BLE001
         pass
 

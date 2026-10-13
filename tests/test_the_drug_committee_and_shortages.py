@@ -58,7 +58,7 @@ def test_a_shortage_reaches_the_prescriber_until_it_ends(ward):
         doc = User.query.filter_by(username="doc").first()
         assert any(i["key"] == "drug_shortages" for i in notifications.get_notifications(doc))
         rid = DrugShortage.query.one().id
-    page = ward["sign_in"]("doc").get("/pharmacy/shortages").get_data(as_text=True)
+    page = ward["sign_in"]("doc").get("/prescriptions/shortages").get_data(as_text=True)
     assert "Cefotaxime" in page and "data-shortage" in page
     chem.post(f"/pharmacy/shortages/{rid}/end")
     with ward["app"].app_context():
