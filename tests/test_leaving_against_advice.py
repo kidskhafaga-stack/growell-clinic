@@ -12,9 +12,11 @@
 import base64
 import os
 import sys
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from app.utils.clock import local_today  # noqa: E402
 
 import pytest  # noqa: E402,F401
 
@@ -165,7 +167,7 @@ def test_lama_from_the_emergency_chairs_and_left_unseen_apart(ward):
     with ward["app"].app_context():
         assert ward["db"].session.get(EmergencyVisit, aid).disposition == "self_discharge"
         assert ward["db"].session.get(EmergencyVisit, bid).disposition == "left_unseen"
-        data = ama.report(date.today() - timedelta(days=1), date.today())
+        data = ama.report(local_today() - timedelta(days=1), local_today())
         assert data["lama"] == 1 and data["complete"] == 1 and [u.id for u in data["unseen"]] == [bid]
         assert ama.refusal_for("er", ward["db"].session.get(EmergencyVisit, aid)).kind == "emergency"
 

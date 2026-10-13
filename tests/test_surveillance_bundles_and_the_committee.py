@@ -9,9 +9,11 @@
 """
 import os
 import sys
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from app.utils.clock import local_today  # noqa: E402
 
 import pytest  # noqa: E402
 
@@ -54,7 +56,7 @@ def test_a_case_is_suspected_until_the_team_decides(ward):
 
     nurse = ward["sign_in"]("ipcnurse")
     assert ward["sign_in"]("doc").get("/infection-control/surveillance").status_code == 403
-    onset = (date.today() - timedelta(days=2)).isoformat()
+    onset = (local_today() - timedelta(days=2)).isoformat()
     nurse.post("/infection-control/surveillance", data={
         "patient_number": "P1", "kind": "clabsi", "onset_on": onset,
         "organism": "Klebsiella pneumoniae", "criteria": "Positive culture, line > 2 days"})
@@ -79,10 +81,10 @@ def test_the_rate_is_counted_against_line_days(ward):
 
     with ward["app"].app_context():
         ward["db"].session.add(HaiCase(patient_id=ward["ids"]["child"], kind="clabsi",
-                                       onset_on=date.today(), status="confirmed"))
+                                       onset_on=local_today(), status="confirmed"))
         ward["db"].session.commit()
-        start = date.today() - timedelta(days=30)
-        data = prog.rates(start, date.today() + timedelta(days=1))
+        start = local_today() - timedelta(days=30)
+        data = prog.rates(start, local_today() + timedelta(days=1))
         clabsi = next(r for r in data["kinds"] if r["kind"] == "clabsi")
         assert clabsi["cases"] == 1 and clabsi["unit"] == "device_days"
         assert 7.5 < clabsi["denominator"] < 8.5, "eight days of the central line"
@@ -124,8 +126,8 @@ def test_bundles_are_the_hospital_s_and_all_or_none(ward):
         assert BundleCheck.query.count() == 1
     from app.utils import ipc_program as prog
     with ward["app"].app_context():
-        row = next(r for r in prog.compliance(date.today().replace(day=1),
-                                              date.today() + timedelta(days=1))
+        row = next(r for r in prog.compliance(local_today().replace(day=1),
+                                              local_today() + timedelta(days=1))
                    if r["bundle"].id == bid)
         assert (row["checks"], row["met"], row["pct"]) == (1, 0, 0)
 
@@ -135,7 +137,7 @@ def test_the_committee_and_its_follow_up(ward):
     from app.utils import ipc_program as prog
 
     nurse = ward["sign_in"]("ipcnurse")
-    today = date.today()
+    today = local_today()
     with ward["app"].app_context():
         assert len(prog.months_without_meeting(today)) == 6
         last_q = prog.quarter_of(prog.quarter_bounds(prog.quarter_of(today))[0] - timedelta(days=1))

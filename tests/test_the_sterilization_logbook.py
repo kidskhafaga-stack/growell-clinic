@@ -10,6 +10,8 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 
@@ -33,13 +35,12 @@ def team(clinic):
 def test_a_failure_needs_its_action_and_limits_are_the_hospital_s(team):
     from app.models import Sterilizer, SterilizerCycle
     from app.utils import sterilization as st
-    from datetime import date
 
     ipc = team["sign_in"]("ipcnurse")
     ipc.post("/infection-control/sterilization/sterilizer", data={"name": "Autoclave 1", "temp_min": "134"})
     with team["app"].app_context():
         sid = Sterilizer.query.one().id
-        board = st.board(date.today())[0]
+        board = st.board(local_today())[0]
         assert not board["test_today"] and board["bi_late"]
     doc = team["sign_in"]("doc")
     doc.post(f"/infection-control/sterilization/{sid}/cycle", data={"kind": "bowie_dick", "chemical": "pass"})
@@ -54,7 +55,7 @@ def test_a_failure_needs_its_action_and_limits_are_the_hospital_s(team):
         c = SterilizerCycle.query.filter_by(kind="load").one()
         assert c.failed and c.bi == "pending"
         cid = c.id
-        board = st.board(date.today())[0]
+        board = st.board(local_today())[0]
         assert board["test_today"] and board["bi_days"] == 0 and not board["bi_late"]
     doc.post(f"/infection-control/sterilization/cycle/{cid}/bi", data={"bi": "pass"})
     with team["app"].app_context():
