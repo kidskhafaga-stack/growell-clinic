@@ -24,7 +24,7 @@
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <div style="flex:2;min-width:220px;"><label class="label" for="te_r">{{ t('tele.reason') }}</label><input class="input" id="te_r" name="reason" maxlength="255" required dir="auto"></div>
       <div><label class="label" for="te_m">{{ t('tele.modality') }}</label><select class="select" id="te_m" name="modality">{% for m in modalities %}<option value="{{ m }}">{{ t('tele.m_' ~ m) }}</option>{% endfor %}</select></div>
-      <div><label class="label" for="te_d">{{ t('tele.doctor') }}</label><select class="select" id="te_d" name="doctor_id"><option value="">—</option>{% for d in doctors %}<option value="{{ d.id }}">{{ d.display_name(current_lang) }}</option>{% endfor %}</select></div>
+      <div>{{ pickers.doctor_picker('doctor_id', None, t('tele.doctor'), doctors=doctors, autosubmit=False) }}</div>
       <div><label class="label" for="te_s">{{ t('tele.scheduled_for') }}</label><input class="input" type="datetime-local" id="te_s" name="scheduled_for"></div>
     </div>
     {% if program.criteria %}<div class="hint" dir="auto" style="white-space:pre-line;" data-tele-criteria>{{ t('tele.criteria') }}: {{ program.criteria }}</div>

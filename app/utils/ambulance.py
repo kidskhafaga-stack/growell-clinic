@@ -218,9 +218,11 @@ def over_target(call, goals=None):
 def report(start, end):
     """Ev. 4 — response times over a period: how many runs, the median to
     send and to reach, and how many were over the hospital's targets."""
-    rows = (AmbulanceCall.query.filter(AmbulanceCall.received_at >= datetime.combine(start, datetime.min.time()),
-                                       AmbulanceCall.received_at < datetime.combine(end + timedelta(days=1),
-                                                                                    datetime.min.time()))
+    from app.utils.clock import to_utc
+
+    since = to_utc(datetime.combine(start, datetime.min.time()))
+    until = to_utc(datetime.combine(end + timedelta(days=1), datetime.min.time()))
+    rows = (AmbulanceCall.query.filter(AmbulanceCall.received_at >= since, AmbulanceCall.received_at < until)
             .order_by(AmbulanceCall.received_at).all())
     goals = targets()
     out = {"rows": rows, "count": len(rows), "targets": goals, "over": {}, "median": {}}

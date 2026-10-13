@@ -142,9 +142,11 @@ def evaluation(start, end):
     """(l) the period's indicators — access (how many asked, how many were
     eligible), effectiveness (how many needed the child in person after
     all), and the length of an encounter."""
-    rows = (TeleEncounter.query.filter(
-        TeleEncounter.requested_at >= datetime.combine(start, datetime.min.time()),
-        TeleEncounter.requested_at < datetime.combine(end + timedelta(days=1), datetime.min.time())).all())
+    from app.utils.clock import to_utc
+
+    since = to_utc(datetime.combine(start, datetime.min.time()))
+    until = to_utc(datetime.combine(end + timedelta(days=1), datetime.min.time()))
+    rows = TeleEncounter.query.filter(TeleEncounter.requested_at >= since, TeleEncounter.requested_at < until).all()
     done = [r for r in rows if r.ended_at]
     lengths = [r.minutes for r in done if r.minutes is not None]
     return {"requested": len(rows), "not_eligible": sum(1 for r in rows if not r.eligible),
