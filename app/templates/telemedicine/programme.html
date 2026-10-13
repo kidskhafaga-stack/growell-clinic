@@ -1,0 +1,58 @@
+{% extends "shell.html" %}
+{% set active_module = 'telemedicine' %}
+{% block title %}{{ t('tele.tab_programme') }}{% endblock %}
+{% block page_heading %}{{ t('nav.telemedicine') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ACT.16 — the hospital's criteria (i), platforms (b) and the doctor
+   who oversees the service (ev. 3); and (l) the periodic evaluation: the
+   period's figures, and what was made of them. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-clipboard-data"></i> {{ t('tele.tab_programme') }}</h1>
+</div>
+<nav style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;">
+  <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('telemedicine.index') }}"><i class="bi bi-list-ul"></i> {{ t('tele.tab_encounters') }}</a>
+  <a class="btn btn-sm btn-primary gc-press" href="{{ url_for('telemedicine.programme') }}"><i class="bi bi-clipboard-data"></i> {{ t('tele.tab_programme') }}</a>
+</nav>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-tele-program>
+  <h2 class="section-title" style="margin-top:0;">{{ t('tele.program') }}</h2>
+  {% if current_user.is_admin %}
+  <form method="post" action="{{ url_for('telemedicine.programme') }}" style="display:grid;gap:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="tp_d">{{ t('tele.director') }}</label><input class="input" id="tp_d" name="director" maxlength="160" dir="auto" value="{{ program.director }}"></div>
+    <div><label class="label" for="tp_c">{{ t('tele.criteria') }}</label><textarea class="input" id="tp_c" name="criteria" rows="3" dir="auto">{{ program.criteria }}</textarea></div>
+    <div><label class="label" for="tp_p">{{ t('tele.platforms') }}</label><textarea class="input" id="tp_p" name="platforms" rows="2" dir="auto">{{ program.platforms|join('\n') }}</textarea></div>
+    <div><button class="btn btn-outline gc-press" type="submit">{{ t('tele.save') }}</button></div>
+  </form>
+  {% else %}
+  <p style="margin:0;">{{ t('tele.director') }}: {{ program.director or '—' }}</p>
+  <p class="hint" dir="auto" style="white-space:pre-line;">{{ program.criteria or t('tele.no_criteria') }}</p>
+  {% endif %}
+</div>
+
+<form method="get" action="{{ url_for('telemedicine.programme') }}" class="card" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:12px;">
+  <div><label class="label" for="tv_f">{{ t('tele.from') }}</label><input class="input" type="date" id="tv_f" name="from" value="{{ start }}"></div>
+  <div><label class="label" for="tv_t">{{ t('tele.to') }}</label><input class="input" type="date" id="tv_t" name="to" value="{{ end }}"></div>
+  <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('tele.show') }}</button>
+</form>
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-tele-stats>
+  <h2 class="section-title" style="margin-top:0;">{{ t('tele.evaluation') }}</h2>
+  <p style="margin:0;">{{ t('tele.requested') }}: <b data-tele-requested>{{ stats.requested }}</b> · {{ t('tele.not_eligible') }}: <b>{{ stats.not_eligible }}</b>
+    · {{ t('tele.done') }}: <b>{{ stats.done }}</b> · {{ t('tele.came_in') }}: <b data-tele-came-in>{{ stats.came_in }}</b>
+    · {{ t('tele.median') }}: <b>{% if stats.median_minutes is not none %}<span dir="ltr">{{ stats.median_minutes }}</span> {{ t('tele.min') }}{% else %}—{% endif %}</b></p>
+  <p style="margin:6px 0 0;">{% for m in modalities %}<span class="badge badge--muted">{{ t('tele.m_' ~ m) }}: {{ stats.by_modality[m] }}</span> {% endfor %}
+    {% for o in outcomes %}<span class="badge badge--muted">{{ t('tele.out_' ~ o) }}: {{ stats.by_outcome[o] }}</span> {% endfor %}</p>
+  <form method="post" action="{{ url_for('telemedicine.programme') }}" style="display:grid;gap:8px;margin-top:10px;border-top:1px solid var(--line);padding-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="what" value="review">
+    <input type="hidden" name="period_from" value="{{ start }}">
+    <input type="hidden" name="period_to" value="{{ end }}">
+    <div><label class="label" for="tv_r">{{ t('tele.review') }}</label><textarea class="input" id="tv_r" name="text" rows="3" required dir="auto"></textarea></div>
+    <div><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('tele.save_review') }}</button></div>
+  </form>
+  {% for r in reviews %}
+  <div class="hint" style="margin-top:6px;" data-tele-review="{{ r.id }}"><span dir="ltr">{{ r.period_from }} → {{ r.period_to }}</span>{% if r.by %} · {{ r.by.display_name(current_lang) }}{% endif %} · <span dir="auto">{{ r.text }}</span></div>
+  {% endfor %}
+</div>
+{% endblock %}

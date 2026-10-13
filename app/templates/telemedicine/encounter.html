@@ -1,0 +1,66 @@
+{% extends "shell.html" %}
+{% set active_module = 'telemedicine' %}
+{% block title %}{{ t('tele.encounter') }}{% endblock %}
+{% block page_heading %}{{ t('nav.telemedicine') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ACT.16 (g) — the identity check and both locations before it starts;
+   starting opens the visit the doctor writes on; the end with its outcome. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-camera-video"></i> {{ enc.patient.display_name(current_lang) }}</h1>
+  <p class="page-sub" style="margin:0;"><span dir="auto">{{ enc.reason }}</span> · {{ t('tele.m_' ~ enc.modality) }}
+    · <span class="badge badge--muted" data-tele-state="{{ enc.state }}">{{ t('tele.state_' ~ enc.state) }}</span></p>
+</div>
+<nav style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;">
+  <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('telemedicine.index') }}"><i class="bi bi-list-ul"></i> {{ t('tele.tab_encounters') }}</a>
+</nav>
+
+{% if enc.state == 'not_eligible' %}
+<div class="card" data-tele-not-eligible><p style="margin:0;">{{ t('tele.not_eligible_note') }}: <span dir="auto">{{ enc.not_eligible_note }}</span></p></div>
+{% endif %}
+
+{% if enc.state == 'waiting' %}
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-tele-start>
+  <h2 class="section-title" style="margin-top:0;">{{ t('tele.start') }}</h2>
+  <form method="post" action="{{ url_for('telemedicine.act', enc_id=enc.id, what='start') }}" style="display:grid;gap:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="ts_i">{{ t('tele.identity_how') }}</label><input class="input" id="ts_i" name="identity_how" maxlength="160" required dir="auto" placeholder="{{ t('tele.identity_ph') }}"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;"><label class="label" for="ts_p">{{ t('tele.patient_location') }}</label><input class="input" id="ts_p" name="patient_location" maxlength="160" required dir="auto"></div>
+      <div style="flex:1;min-width:200px;"><label class="label" for="ts_d">{{ t('tele.doctor_location') }}</label><input class="input" id="ts_d" name="doctor_location" maxlength="160" required dir="auto"></div>
+      <div><label class="label" for="ts_pl">{{ t('tele.platform') }}</label>
+        {% if program.platforms %}<select class="select" id="ts_pl" name="platform">{% for p in program.platforms %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select>
+        {% else %}<input class="input" id="ts_pl" name="platform" maxlength="80" dir="auto">{% endif %}</div>
+    </div>
+    <div><button class="btn btn-primary gc-press" type="submit">{{ t('tele.start') }}</button></div>
+  </form>
+  <form method="post" action="{{ url_for('telemedicine.act', enc_id=enc.id, what='cancel') }}" style="display:flex;gap:6px;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input class="input" name="note" dir="auto" placeholder="{{ t('tele.cancel_ph') }}" aria-label="{{ t('tele.cancel') }}" style="flex:1;">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('tele.cancel') }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% if enc.started_at %}
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-tele-started>
+  <p style="margin:0;">{{ t('tele.identity_how') }}: <span dir="auto">{{ enc.identity_how }}</span></p>
+  <p class="hint" style="margin:4px 0 0;">{{ t('tele.patient_location') }}: <span dir="auto">{{ enc.patient_location }}</span> · {{ t('tele.doctor_location') }}: <span dir="auto">{{ enc.doctor_location }}</span>{% if enc.platform %} · <span dir="auto">{{ enc.platform }}</span>{% endif %} · <span dir="ltr">{{ enc.started_at|clinic_stamp }}</span>{% if enc.doctor %} · {{ enc.doctor.display_name(current_lang) }}{% endif %}</p>
+  {% if enc.visit_id %}<a class="btn btn-sm btn-primary gc-press" style="margin-top:8px;" href="{{ url_for('visits.view', visit_id=enc.visit_id) }}" data-tele-visit><i class="bi bi-clipboard2-pulse"></i> {{ t('tele.open_visit') }}</a>{% endif %}
+</div>
+{% endif %}
+
+{% if enc.state == 'running' %}
+<div class="card gc-scale-in" data-tele-end>
+  <h2 class="section-title" style="margin-top:0;">{{ t('tele.end') }}</h2>
+  <form method="post" action="{{ url_for('telemedicine.act', enc_id=enc.id, what='end') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select class="select" name="outcome" required aria-label="{{ t('tele.outcome') }}">{% for o in outcomes %}<option value="{{ o }}">{{ t('tele.out_' ~ o) }}</option>{% endfor %}</select>
+    <input class="input" name="note" dir="auto" placeholder="{{ t('tele.note') }}" aria-label="{{ t('tele.note') }}" style="flex:1;min-width:200px;">
+    <button class="btn btn-primary gc-press" type="submit">{{ t('tele.end') }}</button>
+  </form>
+</div>
+{% elif enc.ended_at %}
+<div class="card" data-tele-done><p style="margin:0;">{{ t('tele.out_' ~ enc.outcome) }}{% if enc.minutes is not none %} · <span dir="ltr">{{ enc.minutes }}</span> {{ t('tele.min') }}{% endif %}{% if enc.note %} · <span dir="auto">{{ enc.note }}</span>{% endif %}</p></div>
+{% endif %}
+{% endblock %}

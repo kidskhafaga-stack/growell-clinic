@@ -367,12 +367,25 @@ def attendance(attendance_id):
             current_user.can_access("finance") or current_user.can("cashier")),
         owed=len(eo.unbilled(row.patient_id)),
         tests=eo.tests_for(row), missing=er.missing(row),
+        # GAHAR ICD.02 ev. 3 — the ambulance run that brought this child, so
+        # the pre-hospital record is one press from the attendance.
+        ambulance_runs=_ambulance_runs(row),
         doctors=eo.doctors(), services=services,
         store_items=_shelf(), routes=ROUTES, sources=SOURCES,
         may_order=current_user.can("medication_order"),
         is_doctor=eo.is_doctor(current_user),
         dispositions=DISPOSITIONS, leave_reasons=_reasons(),
         asked_on=_asked_on())
+
+
+def _ambulance_runs(row):
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("ambulance"):
+        return []
+    from app.utils import ambulance as amb
+
+    return amb.for_attendance(row)
 
 
 def _shelf():

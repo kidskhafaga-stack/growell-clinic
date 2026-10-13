@@ -1185,6 +1185,54 @@ SECTIONS = [
         ],
     },
     {
+        # GAHAR ICD.02 — opt-in, for a hospital with its own ambulance.
+        "key": "ambulance",
+        "module": "ambulance",
+        "icon": "truck-front",
+        "title": ("الإسعاف", "Ambulance"),
+        "lines": [
+            ("<b>كل مكالمة سجل</b>: اتستلمت إمتى ومن فين، والعربية والطاقم، والأربع "
+             "لحظات بضغطة لكل واحدة (اتحركت، وصلت للطفل، سابت المكان، وصلت المستشفى)، "
+             "واللي الطاقم لقاه وعمله في الطريق، وسلّموه لمين. الطفل اللي وصل ما بيتقفلش "
+             "من غير التقييم والرعاية والتسليم.",
+             "<b>Every call is a record</b>: when it came in and from where, the vehicle "
+             "and crew, the four moments one press each (sent, reached the child, left "
+             "the scene, arrived here), what the crew found and did on the way, and who "
+             "received the child. A run that brought a child does not close without the "
+             "assessment, the care and the handover."),
+            ("<b>زمن الاستجابة</b> بيتقاس من المكالمة، والأهداف أرقام المستشفى — من غيرها "
+             "البرنامج بيقيس وما بيحكمش. وفحص جاهزية كل عربية والناقص بإجرائه، والتدريبات.",
+             "<b>Response times</b> are measured from the call, against the hospital's "
+             "own targets — without them the program measures and does not judge. And "
+             "each vehicle's readiness checks, what was missing and what was done, and "
+             "the drills."),
+        ],
+    },
+    {
+        # GAHAR ACT.16 — opt-in, for a hospital that sees children remotely.
+        "key": "telemedicine",
+        "module": "telemedicine",
+        "icon": "camera-video",
+        "title": ("الكشف عن بُعد", "Telemedicine"),
+        "lines": [
+            ("<b>الطلب بالفرز</b>: الطفل ينفع يتشاف عن بُعد ولا لأ بمعايير المستشفى، "
+             "واللي ما ينفعش بيتقال لأهله يعملوا إيه. و<b>ما بيبدأش</b> غير لما يتكتب "
+             "اتأكدنا من هوية الطفل إزاي، والطفل فين والطبيب فين، والمنصة.",
+             "<b>Requested through triage</b>: whether the child may be seen remotely, by "
+             "the hospital's criteria, and what the family was told if not. It <b>does not "
+             "start</b> until the identity check and where the child and the doctor are "
+             "have been written, and the platform."),
+            ("<b>البداية بتفتح زيارة عادية</b> على قناتها، فالكشف والتشخيص والروشتة "
+             "بيتكتبوا على شاشة الزيارة المعتادة، والزيارة في ملف الطفل زي أي زيارة. "
+             "والتقييم الدوري بالأرقام: اتطلب كام، كام ما ينفعش، كام احتاج ييجي، والمدة.",
+             "<b>Starting opens an ordinary visit</b> on its own channel, so the "
+             "examination, diagnosis and prescription are written on the usual visit "
+             "screen and the visit sits in the child's file like any other. And the "
+             "periodic evaluation in figures: how many asked, how many were not "
+             "eligible, how many needed to come in, and how long."),
+        ],
+    },
+    {
         # «المعمل مديول لواحده والاشعة مديول». Opt-in like the lab, and
         # switched on once on upgrade wherever the lab was on.
         "key": "imaging",

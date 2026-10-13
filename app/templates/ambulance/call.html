@@ -1,0 +1,82 @@
+{% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
+{% set active_module = 'ambulance' %}
+{% block title %}{{ t('amb.call') }}{% endblock %}
+{% block page_heading %}{{ t('nav.ambulance') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ICD.02 — one run: the four moments one press each, in order; what
+   the crew found and did (d, e); and how it ended. A child brought here is
+   not closed without the assessment, the care and who received them. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-truck-front"></i> {{ t('amb.call') }} · <span dir="ltr">{{ call.received_at|clinic_stamp }}</span></h1>
+  <p class="page-sub" style="margin:0;"><span dir="auto">{{ call.location }}</span> · <span dir="auto">{{ call.complaint }}</span>
+    {% if call.caller %} · <span dir="auto">{{ call.caller }}</span>{% endif %}{% if call.phone %} · <span dir="ltr">{{ call.phone }}</span>{% endif %}</p>
+</div>
+{% from "ambulance/_nav.html" import amb_nav with context %}
+{{ amb_nav('calls') }}
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-amb-steps>
+  <h2 class="section-title" style="margin-top:0;">{{ t('amb.times') }}
+    {% for s in over %}<span class="badge badge--danger" data-amb-over="{{ s }}">{{ t('amb.over_' ~ s) }}</span>{% endfor %}</h2>
+  {% for s in steps %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);padding:6px 0;" data-amb-step="{{ s }}">
+    <strong style="min-width:150px;">{{ t('amb.step_' ~ s) }}</strong>
+    {% if call|attr(s) %}<span dir="ltr">{{ (call|attr(s))|clinic_stamp }}</span>
+      <span class="hint">+<span dir="ltr">{{ call.minutes(s) }}</span> {{ t('amb.min') }}</span>
+      {% if s == 'dispatched_at' and call.vehicle %}<span class="hint">· {{ call.vehicle.name }}{% if call.crew %} · <span dir="auto">{{ call.crew }}</span>{% endif %}</span>{% endif %}
+    {% elif call.is_open and call.next_step == s %}
+    <form method="post" action="{{ url_for('ambulance.call_act', call_id=call.id, what=s) }}" style="display:flex;gap:6px;flex-wrap:wrap;margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if s == 'dispatched_at' %}
+      <select class="select" name="vehicle_id" required aria-label="{{ t('amb.vehicle') }}"><option value="">{{ t('amb.vehicle') }}</option>
+        {% for v in fleet.vehicles %}<option value="{{ v.id }}">{{ v.name }}{% if v.plate %} ({{ v.plate }}){% endif %}</option>{% endfor %}</select>
+      <input class="input" name="crew" maxlength="255" dir="auto" placeholder="{{ t('amb.crew') }}" aria-label="{{ t('amb.crew') }}">
+      {% endif %}
+      <input class="input" type="datetime-local" name="at" aria-label="{{ t('amb.when') }}" title="{{ t('amb.now_if_empty') }}">
+      <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('amb.press_' ~ s) }}</button>
+    </form>
+    {% else %}<span class="hint">—</span>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-amb-record>
+  <h2 class="section-title" style="margin-top:0;">{{ t('amb.record') }}</h2>
+  {% if call.patient %}<p style="margin:0 0 6px;">{{ t('amb.patient') }}: <b>{{ call.patient.display_name(current_lang) }}</b></p>
+  {% elif call.patient_name %}<p class="hint" style="margin:0 0 6px;">{{ t('amb.patient_name') }}: <span dir="auto">{{ call.patient_name }}</span></p>{% endif %}
+  {% for f in ('assessment', 'reassessment', 'care') %}{% if call|attr(f) %}
+  <div style="margin-bottom:4px;"><strong>{{ t('amb.' ~ f) }}:</strong> <span dir="auto" style="white-space:pre-line;">{{ call|attr(f) }}</span></div>
+  {% endif %}{% endfor %}
+  {% if call.condition_on_arrival %}<div class="hint">{{ t('amb.condition_on_arrival') }}: <span dir="auto">{{ call.condition_on_arrival }}</span></div>{% endif %}
+  {% if call.handed_to %}<div class="hint">{{ t('amb.handed_to') }}: <span dir="auto">{{ call.handed_to }}</span></div>{% endif %}
+  {% if call.is_open %}
+  <form method="post" action="{{ url_for('ambulance.call_act', call_id=call.id, what='record') }}" style="display:grid;gap:8px;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if not call.patient %}<div>{{ pickers.patient_picker('patient_id', None, label=t('amb.patient')) }}</div>{% endif %}
+    {% for f in ('assessment', 'reassessment', 'care') %}
+    <div><label class="label" for="ar_{{ f }}">{{ t('amb.' ~ f) }}</label><textarea class="input" id="ar_{{ f }}" name="{{ f }}" rows="2" dir="auto">{{ call|attr(f) or '' }}</textarea></div>
+    {% endfor %}
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;"><label class="label" for="ar_c">{{ t('amb.condition_on_arrival') }}</label><input class="input" id="ar_c" name="condition_on_arrival" maxlength="255" dir="auto" value="{{ call.condition_on_arrival or '' }}"></div>
+      <div style="flex:1;min-width:200px;"><label class="label" for="ar_h">{{ t('amb.handed_to') }}</label><input class="input" id="ar_h" name="handed_to" maxlength="160" dir="auto" value="{{ call.handed_to or '' }}"></div>
+    </div>
+    <div><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('amb.save_record') }}</button></div>
+  </form>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" data-amb-close>
+  <h2 class="section-title" style="margin-top:0;">{{ t('amb.outcome') }}</h2>
+  {% if call.is_open %}
+  <form method="post" action="{{ url_for('ambulance.call_act', call_id=call.id, what='close') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select class="select" name="outcome" required aria-label="{{ t('amb.outcome') }}">{% for o in outcomes %}<option value="{{ o }}">{{ t('amb.out_' ~ o) }}</option>{% endfor %}</select>
+    <input class="input" name="outcome_note" maxlength="255" dir="auto" placeholder="{{ t('amb.outcome_note') }}" aria-label="{{ t('amb.outcome_note') }}" style="flex:1;min-width:200px;">
+    <button class="btn btn-primary gc-press" type="submit">{{ t('amb.close') }}</button>
+  </form>
+  {% else %}
+  <p style="margin:0;"><span class="badge badge--muted">{{ t('amb.out_' ~ call.outcome) }}</span>{% if call.outcome_note %} <span dir="auto">{{ call.outcome_note }}</span>{% endif %}</p>
+  {% endif %}
+</div>
+{% endblock %}

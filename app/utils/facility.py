@@ -33,7 +33,8 @@ ALWAYS_ON = {"dashboard", "settings", "users"}
 # So the default runs the other way here: nothing until somebody says so.
 OPT_IN_MODULES = {"dentistry", "panels", "observations", "beds",
                   "emergency", "nicu", "icu", "ward", "theatres", "labs",
-                  "imaging", "pharmacy", "duty", "programs"}
+                  "imaging", "pharmacy", "duty", "programs", "ambulance",
+                  "telemedicine"}
 
 # Modules an admin may turn on/off.
 TOGGLEABLE_MODULES = [m for m in MODULES if m not in ALWAYS_ON]

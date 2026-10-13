@@ -1,0 +1,59 @@
+{% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
+{% set active_module = 'ambulance' %}
+{% block title %}{{ t('nav.ambulance') }}{% endblock %}
+{% block page_heading %}{{ t('nav.ambulance') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ICD.02 — the runs under way, oldest first, and the last ones closed.
+   A new call is written here the moment it comes in. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-truck-front"></i> {{ t('nav.ambulance') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('amb.sub') }}</p>
+</div>
+{% from "ambulance/_nav.html" import amb_nav with context %}
+{{ amb_nav('calls') }}
+
+<details class="card" style="margin-bottom:12px;" open data-amb-new>
+  <summary>{{ t('amb.new_call') }}</summary>
+  <form method="post" action="{{ url_for('ambulance.index') }}" style="display:grid;gap:8px;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div><label class="label" for="ac_at">{{ t('amb.received_at') }}</label><input class="input" type="datetime-local" id="ac_at" name="received_at"></div>
+      <div style="flex:1;min-width:160px;"><label class="label" for="ac_c">{{ t('amb.caller') }}</label><input class="input" id="ac_c" name="caller" maxlength="160" dir="auto"></div>
+      <div><label class="label" for="ac_p">{{ t('amb.phone') }}</label><input class="input" id="ac_p" name="phone" maxlength="40" dir="ltr"></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div style="flex:2;min-width:220px;"><label class="label" for="ac_l">{{ t('amb.location') }}</label><input class="input" id="ac_l" name="location" maxlength="255" required dir="auto"></div>
+      <div style="flex:2;min-width:220px;"><label class="label" for="ac_m">{{ t('amb.complaint') }}</label><input class="input" id="ac_m" name="complaint" maxlength="255" required dir="auto"></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <div style="flex:1;min-width:220px;">{{ pickers.patient_picker('patient_id', None, label=t('amb.patient')) }}</div>
+      <div style="flex:1;min-width:160px;"><label class="label" for="ac_n">{{ t('amb.patient_name') }}</label><input class="input" id="ac_n" name="patient_name" maxlength="120" dir="auto"></div>
+    </div>
+    <div><button class="btn btn-primary gc-press" type="submit">{{ t('amb.save_call') }}</button></div>
+  </form>
+</details>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-amb-open>
+  <h2 class="section-title" style="margin-top:0;">{{ t('amb.open') }}</h2>
+  {% for c in data.open %}
+  <a href="{{ url_for('ambulance.call', call_id=c.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:6px 0;" data-amb-call="{{ c.id }}">
+    <span dir="ltr">{{ c.received_at|clinic_stamp }}</span>
+    <span dir="auto">{{ c.location }}</span> · <span dir="auto">{{ c.complaint }}</span>
+    <span class="badge badge--warn">{{ t('amb.next_' ~ (c.next_step or 'close')) }}</span>
+  </a>
+  {% else %}<p class="hint" style="margin:0;">{{ t('amb.none_open') }}</p>{% endfor %}
+</div>
+
+<div class="card" data-amb-recent>
+  <h2 class="section-title" style="margin-top:0;">{{ t('amb.recent') }}</h2>
+  {% for c in data.recent %}
+  <a href="{{ url_for('ambulance.call', call_id=c.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:6px 0;">
+    <span dir="ltr">{{ c.received_at|clinic_stamp }}</span> <span dir="auto">{{ c.complaint }}</span>
+    <span class="badge badge--muted">{{ t('amb.out_' ~ c.outcome) }}</span>
+    {% if c.minutes('at_scene_at') is not none %}<span class="hint">{{ t('amb.to_scene') }} <span dir="ltr">{{ c.minutes('at_scene_at') }}</span> {{ t('amb.min') }}</span>{% endif %}
+  </a>
+  {% else %}<p class="hint" style="margin:0;">—</p>{% endfor %}
+</div>
+{% endblock %}

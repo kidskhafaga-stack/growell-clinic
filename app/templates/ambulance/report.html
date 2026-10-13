@@ -1,0 +1,30 @@
+{% extends "shell.html" %}
+{% set active_module = 'ambulance' %}
+{% block title %}{{ t('amb.tab_report') }}{% endblock %}
+{% block page_heading %}{{ t('nav.ambulance') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ICD.02 ev. 4 — response times over a period, against the hospital's
+   targets when it has written them. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-stopwatch"></i> {{ t('amb.tab_report') }}</h1>
+</div>
+{% from "ambulance/_nav.html" import amb_nav with context %}
+{{ amb_nav('report') }}
+<form method="get" action="{{ url_for('ambulance.report') }}" class="card" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:12px;">
+  <div><label class="label" for="rp_f">{{ t('amb.from') }}</label><input class="input" type="date" id="rp_f" name="from" value="{{ start }}"></div>
+  <div><label class="label" for="rp_t">{{ t('amb.to') }}</label><input class="input" type="date" id="rp_t" name="to" value="{{ end }}"></div>
+  <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('amb.show') }}</button>
+</form>
+<div class="card gc-scale-in" data-amb-report>
+  <p style="margin:0 0 8px;">{{ t('amb.runs') }}: <b data-amb-count>{{ data.count }}</b></p>
+  {% for s in ('dispatched_at', 'at_scene_at', 'arrived_at') %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:6px 0;" data-amb-median="{{ s }}">
+    <span style="min-width:200px;">{{ t('amb.median_' ~ s) }}</span>
+    <b>{% if data.median[s] is not none %}<span dir="ltr">{{ data.median[s] }}</span> {{ t('amb.min') }}{% else %}—{% endif %}</b>
+    {% if s in data.targets %}<span class="hint">{{ t('amb.target') }}: {% if data.targets[s] %}<span dir="ltr">{{ '%g'|format(data.targets[s]) }}</span> · {{ t('amb.over') }} <b dir="ltr">{{ data.over[s] }}</b>{% else %}{{ t('amb.no_target') }}{% endif %}</span>{% endif %}
+  </div>
+  {% endfor %}
+  <p style="margin:8px 0 0;">{% for o in outcomes %}<span class="badge badge--muted">{{ t('amb.out_' ~ o) }}: {{ data.outcomes[o] }}</span> {% endfor %}</p>
+</div>
+{% endblock %}

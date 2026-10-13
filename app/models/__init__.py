@@ -183,6 +183,8 @@ from app.models.stay_leave import StayLeave
 from app.models.family_question import FamilyQuestion
 from app.models.belonging import Belonging, LostItem
 from app.models.guideline import ClinicalGuideline, GuidelineEvent
+from app.models.ambulance import AmbulanceCall, AmbulanceReadiness, AmbulanceVehicle
+from app.models.telemedicine import TeleEncounter, TeleReview
 from app.models.quality import (ImprovementProject, MeasureValue, PerformanceMeasure,
                                 ProactiveAssessment, QualityDecision, QualityMeeting,
                                 QualitySelfEvaluation, RiskItem, RiskReport)
@@ -606,6 +608,11 @@ __all__ = [
     "LostItem",
     "ClinicalGuideline",
     "GuidelineEvent",
+    "AmbulanceCall",
+    "AmbulanceReadiness",
+    "AmbulanceVehicle",
+    "TeleEncounter",
+    "TeleReview",
     "ProgramSession",
     "ViralMarker",
     "PerformanceMeasure",

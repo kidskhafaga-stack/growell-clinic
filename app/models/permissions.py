@@ -102,6 +102,13 @@ MODULES = [
     # with its check before and what was seen, and the programme's plan.
     # Opt-in: a hospital without them never sees the screen.
     "programs",
+    # The hospital's own ambulance (GAHAR ICD.02): the calls, the four moments
+    # of a run and the response times, the vehicles' readiness and drills.
+    # Opt-in — most hospitals rely on the national ambulance.
+    "ambulance",
+    # Remote encounters by video, phone or message (GAHAR ACT.16), each one
+    # an ordinary visit on its own channel. Opt-in.
+    "telemedicine",
     "prescriptions",
     "inventory",
     "finance",
@@ -154,6 +161,8 @@ MODULE_ICONS = {
     "pharmacy": "prescription2",
     "duty": "calendar-week",
     "programs": "clipboard2-heart",
+    "ambulance": "truck-front",
+    "telemedicine": "camera-video",
     "prescriptions": "capsule",
     "inventory": "box-seam",
     "finance": "cash-coin",
@@ -199,6 +208,8 @@ ROLE_PERMISSIONS = {
         # night pays and who is put on it stay admin-only inside the screen.
         "duty",
         "programs",
+        "ambulance",
+        "telemedicine",
         "prescriptions",
         "ai",
     ],
@@ -234,6 +245,7 @@ ROLE_PERMISSIONS = {
         # question the rota exists to answer.
         "duty",
         "programs",
+        "ambulance",
     ],
     "reception": [
         "dashboard",

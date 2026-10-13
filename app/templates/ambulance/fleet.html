@@ -1,0 +1,78 @@
+{% extends "shell.html" %}
+{% set active_module = 'ambulance' %}
+{% block title %}{{ t('amb.tab_fleet') }}{% endblock %}
+{% block page_heading %}{{ t('nav.ambulance') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ICD.02 (a) own or contracted, (b) continuous readiness — each
+   vehicle's last check and what was missing and done — (f) drills, and (c)
+   the hospital's response-time targets. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-truck-front"></i> {{ t('amb.tab_fleet') }}</h1>
+</div>
+{% from "ambulance/_nav.html" import amb_nav with context %}
+{{ amb_nav('fleet') }}
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-amb-vehicles>
+  <h2 class="section-title" style="margin-top:0;">{{ t('amb.vehicles') }}</h2>
+  {% for v in fleet.vehicles %}{% set last = fleet.last.get(v.id) %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:6px 0;" data-amb-vehicle="{{ v.id }}">
+    <b>{{ v.name }}</b>{% if v.plate %}<span dir="ltr">{{ v.plate }}</span>{% endif %}
+    <span class="badge badge--muted">{{ t('amb.provider_' ~ v.provider) }}{% if v.contractor %} · {{ v.contractor }}{% endif %}</span>
+    {% if last %}<span class="hint">{{ t('amb.last_check') }} <span dir="ltr">{{ last.held_on }}</span></span>
+      {% if not last.ok %}<span class="badge badge--danger">{{ t('amb.not_ready') }}: <span dir="auto">{{ last.missing }}</span></span>{% endif %}
+    {% else %}<span class="badge badge--warn">{{ t('amb.never_checked') }}</span>{% endif %}
+  </div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('amb.no_vehicles') }}</p>{% endfor %}
+  {% if current_user.is_admin %}
+  <form method="post" action="{{ url_for('ambulance.fleet') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="what" value="vehicle">
+    <div><label class="label" for="av_n">{{ t('amb.vehicle') }}</label><input class="input" id="av_n" name="name" maxlength="80" required dir="auto"></div>
+    <div><label class="label" for="av_p">{{ t('amb.plate') }}</label><input class="input" id="av_p" name="plate" maxlength="40" dir="ltr"></div>
+    <div><label class="label" for="av_pr">{{ t('amb.provider') }}</label><select class="select" id="av_pr" name="provider">{% for p in providers %}<option value="{{ p }}">{{ t('amb.provider_' ~ p) }}</option>{% endfor %}</select></div>
+    <div><label class="label" for="av_c">{{ t('amb.contractor') }}</label><input class="input" id="av_c" name="contractor" maxlength="160" dir="auto"></div>
+    <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('amb.add_vehicle') }}</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-amb-readiness>
+  <h2 class="section-title" style="margin-top:0;">{{ t('amb.readiness') }}</h2>
+  <form method="post" action="{{ url_for('ambulance.fleet') }}" style="display:grid;gap:8px;" x-data="{ kind: 'check', ok: 'yes' }">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <div><label class="label" for="rd_k">{{ t('amb.kind') }}</label><select class="select" id="rd_k" name="kind" x-model="kind"><option value="check">{{ t('amb.kind_check') }}</option><option value="drill">{{ t('amb.kind_drill') }}</option></select></div>
+      <div><label class="label" for="rd_v">{{ t('amb.vehicle') }}</label><select class="select" id="rd_v" name="vehicle_id"><option value="">—</option>{% for v in fleet.vehicles %}<option value="{{ v.id }}">{{ v.name }}</option>{% endfor %}</select></div>
+      <div><label class="label" for="rd_d">{{ t('amb.date') }}</label><input class="input" type="date" id="rd_d" name="held_on" value="{{ today }}"></div>
+      <div><label class="label" for="rd_ok">{{ t('amb.ready_q') }}</label><select class="select" id="rd_ok" name="ok" x-model="ok"><option value="yes">{{ t('amb.yes') }}</option><option value="no">{{ t('amb.no') }}</option></select></div>
+    </div>
+    <div x-show="ok === 'no'" x-cloak style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;"><label class="label" for="rd_m">{{ t('amb.missing') }}</label><input class="input" id="rd_m" name="missing" dir="auto"></div>
+      <div style="flex:1;min-width:200px;"><label class="label" for="rd_a">{{ t('amb.action') }}</label><input class="input" id="rd_a" name="action" dir="auto"></div>
+    </div>
+    <div><label class="label" for="rd_n">{{ t('amb.note') }}</label><input class="input" id="rd_n" name="note" dir="auto" :required="kind === 'drill'" placeholder="{{ t('amb.drill_ph') }}"></div>
+    <div><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('amb.save') }}</button></div>
+  </form>
+  {% for d in fleet.drills %}
+  <div class="hint" style="margin-top:4px;" data-amb-drill="{{ d.id }}"><span dir="ltr">{{ d.held_on }}</span> · {{ t('amb.kind_drill') }} · <span dir="auto">{{ d.note }}</span></div>
+  {% endfor %}
+</div>
+
+<div class="card" data-amb-targets>
+  <h2 class="section-title" style="margin-top:0;">{{ t('amb.targets') }}</h2>
+  <p class="hint" style="margin-top:0;">{{ t('amb.targets_hint') }}</p>
+  {% if current_user.is_admin %}
+  <form method="post" action="{{ url_for('ambulance.fleet') }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="what" value="targets">
+    {% for s in ('dispatched_at', 'at_scene_at') %}
+    <div><label class="label" for="tg_{{ s }}">{{ t('amb.target_' ~ s) }}</label><input class="input" type="number" min="1" step="any" id="tg_{{ s }}" name="{{ s }}" value="{{ '%g'|format(targets[s]) if targets[s] else '' }}" style="max-width:110px;"></div>
+    {% endfor %}
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('amb.save') }}</button>
+  </form>
+  {% else %}
+  <p class="hint" style="margin:0;">{% for s in ('dispatched_at', 'at_scene_at') %}{{ t('amb.target_' ~ s) }}: {% if targets[s] %}<span dir="ltr">{{ '%g'|format(targets[s]) }}</span>{% else %}—{% endif %}{{ ' · ' if not loop.last }}{% endfor %}</p>
+  {% endif %}
+</div>
+{% endblock %}

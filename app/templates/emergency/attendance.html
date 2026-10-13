@@ -16,6 +16,11 @@
   .eo-src { font-size:.85rem; color:var(--muted); }
 </style>
 {% set hold_patient_id = row.patient_id %}{% set hold_emergency = True %}{% include "_hold_banner.html" %}
+{% for run in ambulance_runs %}
+<p class="card" style="margin-bottom:12px;" data-ambulance-run="{{ run.id }}"><i class="bi bi-truck-front"></i> {{ t('amb.brought_by') }}
+  · <span dir="ltr">{{ run.received_at|clinic_stamp }}</span> · <span dir="auto">{{ run.location }}</span>
+  {% if current_user.can_access('ambulance') %}<a href="{{ url_for('ambulance.call', call_id=run.id) }}">{{ t('amb.open_sheet') }}</a>{% endif %}</p>
+{% endfor %}
 {# «Pay first» — only a child the triage called non-urgent, only where the
    hospital switched it on (`utils/er_pay_first`). The doctor writes as
    always; giving and doing wait for the desk. Triaged urgent, it lifts. #}
