@@ -27,7 +27,10 @@ from app.extensions import db
 #: potential discrimination events: the same report, the same review.
 CATEGORIES = ("patient_care", "fall", "injury", "infection", "security",
               "violence", "facility", "documentation", "laboratory",
-              "patient_rights", "other")
+              "patient_rights",
+              # EFS.05 ev. 4–5 — smoking where it is not allowed; EFS.06 (g) —
+              # a spill or an exposure to a hazardous material.
+              "smoking", "hazmat", "other")
 #: Who it touched.
 AFFECTED = ("patient", "staff", "visitor", "none")
 #: QPI.11's own definitions.

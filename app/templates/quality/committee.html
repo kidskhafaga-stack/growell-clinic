@@ -18,7 +18,8 @@
 {# PCC.01 — the patient-centred culture committee keeps its minutes here
    too, apart from the quality committee's, and must meet every quarter. #}
 <nav style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px;" data-committees>
-  {% for c in ('quality', 'patient') %}
+  <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('quality.committees') }}" data-to-committees><i class="bi bi-diagram-3"></i> {{ t('gov.register') }}</a>
+  {% for c in ('quality', 'patient', 'environment', 'mortality', 'ethics', 'governing') %}
   <a class="btn btn-sm {{ 'btn-primary' if data.committee == c else 'btn-outline' }} gc-press" href="{{ url_for('quality.committee', c=c) }}" data-committee="{{ c }}">{{ t('qual.committee_' ~ c) }}</a>
   {% endfor %}
 </nav>
@@ -56,6 +57,7 @@
       <div style="flex:1;min-width:240px;"><label class="label" for="qm_a">{{ t('dtc.attendees') }}</label><input class="input" id="qm_a" name="attendees" required dir="auto"></div>
     </div>
     <div><label class="label" for="qm_m">{{ t('dtc.minutes') }}</label><textarea class="input" id="qm_m" name="minutes" rows="4" required dir="auto"></textarea></div>
+    <div><label class="label" for="qm_c">{{ t('gov.circulated_to') }}</label><input class="input" id="qm_c" name="circulated_to" maxlength="255" dir="auto"></div>
     {% for i in range(3) %}
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <div style="flex:1;min-width:200px;"><label class="label" for="qd{{ i }}">{{ t('dtc.decision') }}</label><input class="input" id="qd{{ i }}" name="decision" dir="auto"></div>
@@ -71,6 +73,7 @@
 <details class="card" style="margin-bottom:8px;" data-q-meeting="{{ m.id }}">
   <summary><span dir="ltr">{{ m.held_on }}</span> · <span dir="auto">{{ m.attendees }}</span></summary>
   <div dir="auto" style="white-space:pre-line;margin-top:8px;">{{ m.minutes }}</div>
+  {% if m.circulated_to %}<p class="hint" style="margin:6px 0 0;">{{ t('gov.circulated_to') }}: <span dir="auto">{{ m.circulated_to }}</span></p>{% endif %}
 </details>
 {% endfor %}
 

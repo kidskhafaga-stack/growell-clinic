@@ -1030,6 +1030,15 @@ ADDITIONS = [
     ("refusals", "followup_plan", "TEXT"),
     ("refusals", "signature_refused", "BOOLEAN"),
     ("refusals", "witness_name", "VARCHAR(120)"),
+    # EFS.09 / EFS.13 — the abduction and disaster drills on the drill record;
+    # EFS.06–13 — training by topic; OGM.05 — minutes circulated.
+    ("fire_drills", "kind", "VARCHAR(12) DEFAULT 'fire'"),
+    ("fire_drills", "scenario", "TEXT"),
+    ("fire_drills", "observations", "TEXT"),
+    ("fire_drills", "debrief", "TEXT"),
+    ("fire_drills", "committee_told_on", "DATE"),
+    ("fire_training", "topic", "VARCHAR(12) DEFAULT 'fire'"),
+    ("quality_meetings", "circulated_to", "VARCHAR(255)"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

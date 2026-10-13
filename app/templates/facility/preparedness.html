@@ -1,0 +1,129 @@
+{% extends "shell.html" %}
+{% from "facility/_nav.html" import facility_nav with context %}
+{% set active_module = 'facility' %}
+{% block title %}{{ t('facility.tab_preparedness') }}{% endblock %}
+{% block page_heading %}{{ t('facility.tab_preparedness') }}{% endblock %}
+
+{% block content %}
+{# GAHAR EFS.13 — the emergencies the hospital could face, ranked by
+   probability and impact on its own scale (a)–(c), the call tree (d), and
+   the disaster drill at least twice a year with its scenario, what was
+   seen, the debriefing and the feedback to the committee (h); EFS.09 (g) —
+   the child-abduction drill, twice a year too; and the yearly training on
+   each plan (EFS.06, EFS.07, EFS.09, EFS.13). #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-megaphone"></i> {{ t('facility.tab_preparedness') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('facility.preparedness_sub') }}</p>
+</div>
+{{ facility_nav('preparedness') }}
+
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px;margin-bottom:14px;">
+  <div class="card gc-scale-in" id="hazards" data-hazards>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-cloud-lightning-rain"></i> {{ t('facility.hazards') }}</h2>
+    <p class="hint" style="margin:0 0 8px;">{{ t('facility.hazards_hint') }}</p>
+    {% if hazards %}
+    <div style="overflow-x:auto;"><table class="table" style="min-width:420px;font-variant-numeric:tabular-nums;">
+      <thead><tr><th>{{ t('facility.hazard_name') }}</th><th>{{ t('facility.probability') }}</th><th>{{ t('facility.impact') }}</th><th>{{ t('facility.score') }}</th><th></th></tr></thead>
+      <tbody>{% for h in hazards %}<tr data-hazard="{{ h.id }}">
+        <td><b dir="auto">{{ h.name }}</b> <span class="hint">{{ t('facility.hk_' ~ h.kind) }}</span>{% if h.preparedness %}<div class="hint" dir="auto">{{ h.preparedness }}</div>{% endif %}</td>
+        <td dir="ltr">{{ h.probability }}</td><td dir="ltr">{{ h.impact }}</td><td dir="ltr"><b>{{ h.score }}</b></td>
+        <td><form method="post" action="{{ url_for('facility.hazard_retire', hazard_id=h.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline gc-press" type="submit" aria-label="{{ t('facility.retire') }}"><i class="bi bi-archive"></i></button></form></td>
+      </tr>{% endfor %}</tbody></table></div>
+    {% else %}<p class="hint">{{ t('facility.no_hazards') }}</p>{% endif %}
+    <details style="margin-top:10px;"><summary style="cursor:pointer;">{{ t('facility.new_hazard') }}</summary>
+    <form method="post" action="{{ url_for('facility.hazard_new') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-top:8px;" data-new-hazard>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="h_n">{{ t('facility.hazard_name') }}</label><input class="input" id="h_n" name="name" maxlength="160" required dir="auto"></div>
+      <div class="form-row" style="margin:0;"><label for="h_k">{{ t('facility.kind') }}</label><select class="input" id="h_k" name="kind" required><option value=""></option>{% for k in hazard_kinds %}<option value="{{ k }}">{{ t('facility.hk_' ~ k) }}</option>{% endfor %}</select></div>
+      <div class="form-row" style="margin:0;"><label for="h_p">{{ t('facility.probability') }}</label><input class="input" id="h_p" name="probability" inputmode="numeric" required dir="ltr"></div>
+      <div class="form-row" style="margin:0;"><label for="h_i">{{ t('facility.impact') }}</label><input class="input" id="h_i" name="impact" inputmode="numeric" required dir="ltr"></div>
+      <div class="form-row" style="margin:0;"><label for="h_on">{{ t('facility.checked_on') }}</label><input class="input" type="date" id="h_on" name="assessed_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+      <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="h_pr">{{ t('facility.preparedness_level') }}</label><textarea class="input" id="h_pr" name="preparedness" rows="2" dir="auto"></textarea></div>
+      <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="h_r">{{ t('facility.resources') }}</label><textarea class="input" id="h_r" name="resources" rows="2" dir="auto"></textarea></div>
+      <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+    </form></details>
+  </div>
+
+  <div class="card gc-scale-in" id="tree" data-call-tree>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-diagram-3"></i> {{ t('facility.call_tree') }}</h2>
+    {% for group, rows in (('inside', tree.inside), ('outside', tree.outside)) %}
+    <h3 class="section-title" style="font-size:.95rem;margin:6px 0;">{{ t('facility.tree_' ~ group) }}</h3>
+    {% if rows %}<ol style="margin:0 0 8px;padding-inline-start:20px;">{% for c in rows %}<li data-contact="{{ c.id }}"><b dir="auto">{{ c.title }}</b>{% if c.name %} — <span dir="auto">{{ c.name }}</span>{% endif %} — <a href="tel:{{ c.phone }}" dir="ltr">{{ c.phone }}</a>{% if c.duty %}<div class="hint" dir="auto">{{ c.duty }}</div>{% endif %}
+      <form method="post" action="{{ url_for('facility.contact_retire', contact_id=c.id) }}" style="display:inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline gc-press" type="submit" aria-label="{{ t('facility.retire') }}" style="padding:0 6px;"><i class="bi bi-x"></i></button></form></li>{% endfor %}</ol>
+    {% else %}<p class="hint" style="margin:0 0 8px;">{{ t('facility.no_contacts') }}</p>{% endif %}
+    {% endfor %}
+    <details><summary style="cursor:pointer;">{{ t('facility.new_contact') }}</summary>
+    <form method="post" action="{{ url_for('facility.contact_new') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-top:8px;" data-new-contact>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;"><label for="ct_t">{{ t('facility.contact_title') }}</label><input class="input" id="ct_t" name="title" maxlength="160" required dir="auto"></div>
+      <div class="form-row" style="margin:0;"><label for="ct_n">{{ t('facility.contact_name') }}</label><input class="input" id="ct_n" name="name" maxlength="160" dir="auto"></div>
+      <div class="form-row" style="margin:0;"><label for="ct_p">{{ t('facility.phone') }}</label><input class="input" id="ct_p" name="phone" maxlength="40" required dir="ltr"></div>
+      <div class="form-row" style="margin:0;"><label for="ct_o">{{ t('facility.order') }}</label><input class="input" id="ct_o" name="position" inputmode="numeric" dir="ltr"></div>
+      <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="ct_d">{{ t('facility.duty') }}</label><input class="input" id="ct_d" name="duty" maxlength="255" dir="auto"></div>
+      <label><input type="checkbox" name="external" value="1"> {{ t('facility.tree_outside') }}</label>
+      <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+    </form></details>
+  </div>
+</div>
+
+{% for d in (disaster, abduction) %}
+<div class="card gc-scale-in" id="{{ d.kind }}" style="margin-bottom:14px;" data-half-drills="{{ d.kind }}">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-{{ 'tornado' if d.kind == 'disaster' else 'person-exclamation' }}"></i> {{ t('facility.drill_' ~ d.kind) }} — <span dir="ltr">{{ d.year }}</span></h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+    {% for h, n in d.halves.items() %}
+    <span class="badge {{ 'badge--green' if n else ('badge--danger' if h in d.missing_halves else 'badge--muted') }}" {% if h in d.missing_halves %}data-half-missing="{{ h }}"{% endif %}>{{ t('facility.half', h=h) }}: {{ n }}</span>
+    {% endfor %}
+    {% if d.untold %}<span class="badge badge--warn" data-untold="{{ d.untold|length }}">{{ t('facility.untold_n', n=d.untold|length) }}</span>{% endif %}
+  </div>
+  {% if d.drills %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:720px;">
+    <thead><tr><th>{{ t('facility.when') }}</th><th>{{ t('facility.scenario') }}</th><th>{{ t('facility.observations') }}</th><th>{{ t('facility.corrective') }}</th><th>{{ t('facility.committee_told') }}</th></tr></thead>
+    <tbody>{% for r in d.drills %}<tr data-drill="{{ r.id }}">
+      <td dir="ltr">{{ r.held_at.strftime('%Y-%m-%d %H:%M') }}</td><td dir="auto">{{ r.scenario }}</td><td dir="auto">{{ r.observations }}</td><td dir="auto">{{ r.corrective_action }}</td>
+      <td>{% if r.committee_told_on %}<span dir="ltr">{{ r.committee_told_on.isoformat() }}</span>{% else %}
+        <form method="post" action="{{ url_for('facility.drill_told', drill_id=r.id) }}" style="display:flex;gap:4px;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="input" type="date" name="committee_told_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required aria-label="{{ t('facility.committee_told') }}">
+          <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button></form>{% endif %}</td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint">{{ t('facility.no_drills') }}</p>{% endif %}
+  <details style="margin-top:10px;"><summary style="cursor:pointer;">{{ t('facility.new_drill') }}</summary>
+  <form method="post" action="{{ url_for('facility.drill') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:8px;" data-new-drill="{{ d.kind }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="kind" value="{{ d.kind }}">
+    <div class="form-row" style="margin:0;"><label for="{{ d.kind }}_at">{{ t('facility.when') }}</label><input class="input" type="datetime-local" id="{{ d.kind }}_at" name="held_at" required></div>
+    <div class="form-row" style="margin:0;"><label for="{{ d.kind }}_sh">{{ t('facility.shift') }}</label>
+      <select class="input" id="{{ d.kind }}_sh" name="shift" required><option value=""></option>{% for s in shifts %}<option value="{{ s }}">{{ t('facility.shift_' ~ s) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="{{ d.kind }}_ar">{{ t('facility.areas') }}</label><input class="input" id="{{ d.kind }}_ar" name="areas" maxlength="400" required dir="auto"></div>
+    <label style="align-self:end;"><input type="checkbox" name="unannounced" value="1"> {{ t('facility.unannounced') }}</label>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="{{ d.kind }}_pp">{{ t('facility.participants') }}</label>
+      <select class="input" id="{{ d.kind }}_pp" name="participants" multiple size="5">{% for u in staff %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="{{ d.kind }}_ot">{{ t('facility.others') }}</label><input class="input" id="{{ d.kind }}_ot" name="others" inputmode="numeric" dir="ltr"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="{{ d.kind }}_sc">{{ t('facility.scenario') }}</label><textarea class="input" id="{{ d.kind }}_sc" name="scenario" rows="2" required dir="auto"></textarea></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="{{ d.kind }}_ob">{{ t('facility.observations') }}</label><textarea class="input" id="{{ d.kind }}_ob" name="observations" rows="3" required dir="auto" placeholder="{{ t('facility.observations_ph_' ~ d.kind) }}"></textarea></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="{{ d.kind }}_ev">{{ t('facility.evaluation') }}</label><textarea class="input" id="{{ d.kind }}_ev" name="evaluation" rows="2" required dir="auto"></textarea></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="{{ d.kind }}_ca">{{ t('facility.corrective') }}</label><textarea class="input" id="{{ d.kind }}_ca" name="corrective_action" rows="2" required dir="auto"></textarea></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="{{ d.kind }}_db">{{ t('facility.debrief') }}</label><textarea class="input" id="{{ d.kind }}_db" name="debrief" rows="2" required dir="auto"></textarea></div>
+    <div class="form-row" style="margin:0;"><label for="{{ d.kind }}_ct">{{ t('facility.committee_told') }}</label><input class="input" type="date" id="{{ d.kind }}_ct" name="committee_told_on" max="{{ today.isoformat() }}"></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+{% endfor %}
+
+<div class="card gc-scale-in" id="training" data-plan-training>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-mortarboard"></i> {{ t('facility.plan_training') }}</h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+    {% for k in topics %}<span class="badge {{ 'badge--warn' if untrained[k] else 'badge--green' }}" data-untrained-topic="{{ k }}:{{ untrained[k]|length }}">{{ t('facility.topic_' ~ k) }}: {{ t('facility.untrained_n', n=untrained[k]|length) }}</span>{% endfor %}
+  </div>
+  <form method="post" action="{{ url_for('facility.training') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));" data-new-training>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="tr_topic">{{ t('facility.topic') }}</label>
+      <select class="input" id="tr_topic" name="topic" required>{% for k in topics if k != 'fire' %}<option value="{{ k }}">{{ t('facility.topic_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="tr_on">{{ t('facility.trained_on') }}</label><input class="input" type="date" id="tr_on" name="trained_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+    <div class="form-row" style="margin:0;"><label for="tr_by">{{ t('facility.trainer') }}</label><input class="input" id="tr_by" name="trainer" maxlength="160" dir="auto"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="tr_people">{{ t('facility.trained_people') }}</label>
+      <select class="input" id="tr_people" name="user_ids" multiple size="6" required>{% for u in staff %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form>
+  <p class="hint" style="margin:8px 0 0;">{{ t('facility.fire_training_there') }} <a href="{{ url_for('facility.index') }}#training">{{ t('facility.tab_index') }}</a></p>
+</div>
+{% endblock %}

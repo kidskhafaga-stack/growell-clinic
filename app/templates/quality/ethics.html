@@ -1,0 +1,59 @@
+{% extends "shell.html" %}
+{% from "quality/_nav.html" import quality_nav with context %}
+{% block title %}{{ t('gov.ethics') }}{% endblock %}
+{% block page_heading %}{{ t('gov.ethics') }}{% endblock %}
+
+{% block content %}
+{# GAHAR OGM.15 — every ethical issue raised (a dilemma, a conflict of
+   interest, discrimination, harassment, gender equality), discussed,
+   decided, told to whom it concerns within the hospital's timeframe, and
+   used to teach. The committee's minutes are on its own committee page. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-chat-left-quote"></i> {{ t('gov.ethics') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('gov.ethics_sub') }}</p>
+</div>
+{{ quality_nav('ethics') }}
+
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+  <span class="badge {{ 'badge--warn' if data.open else 'badge--green' }}" data-ethics-open="{{ data.open|length }}">{{ t('gov.open_n', n=data.open|length) }}</span>
+  {% if data.overdue %}<span class="badge badge--danger" data-ethics-overdue="{{ data.overdue|length }}">{{ t('gov.overdue_n', n=data.overdue|length) }}</span>{% endif %}
+  <span class="badge badge--muted" data-ethics-taught="{{ data.taught|length }}">{{ t('gov.taught_n', n=data.taught|length) }}</span>
+  <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('quality.committee', c='ethics') }}"><i class="bi bi-people"></i> {{ t('gov.c_ethics') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-new-issue>
+  <details {% if not data.rows %}open{% endif %}><summary style="cursor:pointer;font-weight:600;">{{ t('gov.new_issue') }}</summary>
+  <form method="post" action="{{ url_for('quality.ethics_new') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="et_k">{{ t('facility.kind') }}</label><select class="input" id="et_k" name="kind" required><option value=""></option>{% for k in data.kinds %}<option value="{{ k }}">{{ t('gov.ek_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="et_on">{{ t('gov.raised_on') }}</label><input class="input" type="date" id="et_on" name="raised_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+    <div class="form-row" style="margin:0;"><label for="et_by">{{ t('gov.raised_by') }}</label><input class="input" id="et_by" name="raised_by" maxlength="160" dir="auto" placeholder="{{ t('gov.raised_by_ph') }}"></div>
+    <div class="form-row" style="margin:0;"><label for="et_due">{{ t('gov.answer_by') }}</label><input class="input" type="date" id="et_due" name="due_on"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="et_s">{{ t('gov.issue') }}</label><textarea class="input" id="et_s" name="summary" rows="3" required dir="auto"></textarea></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+
+{% for e in data.rows %}
+<div class="card gc-scale-in" id="e{{ e.id }}" style="margin-bottom:10px;" data-issue="{{ e.id }}">
+  <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+    <b>{{ t('gov.ek_' ~ e.kind) }} · <span dir="ltr">{{ e.raised_on.isoformat() }}</span></b>
+    {% if e.resolved_on %}<span class="badge badge--green" data-issue-resolved>{{ t('gov.resolved') }} <span dir="ltr">{{ e.resolved_on.isoformat() }}</span></span>
+    {% elif e.due_on and e.due_on < today %}<span class="badge badge--danger">{{ t('dtc.overdue') }}</span>
+    {% elif e.due_on %}<span class="hint">{{ t('gov.answer_by') }} <span dir="ltr">{{ e.due_on.isoformat() }}</span></span>{% endif %}
+  </div>
+  <p dir="auto" style="white-space:pre-line;margin:6px 0;">{{ e.summary }}</p>
+  {% if e.raised_by %}<p class="hint" style="margin:0 0 6px;">{{ t('gov.raised_by') }}: <span dir="auto">{{ e.raised_by }}</span></p>{% endif %}
+  <form method="post" action="{{ url_for('quality.ethics_work', issue_id=e.id) }}" style="display:grid;gap:6px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="ed{{ e.id }}">{{ t('gov.discussion') }}</label><textarea class="input" id="ed{{ e.id }}" name="discussion" rows="2" dir="auto">{{ e.discussion or '' }}</textarea></div>
+    <div class="form-row" style="margin:0;"><label for="ec{{ e.id }}">{{ t('gov.decision') }}</label><textarea class="input" id="ec{{ e.id }}" name="decision" rows="2" dir="auto">{{ e.decision or '' }}</textarea></div>
+    <div class="form-row" style="margin:0;"><label for="et{{ e.id }}">{{ t('gov.communicated_to') }}</label><input class="input" id="et{{ e.id }}" name="communicated_to" maxlength="255" dir="auto" value="{{ e.communicated_to or '' }}"></div>
+    <div class="form-row" style="margin:0;"><label for="eg{{ e.id }}">{{ t('gov.teaching') }}</label><input class="input" id="eg{{ e.id }}" name="teaching" maxlength="255" dir="auto" value="{{ e.teaching or '' }}" placeholder="{{ t('gov.teaching_ph') }}"></div>
+    {% if not e.resolved_on %}<div class="form-row" style="margin:0;"><label for="er{{ e.id }}">{{ t('gov.resolved_on') }}</label><input class="input" type="date" id="er{{ e.id }}" name="resolved_on" max="{{ today.isoformat() }}"></div>{% endif %}
+    <div style="align-self:end;"><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form>
+</div>
+{% else %}<p class="hint">{{ t('gov.no_issues') }}</p>
+{% endfor %}
+{% endblock %}

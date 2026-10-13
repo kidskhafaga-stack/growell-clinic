@@ -140,9 +140,12 @@ class ImprovementProject(db.Model):
     measure = db.relationship("PerformanceMeasure")
 
 
-#: QPI.01's quality committee, and PCC.01's patient-centred culture
-#: committee — the same minutes and decisions, kept apart.
-COMMITTEES = ("quality", "patient")
+#: QPI.01's quality committee, PCC.01's patient-centred culture committee,
+#: and OGM.05's environmental safety and mortality and morbidity committees,
+#: OGM.15's ethics committee and OGM.01's governing body — the same minutes
+#: and decisions, kept apart. Infection control and the pharmacy committee
+#: keep theirs on their own screens.
+COMMITTEES = ("quality", "patient", "environment", "mortality", "ethics", "governing")
 
 
 class QualityMeeting(db.Model):
@@ -153,6 +156,8 @@ class QualityMeeting(db.Model):
     held_on = db.Column(db.Date, nullable=False, index=True)
     attendees = db.Column(db.Text, nullable=False)
     minutes = db.Column(db.Text, nullable=False)
+    #: OGM.05 ev. 4 — to whom the minutes were sent.
+    circulated_to = db.Column(db.String(255))
     written_by = db.Column(db.Integer, db.ForeignKey("users.id"))
 
     decisions = db.relationship("QualityDecision", back_populates="meeting",

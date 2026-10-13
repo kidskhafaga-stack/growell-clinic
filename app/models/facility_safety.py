@@ -1,5 +1,6 @@
 """The building's own safety records — GAHAR EFS.03 / GSR.23, EFS.04 /
-GSR.24 and EFS.11 / GSR.28.
+GSR.24, EFS.09 (the abduction drill), EFS.11 / GSR.28, EFS.12 (the water
+analyses) and EFS.13 (the disaster drill).
 
 The plans themselves (fire and smoke, utilities) are documents the hospital
 writes and approves; the program keeps the records the evidence asks to see:
@@ -22,6 +23,14 @@ from datetime import datetime
 from app.extensions import db
 
 SHIFTS = ("morning", "evening", "night")
+#: What a drill rehearses: fire (EFS.04), a child taken (EFS.09 g) and a
+#: disaster (EFS.13 h). One record, because the evidence is the same — when,
+#: where, who, what was seen and what is to be done about it.
+DRILL_KINDS = ("fire", "abduction", "disaster")
+#: What a member of staff was trained on, a year at a time: fire (EFS.03),
+#: hazardous materials and waste (EFS.06), the safety plan (EFS.07), the
+#: security plan (EFS.09) and the emergency plan (EFS.13).
+TRAINING_TOPICS = ("fire", "hazmat", "safety", "security", "emergency")
 #: EFS.03 (b)–(d): what a fire system check is about.
 FIRE_SYSTEMS = ("alarm", "detection", "suppression", "extinguisher",
                 "smoke_containment", "exit_path")
@@ -32,7 +41,10 @@ UTILITY_KINDS = ("electricity", "generator", "water", "medical_gas", "hvac",
 #: EFS.11 (d)–(h): what was done to a utility.
 UTILITY_CHECKS = ("inspection", "test", "maintenance", "generator_load",
                   "generator_no_load", "water_tank", "water_sample",
-                  "alarm_test")
+                  "alarm_test",
+                  # EFS.12 ev. 3 — the chemical and microbiological analyses
+                  # of the water, and of the dialysis water where there is any.
+                  "water_chemical", "water_micro", "dialysis_water")
 
 drill_participants = db.Table(
     "fire_drill_participants",
@@ -45,6 +57,7 @@ class FireDrill(db.Model):
     __tablename__ = "fire_drills"
 
     id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(12), default="fire", nullable=False, index=True)
     held_at = db.Column(db.DateTime, nullable=False, index=True)
     shift = db.Column(db.String(10), nullable=False)
     areas = db.Column(db.String(400), nullable=False)
@@ -55,6 +68,13 @@ class FireDrill(db.Model):
     others = db.Column(db.Integer)
     evaluation = db.Column(db.Text, nullable=False)
     corrective_action = db.Column(db.Text, nullable=False)
+    #: EFS.13 (h) i–v — the scenario, what was seen (the code, the timing,
+    #: who came, the response, the communication, the triage and the clinical
+    #: management), the debriefing, and when the committee was told.
+    scenario = db.Column(db.Text)
+    observations = db.Column(db.Text)
+    debrief = db.Column(db.Text)
+    committee_told_on = db.Column(db.Date)
     recorded_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     recorded_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -83,6 +103,7 @@ class FireTraining(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    topic = db.Column(db.String(12), default="fire", nullable=False, index=True)
     trained_on = db.Column(db.Date, nullable=False, index=True)
     trainer = db.Column(db.String(160))
     recorded_by = db.Column(db.Integer, db.ForeignKey("users.id"))

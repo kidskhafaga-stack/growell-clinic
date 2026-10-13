@@ -1,5 +1,6 @@
 """The building's safety records — GAHAR EFS.03 / GSR.23, EFS.04 / GSR.24,
-EFS.11 / GSR.28. Models in ``app/models/facility_safety.py``.
+EFS.09 (g), EFS.11 / GSR.28, EFS.12 and EFS.13 (h). Models in
+``app/models/facility_safety.py``.
 
 **The rules the records keep:**
 
@@ -15,8 +16,8 @@ EFS.11 / GSR.28. Models in ``app/models/facility_safety.py``.
 from datetime import date, datetime, timedelta
 
 from app.extensions import db
-from app.models.facility_safety import (FIRE_SYSTEMS, RESULTS, SHIFTS,
-                                        UTILITY_CHECKS, UTILITY_KINDS,
+from app.models.facility_safety import (DRILL_KINDS, FIRE_SYSTEMS, RESULTS, SHIFTS,
+                                        TRAINING_TOPICS, UTILITY_CHECKS, UTILITY_KINDS,
                                         FireDrill, FireSystemCheck,
                                         FireTraining, UtilityCheck,
                                         UtilitySystem)
@@ -79,6 +80,9 @@ def may_manage(user):
 def drill(user, form):
     from app.models import User
 
+    kind = form.get("kind") or "fire"
+    if kind not in DRILL_KINDS:
+        raise FacilityError("need_kind")
     raw = (form.get("held_at") or "").strip()
     try:
         held = datetime.fromisoformat(raw)
@@ -95,12 +99,20 @@ def drill(user, form):
     evaluation, action = _text(form.get("evaluation")), _text(form.get("corrective_action"))
     if not evaluation or not action:
         raise FacilityError("need_evaluation")
+    scenario, observations = _text(form.get("scenario")), _text(form.get("observations"))
+    debrief = _text(form.get("debrief"))
+    # EFS.13 (h) i–ii and v — a disaster drill is its scenario, what was
+    # seen against it, and the debriefing; the same for a child taken.
+    if kind != "fire" and not (scenario and observations and debrief):
+        raise FacilityError("need_scenario")
     ids = {int(v) for v in _list(form, "participants") if str(v).isdigit()}
     people = User.query.filter(User.id.in_(ids)).all() if ids else []
     others = _int(form.get("others"))
     if not people and not others:
         raise FacilityError("need_people")
-    row = FireDrill(held_at=held, shift=shift, areas=areas,
+    row = FireDrill(kind=kind, held_at=held, shift=shift, areas=areas,
+                    scenario=scenario, observations=observations, debrief=debrief,
+                    committee_told_on=_day(form.get("committee_told_on"), need=False),
                     unannounced=bool(form.get("unannounced")),
                     evacuation_minutes=_int(form.get("evacuation_minutes"), 0, 600),
                     others=others, evaluation=evaluation, corrective_action=action,
@@ -117,7 +129,7 @@ def year_of_drills(year=None):
     from app.models import User
 
     year = year or _today().year
-    drills = (FireDrill.query
+    drills = (FireDrill.query.filter(FireDrill.kind == "fire")
               .filter(FireDrill.held_at >= datetime(year, 1, 1),
                       FireDrill.held_at < datetime(year + 1, 1, 1))
               .order_by(FireDrill.held_at.desc()).all())
@@ -134,6 +146,32 @@ def year_of_drills(year=None):
             "missing_quarters": missing_q,
             "unannounced": any(d.unannounced for d in drills),
             "not_yet": not_yet}
+
+
+def half_years(kind, year=None):
+    """The abduction drill (EFS.09 g) and the disaster drill (EFS.13 h) —
+    "at least biannually": each half of the year with its drills, the
+    halves gone by without one, and the drills the committee was not yet
+    told about (EFS.13 h iv)."""
+    year = year or _today().year
+    drills = (FireDrill.query.filter(FireDrill.kind == kind,
+                                     FireDrill.held_at >= datetime(year, 1, 1),
+                                     FireDrill.held_at < datetime(year + 1, 1, 1))
+              .order_by(FireDrill.held_at.desc()).all())
+    halves = {1: 0, 2: 0}
+    for d in drills:
+        halves[1 if d.held_at.month <= 6 else 2] += 1
+    today = _today()
+    current = (1 if today.month <= 6 else 2) if year == today.year else 2
+    return {"kind": kind, "year": year, "drills": drills, "halves": halves,
+            "missing_halves": [h for h in halves if h <= current and not halves[h]],
+            "untold": [d for d in drills if d.committee_told_on is None]}
+
+
+def tell_committee(drill, form):
+    drill.committee_told_on = _day(form.get("committee_told_on"))
+    db.session.flush()
+    return drill
 
 
 # ==================================================== fire systems, training ==
@@ -179,24 +217,27 @@ def train(user, form):
     people = User.query.filter(User.id.in_(ids)).all() if ids else []
     if not people:
         raise FacilityError("no_person")
+    topic = form.get("topic") or "fire"
+    if topic not in TRAINING_TOPICS:
+        raise FacilityError("need_kind")
     on = _day(form.get("trained_on"))
     trainer = _text(form.get("trainer"), 160)
-    rows = [FireTraining(user_id=p.id, trained_on=on, trainer=trainer,
+    rows = [FireTraining(user_id=p.id, topic=topic, trained_on=on, trainer=trainer,
                          recorded_by=getattr(user, "id", None)) for p in people]
     db.session.add_all(rows)
     db.session.flush()
     return rows
 
 
-def untrained_this_year(today=None):
-    """EFS.03 evidence 2 — active staff with no fire training in the last
-    twelve months."""
+def untrained_this_year(today=None, topic="fire"):
+    """EFS.03 evidence 2 — active staff with no training on ``topic`` in the
+    last twelve months."""
     from app.models import User
 
     today = today or _today()
     since = today - timedelta(days=365)
     trained = {uid for (uid,) in db.session.query(FireTraining.user_id)
-               .filter(FireTraining.trained_on >= since)}
+               .filter(FireTraining.trained_on >= since, FireTraining.topic == topic)}
     return [u for u in User.query.filter(User.is_active.is_(True))
             .order_by(User.full_name).all() if u.id not in trained]
 

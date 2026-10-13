@@ -1,0 +1,56 @@
+{% extends "shell.html" %}
+{% from "quality/_nav.html" import quality_nav with context %}
+{% block title %}{{ t('qual.tab_staff_health') }}{% endblock %}
+{% block page_heading %}{{ t('qual.tab_staff_health') }}{% endblock %}
+
+{% block content %}
+{# GAHAR OGM.17 — the occupational risk assessment (ev. 2) and each staff
+   member's health record (ev. 4–6). Who is restricted from work today, and
+   who has no pre-employment examination on file. Administrators and
+   infection control only. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-heart-pulse"></i> {{ t('qual.tab_staff_health') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('gov.staff_health_sub') }}</p>
+</div>
+{{ quality_nav('staff_health') }}
+
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-bottom:14px;">
+  <div class="card gc-scale-in" data-restricted>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-slash-circle"></i> {{ t('gov.restricted_today') }} <span class="badge {{ 'badge--warn' if data.restricted else 'badge--muted' }}">{{ data.restricted|length }}</span></h2>
+    {% for e in data.restricted %}<p style="margin:0 0 4px;" data-restricted-row="{{ e.id }}"><a href="{{ url_for('quality.staff_health_file', user_id=e.user_id) }}">{{ e.user.display_name(current_lang) }}</a> — <span dir="auto">{{ e.detail }}</span> — {{ t('gov.until') }} <span dir="ltr">{{ e.restricted_until.isoformat() }}</span></p>
+    {% else %}<p class="hint" style="margin:0;">{{ t('gov.none_restricted') }}</p>{% endfor %}
+  </div>
+  <div class="card gc-scale-in" data-staff-list>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-people"></i> {{ t('gov.staff_files') }}
+      {% if data.no_pre_employment %}<span class="badge badge--warn" data-no-pre-employment="{{ data.no_pre_employment|length }}">{{ t('gov.no_pre_employment_n', n=data.no_pre_employment|length) }}</span>{% endif %}</h2>
+    <ul style="margin:8px 0 0;padding-inline-start:18px;max-height:260px;overflow:auto;">{% for u in data.staff %}<li><a href="{{ url_for('quality.staff_health_file', user_id=u.id) }}" data-staff-file="{{ u.id }}">{{ u.display_name(current_lang) }}</a>{% if u in data.no_pre_employment %} <span class="hint">{{ t('gov.no_pre_employment') }}</span>{% endif %}</li>{% endfor %}</ul>
+  </div>
+</div>
+
+<div class="card gc-scale-in" id="risks" data-occupational-risks>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-exclamation-triangle"></i> {{ t('gov.occupational_risks') }}</h2>
+  {% if risks %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:720px;">
+    <thead><tr><th>{{ t('facility.location') }}</th><th>{{ t('facility.hazard') }}</th><th>{{ t('gov.risk_description') }}</th><th>{{ t('gov.controls') }}</th><th>{{ t('facility.risk') }}</th></tr></thead>
+    <tbody>{% for r in risks %}<tr data-occupational-risk="{{ r.id }}">
+      <td dir="auto"><b>{{ r.area }}</b>{% if r.job %}<div class="hint">{{ r.job }}</div>{% endif %}</td>
+      <td>{{ t('gov.hz_' ~ r.hazard) }}{% if r.ipc_involved %} <span class="badge badge--muted">{{ t('gov.ipc_involved') }}</span>{% endif %}</td>
+      <td dir="auto">{{ r.description }}</td><td dir="auto">{{ r.controls }}</td>
+      <td><span class="badge {{ 'badge--danger' if r.level == 'high' else ('badge--warn' if r.level == 'medium' else 'badge--muted') }}">{{ t('facility.risk_' ~ r.level) }}</span></td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint">{{ t('gov.no_risks') }}</p>{% endif %}
+  <details style="margin-top:10px;" {% if not risks %}open{% endif %}><summary style="cursor:pointer;">{{ t('gov.new_risk') }}</summary>
+  <form method="post" action="{{ url_for('quality.staff_health_risk') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:8px;" data-new-risk>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="or_a">{{ t('facility.location') }}</label><input class="input" id="or_a" name="area" maxlength="160" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="or_j">{{ t('gov.job') }}</label><input class="input" id="or_j" name="job" maxlength="160" dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="or_h">{{ t('facility.hazard') }}</label><select class="input" id="or_h" name="hazard" required><option value=""></option>{% for h in hazards %}<option value="{{ h }}">{{ t('gov.hz_' ~ h) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="or_l">{{ t('facility.risk') }}</label><select class="input" id="or_l" name="level" required><option value=""></option>{% for l in levels %}<option value="{{ l }}">{{ t('facility.risk_' ~ l) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="or_on">{{ t('facility.checked_on') }}</label><input class="input" type="date" id="or_on" name="assessed_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+    <label style="align-self:end;"><input type="checkbox" name="ipc_involved" value="1"> {{ t('gov.ipc_involved') }}</label>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="or_d">{{ t('gov.risk_description') }}</label><textarea class="input" id="or_d" name="description" rows="2" required dir="auto"></textarea></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="or_c">{{ t('gov.controls') }}</label><textarea class="input" id="or_c" name="controls" rows="2" required dir="auto"></textarea></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+{% endblock %}

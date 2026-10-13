@@ -1,0 +1,76 @@
+{% extends "shell.html" %}
+{% from "quality/_nav.html" import quality_nav with context %}
+{% block title %}{{ t('gov.contracts') }}{% endblock %}
+{% block page_heading %}{{ t('gov.contracts') }}{% endblock %}
+
+{% block content %}
+{# GAHAR OGM.13 — every contracted service, clinical or not, with its
+   selection criteria, its measures, the head of department who watches it,
+   and the decision at least once a year to renew, improve or end it;
+   OGM.10 ev. 4 — every active supplier evaluated at least once a year. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-file-earmark-ruled"></i> {{ t('gov.contracts') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('gov.contracts_sub') }}</p>
+</div>
+{{ quality_nav('contracts') }}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-services>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-briefcase"></i> {{ t('gov.services') }}
+    <span class="badge {{ 'badge--danger' if data.due else 'badge--green' }}" data-services-due="{{ data.due|length }}">{{ t('gov.due_n', n=data.due|length) }}</span></h2>
+  {% for r in data.rows %}{% set s = r.service %}
+  <div id="s{{ s.id }}" style="border-bottom:1px solid var(--line);padding:8px 0;" data-service="{{ s.id }}">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <b dir="auto">{{ s.name }}</b> <span class="hint">{{ t('gov.sk_' ~ s.kind) }} · <span dir="auto">{{ s.provider }}</span> · {{ t('gov.head') }}: <span dir="auto">{{ s.head }}</span></span>
+      {% if not s.is_active %}<span class="badge badge--muted">{{ t('gov.ended') }}</span>{% elif r.due %}<span class="badge badge--danger" data-service-due>{{ t('gov.evaluation_due') }}</span>{% endif %}
+      {% if s.ends_on %}<span class="hint">{{ t('facility.ends') }} <span dir="ltr">{{ s.ends_on.isoformat() }}</span></span>{% endif %}
+    </div>
+    <div class="hint" dir="auto">{{ t('gov.criteria') }}: {{ s.criteria }}</div>
+    <div class="hint" dir="auto">{{ t('gov.measures') }}: {{ s.measures }}</div>
+    {% if r.last %}<div class="hint">{{ t('gov.last_evaluation') }}: <span dir="ltr">{{ r.last.evaluated_on.isoformat() }}</span> — {{ t('gov.cd_' ~ r.last.decision) }} — <span dir="auto">{{ r.last.results }}</span></div>{% endif %}
+    {% if s.is_active %}
+    <details style="margin-top:4px;"><summary style="cursor:pointer;">{{ t('gov.evaluate') }}</summary>
+    <form method="post" action="{{ url_for('quality.contract_evaluate', service_id=s.id) }}" style="display:grid;gap:6px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:6px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" type="date" name="evaluated_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required aria-label="{{ t('facility.checked_on') }}">
+      <select class="input" name="decision" required aria-label="{{ t('gov.decision') }}"><option value=""></option>{% for d in data.decisions %}<option value="{{ d }}">{{ t('gov.cd_' ~ d) }}</option>{% endfor %}</select>
+      <textarea class="input" name="results" rows="2" required placeholder="{{ t('gov.results_ph') }}" aria-label="{{ t('gov.results') }}" dir="auto" style="grid-column:1/-1;"></textarea>
+      <input class="input" name="note" maxlength="255" placeholder="{{ t('facility.details') }}" aria-label="{{ t('facility.details') }}" dir="auto">
+      <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+    </form></details>{% endif %}
+  </div>
+  {% else %}<p class="hint">{{ t('gov.no_services') }}</p>{% endfor %}
+  <details style="margin-top:10px;" {% if not data.rows %}open{% endif %}><summary style="cursor:pointer;">{{ t('gov.new_service') }}</summary>
+  <form method="post" action="{{ url_for('quality.contract_new') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:8px;" data-new-service>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="cs_n">{{ t('gov.service') }}</label><input class="input" id="cs_n" name="name" maxlength="160" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="cs_k">{{ t('facility.kind') }}</label><select class="input" id="cs_k" name="kind" required><option value=""></option>{% for k in data.kinds %}<option value="{{ k }}">{{ t('gov.sk_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="cs_p">{{ t('gov.provider') }}</label><input class="input" id="cs_p" name="provider" maxlength="160" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="cs_h">{{ t('gov.head') }}</label><input class="input" id="cs_h" name="head" maxlength="160" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="cs_s">{{ t('facility.starts') }}</label><input class="input" type="date" id="cs_s" name="starts_on"></div>
+    <div class="form-row" style="margin:0;"><label for="cs_e">{{ t('facility.ends') }}</label><input class="input" type="date" id="cs_e" name="ends_on"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="cs_c">{{ t('gov.criteria') }}</label><textarea class="input" id="cs_c" name="criteria" rows="2" required dir="auto"></textarea></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="cs_m">{{ t('gov.measures') }}</label><textarea class="input" id="cs_m" name="measures" rows="2" required dir="auto"></textarea></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+
+<div class="card gc-scale-in" id="suppliers" data-suppliers>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-truck"></i> {{ t('gov.suppliers') }}
+    <span class="badge {{ 'badge--danger' if suppliers.due else 'badge--green' }}" data-suppliers-due="{{ suppliers.due|length }}">{{ t('gov.due_n', n=suppliers.due|length) }}</span></h2>
+  {% if suppliers.rows %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:680px;">
+    <thead><tr><th>{{ t('gov.supplier') }}</th><th>{{ t('gov.last_evaluation') }}</th><th>{{ t('gov.evaluate') }}</th></tr></thead>
+    <tbody>{% for r in suppliers.rows %}<tr data-supplier="{{ r.supplier.id }}">
+      <td dir="auto"><b>{{ r.supplier.name }}</b></td>
+      <td>{% if r.last %}<span dir="ltr">{{ r.last.evaluated_on.isoformat() }}</span> — {{ t('gov.sd_' ~ r.last.decision) }}<div class="hint" dir="auto">{{ r.last.results }}</div>{% else %}—{% endif %}
+        {% if r.due %}<span class="badge badge--danger" data-supplier-due>{{ t('gov.evaluation_due') }}</span>{% endif %}</td>
+      <td><form method="post" action="{{ url_for('quality.supplier_evaluate', supplier_id=r.supplier.id) }}" style="display:grid;gap:4px;min-width:240px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="input" type="date" name="evaluated_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required aria-label="{{ t('facility.checked_on') }}">
+        <select class="input" name="decision" required aria-label="{{ t('gov.decision') }}"><option value=""></option>{% for d in suppliers.decisions %}<option value="{{ d }}">{{ t('gov.sd_' ~ d) }}</option>{% endfor %}</select>
+        <input class="input" name="results" required placeholder="{{ t('gov.supplier_results_ph') }}" aria-label="{{ t('gov.results') }}" dir="auto">
+        <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button></form></td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint">{{ t('gov.no_suppliers') }}</p>{% endif %}
+</div>
+{% endblock %}

@@ -33,16 +33,16 @@ def _staff():
     return User.query.filter(User.is_active.is_(True)).order_by(User.full_name).all()
 
 
-def _do(fn, anchor):
+def _do(fn, anchor, page="facility.index"):
     try:
         fn()
     except fs.FacilityError as err:
         db.session.rollback()
         flash(t(f"facility.err_{err}"), "error")
-        return redirect(url_for("facility.index") + anchor)
+        return redirect(url_for(page) + anchor)
     db.session.commit()
     flash(t("facility.saved"), "success")
-    return redirect(url_for("facility.index") + anchor)
+    return redirect(url_for(page) + anchor)
 
 
 @facility_bp.route("/")
@@ -53,10 +53,11 @@ def index():
     year = request.args.get("year", type=int) or local_today().year
     return render_template(
         "facility/index.html", today=local_today(), year=fs.year_of_drills(year),
-        fire=fs.fire_systems_now(), untrained=fs.untrained_this_year(),
+        fire=fs.fire_systems_now(), untrained=fs.untrained_this_year(topic="fire"),
         utilities=fs.utilities_now(), staff=_staff(),
-        trainings=(FireTraining.query.order_by(FireTraining.trained_on.desc(),
-                                               FireTraining.id.desc()).limit(20).all()),
+        trainings=(FireTraining.query.filter(FireTraining.topic == "fire")
+                   .order_by(FireTraining.trained_on.desc(), FireTraining.id.desc())
+                   .limit(20).all()),
         shifts=SHIFTS, fire_systems=FIRE_SYSTEMS, results=RESULTS,
         utility_kinds=UTILITY_KINDS, utility_checks=UTILITY_CHECKS)
 
@@ -64,6 +65,9 @@ def index():
 @facility_bp.route("/drill", methods=["POST"])
 @_door
 def drill():
+    kind = request.form.get("kind") or "fire"
+    if kind != "fire":
+        return _do(lambda: fs.drill(current_user, request.form), f"#{kind}", "facility.preparedness")
     return _do(lambda: fs.drill(current_user, request.form), "#drills")
 
 
@@ -76,6 +80,8 @@ def fire_check():
 @facility_bp.route("/training", methods=["POST"])
 @_door
 def training():
+    if (request.form.get("topic") or "fire") != "fire":
+        return _do(lambda: fs.train(current_user, request.form), "#training", "facility.preparedness")
     return _do(lambda: fs.train(current_user, request.form), "#training")
 
 

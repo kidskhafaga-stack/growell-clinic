@@ -1,0 +1,88 @@
+{% extends "shell.html" %}
+{% from "facility/_nav.html" import facility_nav with context %}
+{% set active_module = 'facility' %}
+{% block title %}{{ t('facility.tab_construction') }}{% endblock %}
+{% block page_heading %}{{ t('facility.tab_construction') }}{% endblock %}
+
+{% block content %}
+{# GAHAR EFS.08 — the pre-construction risk assessment (a)–(h) with a measure
+   for each, every department the work touches, the work permit before it
+   starts, and the work and the contractor watched while it lasts. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-cone-striped"></i> {{ t('facility.tab_construction') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('facility.construction_sub') }}</p>
+</div>
+{{ facility_nav('construction') }}
+
+{% if data.no_permit %}
+<div class="card" style="margin-bottom:12px;border-inline-start:4px solid var(--danger);" data-no-permit="{{ data.no_permit|length }}">
+  <b>{{ t('facility.no_permit_n', n=data.no_permit|length) }}</b>
+</div>
+{% endif %}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-new-project>
+  <details {% if not data.rows %}open{% endif %}><summary style="cursor:pointer;font-weight:600;">{{ t('facility.new_project') }}</summary>
+  <form method="post" action="{{ url_for('facility.construction_new') }}" style="display:grid;gap:8px;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));">
+      <div class="form-row" style="margin:0;"><label for="c_t">{{ t('facility.project') }}</label><input class="input" id="c_t" name="title" maxlength="200" required dir="auto"></div>
+      <div class="form-row" style="margin:0;"><label for="c_a">{{ t('facility.location') }}</label><input class="input" id="c_a" name="area" maxlength="200" required dir="auto"></div>
+      <div class="form-row" style="margin:0;"><label for="c_c">{{ t('facility.contractor') }}</label><input class="input" id="c_c" name="contractor" maxlength="160" dir="auto"></div>
+      <div class="form-row" style="margin:0;"><label for="c_s">{{ t('facility.starts') }}</label><input class="input" type="date" id="c_s" name="starts_on"></div>
+      <div class="form-row" style="margin:0;"><label for="c_e">{{ t('facility.ends') }}</label><input class="input" type="date" id="c_e" name="ends_on"></div>
+      <div class="form-row" style="margin:0;"><label for="c_i">{{ t('facility.icra_class') }}</label><input class="input" id="c_i" name="icra_class" maxlength="20" dir="auto"></div>
+    </div>
+    <div class="form-row" style="margin:0;"><label for="c_d">{{ t('facility.departments') }}</label><input class="input" id="c_d" name="departments" maxlength="400" required dir="auto" placeholder="{{ t('facility.departments_ph') }}"></div>
+    <div style="overflow-x:auto;"><table class="table" style="min-width:560px;">
+      <thead><tr><th>{{ t('facility.pcra_item') }}</th><th>{{ t('facility.risk') }}</th><th>{{ t('facility.measure') }}</th></tr></thead>
+      <tbody>{% for item in items %}<tr>
+        <td>{{ t('facility.pcra_' ~ item) }}</td>
+        <td><select class="input" name="risk_{{ item }}" {{ 'required' if item != 'other' }} aria-label="{{ t('facility.risk') }}"><option value=""></option><option value="none">{{ t('facility.risk_none') }}</option>{% for r in risks %}<option value="{{ r }}">{{ t('facility.risk_' ~ r) }}</option>{% endfor %}</select></td>
+        <td><input class="input" name="measure_{{ item }}" maxlength="400" aria-label="{{ t('facility.measure') }}" dir="auto"></td>
+      </tr>{% endfor %}</tbody></table></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+
+{% for p in data.rows %}
+<div class="card gc-scale-in" id="p{{ p.id }}" style="margin-bottom:12px;" data-project="{{ p.id }}">
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+    <h2 class="section-title" style="margin:0;"><span dir="auto">{{ p.title }}</span> <span class="hint" dir="auto">{{ p.area }}</span></h2>
+    <span class="badge {{ 'badge--green' if p.state == 'finished' else ('badge--warn' if p.state == 'underway' else 'badge--muted') }}" data-project-state="{{ p.state }}">{{ t('facility.ps_' ~ p.state) }}</span>
+  </div>
+  <p class="hint" style="margin:4px 0 8px;">{{ t('facility.departments') }}: <span dir="auto">{{ p.departments }}</span>{% if p.contractor %} · {{ t('facility.contractor') }}: <span dir="auto">{{ p.contractor }}</span>{% endif %}{% if p.icra_class %} · {{ t('facility.icra_class') }}: {{ p.icra_class }}{% endif %}</p>
+  <div style="overflow-x:auto;"><table class="table" style="min-width:480px;">
+    <tbody>{% for item in items %}{% set a = p.assessment.get(item) %}{% if a %}<tr><td>{{ t('facility.pcra_' ~ item) }}</td>
+      <td>{% if a.risk == 'none' %}<span class="hint">{{ t('facility.risk_none') }}</span>{% else %}<span class="badge {{ 'badge--danger' if a.risk == 'high' else ('badge--warn' if a.risk == 'medium' else 'badge--muted') }}">{{ t('facility.risk_' ~ a.risk) }}</span>{% endif %}</td>
+      <td dir="auto">{{ a.measure or '' }}</td></tr>{% endif %}{% endfor %}</tbody></table></div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;align-items:end;">
+    {% if p.permit_on %}<span data-permit>{{ t('facility.permit') }}: <span dir="auto">{{ p.permit_by }}</span> · <span dir="ltr">{{ p.permit_on.isoformat() }}</span></span>
+    {% else %}
+    <form method="post" action="{{ url_for('facility.construction_permit', project_id=p.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;" data-permit-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;"><label for="pb{{ p.id }}">{{ t('facility.permit_by') }}</label><input class="input" id="pb{{ p.id }}" name="permit_by" maxlength="160" required dir="auto"></div>
+      <div class="form-row" style="margin:0;"><label for="po{{ p.id }}">{{ t('facility.checked_on') }}</label><input class="input" type="date" id="po{{ p.id }}" name="permit_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+      <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('facility.give_permit') }}</button>
+    </form>{% endif %}
+    <form method="post" action="{{ url_for('facility.construction_state', project_id=p.id) }}" style="display:flex;gap:6px;align-items:end;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <select class="input" name="state" aria-label="{{ t('facility.state') }}">{% for s in states %}<option value="{{ s }}" {{ 'selected' if s == p.state }}>{{ t('facility.ps_' ~ s) }}</option>{% endfor %}</select>
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+    </form>
+  </div>
+  <h3 class="section-title" style="font-size:1rem;margin:12px 0 6px;">{{ t('facility.monitoring') }}</h3>
+  {% if p.checks %}<ul style="margin:0 0 8px;padding-inline-start:18px;">{% for c in p.checks %}<li data-project-check="{{ c.id }}"><span dir="ltr">{{ c.checked_on.isoformat() }}</span> —
+    <span class="badge {{ 'badge--green' if c.compliant else 'badge--danger' }}">{{ t('facility.compliant') if c.compliant else t('facility.not_compliant') }}</span> <span dir="auto">{{ c.note }}</span>{% if c.action %} → <span dir="auto">{{ c.action }}</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
+  {% if p.state != 'finished' %}
+  <form method="post" action="{{ url_for('facility.construction_check', project_id=p.id) }}" style="display:grid;gap:6px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input class="input" type="date" name="checked_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required aria-label="{{ t('facility.checked_on') }}">
+    <select class="input" name="compliant" required aria-label="{{ t('facility.result') }}"><option value=""></option><option value="yes">{{ t('facility.compliant') }}</option><option value="no">{{ t('facility.not_compliant') }}</option></select>
+    <input class="input" name="note" required placeholder="{{ t('facility.details') }}" aria-label="{{ t('facility.details') }}" dir="auto">
+    <input class="input" name="action" placeholder="{{ t('facility.action_if_fail') }}" aria-label="{{ t('facility.action') }}" dir="auto">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>{% endif %}
+</div>
+{% else %}<p class="hint">{{ t('facility.no_projects') }}</p>
+{% endfor %}
+{% endblock %}

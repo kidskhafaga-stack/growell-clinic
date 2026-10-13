@@ -79,9 +79,8 @@
 
 **اتعمل منهم:** `SAS` (في `SAS_theatres_matrix.md`) ومعاه `PCC.08`/`PCC.09`
 للموافقة، و`IMT` (في `IMT_record_matrix.md`)، و`CSS` و`MMS` و`IPC` و`QPI`
-و`WFM`، و`PCC` و`ACT` و`ICD` و`DAS` كل واحد في ملفه، ومراجعة الخروج ضد
-النصيحة (DAMA/LAMA) في `LAMA_DAMA_review.md`. **فاضل:** `EFS` و`OGM` و`CAI`
-و`ATH`.
+و`WFM`، و`PCC` و`ACT` و`ICD` و`DAS` و`EFS` و`OGM` كل واحد في ملفه، ومراجعة
+الخروج ضد النصيحة (DAMA/LAMA) في `LAMA_DAMA_review.md`. **فاضل:** `CAI` و`ATH`.
 
 > **ملاحظة:** موقع `gahar.gov.eg` **محجوب** من بيئة التطوير دي (سياسة شبكة، مش
 > عطل)، فالمواد بتتحطّ هنا بالإيد.
