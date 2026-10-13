@@ -92,6 +92,25 @@ class Refusal(db.Model):
     signature_kind = db.Column(db.String(10))          # paper | drawn
     signature_at = db.Column(db.DateTime)
 
+    # --- الخروج ضد النصيحة (DAMA من الإقامة، LAMA من الطوارئ) ---------
+    #: تقييم الطبيب ساعة القرار: حالة الطفل، ودرجة الخطر، ومين صاحب القرار
+    #: من الأهل وهل له الحق فيه. **التوقيع ما بيعفيش من ده.**
+    doctor_assessment = db.Column(db.Text)
+    #: الطبيب شايف إن الخروج دلوقتي خطر جسيم على الطفل — أيوه/لأ/محدّش قال.
+    serious_risk = db.Column(db.Boolean)
+    #: شبهة إهمال أو إساءة في القرار نفسه — حماية الطفل قبل احترام القرار.
+    safeguarding = db.Column(db.Boolean)
+    #: لمين اتصعّد (المسؤول المناوب، لجنة حماية الطفل، الجهة المختصة)
+    #: وإمتى ومين — مطلوب لما يكون فيه خطر جسيم أو شبهة.
+    escalated_to = db.Column(db.String(160))
+    escalated_at = db.Column(db.DateTime)
+    escalated_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    #: اللي اترتّب قبل ما يمشوا: أدوية، ميعاد، علامات الرجوع فوراً.
+    followup_plan = db.Column(db.Text)
+    #: الأهل رفضوا يوقّعوا — حقيقة تتسجّل بشاهد، مش خانة فاضية.
+    signature_refused = db.Column(db.Boolean)
+    witness_name = db.Column(db.String(120))
+
     #: الطبيب اللي شرح. غير `recorded_by` — ده الحساب اللي كتب الصف.
     explained_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     recorded_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
@@ -108,6 +127,14 @@ class Refusal(db.Model):
     @property
     def has_signature(self):
         return bool(self.signature_file)
+
+    @property
+    def needs_escalation(self):
+        return bool(self.serious_risk or self.safeguarding)
+
+    @property
+    def escalated(self):
+        return bool(self.escalated_to and self.escalated_at)
 
     @property
     def informed(self):

@@ -1,0 +1,96 @@
+{% extends "shell.html" %}
+{% from "quality/_nav.html" import quality_nav with context %}
+{% block title %}{{ t('gov.register') }}{% endblock %}
+{% block page_heading %}{{ t('gov.register') }}{% endblock %}
+
+{% block content %}
+{# GAHAR OGM.05 — every committee the hospital must have (a)–(e), with the
+   patient-centred, ethics and governing-body ones: its terms of reference,
+   its meetings, whether it is late against its own interval, and its yearly
+   performance review; OGM.03 ev. 3–4 and EFS.02 ev. 5 — the quarterly
+   reports to the governing body and its feedback. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-diagram-3"></i> {{ t('gov.register') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('gov.register_sub') }}</p>
+</div>
+{{ quality_nav('committees') }}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-committee-register>
+  <div style="overflow-x:auto;"><table class="table" style="min-width:820px;">
+    <thead><tr><th>{{ t('gov.committee') }}</th><th>{{ t('gov.charter') }}</th><th>{{ t('gov.this_year') }}</th><th>{{ t('qual.last_meeting') }}</th><th>{{ t('gov.review_last_year', year=today.year - 1) }}</th><th></th></tr></thead>
+    <tbody>{% for r in rows %}{% set c = r.charter %}
+    <tr id="c-{{ r.key }}" data-committee-row="{{ r.key }}">
+      <td><b>{{ t('gov.c_' ~ r.key) }}</b>{% if r.required %} <span class="badge badge--muted">{{ t('gov.required') }}</span>{% endif %}</td>
+      <td>{% if c %}<span class="badge badge--green" data-charter="yes">{{ t('gov.charter_written') }}</span>{% if c.every_days %}<div class="hint">{{ t('gov.every_n_days', n=c.every_days) }}</div>{% endif %}
+        {% else %}<span class="badge badge--danger" data-charter="no">{{ t('gov.no_charter') }}</span>{% endif %}</td>
+      <td dir="ltr">{{ r.this_year }}</td>
+      <td>{% if r.last %}<span dir="ltr">{{ r.last.isoformat() }}</span>{% else %}—{% endif %}
+        {% if r.late %}<span class="badge badge--danger" data-committee-late>{{ t('gov.late') }}</span>{% endif %}</td>
+      <td>{% if r.reviewed %}<span class="badge badge--green">{{ t('gov.reviewed') }}</span>{% else %}<span class="badge badge--warn" data-not-reviewed>{{ t('gov.not_reviewed') }}</span>{% endif %}</td>
+      <td>{% if r.key == 'ipc' %}<a class="btn btn-sm btn-outline gc-press" href="{{ url_for('ipc.committee') }}">{{ t('gov.minutes') }}</a>
+        {% elif r.key == 'dtc' %}<a class="btn btn-sm btn-outline gc-press" href="{{ url_for('pharmacy.dtc_board') }}">{{ t('gov.minutes') }}</a>
+        {% else %}<a class="btn btn-sm btn-outline gc-press" href="{{ url_for('quality.committee', c=r.key) }}">{{ t('gov.minutes') }}</a>{% endif %}</td>
+    </tr>
+    <tr><td colspan="6" style="padding-top:0;">
+      <details><summary style="cursor:pointer;" class="hint">{{ t('gov.charter_and_review') }}</summary>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-top:8px;">
+        <form method="post" action="{{ url_for('quality.committee_charter', key=r.key) }}" style="display:grid;gap:6px;" data-charter-form="{{ r.key }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="label" for="cm_{{ r.key }}">{{ t('gov.membership') }}</label><textarea class="input" id="cm_{{ r.key }}" name="membership" rows="2" required dir="auto">{{ c.membership if c else '' }}</textarea>
+          <label class="label" for="cd_{{ r.key }}">{{ t('gov.duties') }}</label><textarea class="input" id="cd_{{ r.key }}" name="duties" rows="2" required dir="auto">{{ c.duties if c else '' }}</textarea>
+          <label class="label" for="cr_{{ r.key }}">{{ t('gov.reports_to') }}</label><input class="input" id="cr_{{ r.key }}" name="reports_to" maxlength="160" required dir="auto" value="{{ c.reports_to if c else '' }}">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <div><label class="label" for="ce_{{ r.key }}">{{ t('gov.every_days') }}</label><input class="input" id="ce_{{ r.key }}" name="every_days" inputmode="numeric" dir="ltr" value="{{ c.every_days or '' if c else '' }}" style="max-width:110px;"></div>
+            <div style="flex:1;"><label class="label" for="cq_{{ r.key }}">{{ t('gov.quorum') }}</label><input class="input" id="cq_{{ r.key }}" name="quorum" maxlength="120" dir="auto" value="{{ c.quorum or '' if c else '' }}"></div>
+          </div>
+          <label class="label" for="ca_{{ r.key }}">{{ t('gov.agenda') }}</label><textarea class="input" id="ca_{{ r.key }}" name="agenda" rows="2" dir="auto">{{ c.agenda or '' if c else '' }}</textarea>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <div><label class="label" for="co_{{ r.key }}">{{ t('facility.approved_on') }}</label><input class="input" type="date" id="co_{{ r.key }}" name="approved_on" max="{{ today.isoformat() }}" value="{{ c.approved_on.isoformat() if c and c.approved_on else '' }}"></div>
+            <div style="flex:1;"><label class="label" for="cb_{{ r.key }}">{{ t('facility.approved_by') }}</label><input class="input" id="cb_{{ r.key }}" name="approved_by" maxlength="160" dir="auto" value="{{ c.approved_by or '' if c else '' }}"></div>
+          </div>
+          <div><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('common.save') }}</button></div>
+        </form>
+        <form method="post" action="{{ url_for('quality.committee_review', key=r.key, year=today.year - 1) }}" style="display:grid;gap:6px;align-content:start;" data-review-form="{{ r.key }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="label" for="rv_{{ r.key }}">{{ t('gov.review_of', year=today.year - 1) }}</label>
+          <textarea class="input" id="rv_{{ r.key }}" name="text" rows="5" required dir="auto" placeholder="{{ t('gov.review_ph') }}"></textarea>
+          <div><button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button></div>
+        </form>
+      </div></details>
+    </td></tr>{% endfor %}</tbody></table></div>
+</div>
+
+<div class="card gc-scale-in" id="reports" data-governing-reports>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-send"></i> {{ t('gov.reports') }}</h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+    {% for kind, q in reports.missing %}<span class="badge badge--danger" data-report-missing="{{ kind }}:{{ q }}">{{ t('gov.rk_' ~ kind) }} · <span dir="ltr">{{ q }}</span></span>{% endfor %}
+    {% if reports.awaiting %}<span class="badge badge--warn" data-awaiting-feedback="{{ reports.awaiting|length }}">{{ t('gov.awaiting_n', n=reports.awaiting|length) }}</span>{% endif %}
+    {% if current_user.is_admin or current_user.can_access('inventory') %}<a class="btn btn-sm btn-outline gc-press" href="{{ url_for('facility.round_quarter', q=quarter) }}"><i class="bi bi-clipboard-check"></i> {{ t('facility.quarter_report') }}</a>{% endif %}
+  </div>
+  {% for r in reports.rows %}
+  <div style="border-bottom:1px solid var(--line);padding:8px 0;" data-report="{{ r.id }}">
+    <b>{{ t('gov.rk_' ~ r.kind) }}</b> · <span dir="ltr">{{ r.quarter }}</span> · <span class="hint">{{ t('gov.sent_on') }} <span dir="ltr">{{ r.sent_on.isoformat() }}</span></span>
+    {% if r.file %}<a target="_blank" rel="noopener" href="{{ url_for('static', filename='uploads/patient_docs/' ~ r.file) }}"><i class="bi bi-file-earmark-text"></i></a>{% endif %}
+    <div dir="auto" style="white-space:pre-line;">{{ r.summary }}</div>
+    {% if r.feedback %}<div class="hint" data-report-feedback>{{ t('gov.feedback') }} (<span dir="ltr">{{ r.feedback_on.isoformat() if r.feedback_on else '' }}</span>): <span dir="auto">{{ r.feedback }}</span></div>
+    {% else %}
+    <form method="post" action="{{ url_for('quality.governing_feedback', report_id=r.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="feedback" required placeholder="{{ t('gov.feedback') }}" aria-label="{{ t('gov.feedback') }}" dir="auto" style="flex:1;min-width:220px;">
+      <input class="input" type="date" name="feedback_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required aria-label="{{ t('facility.checked_on') }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+    </form>{% endif %}
+  </div>
+  {% else %}<p class="hint">{{ t('gov.no_reports') }}</p>{% endfor %}
+  <details style="margin-top:10px;"><summary style="cursor:pointer;">{{ t('gov.new_report') }}</summary>
+  <form method="post" enctype="multipart/form-data" action="{{ url_for('quality.governing_report') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-top:8px;" data-new-report>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="gr_k">{{ t('facility.kind') }}</label><select class="input" id="gr_k" name="kind" required>{% for k in reports.kinds %}<option value="{{ k }}">{{ t('gov.rk_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="gr_q">{{ t('facility.quarter_label') }}</label><input class="input" id="gr_q" name="quarter" value="{{ quarter }}" required dir="ltr" pattern="[0-9]{4}-Q[1-4]"></div>
+    <div class="form-row" style="margin:0;"><label for="gr_s">{{ t('gov.sent_on') }}</label><input class="input" type="date" id="gr_s" name="sent_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+    <div class="form-row" style="margin:0;"><label for="gr_f">{{ t('facility.plan_file') }}</label><input class="input" type="file" id="gr_f" name="file" accept="image/*,application/pdf"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="gr_m">{{ t('facility.summary') }}</label><textarea class="input" id="gr_m" name="summary" rows="3" required dir="auto"></textarea></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+{% endblock %}

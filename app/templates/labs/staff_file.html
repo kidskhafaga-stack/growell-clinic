@@ -1,5 +1,5 @@
 {% extends "shell.html" %}
-{% set active_module = 'labs' %}
+{% set area = area|default('labs') %}{% set active_module = area %}{% set tk = 'lab_comp' if area == 'labs' else 'img_comp' %}
 {% block title %}{{ t('lab_comp.file_title') }}{% endblock %}
 {% block page_heading %}{{ t('lab_comp.file_title') }}{% endblock %}
 
@@ -12,7 +12,7 @@
     <h1 class="page-title"><i class="bi bi-person-badge"></i> {{ person.display_name(current_lang) }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('lab_comp.file_sub') }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('labs.staff') }}"><i class="bi bi-people"></i> {{ t('lab_comp.title') }}</a>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.staff' if area == 'labs' else 'imaging.staff') }}"><i class="bi bi-people"></i> {{ t(tk ~ '.title') }}</a>
 </div>
 
 <div class="card gc-scale-in" style="overflow-x:auto;margin-bottom:14px;" data-staff-file>
@@ -24,8 +24,8 @@
     {% set st = state(row, today) %}
     <tr data-file-row="{{ row.id }}" data-state="{{ st }}">
       <td dir="ltr">{{ row.assessed_on.isoformat() }}</td>
-      <td>{{ row.section or t('lab_comp.whole_lab') }}</td>
-      <td>{% for m in row.method_list %}<span class="badge badge--muted" style="margin:0 4px 4px 0;">{{ t('lab_comp.m_' ~ m) }}</span>{% endfor %}</td>
+      <td>{{ t('img_comp.whole') if row.section == 'radiology' else (row.section or t('lab_comp.whole_lab')) }}</td>
+      <td>{% for m in row.method_list %}<span class="badge badge--muted" style="margin:0 4px 4px 0;">{{ t(('img_comp.m_' if area == 'imaging' else 'lab_comp.m_') ~ m) }}</span>{% endfor %}</td>
       <td><span class="badge {{ 'badge--green' if row.result == 'competent' else ('badge--warn' if row.result == 'needs_training' else 'badge--danger') }}">{{ t('lab_comp.r_' ~ row.result) }}</span>
         {% if row.note %}<div class="hint" dir="auto">{{ row.note }}</div>{% endif %}</td>
       <td>{{ row.assessor.display_name(current_lang) if row.assessor else '—' }}</td>
@@ -38,12 +38,12 @@
 </div>
 
 {% if may_write %}
-<form method="post" action="{{ url_for('labs.staff_assess', user_id=person.id) }}" class="card gc-scale-in" data-assess-form>
+<form method="post" action="{{ url_for('labs.staff_assess' if area == 'labs' else 'imaging.staff_assess', user_id=person.id) }}" class="card gc-scale-in" data-assess-form>
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <h2 class="section-title" style="margin-top:0;">{{ t('lab_comp.new') }}</h2>
   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
     <div class="form-row" style="margin:0;"><label for="section">{{ t('lab_comp.section') }}</label>
-      <select class="input" id="section" name="section"><option value="">{{ t('lab_comp.whole_lab') }}</option>{% for s in sections %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
+      <select class="input" id="section" name="section">{% if area == 'labs' %}<option value="">{{ t('lab_comp.whole_lab') }}</option>{% else %}<option value="radiology">{{ t('img_comp.whole') }}</option>{% endif %}{% for s in sections %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
     <div class="form-row" style="margin:0;"><label for="assessed_on">{{ t('lab_comp.assessed_on') }}</label>
       <input class="input" type="date" id="assessed_on" name="assessed_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
     <div class="form-row" style="margin:0;"><label for="due_on">{{ t('lab_comp.due_on') }}</label>
@@ -55,7 +55,7 @@
   <fieldset style="border:0;padding:0;margin:12px 0;">
     <legend style="font-weight:600;margin-bottom:6px;">{{ t('lab_comp.methods') }}</legend>
     <div style="display:flex;gap:6px 16px;flex-wrap:wrap;">
-    {% for m in methods %}<label style="display:inline-flex;gap:6px;align-items:center;"><input type="checkbox" name="methods" value="{{ m }}"> {{ t('lab_comp.m_' ~ m) }}</label>{% endfor %}
+    {% for m in methods %}<label style="display:inline-flex;gap:6px;align-items:center;"><input type="checkbox" name="methods" value="{{ m }}"> {{ t(('img_comp.m_' if area == 'imaging' else 'lab_comp.m_') ~ m) }}</label>{% endfor %}
     </div>
   </fieldset>
   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">

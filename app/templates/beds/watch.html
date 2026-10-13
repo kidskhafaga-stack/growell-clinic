@@ -275,12 +275,15 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="kind"
                    value="{{ 'discharge' if item.what == 'discharge' else 'emergency' }}">
+            <input type="hidden" name="{{ 'admission_id' if item.what == 'discharge' else 'emergency_visit_id' }}" value="{{ item.row.id }}">
             <input class="input" style="flex:1 1 150px;" name="refused"
                    placeholder="{{ t('refusal.item_refused') }}">
             <input class="input" style="flex:1 1 180px;" name="consequences"
                    placeholder="{{ t('refusal.item_consequences') }}">
             <button class="btn btn-sm btn-primary gc-press" type="submit">
               <i class="bi bi-file-earmark-text"></i> {{ t('refusal.start_form') }}</button>
+            <a class="btn btn-sm btn-outline gc-press" data-ama-full
+               href="{{ url_for('beds.against_advice', kind='stay' if item.what == 'discharge' else 'er', episode_id=item.row.id) }}">{{ t('ama.full_form') }}</a>
           </form>
         </td>
       </tr>

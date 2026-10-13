@@ -39,4 +39,6 @@
   </table>
   {% endif %}
 </div>
+{% set review_action = url_for('labs.service_review') %}
+{% include "_service_review.html" %}
 {% endblock %}

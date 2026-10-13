@@ -1233,6 +1233,33 @@ SECTIONS = [
         ],
     },
     {
+        # GAHAR ATH — opt-in, for a teaching hospital.
+        "key": "teaching",
+        "module": "teaching",
+        "icon": "mortarboard",
+        "title": ("التعليم والأبحاث", "Teaching and research"),
+        "lines": [
+            ("<b>كل متدرّب بمشرفه</b>: الطالب أو طبيب الامتياز أو النائب ما بيتسجّلش من "
+             "غير المشرف اللي مسؤول عنه وحدود شغله. والتوجيه بند بند، وكل دورة بتقييمها، "
+             "والتقييم بأداة واسم المقيّم — ومحدّش بيقيّم نفسه.",
+             "<b>Every trainee with their supervisor</b>: a student, house officer or "
+             "resident is not entered without the supervisor who answers for them and "
+             "the scope they work within. The orientation item by item, each rotation "
+             "with its evaluation, and each assessment with its tool and its assessor — "
+             "nobody assesses themselves."),
+            ("<b>ما فيش طفل في بحث</b> من غير بروتوكول وافقت عليه لجنة أخلاقيات البحث "
+             "ولسه سارية، ومن غير موافقة البحث موقّعة من ولي الأمر في ملف الطفل. والأهل "
+             "بيسحبوا من غير ما يقولوا ليه، وأي مشكلة سلامة بتتكتب بإمتى اتبلّغوا واللي "
+             "اتعمل. والقلق اللي المتدرّبين بيرفعوه مفتوح لحد ما يتكتب اللي اتعمل.",
+             "<b>No child is in a study</b> without a protocol the research ethics "
+             "committee approved and that is still current, and without the guardian's "
+             "signed research consent on the child's file. A family withdraws without "
+             "giving a reason, and any safety issue is written with when they were told "
+             "and what was done. A concern a learner raises stays open until what was "
+             "done is written."),
+        ],
+    },
+    {
         # «المعمل مديول لواحده والاشعة مديول». Opt-in like the lab, and
         # switched on once on upgrade wherever the lab was on.
         "key": "imaging",

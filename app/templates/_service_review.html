@@ -1,0 +1,18 @@
+{# The yearly evaluation of a diagnostic service and its scope — GAHAR DAS.01
+   ev. 4 (imaging) and DAS.10 ev. 4 (the laboratory). Expects ``reviews``,
+   ``review_action`` and ``today``. #}
+<div class="card gc-scale-in" style="margin-top:12px;" data-service-review>
+  <h2 class="section-title" style="margin-top:0;">{{ t('img_qc.service_review') }}</h2>
+  {% set this_year = reviews|selectattr('year', 'equalto', today.year)|list %}
+  {% if not this_year %}<p class="hint" style="margin:0 0 8px;"><span class="badge badge--warn" data-review-missing>{{ t('img_qc.not_reviewed', year=today.year) }}</span></p>{% endif %}
+  <form method="post" action="{{ review_action }}" style="display:grid;gap:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="what" value="service">
+    <input type="hidden" name="year" value="{{ today.year }}">
+    <textarea class="input" name="text" rows="3" required dir="auto" aria-label="{{ t('img_qc.service_review') }}" placeholder="{{ t('img_qc.service_review_ph') }}">{{ this_year[0].text if this_year else '' }}</textarea>
+    <div><button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('img_qc.save') }}</button></div>
+  </form>
+  {% for r in reviews %}
+  <div class="hint" style="margin-top:4px;"><span dir="ltr">{{ r.year }}</span>{% if r.by %} · {{ r.by.display_name(current_lang) }}{% endif %} · <span dir="auto">{{ r.text|truncate(200) }}</span></div>
+  {% endfor %}
+</div>

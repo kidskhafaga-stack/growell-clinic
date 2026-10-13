@@ -1,0 +1,79 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('bbank.title') }}{% endblock %}
+{% block page_heading %}{{ t('bbank.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR DAS.28 — the units in the store, soonest to expire first, the
+   expired ones loud; a unit received only with its label's nine elements and
+   the inspection on arrival (DAS.29 d). The blood comes from a contracted
+   blood bank: no donation and no testing here. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-droplet-half"></i> {{ t('bbank.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('bbank.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.blood_suppliers') }}" data-to-suppliers><i class="bi bi-building"></i> {{ t('bbank.suppliers') }}</a>
+</div>
+{% from "labs/_nav.html" import lab_nav with context %}
+{{ lab_nav('blood') }}
+
+{% if data.expired %}<div class="card" style="margin-bottom:12px;border-inline-start:4px solid var(--danger);" data-bb-expired>
+  <b style="color:var(--danger);">{{ t('bbank.expired_in_store', n=data.expired|length) }}</b>
+  {% for u in data.expired %}<a href="{{ url_for('labs.blood_unit', unit_id=u.id) }}" dir="ltr" style="margin-inline-start:8px;">{{ u.unit_number }}</a>{% endfor %}
+</div>{% endif %}
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-bb-stock>
+  <h2 class="section-title" style="margin-top:0;">{{ t('bbank.stock') }}</h2>
+  <p style="margin:0 0 8px;">{% for key, n in data.by_group %}<span class="badge badge--muted">{{ t('blood.product_' ~ key[0]) }} <span dir="ltr">{{ key[1] }}</span>: {{ n }}</span> {% else %}<span class="hint">{{ t('bbank.empty') }}</span>{% endfor %}</p>
+  {% for u in data.stored %}
+  <a href="{{ url_for('labs.blood_unit', unit_id=u.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:6px 0;" data-bb-unit="{{ u.id }}">
+    <b dir="ltr">{{ u.unit_number }}</b> <span>{{ t('blood.product_' ~ u.product) }}</span> <span dir="ltr">{{ u.abo }}{{ '+' if u.rh == 'pos' else '-' }}</span>
+    <span class="hint">{{ t('bbank.expires') }} <span dir="ltr">{{ u.expires_on }}</span></span>
+    {% if u.expires_on < data.today %}<span class="badge badge--danger">{{ t('bbank.expired') }}</span>{% endif %}
+  </a>
+  {% endfor %}
+  {% if data.issued %}<h3 style="margin:10px 0 4px;font-size:1rem;">{{ t('bbank.issued') }}</h3>
+  {% for u in data.issued %}<a href="{{ url_for('labs.blood_unit', unit_id=u.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;padding:4px 0;"><b dir="ltr">{{ u.unit_number }}</b> {{ u.request.patient.display_name(current_lang) if u.request else '' }} <span class="hint" dir="ltr">{{ u.issued_at|clinic_stamp }}</span></a>{% endfor %}{% endif %}
+</div>
+
+<details class="card" style="margin-bottom:12px;" {{ 'open' if not data.stored }} data-bb-receive>
+  <summary>{{ t('bbank.receive') }}</summary>
+  {% if not suppliers %}<p class="hint">{{ t('bbank.no_supplier') }} <a href="{{ url_for('labs.blood_suppliers') }}">{{ t('bbank.suppliers') }}</a></p>{% else %}
+  <form method="post" action="{{ url_for('labs.blood_bank') }}" style="display:grid;gap:8px;margin-top:10px;" x-data="{ product: 'prbc' }">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div><label class="label" for="bu_n">{{ t('bbank.unit_number') }}</label><input class="input" id="bu_n" name="unit_number" maxlength="64" required dir="ltr"></div>
+      <div><label class="label" for="bu_s">{{ t('bbank.supplier') }}</label><select class="select" id="bu_s" name="supplier_id">{% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></div>
+      <div><label class="label" for="bu_p">{{ t('bbank.product') }}</label><select class="select" id="bu_p" name="product" x-model="product">{% for p in products %}<option value="{{ p }}">{{ t('blood.product_' ~ p) }}</option>{% endfor %}</select></div>
+      <div><label class="label" for="bu_v">{{ t('bbank.volume') }}</label><input class="input" type="number" min="1" id="bu_v" name="volume_ml" style="max-width:100px;"></div>
+      <div><label class="label" for="bu_a">ABO</label><select class="select" id="bu_a" name="abo">{% for g in abo %}<option value="{{ g }}">{{ g }}</option>{% endfor %}</select></div>
+      <div><label class="label" for="bu_r">Rh</label><select class="select" id="bu_r" name="rh">{% for r in rh %}<option value="{{ r }}">{{ '+' if r == 'pos' else '-' }}</option>{% endfor %}</select></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div><label class="label" for="bu_sn">{{ t('bbank.seronegative') }}</label><select class="select" id="bu_sn" name="seronegative"><option value="">—</option><option value="yes">{{ t('bbank.yes') }}</option><option value="no">{{ t('bbank.no') }}</option></select></div>
+      <div><label class="label" for="bu_ac">{{ t('bbank.anticoagulant') }}</label><input class="input" id="bu_ac" name="anticoagulant" maxlength="60" dir="ltr"></div>
+      <div style="flex:1;min-width:160px;"><label class="label" for="bu_st">{{ t('bbank.storage') }}</label><input class="input" id="bu_st" name="storage" maxlength="120" required dir="auto" placeholder="{{ t('bbank.storage_ph') }}"></div>
+      <div><label class="label" for="bu_c">{{ t('bbank.collected_on') }}</label><input class="input" type="date" id="bu_c" name="collected_on" required></div>
+      <div><label class="label" for="bu_e">{{ t('bbank.expires') }}</label><input class="input" type="date" id="bu_e" name="expires_on" required></div>
+    </div>
+    <fieldset style="border:1px solid var(--line);border-radius:8px;padding:8px;margin:0;">
+      <legend style="font-weight:600;padding:0 4px;">{{ t('bbank.inspection') }}</legend>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        {% for f in ('transport_ok', 'label_ok') %}
+        <div><label class="label" for="bu_{{ f }}">{{ t('bbank.' ~ f) }}</label><select class="select" id="bu_{{ f }}" name="{{ f }}"><option value="">—</option><option value="yes">{{ t('bbank.yes') }}</option><option value="no">{{ t('bbank.no') }}</option></select></div>
+        {% endfor %}
+        <div x-show="['whole', 'prbc'].includes(product)"><label class="label" for="bu_abc">{{ t('bbank.abo_confirmed') }}</label><select class="select" id="bu_abc" name="abo_confirmed"><option value="">—</option><option value="yes">{{ t('bbank.yes') }}</option><option value="no">{{ t('bbank.no') }}</option></select></div>
+        <div style="flex:1;min-width:200px;"><label class="label" for="bu_rr">{{ t('bbank.reject_reason') }}</label><input class="input" id="bu_rr" name="reject_reason" maxlength="200" dir="auto" placeholder="{{ t('bbank.reject_reason_ph') }}"></div>
+      </div>
+    </fieldset>
+    <div><button class="btn btn-primary gc-press" type="submit">{{ t('bbank.save_receive') }}</button></div>
+  </form>
+  {% endif %}
+</details>
+
+<div class="card" data-bb-recent>
+  <h2 class="section-title" style="margin-top:0;">{{ t('bbank.recent') }}</h2>
+  {% for u in data.recent %}<a href="{{ url_for('labs.blood_unit', unit_id=u.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;padding:4px 0;"><b dir="ltr">{{ u.unit_number }}</b> <span class="badge badge--muted">{{ t('bbank.state_' ~ u.status) }}</span></a>{% else %}<p class="hint" style="margin:0;">—</p>{% endfor %}
+</div>
+{% endblock %}

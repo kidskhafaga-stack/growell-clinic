@@ -1,0 +1,109 @@
+{% extends "shell.html" %}
+{% set active_module = 'teaching' %}
+{% block title %}{{ t('nav.teaching') }}{% endblock %}
+{% block page_heading %}{{ t('nav.teaching') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ATH — the learners (each with the supervisor who answers for them,
+   the scope they work within, the orientation and the rotations), the
+   concerns learners raise during teaching, and the research protocols with
+   the research ethics committee's decision. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-mortarboard"></i> {{ t('nav.teaching') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('teach.sub') }}</p>
+</div>
+
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+  <span class="badge {{ 'badge--warn' if data.not_oriented else 'badge--green' }}" data-not-oriented="{{ data.not_oriented|length }}">{{ t('teach.not_oriented_n', n=data.not_oriented|length) }}</span>
+  <span class="badge {{ 'badge--warn' if data.unevaluated else 'badge--green' }}" data-unevaluated="{{ data.unevaluated|length }}">{{ t('teach.unevaluated_n', n=data.unevaluated|length) }}</span>
+  <span class="badge {{ 'badge--warn' if concerns.open else 'badge--muted' }}" data-concerns-open="{{ concerns.open|length }}">{{ t('teach.concerns_open_n', n=concerns.open|length) }}</span>
+  {% if research.lapsed_with_children %}<span class="badge badge--danger" data-lapsed="{{ research.lapsed_with_children|length }}">{{ t('teach.lapsed_n', n=research.lapsed_with_children|length) }}</span>{% endif %}
+  <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('quality.committee', c='education') }}"><i class="bi bi-people"></i> {{ t('gov.c_education') }}</a>
+  <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('quality.committee', c='research_ethics') }}"><i class="bi bi-people"></i> {{ t('gov.c_research_ethics') }}</a>
+</div>
+
+<div class="card gc-scale-in" id="trainees" style="margin-bottom:14px;" data-trainees>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-person-badge"></i> {{ t('teach.trainees') }}</h2>
+  {% if data.rows %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:760px;">
+    <thead><tr><th>{{ t('teach.trainee') }}</th><th>{{ t('teach.supervisor') }}</th><th>{{ t('teach.current_rotation') }}</th><th>{{ t('teach.orientation') }}</th></tr></thead>
+    <tbody>{% for r in data.rows %}{% set tr = r.trainee %}<tr data-trainee="{{ tr.id }}">
+      <td><a href="{{ url_for('teaching.trainee', trainee_id=tr.id) }}"><b dir="auto">{{ tr.name }}</b></a> <span class="hint">{{ t('teach.k_' ~ tr.kind) }}</span>{% if tr.programme %}<div class="hint" dir="auto">{{ tr.programme }}</div>{% endif %}</td>
+      <td>{{ tr.supervisor.display_name(current_lang) }}</td>
+      <td>{% if r.current %}<span dir="auto">{{ r.current.department }}</span>{% else %}—{% endif %}
+        {% if r.unevaluated %}<span class="badge badge--warn">{{ t('teach.unevaluated_n', n=r.unevaluated|length) }}</span>{% endif %}</td>
+      <td>{% if r.missing %}<span class="badge badge--warn" data-orientation-missing="{{ r.missing|length }}">{{ t('teach.missing_n', n=r.missing|length) }}</span>{% else %}<span class="badge badge--green">{{ t('teach.oriented') }}</span>{% endif %}</td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint">{{ t('teach.no_trainees') }}</p>{% endif %}
+  <details style="margin-top:10px;" {% if not data.rows %}open{% endif %}><summary style="cursor:pointer;">{{ t('teach.new_trainee') }}</summary>
+  <form method="post" action="{{ url_for('teaching.trainee_new') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:8px;" data-new-trainee>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="tr_k">{{ t('teach.kind') }}</label><select class="input" id="tr_k" name="kind" required><option value=""></option>{% for k in kinds %}<option value="{{ k }}">{{ t('teach.k_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="tr_u">{{ t('teach.account') }}</label><select class="input" id="tr_u" name="user_id"><option value="">—</option>{% for u in staff %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="tr_n">{{ t('teach.name') }}</label><input class="input" id="tr_n" name="name" maxlength="160" dir="auto" placeholder="{{ t('teach.name_ph') }}"></div>
+    <div class="form-row" style="margin:0;"><label for="tr_p">{{ t('teach.programme') }}</label><input class="input" id="tr_p" name="programme" maxlength="200" dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="tr_s">{{ t('teach.supervisor') }}</label><select class="input" id="tr_s" name="supervisor_id" required><option value=""></option>{% for u in staff %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="tr_m">{{ t('teach.mentor') }}</label><select class="input" id="tr_m" name="mentor_id"><option value="">—</option>{% for u in staff %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="tr_from">{{ t('teach.starts') }}</label><input class="input" type="date" id="tr_from" name="starts_on" value="{{ today.isoformat() }}" required></div>
+    <div class="form-row" style="margin:0;"><label for="tr_to">{{ t('teach.ends') }}</label><input class="input" type="date" id="tr_to" name="ends_on"></div>
+    <div class="form-row" style="margin:0;"><label for="tr_pt">{{ t('teach.protected_time') }}</label><input class="input" id="tr_pt" name="protected_time" maxlength="120" dir="auto" placeholder="{{ t('teach.protected_time_ph') }}"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="tr_sc">{{ t('teach.scope') }}</label><textarea class="input" id="tr_sc" name="scope" rows="2" required dir="auto" placeholder="{{ t('teach.scope_ph') }}"></textarea></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+
+<div class="card gc-scale-in" id="concerns" style="margin-bottom:14px;" data-concerns>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-shield-exclamation"></i> {{ t('teach.concerns') }}</h2>
+  <p class="hint" style="margin:0 0 8px;">{{ t('teach.concerns_hint') }}</p>
+  {% for c in concerns.rows %}
+  <div style="border-bottom:1px solid var(--line);padding:6px 0;" data-concern="{{ c.id }}">
+    <b>{{ t('teach.ck_' ~ c.kind) }}</b> · <span dir="ltr">{{ c.raised_on.isoformat() }}</span>{% if c.raised_by %} · <span dir="auto">{{ c.raised_by }}</span>{% endif %}
+    {% if c.closed_on %}<span class="badge badge--green">{{ t('teach.closed') }}</span>{% endif %}
+    <div dir="auto">{{ c.concern }}</div>
+    {% if c.action %}<div class="hint" dir="auto">{{ t('teach.action') }}: {{ c.action }}</div>{% endif %}
+    {% if not c.closed_on %}
+    <form method="post" action="{{ url_for('teaching.concern_act', concern_id=c.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="action" required placeholder="{{ t('teach.action') }}" aria-label="{{ t('teach.action') }}" dir="auto" style="flex:1;min-width:220px;" value="{{ c.action or '' }}">
+      <input class="input" name="incident_number" maxlength="24" placeholder="{{ t('teach.incident_no') }}" aria-label="{{ t('teach.incident_no') }}" dir="ltr" style="max-width:150px;">
+      <input class="input" type="date" name="closed_on" max="{{ today.isoformat() }}" aria-label="{{ t('teach.closed_on') }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+    </form>{% endif %}
+  </div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('teach.no_concerns') }}</p>{% endfor %}
+  <details style="margin-top:10px;"><summary style="cursor:pointer;">{{ t('teach.new_concern') }}</summary>
+  <form method="post" action="{{ url_for('teaching.concern_new') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:8px;" data-new-concern>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="cc_k">{{ t('teach.kind') }}</label><select class="input" id="cc_k" name="kind" required><option value=""></option>{% for k in concern_kinds %}<option value="{{ k }}">{{ t('teach.ck_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="cc_on">{{ t('teach.raised_on') }}</label><input class="input" type="date" id="cc_on" name="raised_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+    <div class="form-row" style="margin:0;"><label for="cc_by">{{ t('teach.raised_by') }}</label><input class="input" id="cc_by" name="raised_by" maxlength="160" dir="auto" placeholder="{{ t('teach.raised_by_ph') }}"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="cc_t">{{ t('teach.concern') }}</label><textarea class="input" id="cc_t" name="concern" rows="2" required dir="auto"></textarea></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+
+<div class="card gc-scale-in" id="research" data-research>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-journal-medical"></i> {{ t('teach.research') }}
+    {% if research.awaiting %}<span class="badge badge--warn" data-awaiting-rec="{{ research.awaiting|length }}">{{ t('teach.awaiting_n', n=research.awaiting|length) }}</span>{% endif %}</h2>
+  {% if research.rows %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:680px;">
+    <thead><tr><th>{{ t('teach.protocol') }}</th><th>{{ t('teach.investigator') }}</th><th>{{ t('teach.state') }}</th><th>{{ t('teach.participants') }}</th></tr></thead>
+    <tbody>{% for r in research.rows %}{% set p = r.protocol %}<tr data-protocol="{{ p.id }}">
+      <td><a href="{{ url_for('teaching.protocol', protocol_id=p.id) }}" dir="auto"><b>{{ p.title }}</b></a></td>
+      <td>{{ p.investigator.display_name(current_lang) }}</td>
+      <td><span class="badge {{ 'badge--green' if r.open else ('badge--danger' if r.lapsed or p.state in ('rejected', 'suspended') else 'badge--muted') }}">{{ t('teach.lapsed') if r.lapsed else t('teach.ps_' ~ p.state) }}</span></td>
+      <td dir="ltr">{{ r.active|length }}</td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint">{{ t('teach.no_protocols') }}</p>{% endif %}
+  <details style="margin-top:10px;"><summary style="cursor:pointer;">{{ t('teach.new_protocol') }}</summary>
+  <form method="post" enctype="multipart/form-data" action="{{ url_for('teaching.protocol_new') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:8px;" data-new-protocol>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="rp_t">{{ t('teach.protocol') }}</label><input class="input" id="rp_t" name="title" maxlength="255" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="rp_i">{{ t('teach.investigator') }}</label><select class="input" id="rp_i" name="investigator_id" required><option value=""></option>{% for u in doctors %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="rp_c">{{ t('teach.involves_children') }}</label><select class="input" id="rp_c" name="involves_children"><option value="yes">{{ t('common.yes') }}</option><option value="no">{{ t('common.no') }}</option></select></div>
+    <div class="form-row" style="margin:0;"><label for="rp_f">{{ t('teach.protocol_file') }}</label><input class="input" type="file" id="rp_f" name="file" accept="image/*,application/pdf"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="rp_e">{{ t('teach.eligibility') }}</label><textarea class="input" id="rp_e" name="eligibility" rows="2" required dir="auto"></textarea></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+{% endblock %}

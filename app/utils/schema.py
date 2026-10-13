@@ -1009,6 +1009,36 @@ ADDITIONS = [
     # GAHAR PCC.01 — the patient-centred culture committee keeps its minutes
     # beside the quality committee's; which one a meeting belongs to.
     ("quality_meetings", "committee", "VARCHAR(20) DEFAULT 'quality'"),
+    # GAHAR DAS.04 (e) — a substituted or additional scan, and who was told.
+    ("visit_investigations", "substituted_with", "VARCHAR(160)"),
+    ("visit_investigations", "substitution_told", "VARCHAR(160)"),
+    ("visit_investigations", "substituted_at", "DATETIME"),
+    # GAHAR DAS.14 (h) / ICD.17 ev. 5 — the minimal retesting interval, and
+    # why a test was repeated inside it.
+    ("investigations", "retest_hours", "INTEGER"),
+    ("visit_investigations", "repeat_reason", "VARCHAR(200)"),
+    ("visit_investigations", "repeat_reason_by", "INTEGER"),
+    # Leaving against advice (DAMA / LAMA): the doctor's assessment, the risk
+    # and safeguarding judgement and its escalation, the follow-up arranged,
+    # and a refusal to sign recorded with a witness.
+    ("refusals", "doctor_assessment", "TEXT"),
+    ("refusals", "serious_risk", "BOOLEAN"),
+    ("refusals", "safeguarding", "BOOLEAN"),
+    ("refusals", "escalated_to", "VARCHAR(160)"),
+    ("refusals", "escalated_at", "DATETIME"),
+    ("refusals", "escalated_by", "INTEGER"),
+    ("refusals", "followup_plan", "TEXT"),
+    ("refusals", "signature_refused", "BOOLEAN"),
+    ("refusals", "witness_name", "VARCHAR(120)"),
+    # EFS.09 / EFS.13 — the abduction and disaster drills on the drill record;
+    # EFS.06–13 — training by topic; OGM.05 — minutes circulated.
+    ("fire_drills", "kind", "VARCHAR(12) DEFAULT 'fire'"),
+    ("fire_drills", "scenario", "TEXT"),
+    ("fire_drills", "observations", "TEXT"),
+    ("fire_drills", "debrief", "TEXT"),
+    ("fire_drills", "committee_told_on", "DATE"),
+    ("fire_training", "topic", "VARCHAR(12) DEFAULT 'fire'"),
+    ("quality_meetings", "circulated_to", "VARCHAR(255)"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

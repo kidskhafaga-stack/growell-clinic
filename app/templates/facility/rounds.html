@@ -1,0 +1,94 @@
+{% extends "shell.html" %}
+{% from "facility/_nav.html" import facility_nav with context %}
+{% set active_module = 'facility' %}
+{% block title %}{{ t('facility.tab_rounds') }}{% endblock %}
+{% block page_heading %}{{ t('facility.tab_rounds') }}{% endblock %}
+
+{% block content %}
+{# GAHAR EFS.02 ev. 4–5 (the quarterly multidisciplinary environment round,
+   and its report), EFS.07 (e) (the safety inspection), EFS.09 (the security
+   round) and OGM.14 ev. 2 (the leaders' safety round) — one record: who
+   walked, where, and each finding with its risk, action, owner and date. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-clipboard-check"></i> {{ t('facility.tab_rounds') }} — <span dir="ltr">{{ data.year }}</span></h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('facility.rounds_sub') }}</p>
+</div>
+{{ facility_nav('rounds') }}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-round-quarters>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <b>{{ t('facility.env_rounds') }}:</b>
+    {% for q, n in data.quarters.items() %}
+    <span class="badge {{ 'badge--green' if n else ('badge--danger' if q in data.missing_quarters else 'badge--muted') }}" {% if q in data.missing_quarters %}data-round-missing="{{ q }}"{% endif %}>{{ t('facility.quarter', q=q) }}: {{ n }}</span>
+    {% endfor %}
+    <span class="badge {{ 'badge--green' if data.leadership else 'badge--warn' }}" data-leadership-rounds="{{ data.leadership }}">{{ t('facility.leadership_rounds', n=data.leadership) }}</span>
+    <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('facility.round_quarter', q=quarter) }}" data-round-report><i class="bi bi-printer"></i> {{ t('facility.quarter_report') }}</a>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-new-round>
+  <details {% if not data.rounds %}open{% endif %}><summary style="cursor:pointer;font-weight:600;">{{ t('facility.new_round') }}</summary>
+  <form method="post" action="{{ url_for('facility.round_new') }}" style="display:grid;gap:8px;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));">
+      <div class="form-row" style="margin:0;"><label for="r_focus">{{ t('facility.focus') }}</label>
+        <select class="input" id="r_focus" name="focus" required><option value=""></option>{% for f in focuses %}<option value="{{ f }}">{{ t('facility.focus_' ~ f) }}</option>{% endfor %}</select></div>
+      <div class="form-row" style="margin:0;"><label for="r_on">{{ t('facility.checked_on') }}</label><input class="input" type="date" id="r_on" name="held_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+      <div class="form-row" style="margin:0;grid-column:span 2;"><label for="r_areas">{{ t('facility.round_areas') }}</label><input class="input" id="r_areas" name="areas" maxlength="400" required dir="auto"></div>
+    </div>
+    <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));">
+      <div class="form-row" style="margin:0;"><label for="r_team">{{ t('facility.round_team') }}</label>
+        <select class="input" id="r_team" name="team" multiple size="5">{% for u in staff %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+      <div style="display:grid;gap:8px;">
+        <div class="form-row" style="margin:0;"><label for="r_others">{{ t('facility.round_others') }}</label><input class="input" id="r_others" name="others" maxlength="255" dir="auto"></div>
+        <div class="form-row" style="margin:0;"><label for="r_sent">{{ t('facility.sent_to') }}</label><input class="input" id="r_sent" name="sent_to" maxlength="255" dir="auto"></div>
+      </div>
+    </div>
+    <h3 class="section-title" style="margin:6px 0 0;font-size:1rem;">{{ t('facility.findings') }}</h3>
+    <p class="hint" style="margin:0;">{{ t('facility.findings_hint') }}</p>
+    <div style="overflow-x:auto;"><table class="table" style="min-width:820px;">
+      <thead><tr><th>{{ t('facility.location') }}</th><th>{{ t('facility.finding') }}</th><th>{{ t('facility.risk') }}</th><th>{{ t('facility.action') }}</th><th>{{ t('facility.owner') }}</th><th>{{ t('facility.due') }}</th></tr></thead>
+      <tbody>{% for i in range(6) %}<tr>
+        <td><input class="input" name="f_area" maxlength="160" aria-label="{{ t('facility.location') }}" dir="auto"></td>
+        <td><input class="input" name="f_finding" aria-label="{{ t('facility.finding') }}" dir="auto"></td>
+        <td><select class="input" name="f_risk" aria-label="{{ t('facility.risk') }}"><option value=""></option>{% for r in risks %}<option value="{{ r }}">{{ t('facility.risk_' ~ r) }}</option>{% endfor %}</select></td>
+        <td><input class="input" name="f_action" aria-label="{{ t('facility.action') }}" dir="auto"></td>
+        <td><input class="input" name="f_owner" maxlength="160" aria-label="{{ t('facility.owner') }}" dir="auto"></td>
+        <td><input class="input" type="date" name="f_due" aria-label="{{ t('facility.due') }}"></td>
+      </tr>{% endfor %}</tbody></table></div>
+    <div class="form-row" style="margin:0;"><label for="r_sum">{{ t('facility.summary') }}</label><textarea class="input" id="r_sum" name="summary" rows="2" dir="auto"></textarea></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+
+<div class="card gc-scale-in" id="open" style="margin-bottom:14px;" data-open-findings>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-exclamation-diamond"></i> {{ t('facility.open_findings') }} <span class="badge {{ 'badge--danger' if data.overdue else 'badge--muted' }}">{{ data.open|length }}</span></h2>
+  {% if data.open %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:760px;">
+    <thead><tr><th>{{ t('facility.finding') }}</th><th>{{ t('facility.action') }}</th><th>{{ t('facility.owner') }}</th><th>{{ t('facility.due') }}</th><th></th></tr></thead>
+    <tbody>{% for f in data.open %}<tr data-finding="{{ f.id }}" {% if f.due_on and f.due_on < today %}data-finding-overdue{% endif %}>
+      <td><span class="badge {{ 'badge--danger' if f.risk == 'high' else ('badge--warn' if f.risk == 'medium' else 'badge--muted') }}">{{ t('facility.risk_' ~ f.risk) }}</span> <span dir="auto">{{ f.finding }}</span>
+        <div class="hint">{{ t('facility.focus_' ~ f.round.focus) }} · <span dir="ltr">{{ f.round.held_on.isoformat() }}</span>{% if f.area %} · <span dir="auto">{{ f.area }}</span>{% endif %}</div></td>
+      <td dir="auto">{{ f.action }}</td><td dir="auto">{{ f.owner }}</td>
+      <td>{% if f.due_on %}<span class="{{ 'badge badge--danger' if f.due_on < today else '' }}" dir="ltr">{{ f.due_on.isoformat() }}</span>{% else %}—{% endif %}</td>
+      <td><form method="post" action="{{ url_for('facility.finding_close', finding_id=f.id) }}" style="display:flex;gap:6px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="input" name="note" maxlength="255" required placeholder="{{ t('facility.what_was_done') }}" aria-label="{{ t('facility.what_was_done') }}" dir="auto">
+        <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('facility.close') }}</button></form></td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('facility.no_open_findings') }}</p>{% endif %}
+</div>
+
+<div class="card gc-scale-in" data-rounds>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-list-check"></i> {{ t('facility.rounds_done') }}</h2>
+  {% if data.rounds %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:640px;">
+    <thead><tr><th>{{ t('facility.checked_on') }}</th><th>{{ t('facility.focus') }}</th><th>{{ t('facility.round_areas') }}</th><th>{{ t('facility.round_team') }}</th><th>{{ t('facility.findings') }}</th></tr></thead>
+    <tbody>{% for r in data.rounds %}<tr data-round="{{ r.id }}">
+      <td dir="ltr">{{ r.held_on.isoformat() }}</td><td>{{ t('facility.focus_' ~ r.focus) }}</td><td dir="auto">{{ r.areas }}</td>
+      <td>{% for u in r.team %}{{ u.display_name(current_lang) }}{{ '، ' if not loop.last }}{% endfor %}{% if r.others %}{{ '، ' if r.team }}<span dir="auto">{{ r.others }}</span>{% endif %}</td>
+      <td>{{ r.findings|length }}{% if r.open_findings %} <span class="badge badge--warn">{{ t('facility.n_open', n=r.open_findings|length) }}</span>{% endif %}</td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('facility.no_rounds') }}</p>{% endif %}
+</div>
+{% endblock %}

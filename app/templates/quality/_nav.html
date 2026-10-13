@@ -3,8 +3,13 @@
 {% macro quality_nav(active) %}
 <nav style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;" aria-label="{{ t('qual.title') }}" data-quality-nav>
   <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('incidents.index') }}"><i class="bi bi-clipboard2-pulse"></i> {{ t('incident.board_title') }}</a>
-  {% for key, ep, icon in (('measures', 'quality.measures', 'graph-up'), ('risks', 'quality.risks', 'exclamation-triangle'), ('projects', 'quality.projects', 'lightbulb'), ('committee', 'quality.committee', 'people'), ('guidelines', 'quality.guidelines', 'journal-medical')) %}
+  {% for key, ep, icon in (('measures', 'quality.measures', 'graph-up'), ('risks', 'quality.risks', 'exclamation-triangle'), ('projects', 'quality.projects', 'lightbulb'), ('committee', 'quality.committee', 'people'), ('committees', 'quality.committees', 'diagram-3'), ('ethics', 'quality.ethics', 'chat-left-quote'), ('contracts', 'quality.contracts', 'file-earmark-ruled'), ('community', 'quality.community', 'people-fill'), ('guidelines', 'quality.guidelines', 'journal-medical')) %}
   <a class="btn btn-sm {{ 'btn-primary' if active == key else 'btn-outline' }} gc-press" href="{{ url_for(ep) }}"><i class="bi bi-{{ icon }}"></i> {{ t('qual.tab_' ~ key) }}</a>
   {% endfor %}
+  {# OGM.17 — a staff member's health record: the administrators and
+     infection control only (``utils/staff_health.may_open``). #}
+  {% if current_user.is_admin or current_user.can('infection_control') %}
+  <a class="btn btn-sm {{ 'btn-primary' if active == 'staff_health' else 'btn-outline' }} gc-press" href="{{ url_for('quality.staff_health') }}" data-to-staff-health><i class="bi bi-heart-pulse"></i> {{ t('qual.tab_staff_health') }}</a>
+  {% endif %}
 </nav>
 {% endmacro %}

@@ -341,6 +341,16 @@ class VisitInvestigation(db.Model):
     # note above `INVESTIGATION_STATUSES` for why a fourth state would have
     # been the wrong answer.
     performed_at = db.Column(db.DateTime)
+    #: GAHAR DAS.04 (e) — *"patients and referrers are informed when an
+    #: additional or substituted examination is called for"*: what was done
+    #: instead (or as well), and who was told.
+    substituted_with = db.Column(db.String(160))
+    substitution_told = db.Column(db.String(160))
+    substituted_at = db.Column(db.DateTime)
+    #: GAHAR ICD.17 ev. 5 / DAS.14 (h) — why a test was repeated inside its
+    #: minimal retesting interval, as the requester explained it.
+    repeat_reason = db.Column(db.String(200))
+    repeat_reason_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     performed_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     # Who ran it. Separate from the doctor who reads it: the person who put
     # the number in is the person a query about the number goes to, and on the

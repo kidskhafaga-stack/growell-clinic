@@ -549,7 +549,7 @@ def index():
                 continue
             Setting.set(rule["key"], raw.replace(",", "."))
 
-        for kind in _CONSENT_TYPES:
+        for kind in _consent.kinds_offered():
             for lang in ("ar", "en"):
                 key = _consent.setting_key(kind, lang)
                 Setting.set(key, (request.form.get(key) or "").strip())
@@ -662,7 +662,7 @@ def index():
         # showing a ticked box that names nobody.
         jaundice_approval=_jaundice.approval(),
         offers_newborn=_facility.offers("newborn_care"),
-        consent_types=_CONSENT_TYPES,
+        consent_types=_consent.kinds_offered(),
         consent_defaults={kind: {lang: _consent.default_statement(kind, lang)
                                  for lang in ("ar", "en")}
                           for kind in _CONSENT_TYPES},

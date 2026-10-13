@@ -1,0 +1,64 @@
+{% extends "shell.html" %}
+{% set active_module = 'imaging' %}
+{% block title %}{{ t('img_qc.title') }}{% endblock %}
+{% block page_heading %}{{ t('img_qc.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR DAS.05 — each QC check as the department's procedure names it, pass
+   or fail against its own target, and on a fail what was done (ev. 3, 5);
+   the month reviewed by the responsible person (ev. 4). DAS.01 ev. 4 — the
+   service evaluated every year. The program names no test and no target. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-clipboard-check"></i> {{ t('img_qc.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('img_qc.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('imaging.index') }}"><i class="bi bi-list-ul"></i> {{ t('nav.imaging') }}</a>
+</div>
+<form method="get" action="{{ url_for('imaging.qc') }}" class="card" style="display:flex;gap:8px;align-items:end;margin-bottom:12px;">
+  <div><label class="label" for="qm">{{ t('img_qc.month') }}</label><input class="input" type="month" id="qm" name="month" value="{{ data.month }}"></div>
+  <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('img_qc.show') }}</button>
+</form>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-qc-new>
+  <h2 class="section-title" style="margin-top:0;">{{ t('img_qc.new') }}</h2>
+  <form method="post" action="{{ url_for('imaging.qc', month=data.month) }}" style="display:grid;gap:8px;" x-data="{ ok: 'yes' }">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <div><label class="label" for="qc_d">{{ t('img_qc.date') }}</label><input class="input" type="date" id="qc_d" name="held_on" value="{{ today }}" required></div>
+      <div><label class="label" for="qc_e">{{ t('img_qc.machine') }}</label>
+        <select class="select" id="qc_e" name="equipment_id"><option value="">—</option>{% for m in machines %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}</select></div>
+      <div><label class="label" for="qc_dv">{{ t('img_qc.device') }}</label><input class="input" id="qc_dv" name="device" maxlength="120" dir="auto"></div>
+      <div style="flex:1;min-width:200px;"><label class="label" for="qc_t">{{ t('img_qc.test') }}</label><input class="input" id="qc_t" name="test" maxlength="160" required dir="auto"></div>
+      <div><label class="label" for="qc_v">{{ t('img_qc.value') }}</label><input class="input" id="qc_v" name="value" maxlength="80" dir="auto"></div>
+      <div><label class="label" for="qc_p">{{ t('img_qc.passed') }}</label><select class="select" id="qc_p" name="passed" x-model="ok"><option value="yes">{{ t('img_qc.pass') }}</option><option value="no">{{ t('img_qc.fail') }}</option></select></div>
+    </div>
+    <div x-show="ok === 'no'" x-cloak><label class="label" for="qc_a">{{ t('img_qc.action') }}</label><input class="input" id="qc_a" name="action" dir="auto"></div>
+    <div><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('img_qc.save') }}</button></div>
+  </form>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-qc-rows>
+  <h2 class="section-title" style="margin-top:0;">{{ t('img_qc.checks') }} <span dir="ltr">{{ data.month }}</span>
+    {% if data.failed %}<span class="badge badge--danger">{{ t('img_qc.failed_n', n=data.failed|length) }}</span>{% endif %}</h2>
+  {% for r in data.rows %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:6px 0;" data-qc-row="{{ r.id }}">
+    <span dir="ltr">{{ r.held_on }}</span> <b dir="auto">{{ r.equipment.name if r.equipment else r.device }}</b> <span dir="auto">{{ r.test }}</span>
+    {% if r.value %}<span class="hint" dir="auto">{{ r.value }}</span>{% endif %}
+    <span class="badge {{ 'badge--green' if r.passed else 'badge--danger' }}">{{ t('img_qc.pass') if r.passed else t('img_qc.fail') }}</span>
+    {% if r.action %}<span class="hint" dir="auto">{{ t('img_qc.action') }}: {{ r.action }}</span>{% endif %}
+  </div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('img_qc.none') }}</p>{% endfor %}
+  <form method="post" action="{{ url_for('imaging.qc', month=data.month) }}" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;border-top:1px solid var(--line);padding-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="what" value="review">
+    <input type="hidden" name="month" value="{{ data.month }}">
+    <input class="input" name="note" maxlength="255" required dir="auto" placeholder="{{ t('img_qc.review_ph') }}" aria-label="{{ t('img_qc.review') }}" style="flex:1;min-width:220px;">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('img_qc.review') }}</button>
+  </form>
+  {% for v in data.reviews %}<p class="hint" style="margin:4px 0 0;" data-qc-reviewed>{{ t('img_qc.reviewed_by') }} {{ v.by.display_name(current_lang) if v.by else '—' }} · <span dir="ltr">{{ v.at|clinic_stamp }}</span> · <span dir="auto">{{ v.note }}</span></p>{% endfor %}
+</div>
+
+{% set review_action = url_for('imaging.qc', month=data.month) %}
+{% include "_service_review.html" %}
+{% endblock %}

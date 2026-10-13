@@ -1,0 +1,9 @@
+{# The building's screens — fire and utilities, the rounds, hazardous
+   materials and waste, construction, being ready, and the plans. #}
+{% macro facility_nav(active) %}
+<nav style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;" aria-label="{{ t('facility.title') }}" data-facility-nav>
+  {% for key, ep, icon in (('index', 'facility.index', 'fire'), ('rounds', 'facility.rounds', 'clipboard-check'), ('hazmat', 'facility.hazmat', 'radioactive'), ('construction', 'facility.construction', 'cone-striped'), ('preparedness', 'facility.preparedness', 'megaphone'), ('plans', 'facility.plans', 'folder-check')) %}
+  <a class="btn btn-sm {{ 'btn-primary' if active == key else 'btn-outline' }} gc-press" href="{{ url_for(ep) }}" data-facility-tab="{{ key }}"><i class="bi bi-{{ icon }}"></i> {{ t('facility.tab_' ~ key) }}</a>
+  {% endfor %}
+</nav>
+{% endmacro %}

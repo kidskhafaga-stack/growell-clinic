@@ -1,0 +1,116 @@
+{% extends "shell.html" %}
+{% from "facility/_nav.html" import facility_nav with context %}
+{% set active_module = 'facility' %}
+{% block title %}{{ t('facility.tab_hazmat') }}{% endblock %}
+{% block page_heading %}{{ t('facility.tab_hazmat') }}{% endblock %}
+
+{% block content %}
+{# GAHAR EFS.06 / GSR.25 (a)–(c), (e) — the hazardous-materials inventory
+   with its safety data sheets and labels, and the hazardous waste handed to
+   the carrier; EFS.07 (d) — pest and rodent control. Spills and exposures
+   are reported as incidents ("hazardous material"). #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-radioactive"></i> {{ t('facility.tab_hazmat') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('facility.hazmat_sub') }}</p>
+</div>
+{{ facility_nav('hazmat') }}
+
+<div class="card gc-scale-in" id="materials" style="margin-bottom:14px;" data-materials>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-droplet-half"></i> {{ t('facility.materials') }}</h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+    <span class="badge {{ 'badge--danger' if data.no_sds else 'badge--green' }}" data-no-sds="{{ data.no_sds|length }}">{{ t('facility.no_sds_n', n=data.no_sds|length) }}</span>
+    <span class="badge {{ 'badge--danger' if data.unlabelled else 'badge--green' }}" data-unlabelled="{{ data.unlabelled|length }}">{{ t('facility.unlabelled_n', n=data.unlabelled|length) }}</span>
+    <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('incidents.index') }}"><i class="bi bi-clipboard2-pulse"></i> {{ t('facility.report_spill') }}</a>
+  </div>
+  {% if data.rows %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:860px;">
+    <thead><tr><th>{{ t('facility.material') }}</th><th>{{ t('facility.location') }}</th><th>{{ t('facility.usage') }}</th><th>{{ t('facility.responsible') }}</th><th>{{ t('facility.sds') }}</th><th></th></tr></thead>
+    <tbody>{% for m in data.rows %}<tr id="m{{ m.id }}" data-material="{{ m.id }}">
+      <td><b dir="auto">{{ m.name }}</b> <span class="badge badge--warn">{{ t('facility.hz_' ~ m.hazard) }}</span>
+        {% if not m.labelled %}<span class="badge badge--danger" data-material-unlabelled>{{ t('facility.unlabelled') }}</span>{% endif %}</td>
+      <td dir="auto">{{ m.location }}</td>
+      <td dir="auto">{{ m.usage or '—' }}{% if m.consumption %}<div class="hint">{{ m.consumption }}</div>{% endif %}</td>
+      <td dir="auto">{{ m.responsible }}</td>
+      <td>{% if m.sds_file %}<a target="_blank" rel="noopener" href="{{ url_for('static', filename='uploads/patient_docs/' ~ m.sds_file) }}" data-sds-link><i class="bi bi-file-earmark-text"></i> {{ t('facility.sds') }}</a>{% if m.sds_reviewed_on %}<div class="hint" dir="ltr">{{ m.sds_reviewed_on.isoformat() }}</div>{% endif %}
+        {% else %}<span class="badge badge--danger" data-material-no-sds>{{ t('facility.no_sds') }}</span>{% endif %}</td>
+      <td><details><summary style="cursor:pointer;">{{ t('common.edit') }}</summary>
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('facility.hazmat_edit', material_id=m.id) }}" style="display:grid;gap:6px;margin-top:6px;min-width:260px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="input" name="name" value="{{ m.name }}" maxlength="160" required aria-label="{{ t('facility.material') }}" dir="auto">
+          <select class="input" name="hazard" required aria-label="{{ t('facility.hazard') }}">{% for h in hazards %}<option value="{{ h }}" {{ 'selected' if h == m.hazard }}>{{ t('facility.hz_' ~ h) }}</option>{% endfor %}</select>
+          <input class="input" name="location" value="{{ m.location }}" maxlength="160" required aria-label="{{ t('facility.location') }}" dir="auto">
+          <input class="input" name="usage" value="{{ m.usage or '' }}" maxlength="255" aria-label="{{ t('facility.usage') }}" dir="auto">
+          <input class="input" name="consumption" value="{{ m.consumption or '' }}" maxlength="80" aria-label="{{ t('facility.consumption') }}" dir="auto">
+          <input class="input" name="responsible" value="{{ m.responsible }}" maxlength="160" required aria-label="{{ t('facility.responsible') }}" dir="auto">
+          <label><input type="checkbox" name="labelled" value="1" {{ 'checked' if m.labelled }}> {{ t('facility.labelled') }}</label>
+          <label class="label" for="sds_{{ m.id }}">{{ t('facility.sds_file') }}</label><input class="input" type="file" id="sds_{{ m.id }}" name="sds" accept="image/*,application/pdf">
+          <label class="label" for="sdsr_{{ m.id }}">{{ t('facility.sds_reviewed') }}</label><input class="input" type="date" id="sdsr_{{ m.id }}" name="sds_reviewed_on" max="{{ today.isoformat() }}">
+          <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+        </form>
+        <form method="post" action="{{ url_for('facility.hazmat_retire', material_id=m.id) }}" style="margin-top:6px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('facility.retire') }}</button></form>
+      </details></td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint">{{ t('facility.no_materials') }}</p>{% endif %}
+  <details style="margin-top:10px;" {% if not data.rows %}open{% endif %}><summary style="cursor:pointer;">{{ t('facility.new_material') }}</summary>
+  <form method="post" enctype="multipart/form-data" action="{{ url_for('facility.hazmat_new') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:8px;" data-new-material>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="hm_name">{{ t('facility.material') }}</label><input class="input" id="hm_name" name="name" maxlength="160" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="hm_hz">{{ t('facility.hazard') }}</label>
+      <select class="input" id="hm_hz" name="hazard" required><option value=""></option>{% for h in hazards %}<option value="{{ h }}">{{ t('facility.hz_' ~ h) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="hm_loc">{{ t('facility.location') }}</label><input class="input" id="hm_loc" name="location" maxlength="160" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="hm_use">{{ t('facility.usage') }}</label><input class="input" id="hm_use" name="usage" maxlength="255" dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="hm_con">{{ t('facility.consumption') }}</label><input class="input" id="hm_con" name="consumption" maxlength="80" dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="hm_resp">{{ t('facility.responsible') }}</label><input class="input" id="hm_resp" name="responsible" maxlength="160" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="hm_sds">{{ t('facility.sds_file') }}</label><input class="input" type="file" id="hm_sds" name="sds" accept="image/*,application/pdf"></div>
+    <label style="align-self:end;"><input type="checkbox" name="labelled" value="1"> {{ t('facility.labelled') }}</label>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;">
+  <div class="card gc-scale-in" id="waste" data-waste>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-trash3"></i> {{ t('facility.waste') }} — <span dir="ltr">{{ year }}</span></h2>
+    {% if waste %}
+    <div style="overflow-x:auto;"><table class="table" style="min-width:520px;font-variant-numeric:tabular-nums;">
+      <thead><tr><th>{{ t('facility.waste_category') }}</th>{% for m in range(1, 13) %}<th dir="ltr">{{ m }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for c, months in waste.items() %}<tr data-waste-row="{{ c }}"><td>{{ t('facility.wc_' ~ c) }}</td>{% for kg in months %}<td dir="ltr">{{ ('%g' % kg) if kg else '' }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+    <p class="hint" style="margin:4px 0 0;">{{ t('facility.waste_kg') }}</p>
+    {% else %}<p class="hint">{{ t('facility.no_waste') }}</p>{% endif %}
+    <details style="margin-top:10px;"><summary style="cursor:pointer;">{{ t('facility.new_waste') }}</summary>
+    <form method="post" action="{{ url_for('facility.waste') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:8px;" data-new-waste>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;"><label for="w_on">{{ t('facility.checked_on') }}</label><input class="input" type="date" id="w_on" name="handed_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+      <div class="form-row" style="margin:0;"><label for="w_cat">{{ t('facility.waste_category') }}</label>
+        <select class="input" id="w_cat" name="category" required><option value=""></option>{% for c in categories %}<option value="{{ c }}">{{ t('facility.wc_' ~ c) }}</option>{% endfor %}</select></div>
+      <div class="form-row" style="margin:0;"><label for="w_kg">{{ t('facility.weight_kg') }}</label><input class="input" id="w_kg" name="weight_kg" inputmode="decimal" dir="ltr"></div>
+      <div class="form-row" style="margin:0;"><label for="w_car">{{ t('facility.carrier') }}</label><input class="input" id="w_car" name="carrier" maxlength="160" required dir="auto"></div>
+      <div class="form-row" style="margin:0;"><label for="w_man">{{ t('facility.manifest') }}</label><input class="input" id="w_man" name="manifest_no" maxlength="60" dir="ltr"></div>
+      <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+    </form></details>
+  </div>
+
+  <div class="card gc-scale-in" id="pest" data-pest>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-bug"></i> {{ t('facility.pest') }}
+      {% if pest.overdue %}<span class="badge badge--danger" data-pest-overdue>{{ t('facility.overdue') }}</span>{% endif %}</h2>
+    {% if pest.rows %}
+    <ul style="margin:0;padding-inline-start:18px;">{% for v in pest.rows %}<li data-pest-visit="{{ v.id }}"><span dir="ltr">{{ v.visited_on.isoformat() }}</span> — <span dir="auto">{{ v.company }}</span> — <span dir="auto">{{ v.areas }}</span>
+      {% if v.findings %}<div class="hint" dir="auto">{{ v.findings }} → {{ v.action }}</div>{% endif %}
+      {% if v.next_due %}<div class="hint">{{ t('facility.next_due') }}: <span dir="ltr">{{ v.next_due.isoformat() }}</span></div>{% endif %}</li>{% endfor %}</ul>
+    {% else %}<p class="hint">{{ t('facility.no_pest') }}</p>{% endif %}
+    <details style="margin-top:10px;"><summary style="cursor:pointer;">{{ t('facility.new_pest') }}</summary>
+    <form method="post" action="{{ url_for('facility.pest') }}" style="display:grid;gap:8px;margin-top:8px;" data-new-pest>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;"><label for="p_on">{{ t('facility.checked_on') }}</label><input class="input" type="date" id="p_on" name="visited_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+      <div class="form-row" style="margin:0;"><label for="p_co">{{ t('facility.company') }}</label><input class="input" id="p_co" name="company" maxlength="160" required dir="auto"></div>
+      <div class="form-row" style="margin:0;"><label for="p_ar">{{ t('facility.areas') }}</label><input class="input" id="p_ar" name="areas" maxlength="400" required dir="auto"></div>
+      <div class="form-row" style="margin:0;"><label for="p_me">{{ t('facility.method') }}</label><input class="input" id="p_me" name="method" maxlength="255" dir="auto"></div>
+      <div class="form-row" style="margin:0;"><label for="p_fi">{{ t('facility.pest_findings') }}</label><input class="input" id="p_fi" name="findings" dir="auto"></div>
+      <div class="form-row" style="margin:0;"><label for="p_ac">{{ t('facility.action') }}</label><input class="input" id="p_ac" name="action" dir="auto"></div>
+      <div class="form-row" style="margin:0;"><label for="p_nx">{{ t('facility.next_due') }}</label><input class="input" type="date" id="p_nx" name="next_due"></div>
+      <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+    </form></details>
+  </div>
+</div>
+{% endblock %}

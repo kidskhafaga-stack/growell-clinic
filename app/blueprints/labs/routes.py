@@ -152,6 +152,8 @@ def _render_order(row, **extra):
                            sent_late=_sendout().late(row),
                            was_late=_tat().was_late(row), took=_tat().minutes(row),
                            critical_late=_critical().late_call(row),
+                           # DAS.14 (h) — the same test inside its interval.
+                           repeat_of=_retest().previous(row) if row.kind == "lab" else None,
                            reason_label=lab_reception.reason_label,
                            lines=lines, late=lab_results.late(row),
                            # Why a calculated line has no number yet.
@@ -1472,6 +1474,28 @@ def _release():
     return lab_release
 
 
+def _retest():
+    from app.utils import lab_retest
+
+    return lab_retest
+
+
+@labs_bp.route("/order/<int:order_id>/repeat-reason", methods=["POST"])
+@module_required(MODULE)
+def repeat_reason(order_id):
+    """Why a test was repeated inside its minimal interval (ICD.17 ev. 5)."""
+    row = db.get_or_404(VisitInvestigation, order_id)
+    try:
+        _retest().explain(row, request.form.get("reason"), user=current_user)
+    except _retest().RetestError as err:
+        db.session.rollback()
+        flash(t(f"lab_retest.err_{err}"), "error")
+        return redirect(url_for("labs.order", order_id=row.id))
+    db.session.commit()
+    flash(t("lab_retest.saved"), "success")
+    return redirect(url_for("labs.order", order_id=row.id))
+
+
 def _competency():
     from app.utils import lab_competency
 
@@ -1928,6 +1952,11 @@ def test_details(test_id):
             return redirect(url_for("labs.test_ranges", test_id=row.id) + "#details")
         setattr(row, low, span[0] if span else None)
         setattr(row, high, span[1] if span else None)
+    # GAHAR DAS.14 (h) — the minimal retesting interval, in hours.
+    if "retest_hours" in request.form:
+        raw = (request.form.get("retest_hours") or "").strip()
+        row.retest_hours = (int(raw) if raw.isdigit() and 0 < int(raw) <= 24 * 365
+                            else None)
     # GAHAR DAS.20 (هـ) — how many days the tube is kept after the result.
     if "keep_days" in request.form:
         raw = (request.form.get("keep_days") or "").strip()
@@ -2201,8 +2230,29 @@ def documents():
     from app.utils import lab_documents
     from app.utils.clock import local_today
 
+    from app.utils import imaging_quality as iq
+
     return render_template("labs/documents.html",
-                           rows=lab_documents.overview(), today=local_today())
+                           rows=lab_documents.overview(), today=local_today(),
+                           reviews=iq.service_reviews("lab"))
+
+
+@labs_bp.route("/service-review", methods=["POST"])
+@module_required(MODULE)
+def service_review():
+    """GAHAR DAS.10 ev. 4 — the laboratory's scope reviewed every year."""
+    from app.utils import imaging_quality as iq
+
+    try:
+        iq.save_service_review("lab", request.form.get("year", type=int), request.form.get("text"),
+                               current_user)
+    except iq.ImagingQualityError as err:
+        db.session.rollback()
+        flash(t("img_qc.err_" + str(err)), "error")
+        return redirect(url_for("labs.documents"))
+    db.session.commit()
+    flash(t("img_qc.saved"), "success")
+    return redirect(url_for("labs.documents"))
 
 
 @labs_bp.route("/tests/<int:test_id>/documents")

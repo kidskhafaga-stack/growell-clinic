@@ -5,3 +5,4 @@ from flask import Blueprint
 facility_bp = Blueprint("facility", __name__, url_prefix="/facility")
 
 from app.blueprints.facility import routes  # noqa: E402,F401
+from app.blueprints.facility import program_routes  # noqa: E402,F401

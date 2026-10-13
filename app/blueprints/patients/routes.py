@@ -776,7 +776,7 @@ def view(patient_id):
         # nothing linked to it: the chart, the plans and the per-tooth history
         # all existed, and no screen in the program pointed at any of them.
         dental=_dental_summary(patient),
-        consent_types=CONSENT_TYPES,
+        consent_types=_consent_kinds(),
         consent_statements=all_statements(),
         # GAHAR PCC.08 (3). The gap is derived, never stored — the moment a
         # doctor signs, the badge goes, on every screen at once. And the
@@ -1046,12 +1046,26 @@ def refusal_record(patient_id):
     الأول، ورفض اتسجّل ناقص أحسن من رفض ما اتسجّلش — والشاشة بتقول
     ناقص إيه باسمه بعد كده.
     """
+    from app.models import Admission, EmergencyVisit
     from app.utils import refusal as no
+    from app.utils.against_advice import is_doctor
 
+    # A clinical record, written by the clinical staff — not the desk.
+    if not (current_user.is_admin or current_user.can("patient_medical")):
+        abort(403)
     patient = db.get_or_404(Patient, patient_id)
+    # The episode it belongs to — so a stay that left against advice stops
+    # being listed as having no form the moment one is written for it.
+    stay = db.session.get(Admission, request.form.get("admission_id", type=int) or 0)
+    attendance = db.session.get(EmergencyVisit, request.form.get("emergency_visit_id", type=int) or 0)
+    if stay is not None and stay.patient_id != patient.id:
+        stay = None
+    if attendance is not None and attendance.patient_id != patient.id:
+        attendance = None
     try:
-        no.record(patient, (request.form.get("kind") or "step").strip(),
-                  user=current_user, explained_by=current_user,
+        row = no.record(patient, (request.form.get("kind") or "step").strip(),
+                  user=current_user, admission=stay, emergency_visit=attendance,
+                  explained_by=current_user if is_doctor(current_user) else None,
                   condition=request.form.get("condition"),
                   consequences=request.form.get("consequences"),
                   refused=request.form.get("refused"),
@@ -1063,6 +1077,9 @@ def refusal_record(patient_id):
         flash(t("refusal.not_saved"), "error")
         return redirect(url_for("patients.view", patient_id=patient.id)
                         + "#refusal")
+    db.session.flush()
+    ActivityLog.record("refusal.create", user_id=current_user.id, entity="refusal",
+                       entity_id=row.id, detail=row.kind, ip_address=client_ip())
     db.session.commit()
     flash(t("refusal.saved"), "success")
     return redirect(url_for("patients.view", patient_id=patient.id)
@@ -1076,7 +1093,11 @@ def refusal_fill(refusal_id):
     from app.models import Refusal
     from app.utils import refusal as no
 
+    if not (current_user.is_admin or current_user.can("patient_medical")):
+        abort(403)
     row = db.get_or_404(Refusal, refusal_id)
+    ActivityLog.record("refusal.fill", user_id=current_user.id, entity="refusal",
+                       entity_id=row.id, ip_address=client_ip())
     no.describe(row,
                 condition=request.form.get("condition"),
                 consequences=request.form.get("consequences"),
@@ -2097,6 +2118,12 @@ def withdraw_consent(consent_id):
     flash(t(message), "info")
     return redirect(
         url_for("patients.view", patient_id=c.patient_id) + "#consent")
+
+
+def _consent_kinds():
+    from app.utils.consent import kinds_offered
+
+    return kinds_offered()
 
 
 def _a_signature():

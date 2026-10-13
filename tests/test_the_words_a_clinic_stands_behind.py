@@ -93,7 +93,10 @@ def _screen(clinic):
 
 def test_every_kind_has_a_box_in_both_languages(clinic):
     page = _screen(clinic)
-    for kind in CONSENT_TYPES:
+    with clinic["app"].app_context():
+        offered = cs.kinds_offered()
+    assert "teaching" not in offered, "a clinic is offered only the kinds it always had"
+    for kind in offered:
         for lang in ("ar", "en"):
             assert f'name="{_key(kind, lang)}"' in page, (kind, lang)
 

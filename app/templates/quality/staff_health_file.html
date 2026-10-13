@@ -1,0 +1,47 @@
+{% extends "shell.html" %}
+{% from "quality/_nav.html" import quality_nav with context %}
+{% block title %}{{ t('gov.health_file') }} — {{ staff.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ t('gov.health_file') }}{% endblock %}
+
+{% block content %}
+{# GAHAR OGM.17 ev. 4–6 — one staff member's health record: examinations,
+   screening, immunizations, exposures and their prophylaxis, injuries and
+   restrictions; a positive result carries what was done and the day the
+   employee was told. #}
+<div class="gc-animate" style="margin-bottom:12px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:end;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-heart-pulse"></i> {{ staff.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('gov.health_file') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('quality.staff_health') }}"><i class="bi bi-arrow-return-left"></i> {{ t('common.back') }}</a>
+</div>
+{{ quality_nav('staff_health') }}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-new-entry>
+  <h2 class="section-title" style="margin-top:0;">{{ t('gov.new_entry') }}</h2>
+  <form method="post" action="{{ url_for('quality.staff_health_file', user_id=staff.id) }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="sh_k">{{ t('facility.kind') }}</label><select class="input" id="sh_k" name="kind" required><option value=""></option>{% for k in kinds %}<option value="{{ k }}">{{ t('gov.ek2_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="sh_on">{{ t('facility.checked_on') }}</label><input class="input" type="date" id="sh_on" name="on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+    <div class="form-row" style="margin:0;grid-column:span 2;"><label for="sh_d">{{ t('gov.entry_detail') }}</label><input class="input" id="sh_d" name="detail" maxlength="255" required dir="auto" placeholder="{{ t('gov.entry_detail_ph') }}"></div>
+    <div class="form-row" style="margin:0;"><label for="sh_r">{{ t('facility.result') }}</label><select class="input" id="sh_r" name="result">{% for r in results %}<option value="{{ r }}" {{ 'selected' if r == 'na' }}>{{ t('gov.hr_' ~ r) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="sh_i">{{ t('gov.informed_on') }}</label><input class="input" type="date" id="sh_i" name="informed_on" max="{{ today.isoformat() }}"></div>
+    <div class="form-row" style="margin:0;"><label for="sh_u">{{ t('gov.restricted_until') }}</label><input class="input" type="date" id="sh_u" name="restricted_until"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="sh_a">{{ t('gov.health_action') }}</label><textarea class="input" id="sh_a" name="action" rows="2" dir="auto" placeholder="{{ t('gov.health_action_ph') }}"></textarea></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form>
+</div>
+
+<div class="card gc-scale-in" data-health-file>
+  {% if rows %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:680px;">
+    <thead><tr><th>{{ t('facility.checked_on') }}</th><th>{{ t('facility.kind') }}</th><th>{{ t('gov.entry_detail') }}</th><th>{{ t('facility.result') }}</th><th>{{ t('gov.health_action') }}</th></tr></thead>
+    <tbody>{% for e in rows %}<tr data-health-entry="{{ e.id }}">
+      <td dir="ltr">{{ e.on.isoformat() }}</td><td>{{ t('gov.ek2_' ~ e.kind) }}</td><td dir="auto">{{ e.detail }}</td>
+      <td>{% if e.result == 'positive' %}<span class="badge badge--danger">{{ t('gov.hr_positive') }}</span>{% elif e.result == 'normal' %}<span class="badge badge--green">{{ t('gov.hr_normal') }}</span>{% else %}—{% endif %}</td>
+      <td dir="auto">{{ e.action or '' }}{% if e.informed_on %}<div class="hint">{{ t('gov.informed_on') }}: <span dir="ltr">{{ e.informed_on.isoformat() }}</span></div>{% endif %}
+        {% if e.restricted_until %}<div class="hint">{{ t('gov.restricted_until') }}: <span dir="ltr">{{ e.restricted_until.isoformat() }}</span></div>{% endif %}</td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('gov.empty_file') }}</p>{% endif %}
+</div>
+{% endblock %}

@@ -2632,8 +2632,11 @@
       <label for="leave_note">{{ t('leave.their_words') }}</label>
       <input class="input" id="leave_note" name="leave_note" maxlength="255" placeholder="{{ t('leave.their_words_ph') }}">
     </div>
-    <button class="btn btn-primary gc-press" type="submit">
+    <button class="btn btn-primary gc-press" type="submit" x-show="out !== 'self_discharge'">
       <i class="bi bi-check2"></i> {{ t('beds.discharge') }}</button>
+    {# Against advice goes on to its own form — closed by this tap or by the form, as the hospital's policy says (utils/against_advice). #}
+    <button class="btn btn-danger gc-press" type="submit" x-show="out === 'self_discharge'" x-cloak data-to-ama>
+      <i class="bi bi-file-earmark-text"></i> {{ t('ama.open_form') }}</button>
   </form>
 </div>
 {% endif %}

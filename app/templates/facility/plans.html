@@ -1,0 +1,90 @@
+{% extends "shell.html" %}
+{% from "facility/_nav.html" import facility_nav with context %}
+{% set active_module = 'facility' %}
+{% block title %}{{ t('facility.tab_plans') }}{% endblock %}
+{% block page_heading %}{{ t('facility.tab_plans') }}{% endblock %}
+
+{% block content %}
+{# GAHAR EFS.01 ev. 6 and every "approved and updated annually" in EFS and
+   OGM — the current version of each plan and policy, who approved it, when
+   it is due for review, and its history; EFS.01 ev. 2 — an outside
+   authority's observations, the corrective plan and its deadline. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-folder-check"></i> {{ t('facility.tab_plans') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('facility.plans_sub') }}</p>
+</div>
+{{ facility_nav('plans') }}
+
+<div class="card gc-scale-in" id="plans" style="margin-bottom:14px;" data-plans>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-journal-check"></i> {{ t('facility.plans') }}</h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+    <span class="badge {{ 'badge--danger' if data.overdue else 'badge--green' }}" data-plans-overdue="{{ data.overdue|length }}">{{ t('facility.plans_overdue_n', n=data.overdue|length) }}</span>
+    {% if data.missing %}<span class="badge badge--warn" data-plans-missing="{{ data.missing|length }}">{{ t('facility.plans_missing_n', n=data.missing|length) }}</span>{% endif %}
+  </div>
+  {% if data.missing %}<p class="hint" style="margin:0 0 8px;">{{ t('facility.not_entered') }}: {% for k in data.missing %}{{ t('facility.pk_' ~ k) }}{{ '، ' if not loop.last }}{% endfor %}</p>{% endif %}
+  {% if data.rows %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:760px;">
+    <thead><tr><th>{{ t('facility.plan') }}</th><th>{{ t('facility.approved') }}</th><th>{{ t('facility.review_due') }}</th><th></th></tr></thead>
+    <tbody>{% for r in data.rows %}{% set p = r.plan %}<tr data-plan="{{ p.id }}">
+      <td><b dir="auto">{{ p.title }}</b> <span class="hint">{{ t('facility.pk_' ~ p.kind) }}</span>
+        {% if p.file %}<a target="_blank" rel="noopener" href="{{ url_for('static', filename='uploads/patient_docs/' ~ p.file) }}"><i class="bi bi-file-earmark-text"></i></a>{% endif %}
+        {% if p.changes %}<div class="hint" dir="auto">{{ p.changes }}</div>{% endif %}</td>
+      <td><span dir="auto">{{ p.approved_by }}</span> · <span dir="ltr">{{ p.approved_on.isoformat() }}</span></td>
+      <td><span class="{{ 'badge badge--danger' if r.overdue else '' }}" {% if r.overdue %}data-plan-overdue{% endif %} dir="ltr">{{ r.due.isoformat() }}</span></td>
+      <td><details><summary style="cursor:pointer;">{{ t('facility.new_version') }}</summary>
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('facility.plan_replace', plan_id=p.id) }}" style="display:grid;gap:6px;margin-top:6px;min-width:260px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="kind" value="{{ p.kind }}">
+          <input class="input" name="title" value="{{ p.title }}" maxlength="200" required aria-label="{{ t('facility.plan') }}" dir="auto">
+          <input class="input" name="approved_by" value="{{ p.approved_by }}" maxlength="160" required aria-label="{{ t('facility.approved_by') }}" dir="auto">
+          <input class="input" type="date" name="approved_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required aria-label="{{ t('facility.approved_on') }}">
+          <input class="input" name="review_months" value="{{ p.review_months }}" inputmode="numeric" dir="ltr" aria-label="{{ t('facility.review_months') }}">
+          <textarea class="input" name="changes" rows="2" placeholder="{{ t('facility.what_changed') }}" aria-label="{{ t('facility.what_changed') }}" dir="auto"></textarea>
+          <input class="input" type="file" name="file" accept="image/*,application/pdf" aria-label="{{ t('facility.plan_file') }}">
+          <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+        </form></details></td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint">{{ t('facility.no_plans') }}</p>{% endif %}
+  <details style="margin-top:10px;" {% if not data.rows %}open{% endif %}><summary style="cursor:pointer;">{{ t('facility.new_plan') }}</summary>
+  <form method="post" enctype="multipart/form-data" action="{{ url_for('facility.plan_new') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:8px;" data-new-plan>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="pl_k">{{ t('facility.kind') }}</label><select class="input" id="pl_k" name="kind" required><option value=""></option>{% for k in kinds %}<option value="{{ k }}">{{ t('facility.pk_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="pl_t">{{ t('facility.plan') }}</label><input class="input" id="pl_t" name="title" maxlength="200" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="pl_b">{{ t('facility.approved_by') }}</label><input class="input" id="pl_b" name="approved_by" maxlength="160" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="pl_o">{{ t('facility.approved_on') }}</label><input class="input" type="date" id="pl_o" name="approved_on" max="{{ today.isoformat() }}" required></div>
+    <div class="form-row" style="margin:0;"><label for="pl_m">{{ t('facility.review_months') }}</label><input class="input" id="pl_m" name="review_months" inputmode="numeric" dir="ltr" placeholder="12"></div>
+    <div class="form-row" style="margin:0;"><label for="pl_f">{{ t('facility.plan_file') }}</label><input class="input" type="file" id="pl_f" name="file" accept="image/*,application/pdf"></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+
+<div class="card gc-scale-in" id="inspections" data-inspections>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-shield-check"></i> {{ t('facility.inspections') }}
+    {% if inspections.overdue %}<span class="badge badge--danger" data-inspection-overdue="{{ inspections.overdue|length }}">{{ t('facility.overdue') }}</span>{% endif %}</h2>
+  {% if inspections.rows %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:720px;">
+    <thead><tr><th>{{ t('facility.authority') }}</th><th>{{ t('facility.observations') }}</th><th>{{ t('facility.corrective_plan') }}</th><th>{{ t('facility.due') }}</th><th>{{ t('facility.state') }}</th></tr></thead>
+    <tbody>{% for i in inspections.rows %}<tr data-inspection="{{ i.id }}">
+      <td><b dir="auto">{{ i.authority }}</b><div class="hint" dir="ltr">{{ i.visited_on.isoformat() }}</div>{% if i.file %}<a target="_blank" rel="noopener" href="{{ url_for('static', filename='uploads/patient_docs/' ~ i.file) }}"><i class="bi bi-file-earmark-text"></i></a>{% endif %}</td>
+      <td dir="auto">{{ i.observations }}</td><td dir="auto">{{ i.corrective_plan }}</td>
+      <td>{% if i.due_on %}<span class="{{ 'badge badge--danger' if not i.closed_on and i.due_on < today else '' }}" dir="ltr">{{ i.due_on.isoformat() }}</span>{% else %}—{% endif %}</td>
+      <td>{% if i.closed_on %}<span class="badge badge--green">{{ t('facility.closed') }}</span> <span dir="ltr">{{ i.closed_on.isoformat() }}</span><div class="hint" dir="auto">{{ i.closed_note }}</div>
+        {% else %}<form method="post" action="{{ url_for('facility.inspection_close', inspection_id=i.id) }}" style="display:grid;gap:4px;min-width:200px;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="input" type="date" name="closed_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required aria-label="{{ t('facility.checked_on') }}">
+          <input class="input" name="note" maxlength="255" required placeholder="{{ t('facility.what_was_done') }}" aria-label="{{ t('facility.what_was_done') }}" dir="auto">
+          <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('facility.close') }}</button></form>{% endif %}</td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint">{{ t('facility.no_inspections') }}</p>{% endif %}
+  <details style="margin-top:10px;"><summary style="cursor:pointer;">{{ t('facility.new_inspection') }}</summary>
+  <form method="post" enctype="multipart/form-data" action="{{ url_for('facility.inspection_new') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:8px;" data-new-inspection>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="in_a">{{ t('facility.authority') }}</label><input class="input" id="in_a" name="authority" maxlength="160" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="in_v">{{ t('facility.checked_on') }}</label><input class="input" type="date" id="in_v" name="visited_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+    <div class="form-row" style="margin:0;"><label for="in_d">{{ t('facility.due') }}</label><input class="input" type="date" id="in_d" name="due_on"></div>
+    <div class="form-row" style="margin:0;"><label for="in_f">{{ t('facility.plan_file') }}</label><input class="input" type="file" id="in_f" name="file" accept="image/*,application/pdf"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="in_o">{{ t('facility.observations') }}</label><textarea class="input" id="in_o" name="observations" rows="2" required dir="auto"></textarea></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="in_p">{{ t('facility.corrective_plan') }}</label><textarea class="input" id="in_p" name="corrective_plan" rows="2" required dir="auto"></textarea></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+{% endblock %}

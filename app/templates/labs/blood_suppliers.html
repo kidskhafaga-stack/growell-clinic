@@ -1,0 +1,49 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('bbank.suppliers') }}{% endblock %}
+{% block page_heading %}{{ t('bbank.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR DAS.29 — the contracted blood banks: accreditation, the agreement
+   and its validity, the acceptance criteria every unit is received against,
+   and the evaluation during the relationship. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-building"></i> {{ t('bbank.suppliers') }}</h1>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.blood_bank') }}"><i class="bi bi-droplet-half"></i> {{ t('bbank.title') }}</a>
+</div>
+{% for s in rows %}
+<div class="card gc-scale-in" style="margin-bottom:10px;" data-bb-supplier="{{ s.id }}">
+  <b>{{ s.name }}</b>{% if s.accreditation %} <span class="badge badge--green">{{ s.accreditation }}</span>{% endif %}
+  {% if s.agreement_until %}<span class="hint">· {{ t('bbank.agreement_until') }} <span dir="ltr">{{ s.agreement_until }}</span></span>
+    {% if s.agreement_until < today %}<span class="badge badge--danger" data-agreement-expired>{{ t('bbank.agreement_expired') }}</span>{% endif %}{% endif %}
+  {% if s.agreement %}<div class="hint" dir="auto" style="white-space:pre-line;margin-top:4px;">{{ s.agreement }}</div>{% endif %}
+  <div style="margin-top:4px;"><strong>{{ t('bbank.acceptance') }}:</strong> <span dir="auto" style="white-space:pre-line;">{{ s.acceptance }}</span></div>
+  <div class="hint" style="margin-top:4px;">{{ t('bbank.evaluated') }}: {% if s.evaluated_on %}<span dir="ltr">{{ s.evaluated_on }}</span> · <span dir="auto">{{ s.evaluation_note }}</span>{% else %}<span class="badge badge--warn">{{ t('bbank.never_evaluated') }}</span>{% endif %}</div>
+  {% if current_user.is_admin %}
+  <form method="post" action="{{ url_for('labs.blood_suppliers') }}" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="what" value="evaluate"><input type="hidden" name="supplier_id" value="{{ s.id }}">
+    <input class="input" type="date" name="evaluated_on" value="{{ today }}" aria-label="{{ t('bbank.evaluated') }}">
+    <input class="input" name="evaluation_note" maxlength="255" required dir="auto" placeholder="{{ t('bbank.evaluation_ph') }}" aria-label="{{ t('bbank.evaluated') }}" style="flex:1;min-width:200px;">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('bbank.evaluate') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% else %}<p class="hint">{{ t('bbank.no_supplier') }}</p>{% endfor %}
+{% if current_user.is_admin %}
+<details class="card" {{ 'open' if not rows }} data-bb-new-supplier>
+  <summary>{{ t('bbank.new_supplier') }}</summary>
+  <form method="post" action="{{ url_for('labs.blood_suppliers') }}" style="display:grid;gap:8px;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;"><label class="label" for="bs_n">{{ t('bbank.supplier') }}</label><input class="input" id="bs_n" name="name" maxlength="160" required dir="auto"></div>
+      <div style="flex:1;min-width:160px;"><label class="label" for="bs_a">{{ t('bbank.accreditation') }}</label><input class="input" id="bs_a" name="accreditation" maxlength="160" dir="auto"></div>
+      <div><label class="label" for="bs_u">{{ t('bbank.agreement_until') }}</label><input class="input" type="date" id="bs_u" name="agreement_until"></div>
+    </div>
+    <div><label class="label" for="bs_g">{{ t('bbank.agreement') }}</label><textarea class="input" id="bs_g" name="agreement" rows="3" dir="auto" placeholder="{{ t('bbank.agreement_ph') }}"></textarea></div>
+    <div><label class="label" for="bs_c">{{ t('bbank.acceptance') }}</label><textarea class="input" id="bs_c" name="acceptance" rows="3" required dir="auto"></textarea></div>
+    <div><button class="btn btn-primary gc-press" type="submit">{{ t('bbank.save') }}</button></div>
+  </form>
+</details>
+{% endif %}
+{% endblock %}

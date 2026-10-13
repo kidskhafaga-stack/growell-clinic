@@ -186,6 +186,8 @@ from app.models.belonging import Belonging, LostItem
 from app.models.guideline import ClinicalGuideline, GuidelineEvent
 from app.models.ambulance import AmbulanceCall, AmbulanceReadiness, AmbulanceVehicle
 from app.models.telemedicine import TeleEncounter, TeleReview
+from app.models.imaging_quality import ImagingQc, ImagingQcReview, ServiceReview
+from app.models.blood_bank import BloodSupplier, BloodUnit
 from app.models.quality import (ImprovementProject, MeasureValue, PerformanceMeasure,
                                 ProactiveAssessment, QualityDecision, QualityMeeting,
                                 QualitySelfEvaluation, RiskItem, RiskReport)
@@ -362,6 +364,21 @@ from app.models.radiation_safety import (ApronCheck, AreaMeasurement,
 from app.models.facility_safety import (FireDrill, FireSystemCheck,
                                         FireTraining, UtilityCheck,
                                         UtilitySystem)
+from app.models.safety_program import (ConstructionCheck, ConstructionProject,
+                                       HazardousMaterial, PestControlVisit,
+                                       RoundFinding, SafetyRound, WasteHandover)
+from app.models.preparedness import (CallTreeEntry, EmergencyHazard,
+                                     ExternalInspection, HospitalPlan)
+from app.models.governance import (CommitteeCharter, CommitteeReview,
+                                   ContractedService, ContractEvaluation,
+                                   EthicsIssue, GovernanceReport,
+                                   SupplierEvaluation)
+from app.models.staff_health import OccupationalRisk, StaffHealthEntry
+from app.models.teaching import (ResearchParticipant, ResearchProtocol,
+                                 ResearchSafetyEvent, TeachingConcern, Trainee,
+                                 TraineeAssessment, TrainingRotation)
+from app.models.community import (Advertisement, CommunityActivity,
+                                  CommunityPartner, NeedsAssessment)
 from app.models.incident import Incident
 from app.models.hand_hygiene import (HandHygieneAction,
                                      HandHygieneFacilityCheck,
@@ -615,6 +632,11 @@ __all__ = [
     "AmbulanceVehicle",
     "TeleEncounter",
     "TeleReview",
+    "ImagingQc",
+    "ImagingQcReview",
+    "ServiceReview",
+    "BloodSupplier",
+    "BloodUnit",
     "ProgramSession",
     "ViralMarker",
     "PerformanceMeasure",
@@ -855,6 +877,37 @@ __all__ = [
     "RadiationWorker",
     "StaffBloodCount",
     "FireDrill",
+    "SafetyRound",
+    "RoundFinding",
+    "HazardousMaterial",
+    "WasteHandover",
+    "PestControlVisit",
+    "ConstructionProject",
+    "ConstructionCheck",
+    "EmergencyHazard",
+    "CallTreeEntry",
+    "HospitalPlan",
+    "ExternalInspection",
+    "CommitteeCharter",
+    "CommitteeReview",
+    "GovernanceReport",
+    "EthicsIssue",
+    "ContractedService",
+    "ContractEvaluation",
+    "SupplierEvaluation",
+    "OccupationalRisk",
+    "StaffHealthEntry",
+    "Trainee",
+    "TrainingRotation",
+    "TraineeAssessment",
+    "TeachingConcern",
+    "ResearchProtocol",
+    "ResearchParticipant",
+    "ResearchSafetyEvent",
+    "CommunityPartner",
+    "NeedsAssessment",
+    "CommunityActivity",
+    "Advertisement",
     "FireSystemCheck",
     "FireTraining",
     "UtilityCheck",

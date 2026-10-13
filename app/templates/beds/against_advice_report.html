@@ -1,0 +1,61 @@
+{% extends "shell.html" %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('ama.report_title') }}{% endblock %}
+{% block page_heading %}{{ t('ama.report_title') }}{% endblock %}
+
+{% block content %}
+{# Every departure against advice in a period — DAMA from a stay, LAMA from
+   emergency — each with the state of its form, the escalations the doctor
+   called for and whether they were made; and the children who left before
+   anybody saw them, apart, because nobody could advise them. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-box-arrow-left"></i> {{ t('ama.report_title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('ama.report_sub') }}</p>
+</div>
+<form method="get" action="{{ url_for('beds.against_advice_report') }}" class="card" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:12px;">
+  <div><label class="label" for="ar_f">{{ t('ama.from') }}</label><input class="input" type="date" id="ar_f" name="from" value="{{ start }}"></div>
+  <div><label class="label" for="ar_t">{{ t('ama.to') }}</label><input class="input" type="date" id="ar_t" name="to" value="{{ end }}"></div>
+  <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('ama.show') }}</button>
+</form>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;display:flex;gap:18px;flex-wrap:wrap;" data-ama-counts>
+  <span>DAMA: <b data-ama-dama>{{ data.dama }}</b></span>
+  <span>LAMA: <b data-ama-lama>{{ data.lama }}</b></span>
+  <span>{{ t('ama.complete') }}: <b data-ama-complete>{{ data.complete }}</b></span>
+  <span>{{ t('ama.no_form') }}: <b data-ama-no-form>{{ data.no_form }}</b></span>
+  <span>{{ t('ama.escalations') }}: <b>{{ data.escalations|length }}</b>{% if data.not_escalated %} · <span class="badge badge--danger" data-ama-not-escalated>{{ t('ama.not_escalated', n=data.not_escalated|length) }}</span>{% endif %}</span>
+  <span>{{ t('ama.unseen') }}: <b data-ama-unseen>{{ data.unseen|length }}</b></span>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;overflow-x:auto;" data-ama-rows>
+  <table class="table" style="min-width:640px;">
+    <thead><tr><th>{{ t('ama.when') }}</th><th>{{ t('ama.child') }}</th><th>{{ t('ama.type') }}</th><th>{{ t('ama.form') }}</th></tr></thead>
+    <tbody>
+    {% for x in data.rows %}
+    <tr data-ama-row="{{ x.kind }}-{{ x.row.id }}">
+      <td dir="ltr">{{ x.at|clinic_stamp if x.at else '—' }}</td>
+      <td>{{ x.patient.display_name(current_lang) if x.patient else '—' }}</td>
+      <td><span class="badge badge--muted">{{ x.what|upper }}</span></td>
+      <td><a href="{{ url_for('beds.against_advice', kind=x.kind, episode_id=x.row.id) }}">
+        {% if x.refusal is none %}<span class="badge badge--danger">{{ t('ama.no_form') }}</span>
+        {% elif x.missing %}<span class="badge badge--warn">{{ t('ama.missing_n', n=x.missing|length) }}</span>
+        {% else %}<span class="badge badge--green">{{ t('ama.complete') }}</span>{% endif %}
+        {% if x.refusal is not none and x.refusal.needs_escalation %}<span class="badge {{ 'badge--green' if x.refusal.escalated else 'badge--danger' }}">{{ t('ama.escalation') }}</span>{% endif %}</a></td>
+    </tr>
+    {% else %}<tr><td colspan="4" class="hint">—</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card" data-ama-policy>
+  <h2 class="section-title" style="margin-top:0;">{{ t('ama.policy') }}</h2>
+  <p class="hint" style="margin-top:0;">{{ t('ama.policy_hint') }}</p>
+  {% if current_user.is_admin %}
+  <form method="post" action="{{ url_for('beds.against_advice_policy') }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for p in ('record', 'require') %}<label style="display:flex;gap:4px;align-items:center;"><input type="radio" name="policy" value="{{ p }}" {{ 'checked' if policy == p }}> {{ t('ama.policy_' ~ p) }}</label>{% endfor %}
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('ama.save') }}</button>
+  </form>
+  {% else %}<p style="margin:0;">{{ t('ama.policy_' ~ policy) }}</p>{% endif %}
+</div>
+{% endblock %}

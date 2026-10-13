@@ -1,0 +1,35 @@
+{% extends "shell.html" %}
+{% from "facility/_nav.html" import facility_nav with context %}
+{% set active_module = 'facility' %}
+{% block title %}{{ t('facility.quarter_report') }} — {{ data.quarter }}{% endblock %}
+{% block page_heading %}{{ t('facility.quarter_report') }}{% endblock %}
+
+{% block content %}
+{# EFS.02 ev. 5 — what the governing body is told each quarter: the rounds,
+   the significant (high-risk) findings, and what was done or is still to be
+   done. Sent and answered through quality's governing-body reports. #}
+<div class="gc-animate no-print" style="margin-bottom:12px;">
+  {{ facility_nav('rounds') }}
+  <form method="get" action="{{ url_for('facility.round_quarter') }}" style="display:flex;gap:6px;align-items:end;">
+    <div class="form-row" style="margin:0;"><label for="q_q">{{ t('facility.quarter_label') }}</label><input class="input" id="q_q" name="q" value="{{ data.quarter }}" dir="ltr" pattern="[0-9]{4}-Q[1-4]" style="max-width:120px;"></div>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.filter') }}</button>
+    <button class="btn btn-sm btn-outline gc-press" type="button" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+  </form>
+</div>
+
+<div class="card" data-quarter-report="{{ data.quarter }}">
+  <h1 class="page-title" style="margin-top:0;">{{ t('facility.quarter_report') }} — <span dir="ltr">{{ data.quarter }}</span></h1>
+  <p style="margin:0 0 10px;">{{ t('facility.quarter_counts', rounds=data.rounds|length, high=data.high|length, closed=data.closed|length, open=data.open|length) }}</p>
+  {% if data.rounds %}
+  <h2 class="section-title">{{ t('facility.rounds_done') }}</h2>
+  <ul style="margin:0 0 10px;">{% for r in data.rounds %}<li><span dir="ltr">{{ r.held_on.isoformat() }}</span> — {{ t('facility.focus_' ~ r.focus) }} — <span dir="auto">{{ r.areas }}</span></li>{% endfor %}</ul>
+  {% endif %}
+  <h2 class="section-title">{{ t('facility.significant') }}</h2>
+  {% if data.high %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:600px;">
+    <thead><tr><th>{{ t('facility.finding') }}</th><th>{{ t('facility.action') }}</th><th>{{ t('facility.owner') }}</th><th>{{ t('facility.state') }}</th></tr></thead>
+    <tbody>{% for f in data.high %}<tr data-quarter-finding="{{ f.id }}"><td dir="auto">{{ f.finding }}</td><td dir="auto">{{ f.action }}</td><td dir="auto">{{ f.owner }}</td>
+      <td>{% if f.closed_at %}<span class="badge badge--green">{{ t('facility.closed') }}</span> <span dir="auto">{{ f.closed_note }}</span>{% else %}<span class="badge badge--warn">{{ t('facility.still_open') }}</span>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('facility.no_high') }}</p>{% endif %}
+</div>
+{% endblock %}

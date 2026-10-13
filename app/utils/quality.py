@@ -207,6 +207,7 @@ def save_meeting(form, user):
     if held is None or not attendees or not minutes:
         raise QualityError("meeting")
     row = QualityMeeting(held_on=held, attendees=attendees, minutes=minutes, committee=committee,
+                         circulated_to=_text(form.get("circulated_to"), 255),
                          written_by=getattr(user, "id", None))
     for i, text in enumerate(form.getlist("decision")):
         text = _text(text)

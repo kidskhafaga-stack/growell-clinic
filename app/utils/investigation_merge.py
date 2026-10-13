@@ -31,7 +31,7 @@ from app.extensions import db
 #: Copied onto ``keep`` only where ``keep`` has nothing.
 _FILL = ("code", "name_en", "category", "unit", "sample_type", "service_id",
          "tube", "preparation", "tat_min", "tat_max", "tat_stat_min",
-         "tat_stat_max", "referral_lab_id", "keep_days", "cost", "device_id",
+         "tat_stat_max", "retest_hours", "referral_lab_id", "keep_days", "cost", "device_id",
          "needs_booking", "modality", "dose_ref_kind", "dose_ref_value",
          "dose_ref_unit")
 

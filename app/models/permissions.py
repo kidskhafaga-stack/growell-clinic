@@ -109,6 +109,10 @@ MODULES = [
     # Remote encounters by video, phone or message (GAHAR ACT.16), each one
     # an ordinary visit on its own channel. Opt-in.
     "telemedicine",
+    # A teaching hospital's learners and research (GAHAR ATH): trainees and
+    # their supervision, rotations and assessments, concerns raised during
+    # teaching, and research protocols, enrolment and safety. Opt-in.
+    "teaching",
     "prescriptions",
     "inventory",
     "finance",
@@ -163,6 +167,7 @@ MODULE_ICONS = {
     "programs": "clipboard2-heart",
     "ambulance": "truck-front",
     "telemedicine": "camera-video",
+    "teaching": "mortarboard",
     "prescriptions": "capsule",
     "inventory": "box-seam",
     "finance": "cash-coin",
@@ -210,6 +215,7 @@ ROLE_PERMISSIONS = {
         "programs",
         "ambulance",
         "telemedicine",
+        "teaching",
         "prescriptions",
         "ai",
     ],
@@ -246,6 +252,7 @@ ROLE_PERMISSIONS = {
         "duty",
         "programs",
         "ambulance",
+        "teaching",
     ],
     "reception": [
         "dashboard",

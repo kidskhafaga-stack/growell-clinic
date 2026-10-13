@@ -177,6 +177,23 @@
 {# ---- a critical value -------------------------------------------------- #}
 {% include "labs/_critical_box.html" %}
 
+{# ---- repeated inside the minimal interval (GAHAR DAS.14 h, ICD.17 ev. 5)
+   Never refused — flagged, with the earlier order, and the reason kept. #}
+{% if repeat_of %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid #d97706;" data-repeat>
+  <p style="margin:0 0 6px;"><i class="bi bi-arrow-repeat"></i> {{ t('lab_retest.repeat', hours=order.investigation.retest_hours) }}
+    <a href="{{ url_for('labs.order', order_id=repeat_of.id) }}" dir="ltr">{{ repeat_of.created_at|clinic_stamp }}</a></p>
+  {% if order.repeat_reason %}<p class="hint" style="margin:0;" data-repeat-reason>{{ t('lab_retest.reason') }}: <span dir="auto">{{ order.repeat_reason }}</span></p>
+  {% else %}
+  <form method="post" action="{{ url_for('labs.repeat_reason', order_id=order.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input class="input" name="reason" required maxlength="200" dir="auto" placeholder="{{ t('lab_retest.reason_ph') }}" aria-label="{{ t('lab_retest.reason') }}" style="flex:1;min-width:220px;">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
 {# ---- late (GAHAR DAS.21 / DAS.22) --------------------------------------
    Waiting past the laboratory's time: tell whoever asked. Reported past it:
    say why. Both are kept for the turnaround report. #}

@@ -155,6 +155,9 @@
     {# GAHAR ICD.04 / ICD.16 — the clinical guidelines in force. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('quality.guideline_library') }}" data-to-guidelines>
       <i class="bi bi-book"></i> {{ t('cpg.library') }}</a>
+    {# Leaving against advice — DAMA and LAMA, and the state of each form. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('beds.against_advice_report') }}" data-to-against-advice>
+      <i class="bi bi-box-arrow-left"></i> {{ t('ama.report_title') }}</a>
     {# GAHAR PCC.14 — belongings held, and lost and found. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.lost_found') }}" data-to-lost-found>
       <i class="bi bi-bag"></i> {{ t('staycare.lost_title') }}</a>
