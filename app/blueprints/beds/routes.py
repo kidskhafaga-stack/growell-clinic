@@ -748,6 +748,9 @@ def admission(admission_id):
     from app.utils import adverse_reaction as _adr
     from app.utils import med_family as _fam
     from app.utils import palliative as _pall
+    from app.utils import medical_assessment as _medass
+    from app.utils import needs_screen as _needs
+    from app.utils import stay_care as _care
     from app.utils import mental_health as _mh
     from app.utils import restraint as _tied
     from app.utils import resuscitation as _cpr
@@ -826,6 +829,19 @@ def admission(admission_id):
         family_meds=_fam.for_stay(row),
         # `CSS.04` — end-of-life care: the plan and the symptom reviews.
         palliative=_pall.for_stay(row.id),
+        # `ICD.06` — the initial medical assessment: what the record already
+        # holds, what is still to write, and the standard's 24 hours.
+        medical_known=_medass.assembled(row),
+        medical_row=_medass.for_stay(row.id),
+        medical_clock=_medass.clock(row),
+        # `ICD.08` — functional, psychosocial, discharge and abuse screens.
+        needs=_needs.for_stay(row),
+        # `ACT.11`, `ACT.14`, `PCC.05`, `PCC.14`.
+        mdt_rows=_care.mdt_for(row.patient_id),
+        leaves=_care.leaves_for(row.id),
+        leave_now=_care.open_leave(row),
+        family_q=_care.questions_for(row.id),
+        belongings=_care.belongings_for(row.patient_id),
         # `CSS.11` — the risk of harm, and rapid tranquilization.
         mental=_mh.for_stay(row),
         milk_hours={s: _milk.hours_for(s) for s in _milk.HOURS_SETTINGS},

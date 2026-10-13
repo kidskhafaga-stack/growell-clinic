@@ -1,0 +1,39 @@
+{# ---- التقييم الطبي الأولي — GAHAR ICD.06 ---------------------------------
+   The ten elements (a)–(j): each read from where the record already holds it
+   and named by its source, and only the missing ones asked for. Within 24
+   hours of admission — the standard's own number (ev. 3). #}
+{% set mclock = medical_clock %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="medical-initial" data-medical-initial>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-clipboard2-check"></i> {{ t('medass.title') }}
+    <span class="hint" dir="ltr">ICD.06</span>
+    {% if mclock.state == 'overdue' %}<span class="alert-pill danger" data-medical-overdue>{{ t('medass.overdue') }}</span>
+    {% elif mclock.state == 'late' %}<span class="alert-pill warn">{{ t('medass.late') }}</span>
+    {% elif mclock.state == 'due' %}<span class="badge badge--warn">{{ t('medass.due') }} <span dir="ltr">{{ mclock.due|clinic_stamp }}</span></span>
+    {% else %}<span class="badge badge--green">{{ t('medass.on_time') }}</span>{% endif %}
+  </h2>
+  {% set gaps = [] %}
+  <div style="display:grid;gap:4px;">
+  {% for e in ('complaint', 'present_illness', 'past_history', 'allergies', 'medications', 'social', 'family', 'exam', 'specialty', 'provisional_dx') %}
+    {% set got = medical_known.get(e) %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:4px 0;" data-medical-element="{{ e }}">
+      <span style="min-width:180px;font-weight:600;">{{ t('medass.el_' ~ e) }}</span>
+      {% if got %}<span dir="auto" style="flex:1;white-space:pre-line;">{{ got[1]|truncate(220) }}</span>
+        <span class="hint">{{ t('medass.src_' ~ got[0]) }}</span>
+      {% else %}{% set _ = gaps.append(e) %}<span class="badge badge--warn" data-medical-gap="{{ e }}">{{ t('medass.missing') }}</span>{% endif %}
+    </div>
+  {% endfor %}
+  </div>
+  {% if gaps and admission.is_open %}
+  <form method="post" action="{{ url_for('beds.medical_initial', admission_id=admission.id) }}" style="display:grid;gap:8px;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <p class="hint" style="margin:0;">{{ t('medass.only_missing') }}</p>
+    {% for e in gaps %}
+    <div><label class="label" for="ma_{{ e }}">{{ t('medass.el_' ~ e) }}</label>
+      <textarea class="input" id="ma_{{ e }}" name="{{ e }}" rows="2" dir="auto"></textarea></div>
+    {% endfor %}
+    <div><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('medass.save') }}</button></div>
+  </form>
+  {% endif %}
+  {% if medical_row and medical_row.by %}<p class="hint" style="margin:8px 0 0;">{{ medical_row.by.display_name(current_lang) }} · <span dir="ltr">{{ medical_row.at|clinic_stamp }}</span></p>{% endif %}
+</div>

@@ -1,0 +1,34 @@
+{% extends "shell.html" %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('needscreen.criteria_title') }}{% endblock %}
+{% block page_heading %}{{ t('needscreen.criteria_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ICD.08 (b), (c) — the hospital's own criteria for each need and its
+   timeframe to screen them. Written by an administrator, read by whoever
+   screens; the program scores nothing and invents no number. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-ui-checks"></i> {{ t('needscreen.criteria_title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('needscreen.criteria_sub') }}</p>
+</div>
+<div class="card gc-scale-in" data-needs-criteria>
+  {% if current_user.is_admin %}
+  <form method="post" action="{{ url_for('beds.needs_criteria') }}" style="display:grid;gap:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for k in kinds %}
+    <div><label class="label" for="nc_{{ k }}">{{ t('needscreen.kind_' ~ k) }}</label>
+      <textarea class="input" id="nc_{{ k }}" name="{{ k }}" rows="3" dir="auto">{{ criteria[k] }}</textarea></div>
+    {% endfor %}
+    <div><label class="label" for="nc_h">{{ t('needscreen.hours') }}</label>
+      <input class="input" type="number" min="1" step="any" id="nc_h" name="hours" value="{{ '%g'|format(hours) if hours else '' }}" style="max-width:120px;"></div>
+    <div><button class="btn btn-primary gc-press" type="submit">{{ t('staycare.save') }}</button></div>
+  </form>
+  {% else %}
+  {% for k in kinds %}
+  <div style="margin-bottom:8px;"><strong>{{ t('needscreen.kind_' ~ k) }}</strong>
+    <div dir="auto" style="white-space:pre-line;">{{ criteria[k] or t('needscreen.no_criteria') }}</div></div>
+  {% endfor %}
+  <p class="hint" style="margin:0;">{{ t('needscreen.hours') }}: {% if hours %}<span dir="ltr">{{ '%g'|format(hours) }}</span>{% else %}{{ t('needscreen.not_set') }}{% endif %}</p>
+  {% endif %}
+</div>
+{% endblock %}

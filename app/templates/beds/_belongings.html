@@ -1,0 +1,38 @@
+{# ---- الأمانات — GAHAR PCC.14 ----------------------------------------------
+   What the hospital took into custody, where it is kept, that the family was
+   told what the hospital is responsible for (ev. 3), and who it went back to.
+   Lost and found is its own page. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="belongings" data-belongings>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-bag"></i> {{ t('staycare.bel_title') }}
+    <span class="hint" dir="ltr">PCC.14</span>
+    <a class="hint" style="margin-inline-start:auto;" href="{{ url_for('beds.lost_found') }}">{{ t('staycare.lost_title') }}</a></h2>
+  {% for b in belongings %}
+  <div style="border-bottom:1px solid var(--line);padding:6px 0;" data-belonging="{{ b.id }}">
+    <div dir="auto" style="white-space:pre-line;">{{ b.items }}</div>
+    <div class="hint">{{ t('staycare.bel_kept_where') }}: <span dir="auto">{{ b.kept_where }}</span> · <span dir="ltr">{{ b.at|clinic_stamp }}</span>
+      {% if b.receiver %} · {{ b.receiver.display_name(current_lang) }}{% endif %}
+      · {% if b.family_told %}{{ t('staycare.bel_told') }}{% else %}<span class="badge badge--warn">{{ t('staycare.bel_not_told') }}</span>{% endif %}</div>
+    {% if b.returned_at %}<div class="hint">{{ t('staycare.bel_returned_to') }}: <span dir="auto">{{ b.returned_to }}</span> · <span dir="ltr">{{ b.returned_at|clinic_stamp }}</span></div>
+    {% else %}
+    <form method="post" action="{{ url_for('beds.belongings_returned', row_id=b.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="returned_to" maxlength="160" required dir="auto" placeholder="{{ t('staycare.bel_returned_to') }}" aria-label="{{ t('staycare.bel_returned_to') }}" style="flex:1;min-width:180px;">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('staycare.bel_give_back') }}</button>
+    </form>
+    {% endif %}
+  </div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('staycare.bel_none') }}</p>{% endfor %}
+  {% if admission.is_open %}
+  <details style="margin-top:8px;">
+    <summary>{{ t('staycare.bel_new') }}</summary>
+    <form method="post" action="{{ url_for('beds.belongings_keep', admission_id=admission.id) }}" style="display:grid;gap:8px;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div><label class="label" for="bl_i">{{ t('staycare.bel_items') }}</label><textarea class="input" id="bl_i" name="items" rows="2" required dir="auto"></textarea></div>
+      <div><label class="label" for="bl_w">{{ t('staycare.bel_kept_where') }}</label><input class="input" id="bl_w" name="kept_where" maxlength="160" required dir="auto"></div>
+      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" name="family_told" value="1"> {{ t('staycare.bel_told_q') }}</label>
+      <div><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('staycare.bel_save') }}</button></div>
+    </form>
+  </details>
+  {% endif %}
+</div>

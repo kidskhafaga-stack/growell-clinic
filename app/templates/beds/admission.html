@@ -28,10 +28,11 @@
 {% set mrp_now = admission.responsibility %}
 {% set here_bed = admission.bed if admission.is_open else none %}
 <div class="stay" x-data="{
-        inside: { nursing: 'care', pain: 'care', food: 'care', milk: 'care', palliative: 'care', risks: 'care',
+        inside: { nursing: 'care', pain: 'care', food: 'care', milk: 'care', palliative: 'care', risks: 'care', needs: 'care',
+                  'medical-initial': 'overview', 'family-questions': 'overview', leave: 'overview', belongings: 'overview', mdt: 'treatment',
                   medicines: 'treatment', reconcile: 'treatment', 'own-meds': 'treatment', adr: 'treatment', 'family-meds': 'treatment', tests: 'treatment', lines: 'treatment',
                   blood: 'treatment', theatre: 'treatment',
-                  restraint: 'safety', arrest: 'safety', precautions: 'safety', mental: 'safety',
+                  restraint: 'safety', arrest: 'safety', precautions: 'safety', mental: 'treatment',
                   'discharge-summary': 'discharge', mrp: 'overview',
                   rounds: 'overview' },
         known: [],
@@ -609,6 +610,10 @@
   </form>
 </div>
 {% endif %}
+{% include "beds/_medical_initial.html" %}
+{% include "beds/_family_questions.html" %}
+{% include "beds/_stay_leave.html" %}
+{% include "beds/_belongings.html" %}
 </div>
 
 <div class="gc-tab-panel stay-panel" data-stay-panel="care" x-show="tab==='care'" x-cloak>
@@ -1184,6 +1189,7 @@
   {% endif %}
 </div>
 {% endif %}
+{% include "beds/_needs.html" %}
 </div>
 
 <div class="gc-tab-panel stay-panel" data-stay-panel="treatment" x-show="tab==='treatment'" x-cloak>
@@ -2208,8 +2214,6 @@
   {% endif %}
 </div>
 {% endif %}
-</div>
-
 {# ======================= الصحة النفسية — CSS.11 (ب)(ح)(ي) =================
    خطر إيذاء النفس أو الغير بأداة المستشفى، والخطة لو في خطر؛ والتهدئة
    السريعة بالمتابعة بعدها. مقفول لحد ما حد يفتحه — مش كل طفل في سرير
@@ -2255,6 +2259,9 @@
   </form>
   {% endif %}
 </details>
+{% include "beds/_mdt.html" %}
+</div>
+
 {# ======================= التقييد والإنعاش — CSS.12 و CSS.05 =======
    **الفورمتين دول كانوا ناقصين.** المسارات الستّة اتسلّمت ومحدّش يقدر
    يوصلها: الشاشة كانت بتقول «فيه طفل مربوط بأمر خلص» ومفيش في البرنامج

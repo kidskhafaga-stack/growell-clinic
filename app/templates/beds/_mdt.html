@@ -1,0 +1,40 @@
+{# ---- اجتماع الفريق المتعدد — GAHAR ACT.11 ---------------------------------
+   Why it was called, who sat in it, what they found, what they decided and
+   who does what (b) — recorded in the child's record (ev. 5). #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="mdt" data-mdt>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-people"></i> {{ t('staycare.mdt_title') }}
+    <span class="hint" dir="ltr">ACT.11</span></h2>
+  {% for m in mdt_rows %}
+  <details style="border-bottom:1px solid var(--line);padding:6px 0;" data-mdt-row="{{ m.id }}">
+    <summary><span dir="ltr">{{ m.held_at|clinic_stamp }}</span> · <span dir="auto">{{ m.reason }}</span></summary>
+    <div class="hint" style="margin-top:4px;">{{ t('staycare.mdt_attendees') }}: <span dir="auto">{{ m.attendees }}</span>
+      {% if m.family_present is not none %} · {{ t('staycare.mdt_family_' ~ ('yes' if m.family_present else 'no')) }}{% endif %}</div>
+    <div style="margin-top:4px;"><strong>{{ t('staycare.mdt_findings') }}:</strong> <span dir="auto" style="white-space:pre-line;">{{ m.findings }}</span></div>
+    <div style="margin-top:4px;"><strong>{{ t('staycare.mdt_decision') }}:</strong> <span dir="auto" style="white-space:pre-line;">{{ m.decision }}</span></div>
+    {% if m.responsibilities %}<div style="margin-top:4px;"><strong>{{ t('staycare.mdt_responsibilities') }}:</strong> <span dir="auto" style="white-space:pre-line;">{{ m.responsibilities }}</span></div>{% endif %}
+  </details>
+  {% else %}<p class="hint" style="margin:0;">{{ t('staycare.mdt_none') }}</p>{% endfor %}
+  {% if admission.is_open %}
+  <details style="margin-top:10px;">
+    <summary>{{ t('staycare.mdt_new') }}</summary>
+    <form method="post" action="{{ url_for('beds.mdt_add', admission_id=admission.id) }}" style="display:grid;gap:8px;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <div><label class="label" for="mdt_at">{{ t('staycare.mdt_held_at') }}</label><input class="input" type="datetime-local" id="mdt_at" name="held_at"></div>
+        <div style="flex:1;min-width:220px;"><label class="label" for="mdt_r">{{ t('staycare.mdt_reason') }}</label><input class="input" id="mdt_r" name="reason" maxlength="255" required dir="auto"></div>
+      </div>
+      <div><label class="label" for="mdt_a">{{ t('staycare.mdt_attendees') }}</label><input class="input" id="mdt_a" name="attendees" maxlength="255" required dir="auto" placeholder="{{ t('staycare.mdt_attendees_ph') }}"></div>
+      <div><label class="label" for="mdt_f">{{ t('staycare.mdt_findings') }}</label><textarea class="input" id="mdt_f" name="findings" rows="2" required dir="auto"></textarea></div>
+      <div><label class="label" for="mdt_d">{{ t('staycare.mdt_decision') }}</label><textarea class="input" id="mdt_d" name="decision" rows="2" required dir="auto"></textarea></div>
+      <div><label class="label" for="mdt_s">{{ t('staycare.mdt_responsibilities') }}</label><textarea class="input" id="mdt_s" name="responsibilities" rows="2" dir="auto"></textarea></div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <span>{{ t('staycare.mdt_family') }}</span>
+        <label style="display:flex;gap:4px;align-items:center;"><input type="radio" name="family_present" value="yes"> {{ t('staycare.yes') }}</label>
+        <label style="display:flex;gap:4px;align-items:center;"><input type="radio" name="family_present" value="no"> {{ t('staycare.no') }}</label>
+      </div>
+      <div><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('staycare.mdt_save') }}</button></div>
+    </form>
+  </details>
+  {% endif %}
+</div>

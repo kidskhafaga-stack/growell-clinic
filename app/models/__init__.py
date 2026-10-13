@@ -176,6 +176,12 @@ from app.models.staff_file import (StaffCredential, StaffEducation, StaffEvaluat
 from app.models.palliative import PalliativePlan, PalliativeReview
 from app.models.tranquilization import RapidTranquilization
 from app.models.care_program import ProgramEnrollment, ProgramSession, ViralMarker
+from app.models.needs_screen import NeedsScreen
+from app.models.medical_assessment import MedicalAssessment
+from app.models.mdt import MdtMeeting
+from app.models.stay_leave import StayLeave
+from app.models.family_question import FamilyQuestion
+from app.models.belonging import Belonging, LostItem
 from app.models.quality import (ImprovementProject, MeasureValue, PerformanceMeasure,
                                 ProactiveAssessment, QualityDecision, QualityMeeting,
                                 QualitySelfEvaluation, RiskItem, RiskReport)
@@ -590,6 +596,13 @@ __all__ = [
     "PalliativeReview",
     "RapidTranquilization",
     "ProgramEnrollment",
+    "NeedsScreen",
+    "MedicalAssessment",
+    "MdtMeeting",
+    "StayLeave",
+    "FamilyQuestion",
+    "Belonging",
+    "LostItem",
     "ProgramSession",
     "ViralMarker",
     "PerformanceMeasure",
