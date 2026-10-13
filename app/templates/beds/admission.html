@@ -28,7 +28,7 @@
 {% set mrp_now = admission.responsibility %}
 {% set here_bed = admission.bed if admission.is_open else none %}
 <div class="stay" x-data="{
-        inside: { nursing: 'care', pain: 'care', food: 'care', milk: 'care', palliative: 'care', risks: 'care', needs: 'care',
+        inside: { nursing: 'care', pain: 'care', food: 'care', milk: 'care', palliative: 'care', risks: 'care', needs: 'care', transport: 'care',
                   'medical-initial': 'overview', 'family-questions': 'overview', leave: 'overview', belongings: 'overview', mdt: 'treatment',
                   medicines: 'treatment', reconcile: 'treatment', 'own-meds': 'treatment', adr: 'treatment', 'family-meds': 'treatment', tests: 'treatment', lines: 'treatment',
                   blood: 'treatment', theatre: 'treatment',
@@ -1190,6 +1190,7 @@
 </div>
 {% endif %}
 {% include "beds/_needs.html" %}
+{% include "beds/_transport.html" %}
 </div>
 
 <div class="gc-tab-panel stay-panel" data-stay-panel="treatment" x-show="tab==='treatment'" x-cloak>

@@ -1,0 +1,40 @@
+{# ---- نقل الطفل جوّه المستشفى — GAHAR ACT.12 دليل ٥ ---------------------
+   A trip off the ward and back — to the scanner, the theatre, another
+   department: who went with the child and what went with them, as the
+   hospital's criteria for a critical child require. Not a bed move. #}
+{% set out_now = transports|selectattr('is_out')|list %}
+{% if transports or admission.is_open %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="transport" data-transport>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-arrow-left-right"></i> {{ t('staycare.tr_title') }}
+    <span class="hint" dir="ltr">ACT.12</span>
+    {% if out_now %}<span class="alert-pill warn" data-transport-out>{{ t('staycare.tr_out') }}</span>{% endif %}</h2>
+  {% for r in transports %}
+  <div style="border-bottom:1px solid var(--line);padding:6px 0;" data-transport-row="{{ r.id }}">
+    <div><span dir="ltr">{{ r.left_at|clinic_stamp }}</span> → <span dir="auto">{{ r.to_where }}</span>
+      · {{ t('staycare.tr_escort') }}: <span dir="auto">{{ r.escort }}</span></div>
+    <div class="hint">{{ t('staycare.tr_requirements') }}: <span dir="auto">{{ r.requirements }}</span>
+      {% if r.back_at %} · {{ t('staycare.tr_back_at') }} <span dir="ltr">{{ r.back_at|clinic_stamp }}</span>{% if r.events %} · <span dir="auto">{{ r.events }}</span>{% endif %}{% endif %}</div>
+    {% if r.is_out %}
+    <form method="post" action="{{ url_for('beds.transport_back', row_id=r.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="events" maxlength="255" dir="auto" placeholder="{{ t('staycare.tr_events') }}" aria-label="{{ t('staycare.tr_events') }}" style="flex:1;min-width:200px;">
+      <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('staycare.tr_back') }}</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% if admission.is_open %}
+  <details style="margin-top:8px;">
+    <summary>{{ t('staycare.tr_new') }}</summary>
+    <form method="post" action="{{ url_for('beds.transport_out', admission_id=admission.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="flex:1;min-width:160px;"><label class="label" for="tr_w">{{ t('staycare.tr_to') }}</label><input class="input" id="tr_w" name="to_where" maxlength="160" required dir="auto"></div>
+      <div style="flex:1;min-width:160px;"><label class="label" for="tr_e">{{ t('staycare.tr_escort') }}</label><input class="input" id="tr_e" name="escort" maxlength="160" required dir="auto"></div>
+      <div style="flex:2;min-width:200px;"><label class="label" for="tr_r">{{ t('staycare.tr_requirements') }}</label><input class="input" id="tr_r" name="requirements" maxlength="255" required dir="auto" placeholder="{{ t('staycare.tr_requirements_ph') }}"></div>
+      <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('staycare.tr_save') }}</button>
+    </form>
+  </details>
+  {% endif %}
+</div>
+{% endif %}

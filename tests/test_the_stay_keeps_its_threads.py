@@ -191,3 +191,23 @@ def test_lost_and_found_waits_the_hospitals_days(ward):
     boss.post(f"/beds/lost/{rid}/closed", data={"closed_note": "اتسلّمت للإدارة"})
     with ward["app"].app_context():
         assert ward["db"].session.get(LostItem, rid).closed_at is not None
+
+
+def test_a_critical_child_off_the_ward_and_back(ward):
+    from app.models import StayTransport
+
+    stay = _admit(ward, _child(ward, "عمر"))
+    boss = ward["sign_in"]("boss")
+    boss.post(f"/beds/admission/{stay}/transport", data={"to_where": "الأشعة المقطعية", "escort": "ممرضة الرعاية"})
+    with ward["app"].app_context():
+        assert StayTransport.query.count() == 0, "what went with the child"
+    boss.post(f"/beds/admission/{stay}/transport",
+              data={"to_where": "الأشعة المقطعية", "escort": "ممرضة الرعاية وطبيب مقيم",
+                    "requirements": "مونيتور وأكسجين متنقل"})
+    page = boss.get(f"/beds/admission/{stay}").get_data(as_text=True)
+    assert "data-transport-out" in page and "transport: 'care'" in page
+    with ward["app"].app_context():
+        rid = StayTransport.query.one().id
+    boss.post(f"/beds/transport/{rid}/back", data={"events": "تشبع نزل ٩٠ وارتفع بالأكسجين"})
+    with ward["app"].app_context():
+        assert not ward["db"].session.get(StayTransport, rid).is_out

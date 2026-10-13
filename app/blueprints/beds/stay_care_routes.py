@@ -136,6 +136,31 @@ def leave_back(row_id):
     return _back(row.admission_id, "leave")
 
 
+# ================================================================ ACT.12 ==
+@beds_bp.route("/admission/<int:admission_id>/transport", methods=["POST"])
+@module_required("beds")
+def transport_out(admission_id):
+    stay = _stay(admission_id)
+    try:
+        care.transport_out(stay, request.form, current_user)
+    except care.StayCareError as err:
+        return _back(stay.id, "transport", "staycare", err)
+    return _back(stay.id, "transport")
+
+
+@beds_bp.route("/transport/<int:row_id>/back", methods=["POST"])
+@module_required("beds")
+def transport_back(row_id):
+    from app.models.stay_transport import StayTransport
+
+    row = db.get_or_404(StayTransport, row_id)
+    try:
+        care.transport_back(row, request.form)
+    except care.StayCareError as err:
+        return _back(row.admission_id, "transport", "staycare", err)
+    return _back(row.admission_id, "transport")
+
+
 # ================================================================ PCC.05 ==
 @beds_bp.route("/admission/<int:admission_id>/question", methods=["POST"])
 @module_required("beds")

@@ -840,6 +840,7 @@ def admission(admission_id):
         mdt_rows=_care.mdt_for(row.patient_id),
         leaves=_care.leaves_for(row.id),
         leave_now=_care.open_leave(row),
+        transports=_care.transports_for(row.id),
         family_q=_care.questions_for(row.id),
         belongings=_care.belongings_for(row.patient_id),
         # `CSS.11` — the risk of harm, and rapid tranquilization.

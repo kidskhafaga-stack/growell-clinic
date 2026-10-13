@@ -13112,7 +13112,22 @@
     "err_lost_closed": "This item is closed.",
     "err_lost_days": "The hospital has not set the waiting time.",
     "err_lost_too_soon": "The waiting time has not passed yet.",
-    "err_closed_note": "Write what was done with it."
+    "err_closed_note": "Write what was done with it.",
+    "tr_title": "Transport inside the hospital",
+    "tr_out": "Off the ward now",
+    "tr_escort": "Escorted by",
+    "tr_requirements": "What went with the child",
+    "tr_requirements_ph": "Monitor, oxygen, ventilator, drugs…",
+    "tr_back_at": "Back",
+    "tr_events": "Anything on the way?",
+    "tr_back": "Back",
+    "tr_new": "Move to another place",
+    "tr_to": "To where",
+    "tr_save": "Left",
+    "err_tr_to_where": "Write where to.",
+    "err_tr_escort": "Write who went with the child.",
+    "err_tr_requirements": "Write what went with the child.",
+    "err_tr_back": "Already back."
   },
   "cpg": {
     "sub": "The guidelines the hospital adopted: where each came from, who approved it, training, adherence checks, review every two years and three new ones a year — both numbers the standard's own.",

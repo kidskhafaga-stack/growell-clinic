@@ -1,6 +1,7 @@
 """The stay's own records of who decided what with whom — GAHAR ACT.11
-(the multidisciplinary meeting), ACT.14 (temporary discharge), PCC.05 (the
-family's questions) and PCC.14 (belongings, and lost and found).
+(the multidisciplinary meeting), ACT.12 (a trip off the ward and back),
+ACT.14 (temporary discharge), PCC.05 (the family's questions) and PCC.14
+(belongings, and lost and found).
 
 Four small records with one shape: written beside the child, read back on the
 stay, and each with the one thing that keeps it open — a leave until the
@@ -14,6 +15,7 @@ from app.models.belonging import Belonging, LostItem
 from app.models.family_question import FOR_WHOM, FamilyQuestion
 from app.models.mdt import MdtMeeting
 from app.models.stay_leave import StayLeave
+from app.models.stay_transport import StayTransport
 
 #: PCC.05 ev. 2 — hours to answer a family's question. Empty until set.
 QUESTION_HOURS_SETTING = "family_question_hours"
@@ -129,6 +131,36 @@ def end_leave(row, form):
 
 def leaves_for(stay_id):
     return StayLeave.query.filter_by(admission_id=stay_id).order_by(StayLeave.out_at.desc()).all()
+
+
+# ================================================================ ACT.12 ==
+def transport_out(stay, form, user):
+    if not stay.is_open:
+        raise StayCareError("closed")
+    fields = {k: _text(form.get(k), 255 if k == "requirements" else 160)
+              for k in ("to_where", "escort", "requirements")}
+    for k, v in fields.items():
+        if not v:
+            raise StayCareError("tr_" + k)
+    row = StayTransport(admission_id=stay.id, left_at=_when(form.get("left_at")) or datetime.utcnow(),
+                        by_id=getattr(user, "id", None), **fields)
+    db.session.add(row)
+    db.session.flush()
+    return row
+
+
+def transport_back(row, form):
+    if not row.is_out:
+        raise StayCareError("tr_back")
+    row.back_at = _when(form.get("back_at")) or datetime.utcnow()
+    row.events = _text(form.get("events"), 255)
+    db.session.flush()
+    return row
+
+
+def transports_for(stay_id):
+    return (StayTransport.query.filter_by(admission_id=stay_id)
+            .order_by(StayTransport.left_at.desc()).limit(20).all())
 
 
 # ================================================================ PCC.05 ==
@@ -253,4 +285,4 @@ def lost_board(now=None):
 __all__ = ["LOST_DAYS_SETTING", "QUESTION_HOURS_SETTING", "StayCareError", "add_mdt", "answer",
            "ask", "belongings_for", "end_leave", "found", "give_back", "keep", "leaves_for",
            "lost_board", "lost_closed", "lost_returned", "mdt_for", "open_leave", "questions_for",
-           "set_number", "start_leave"]
+           "set_number", "start_leave", "transport_back", "transport_out", "transports_for"]

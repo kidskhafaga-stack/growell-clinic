@@ -180,6 +180,7 @@ from app.models.needs_screen import NeedsScreen
 from app.models.medical_assessment import MedicalAssessment
 from app.models.mdt import MdtMeeting
 from app.models.stay_leave import StayLeave
+from app.models.stay_transport import StayTransport
 from app.models.family_question import FamilyQuestion
 from app.models.belonging import Belonging, LostItem
 from app.models.guideline import ClinicalGuideline, GuidelineEvent
@@ -603,6 +604,7 @@ __all__ = [
     "MedicalAssessment",
     "MdtMeeting",
     "StayLeave",
+    "StayTransport",
     "FamilyQuestion",
     "Belonging",
     "LostItem",
