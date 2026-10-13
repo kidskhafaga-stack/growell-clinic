@@ -219,6 +219,16 @@ def depart(visit_id):
     from app.utils import leave_reasons
 
     row = db.get_or_404(EmergencyVisit, visit_id)
+    # Leaving against advice (LAMA) has its own form (``utils/against_advice``):
+    # under the hospital's ``require`` policy it closes the attendance, under
+    # the default the attendance closes here and the form opens next. Left
+    # before being seen is not LAMA — nobody saw the child to advise
+    # anything — and closes here.
+    from app.utils import against_advice as ama
+
+    against = (request.form.get("disposition") or "").strip() == "self_discharge" and row.departed_at is None
+    if against and ama.holds_the_exit():
+        return redirect(url_for("beds.against_advice", kind="er", episode_id=row.id))
     try:
         er.depart(row, (request.form.get("disposition") or "").strip(),
                   condition=request.form.get("condition"),
@@ -229,9 +239,17 @@ def depart(visit_id):
     # Left against advice, or before being seen: why, in one tap.
     leave_reasons.record(row, row.disposition, request.form.get("leave_reason"),
                          request.form.get("leave_note"))
+    from app.models import ActivityLog
+    ActivityLog.record("emergency.depart", user_id=current_user.id, entity="emergency_visit",
+                       entity_id=row.id, detail=row.disposition)
+    if against:
+        ama.closed_by_one_tap("er", row, current_user)
     db.session.commit()
     _survey_after(row.patient, row.disposition, centre_key="emergency",
                   emergency_visit=row)
+    if against:
+        flash(t("ama.write_it_now"), "warning")
+        return redirect(url_for("beds.against_advice", kind="er", episode_id=row.id))
     return _back(t("emergency.departed"), "success")
 
 
@@ -271,8 +289,21 @@ def decide(admission_id):
         db.session.commit()
         return _back(t("emergency.admitted_upstairs"), "success")
 
+    from app.utils import against_advice as ama
+
+    against = outcome == "self_discharge" and row.is_open
+    if against and ama.holds_the_exit():
+        return redirect(url_for("beds.against_advice", kind="stay", episode_id=row.id))
     ward.discharge(row, outcome, user=current_user,
                    note=request.form.get("note"))
+    from app.models import ActivityLog
+    ActivityLog.record("stay.discharge", user_id=current_user.id, entity="admission",
+                       entity_id=row.id, detail=row.outcome)
+    if against:
+        ama.closed_by_one_tap("stay", row, current_user)
+        db.session.commit()
+        flash(t("ama.write_it_now"), "warning")
+        return redirect(url_for("beds.against_advice", kind="stay", episode_id=row.id))
     db.session.commit()
     return _back(t("emergency.decided"), "success")
 

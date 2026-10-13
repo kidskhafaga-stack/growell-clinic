@@ -39,6 +39,7 @@ from app.models.medication import (DOSE_OUTCOMES, ROUTES, MedicationOrder)
 from app.models.place import BED_KINDS, SPACE_KINDS, UNIT_KINDS, Bed, Space, Unit
 from app.models.prescription import Drug
 from app.models.round_note import ROUND_TRENDS
+from app.utils import against_advice as ama
 from app.utils import beds as ward
 from app.utils import pain as _pain_utils
 from app.utils import nursing as _nursing_utils
@@ -1056,19 +1057,42 @@ def summary_print(admission_id):
 @module_required(MODULE)
 def discharge(admission_id):
     """End the stay. The bed is freed by the stay closing, not by a flag."""
-    from app.utils import leave_reasons
-
     row = Admission.query.get_or_404(admission_id)
     outcome = (request.form.get("outcome") or "").strip()
+    # Against advice is not a one-line exit: the doctor's assessment, what
+    # the family was told, who signed or refused to, and any escalation are
+    # written on their own form (``utils/against_advice``). The hospital's
+    # policy says whether the form closes the stay or follows the one tap.
+    against = outcome == "self_discharge" and row.is_open
+    if against and ama.holds_the_exit():
+        return redirect(url_for("beds.against_advice", kind="stay", episode_id=row.id))
+    finish_stay(row, outcome, request.form.get("note"), request.form.get("leave_reason"),
+                request.form.get("leave_note"))
+    if against:
+        ama.closed_by_one_tap("stay", row, current_user)
+        db.session.commit()
+        flash(t("ama.write_it_now"), "warning")
+        return redirect(url_for("beds.against_advice", kind="stay", episode_id=row.id))
+    return redirect(url_for("beds.admission", admission_id=row.id))
+
+
+def finish_stay(row, outcome, note=None, leave_reason=None, leave_note=None):
+    """Close a stay: the bed, the reason for leaving against advice, the
+    nights on the bill and the family's survey — one path for every way a
+    stay ends, the form against advice included."""
+    from app.utils import leave_reasons
+    from app.models import ActivityLog
+
     # The last unit the child was in, read before the stay closes — it is
     # the unit the family is asked about.
     from app.utils.cost_centres import unit_on
     last_unit = unit_on(row, None)
-    ward.discharge(row, outcome, user=current_user, note=request.form.get("note"))
+    ward.discharge(row, outcome, user=current_user, note=note)
     # Against advice: why, in one tap. Never a reason to hold the discharge
     # — an empty answer is saved as empty (``utils/leave_reasons``).
-    leave_reasons.record(row, row.outcome, request.form.get("leave_reason"),
-                         request.form.get("leave_note"))
+    leave_reasons.record(row, row.outcome, leave_reason, leave_note)
+    ActivityLog.record("stay.discharge", user_id=current_user.id, entity="admission",
+                       entity_id=row.id, detail=row.outcome)
     db.session.flush()
     # The nights, at the one moment the whole stay is finally known. A
     # discharge is already a deliberate act with a form in front of it, so
@@ -1091,7 +1115,6 @@ def discharge(admission_id):
         flash(t("rounds.n_charged", n=billed["rounds"]), "info")
     _survey_after(row.patient, row.outcome, admission=row, doctor=row.doctor,
                   unit=last_unit)
-    return redirect(url_for("beds.admission", admission_id=row.id))
 
 
 def _survey_after(patient, how_left, unit=None, centre_key=None, **episode):

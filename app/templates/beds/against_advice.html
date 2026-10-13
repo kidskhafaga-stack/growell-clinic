@@ -1,0 +1,106 @@
+{% extends "shell.html" %}
+{% set active_module = 'beds' if kind == 'stay' else 'emergency' %}
+{% block title %}{{ t('ama.title_' ~ refusal_kind) }} — {{ patient.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ t('ama.title_' ~ refusal_kind) }}{% endblock %}
+
+{% block content %}
+{# Leaving against medical advice — DAMA from a stay, LAMA from emergency
+   (`utils/against_advice`). The four elements of PCC.10, the doctor who
+   explained and the doctor's own assessment, the guardian, a signature or a
+   witnessed refusal to sign, the follow-up arranged, and the escalation when
+   the doctor judges a serious danger or a concern for the child's safety.
+   A signature is evidence of what was explained, never a release. #}
+{% set r = record %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-box-arrow-left"></i> {{ t('ama.title_' ~ refusal_kind) }}</h1>
+    <p class="page-sub" style="margin:0;">{{ patient.display_name(current_lang) }} · {{ patient.patient_number }}
+      · {% if open %}<span class="badge badge--warn" data-ama-open>{{ t('ama.still_here') }}</span>{% else %}<span class="badge badge--muted" data-ama-closed>{{ t('ama.left_at') }} <span dir="ltr">{{ (row.discharged_at if kind == 'stay' else row.departed_at)|clinic_stamp }}</span></span>{% endif %}
+      · {{ t('ama.policy_' ~ policy) }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('beds.admission', admission_id=row.id) if kind == 'stay' else url_for('emergency.index') }}"><i class="bi bi-arrow-return-left"></i> {{ t('common.back') }}</a>
+</div>
+
+<div class="card" style="margin-bottom:12px;border-inline-start:4px solid #d97706;" data-ama-duty>
+  <p style="margin:0;">{{ t('ama.not_a_release') }}</p>
+</div>
+
+{% if missing %}
+<div class="card" style="margin-bottom:12px;border-inline-start:4px solid var(--danger);" data-ama-missing>
+  <b>{{ t('ama.missing') }}:</b> {% for m in missing %}<span class="badge badge--warn" data-ama-gap="{{ m }}">{{ t('ama.need_' ~ m) }}</span> {% endfor %}
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('beds.against_advice', kind=kind, episode_id=row.id) }}" class="card gc-scale-in" style="display:grid;gap:10px;margin-bottom:12px;" data-ama-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin:0;">{{ t('ama.what_was_said') }}</h2>
+  {% for f in ('refused', 'condition', 'consequences', 'alternatives') %}
+  <div><label class="label" for="am_{{ f }}">{{ t('refusal.item_' ~ f) }}</label>
+    <textarea class="input" id="am_{{ f }}" name="{{ f }}" rows="2" dir="auto">{{ (r|attr(f)) or '' if r else '' }}</textarea></div>
+  {% endfor %}
+
+  <h2 class="section-title" style="margin:6px 0 0;">{{ t('ama.doctor_section') }}</h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <div><label class="label" for="am_doc">{{ t('ama.explained_by') }}</label>
+      <select class="select" id="am_doc" name="explained_by"><option value="">—</option>
+        {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if (r and r.explained_by_id == d.id) or (not r and d.id == current_user.id) }}>{{ d.display_name(current_lang) }}</option>{% endfor %}</select></div>
+  </div>
+  <div><label class="label" for="am_ass">{{ t('ama.doctor_assessment') }}</label>
+    <textarea class="input" id="am_ass" name="doctor_assessment" rows="3" dir="auto" placeholder="{{ t('ama.doctor_assessment_ph') }}">{{ r.doctor_assessment or '' if r else '' }}</textarea></div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;">
+    {% for f in ('serious_risk', 'safeguarding') %}
+    <fieldset style="border:0;padding:0;margin:0;"><legend class="label">{{ t('ama.' ~ f) }}</legend>
+      <label style="margin-inline-end:10px;"><input type="radio" name="{{ f }}" value="yes" {{ 'checked' if r and (r|attr(f)) is sameas true }}> {{ t('ama.yes') }}</label>
+      <label><input type="radio" name="{{ f }}" value="no" {{ 'checked' if r and (r|attr(f)) is sameas false }}> {{ t('ama.no') }}</label></fieldset>
+    {% endfor %}
+  </div>
+  <div><label class="label" for="am_esc">{{ t('ama.escalated_to') }}</label>
+    <input class="input" id="am_esc" name="escalated_to" maxlength="160" dir="auto" placeholder="{{ t('ama.escalated_to_ph') }}" value="{{ r.escalated_to or '' if r else '' }}">
+    {% if r and r.escalated_at %}<span class="hint" data-ama-escalated>{{ t('ama.escalated_at') }} <span dir="ltr">{{ r.escalated_at|clinic_stamp }}</span></span>{% endif %}</div>
+  <div><label class="label" for="am_fu">{{ t('ama.followup_plan') }}</label>
+    <textarea class="input" id="am_fu" name="followup_plan" rows="2" dir="auto" placeholder="{{ t('ama.followup_plan_ph') }}">{{ r.followup_plan or '' if r else '' }}</textarea></div>
+
+  <h2 class="section-title" style="margin:6px 0 0;">{{ t('ama.guardian_section') }}</h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:180px;"><label class="label" for="am_gn">{{ t('ama.guardian_name') }}</label><input class="input" id="am_gn" name="guardian_name" maxlength="120" dir="auto" value="{{ r.guardian_name or '' if r else '' }}"></div>
+    <div><label class="label" for="am_gr">{{ t('ama.guardian_relation') }}</label><input class="input" id="am_gr" name="guardian_relation" maxlength="20" dir="auto" value="{{ r.guardian_relation or '' if r else '' }}"></div>
+    <div><label class="label" for="am_gi">{{ t('ama.guardian_id_no') }}</label><input class="input" id="am_gi" name="guardian_id_no" maxlength="20" dir="ltr" value="{{ r.guardian_id_no or '' if r else '' }}"></div>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <fieldset style="border:0;padding:0;margin:0;"><legend class="label">{{ t('ama.signature_refused') }}</legend>
+      <label style="margin-inline-end:10px;"><input type="radio" name="signature_refused" value="yes" {{ 'checked' if r and r.signature_refused }}> {{ t('ama.yes') }}</label>
+      <label><input type="radio" name="signature_refused" value="no" {{ 'checked' if r and r.signature_refused is sameas false }}> {{ t('ama.no') }}</label></fieldset>
+    <div style="flex:1;min-width:180px;"><label class="label" for="am_w">{{ t('ama.witness_name') }}</label><input class="input" id="am_w" name="witness_name" maxlength="120" dir="auto" value="{{ r.witness_name or '' if r else '' }}"></div>
+  </div>
+
+  {% if open %}
+  <h2 class="section-title" style="margin:6px 0 0;">{{ t('ama.leaving_section') }}</h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <div><label class="label" for="am_lr">{{ t('leave.why') }}</label>
+      <select class="select" id="am_lr" name="leave_reason"><option value="">—</option>
+        {% for o in leave_reasons %}<option value="{{ o.key }}">{{ o.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div style="flex:1;min-width:200px;"><label class="label" for="am_ln">{{ t('leave.their_words') }}</label><input class="input" id="am_ln" name="leave_note" maxlength="255" dir="auto"></div>
+    {% if kind == 'er' %}<div style="flex:1;min-width:200px;"><label class="label" for="am_cn">{{ t('ama.condition_now') }}</label><input class="input" id="am_cn" name="condition_now" maxlength="200" dir="auto"></div>
+    {% else %}<div style="flex:1;min-width:200px;"><label class="label" for="am_nt">{{ t('beds.discharge_note') }}</label><input class="input" id="am_nt" name="note" maxlength="255" dir="auto"></div>{% endif %}
+  </div>
+  {% endif %}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="btn btn-outline gc-press" type="submit" data-ama-save>{{ t('ama.save') }}</button>
+    {% if open %}<button class="btn btn-danger gc-press" type="submit" name="close" value="1" data-ama-close>{{ t('ama.close_' ~ refusal_kind) }}</button>{% endif %}
+  </div>
+</form>
+
+{% if r %}
+<div class="card gc-scale-in" data-ama-signature>
+  <h2 class="section-title" style="margin-top:0;">{{ t('ama.signature') }}</h2>
+  {% if r.signature_file %}<p style="margin:0;" data-ama-signed>{{ t('consent.sig_' ~ r.signature_kind) if r.signature_kind else '' }} · <span dir="ltr">{{ r.signature_at|clinic_stamp if r.signature_at else '' }}</span></p>
+  {% else %}
+  <form method="post" enctype="multipart/form-data" action="{{ url_for('beds.against_advice_signature', refusal_id=r.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="am_sig">{{ t('ama.signed_paper') }}</label><input class="input" type="file" id="am_sig" name="file" accept="image/*,application/pdf" required></div>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('ama.attach') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

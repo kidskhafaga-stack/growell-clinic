@@ -1018,6 +1018,18 @@ ADDITIONS = [
     ("investigations", "retest_hours", "INTEGER"),
     ("visit_investigations", "repeat_reason", "VARCHAR(200)"),
     ("visit_investigations", "repeat_reason_by", "INTEGER"),
+    # Leaving against advice (DAMA / LAMA): the doctor's assessment, the risk
+    # and safeguarding judgement and its escalation, the follow-up arranged,
+    # and a refusal to sign recorded with a witness.
+    ("refusals", "doctor_assessment", "TEXT"),
+    ("refusals", "serious_risk", "BOOLEAN"),
+    ("refusals", "safeguarding", "BOOLEAN"),
+    ("refusals", "escalated_to", "VARCHAR(160)"),
+    ("refusals", "escalated_at", "DATETIME"),
+    ("refusals", "escalated_by", "INTEGER"),
+    ("refusals", "followup_plan", "TEXT"),
+    ("refusals", "signature_refused", "BOOLEAN"),
+    ("refusals", "witness_name", "VARCHAR(120)"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

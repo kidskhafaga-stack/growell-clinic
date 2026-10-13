@@ -2593,6 +2593,15 @@
             <span class="hint">{{ t('refusal.item_' ~ name) }}:</span> {{ row[name] }}</div>
           {% endif %}
           {% endfor %}
+          {# Against advice: the doctor's assessment, the escalation, and the
+             form it lives on. #}
+          {% if row.doctor_assessment %}<div style="margin-top:6px;"><span class="hint">{{ t('ama.doctor_assessment') }}:</span> <span dir="auto">{{ row.doctor_assessment }}</span></div>{% endif %}
+          {% if row.needs_escalation %}<div style="margin-top:6px;" data-refusal-escalation>{% if row.escalated %}<span class="badge badge--ok">{{ t('ama.escalated_to') }}: {{ row.escalated_to }}</span>{% else %}<span class="badge badge--danger">{{ t('ama.need_escalation') }}</span>{% endif %}</div>{% endif %}
+          {% if row.signature_refused %}<div style="margin-top:6px;" class="hint">{{ t('ama.signature_refused') }} · {{ t('ama.witness_name') }}: {{ row.witness_name or '—' }}</div>{% endif %}
+          {% if row.admission_id or row.emergency_visit_id %}
+          <a class="btn btn-sm btn-outline gc-press" style="margin-top:6px;" data-refusal-form
+             href="{{ url_for('beds.against_advice', kind='stay' if row.admission_id else 'er', episode_id=row.admission_id or row.emergency_visit_id) }}">{{ t('ama.full_form') }}</a>
+          {% endif %}
 
           {% set gaps = refusal_missing.get(row.id) or [] %}
           {% if gaps %}

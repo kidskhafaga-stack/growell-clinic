@@ -12,3 +12,4 @@ from app.blueprints.beds import med_family_routes  # noqa: E402,F401
 from app.blueprints.beds import palliative_routes  # noqa: E402,F401
 from app.blueprints.beds import stay_care_routes  # noqa: E402,F401
 from app.blueprints.beds import mental_routes  # noqa: E402,F401
+from app.blueprints.beds import against_advice_routes  # noqa: E402,F401
