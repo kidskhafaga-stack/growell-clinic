@@ -1,0 +1,72 @@
+{% extends "shell.html" %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('staycare.lost_title') }}{% endblock %}
+{% block page_heading %}{{ t('staycare.lost_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR PCC.14 ev. 4, 5 — what the hospital is holding for families, and
+   what was found and is waiting for its owner. How long an item waits is the
+   hospital's number; until it is written nothing is "past due". #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-bag"></i> {{ t('staycare.lost_title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('staycare.lost_sub') }}</p>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-lost-new>
+  <h2 class="section-title" style="margin-top:0;">{{ t('staycare.lost_new') }}</h2>
+  <form method="post" action="{{ url_for('beds.lost_found') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label" for="lf_at">{{ t('staycare.lost_found_at') }}</label><input class="input" type="datetime-local" id="lf_at" name="found_at"></div>
+    <div style="flex:1;min-width:160px;"><label class="label" for="lf_w">{{ t('staycare.lost_found_where') }}</label><input class="input" id="lf_w" name="found_where" maxlength="160" required dir="auto"></div>
+    <div style="flex:2;min-width:200px;"><label class="label" for="lf_d">{{ t('staycare.lost_description') }}</label><input class="input" id="lf_d" name="description" maxlength="255" required dir="auto"></div>
+    <div style="flex:1;min-width:160px;"><label class="label" for="lf_k">{{ t('staycare.bel_kept_where') }}</label><input class="input" id="lf_k" name="kept_where" maxlength="160" required dir="auto"></div>
+    <button class="btn btn-primary gc-press" type="submit">{{ t('staycare.lost_save') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-lost-open>
+  <h2 class="section-title" style="margin-top:0;">{{ t('staycare.lost_waiting') }}</h2>
+  {% for r in data.open %}
+  <div style="border-bottom:1px solid var(--line);padding:6px 0;" data-lost="{{ r.id }}">
+    <div><span dir="auto">{{ r.description }}</span> · <span class="hint">{{ t('staycare.lost_found_where') }}: <span dir="auto">{{ r.found_where }}</span> · {{ t('staycare.bel_kept_where') }}: <span dir="auto">{{ r.kept_where }}</span> · <span dir="ltr">{{ r.found_at|clinic_stamp }}</span></span>
+      {% if r.id in data.past %}<span class="badge badge--warn" data-lost-past>{{ t('staycare.lost_past') }}</span>{% endif %}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+      <form method="post" action="{{ url_for('beds.lost_item', row_id=r.id, what='returned') }}" style="display:flex;gap:6px;margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="input" name="returned_to" maxlength="160" required dir="auto" placeholder="{{ t('staycare.bel_returned_to') }}" aria-label="{{ t('staycare.bel_returned_to') }}">
+        <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('staycare.bel_give_back') }}</button>
+      </form>
+      {% if r.id in data.past %}
+      <form method="post" action="{{ url_for('beds.lost_item', row_id=r.id, what='closed') }}" style="display:flex;gap:6px;margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="input" name="closed_note" maxlength="255" required dir="auto" placeholder="{{ t('staycare.lost_closed_ph') }}" aria-label="{{ t('staycare.lost_closed') }}">
+        <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('staycare.lost_closed') }}</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('staycare.lost_none') }}</p>{% endfor %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-kept>
+  <h2 class="section-title" style="margin-top:0;">{{ t('staycare.bel_held') }}</h2>
+  {% for b in data.kept %}
+  <div style="border-bottom:1px solid var(--line);padding:6px 0;" data-kept-row="{{ b.id }}">
+    <div><a href="{{ url_for('beds.admission', admission_id=b.admission_id) }}#belongings" dir="auto">{{ b.items|truncate(120) }}</a>
+      <span class="hint">· <span dir="auto">{{ b.kept_where }}</span> · <span dir="ltr">{{ b.at|clinic_stamp }}</span></span></div>
+  </div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('staycare.bel_none') }}</p>{% endfor %}
+</div>
+
+<div class="card" data-lost-days>
+  <h2 class="section-title" style="margin-top:0;">{{ t('staycare.lost_days') }}</h2>
+  {% if current_user.is_admin %}
+  <form method="post" action="{{ url_for('beds.lost_found') }}" style="display:flex;gap:8px;align-items:center;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="what" value="days">
+    <input class="input" type="number" min="1" step="1" name="days" value="{{ data.days|int if data.days else '' }}" aria-label="{{ t('staycare.lost_days') }}" style="width:100px;">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('staycare.save') }}</button>
+  </form>
+  {% else %}<p class="hint" style="margin:0;">{% if data.days %}<span dir="ltr">{{ data.days|int }}</span>{% else %}{{ t('needscreen.not_set') }}{% endif %}</p>{% endif %}
+</div>
+{% endblock %}

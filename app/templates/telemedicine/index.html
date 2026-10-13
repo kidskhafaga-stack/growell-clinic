@@ -1,0 +1,64 @@
+{% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
+{% set active_module = 'telemedicine' %}
+{% block title %}{{ t('nav.telemedicine') }}{% endblock %}
+{% block page_heading %}{{ t('nav.telemedicine') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ACT.16 — the encounters waiting or under way, a new request through
+   the hospital's eligibility triage (i), and the last ones finished. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-camera-video"></i> {{ t('nav.telemedicine') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('tele.sub') }}</p>
+</div>
+<nav style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;" data-tele-nav>
+  <a class="btn btn-sm btn-primary gc-press" href="{{ url_for('telemedicine.index') }}"><i class="bi bi-list-ul"></i> {{ t('tele.tab_encounters') }}</a>
+  <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('telemedicine.programme') }}"><i class="bi bi-clipboard-data"></i> {{ t('tele.tab_programme') }}</a>
+</nav>
+
+<details class="card" style="margin-bottom:12px;" {{ 'open' if not data.open }} data-tele-new>
+  <summary>{{ t('tele.new') }}</summary>
+  <form method="post" action="{{ url_for('telemedicine.index') }}" style="display:grid;gap:8px;margin-top:10px;" x-data="{ ok: 'yes' }">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div>{{ pickers.patient_picker('patient_id', None, label=t('tele.patient'), required=True) }}</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div style="flex:2;min-width:220px;"><label class="label" for="te_r">{{ t('tele.reason') }}</label><input class="input" id="te_r" name="reason" maxlength="255" required dir="auto"></div>
+      <div><label class="label" for="te_m">{{ t('tele.modality') }}</label><select class="select" id="te_m" name="modality">{% for m in modalities %}<option value="{{ m }}">{{ t('tele.m_' ~ m) }}</option>{% endfor %}</select></div>
+      <div>{{ pickers.doctor_picker('doctor_id', None, t('tele.doctor'), doctors=doctors, autosubmit=False) }}</div>
+      <div><label class="label" for="te_s">{{ t('tele.scheduled_for') }}</label><input class="input" type="datetime-local" id="te_s" name="scheduled_for"></div>
+    </div>
+    {% if program.criteria %}<div class="hint" dir="auto" style="white-space:pre-line;" data-tele-criteria>{{ t('tele.criteria') }}: {{ program.criteria }}</div>
+    {% else %}<div class="hint">{{ t('tele.no_criteria') }}</div>{% endif %}
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+      <span>{{ t('tele.eligible_q') }}</span>
+      <label style="display:flex;gap:4px;align-items:center;"><input type="radio" name="eligible" value="yes" x-model="ok" checked> {{ t('tele.yes') }}</label>
+      <label style="display:flex;gap:4px;align-items:center;"><input type="radio" name="eligible" value="no" x-model="ok"> {{ t('tele.no') }}</label>
+      <input class="input" name="not_eligible_note" maxlength="255" dir="auto" x-show="ok === 'no'" x-cloak placeholder="{{ t('tele.not_eligible_ph') }}" aria-label="{{ t('tele.not_eligible_note') }}" style="flex:1;min-width:220px;">
+    </div>
+    <div><button class="btn btn-primary gc-press" type="submit">{{ t('tele.save_request') }}</button></div>
+  </form>
+</details>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-tele-open>
+  <h2 class="section-title" style="margin-top:0;">{{ t('tele.waiting') }}</h2>
+  {% for e in data.open %}
+  <a href="{{ url_for('telemedicine.encounter', enc_id=e.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:6px 0;" data-tele-row="{{ e.id }}">
+    <b>{{ e.patient.display_name(current_lang) }}</b> <span dir="auto">{{ e.reason }}</span>
+    <span class="badge badge--muted">{{ t('tele.m_' ~ e.modality) }}</span>
+    {% if e.scheduled_for %}<span class="hint" dir="ltr">{{ e.scheduled_for|clinic_stamp }}</span>{% endif %}
+    <span class="badge {{ 'badge--warn' if e.state == 'running' else 'badge--muted' }}">{{ t('tele.state_' ~ e.state) }}</span>
+  </a>
+  {% else %}<p class="hint" style="margin:0;">{{ t('tele.none') }}</p>{% endfor %}
+</div>
+
+<div class="card" data-tele-recent>
+  <h2 class="section-title" style="margin-top:0;">{{ t('tele.recent') }}</h2>
+  {% for e in data.recent %}
+  <a href="{{ url_for('telemedicine.encounter', enc_id=e.id) }}" style="display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:6px 0;">
+    <span dir="ltr">{{ e.requested_at|clinic_stamp }}</span> <b>{{ e.patient.display_name(current_lang) }}</b>
+    <span class="badge badge--muted">{{ t('tele.state_' ~ e.state) }}</span>
+    {% if e.outcome %}<span class="hint">{{ t('tele.out_' ~ e.outcome) }}</span>{% endif %}
+  </a>
+  {% else %}<p class="hint" style="margin:0;">—</p>{% endfor %}
+</div>
+{% endblock %}

@@ -37,4 +37,7 @@ def test_screened_with_a_plan_and_tranquilization_recorded(ward):
         kinds = [p["kind"] for p in risks.panel(ward["db"].session.get(Admission, stay))]
         assert "self_harm" not in kinds, "not a gap on every child's risk panel"
     page = boss.get(f"/beds/admission/{stay}").get_data(as_text=True)
-    assert "data-harm-risk" in page and "mental: 'safety'" in page
+    assert "data-harm-risk" in page and "mental: 'treatment'" in page
+    # Inside a tab, not floating between two of them — it showed on every tab.
+    panel = page[page.index('data-stay-panel="treatment"'):page.index('data-stay-panel="safety"')]
+    assert 'id="mental"' in panel

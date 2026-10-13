@@ -1,0 +1,49 @@
+{# ---- أسئلة الأهل — GAHAR PCC.05 -------------------------------------------
+   A question asked when the person who can answer it is not there, written
+   down and kept open until somebody answers it (ev. 1, 2). The time to answer
+   is the hospital's number. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="family-questions" data-family-questions>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-chat-square-text"></i> {{ t('staycare.q_title') }}
+    <span class="hint" dir="ltr">PCC.05</span>
+    {% set late_open = family_q.open|selectattr('id', 'in', family_q.late)|list %}
+    {% if late_open %}<span class="alert-pill danger" data-q-late>{{ t('staycare.q_late') }} ({{ late_open|length }})</span>
+    {% elif family_q.open %}<span class="alert-pill warn" data-q-open>{{ t('staycare.q_open') }} ({{ family_q.open|length }})</span>{% endif %}
+  </h2>
+  {% for q in family_q.rows %}
+  <div style="border-bottom:1px solid var(--line);padding:6px 0;" data-q-row="{{ q.id }}">
+    <div><span class="hint" dir="ltr">{{ q.asked_at|clinic_stamp }}</span>
+      {% if q.asked_by %} · <span dir="auto">{{ q.asked_by }}</span>{% endif %} · {{ t('staycare.q_for_' ~ q.for_whom) }}
+      {% if q.id in family_q.late %}<span class="badge badge--danger">{{ t('staycare.q_late') }}</span>{% endif %}</div>
+    <div dir="auto" style="white-space:pre-line;">{{ q.question }}</div>
+    {% if q.answered_at %}
+    <div class="hint" style="margin-top:2px;">{{ t('staycare.q_answer') }}: <span dir="auto">{{ q.answer }}</span> · {{ q.answerer.display_name(current_lang) if q.answerer else '' }} · <span dir="ltr">{{ q.answered_at|clinic_stamp }}</span></div>
+    {% else %}
+    <form method="post" action="{{ url_for('beds.family_answer', row_id=q.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="answer" required dir="auto" placeholder="{{ t('staycare.q_answer_ph') }}" aria-label="{{ t('staycare.q_answer') }}" style="flex:1;min-width:200px;">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('staycare.q_answered') }}</button>
+    </form>
+    {% endif %}
+  </div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('staycare.q_none') }}</p>{% endfor %}
+  {% if admission.is_open %}
+  <form method="post" action="{{ url_for('beds.family_question', admission_id=admission.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:2;min-width:220px;"><label class="label" for="fq_q">{{ t('staycare.q_question') }}</label><input class="input" id="fq_q" name="question" required dir="auto"></div>
+    <div style="flex:1;min-width:140px;"><label class="label" for="fq_b">{{ t('staycare.q_asked_by') }}</label><input class="input" id="fq_b" name="asked_by" maxlength="120" dir="auto" placeholder="{{ t('staycare.q_asked_by_ph') }}"></div>
+    <div><label class="label" for="fq_w">{{ t('staycare.q_for') }}</label>
+      <select class="select" id="fq_w" name="for_whom">{% for w in ('doctor', 'nurse', 'other') %}<option value="{{ w }}">{{ t('staycare.q_for_' ~ w) }}</option>{% endfor %}</select></div>
+    <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('staycare.q_save') }}</button>
+  </form>
+  {% endif %}
+  {% if current_user.is_admin %}
+  <form method="post" action="{{ url_for('beds.family_question_hours') }}" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px;" data-q-hours>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="admission_id" value="{{ admission.id }}">
+    <label class="hint" for="fq_h">{{ t('staycare.q_hours') }}</label>
+    <input class="input" type="number" min="1" step="1" id="fq_h" name="hours" value="{{ family_q.hours|int if family_q.hours else '' }}" style="width:90px;">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('staycare.save') }}</button>
+  </form>
+  {% endif %}
+</div>

@@ -24,8 +24,16 @@ PAGE = os.path.join(ROOT, "app", "templates", "beds", "admission.html")
 
 
 def _template():
+    """The page, with the cards it includes read in where they stand — a card
+    in its own file is still a card on the page."""
     with open(PAGE, encoding="utf-8") as fh:
-        return fh.read()
+        source = fh.read()
+    folder = os.path.dirname(os.path.dirname(PAGE))
+
+    def inline(match):
+        with open(os.path.join(folder, match.group(1)), encoding="utf-8") as fh:
+            return fh.read()
+    return re.sub(r'{% include "([^"]+)" %}', inline, source)
 
 
 def _placed():

@@ -1,0 +1,47 @@
+{# ---- إجازة مؤقتة — GAHAR ACT.14 -------------------------------------------
+   A brief absence during the stay, on a doctor's order (b), recorded in the
+   record (ev. 3). The stay stays open and the bed stays the child's. #}
+{% if leaves or admission.is_open %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="leave" data-leave>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-house-door"></i> {{ t('staycare.leave_title') }}
+    <span class="hint" dir="ltr">ACT.14</span>
+    {% if leave_now %}{% if leave_now.is_late() %}<span class="alert-pill danger" data-leave-late>{{ t('staycare.leave_late') }}</span>
+    {% else %}<span class="alert-pill warn" data-leave-out>{{ t('staycare.leave_out') }}</span>{% endif %}{% endif %}
+  </h2>
+  {% for l in leaves %}
+  <div style="border-bottom:1px solid var(--line);padding:6px 0;" data-leave-row="{{ l.id }}">
+    <div><span dir="ltr">{{ l.out_at|clinic_stamp }}</span> → <span dir="ltr">{{ l.back_by|clinic_stamp }}</span> · <span dir="auto">{{ l.reason }}</span>
+      · {{ t('staycare.leave_ordered_by') }}: {{ l.orderer.display_name(current_lang) if l.orderer else '' }}</div>
+    {% if l.instructions %}<div class="hint" dir="auto" style="white-space:pre-line;">{{ l.instructions }}</div>{% endif %}
+    {% if l.returned_at %}<div class="hint">{{ t('staycare.leave_returned') }} <span dir="ltr">{{ l.returned_at|clinic_stamp }}</span>{% if l.return_note %} · <span dir="auto">{{ l.return_note }}</span>{% endif %}</div>
+    {% else %}
+    <form method="post" action="{{ url_for('beds.leave_back', row_id=l.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" type="datetime-local" name="returned_at" aria-label="{{ t('staycare.leave_returned') }}">
+      <input class="input" name="return_note" maxlength="255" dir="auto" placeholder="{{ t('staycare.leave_return_note') }}" aria-label="{{ t('staycare.leave_return_note') }}" style="flex:1;min-width:180px;">
+      <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('staycare.leave_back') }}</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% if admission.is_open and not leave_now %}
+  <details style="margin-top:8px;">
+    <summary>{{ t('staycare.leave_new') }}</summary>
+    <form method="post" action="{{ url_for('beds.leave_start', admission_id=admission.id) }}" style="display:grid;gap:8px;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <div><label class="label" for="lv_o">{{ t('staycare.leave_out_at') }}</label><input class="input" type="datetime-local" id="lv_o" name="out_at"></div>
+        <div><label class="label" for="lv_b">{{ t('staycare.leave_back_by') }}</label><input class="input" type="datetime-local" id="lv_b" name="back_by" required></div>
+        <div><label class="label" for="lv_d">{{ t('staycare.leave_ordered_by') }}</label>
+          <select class="select" id="lv_d" name="ordered_by" required><option value="">—</option>
+            {% for d in doctors %}<option value="{{ d.id }}">{{ d.display_name(current_lang) }}</option>{% endfor %}</select></div>
+      </div>
+      <div><label class="label" for="lv_r">{{ t('staycare.leave_reason') }}</label><input class="input" id="lv_r" name="reason" maxlength="255" required dir="auto"></div>
+      <div><label class="label" for="lv_i">{{ t('staycare.leave_instructions') }}</label><textarea class="input" id="lv_i" name="instructions" rows="2" dir="auto"></textarea></div>
+      <div><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('staycare.leave_save') }}</button></div>
+    </form>
+  </details>
+  {% endif %}
+</div>
+{% endif %}

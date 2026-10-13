@@ -140,10 +140,16 @@ class ImprovementProject(db.Model):
     measure = db.relationship("PerformanceMeasure")
 
 
+#: QPI.01's quality committee, and PCC.01's patient-centred culture
+#: committee — the same minutes and decisions, kept apart.
+COMMITTEES = ("quality", "patient")
+
+
 class QualityMeeting(db.Model):
     __tablename__ = "quality_meetings"
 
     id = db.Column(db.Integer, primary_key=True)
+    committee = db.Column(db.String(20), default="quality", nullable=False, index=True)
     held_on = db.Column(db.Date, nullable=False, index=True)
     attendees = db.Column(db.Text, nullable=False)
     minutes = db.Column(db.Text, nullable=False)

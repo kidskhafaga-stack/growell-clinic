@@ -454,7 +454,7 @@ def _visits(record, patient, child):
               .filter(Visit.patient_id == patient.id)
               .order_by(Visit.visit_date, Visit.id).all())
     for visit in visits:
-        virtual = visit.channel == "whatsapp"
+        virtual = visit.channel in ("whatsapp", "tele")
         doctor = record.practitioner(visit.doctor)
         encounter = record.ref("Encounter", f"visit-{visit.id}")
         record.add("Encounter", f"visit-{visit.id}", {

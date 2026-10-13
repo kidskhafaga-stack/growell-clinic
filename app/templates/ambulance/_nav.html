@@ -1,0 +1,8 @@
+{# The ambulance's bar — the runs, the vehicles and the response times. #}
+{% macro amb_nav(active) %}
+<nav style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;" aria-label="{{ t('nav.ambulance') }}" data-amb-nav>
+  {% for key, ep, icon in (('calls', 'ambulance.index', 'telephone-inbound'), ('fleet', 'ambulance.fleet', 'truck-front'), ('report', 'ambulance.report', 'stopwatch')) %}
+  <a class="btn btn-sm {{ 'btn-primary' if active == key else 'btn-outline' }} gc-press" href="{{ url_for(ep) }}"><i class="bi bi-{{ icon }}"></i> {{ t('amb.tab_' ~ key) }}</a>
+  {% endfor %}
+</nav>
+{% endmacro %}

@@ -124,27 +124,32 @@ def project_update(project_id):
 def committee():
     from app.utils.incidents import WEEKEND_SETTING
 
+    from app.models.quality import COMMITTEES
+
+    which = request.values.get("c") if request.values.get("c") in COMMITTEES else "quality"
     if request.method == "POST":
         try:
             q.save_meeting(request.form, current_user)
         except q.QualityError as err:
-            return _done(url_for("quality.committee"), err)
-        return _done(url_for("quality.committee"))
+            return _done(url_for("quality.committee", c=which), err)
+        return _done(url_for("quality.committee", c=which))
     from app.models import Setting
 
     year = request.args.get("year", type=int) or local_today().year
-    return render_template("quality/committee.html", data=q.committee_board(), year=year,
-                           today=local_today(), weekend=Setting.get(WEEKEND_SETTING) or "")
+    return render_template("quality/committee.html", data=q.committee_board(which, local_today()),
+                           year=year, today=local_today(), weekend=Setting.get(WEEKEND_SETTING) or "")
 
 
 @quality_bp.route("/decision/<int:row_id>/done", methods=["POST"])
 @_team
 def decision_done(row_id):
+    row = db.get_or_404(QualityDecision, row_id)
+    where = url_for("quality.committee", c=row.meeting.committee)
     try:
-        q.close_decision(db.get_or_404(QualityDecision, row_id), request.form.get("note"))
+        q.close_decision(row, request.form.get("note"))
     except q.QualityError as err:
-        return _done(url_for("quality.committee"), err)
-    return _done(url_for("quality.committee"))
+        return _done(where, err)
+    return _done(where)
 
 
 @quality_bp.route("/evaluation/<int:year>", methods=["POST"])
@@ -168,3 +173,56 @@ def weekend():
     days = [d for d in request.form.getlist("day") if d.isdigit() and 0 <= int(d) <= 6]
     Setting.set(WEEKEND_SETTING, ",".join(days))
     return _done(url_for("quality.committee"))
+
+
+# ============================================================ guidelines ==
+# GAHAR ICD.16 / ICD.04 — the hospital's adopted clinical guidelines.
+@quality_bp.route("/guidelines", methods=["GET", "POST"])
+@_team
+def guidelines():
+    from app.models.guideline import EMERGENCY_TOPICS, EVENT_KINDS, SCOPES
+    from app.utils import guidelines as cpg
+
+    if request.method == "POST":
+        try:
+            cpg.save(request.form)
+        except cpg.GuidelineError as err:
+            db.session.rollback()
+            flash(t("cpg.err_" + str(err)), "error")
+            return redirect(url_for("quality.guidelines"))
+        return _done(url_for("quality.guidelines"))
+    return render_template("quality/guidelines.html", data=cpg.board(local_today()), scopes=SCOPES,
+                           topics=EMERGENCY_TOPICS, event_kinds=EVENT_KINDS, today=local_today())
+
+
+@quality_bp.route("/guideline/<int:row_id>/<what>", methods=["POST"])
+@_team
+def guideline_update(row_id, what):
+    from app.models.guideline import ClinicalGuideline
+    from app.utils import guidelines as cpg
+
+    row = db.get_or_404(ClinicalGuideline, row_id)
+    where = url_for("quality.guidelines") + f"#g-{row.id}"
+    try:
+        if what == "event":
+            cpg.add_event(row, request.form, current_user)
+        elif what == "retire":
+            cpg.retire(row)
+        else:
+            abort(404)
+    except cpg.GuidelineError as err:
+        db.session.rollback()
+        flash(t("cpg.err_" + str(err)), "error")
+        return redirect(where)
+    return _done(where)
+
+
+@quality_bp.route("/guidelines/library")
+def guideline_library():
+    """Every member of staff reads the guidelines in force (ICD.04 ev. 3,
+    *"consulted during patient care"*); only the quality team edits them."""
+    from app.utils import guidelines as cpg
+
+    if not current_user.is_authenticated:
+        return current_app.login_manager.unauthorized()
+    return render_template("quality/guideline_library.html", groups=cpg.library())

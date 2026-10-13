@@ -152,6 +152,12 @@
     {# GAHAR IPC.20 (h) — expressed breast milk kept for the babies. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.milk_board') }}" data-to-milk>
       <i class="bi bi-cup-straw"></i> {{ t('milk.board') }}</a>
+    {# GAHAR ICD.04 / ICD.16 — the clinical guidelines in force. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('quality.guideline_library') }}" data-to-guidelines>
+      <i class="bi bi-book"></i> {{ t('cpg.library') }}</a>
+    {# GAHAR PCC.14 — belongings held, and lost and found. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('beds.lost_found') }}" data-to-lost-found>
+      <i class="bi bi-bag"></i> {{ t('staycare.lost_title') }}</a>
     {# GAHAR IPC.09 — the day's cleaning by area. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('ipc.cleaning') }}" data-to-cleaning>
       <i class="bi bi-bucket"></i> {{ t('clean.tab') }}</a>
