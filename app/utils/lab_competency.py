@@ -76,26 +76,38 @@ def set_checking(on):
 
 
 # ---------------------------------------------------------- who and where --
-def sections():
-    """The laboratory's sections as its catalogue names them."""
+#: Radiology's "the whole department" — a section of its own, so that an
+#: imaging assessment is never mistaken for one covering the laboratory.
+IMAGING_WHOLE = "radiology"
+
+
+def sections(kind="lab"):
+    """The laboratory's sections as its catalogue names them — or, for
+    ``imaging``, radiology's (GAHAR DAS.02: the same annual assessment, by
+    the same methods, for the people taking and reading the films)."""
     from app.models import Investigation
 
     rows = (db.session.query(Investigation.category)
-            .filter(Investigation.kind == "lab",
+            .filter(Investigation.kind == kind,
                     Investigation.category.isnot(None),
                     Investigation.category != "")
             .distinct().all())
     return sorted({(r[0] or "").strip() for r in rows if (r[0] or "").strip()})
 
 
-def staff():
-    """Everybody who can reach the laboratory, and anybody with a file."""
+def staff(kind="lab"):
+    """Everybody who can reach the laboratory (or radiology), and anybody
+    with a file in it."""
     from app.models import User
 
-    filed = {r[0] for r in db.session.query(LabCompetency.user_id).distinct()}
+    module = "imaging" if kind == "imaging" else "labs"
+    q = db.session.query(LabCompetency.user_id)
+    if kind == "imaging":
+        q = q.filter(LabCompetency.section.in_(sections("imaging") + [IMAGING_WHOLE]))
+    filed = {r[0] for r in q.distinct()}
     people = User.query.filter(User.is_active.is_(True)).order_by(
         User.full_name).all()
-    return [u for u in people if u.id in filed or u.can_access("labs")]
+    return [u for u in people if u.id in filed or u.can_access(module)]
 
 
 # ---------------------------------------------------------------- writing --
@@ -191,13 +203,16 @@ def state(row, today=None):
     return "ok"
 
 
-def overview(today=None):
+def overview(today=None, kind="lab"):
     """One line per person: their newest row per section, and its state —
     nobody with no file at all first, then whoever is overdue."""
     today = today or _today()
     lines = []
-    for person in staff():
+    mine = set(sections(kind)) | {IMAGING_WHOLE} if kind == "imaging" else None
+    for person in staff(kind):
         rows = latest(person.id)
+        if mine is not None:
+            rows = {k: v for k, v in rows.items() if k in mine}
         states = {key: state(row, today) for key, row in rows.items()}
         lines.append({"user": person, "rows": rows, "states": states,
                       "empty": not rows,

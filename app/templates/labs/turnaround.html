@@ -1,18 +1,18 @@
 {% extends "shell.html" %}
-{% set active_module = 'labs' %}
-{% block title %}{{ t('lab_tat.title') }}{% endblock %}
-{% block page_heading %}{{ t('lab_tat.title') }}{% endblock %}
+{% set area = area|default('labs') %}{% set active_module = area %}{% set tk = 'lab_tat' if area == 'labs' else 'img_tat' %}
+{% block title %}{{ t(tk ~ '.title') }}{% endblock %}
+{% block page_heading %}{{ t(tk ~ '.title') }}{% endblock %}
 
 {% block content %}
 {# GAHAR DAS.21 / DAS.22 — measured from the sample's collection to its
    result, judged only against the time the laboratory wrote on the test. #}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
-    <h1 class="page-title"><i class="bi bi-stopwatch"></i> {{ t('lab_tat.title') }}</h1>
-    <p class="page-sub" style="margin:0;">{{ t('lab_tat.sub') }}</p>
+    <h1 class="page-title"><i class="bi bi-stopwatch"></i> {{ t(tk ~ '.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t(tk ~ '.sub') }}</p>
   </div>
 </div>
-<form method="get" action="{{ url_for('labs.turnaround') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+<form method="get" action="{{ url_for('labs.turnaround' if area == 'labs' else 'imaging.turnaround') }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
   <div class="form-row" style="margin:0;"><label for="from">{{ t('lab_reception.from') }}</label><input class="input" type="date" id="from" name="from" value="{{ start.isoformat() }}"></div>
   <div class="form-row" style="margin:0;"><label for="to">{{ t('lab_reception.to') }}</label><input class="input" type="date" id="to" name="to" value="{{ end.isoformat() }}"></div>
   <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('lab_reception.show') }}</button>
@@ -50,12 +50,12 @@
     <tbody>
     {% for row in late_rows %}
     <tr data-late-row="{{ row.id }}">
-      <td><a href="{{ url_for('labs.order', order_id=row.id) }}">{{ row.display_name(current_lang) }}</a>{% if row.urgent %} <span class="badge badge--danger">{{ t('lab_reception.urgent') }}</span>{% endif %}</td>
+      <td><a href="{{ url_for('labs.order' if area == 'labs' else 'imaging.order', order_id=row.id) }}">{{ row.display_name(current_lang) }}</a>{% if row.urgent %} <span class="badge badge--danger">{{ t('lab_reception.urgent') }}</span>{% endif %}</td>
       <td>{{ row.patient.display_name(current_lang) }}</td>
       <td>{{ t('lab_tat.min', n=minutes(row)) }}</td>
       <td>{{ row.delay_told_to or '—' }}</td>
       <td>{% if row.delay_reason %}<span dir="auto">{{ row.delay_reason }}</span>{% else %}
-        <form method="post" action="{{ url_for('labs.late_reason', order_id=row.id) }}" style="display:flex;gap:6px;margin:0;">
+        <form method="post" action="{{ url_for('labs.late_reason' if area == 'labs' else 'imaging.late_reason', order_id=row.id) }}" style="display:flex;gap:6px;margin:0;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="back" value="report">
           <input class="input" name="reason" required maxlength="200" placeholder="{{ t('lab_tat.why_late') }}" aria-label="{{ t('lab_tat.why_late') }}" style="min-width:160px;">
           <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button></form>{% endif %}</td>

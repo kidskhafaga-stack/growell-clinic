@@ -1,0 +1,86 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ unit.unit_number }}{% endblock %}
+{% block page_heading %}{{ t('bbank.title') }}{% endblock %}
+
+{% block content %}
+{# One unit, from entry to where it went (DAS.28 ev. 3): its label (a–i),
+   the inspection on arrival, the issue against a request with the
+   cross-match and the look at the bag (DAS.30), and the transfusion. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-droplet-half"></i> <span dir="ltr">{{ unit.unit_number }}</span></h1>
+    <p class="page-sub" style="margin:0;"><span class="badge badge--muted" data-bb-state="{{ unit.status }}">{{ t('bbank.state_' ~ unit.status) }}</span>
+      {% if unit.status == 'stored' and unit.expires_on < today %}<span class="badge badge--danger">{{ t('bbank.expired') }}</span>{% endif %}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.blood_bank') }}"><i class="bi bi-list-ul"></i> {{ t('bbank.title') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-bb-label>
+  <h2 class="section-title" style="margin-top:0;">{{ t('bbank.label') }}</h2>
+  <div class="info-grid">
+    <div class="info-item"><div class="k">{{ t('bbank.supplier') }}</div><div class="v">{{ unit.supplier.name }}</div></div>
+    <div class="info-item"><div class="k">{{ t('bbank.product') }}</div><div class="v">{{ t('blood.product_' ~ unit.product) }}{% if unit.volume_ml %} · <span dir="ltr">{{ unit.volume_ml }} ml</span>{% endif %}</div></div>
+    <div class="info-item"><div class="k">ABO / Rh</div><div class="v" dir="ltr">{{ unit.abo }}{{ '+' if unit.rh == 'pos' else '-' }}</div></div>
+    <div class="info-item"><div class="k">{{ t('bbank.seronegative') }}</div><div class="v">{{ t('bbank.yes') if unit.seronegative else t('bbank.no') }}</div></div>
+    <div class="info-item"><div class="k">{{ t('bbank.anticoagulant') }}</div><div class="v" dir="ltr">{{ unit.anticoagulant or '—' }}</div></div>
+    <div class="info-item"><div class="k">{{ t('bbank.storage') }}</div><div class="v" dir="auto">{{ unit.storage }}</div></div>
+    <div class="info-item"><div class="k">{{ t('bbank.collected_on') }}</div><div class="v" dir="ltr">{{ unit.collected_on }}</div></div>
+    <div class="info-item"><div class="k">{{ t('bbank.expires') }}</div><div class="v" dir="ltr">{{ unit.expires_on }}</div></div>
+  </div>
+  <p class="hint" style="margin:8px 0 0;">{{ t('bbank.received') }} <span dir="ltr">{{ unit.received_at|clinic_stamp }}</span> ·
+    {{ t('bbank.transport_ok') }}: {{ t('bbank.yes') if unit.transport_ok else t('bbank.no') }} · {{ t('bbank.label_ok') }}: {{ t('bbank.yes') if unit.label_ok else t('bbank.no') }}
+    {% if unit.abo_confirmed is not none %} · {{ t('bbank.abo_confirmed') }}: {{ t('bbank.yes') if unit.abo_confirmed else t('bbank.no') }}{% endif %}
+    {% if unit.reject_reason %} · {{ t('bbank.reject_reason') }}: <span dir="auto">{{ unit.reject_reason }}</span>{% endif %}</p>
+</div>
+
+{% if unit.status == 'stored' %}
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-bb-issue>
+  <h2 class="section-title" style="margin-top:0;">{{ t('bbank.issue') }}</h2>
+  {% if not requests %}<p class="hint" style="margin:0;">{{ t('bbank.no_requests') }}</p>{% else %}
+  <form method="post" action="{{ url_for('labs.blood_unit_act', unit_id=unit.id, what='issue') }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:1;min-width:240px;"><label class="label" for="bi_r">{{ t('bbank.request') }}</label>
+      <select class="select" id="bi_r" name="request_id">{% for r in requests %}<option value="{{ r.id }}">{{ r.patient.display_name(current_lang) }} · {{ t('blood.product_' ~ r.product) }}{% if r.urgency == 'emergency' %} · {{ t('bbank.emergency') }}{% endif %}</option>{% endfor %}</select></div>
+    {% if unit.product in crossmatched %}
+    <div><label class="label" for="bi_c">{{ t('bbank.crossmatch') }}</label><select class="select" id="bi_c" name="compatible"><option value="">—</option><option value="yes">{{ t('bbank.compatible') }}</option><option value="no">{{ t('bbank.incompatible') }}</option></select></div>
+    <div><label class="label" for="bi_s">{{ t('bbank.segment') }}</label><input class="input" id="bi_s" name="segment_number" maxlength="40" dir="ltr"></div>
+    {% endif %}
+    <div><label class="label" for="bi_v">{{ t('bbank.visual') }}</label><select class="select" id="bi_v" name="visual_ok"><option value="">—</option><option value="yes">{{ t('bbank.visual_ok') }}</option><option value="no">{{ t('bbank.visual_bad') }}</option></select></div>
+    <button class="btn btn-primary gc-press" type="submit">{{ t('bbank.issue') }}</button>
+  </form>
+  {% endif %}
+  <form method="post" action="{{ url_for('labs.blood_unit_act', unit_id=unit.id, what='discard') }}" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;border-top:1px solid var(--line);padding-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input class="input" name="discard_reason" maxlength="200" required dir="auto" placeholder="{{ t('bbank.discard_ph') }}" aria-label="{{ t('bbank.discard') }}" style="flex:1;min-width:200px;">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('bbank.discard') }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% if unit.issued_at %}
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-bb-issued>
+  <p style="margin:0;">{{ t('bbank.issued_to') }}: <b>{{ unit.request.patient.display_name(current_lang) if unit.request else '—' }}</b>
+    · <span dir="ltr">{{ unit.issued_at|clinic_stamp }}</span>{% if unit.issuer %} · {{ unit.issuer.display_name(current_lang) }}{% endif %}
+    {% if unit.crossmatch_compatible %} · {{ t('bbank.compatible') }}{% if unit.matcher %} ({{ unit.matcher.display_name(current_lang) }}){% endif %} · {{ t('bbank.segment') }} <span dir="ltr">{{ unit.segment_number }}</span>{% endif %}</p>
+  {% if unit.status == 'issued' %}
+  <form method="post" action="{{ url_for('labs.blood_unit_act', unit_id=unit.id, what='return') }}" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input class="input" name="returned_note" maxlength="200" required dir="auto" placeholder="{{ t('bbank.returned_ph') }}" aria-label="{{ t('bbank.returned') }}" style="flex:1;min-width:200px;">
+    <select class="select" name="reissuable" aria-label="{{ t('bbank.reissuable') }}"><option value="">{{ t('bbank.reissuable') }}</option><option value="yes">{{ t('bbank.yes') }}</option><option value="no">{{ t('bbank.no') }}</option></select>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('bbank.returned') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+{% if unit.returned_at %}<p class="hint" data-bb-returned>{{ t('bbank.returned') }} <span dir="ltr">{{ unit.returned_at|clinic_stamp }}</span> · <span dir="auto">{{ unit.returned_note }}</span></p>{% endif %}
+{% if unit.discarded_at %}<p class="hint" data-bb-discarded>{{ t('bbank.discard') }} <span dir="ltr">{{ unit.discarded_at|clinic_stamp }}</span> · <span dir="auto">{{ unit.discard_reason }}</span></p>{% endif %}
+
+<div class="card" data-bb-trace>
+  <h2 class="section-title" style="margin-top:0;">{{ t('bbank.trace') }}</h2>
+  {% for bag in trace.transfusions %}
+  <p style="margin:0 0 4px;">{{ t('bbank.transfused') }}: {{ bag.patient.display_name(current_lang) if bag.patient else '' }} · <span dir="ltr">{{ bag.started_at|clinic_stamp if bag.started_at else '—' }}</span>
+    {% if bag.reaction %}<span class="badge badge--danger">{{ t('blood.reaction') }}</span>{% endif %}</p>
+  {% else %}<p class="hint" style="margin:0;">{{ t('bbank.not_transfused') }}</p>{% endfor %}
+</div>
+{% endblock %}

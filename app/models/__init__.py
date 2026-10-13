@@ -186,6 +186,8 @@ from app.models.belonging import Belonging, LostItem
 from app.models.guideline import ClinicalGuideline, GuidelineEvent
 from app.models.ambulance import AmbulanceCall, AmbulanceReadiness, AmbulanceVehicle
 from app.models.telemedicine import TeleEncounter, TeleReview
+from app.models.imaging_quality import ImagingQc, ImagingQcReview, ServiceReview
+from app.models.blood_bank import BloodSupplier, BloodUnit
 from app.models.quality import (ImprovementProject, MeasureValue, PerformanceMeasure,
                                 ProactiveAssessment, QualityDecision, QualityMeeting,
                                 QualitySelfEvaluation, RiskItem, RiskReport)
@@ -615,6 +617,11 @@ __all__ = [
     "AmbulanceVehicle",
     "TeleEncounter",
     "TeleReview",
+    "ImagingQc",
+    "ImagingQcReview",
+    "ServiceReview",
+    "BloodSupplier",
+    "BloodUnit",
     "ProgramSession",
     "ViralMarker",
     "PerformanceMeasure",

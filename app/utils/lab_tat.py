@@ -28,11 +28,37 @@ class DelayError(ValueError):
     """A refusal with a key the screen can name (``lab_tat.err_<key>``)."""
 
 
+#: The kinds whose turnaround is measured here — the laboratory (DAS.21/22)
+#: and radiology (DAS.07, *"findings are reported within approved
+#: timeframe"*).
+KINDS = ("lab", "imaging")
+
+
+def _start(order):
+    """The laboratory's clock runs from the sample; radiology's from the
+    scan being done — before it there is nothing to report."""
+    return order.performed_at if order.kind == "imaging" else order.collected_at
+
+
 def minutes(order):
-    """Collection to result, in whole minutes, or ``None``."""
-    if order.collected_at is None or order.resulted_at is None:
+    """Collection (or, for a scan, the study) to result, in whole minutes,
+    or ``None``."""
+    start = _start(order)
+    if start is None or order.resulted_at is None:
         return None
-    return max(0, int((order.resulted_at - order.collected_at).total_seconds() // 60))
+    return max(0, int((order.resulted_at - start).total_seconds() // 60))
+
+
+def waiting_late(order, now=None):
+    """Done but not yet reported past its time — ``None`` when no time was
+    written or the clock has not started."""
+    from app.utils.lab_results import limit_minutes
+
+    limit = limit_minutes(order)
+    start = _start(order)
+    if not limit or start is None or order.status == "resulted" or order.done_outside:
+        return None
+    return ((now or datetime.utcnow()) - start).total_seconds() / 60 > limit
 
 
 def was_late(order):
@@ -50,7 +76,7 @@ def was_late(order):
 def tell_delay(order, told_to, reason=None, user=None, at=None):
     """The requester was told this result is late — and why, when known."""
     told_to = (told_to or "").strip()[:120]
-    if order is None or order.kind != "lab":
+    if order is None or order.kind not in KINDS:
         raise DelayError("not_lab")
     if not told_to:
         raise DelayError("need_who")
@@ -67,7 +93,7 @@ def tell_delay(order, told_to, reason=None, user=None, at=None):
 def explain(order, reason):
     """Why a result was late — the investigation DAS.21 دليل ٢ asks for."""
     reason = (reason or "").strip()[:200]
-    if order is None or order.kind != "lab":
+    if order is None or order.kind not in KINDS:
         raise DelayError("not_lab")
     if not reason:
         raise DelayError("need_reason")
@@ -83,7 +109,7 @@ def _percentile(sorted_values, share):
     return sorted_values[index]
 
 
-def report(start, end):
+def report(start, end, kind="lab"):
     """``(per_test, late_rows)`` for lab results reported between two clinic
     days. ``per_test`` rows: test, urgent, count, median, p90, limit, within,
     late — routine and urgent apart, slowest first."""
@@ -98,9 +124,10 @@ def report(start, end):
     rows = (VisitInvestigation.query
             .options(selectinload(VisitInvestigation.patient),
                      selectinload(VisitInvestigation.investigation))
-            .filter(VisitInvestigation.kind == "lab",
+            .filter(VisitInvestigation.kind == kind,
                     VisitInvestigation.status == "resulted",
-                    VisitInvestigation.collected_at.isnot(None),
+                    (VisitInvestigation.performed_at if kind == "imaging"
+                     else VisitInvestigation.collected_at).isnot(None),
                     VisitInvestigation.resulted_at >= since,
                     VisitInvestigation.resulted_at <= until)
             .order_by(VisitInvestigation.resulted_at).all())
@@ -130,12 +157,12 @@ def report(start, end):
     return per_test, late_rows
 
 
-def stat_list():
+def stat_list(kind="lab"):
     """DAS.22 دليل ٢ — the tests the laboratory gave a STAT time."""
     from app.models import Investigation
 
     return (Investigation.query
-            .filter(Investigation.kind == "lab", Investigation.is_active.is_(True),
+            .filter(Investigation.kind == kind, Investigation.is_active.is_(True),
                     db.or_(Investigation.tat_stat_max.isnot(None),
                            Investigation.tat_stat_min.isnot(None)))
             .order_by(Investigation.name_ar).all())

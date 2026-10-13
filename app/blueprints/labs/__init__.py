@@ -6,3 +6,4 @@ from app.blueprints.labs import routes  # noqa: E402,F401
 from app.blueprints.labs import competency_routes  # noqa: E402,F401
 from app.blueprints.labs import nav  # noqa: E402,F401
 from app.blueprints.labs import micro_routes  # noqa: E402,F401
+from app.blueprints.labs import blood_bank_routes  # noqa: E402,F401

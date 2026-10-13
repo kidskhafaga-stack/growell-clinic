@@ -267,6 +267,11 @@ def hang(request_row, unit_code=None, given_by=None, checked_by=None,
         started_at=at or datetime.utcnow())
     db.session.add(bag)
     request_row.state = TRANSFUSED
+    # GAHAR DAS.28 ev. 3 — a unit issued from the hospital's store is now in
+    # the child; traced by its number.
+    from app.utils.blood_bank import mark_transfused
+
+    mark_transfused(bag.unit_code, request_row.id)
     return bag
 
 

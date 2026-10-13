@@ -1009,6 +1009,15 @@ ADDITIONS = [
     # GAHAR PCC.01 — the patient-centred culture committee keeps its minutes
     # beside the quality committee's; which one a meeting belongs to.
     ("quality_meetings", "committee", "VARCHAR(20) DEFAULT 'quality'"),
+    # GAHAR DAS.04 (e) — a substituted or additional scan, and who was told.
+    ("visit_investigations", "substituted_with", "VARCHAR(160)"),
+    ("visit_investigations", "substitution_told", "VARCHAR(160)"),
+    ("visit_investigations", "substituted_at", "DATETIME"),
+    # GAHAR DAS.14 (h) / ICD.17 ev. 5 — the minimal retesting interval, and
+    # why a test was repeated inside it.
+    ("investigations", "retest_hours", "INTEGER"),
+    ("visit_investigations", "repeat_reason", "VARCHAR(200)"),
+    ("visit_investigations", "repeat_reason_by", "INTEGER"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

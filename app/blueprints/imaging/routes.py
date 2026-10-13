@@ -122,6 +122,7 @@ def order(order_id):
 
     row = _scan(order_id)
     from app.utils import lab_critical, lab_results
+    from app.utils import lab_tat as _tat
     from app.utils import radiation_safety as rs
 
     is_mri = rs.is_mri(row)
@@ -138,7 +139,9 @@ def order(order_id):
         # The critical box (`labs/_critical_box.html`).
         may_read=lab_results.reads_results(current_user),
         doctors=lab_critical.doctor_names(),
-        critical_late=lab_critical.late_call(row))
+        critical_late=lab_critical.late_call(row),
+        # GAHAR DAS.07 — against radiology's own time on the study.
+        was_late=_tat.was_late(row), took=_tat.minutes(row), late_wait=_tat.waiting_late(row))
 
 
 @imaging_bp.route("/order/<int:order_id>/report", methods=["POST"])

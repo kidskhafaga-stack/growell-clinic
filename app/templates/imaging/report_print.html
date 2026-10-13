@@ -1,0 +1,35 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import age_label with context %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'imaging' %}
+{% block title %}{{ t('img_qc.report_title') }}{% endblock %}
+{% block page_heading %}{{ t('img_qc.report_title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR DAS.08 (a)–(f): the hospital's name (the print header), the child's
+   identifiers on the sheet, the study, the findings and impression, when it
+   was reported, and the radiologist's name with a line to sign. #}
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('imaging.order', order_id=order.id) }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+</div>
+<div class="card gc-scale-in print-area" data-imaging-report>
+  {{ print_header(t('img_qc.report_title'), '') }}
+  <div class="info-grid" style="margin-bottom:16px;" data-report-patient>
+    <div class="info-item"><div class="k">{{ t('appointments.patient') }}</div><div class="v">{{ order.patient.display_name(current_lang) }}</div></div>
+    <div class="info-item"><div class="k">{{ t('patients.file_number') }}</div><div class="v">{{ order.patient.patient_number }}</div></div>
+    <div class="info-item"><div class="k">{{ t('patients.dob') }}</div><div class="v" dir="ltr">{{ order.patient.date_of_birth or '—' }}</div></div>
+    <div class="info-item"><div class="k">{{ t('patients.age') }}</div><div class="v">{{ age_label(order.patient) }}</div></div>
+  </div>
+  <h3 style="margin:0 0 6px;" data-report-study>{{ order.display_name(current_lang) }}{% if order.laterality %} · {{ t('orders.side_' ~ order.laterality) }}{% endif %}</h3>
+  <p class="hint" style="margin:0 0 10px;">{{ t('img_qc.performed') }}: <span dir="ltr">{{ order.performed_at|clinic_stamp if order.performed_at else '—' }}</span>
+    · {{ t('img_qc.reported_at') }}: <span dir="ltr" data-reported-at>{{ order.resulted_at|clinic_stamp }}</span></p>
+  {% if order.result_text %}<div style="margin-bottom:10px;"><strong>{{ t('img_qc.findings') }}</strong><div dir="auto" style="white-space:pre-line;">{{ order.result_text }}</div></div>{% endif %}
+  {% if order.result_comment %}<div style="margin-bottom:10px;"><strong>{{ t('img_qc.impression') }}</strong><div dir="auto" style="white-space:pre-line;">{{ order.result_comment }}</div></div>{% endif %}
+  <div style="margin-top:30px;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;" data-report-signer>
+    <div>{{ t('img_qc.radiologist') }}: <strong>{{ order.resulter.display_name(current_lang) if order.resulter else '—' }}</strong></div>
+    <div>{{ t('img_qc.signature') }}: ____________________</div>
+  </div>
+</div>
+{% endblock %}
