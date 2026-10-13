@@ -1586,3 +1586,15 @@ def lookup_delete(row_id):
                        entity_id=row_id, detail=reason, ip_address=client_ip())
     db.session.commit()
     return redirect(url_for("inventory.lookups", domain=domain))
+
+
+# GAHAR OGM.11 ev. 3 — how fast each item is used and every time it ran out,
+# read back from the movements (``utils/stock_watch``).
+@inventory_bp.route("/store/usage")
+@module_required(MODULE)
+def store_usage():
+    from app.utils import stock_watch
+
+    days = request.args.get("days", type=int) or stock_watch.WINDOW_DAYS
+    days = min(max(days, 7), 730)
+    return render_template("inventory/store_usage.html", data=stock_watch.report(days))

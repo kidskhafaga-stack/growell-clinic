@@ -1,0 +1,74 @@
+{% extends "shell.html" %}
+{% from "facility/_nav.html" import facility_nav with context %}
+{% set active_module = 'facility' %}
+{% block title %}{{ t('facility.tab_visitors') }}{% endblock %}
+{% block page_heading %}{{ t('facility.tab_visitors') }}{% endblock %}
+
+{% block content %}
+{# GAHAR EFS.09 (c), (d) — every visitor, vendor and contractor signed in with
+   a badge, whom they came for and where they may go; a restricted area only
+   with who permitted it; signed out, and whoever is still inside from an
+   earlier day shows. The patients' own visitors are the ward's (PCC). #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-person-vcard"></i> {{ t('facility.tab_visitors') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('facility.visitors_sub') }}</p>
+</div>
+{{ facility_nav('visitors') }}
+
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+  <span class="badge badge--muted" data-inside="{{ data.inside|length }}">{{ t('facility.inside_n', n=data.inside|length) }}</span>
+  {% if data.overnight %}<span class="badge badge--danger" data-overnight="{{ data.overnight|length }}">{{ t('facility.overnight_n', n=data.overnight|length) }}</span>{% endif %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-sign-in>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-box-arrow-in-right"></i> {{ t('facility.sign_in') }}</h2>
+  <form method="post" action="{{ url_for('facility.visitor_in') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="v_k">{{ t('facility.kind') }}</label><select class="input" id="v_k" name="kind" required><option value=""></option>{% for k in kinds %}<option value="{{ k }}">{{ t('facility.vk_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="v_n">{{ t('facility.visitor_name') }}</label><input class="input" id="v_n" name="name" maxlength="160" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="v_c">{{ t('facility.company') }}</label><input class="input" id="v_c" name="company" maxlength="160" dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="v_v">{{ t('facility.visiting') }}</label><input class="input" id="v_v" name="visiting" maxlength="200" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="v_b">{{ t('facility.badge') }}</label><input class="input" id="v_b" name="badge_no" maxlength="30" required dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label for="v_a">{{ t('facility.allowed') }}</label><input class="input" id="v_a" name="allowed" maxlength="255" dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="v_r">{{ t('facility.restricted_area') }}</label><select class="input" id="v_r" name="area_id"><option value="">—</option>{% for a in data.areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="v_p">{{ t('facility.permitted_by') }}</label><input class="input" id="v_p" name="permitted_by" maxlength="160" dir="auto"></div>
+    <div style="align-self:end;"><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('facility.sign_in') }}</button></div>
+  </form>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-visitors-inside>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-people"></i> {{ t('facility.inside') }}</h2>
+  {% for v in data.inside %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);padding:6px 0;" data-pass="{{ v.id }}">
+    <b dir="auto">{{ v.name }}</b> <span class="hint">{{ t('facility.vk_' ~ v.kind) }}{% if v.company %} · <span dir="auto">{{ v.company }}</span>{% endif %}</span>
+    <span>{{ t('facility.badge') }} <span dir="ltr">{{ v.badge_no }}</span></span>
+    <span dir="auto">{{ v.visiting }}</span>
+    {% if v.area %}<span class="badge badge--warn">{{ v.area.name }} · {{ v.permitted_by }}</span>{% endif %}
+    <span class="hint" dir="ltr">{{ v.in_at|clinic_stamp }}</span>
+    {% if v in data.overnight %}<span class="badge badge--danger">{{ t('facility.still_inside') }}</span>{% endif %}
+    <form method="post" action="{{ url_for('facility.visitor_out', pass_id=v.id) }}" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('facility.sign_out') }}</button></form>
+  </div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('facility.nobody_inside') }}</p>{% endfor %}
+</div>
+
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;">
+  <div class="card gc-scale-in" data-visitors-today>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-clock-history"></i> {{ t('facility.visitors_today') }}</h2>
+    {% for v in data.today %}<p style="margin:0 0 4px;"><span dir="ltr">{{ v.in_at|clinic_stamp }}</span>{% if v.out_at %} → <span dir="ltr">{{ v.out_at|clinic_stamp }}</span>{% endif %} · <span dir="auto">{{ v.name }}</span> · <span dir="auto">{{ v.visiting }}</span></p>
+    {% else %}<p class="hint" style="margin:0;">{{ t('facility.nobody_today') }}</p>{% endfor %}
+  </div>
+  <div class="card gc-scale-in" id="areas" data-restricted-areas>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-door-closed"></i> {{ t('facility.restricted_areas') }}</h2>
+    {% for a in data.areas %}<p style="margin:0 0 4px;"><b dir="auto">{{ a.name }}</b> — <span dir="auto">{{ a.rule }}</span></p>
+    {% else %}<p class="hint">{{ t('facility.no_areas') }}</p>{% endfor %}
+    <form method="post" action="{{ url_for('facility.restricted_area') }}" style="display:grid;gap:6px;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="name" maxlength="160" required placeholder="{{ t('facility.area_name') }}" aria-label="{{ t('facility.area_name') }}" dir="auto">
+      <input class="input" name="rule" maxlength="255" required placeholder="{{ t('facility.area_rule') }}" aria-label="{{ t('facility.area_rule') }}" dir="auto">
+      <div><button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

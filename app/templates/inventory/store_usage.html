@@ -1,0 +1,48 @@
+{% extends "shell.html" %}
+{% set active_module = 'inventory' %}
+{% block title %}{{ t('stockwatch.title') }}{% endblock %}
+{% block page_heading %}{{ t('stockwatch.title') }}{% endblock %}
+
+{% block content %}
+{# GAHAR OGM.11 ev. 3 — each item's use per month over the window, its
+   waste, the stock now against the level the store wrote, how many days it
+   lasts at that rate, and every stock-out in the window. Read from the
+   movements; nothing here is stored or invented (``utils/stock_watch``). #}
+<div class="gc-animate" style="margin-bottom:12px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:end;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-graph-down-arrow"></i> {{ t('stockwatch.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('stockwatch.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+    <form method="get" action="{{ url_for('inventory.store_usage') }}" style="display:flex;gap:6px;align-items:end;">
+      <div class="form-row" style="margin:0;"><label for="sw_d">{{ t('stockwatch.window') }}</label><input class="input" id="sw_d" name="days" value="{{ data.days }}" inputmode="numeric" dir="ltr" style="max-width:90px;"></div>
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.filter') }}</button>
+    </form>
+    <a class="btn btn-outline gc-press" href="{{ url_for('inventory.store') }}"><i class="bi bi-arrow-return-left"></i> {{ t('common.back') }}</a>
+  </div>
+</div>
+
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+  <span class="badge {{ 'badge--danger' if data.out_now else 'badge--green' }}" data-out-now="{{ data.out_now|length }}">{{ t('stockwatch.out_now_n', n=data.out_now|length) }}</span>
+  <span class="badge {{ 'badge--warn' if data.low else 'badge--muted' }}" data-low="{{ data.low|length }}">{{ t('stockwatch.low_n', n=data.low|length) }}</span>
+  <span class="badge badge--muted" data-events="{{ data.events }}">{{ t('stockwatch.events_n', n=data.events, days=data.days) }}</span>
+</div>
+
+<div class="card gc-scale-in" data-stock-usage>
+  {% if data.rows %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:820px;font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('stockwatch.item') }}</th><th>{{ t('stockwatch.per_month') }}</th><th>{{ t('stockwatch.wasted') }}</th><th>{{ t('stockwatch.stock') }}</th><th>{{ t('stockwatch.reorder') }}</th><th>{{ t('stockwatch.cover') }}</th><th>{{ t('stockwatch.stockouts') }}</th></tr></thead>
+    <tbody>{% for r in data.rows %}<tr data-usage-item="{{ r.item.id }}">
+      <td><a href="{{ url_for('inventory.store_item', item_id=r.item.id) }}" dir="auto">{{ r.item.display_name(current_lang) }}</a>{% if r.item.unit %} <span class="hint">{{ r.item.unit }}</span>{% endif %}</td>
+      <td dir="ltr">{{ r.per_month }}</td>
+      <td dir="ltr">{{ r.wasted or '' }}</td>
+      <td dir="ltr">{% if r.out_now %}<span class="badge badge--danger" data-item-out>{{ r.stock }}</span>{% elif r.stock <= r.reorder %}<span class="badge badge--warn">{{ r.stock }}</span>{% else %}{{ r.stock }}{% endif %}</td>
+      <td dir="ltr">{{ r.reorder }}</td>
+      <td>{% if r.cover_days is not none %}{{ t('stockwatch.days', n=r.cover_days) }}{% else %}—{% endif %}</td>
+      <td>{% if r.stockouts %}<span data-item-stockouts="{{ r.stockouts|length }}">{{ t('stockwatch.n_times', n=r.stockouts|length, days=r.out_days) }}</span>
+        <div class="hint">{% for o in r.stockouts %}<span dir="ltr">{{ o.start.strftime('%Y-%m-%d') }}</span>{% if o.end %} → <span dir="ltr">{{ o.end.strftime('%Y-%m-%d') }}</span>{% else %} → {{ t('stockwatch.still_out') }}{% endif %}{{ '، ' if not loop.last }}{% endfor %}</div>
+        {% else %}—{% endif %}</td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('stockwatch.no_items') }}</p>{% endif %}
+</div>
+{% endblock %}

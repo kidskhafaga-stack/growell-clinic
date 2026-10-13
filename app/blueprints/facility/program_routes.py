@@ -247,3 +247,35 @@ def inspection_new():
 def inspection_close(inspection_id):
     row = db.get_or_404(ExternalInspection, inspection_id)
     return _go(lambda: prep.close_inspection(row, request.form), url_for("facility.plans") + "#inspections")
+
+
+# ================================================================ visitors ==
+# EFS.09 (c), (d) — visitors, vendors and contractors, and the restricted areas.
+@facility_bp.route("/visitors")
+@_door
+def visitors():
+    from app.models.safety_program import VISITOR_KINDS
+
+    return render_template("facility/visitors.html", data=sp.visitors_board(local_today()),
+                           kinds=VISITOR_KINDS)
+
+
+@facility_bp.route("/visitors", methods=["POST"])
+@_door
+def visitor_in():
+    return _go(lambda: sp.sign_in_visitor(current_user, request.form), url_for("facility.visitors"))
+
+
+@facility_bp.route("/visitor/<int:pass_id>/out", methods=["POST"])
+@_door
+def visitor_out(pass_id):
+    from app.models.safety_program import VisitorPass
+
+    row = db.get_or_404(VisitorPass, pass_id)
+    return _go(lambda: sp.sign_out_visitor(row), url_for("facility.visitors"))
+
+
+@facility_bp.route("/restricted-area", methods=["POST"])
+@_door
+def restricted_area():
+    return _go(lambda: sp.save_area(request.form), url_for("facility.visitors") + "#areas")
