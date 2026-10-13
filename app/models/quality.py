@@ -145,7 +145,8 @@ class ImprovementProject(db.Model):
 #: OGM.15's ethics committee and OGM.01's governing body — the same minutes
 #: and decisions, kept apart. Infection control and the pharmacy committee
 #: keep theirs on their own screens.
-COMMITTEES = ("quality", "patient", "environment", "mortality", "ethics", "governing")
+COMMITTEES = ("quality", "patient", "environment", "mortality", "ethics", "governing",
+              "education", "research_ethics")
 
 
 class QualityMeeting(db.Model):

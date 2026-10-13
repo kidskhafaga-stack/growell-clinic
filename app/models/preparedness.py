@@ -25,7 +25,15 @@ HAZARD_KINDS = ("internal", "external", "epidemic")
 PLAN_KINDS = ("fire", "hazmat", "safety", "security", "medical_equipment", "utilities",
               "water", "emergency", "smoking", "mission", "strategic", "operational",
               "quality", "staff_health", "supply_chain", "inventory", "billing",
-              "ethics_code", "communication", "other")
+              "ethics_code", "communication",
+              # CAI.01, CAI.07 — the community programme and the advertising
+              # process; ATH.03, ATH.04, ATH.06, ATH.07, ATH.09 — a teaching
+              # hospital's curriculum and policies.
+              "community", "advertising",
+              "curriculum", "bedside_teaching", "orientation", "graduate", "research",
+              "other")
+#: The plans only a teaching hospital is asked for.
+TEACHING_PLANS = ("curriculum", "bedside_teaching", "orientation", "graduate", "research")
 #: EFS.01 / EFS.06–EFS.13 / OGM.02, 06, 07 — "reviewed annually".
 REVIEW_MONTHS = 12
 

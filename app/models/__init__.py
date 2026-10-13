@@ -374,6 +374,11 @@ from app.models.governance import (CommitteeCharter, CommitteeReview,
                                    EthicsIssue, GovernanceReport,
                                    SupplierEvaluation)
 from app.models.staff_health import OccupationalRisk, StaffHealthEntry
+from app.models.teaching import (ResearchParticipant, ResearchProtocol,
+                                 ResearchSafetyEvent, TeachingConcern, Trainee,
+                                 TraineeAssessment, TrainingRotation)
+from app.models.community import (Advertisement, CommunityActivity,
+                                  CommunityPartner, NeedsAssessment)
 from app.models.incident import Incident
 from app.models.hand_hygiene import (HandHygieneAction,
                                      HandHygieneFacilityCheck,
@@ -892,6 +897,17 @@ __all__ = [
     "SupplierEvaluation",
     "OccupationalRisk",
     "StaffHealthEntry",
+    "Trainee",
+    "TrainingRotation",
+    "TraineeAssessment",
+    "TeachingConcern",
+    "ResearchProtocol",
+    "ResearchParticipant",
+    "ResearchSafetyEvent",
+    "CommunityPartner",
+    "NeedsAssessment",
+    "CommunityActivity",
+    "Advertisement",
     "FireSystemCheck",
     "FireTraining",
     "UtilityCheck",

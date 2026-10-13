@@ -26,7 +26,11 @@ from app.extensions import db
 #: OGM.05 (a)–(e), then PCC.01's patient-centred culture committee, OGM.15's
 #: ethics committee and OGM.01's governing body. ``ipc`` and ``dtc`` keep
 #: their minutes on their own screens; the rest in quality.
-CHARTER_KEYS = ("environment", "ipc", "dtc", "quality", "mortality", "patient", "ethics", "governing")
+CHARTER_KEYS = ("environment", "ipc", "dtc", "quality", "mortality", "patient", "ethics", "governing",
+                # ATH.02 — medical education; ATH.08 — research ethics. Listed
+                # only where the teaching module is on.
+                "education", "research_ethics")
+TEACHING_COMMITTEES = ("education", "research_ethics")
 #: OGM.05 (a)–(e) — the committees every hospital must have.
 REQUIRED_COMMITTEES = ("environment", "ipc", "dtc", "quality", "mortality")
 REPORT_KINDS = ("performance", "environment")

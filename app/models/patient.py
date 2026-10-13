@@ -425,7 +425,14 @@ CONSENT_TYPES = ["general", "examination", "procedure", "vaccination",
                  # Being admitted: the stay itself and the rules of it, read
                  # to the guardian and signed on the screen at the bedside.
                  # Tied to the stay (``admission_id``).
-                 "admission"]
+                 "admission",
+                 # A teaching hospital's two (GAHAR ATH.04, ATH.09): the child
+                 # seen by learners at the bedside, and the child enrolled in a
+                 # study. Offered only where the teaching module is on
+                 # (``utils/consent.kinds_offered``).
+                 "teaching", "research"]
+#: The kinds that belong to the teaching module.
+TEACHING_CONSENTS = ("teaching", "research")
 
 
 class Consent(db.Model):

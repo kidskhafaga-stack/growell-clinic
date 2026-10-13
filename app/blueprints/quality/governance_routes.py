@@ -175,3 +175,72 @@ def staff_health_file(user_id):
                    url_for("quality.staff_health_file", user_id=staff.id))
     return render_template("quality/staff_health_file.html", staff=staff, rows=sh.file_of(staff),
                            kinds=ENTRY_KINDS, results=RESULTS, today=local_today())
+
+
+# =============================================================== community ==
+# GAHAR CAI — the partners, the needs assessment every two years, the
+# activities and initiatives with their satisfaction, and the advertisements.
+@quality_bp.route("/community")
+@_team
+def community():
+    from app.models.community import ACTIVITY_KINDS, NEEDS, PARTNER_KINDS
+    from app.utils import community as cm
+
+    today = local_today()
+    year = request.args.get("year", type=int) or today.year
+    return render_template("quality/community.html", data=cm.board(today),
+                           activities=cm.activities_board(year, today), partner_kinds=PARTNER_KINDS,
+                           activity_kinds=ACTIVITY_KINDS, needs=NEEDS, today=today)
+
+
+@quality_bp.route("/community/partner", methods=["POST"])
+@_team
+def community_partner():
+    from app.utils import community as cm
+
+    return _go(lambda: cm.save_partner(request.form), url_for("quality.community") + "#partners")
+
+
+@quality_bp.route("/community/partner/<int:partner_id>/contacted", methods=["POST"])
+@_team
+def community_contacted(partner_id):
+    from app.models.community import CommunityPartner
+    from app.utils import community as cm
+
+    row = db.get_or_404(CommunityPartner, partner_id)
+    return _go(lambda: cm.contacted(row, request.form), url_for("quality.community") + "#partners")
+
+
+@quality_bp.route("/community/assessment", methods=["POST"])
+@_team
+def community_assessment():
+    from app.utils import community as cm
+
+    return _go(lambda: cm.save_assessment(current_user, request.form, file=_file()),
+               url_for("quality.community") + "#needs")
+
+
+@quality_bp.route("/community/assessment/<int:assessment_id>/share", methods=["POST"])
+@_team
+def community_share(assessment_id):
+    from app.models.community import NeedsAssessment
+    from app.utils import community as cm
+
+    row = db.get_or_404(NeedsAssessment, assessment_id)
+    return _go(lambda: cm.share(row, request.form), url_for("quality.community") + "#needs")
+
+
+@quality_bp.route("/community/activity", methods=["POST"])
+@_team
+def community_activity():
+    from app.utils import community as cm
+
+    return _go(lambda: cm.save_activity(current_user, request.form), url_for("quality.community") + "#activities")
+
+
+@quality_bp.route("/community/ad", methods=["POST"])
+@_team
+def community_ad():
+    from app.utils import community as cm
+
+    return _go(lambda: cm.review_ad(current_user, request.form), url_for("quality.community") + "#ads")

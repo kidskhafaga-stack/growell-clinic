@@ -776,7 +776,7 @@ def view(patient_id):
         # nothing linked to it: the chart, the plans and the per-tooth history
         # all existed, and no screen in the program pointed at any of them.
         dental=_dental_summary(patient),
-        consent_types=CONSENT_TYPES,
+        consent_types=_consent_kinds(),
         consent_statements=all_statements(),
         # GAHAR PCC.08 (3). The gap is derived, never stored — the moment a
         # doctor signs, the badge goes, on every screen at once. And the
@@ -2118,6 +2118,12 @@ def withdraw_consent(consent_id):
     flash(t(message), "info")
     return redirect(
         url_for("patients.view", patient_id=c.patient_id) + "#consent")
+
+
+def _consent_kinds():
+    from app.utils.consent import kinds_offered
+
+    return kinds_offered()
 
 
 def _a_signature():

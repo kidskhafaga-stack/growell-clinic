@@ -116,9 +116,14 @@ def plans_board(today=None):
     current = (HospitalPlan.query.filter(HospitalPlan.replaced_by.is_(None))
                .order_by(HospitalPlan.kind, HospitalPlan.title).all())
     rows = [{"plan": p, "due": due_on(p), "overdue": due_on(p) < today} for p in current]
+    from app.models.preparedness import TEACHING_PLANS
+    from app.utils.facility import module_enabled
+
     held = {p.kind for p in current}
+    teaching = module_enabled("teaching")
     return {"rows": rows, "overdue": [r for r in rows if r["overdue"]],
-            "missing": [k for k in PLAN_KINDS if k != "other" and k not in held]}
+            "missing": [k for k in PLAN_KINDS if k != "other" and k not in held
+                        and (teaching or k not in TEACHING_PLANS)]}
 
 
 def history(plan):

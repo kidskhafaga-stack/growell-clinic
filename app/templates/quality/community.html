@@ -1,0 +1,141 @@
+{% extends "shell.html" %}
+{% from "quality/_nav.html" import quality_nav with context %}
+{% block title %}{{ t('qual.tab_community') }}{% endblock %}
+{% block page_heading %}{{ t('qual.tab_community') }}{% endblock %}
+
+{% block content %}
+{# GAHAR CAI — the community partners and how they are reached (CAI.02), the
+   needs assessment every two years and with whom it was shared (CAI.03,
+   CAI.06), the activities and initiatives with the need each answers and the
+   satisfaction measured (CAI.04–CAI.06, CAI.08), and every advertisement
+   reviewed before it goes out (CAI.07). The programme is in the plans
+   register. #}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-people-fill"></i> {{ t('qual.tab_community') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('comm.sub') }}</p>
+</div>
+{{ quality_nav('community') }}
+
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+  {% if data.next.overdue %}<span class="badge badge--danger" data-needs-due>{{ t('comm.assessment_due') }}</span>
+  {% else %}<span class="badge badge--green" data-needs-next>{{ t('comm.next_assessment') }} <span dir="ltr">{{ data.next.due.isoformat() }}</span></span>{% endif %}
+  {% if data.unshared %}<span class="badge badge--warn" data-unshared="{{ data.unshared|length }}">{{ t('comm.unshared_n', n=data.unshared|length) }}</span>{% endif %}
+  {% if activities.rate is not none %}<span class="badge badge--muted" data-satisfaction="{{ activities.rate }}">{{ t('comm.satisfaction', rate=activities.rate, n=activities.asked) }}</span>{% endif %}
+</div>
+
+<div class="card gc-scale-in" id="partners" style="margin-bottom:14px;" data-partners>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-diagram-2"></i> {{ t('comm.partners') }}</h2>
+  {% if data.partners %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:620px;">
+    <thead><tr><th>{{ t('comm.partner') }}</th><th>{{ t('comm.channel') }}</th><th>{{ t('comm.last_contact') }}</th></tr></thead>
+    <tbody>{% for p in data.partners %}<tr data-partner="{{ p.id }}">
+      <td><b dir="auto">{{ p.name }}</b> <span class="hint">{{ t('comm.pk_' ~ p.kind) }}</span>{% if p.contact %}<div class="hint" dir="auto">{{ p.contact }}</div>{% endif %}</td>
+      <td dir="auto">{{ p.channel }}</td>
+      <td><form method="post" action="{{ url_for('quality.community_contacted', partner_id=p.id) }}" style="display:flex;gap:4px;align-items:center;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if p.last_contact_on %}<span dir="ltr">{{ p.last_contact_on.isoformat() }}</span>{% endif %}
+        <input class="input" type="date" name="on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required aria-label="{{ t('comm.last_contact') }}">
+        <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button></form></td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint">{{ t('comm.no_partners') }}</p>{% endif %}
+  <details style="margin-top:10px;" {% if not data.partners %}open{% endif %}><summary style="cursor:pointer;">{{ t('comm.new_partner') }}</summary>
+  <form method="post" action="{{ url_for('quality.community_partner') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:8px;" data-new-partner>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="cp_n">{{ t('comm.partner') }}</label><input class="input" id="cp_n" name="name" maxlength="160" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="cp_k">{{ t('facility.kind') }}</label><select class="input" id="cp_k" name="kind" required><option value=""></option>{% for k in partner_kinds %}<option value="{{ k }}">{{ t('comm.pk_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="cp_c">{{ t('comm.channel') }}</label><input class="input" id="cp_c" name="channel" maxlength="200" required dir="auto" placeholder="{{ t('comm.channel_ph') }}"></div>
+    <div class="form-row" style="margin:0;"><label for="cp_ct">{{ t('comm.contact') }}</label><input class="input" id="cp_ct" name="contact" maxlength="160" dir="auto"></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+
+<div class="card gc-scale-in" id="needs" style="margin-bottom:14px;" data-needs>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-clipboard2-pulse"></i> {{ t('comm.needs') }}</h2>
+  {% for a in data.assessments %}
+  <details style="border-bottom:1px solid var(--line);padding:6px 0;" data-assessment="{{ a.id }}">
+    <summary><span dir="ltr">{{ a.done_on.isoformat() }}</span> · {% for p in a.partners %}{{ p.name }}{{ '، ' if not loop.last }}{% endfor %}
+      {% if not a.shared_board_on %}<span class="badge badge--warn">{{ t('comm.not_shared_board') }}</span>{% endif %}
+      {% if not a.shared_partners_on %}<span class="badge badge--warn">{{ t('comm.not_shared_partners') }}</span>{% endif %}</summary>
+    <p dir="auto" style="margin:6px 0;"><b>{{ t('comm.population') }}:</b> {{ a.population }}</p>
+    <ul style="margin:0 0 6px;padding-inline-start:18px;">{% for n in needs %}<li><b>{{ t('comm.need_' ~ n) }}:</b> <span dir="auto">{{ a.findings.get(n) }}</span></li>{% endfor %}</ul>
+    <p dir="auto" style="margin:0 0 6px;"><b>{{ t('comm.services_plan') }}:</b> {{ a.services_plan }}</p>
+    {% if not a.shared_board_on or not a.shared_partners_on %}
+    <form method="post" action="{{ url_for('quality.community_share', assessment_id=a.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if not a.shared_board_on %}<div class="form-row" style="margin:0;"><label for="sb{{ a.id }}">{{ t('comm.shared_board') }}</label><input class="input" type="date" id="sb{{ a.id }}" name="shared_board_on" max="{{ today.isoformat() }}"></div>{% endif %}
+      {% if not a.shared_partners_on %}<div class="form-row" style="margin:0;"><label for="sp{{ a.id }}">{{ t('comm.shared_partners') }}</label><input class="input" type="date" id="sp{{ a.id }}" name="shared_partners_on" max="{{ today.isoformat() }}"></div>{% endif %}
+      <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+    </form>{% endif %}
+  </details>
+  {% else %}<p class="hint">{{ t('comm.no_assessments') }}</p>{% endfor %}
+  <details style="margin-top:10px;"><summary style="cursor:pointer;">{{ t('comm.new_assessment') }}</summary>
+  <form method="post" enctype="multipart/form-data" action="{{ url_for('quality.community_assessment') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-top:8px;" data-new-assessment>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="na_on">{{ t('facility.checked_on') }}</label><input class="input" type="date" id="na_on" name="done_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+    <div class="form-row" style="margin:0;"><label for="na_p">{{ t('comm.with_partners') }}</label><select class="input" id="na_p" name="partners" multiple size="4" required>{% for p in data.partners %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="na_f">{{ t('facility.plan_file') }}</label><input class="input" type="file" id="na_f" name="file" accept="image/*,application/pdf"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="na_pop">{{ t('comm.population') }}</label><textarea class="input" id="na_pop" name="population" rows="2" required dir="auto"></textarea></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="na_src">{{ t('comm.sources') }}</label><textarea class="input" id="na_src" name="sources" rows="2" required dir="auto" placeholder="{{ t('comm.sources_ph') }}"></textarea></div>
+    {% for n in needs %}<div class="form-row" style="margin:0;grid-column:1/-1;"><label for="na_{{ n }}">{{ t('comm.need_' ~ n) }}</label><textarea class="input" id="na_{{ n }}" name="need_{{ n }}" rows="2" required dir="auto"></textarea></div>{% endfor %}
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="na_sp">{{ t('comm.services_plan') }}</label><textarea class="input" id="na_sp" name="services_plan" rows="2" required dir="auto"></textarea></div>
+    <div class="form-row" style="margin:0;"><label for="na_sb">{{ t('comm.shared_board') }}</label><input class="input" type="date" id="na_sb" name="shared_board_on" max="{{ today.isoformat() }}"></div>
+    <div class="form-row" style="margin:0;"><label for="na_sps">{{ t('comm.shared_partners') }}</label><input class="input" type="date" id="na_sps" name="shared_partners_on" max="{{ today.isoformat() }}"></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+
+<div class="card gc-scale-in" id="activities" style="margin-bottom:14px;" data-activities>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-megaphone"></i> {{ t('comm.activities') }} — <span dir="ltr">{{ activities.year }}</span></h2>
+  {% if activities.rows %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:720px;">
+    <thead><tr><th>{{ t('facility.checked_on') }}</th><th>{{ t('comm.activity') }}</th><th>{{ t('comm.need') }}</th><th>{{ t('comm.attendance') }}</th><th>{{ t('comm.satisfied') }}</th></tr></thead>
+    <tbody>{% for a in activities.rows %}<tr data-activity="{{ a.id }}">
+      <td dir="ltr">{{ a.held_on.isoformat() }}</td>
+      <td><b dir="auto">{{ a.title }}</b> <span class="hint">{{ t('comm.ak_' ~ a.kind) }}</span>{% if a.initiative %}<div class="hint" dir="auto">{{ t('comm.initiative') }}: {{ a.initiative }}</div>{% endif %}
+        {% if a.partners %}<div class="hint">{% for p in a.partners %}{{ p.name }}{{ '، ' if not loop.last }}{% endfor %}</div>{% endif %}</td>
+      <td dir="auto">{{ a.need or '—' }}</td><td dir="ltr">{{ a.attendance if a.attendance is not none else '—' }}</td>
+      <td dir="ltr">{% if a.satisfied is not none %}{{ a.satisfied }}/{{ a.surveyed }}{% else %}—{% endif %}</td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint">{{ t('comm.no_activities') }}</p>{% endif %}
+  <details style="margin-top:10px;"><summary style="cursor:pointer;">{{ t('comm.new_activity') }}</summary>
+  <form method="post" action="{{ url_for('quality.community_activity') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:8px;" data-new-activity>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="ca_on">{{ t('facility.checked_on') }}</label><input class="input" type="date" id="ca_on" name="held_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+    <div class="form-row" style="margin:0;"><label for="ca_k">{{ t('facility.kind') }}</label><select class="input" id="ca_k" name="kind" required><option value=""></option>{% for k in activity_kinds %}<option value="{{ k }}">{{ t('comm.ak_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="ca_t">{{ t('comm.activity') }}</label><input class="input" id="ca_t" name="title" maxlength="200" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="ca_i">{{ t('comm.initiative') }}</label><input class="input" id="ca_i" name="initiative" maxlength="200" dir="auto" placeholder="{{ t('comm.initiative_ph') }}"></div>
+    <div class="form-row" style="margin:0;"><label for="ca_n">{{ t('comm.need') }}</label><input class="input" id="ca_n" name="need" maxlength="255" dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="ca_p">{{ t('comm.with_partners') }}</label><select class="input" id="ca_p" name="partners" multiple size="3">{% for p in data.partners %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="ca_a">{{ t('comm.attendance') }}</label><input class="input" id="ca_a" name="attendance" inputmode="numeric" dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label for="ca_s">{{ t('comm.surveyed') }}</label><input class="input" id="ca_s" name="surveyed" inputmode="numeric" dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label for="ca_h">{{ t('comm.satisfied') }}</label><input class="input" id="ca_h" name="satisfied" inputmode="numeric" dir="ltr"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="ca_l">{{ t('comm.learnt') }}</label><textarea class="input" id="ca_l" name="learnt" rows="2" dir="auto"></textarea></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+
+<div class="card gc-scale-in" id="ads" data-ads>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-badge-ad"></i> {{ t('comm.ads') }}</h2>
+  {% for a in data.ads %}
+  <div style="border-bottom:1px solid var(--line);padding:6px 0;" data-ad="{{ a.id }}">
+    <b dir="auto">{{ a.title }}</b> · <span dir="auto">{{ a.channel }}</span> · {{ t('comm.reviewed') }} <span dir="ltr">{{ a.reviewed_on.isoformat() }}</span> ({{ a.reviewed_by }})
+    {% if a.compliant %}<span class="badge badge--green">{{ t('comm.compliant') }}</span>{% else %}<span class="badge badge--danger" data-ad-violation>{{ t('comm.not_compliant') }}</span>{% endif %}
+    {% if a.published_on %}<span class="hint">{{ t('comm.published') }} <span dir="ltr">{{ a.published_on.isoformat() }}</span></span>{% endif %}
+    {% if a.action %}<div class="hint" dir="auto">{{ t('teach.action') }}: {{ a.action }}</div>{% endif %}
+  </div>
+  {% else %}<p class="hint">{{ t('comm.no_ads') }}</p>{% endfor %}
+  <details style="margin-top:10px;"><summary style="cursor:pointer;">{{ t('comm.new_ad') }}</summary>
+  <form method="post" action="{{ url_for('quality.community_ad') }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:8px;" data-new-ad>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="ad_t">{{ t('comm.ad_title') }}</label><input class="input" id="ad_t" name="title" maxlength="200" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="ad_c">{{ t('comm.ad_channel') }}</label><input class="input" id="ad_c" name="channel" maxlength="120" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="ad_r">{{ t('comm.reviewed_by') }}</label><input class="input" id="ad_r" name="reviewed_by" maxlength="160" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="ad_on">{{ t('comm.reviewed') }}</label><input class="input" type="date" id="ad_on" name="reviewed_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+    <div class="form-row" style="margin:0;"><label for="ad_ok">{{ t('comm.compliant_q') }}</label><select class="input" id="ad_ok" name="compliant" required><option value=""></option><option value="yes">{{ t('common.yes') }}</option><option value="no">{{ t('common.no') }}</option></select></div>
+    <div class="form-row" style="margin:0;"><label for="ad_p">{{ t('comm.published') }}</label><input class="input" type="date" id="ad_p" name="published_on"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="ad_x">{{ t('comm.ad_content') }}</label><textarea class="input" id="ad_x" name="content" rows="2" required dir="auto"></textarea></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="ad_a">{{ t('comm.ad_action') }}</label><input class="input" id="ad_a" name="action" dir="auto" placeholder="{{ t('comm.ad_action_ph') }}"></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+{% endblock %}

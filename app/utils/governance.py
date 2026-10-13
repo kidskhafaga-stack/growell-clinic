@@ -71,9 +71,15 @@ def committees(today=None):
     its last meeting, whether it is late against its own interval, and
     whether last year's performance review was written."""
     today = today or _today()
+    from app.models.governance import TEACHING_COMMITTEES
+    from app.utils.facility import module_enabled
+
     charters = {c.key: c for c in CommitteeCharter.query.all()}
+    teaching = module_enabled("teaching")
     out = []
     for key in CHARTER_KEYS:
+        if key in TEACHING_COMMITTEES and not teaching:
+            continue
         dates = _meetings(key)
         charter = charters.get(key)
         last = dates[0] if dates else None

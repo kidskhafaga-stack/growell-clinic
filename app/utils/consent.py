@@ -182,6 +182,18 @@ def statement_for(kind):
     return statement_in(kind, getattr(g, "lang", "ar"))
 
 
+def kinds_offered():
+    """The consent kinds this hospital is offered: all of them, less the
+    teaching hospital's two when the teaching module is off — a clinic sees
+    exactly the list it always had."""
+    from app.models import CONSENT_TYPES
+    from app.models.patient import TEACHING_CONSENTS
+    from app.utils.facility import module_enabled
+
+    teaching = module_enabled("teaching")
+    return [k for k in CONSENT_TYPES if teaching or k not in TEACHING_CONSENTS]
+
+
 def all_statements():
     """``{kind: text}`` for the form, so the screen can show the words that
     will be signed the moment the kind is picked."""

@@ -1,0 +1,89 @@
+{% extends "shell.html" %}
+{% set active_module = 'teaching' %}
+{% block title %}{{ tr.name }} — {{ t('teach.trainee') }}{% endblock %}
+{% block page_heading %}{{ t('teach.trainee') }}{% endblock %}
+
+{% block content %}
+{# GAHAR ATH.02, ATH.06, ATH.07 — one learner: the supervisor and mentor who
+   answer for them, the scope they work within, the orientation item by item
+   (a)–(g), each rotation with its evaluation and feedback, and assessments by
+   a named assessor with an objective tool. #}
+<div class="gc-animate" style="margin-bottom:12px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:end;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-person-badge"></i> <span dir="auto">{{ tr.name }}</span></h1>
+    <p class="page-sub" style="margin:0;">{{ t('teach.k_' ~ tr.kind) }}{% if tr.programme %} · <span dir="auto">{{ tr.programme }}</span>{% endif %}
+      · <span dir="ltr">{{ tr.starts_on.isoformat() }}{% if tr.ends_on %} → {{ tr.ends_on.isoformat() }}{% endif %}</span></p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('teaching.index') }}"><i class="bi bi-arrow-return-left"></i> {{ t('common.back') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-trainee-card>
+  <p style="margin:0 0 4px;"><b>{{ t('teach.supervisor') }}:</b> {{ tr.supervisor.display_name(current_lang) }}{% if tr.mentor %} · <b>{{ t('teach.mentor') }}:</b> {{ tr.mentor.display_name(current_lang) }}{% endif %}</p>
+  <p style="margin:0 0 4px;"><b>{{ t('teach.scope') }}:</b> <span dir="auto" style="white-space:pre-line;">{{ tr.scope }}</span></p>
+  {% if tr.protected_time %}<p style="margin:0;"><b>{{ t('teach.protected_time') }}:</b> <span dir="auto">{{ tr.protected_time }}</span></p>{% endif %}
+  {% if tr.is_active %}
+  <form method="post" action="{{ url_for('teaching.trainee_finish', trainee_id=tr.id) }}" style="margin-top:8px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('teach.finish') }}</button>
+  </form>{% endif %}
+</div>
+
+<div class="card gc-scale-in" id="orientation" style="margin-bottom:14px;" data-orientation>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-signpost-2"></i> {{ t('teach.orientation') }}</h2>
+  <ul style="margin:0 0 8px;padding-inline-start:18px;">{% for i in items %}<li>{{ t('teach.oi_' ~ i) }} —
+    {% if i in tr.orientation %}<span class="badge badge--green" dir="ltr">{{ tr.orientation[i] }}</span>{% else %}<span class="badge badge--warn" data-orientation-gap="{{ i }}">{{ t('teach.not_yet') }}</span>{% endif %}</li>{% endfor %}</ul>
+  {% if missing %}
+  <form method="post" action="{{ url_for('teaching.trainee_orient', trainee_id=tr.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for i in missing %}<label><input type="checkbox" name="items" value="{{ i }}"> {{ t('teach.oi_' ~ i) }}</label>{% endfor %}
+    <input class="input" type="date" name="on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required aria-label="{{ t('teach.done_on') }}">
+    <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>{% endif %}
+</div>
+
+<div class="card gc-scale-in" id="rotations" style="margin-bottom:14px;" data-rotations>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-arrow-repeat"></i> {{ t('teach.rotations') }}</h2>
+  {% for r in tr.rotations %}
+  <div style="border-bottom:1px solid var(--line);padding:6px 0;" data-rotation="{{ r.id }}">
+    <b dir="auto">{{ r.department }}</b> · <span dir="ltr">{{ r.starts_on.isoformat() }} → {{ r.ends_on.isoformat() }}</span> · {{ r.supervisor.display_name(current_lang) }}
+    {% if r.evaluation %}<div dir="auto">{{ t('teach.evaluation') }}: {{ r.evaluation }}</div>{% if r.feedback %}<div class="hint" dir="auto">{{ t('teach.feedback') }}: {{ r.feedback }}</div>{% endif %}
+    {% else %}
+    {% if r.ends_on < today %}<span class="badge badge--warn" data-rotation-unevaluated>{{ t('teach.needs_evaluation') }}</span>{% endif %}
+    <form method="post" action="{{ url_for('teaching.rotation_evaluate', rotation_id=r.id) }}" style="display:grid;gap:6px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-top:4px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <textarea class="input" name="evaluation" rows="2" required placeholder="{{ t('teach.evaluation') }}" aria-label="{{ t('teach.evaluation') }}" dir="auto"></textarea>
+      <textarea class="input" name="feedback" rows="2" placeholder="{{ t('teach.feedback_ph') }}" aria-label="{{ t('teach.feedback') }}" dir="auto"></textarea>
+      <div><button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button></div>
+    </form>{% endif %}
+  </div>
+  {% else %}<p class="hint">{{ t('teach.no_rotations') }}</p>{% endfor %}
+  <details style="margin-top:8px;"><summary style="cursor:pointer;">{{ t('teach.new_rotation') }}</summary>
+  <form method="post" action="{{ url_for('teaching.trainee_rotation', trainee_id=tr.id) }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:8px;" data-new-rotation>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="ro_d">{{ t('teach.department') }}</label><input class="input" id="ro_d" name="department" maxlength="160" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="ro_s">{{ t('teach.starts') }}</label><input class="input" type="date" id="ro_s" name="starts_on" required></div>
+    <div class="form-row" style="margin:0;"><label for="ro_e">{{ t('teach.ends') }}</label><input class="input" type="date" id="ro_e" name="ends_on" required></div>
+    <div class="form-row" style="margin:0;"><label for="ro_v">{{ t('teach.supervisor') }}</label><select class="input" id="ro_v" name="supervisor_id" required><option value=""></option>{% for u in staff %}<option value="{{ u.id }}" {{ 'selected' if u.id == tr.supervisor_id }}>{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form></details>
+</div>
+
+<div class="card gc-scale-in" id="assessments" data-assessments>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-clipboard-data"></i> {{ t('teach.assessments') }}</h2>
+  {% if tr.assessments %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:560px;">
+    <thead><tr><th>{{ t('teach.done_on') }}</th><th>{{ t('teach.tool') }}</th><th>{{ t('teach.assessor') }}</th><th>{{ t('teach.result') }}</th></tr></thead>
+    <tbody>{% for a in tr.assessments %}<tr data-assessment="{{ a.id }}"><td dir="ltr">{{ a.on.isoformat() }}</td><td>{{ t('teach.tool_' ~ a.tool) }}</td><td>{{ a.assessor.display_name(current_lang) }}</td>
+      <td dir="auto">{{ a.result }}{% if a.comments %}<div class="hint">{{ a.comments }}</div>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint">{{ t('teach.no_assessments') }}</p>{% endif %}
+  <form method="post" action="{{ url_for('teaching.trainee_assess', trainee_id=tr.id) }}" style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:8px;" data-new-assessment>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="as_t">{{ t('teach.tool') }}</label><select class="input" id="as_t" name="tool" required><option value=""></option>{% for tl in tools %}<option value="{{ tl }}">{{ t('teach.tool_' ~ tl) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="as_on">{{ t('teach.done_on') }}</label><input class="input" type="date" id="as_on" name="on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required></div>
+    <div class="form-row" style="margin:0;"><label for="as_r">{{ t('teach.result') }}</label><input class="input" id="as_r" name="result" maxlength="120" required dir="auto"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="as_c">{{ t('teach.comments') }}</label><textarea class="input" id="as_c" name="comments" rows="2" dir="auto"></textarea></div>
+    <p class="hint" style="margin:0;grid-column:1/-1;">{{ t('teach.assessor_is_you') }}</p>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form>
+</div>
+{% endblock %}

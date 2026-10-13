@@ -178,6 +178,7 @@ def create_app(config_name="default"):
     from app.blueprints.programs import programs_bp
     from app.blueprints.ambulance import ambulance_bp
     from app.blueprints.telemedicine import telemedicine_bp
+    from app.blueprints.teaching import teaching_bp
     from app.blueprints.imaging import imaging_bp
     from app.blueprints.labs import labs_bp
     from app.blueprints.pharmacy import pharmacy_bp
@@ -214,6 +215,7 @@ def create_app(config_name="default"):
     app.register_blueprint(programs_bp)
     app.register_blueprint(ambulance_bp)
     app.register_blueprint(telemedicine_bp)
+    app.register_blueprint(teaching_bp)
     app.register_blueprint(labs_bp)
     app.register_blueprint(imaging_bp)
     app.register_blueprint(pharmacy_bp)
@@ -269,6 +271,7 @@ def create_app(config_name="default"):
         "programs": "programs.index",
         "ambulance": "ambulance.index",
         "telemedicine": "telemedicine.index",
+        "teaching": "teaching.index",
         "prescriptions": "prescriptions.index",
         "inventory": "inventory.index",
         "finance": "finance.index",
