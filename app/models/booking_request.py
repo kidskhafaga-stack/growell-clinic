@@ -31,9 +31,12 @@ REQUEST_STATUSES = ("pending", "with_doctor", "approved", "booked",
 #: Still waiting for somebody to do something.
 OPEN_STATUSES = ("pending", "with_doctor", "approved")
 
-#: Where it came in: the desk, a WhatsApp conversation in the inbox, or —
-#: a door the plan leaves open — a request page.
-REQUEST_SOURCES = ("desk", "whatsapp", "page")
+#: Where it came in: the desk, a WhatsApp conversation in the inbox, the
+#: public request page — or, since ``CONNECTHUB_PLAN.md``, the channel of the
+#: lead it was made from (``utils/channels.CHANNELS``), so "which channel
+#: brings bookings" is read from the requests themselves.
+REQUEST_SOURCES = ("desk", "whatsapp", "page", "messenger", "instagram",
+                   "telegram", "tiktok", "email", "phone", "walk_in")
 
 #: What the desk did with the program's suggested time, when it booked —
 #: stage five's question, "how often does the desk change the suggestion?":
@@ -93,6 +96,11 @@ class BookingRequest(db.Model):
     # The WhatsApp conversation it was taken from (the inbox's thread key),
     # so the thread can show where its request stands.
     conversation_key = db.Column(db.String(64), index=True)
+    # The lead it was made from, and the campaign — the post, the ad, the
+    # request page's ``?src=`` — so a booking can be traced to what brought
+    # the family (``CONNECTHUB_PLAN.md``).
+    lead_id = db.Column(db.Integer, index=True)
+    campaign = db.Column(db.String(80), index=True)
 
     # Stage five's measure: the time the program suggested when the desk
     # opened the booking, and what the desk did with it. Kept once, when

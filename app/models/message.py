@@ -356,9 +356,30 @@ class MessageLog(db.Model):
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 
+    # ``CONNECTHUB_PLAN.md`` stage two — the same log for every channel.
+    # Empty is WhatsApp: every row written before other channels existed.
+    channel = db.Column(db.String(16), index=True)
+    # Who wrote, on a channel that gives no phone number (Messenger,
+    # Instagram, Telegram): the thread is theirs (``c<id>``) until a person
+    # links them to a child's file.
+    contact_id = db.Column(db.Integer, db.ForeignKey("crm_contacts.id"),
+                           nullable=True, index=True)
+    # What kind of event this was when it is not an ordinary message: a
+    # ``comment`` on a post (answered once, privately), the ``private_reply``
+    # to one, or an ``echo`` — a reply the clinic typed in the platform's own
+    # inbox, kept so the thread shows it.
+    event = db.Column(db.String(16))
+    # The comment a private reply answered.
+    reply_to = db.Column(db.String(120), index=True)
+
     patient = db.relationship("Patient")
     creator = db.relationship("User")
     vaccine_brand = db.relationship("VaccineBrand")
+    contact = db.relationship("Contact")
+
+    @property
+    def channel_key(self):
+        return self.channel or "whatsapp"
 
     def __repr__(self):
         return f"<MessageLog to={self.to_phone} {self.status}>"

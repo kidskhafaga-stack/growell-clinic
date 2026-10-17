@@ -156,6 +156,7 @@ def create_app(config_name="default"):
     from app.blueprints.appointments import appointments_bp
     from app.blueprints.auth import auth_bp
     from app.blueprints.feedback import feedback_bp
+    from app.blueprints.booking_page import booking_page_bp
     from app.blueprints.complaints import complaints_bp
     from app.blueprints.med_storage import med_storage_bp
     from app.blueprints.equipment import equipment_bp
@@ -229,6 +230,7 @@ def create_app(config_name="default"):
     app.register_blueprint(users_bp)
     app.register_blueprint(ai_bp)
     app.register_blueprint(feedback_bp)
+    app.register_blueprint(booking_page_bp)
     app.register_blueprint(complaints_bp)
     app.register_blueprint(med_storage_bp)
     app.register_blueprint(equipment_bp)

@@ -60,6 +60,10 @@ _SWEEP_AT = 4096
 LOGIN_PER_MINUTE = 10
 WEBHOOK_PER_MINUTE = 120
 SURVEY_PER_MINUTE = 20
+# * **The request page** (``/book``) — a family sends one request; five a
+#   minute covers a correction and a double-tap, and keeps a script from
+#   filling the desk's queue.
+BOOKING_PAGE_PER_MINUTE = 5
 
 
 def hit(bucket, key, limit, per_seconds, now=None):

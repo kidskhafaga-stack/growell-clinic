@@ -11,6 +11,8 @@
     <p class="page-sub" style="margin:0;">{{ t('inbox.subtitle') }}</p>
   </div>
   <div style="display:flex;gap:8px;">
+    <a class="btn btn-outline gc-press" data-to-leads href="{{ url_for('messages.leads_board') }}">
+      <i class="bi bi-person-lines-fill"></i> {{ t('leads.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('messages.service_board') }}">
       <i class="bi bi-speedometer2"></i> {{ t('service.nav') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('messages.index') }}">
@@ -72,7 +74,8 @@
       {% else %}<div class="patient-avatar sm"><i class="bi bi-telephone"></i></div>{% endif %}
       <div style="flex:1;min-width:0;">
         <div style="display:flex;justify-content:space-between;gap:10px;">
-          <strong>{{ c.patient.display_name(current_lang) if c.patient else c.phone }}
+          <strong dir="auto">{{ c.patient.display_name(current_lang) if c.patient else (c.contact.name if c.contact else c.phone) }}
+            {% if c.channel != 'whatsapp' %}<span class="badge badge--muted" style="font-weight:500;" data-conv-channel="{{ c.channel }}">{{ t('channels.ch_' ~ c.channel) }}</span>{% endif %}
             {% if c.orphan %}<span class="badge badge--muted" style="font-weight:500;">{{ t('inbox.unknown') }}</span>{% endif %}
             {# What it is about. A guess is drawn as a guess — dashed, with a
                question mark — because the program has not read the message,

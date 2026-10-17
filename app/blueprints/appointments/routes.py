@@ -862,7 +862,11 @@ def poll():
 
     on_date = parse_date_arg(request.args.get("date"))
     doctor_id = doctor_locked_id() or request.args.get("doctor_id", type=int)
-    return jsonify({"fp": board_fingerprint(on_date, doctor_id)})
+    # The desk's board polls all day: the clinic's mailbox is read on it,
+    # after the answer (``utils/mail_channel``).
+    from app.utils import heartbeat
+    return heartbeat.after_response(
+        jsonify({"fp": board_fingerprint(on_date, doctor_id)}))
 
 
 @appointments_bp.route("/consult-check")

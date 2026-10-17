@@ -46,6 +46,9 @@ HEADERS = {
                 "الاسم بالعربي", "اسم التحليل بالعربي"),
     "aliases": ("search aliases", "aliases", "أسماء البحث", "أسماء أخرى"),
     "category": ("category", "القسم", "الفئة"),
+    # The laboratory section, from the fixed list (`utils/lab_sections`) —
+    # by its key or either of its names.
+    "section": ("lab section", "section", "القسم الرئيسي", "قسم المعمل"),
     "component": ("component", "analyte", "المكون", "المكوّن"),
     "unit": ("unit", "units", "الوحدة"),
     "age_from": ("age from", "من سن", "السن من"),
@@ -492,6 +495,7 @@ _PLACEHOLDERS = {"panel profile", "panel", "profile", "panel profil", "n a",
 
 def _blank_test(name):
     return {"name_en": "", "name_ar": "", "aliases": [], "category": "",
+            "section": None,
             "parts_missing": False,
             "specimen": "", "tube": "", "tat": None, "tat_stat": None,
             "in_house": None, "preparation": "", "analytes": [],
@@ -501,6 +505,10 @@ def _blank_test(name):
 
 def _test_facts(test, values):
     """The test-level facts a row carries, first one given wins."""
+    if not test.get("section") and _text(values.get("section")):
+        from app.utils.lab_sections import from_sheet
+
+        test["section"] = from_sheet(values.get("section"))
     for field, source in (("category", "category"), ("specimen", "specimen"),
                           ("tube", "tube"), ("preparation", "preparation")):
         if not test[field] and _text(values.get(source)):
@@ -838,6 +846,8 @@ def _fill_blanks(target, test):
         target.aliases = "; ".join(list(known) + extra)[:400]
     if not target.name_en and test["name_en"]:
         target.name_en = test["name_en"][:160]
+    if not target.section and test.get("section"):
+        target.section = test["section"]
     if not target.sample_type and test["specimen"]:
         target.sample_type = test["specimen"][:40]
     if not target.tube and test["tube"]:
@@ -911,6 +921,7 @@ def approve_test(investigation, user):
 
 # ----------------------------------------------------------------- export ---
 EXPORT_COLUMNS = ("Test Name", "Arabic Test Name", "Search Aliases", "Category",
+                  "Lab Section",
                   "Component", "Unit", "Age From", "Sex", "Reference Low",
                   "Reference High", "Reference Type", "Critical Low",
                   "Critical High", "Specimen Type", "Tube Color",
@@ -941,7 +952,7 @@ def export(rows):
 
     for test in rows:
         facts = [test.name_en or test.name_ar, test.name_ar, test.aliases or "",
-                 test.category or ""]
+                 test.category or "", test.section or ""]
         where = ("" if test.in_house is None else
                  ("In-house" if test.in_house else "Outsourced"))
         tail = [test.sample_type or "", test.tube or "",
@@ -992,6 +1003,7 @@ def export(rows):
 TEMPLATE_NOTES = {
     "Test Name": "lab_tpl.test", "Arabic Test Name": "lab_tpl.name_ar",
     "Search Aliases": "lab_tpl.aliases", "Component": "lab_tpl.component",
+    "Lab Section": "lab_tpl.section",
     "Unit": "lab_tpl.unit", "Age From": "lab_tpl.age", "Sex": "lab_tpl.sex",
     "Reference Low": "lab_tpl.low", "Reference High": "lab_tpl.high",
     "Reference Type": "lab_tpl.ref_type", "Critical Low": "lab_tpl.critical",

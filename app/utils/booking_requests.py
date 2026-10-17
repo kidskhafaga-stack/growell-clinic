@@ -56,7 +56,8 @@ REASON_MAX = 200
 
 def take(user, patient_id=None, contact_name=None, contact_phone=None,
          doctor_id=None, wanted_date=None, appt_type=None, message=None,
-         source="desk", ip_address=None, conversation_key=None):
+         source="desk", ip_address=None, conversation_key=None,
+         lead_id=None, campaign=None):
     """Record a request. Raises ``ValueError`` when it names nobody — a
     request nobody can be booked for or called back about is not one."""
     name = (contact_name or "").strip()[:NAME_MAX] or None
@@ -72,6 +73,8 @@ def take(user, patient_id=None, contact_name=None, contact_phone=None,
         message=(message or "").strip() or None,
         source=source if source in REQUEST_SOURCES else "desk",
         conversation_key=(conversation_key or "").strip()[:64] or None,
+        lead_id=lead_id or None,
+        campaign=(campaign or "").strip()[:80] or None,
         status="pending", requested_by=getattr(user, "id", None),
         requested_at=datetime.utcnow())
     db.session.add(row)

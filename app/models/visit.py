@@ -650,6 +650,12 @@ class PatientAttachment(db.Model):
         return self.source == "whatsapp"
 
     @property
+    def arrived_from_family(self):
+        """Sent by the family on a messaging channel, not added at the desk."""
+        return self.source in ("whatsapp", "messenger", "instagram",
+                               "telegram", "tiktok")
+
+    @property
     def link_is_a_guess(self):
         """Linked by the matcher, not by a person who looked at it."""
         return self.investigation_id is not None and self.linked_by is None

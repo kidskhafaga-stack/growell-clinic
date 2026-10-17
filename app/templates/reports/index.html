@@ -37,6 +37,13 @@
   {% set ns.cards = ns.cards + [('reports.record_review','clipboard-check',
        t('record_review.title'), t('record_review.desc'),'edge-blue')] %}
   {% endif %}
+  {# Customer service (CONNECTHUB_PLAN.md): where families came from and
+     what became of them, and how fast they are answered — for whoever can
+     open customer service, since that is where the cards lead. #}
+  {% if current_user.can_access('messages') %}
+  {% set ns.cards = ns.cards + [('messages.leads_board','person-lines-fill', t('reports.leads_card'), t('reports.leads_card_desc'),'edge-teal'),
+       ('messages.service_board','speedometer2', t('service.title'), t('reports.service_card_desc'),'edge-blue')] %}
+  {% endif %}
   {% for ep, icon, title, desc, edge in ns.cards %}
   <a class="card gc-lift" href="{{ url_for(ep) }}" style="text-decoration:none;">
     <div class="hub-ico {{ edge }}"><i class="bi bi-{{ icon }}"></i></div>

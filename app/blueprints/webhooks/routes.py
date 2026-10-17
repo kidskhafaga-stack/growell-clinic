@@ -1,4 +1,5 @@
-"""Public inbound WhatsApp webhooks (no login).
+"""Public inbound webhooks (no login): WhatsApp, Messenger, Instagram,
+Telegram, and the payment gateways.
 
 These are the only endpoints in the clinic open to the whole internet, and
 what comes through them is written onto patients' records. Every request is
@@ -83,6 +84,103 @@ def wapilot_receive(secret):
         inbound.record_unreadable(payload, "wapilot")
     db.session.commit()
     return jsonify(ok=True)
+
+
+# --------------------------------------------- Messenger, Instagram ----
+# ``CONNECTHUB_PLAN.md`` stage two: the clinic's own Meta app, subscribed to
+# its Page (``page``) and the Instagram account linked to it (``instagram``).
+# Same proof as WhatsApp — the app secret's signature over the raw bytes —
+# but the clinic's own settings, because its Page app need not be the app
+# that carries its WhatsApp number. Off (and saying nothing) until the
+# clinic has switched either channel on and filled the settings in.
+def _social_on(*keys):
+    from app.utils import channels
+
+    on = channels.enabled()
+    return any(k in on for k in keys)
+
+
+@webhooks_bp.route("/social", methods=["GET"])
+@limit("webhook", WEBHOOK_PER_MINUTE, methods=("GET",))
+def social_verify():
+    """Meta's handshake when the callback URL is saved in the App Dashboard."""
+    challenge = request.args.get("hub.challenge")
+    if (request.args.get("hub.mode") == "subscribe"
+            and verify_token_ok(request.args.get("hub.verify_token"),
+                                Setting.get("meta_verify_token", ""))):
+        return challenge or "", 200
+    abort(403)
+
+
+@webhooks_bp.route("/social", methods=["POST"])
+@limit("webhook", WEBHOOK_PER_MINUTE)
+def social_receive():
+    from app.utils import social, social_inbound
+
+    if not meta_signature_ok(request.get_data(),
+                             request.headers.get("X-Hub-Signature-256"),
+                             Setting.get("meta_app_secret", "")):
+        abort(403)
+    payload = request.get_json(silent=True) or {}
+    channel = {"page": "messenger", "instagram": "instagram"}.get(
+        payload.get("object"))
+    # Proved, but for a channel the clinic has not switched on: accepted and
+    # dropped, so Meta does not retry and then disable the subscription.
+    if channel is None or not _social_on(channel):
+        return "", 200
+    for item in social.parse_meta(payload):
+        social_inbound.receive(item)
+    db.session.commit()
+    # A file a family sent is fetched once the platform has its answer.
+    from app.utils.social_media import after_response
+    return after_response(jsonify(ok=True))
+
+
+# --------------------------------------------------------------- Telegram ---
+@webhooks_bp.route("/telegram", methods=["POST"])
+@limit("webhook", WEBHOOK_PER_MINUTE)
+def telegram_receive():
+    """The clinic's bot. Proved by the secret token Telegram sends back in
+    ``X-Telegram-Bot-Api-Secret-Token`` — set by the clinic with
+    ``setWebhook``, long and random, compared in constant time."""
+    from app.utils import social, social_inbound
+
+    if not path_secret_ok(request.headers.get("X-Telegram-Bot-Api-Secret-Token"),
+                          Setting.get("tg_webhook_secret", "")):
+        abort(403)
+    if not _social_on("telegram"):
+        return "", 200
+    for item in social.parse_telegram(request.get_json(silent=True) or {}):
+        social_inbound.receive(item)
+    db.session.commit()
+    # A file a family sent is fetched once the platform has its answer.
+    from app.utils.social_media import after_response
+    return after_response(jsonify(ok=True))
+
+
+# ---------------------------------------------------------------- TikTok ---
+@webhooks_bp.route("/tiktok", methods=["POST"])
+@limit("webhook", WEBHOOK_PER_MINUTE)
+def tiktok_receive():
+    """Business Messaging events for the clinic's TikTok account. Proved by
+    ``Tiktok-Signature`` (HMAC-SHA256 of ``t.body`` with the app secret) and
+    a recent timestamp; an event for another app is not this clinic's."""
+    from app.utils import social, social_inbound
+
+    if not social.tiktok_signature_ok(request.get_data(),
+                                      request.headers.get("Tiktok-Signature"),
+                                      Setting.get("tt_app_secret", "")):
+        abort(403)
+    payload = request.get_json(silent=True) or {}
+    if (str(payload.get("client_key") or "") != (Setting.get("tt_app_id") or "")
+            or not _social_on("tiktok")):
+        return "", 200
+    for item in social.parse_tiktok(payload):
+        social_inbound.receive(item)
+    db.session.commit()
+    # A file a family sent is fetched once the platform has its answer.
+    from app.utils.social_media import after_response
+    return after_response(jsonify(ok=True))
 
 
 # ------------------------------------------------------------ payments ----
