@@ -625,12 +625,27 @@ def _social_state(key, channel, msgs):
 
     if channel not in social.SOCIAL_CHANNELS:
         return None
-    ready = (social.telegram_ready() if channel == "telegram"
-             else social.meta_ready())
+    ready = {"telegram": social.telegram_ready,
+             "tiktok": social.tiktok_ready}.get(channel, social.meta_ready)()
     state = {"ready": ready, "comment": None, "comment_open": False,
              "mode": None, "refused": None}
     last_in = next((m for m in reversed(msgs) if m.direction == "in"
                     and m.channel_key == channel), None)
+    if channel == "tiktok":
+        # Ten replies within 48 hours of their last message; a comment is
+        # answered on TikTok itself (Comment-to-Message), not from here.
+        state["comment"] = last_in if (last_in is not None
+                                       and last_in.event == "comment") else None
+        if state["comment"] is None:
+            since = [m for m in msgs if m.direction == "out"
+                     and m.channel_key == "tiktok" and last_in is not None
+                     and m.created_at >= last_in.created_at]
+            try:
+                state["mode"] = social.tiktok_mode(
+                    last_in.created_at if last_in else None, len(since))
+            except social.SendRefused as exc:
+                state["refused"] = exc.code
+        return state
     if last_in is not None and last_in.event == "comment":
         used = MessageLog.query.filter_by(
             reply_to=last_in.provider_msg_id, event="private_reply").first()
@@ -669,6 +684,8 @@ def _social_reply(key, channel, body):
         if not state["ready"]:
             raise social.SendRefused("not_ready")
         if state["comment"] is not None:
+            if channel == "tiktok":
+                raise social.SendRefused("tiktok_comment")
             if not state["comment_open"]:
                 raise social.SendRefused("comment_used")
             event, reply_to = "private_reply", last_in.provider_msg_id
@@ -679,6 +696,13 @@ def _social_reply(key, channel, body):
             if ident is None:
                 raise social.SendRefused("not_ready")
             ok, msg_id, error = social.send_telegram(ident.value, body)
+        elif channel == "tiktok":
+            if state["refused"]:
+                raise social.SendRefused(state["refused"])
+            ident = contact.identity("tiktok_conversation")
+            if ident is None:
+                raise social.SendRefused("window")
+            ok, msg_id, error = social.send_tiktok(ident.value, body)
         else:
             if state["refused"]:
                 raise social.SendRefused(state["refused"])

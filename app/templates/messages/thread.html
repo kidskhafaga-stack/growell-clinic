@@ -13,7 +13,7 @@
       {% if patient %}{{ patient_avatar(patient, 'sm') }}{% endif %}
       <div>
         <h1 class="page-title" style="margin:0;" dir="auto">{{ patient.display_name(current_lang) if patient else (contact.name if contact else phone) }}</h1>
-        {% if channel and channel != 'whatsapp' %}<span class="badge badge--muted" data-thread-channel="{{ channel }}"><i class="bi bi-{{ {'messenger': 'messenger', 'instagram': 'instagram', 'telegram': 'telegram'}.get(channel, 'chat') }}"></i> {{ t('channels.ch_' ~ channel) }}</span>{% endif %}
+        {% if channel and channel != 'whatsapp' %}<span class="badge badge--muted" data-thread-channel="{{ channel }}"><i class="bi bi-{{ {'messenger': 'messenger', 'instagram': 'instagram', 'telegram': 'telegram', 'tiktok': 'tiktok'}.get(channel, 'chat') }}"></i> {{ t('channels.ch_' ~ channel) }}</span>{% endif %}
         {% if phone %}<span class="num" dir="ltr" style="color:var(--muted);"><i class="bi bi-whatsapp"></i> {{ phone }}</span>{% endif %}
       </div>
     </div>
@@ -329,6 +329,8 @@
   <div class="card gc-scale-in" style="margin-top:12px;" data-social-state="{{ 'comment' if social.comment else (social.refused or social.mode or 'ok') }}">
     {% if not social.ready %}
     <strong style="color:var(--danger);"><i class="bi bi-plug"></i> {{ t('social.not_ready') }}</strong>
+    {% elif social.comment and channel == 'tiktok' %}
+    <strong><i class="bi bi-tiktok"></i> {{ t('social.refused_tiktok_comment') }}</strong>
     {% elif social.comment %}
       {% if social.comment_open %}<strong><i class="bi bi-chat-square-quote"></i> {{ t('social.comment_reply') }}</strong>
       <p class="hint" style="margin:6px 0 0;">{{ t('social.comment_reply_hint') }}</p>
@@ -339,6 +341,7 @@
     <strong><i class="bi bi-person-badge"></i> {{ t('social.human_agent') }}</strong>
     {% endif %}
     {% if channel == 'instagram' %}<p class="hint" style="margin:6px 0 0;">{{ t('social.ig_limit') }}</p>{% endif %}
+    {% if channel == 'tiktok' %}<p class="hint" style="margin:6px 0 0;">{{ t('social.tt_limit') }}</p>{% endif %}
   </div>
   {% endif %}
 

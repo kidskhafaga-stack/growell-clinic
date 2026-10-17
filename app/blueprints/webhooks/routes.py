@@ -154,6 +154,29 @@ def telegram_receive():
     return jsonify(ok=True)
 
 
+# ---------------------------------------------------------------- TikTok ---
+@webhooks_bp.route("/tiktok", methods=["POST"])
+@limit("webhook", WEBHOOK_PER_MINUTE)
+def tiktok_receive():
+    """Business Messaging events for the clinic's TikTok account. Proved by
+    ``Tiktok-Signature`` (HMAC-SHA256 of ``t.body`` with the app secret) and
+    a recent timestamp; an event for another app is not this clinic's."""
+    from app.utils import social, social_inbound
+
+    if not social.tiktok_signature_ok(request.get_data(),
+                                      request.headers.get("Tiktok-Signature"),
+                                      Setting.get("tt_app_secret", "")):
+        abort(403)
+    payload = request.get_json(silent=True) or {}
+    if (str(payload.get("client_key") or "") != (Setting.get("tt_app_id") or "")
+            or not _social_on("tiktok")):
+        return "", 200
+    for item in social.parse_tiktok(payload):
+        social_inbound.receive(item)
+    db.session.commit()
+    return jsonify(ok=True)
+
+
 # ------------------------------------------------------------ payments ----
 def _enabled_gateway(name):
     """The gateway at this address, if the clinic switched it on. One it has

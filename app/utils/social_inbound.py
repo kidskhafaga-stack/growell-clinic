@@ -50,8 +50,10 @@ def _body(item):
 
 def _identities(item):
     ids = {item.sender_kind or SENDER_KIND[item.channel]: item.sender_id}
-    if item.username and item.channel in ("instagram", "telegram"):
+    if item.username and item.channel in ("instagram", "telegram", "tiktok"):
         ids[item.channel] = item.username
+    if item.conversation and item.channel == "tiktok":
+        ids["tiktok_conversation"] = item.conversation
     if item.own_phone:
         ids["phone"] = item.own_phone
     return ids
@@ -86,6 +88,14 @@ def receive(item):
     name = (item.name or (f"@{item.username}" if item.username else "")
             or f"{item.channel} …{item.sender_id[-4:]}")
     contact = leads.contact_for(name, _identities(item))
+    if item.kind == "referral":
+        # An ad or a tiktok.me link opened the chat: nothing was said yet,
+        # so nothing goes in the thread — the lead keeps where they came from.
+        lead, _ = leads.open_lead(
+            None, contact.name, _identities(item), item.channel,
+            source_kind="ad" if (item.ad or {}).get("ad_id") else "message",
+            campaign=_campaign(item), conversation_key=thread_key_for(contact))
+        return {"status": "filed", "key": thread_key_for(contact), "lead": lead}
     log = MessageLog(
         direction="out" if item.kind == "echo" else "in",
         provider=item.channel, channel=item.channel, contact_id=contact.id,

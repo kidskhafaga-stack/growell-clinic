@@ -259,6 +259,9 @@ def channels_setup():
         has_tg_token=bool(social.telegram_config()["token"]),
         social_hook=base + url_for("webhooks.social_verify"),
         tg_hook=base + url_for("webhooks.telegram_receive"),
+        tiktok=social.tiktok_config(), tt_ready=social.tiktok_ready(),
+        tt_hook=base + url_for("webhooks.tiktok_receive"),
+        tt_redirect=base + url_for("messages.channels_tiktok_callback"),
         on=channels.enabled(), page_open=channels.page_open(),
         connection={k: channels.connection(k) for k in channels.CHANNELS},
         public_base=channels.public_base(), link=link, tag=tag,
@@ -268,8 +271,9 @@ def channels_setup():
 
 # Secrets the clinic types once. Left blank, a secret keeps the value it
 # has — a form that re-shows a token is a form that leaks it.
-_META_PLAIN = ("meta_page_id", "meta_graph_version")
-_SECRETS = ("meta_page_token", "meta_app_secret", "tg_bot_token")
+_META_PLAIN = ("meta_page_id", "meta_graph_version", "tt_app_id", "tt_auth_url")
+_SECRETS = ("meta_page_token", "meta_app_secret", "tg_bot_token",
+            "tt_app_secret")
 
 
 @messages_bp.route("/channels/connect", methods=["POST"])
@@ -283,7 +287,7 @@ def channels_connect():
     from app.models import Setting
 
     for key in _META_PLAIN:
-        Setting.set(key, (request.form.get(key) or "").strip()[:120])
+        Setting.set(key, (request.form.get(key) or "").strip()[:600])
     for key in _SECRETS:
         value = (request.form.get(key) or "").strip()
         if value:
@@ -321,5 +325,75 @@ def channels_telegram_hook():
         flash(t("social.refused_not_ready"), "danger")
         return redirect(url_for("messages.channels_setup", _anchor="connect"))
     flash(t("social.tg_hook_ok") if ok else t("social.failed", err=said or "—"),
+          "success" if ok else "danger")
+    return redirect(url_for("messages.channels_setup", _anchor="connect"))
+
+
+# ------------------------------------------------------------- TikTok ---
+# The business authorizes the developer app on TikTok (OAuth), and TikTok
+# sends it back here with a one-time code (valid ten minutes) that is traded
+# for the account's tokens. A ``state`` kept in the session is checked on
+# the way back, as TikTok's guide recommends against forged callbacks.
+@messages_bp.route("/channels/tiktok/start")
+@admin_required
+def channels_tiktok_start():
+    import secrets
+
+    from flask import session
+
+    from app.utils import social
+
+    cfg = social.tiktok_config()
+    if not (cfg["auth_url"] and cfg["app_id"] and cfg["secret"]):
+        flash(t("social.refused_not_ready"), "danger")
+        return redirect(url_for("messages.channels_setup", _anchor="connect"))
+    state = secrets.token_urlsafe(24)
+    session["tt_oauth_state"] = state
+    sep = "&" if "?" in cfg["auth_url"] else "?"
+    return redirect(f"{cfg['auth_url']}{sep}state={state}&disable_auto_auth=1")
+
+
+@messages_bp.route("/channels/tiktok/callback")
+@admin_required
+def channels_tiktok_callback():
+    import hmac as _hmac
+
+    from flask import session
+
+    from app.utils import social
+
+    expected = session.pop("tt_oauth_state", None)
+    given = request.args.get("state") or ""
+    code = request.args.get("code") or ""
+    if not expected or not _hmac.compare_digest(expected, given) or not code:
+        flash(t("social.tt_state_bad"), "danger")
+        return redirect(url_for("messages.channels_setup", _anchor="connect"))
+    base = channels.public_base() or request.url_root.rstrip("/")
+    try:
+        ok, said = social.tiktok_exchange_code(
+            code, base + url_for("messages.channels_tiktok_callback"))
+    except social.SendRefused:
+        ok, said = False, ""
+    db.session.commit()
+    flash(t("social.tt_connected") if ok else t("social.failed", err=said or "—"),
+          "success" if ok else "danger")
+    return redirect(url_for("messages.channels_setup", _anchor="connect"))
+
+
+@messages_bp.route("/channels/tiktok/subscribe", methods=["POST"])
+@admin_required
+def channels_tiktok_subscribe():
+    """Point the developer app's direct-message webhook at this clinic."""
+    from app.utils import social
+
+    base = channels.public_base()
+    if not base:
+        flash(t("channels.no_public_base"), "danger")
+        return redirect(url_for("messages.channels_setup", _anchor="connect"))
+    try:
+        ok, said = social.tiktok_subscribe(base + url_for("webhooks.tiktok_receive"))
+    except social.SendRefused:
+        ok, said = False, ""
+    flash(t("social.tt_subscribed") if ok else t("social.failed", err=said or "—"),
           "success" if ok else "danger")
     return redirect(url_for("messages.channels_setup", _anchor="connect"))

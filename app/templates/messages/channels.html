@@ -72,8 +72,31 @@
         <label style="display:inline-flex;gap:4px;align-items:center;margin-inline-start:6px;"><input type="checkbox" name="regen_tg" value="1"> {{ t('social.regen_secret') }}</label></p>
       <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.tg_steps') }}</p>
     </fieldset>
+    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-tt-fields>
+      <legend style="padding:0 6px;"><i class="bi bi-tiktok"></i> {{ t('channels.ch_tiktok') }}
+        <span class="badge {{ 'badge--green' if tt_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if tt_ready else t('social.not_set') }}</span></legend>
+      <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+        <div class="form-row" style="margin:0;"><label for="tt_a">{{ t('social.tt_app_id') }}</label><input class="input" id="tt_a" name="tt_app_id" value="{{ tiktok.app_id }}" dir="ltr" maxlength="120"></div>
+        <div class="form-row" style="margin:0;"><label for="tt_s">{{ t('social.tt_secret') }}</label><input class="input" id="tt_s" name="tt_app_secret" type="password" autocomplete="off" dir="ltr" placeholder="{{ t('social.kept') if tiktok.secret else '' }}"></div>
+        <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="tt_u">{{ t('social.tt_auth_url') }}</label><input class="input" id="tt_u" name="tt_auth_url" value="{{ tiktok.auth_url }}" dir="ltr" maxlength="600" type="url"></div>
+      </div>
+      <p class="hint" style="margin:8px 0 0;">{{ t('social.tt_redirect_is') }} <code dir="ltr" data-tt-redirect>{{ tt_redirect }}</code> · {{ t('social.tt_hook_is') }} <code dir="ltr" data-tt-hook>{{ tt_hook }}</code></p>
+      {% if tiktok.business_id %}<p class="hint" style="margin:6px 0 0;" data-tt-account>{{ t('social.tt_account') }} <code dir="ltr">{{ tiktok.business_id }}</code></p>{% endif %}
+      <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.tt_steps') }}</p>
+    </fieldset>
     <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
   </form>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+  {% if tiktok.app_id and tiktok.auth_url %}
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.channels_tiktok_start') }}" data-tt-start><i class="bi bi-tiktok"></i> {{ t('social.tt_start') }}</a>
+  {% endif %}
+  {% if tt_ready %}
+  <form method="post" action="{{ url_for('messages.channels_tiktok_subscribe') }}" style="margin:0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-bell"></i> {{ t('social.tt_subscribe') }}</button>
+  </form>
+  {% endif %}
+  </div>
   {% if tg_ready %}
   <form method="post" action="{{ url_for('messages.channels_telegram_hook') }}" style="margin-top:10px;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

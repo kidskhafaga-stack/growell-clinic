@@ -34,7 +34,10 @@ IDENTITY_KINDS = ("phone", "email", "instagram", "messenger", "tiktok",
                   # of someone who commented on the Facebook Page — which is
                   # not their Messenger id, so it is kept apart.
                   "messenger_psid", "instagram_igsid", "telegram_id",
-                  "facebook_user")
+                  "facebook_user",
+                  # TikTok: the person's id, and the conversation a reply
+                  # goes to (one per person on the clinic's account).
+                  "tiktok_uid", "tiktok_conversation")
 #: The kinds a person types into a form.
 TYPED_KINDS = ("phone", "email", "instagram", "messenger", "tiktok",
                "telegram")

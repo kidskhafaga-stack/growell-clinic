@@ -312,6 +312,7 @@ REACHED_WITHOUT_A_FORM = {
     "webhooks.wapilot_receive": "external webhook",
     "webhooks.social_receive": "external webhook",
     "webhooks.telegram_receive": "external webhook",
+    "webhooks.tiktok_receive": "external webhook",
     # وبوابة الدفع بتبلّغ عن الدفع — البوابة بتبعتله، مش شاشة.
     "webhooks.pay_notify": "external webhook",
 }

@@ -13,8 +13,8 @@ switchboard, a third only a phone. So:
   brings us bookings" has an answer from the first day, before any
   connection exists;
 * a direct connection is a separate fact (``connection``) and is honest about
-  itself: WhatsApp, Messenger, Instagram and Telegram are connected through
-  the clinic's own accounts once their settings are filled in; TikTok, e-mail
+  itself: WhatsApp, Messenger, Instagram, Telegram and TikTok are connected
+  through the clinic's own accounts once their settings are filled in; e-mail
   and the phone are entered by hand until their adapter is built from the
   platform's official documentation.
 
@@ -38,7 +38,7 @@ CHANNELS = {
                   "direct": True},
     "telegram": {"icon": "bi-telegram", "identity": "telegram_id",
                  "direct": True},
-    "tiktok": {"icon": "bi-tiktok", "identity": "tiktok", "direct": False},
+    "tiktok": {"icon": "bi-tiktok", "identity": "tiktok_uid", "direct": True},
     "email": {"icon": "bi-envelope", "identity": "email", "direct": False},
     "phone": {"icon": "bi-telephone", "identity": "phone", "direct": False},
     "walk_in": {"icon": "bi-person-walking", "identity": "phone",
@@ -107,6 +107,9 @@ def connection(key):
     if key == "telegram":
         from app.utils.social import telegram_ready
         return "connected" if telegram_ready() else "manual"
+    if key == "tiktok":
+        from app.utils.social import tiktok_ready
+        return "connected" if tiktok_ready() else "manual"
     return "manual"
 
 
@@ -157,7 +160,7 @@ def identity_value(kind, raw):
         raw = raw.lower()
         return raw if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", raw) else None
     if kind in ("messenger_psid", "instagram_igsid", "telegram_id",
-                "facebook_user"):
+                "facebook_user", "tiktok_uid", "tiktok_conversation"):
         # A platform's own id is used exactly as it was given.
         return raw[:160]
     value = raw.lstrip("@").strip().lower()
