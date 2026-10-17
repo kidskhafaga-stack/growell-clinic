@@ -41,6 +41,48 @@
   <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
 </form>
 
+{# Stage two — the clinic's own accounts. Admin only (the keys to them);
+   a saved secret is never shown again, only whether one is there. #}
+{% if current_user.is_admin %}
+<div class="card gc-scale-in" id="connect" style="margin-bottom:14px;" data-connect>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-plug"></i> {{ t('social.connect_title') }}</h2>
+  <p class="hint" style="margin:0 0 10px;max-width:72ch;">{{ t('social.connect_sub') }}</p>
+  <form method="post" action="{{ url_for('messages.channels_connect') }}" style="display:grid;gap:14px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-meta-fields>
+      <legend style="padding:0 6px;"><i class="bi bi-messenger"></i> <i class="bi bi-instagram"></i> {{ t('social.meta') }}
+        <span class="badge {{ 'badge--green' if meta_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if meta_ready else t('social.not_set') }}</span></legend>
+      <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+        <div class="form-row" style="margin:0;"><label for="mt_p">{{ t('social.page_id') }}</label><input class="input" id="mt_p" name="meta_page_id" value="{{ meta.page_id }}" dir="ltr" maxlength="120"></div>
+        <div class="form-row" style="margin:0;"><label for="mt_t">{{ t('social.page_token') }}</label><input class="input" id="mt_t" name="meta_page_token" type="password" autocomplete="off" dir="ltr" placeholder="{{ t('social.kept') if has_page_token else '' }}"></div>
+        <div class="form-row" style="margin:0;"><label for="mt_s">{{ t('social.app_secret') }}</label><input class="input" id="mt_s" name="meta_app_secret" type="password" autocomplete="off" dir="ltr" placeholder="{{ t('social.kept') if has_app_secret else '' }}"></div>
+        <div class="form-row" style="margin:0;"><label for="mt_v">{{ t('social.graph_version') }}</label><input class="input" id="mt_v" name="meta_graph_version" value="{{ meta.version }}" dir="ltr" maxlength="10"></div>
+      </div>
+      <label style="display:flex;gap:8px;align-items:center;margin:8px 0 0;"><input type="checkbox" name="meta_human_agent" value="1" {% if meta.human_agent %}checked{% endif %}> {{ t('social.human_agent_ok') }}</label>
+      <p class="hint" style="margin:8px 0 0;">{{ t('social.callback') }} <code dir="ltr" data-social-hook>{{ social_hook }}</code>
+        · {{ t('social.verify_token') }} <code dir="ltr">{{ meta.verify_token or '—' }}</code>
+        <label style="display:inline-flex;gap:4px;align-items:center;margin-inline-start:6px;"><input type="checkbox" name="regen_meta" value="1"> {{ t('social.regen') }}</label></p>
+      <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.meta_steps') }}</p>
+    </fieldset>
+    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-tg-fields>
+      <legend style="padding:0 6px;"><i class="bi bi-telegram"></i> {{ t('channels.ch_telegram') }}
+        <span class="badge {{ 'badge--green' if tg_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if tg_ready else t('social.not_set') }}</span></legend>
+      <div class="form-row" style="margin:0;max-width:420px;"><label for="tg_t">{{ t('social.bot_token') }}</label><input class="input" id="tg_t" name="tg_bot_token" type="password" autocomplete="off" dir="ltr" placeholder="{{ t('social.kept') if has_tg_token else '' }}"></div>
+      <p class="hint" style="margin:8px 0 0;">{{ t('social.tg_hook_is') }} <code dir="ltr" data-tg-hook>{{ tg_hook }}</code>
+        <label style="display:inline-flex;gap:4px;align-items:center;margin-inline-start:6px;"><input type="checkbox" name="regen_tg" value="1"> {{ t('social.regen_secret') }}</label></p>
+      <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.tg_steps') }}</p>
+    </fieldset>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form>
+  {% if tg_ready %}
+  <form method="post" action="{{ url_for('messages.channels_telegram_hook') }}" style="margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-link"></i> {{ t('social.tg_set_hook') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
 <div class="card gc-scale-in" data-campaign-links>
   <h2 class="section-title" style="margin-top:0;"><i class="bi bi-link-45deg"></i> {{ t('channels.links') }}</h2>
   <p class="hint" style="margin:0 0 8px;max-width:72ch;">{{ t('channels.links_hint') }}</p>

@@ -310,6 +310,8 @@ REACHED_WITHOUT_A_FORM = {
     # بابين بيستقبلوا من بره خالص — واتساب بيبعتلهم، مش شاشة.
     "webhooks.meta_receive": "external webhook",
     "webhooks.wapilot_receive": "external webhook",
+    "webhooks.social_receive": "external webhook",
+    "webhooks.telegram_receive": "external webhook",
     # وبوابة الدفع بتبلّغ عن الدفع — البوابة بتبعتله، مش شاشة.
     "webhooks.pay_notify": "external webhook",
 }

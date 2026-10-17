@@ -24,7 +24,20 @@ from app.extensions import db
 
 #: The kinds of identity a contact may carry. Not the channel: a WhatsApp
 #: message, a phone call and the request page all reach the same phone.
-IDENTITY_KINDS = ("phone", "email", "instagram", "messenger", "tiktok")
+IDENTITY_KINDS = ("phone", "email", "instagram", "messenger", "tiktok",
+                  "telegram",
+                  # The ids a platform gives the person who wrote to the
+                  # clinic — never typed by anybody, only received
+                  # (``CONNECTHUB_PLAN.md`` stage two): the Page-scoped id on
+                  # Messenger, the Instagram-scoped id (the same in a direct
+                  # message and a comment), Telegram's user id, and the id
+                  # of someone who commented on the Facebook Page — which is
+                  # not their Messenger id, so it is kept apart.
+                  "messenger_psid", "instagram_igsid", "telegram_id",
+                  "facebook_user")
+#: The kinds a person types into a form.
+TYPED_KINDS = ("phone", "email", "instagram", "messenger", "tiktok",
+               "telegram")
 
 #: جديد، تم التواصل، مهتم، في انتظار الرد، تم التحويل، غير مكتمل.
 LEAD_STAGES = ("new", "contacted", "interested", "waiting", "converted",

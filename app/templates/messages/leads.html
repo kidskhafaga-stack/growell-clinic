@@ -53,7 +53,7 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row" style="margin:0;"><label for="ln_name">{{ t('leads.name') }}</label><input class="input" id="ln_name" name="name" maxlength="120" required dir="auto"></div>
     <div class="form-row" style="margin:0;"><label for="ln_ph">{{ t('leads.phone') }}</label><input class="input" id="ln_ph" name="phone" maxlength="30" dir="ltr" inputmode="tel"></div>
-    {% for kind in ('email', 'instagram', 'messenger', 'tiktok') if kind in channels_on %}
+    {% for kind in ('email', 'instagram', 'messenger', 'tiktok', 'telegram') if kind in channels_on %}
     <div class="form-row" style="margin:0;"><label for="ln_{{ kind }}">{{ t('leads.id_' ~ kind) }}</label><input class="input" id="ln_{{ kind }}" name="{{ kind }}" maxlength="160" dir="ltr"></div>
     {% endfor %}
     <div class="form-row" style="margin:0;"><label for="ln_ch">{{ t('leads.channel') }}</label>

@@ -12,7 +12,8 @@
     <div style="display:flex;align-items:center;gap:12px;">
       {% if patient %}{{ patient_avatar(patient, 'sm') }}{% endif %}
       <div>
-        <h1 class="page-title" style="margin:0;">{{ patient.display_name(current_lang) if patient else phone }}</h1>
+        <h1 class="page-title" style="margin:0;" dir="auto">{{ patient.display_name(current_lang) if patient else (contact.name if contact else phone) }}</h1>
+        {% if channel and channel != 'whatsapp' %}<span class="badge badge--muted" data-thread-channel="{{ channel }}"><i class="bi bi-{{ {'messenger': 'messenger', 'instagram': 'instagram', 'telegram': 'telegram'}.get(channel, 'chat') }}"></i> {{ t('channels.ch_' ~ channel) }}</span>{% endif %}
         {% if phone %}<span class="num" dir="ltr" style="color:var(--muted);"><i class="bi bi-whatsapp"></i> {{ phone }}</span>{% endif %}
       </div>
     </div>
@@ -237,6 +238,7 @@
     <div style="display:flex;{{ 'justify-content:flex-end;' if m.direction == 'out' else '' }}">
       <div class="bubble {{ 'out' if m.direction == 'out' else 'in' }}">
         {% if m.template_type %}<div class="hint" style="margin:0 0 3px;"><i class="bi bi-tag"></i> {{ m.template_type }}</div>{% endif %}
+        {% if m.channel and m.channel != 'whatsapp' %}<div class="hint" style="margin:0 0 3px;" data-bubble-channel="{{ m.channel }}">{{ t('channels.ch_' ~ m.channel) }}{% if m.event %} · {{ t('social.ev_' ~ m.event) }}{% endif %}</div>{% endif %}
         {% if m.image_url %}
           {% set href = url_for('static', filename=m.image_url.split('static/', 1)[1]) if 'static/' in m.image_url else m.image_url %}
           {% if m.image_url.endswith('.pdf') %}
@@ -317,6 +319,27 @@
   <p class="hint" style="margin-top:10px;color:var(--warning,#b45309);">
     <i class="bi bi-hourglass-split"></i>
     {{ t('inbox.window_soon').replace('{n}', window.hours_left|string) }}</p>
+  {% endif %}
+
+  {# CONNECTHUB_PLAN.md stage two — what a reply on this channel may be,
+     said before anybody types: a comment is answered once and privately,
+     Messenger and Instagram allow 24 hours (then only a person, under
+     Meta's human-agent tag, when the clinic's app is approved for it). #}
+  {% if social %}
+  <div class="card gc-scale-in" style="margin-top:12px;" data-social-state="{{ 'comment' if social.comment else (social.refused or social.mode or 'ok') }}">
+    {% if not social.ready %}
+    <strong style="color:var(--danger);"><i class="bi bi-plug"></i> {{ t('social.not_ready') }}</strong>
+    {% elif social.comment %}
+      {% if social.comment_open %}<strong><i class="bi bi-chat-square-quote"></i> {{ t('social.comment_reply') }}</strong>
+      <p class="hint" style="margin:6px 0 0;">{{ t('social.comment_reply_hint') }}</p>
+      {% else %}<strong style="color:var(--danger);"><i class="bi bi-lock"></i> {{ t('social.comment_closed') }}</strong>{% endif %}
+    {% elif social.refused %}
+    <strong style="color:var(--danger);"><i class="bi bi-clock-history"></i> {{ t('social.refused_' ~ social.refused) }}</strong>
+    {% elif social.mode == 'HUMAN_AGENT' %}
+    <strong><i class="bi bi-person-badge"></i> {{ t('social.human_agent') }}</strong>
+    {% endif %}
+    {% if channel == 'instagram' %}<p class="hint" style="margin:6px 0 0;">{{ t('social.ig_limit') }}</p>{% endif %}
+  </div>
   {% endif %}
 
   <!-- Reply: canned answers, an AI draft, and the words the user sends -->

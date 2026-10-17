@@ -13,8 +13,9 @@ switchboard, a third only a phone. So:
   brings us bookings" has an answer from the first day, before any
   connection exists;
 * a direct connection is a separate fact (``connection``) and is honest about
-  itself: WhatsApp is connected through the clinic's own settings; the rest
-  say they are entered by hand until their adapter is built from the
+  itself: WhatsApp, Messenger, Instagram and Telegram are connected through
+  the clinic's own accounts once their settings are filled in; TikTok, e-mail
+  and the phone are entered by hand until their adapter is built from the
   platform's official documentation.
 
 **The public request page** is a channel too, but a door onto the open
@@ -29,10 +30,14 @@ from app.models import Setting
 #: direct connection exists in this program yet. Order is the order shown.
 CHANNELS = {
     "whatsapp": {"icon": "bi-whatsapp", "identity": "phone", "direct": True},
-    "messenger": {"icon": "bi-messenger", "identity": "messenger",
-                  "direct": False},
-    "instagram": {"icon": "bi-instagram", "identity": "instagram",
-                  "direct": False},
+    # Stage two: connected through the clinic's own Meta app and Telegram
+    # bot (``utils/social``), once their settings are filled in.
+    "messenger": {"icon": "bi-messenger", "identity": "messenger_psid",
+                  "direct": True},
+    "instagram": {"icon": "bi-instagram", "identity": "instagram_igsid",
+                  "direct": True},
+    "telegram": {"icon": "bi-telegram", "identity": "telegram_id",
+                 "direct": True},
     "tiktok": {"icon": "bi-tiktok", "identity": "tiktok", "direct": False},
     "email": {"icon": "bi-envelope", "identity": "email", "direct": False},
     "phone": {"icon": "bi-telephone", "identity": "phone", "direct": False},
@@ -96,6 +101,12 @@ def connection(key):
         return "link"
     if key == "page":
         return "open" if page_open() else "closed"
+    if key in ("messenger", "instagram"):
+        from app.utils.social import meta_ready
+        return "connected" if meta_ready() else "manual"
+    if key == "telegram":
+        from app.utils.social import telegram_ready
+        return "connected" if telegram_ready() else "manual"
     return "manual"
 
 
@@ -112,6 +123,8 @@ def channel_of_tag(tag):
         head = "messenger"
     if head in ("ig", "insta"):
         head = "instagram"
+    if head in ("tg",):
+        head = "telegram"
     return head if head in CHANNELS and head != "page" else "page"
 
 
@@ -143,6 +156,10 @@ def identity_value(kind, raw):
     if kind == "email":
         raw = raw.lower()
         return raw if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", raw) else None
+    if kind in ("messenger_psid", "instagram_igsid", "telegram_id",
+                "facebook_user"):
+        # A platform's own id is used exactly as it was given.
+        return raw[:160]
     value = raw.lstrip("@").strip().lower()
     return value[:160] or None
 

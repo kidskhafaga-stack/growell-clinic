@@ -596,17 +596,112 @@ def inbox_thread(key):
     resolved = (record is not None
                 and record.is_resolved_for(last_inbound_at(key)))
     db.session.commit()
-    window = session_window(key)
+    from app.utils.inbox import reply_channel
+    channel = reply_channel(key)
+    window = session_window(key, channel=channel)
+    contact = next((m.contact for m in reversed(msgs) if m.contact), None)
     return render_template(
         "messages/thread.html", msgs=msgs, key=key, patient=patient,
         phone=phone, waits=waits, pending=pending,
         record=record, resolved=resolved, staff=_desk_staff(),
-        window=window, approved=_approved_for(window),
+        window=window,
+        # Approved templates are WhatsApp's; another channel has none.
+        approved=(_approved_for(window) if channel == "whatsapp"
+                  else {"available": False, "list": []}),
+        channel=channel, contact=contact,
+        social=_social_state(key, channel, msgs),
         opted_out=bool(patient is not None and patient.wa_opt_out),
         canned=canned, ai_ready=ai_available(),
         topics=TRIAGE_TOPICS,
         conv_lead=_lead_for(key),
         **_booking_from_thread(key, patient, phone, msgs, lang))
+
+
+def _social_state(key, channel, msgs):
+    """What a reply on Messenger, Instagram or Telegram may be right now:
+    ``{"ready", "comment", "comment_open", "mode", "refused"}`` — or
+    ``None`` for WhatsApp. Said on the screen before anybody types."""
+    from app.utils import social
+
+    if channel not in social.SOCIAL_CHANNELS:
+        return None
+    ready = (social.telegram_ready() if channel == "telegram"
+             else social.meta_ready())
+    state = {"ready": ready, "comment": None, "comment_open": False,
+             "mode": None, "refused": None}
+    last_in = next((m for m in reversed(msgs) if m.direction == "in"
+                    and m.channel_key == channel), None)
+    if last_in is not None and last_in.event == "comment":
+        used = MessageLog.query.filter_by(
+            reply_to=last_in.provider_msg_id, event="private_reply").first()
+        state["comment"] = last_in
+        state["comment_open"] = (
+            used is None and last_in.created_at >= datetime.utcnow()
+            - timedelta(days=social.PRIVATE_REPLY_DAYS))
+        return state
+    if channel in social.META_CHANNELS:
+        try:
+            state["mode"] = social.meta_mode(
+                last_in.created_at if last_in else None,
+                human_agent=social.meta_config()["human_agent"])
+        except social.SendRefused as exc:
+            state["refused"] = exc.code
+    return state
+
+
+def _social_reply(key, channel, body):
+    """Send a reply on Messenger, Instagram or Telegram, and log it in the
+    thread. A comment is answered once, privately; a message within the
+    platform's window. Refusals are said, not attempted."""
+    from app.utils import social
+    from app.utils.inbox import thread_query
+
+    msgs = thread_query(key).order_by(MessageLog.created_at).all()
+    last_in = next((m for m in reversed(msgs) if m.direction == "in"
+                    and m.channel_key == channel), None)
+    if last_in is None or last_in.contact is None:
+        flash(t("inbox.no_phone"), "danger")
+        return redirect(url_for("messages.inbox_thread", key=key))
+    contact = last_in.contact
+    state = _social_state(key, channel, msgs)
+    event = reply_to = None
+    try:
+        if not state["ready"]:
+            raise social.SendRefused("not_ready")
+        if state["comment"] is not None:
+            if not state["comment_open"]:
+                raise social.SendRefused("comment_used")
+            event, reply_to = "private_reply", last_in.provider_msg_id
+            ok, msg_id, error = social.send_meta(
+                channel, {"comment_id": reply_to}, body)
+        elif channel == "telegram":
+            ident = contact.identity("telegram_id")
+            if ident is None:
+                raise social.SendRefused("not_ready")
+            ok, msg_id, error = social.send_telegram(ident.value, body)
+        else:
+            if state["refused"]:
+                raise social.SendRefused(state["refused"])
+            ident = contact.identity(social.SENDER_KIND[channel])
+            if ident is None:
+                raise social.SendRefused("window")
+            ok, msg_id, error = social.send_meta(
+                channel, {"id": ident.value}, body, mode=state["mode"])
+    except social.SendRefused as exc:
+        flash(t("social.refused_" + exc.code), "danger")
+        return redirect(url_for("messages.inbox_thread", key=key))
+    now = datetime.utcnow()
+    db.session.add(MessageLog(
+        direction="out", provider=channel, channel=channel,
+        contact_id=contact.id, patient_id=last_in.patient_id, body=body,
+        status="sent" if ok else "failed", provider_msg_id=msg_id or None,
+        error=error, event=event, reply_to=reply_to,
+        created_by=current_user.id, created_at=now,
+        sent_at=now if ok else None))
+    db.session.commit()
+    flash(t("inbox.sent") if ok else t("social.failed", err=error or "—"),
+          "success" if ok else "danger")
+    return redirect(url_for("messages.inbox_thread", key=key))
 
 
 def _lead_for(key):
@@ -829,7 +924,11 @@ def inbox_link(key):
     if patient is None:
         flash(t("inbox.link_pick"), "warning")
         return redirect(url_for("messages.inbox_thread", key=key))
-    moved = link_phone_to_patient(key, patient)
+    if key.startswith("c") and key[1:].isdigit():
+        from app.utils.inbox import link_contact_to_patient
+        moved = link_contact_to_patient(int(key[1:]), patient, current_user)
+    else:
+        moved = link_phone_to_patient(key, patient)
     if not moved:
         flash(t("inbox.link_none"), "warning")
         return redirect(url_for("messages.inbox_thread", key=key))
@@ -846,6 +945,11 @@ def inbox_send(key):
     body = (request.form.get("body") or "").strip()
     if not body:
         return redirect(url_for("messages.inbox_thread", key=key))
+    from app.utils.inbox import reply_channel
+    from app.utils.social import SOCIAL_CHANNELS
+    channel = reply_channel(key)
+    if channel in SOCIAL_CHANNELS:
+        return _social_reply(key, channel, body)
     phone, patient_id = _thread_phone(key)
     if not phone:
         flash(t("inbox.no_phone"), "danger")
@@ -883,7 +987,11 @@ def inbox_template_send(key):
     the program had nothing to offer but a warning.
     """
     from app.utils import wa_templates
+    from app.utils.inbox import reply_channel
 
+    if reply_channel(key) != "whatsapp":
+        flash(t("inbox.tpl_unknown"), "warning")
+        return redirect(url_for("messages.inbox_thread", key=key))
     tpl = wa_templates.find((request.form.get("name") or "").strip().lower())
     if tpl is None:
         flash(t("inbox.tpl_unknown"), "warning")

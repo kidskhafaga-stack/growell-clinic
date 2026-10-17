@@ -60,7 +60,7 @@
         <tr>
           <td>
             <a href="{{ url_for('messages.inbox_thread', key=c.key) }}"><strong>
-              {{ c.patient.display_name(current_lang) if c.patient else c.phone }}</strong></a>
+              {{ c.patient.display_name(current_lang) if c.patient else (c.contact.name if c.contact else c.phone) }}</strong></a>
             {# The free-reply window, not just how long they have waited: after
                it shuts the answer costs money and has to be an approved
                template, so it is the more urgent of the two facts. #}

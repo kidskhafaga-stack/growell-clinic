@@ -774,6 +774,12 @@ ADDITIONS = [
     # campaign that brought the family. Old requests had neither.
     ("booking_requests", "lead_id", "INTEGER"),
     ("booking_requests", "campaign", "VARCHAR(80)"),
+    # ConnectHub, stage two: one log for every channel. Old rows have no
+    # channel and are WhatsApp; they have no contact, event or reply either.
+    ("message_logs", "channel", "VARCHAR(16)"),
+    ("message_logs", "contact_id", "INTEGER"),
+    ("message_logs", "event", "VARCHAR(16)"),
+    ("message_logs", "reply_to", "VARCHAR(120)"),
     # Cost centres. Empty on every row already there: a journal line posted
     # before centres existed belongs to none, and the report says so rather
     # than guessing; an expense, a service and an invoice line likewise.

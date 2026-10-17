@@ -17,7 +17,8 @@ from app.models.crm import LOST_REASONS, MANUAL_STAGES, SOURCE_KINDS
 from app.utils import channels, leads
 from app.utils.appointments import list_doctors, parse_date_arg
 from app.utils.clock import local_today
-from app.utils.decorators import capability_required, client_ip, module_required
+from app.utils.decorators import (admin_required, capability_required,
+                                  client_ip, module_required)
 
 MODULE = "messages"
 
@@ -30,7 +31,8 @@ def _staff():
 def _identities(form):
     return {"phone": form.get("phone"), "email": form.get("email"),
             "instagram": form.get("instagram"),
-            "messenger": form.get("messenger"), "tiktok": form.get("tiktok")}
+            "messenger": form.get("messenger"), "tiktok": form.get("tiktok"),
+            "telegram": form.get("telegram")}
 
 
 def _lead_or_404(lead_id):
@@ -245,10 +247,79 @@ def channels_setup():
                        doctor=doctor_id or None)
         base = channels.public_base()
         link = (base + path) if base else request.url_root.rstrip("/") + path
+    from app.utils import social
+
+    base = channels.public_base() or request.url_root.rstrip("/")
+    meta = social.meta_config()
     return render_template(
         "messages/channels.html", all_channels=channels.CHANNELS,
+        meta=meta, meta_ready=social.meta_ready(),
+        tg_ready=social.telegram_ready(),
+        has_page_token=bool(meta["token"]), has_app_secret=bool(meta["app_secret"]),
+        has_tg_token=bool(social.telegram_config()["token"]),
+        social_hook=base + url_for("webhooks.social_verify"),
+        tg_hook=base + url_for("webhooks.telegram_receive"),
         on=channels.enabled(), page_open=channels.page_open(),
         connection={k: channels.connection(k) for k in channels.CHANNELS},
         public_base=channels.public_base(), link=link, tag=tag,
         doctors=list_doctors(), doctor_id=doctor_id,
         lang=getattr(g, "lang", "ar"))
+
+
+# Secrets the clinic types once. Left blank, a secret keeps the value it
+# has — a form that re-shows a token is a form that leaks it.
+_META_PLAIN = ("meta_page_id", "meta_graph_version")
+_SECRETS = ("meta_page_token", "meta_app_secret", "tg_bot_token")
+
+
+@messages_bp.route("/channels/connect", methods=["POST"])
+@admin_required
+def channels_connect():
+    """Save the clinic's own Meta Page app and Telegram bot (stage two).
+    Admin only, like the WhatsApp connection: these are the keys to the
+    clinic's accounts."""
+    import secrets
+
+    from app.models import Setting
+
+    for key in _META_PLAIN:
+        Setting.set(key, (request.form.get(key) or "").strip()[:120])
+    for key in _SECRETS:
+        value = (request.form.get(key) or "").strip()
+        if value:
+            Setting.set(key, value[:500])
+        elif request.form.get("clear_" + key):
+            Setting.set(key, "")
+    Setting.set("meta_human_agent", "1" if request.form.get("meta_human_agent") else "")
+    # The verify token and Telegram's secret are made here, long and random —
+    # never typed, so never guessable.
+    if request.form.get("regen_meta") or not Setting.get("meta_verify_token"):
+        Setting.set("meta_verify_token", secrets.token_urlsafe(24))
+    if request.form.get("regen_tg") or not Setting.get("tg_webhook_secret"):
+        Setting.set("tg_webhook_secret", secrets.token_urlsafe(24))
+    db.session.commit()
+    flash(t("common.saved"), "success")
+    return redirect(url_for("messages.channels_setup", _anchor="connect"))
+
+
+@messages_bp.route("/channels/telegram-hook", methods=["POST"])
+@admin_required
+def channels_telegram_hook():
+    """Tell Telegram where the clinic's webhook is, with its secret — one
+    press instead of a URL typed by hand. The address must be the clinic's
+    public one: Telegram calls it from the internet."""
+    from app.utils import social
+
+    base = channels.public_base()
+    if not base:
+        flash(t("channels.no_public_base"), "danger")
+        return redirect(url_for("messages.channels_setup", _anchor="connect"))
+    try:
+        ok, said = social.telegram_set_webhook(
+            base + url_for("webhooks.telegram_receive"))
+    except social.SendRefused:
+        flash(t("social.refused_not_ready"), "danger")
+        return redirect(url_for("messages.channels_setup", _anchor="connect"))
+    flash(t("social.tg_hook_ok") if ok else t("social.failed", err=said or "—"),
+          "success" if ok else "danger")
+    return redirect(url_for("messages.channels_setup", _anchor="connect"))

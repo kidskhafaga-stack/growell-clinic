@@ -36,7 +36,7 @@ OPEN_STATUSES = ("pending", "with_doctor", "approved")
 #: lead it was made from (``utils/channels.CHANNELS``), so "which channel
 #: brings bookings" is read from the requests themselves.
 REQUEST_SOURCES = ("desk", "whatsapp", "page", "messenger", "instagram",
-                   "tiktok", "email", "phone", "walk_in")
+                   "telegram", "tiktok", "email", "phone", "walk_in")
 
 #: What the desk did with the program's suggested time, when it booked —
 #: stage five's question, "how often does the desk change the suggestion?":

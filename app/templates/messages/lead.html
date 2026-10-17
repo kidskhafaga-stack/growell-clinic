@@ -36,7 +36,7 @@
     <details style="margin-top:6px;"><summary class="hint" style="cursor:pointer;">{{ t('leads.add_way') }}</summary>
       <form method="post" action="{{ url_for('messages.lead_contact', lead_id=lead.id) }}" style="display:grid;gap:6px;margin-top:6px;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        {% for kind in ('phone', 'email', 'instagram', 'messenger', 'tiktok') if not contact.identity(kind) %}
+        {% for kind in ('phone', 'email', 'instagram', 'messenger', 'tiktok', 'telegram') if not contact.identity(kind) %}
         <input class="input" name="{{ kind }}" maxlength="160" dir="ltr" placeholder="{{ t('leads.id_' ~ kind) }}" aria-label="{{ t('leads.id_' ~ kind) }}">
         {% endfor %}
         <div><button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button></div>

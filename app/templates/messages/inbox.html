@@ -74,7 +74,8 @@
       {% else %}<div class="patient-avatar sm"><i class="bi bi-telephone"></i></div>{% endif %}
       <div style="flex:1;min-width:0;">
         <div style="display:flex;justify-content:space-between;gap:10px;">
-          <strong>{{ c.patient.display_name(current_lang) if c.patient else c.phone }}
+          <strong dir="auto">{{ c.patient.display_name(current_lang) if c.patient else (c.contact.name if c.contact else c.phone) }}
+            {% if c.channel != 'whatsapp' %}<span class="badge badge--muted" style="font-weight:500;" data-conv-channel="{{ c.channel }}">{{ t('channels.ch_' ~ c.channel) }}</span>{% endif %}
             {% if c.orphan %}<span class="badge badge--muted" style="font-weight:500;">{{ t('inbox.unknown') }}</span>{% endif %}
             {# What it is about. A guess is drawn as a guess — dashed, with a
                question mark — because the program has not read the message,
