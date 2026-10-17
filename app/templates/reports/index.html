@@ -44,6 +44,11 @@
   {% set ns.cards = ns.cards + [('messages.leads_board','person-lines-fill', t('reports.leads_card'), t('reports.leads_card_desc'),'edge-teal'),
        ('messages.service_board','speedometer2', t('service.title'), t('reports.service_card_desc'),'edge-blue')] %}
   {% endif %}
+  {# What was used and what it cost, over any period (utils/consumption) —
+     for whoever may open at least one of the parts it reports on. #}
+  {% if current_user.can_open('inventory') or current_user.can_open('labs') or current_user.can_open('ai') or current_user.can('finance_manage') %}
+  {% set ns.cards = ns.cards + [('reports.consumption_board','box-seam', t('consumption.title'), t('consumption.desc'),'edge-teal')] %}
+  {% endif %}
   {% for ep, icon, title, desc, edge in ns.cards %}
   <a class="card gc-lift" href="{{ url_for(ep) }}" style="text-decoration:none;">
     <div class="hub-ico {{ edge }}"><i class="bi bi-{{ icon }}"></i></div>

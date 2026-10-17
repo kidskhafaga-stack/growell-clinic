@@ -1,0 +1,273 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('consumption.title') }}{% endblock %}
+{% block page_heading %}{{ t('consumption.title') }}{% endblock %}
+
+{# The consumption board — utils/consumption. What left the shelf to be used
+   and what it cost, from the store's own movements; the assistant in calls
+   and tokens. Every figure beside the same stretch before it. #}
+
+{% macro delta(now_v, before_v, good_up=False) -%}
+  {%- set d = change(now_v, before_v) -%}
+  {%- if d is none -%}<span class="mb-d flat">—</span>
+  {%- elif d == 0 -%}<span class="mb-d flat">{{ t('board_med.same') }}</span>
+  {%- else -%}
+    {%- set good = (d > 0) if good_up else (d < 0) -%}
+    <span class="mb-d {{ 'up' if good else 'down' }}" title="{{ t('board_med.vs_before') }}"><bdi class="num" dir="ltr">{{ '▲' if d > 0 else '▼' }} {{ d|abs }}%</bdi></span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro trend_chart(points, key, second=None, label='', money=True) -%}
+  {% set n = points|length %}
+  {% set peak = [1] %}{% for p in points %}{% set _ = peak.append(p[key]) %}{% if second %}{% set _ = peak.append(p[second]) %}{% endif %}{% endfor %}
+  {% set top = (peak|max) * 1.1 %}
+  {% set W, H, L, R, T, B = 640, 220, 60, 12, 12, 26 %}
+  <svg viewBox="0 0 {{ W }} {{ H }}" width="100%" role="img" aria-label="{{ label }}" style="direction:ltr;" data-cons-trend>
+    {% for k in range(5) %}
+      {% set v = top * k / 4 %}{% set y = T + (H - T - B) * (1 - v / top) %}
+      <line x1="{{ L }}" x2="{{ W - R }}" y1="{{ y }}" y2="{{ y }}" stroke="var(--line)"/>
+      <text x="{{ L - 6 }}" y="{{ y + 3 }}" text-anchor="end">{{ '{:,.0f}'.format(v) }}</text>
+    {% endfor %}
+    {% set xs = [] %}{% for p in points %}{% set _ = xs.append(L + (W - L - R) * ((loop.index0 / (n - 1)) if n > 1 else 0.5)) %}{% endfor %}
+    {% set a = [] %}{% set b = [] %}
+    {% for p in points %}
+      {% set _ = a.append(xs[loop.index0]|round(1) ~ ',' ~ (T + (H - T - B) * (1 - p[key] / top))|round(1)) %}
+      {% if second %}{% set _ = b.append(xs[loop.index0]|round(1) ~ ',' ~ (T + (H - T - B) * (1 - p[second] / top))|round(1)) %}{% endif %}
+    {% endfor %}
+    <polygon points="{{ xs[0]|round(1) }},{{ H - B }} {{ a|join(' ') }} {{ xs[-1]|round(1) }},{{ H - B }}" fill="var(--mb-teal)" opacity=".12"/>
+    <polyline points="{{ a|join(' ') }}" fill="none" stroke="var(--mb-teal)" stroke-width="2.2" stroke-linejoin="round"/>
+    {% if second %}<polyline points="{{ b|join(' ') }}" fill="none" stroke="var(--cb-waste)" stroke-width="2" stroke-dasharray="5 4"/>{% endif %}
+    <circle cx="{{ a[-1].split(',')[0] }}" cy="{{ a[-1].split(',')[1] }}" r="4" fill="var(--mb-teal)"/>
+    {% for p in points %}{% if loop.first or loop.last or loop.index0 == (n // 2) %}
+      <text x="{{ xs[loop.index0] }}" y="{{ H - 8 }}" text-anchor="{{ 'start' if loop.first else 'end' if loop.last else 'middle' }}">{{ p.start.strftime('%d/%m' if data.step != 'month' else '%m/%Y') }}</text>
+    {% endif %}{% endfor %}
+  </svg>
+{%- endmacro %}
+
+{% block content %}
+<div class="gc-animate mb-top">
+  <div>
+    <h1 class="page-title"><i class="bi bi-box-seam"></i> {{ t('consumption.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('consumption.sub') }}</p>
+  </div>
+  {% set board_tab = 'consumption' %}{% include "reports/_board_tabs.html" %}
+</div>
+
+{% set board_endpoint = 'reports.consumption_board' %}
+{% set board_extra = {'part': part} %}
+{% for k, v in filters.items() if v %}{% set _ = board_extra.update({k: v}) %}{% endfor %}
+{% include "reports/_board_bar.html" %}
+
+{# Which consumption — each part shown only to whoever may open its module. #}
+<div class="mb-chips" style="margin:0 0 14px;" role="group" aria-label="{{ t('consumption.part') }}" data-cons-parts>
+  {% for p in allowed %}
+  <a class="mb-chip" aria-pressed="{{ 'true' if p == part else 'false' }}" data-cons-part="{{ p }}"
+     href="{{ url_for('reports.consumption_board', part=p, **({'preset': w.preset} if w.preset else {'from': w['from'].isoformat(), 'to': w['to'].isoformat()})) }}">
+    <i class="bi bi-{{ {'store': 'boxes', 'drugs': 'capsule', 'lab': 'eyedropper', 'ai': 'stars'}[p] }}"></i> {{ t('consumption.part_' ~ p) }}</a>
+  {% endfor %}
+</div>
+
+{% if part in ('store', 'drugs') %}
+<form method="get" class="card gc-scale-in mb-bar" data-cons-filters>
+  <input type="hidden" name="part" value="{{ part }}">
+  {% if w.preset %}<input type="hidden" name="preset" value="{{ w.preset }}">
+  {% else %}<input type="hidden" name="from" value="{{ w['from'].isoformat() }}"><input type="hidden" name="to" value="{{ w['to'].isoformat() }}">{% endif %}
+  <label>{{ t('consumption.department') }}
+    <select class="select" name="centre"><option value="">{{ t('consumption.all') }}</option>
+      {% for c in centres %}<option value="{{ c.id }}" {{ 'selected' if filters.centre == c.id }}>{{ c.display_name(current_lang) }}</option>{% endfor %}</select></label>
+  <label>{{ t('consumption.warehouse') }}
+    <select class="select" name="warehouse"><option value="">{{ t('consumption.all') }}</option>
+      {% for wh in warehouses %}<option value="{{ wh.id }}" {{ 'selected' if filters.warehouse == wh.id }}>{{ wh.display_name(current_lang) }}</option>{% endfor %}</select></label>
+  {% if part == 'store' %}
+  <label>{{ t('consumption.item_type') }}
+    <select class="select" name="type"><option value="">{{ t('consumption.all') }}</option>
+      {% for k, label in item_types %}<option value="{{ k }}" {{ 'selected' if filters.type == k }}>{{ label }}</option>{% endfor %}</select></label>
+  {% endif %}
+  <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('common.filter') }}</button>
+</form>
+{% endif %}
+
+{% if part != 'ai' %}
+{# ----------------------------------------------- store, medicines, lab #}
+<div class="mb-kpis gc-scale-in" data-cons-kpis>
+  <div class="mb-kpi" data-kpi="value">
+    <span class="l">{{ t('consumption.value') }}</span>
+    <span class="v num">{{ data.now.value|money }}</span>
+    <span class="row">{{ delta(data.now.value, data.before.value) }}<small class="hint num" style="margin:0;">{{ t('board_med.before_n', n=data.before.value|money) }}</small></span>
+  </div>
+  <div class="mb-kpi" data-kpi="items">
+    <span class="l">{{ t('consumption.items') }}</span>
+    <span class="v num">{{ data.now['items'] }}</span>
+    <span class="row"><small class="hint num" style="margin:0;">{{ t('consumption.lines_n', n=data.now.lines) }}</small></span>
+  </div>
+  {% if part == 'lab' %}
+  <div class="mb-kpi" data-kpi="runs">
+    <span class="l">{{ t('consumption.runs') }}</span>
+    <span class="v num">{{ data.runs }}</span>
+    <span class="row"><small class="hint num" style="margin:0;">{{ t('consumption.per_run', n=((data.now.value / data.runs)|round(2))|money) if data.runs else '—' }}</small></span>
+  </div>
+  {% endif %}
+  <div class="mb-kpi" data-kpi="waste">
+    <span class="l">{{ t('consumption.waste') }}</span>
+    <span class="v num">{{ data.now.waste|money }}</span>
+    <span class="row">{{ delta(data.now.waste, data.before.waste) }}<small class="hint num" style="margin:0;">{{ t('board_med.before_n', n=data.before.waste|money) }}</small></span>
+  </div>
+</div>
+{% if data.now.unpriced %}
+<p class="alert-pill warn" style="margin:0 0 14px;" data-cons-unpriced><i class="bi bi-info-circle"></i> {{ t('consumption.unpriced', n=data.now.unpriced) }}</p>
+{% endif %}
+
+<div class="mb-grid">
+  <div class="card gc-scale-in">
+    <h2 class="section-title mb-h">{{ t('consumption.trend') }} <small class="hint">{{ t('board_admin.by_' ~ data.step) }}</small></h2>
+    {% if data.trend|sum(attribute='value') or data.trend|sum(attribute='waste') %}
+    {{ trend_chart(data.trend, 'value', 'waste', t('consumption.trend')) }}
+    <div class="mb-legend"><span><i style="background:var(--mb-teal)"></i>{{ t('consumption.value') }}</span><span><i style="background:var(--cb-waste)"></i>{{ t('consumption.waste') }}</span></div>
+    {% else %}<div class="empty-state"><i class="bi bi-graph-up"></i> {{ t('consumption.nothing') }}</div>{% endif %}
+  </div>
+
+  <div class="card gc-scale-in" data-cons-departments>
+    <h2 class="section-title mb-h">{{ t('consumption.by_department') }}</h2>
+    {% if data.departments %}
+    {% set peak = data.departments|map(attribute='now')|max or 1 %}
+    <div class="mb-rise">
+      {% for d in data.departments %}
+      <div data-cons-dept="{{ d.centre.key if d.centre else 'shared' }}">
+        <span style="flex:1;min-width:0;">{{ d.centre.display_name(current_lang) if d.centre else t('consumption.shared') }}
+          <span class="mb-hbar" style="margin-top:4px;"><span style="width:{{ (d.now * 100 / peak)|round(1) if peak else 0 }}%"></span></span></span>
+        <span class="num" style="text-align:end;">{{ d.now|money }}<br>{{ delta(d.now, d.before) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<div class="empty-state"><i class="bi bi-diagram-3"></i> {{ t('consumption.nothing') }}</div>{% endif %}
+    {% if data.types and data.types|length > 1 %}
+    <h3 class="section-title mb-h" style="font-size:.95rem;margin-top:14px;">{{ t('consumption.by_type') }}</h3>
+    <div class="mb-rise" data-cons-types>
+      {% for r in data.types %}
+      <div><span>{{ type_label(r.type) }}</span><span class="num">{{ r.now|money }} {{ delta(r.now, r.before) }}</span></div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if part == 'lab' %}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-cons-tests>
+  <h2 class="section-title mb-h">{{ t('consumption.tests') }} <small class="hint">{{ t('consumption.tests_hint') }}</small></h2>
+  {% if data.tests %}
+  <div style="overflow-x:auto;"><table class="table" style="font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('consumption.test') }}</th><th>{{ t('consumption.runs') }}</th><th>{{ t('consumption.value') }}</th><th>{{ t('consumption.each') }}</th><th>{{ t('consumption.price') }}</th><th>{{ t('consumption.of_price') }}</th></tr></thead>
+    <tbody>
+    {% for r in data.tests %}
+      <tr data-cons-test="{{ r.test.id if r.test else 0 }}">
+        <td>{% if r.test %}<a href="{{ url_for('labs.test_ranges', test_id=r.test.id) }}#money">{{ r.test.display_name(current_lang) }}</a>{% else %}—{% endif %}</td>
+        <td>{{ r.runs }}</td><td>{{ r.cost|money }}</td>
+        <td>{{ r.each|money if r.each is not none else '—' }}</td>
+        <td>{{ r.price|money if r.price is not none else '—' }}</td>
+        <td>{{ (r.share ~ '%') if r.share is not none else '—' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<div class="empty-state"><i class="bi bi-eyedropper"></i> {{ t('consumption.no_tests') }}</div>{% endif %}
+</div>
+{% endif %}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-cons-top>
+  <h2 class="section-title mb-h">{{ t('consumption.top') }} <small class="hint">{{ t('consumption.top_hint') }}</small></h2>
+  {% if data.top %}
+  <div style="overflow-x:auto;"><table class="table mb-sortable" style="font-variant-numeric:tabular-nums;">
+    <thead><tr>
+      <th scope="col">{{ t('consumption.item') }}</th>
+      <th scope="col" data-sort>{{ t('consumption.qty') }}</th>
+      <th scope="col" data-sort aria-sort="descending">{{ t('consumption.value') }}</th>
+      <th scope="col" data-sort>{{ t('consumption.share') }}</th>
+      <th scope="col" data-sort>{{ t('consumption.before') }}</th>
+      <th scope="col" data-sort>{{ t('consumption.wasted_qty') }}</th>
+    </tr></thead>
+    <tbody>
+    {% for r in data.top %}
+      <tr data-cons-item="{{ r.item.id if r.item else 0 }}">
+        <td>{% if r.item %}<a href="{{ url_for('inventory.store_item', item_id=r.item.id) }}" dir="auto">{{ r.item.display_name(current_lang) }}</a>{% else %}—{% endif %}
+          {% if r.unpriced %}<span class="badge badge--muted" title="{{ t('consumption.unpriced_one') }}">{{ t('consumption.no_cost') }}</span>{% endif %}</td>
+        <td data-v="{{ r.qty }}">{{ r.qty }}{% if r.item and r.item.unit %} <span class="hint">{{ r.item.unit }}</span>{% endif %}</td>
+        <td data-v="{{ r.value }}">{{ r.value|money }}</td>
+        <td data-v="{{ r.share or 0 }}">{{ (r.share ~ '%') if r.share is not none else '—' }}</td>
+        <td data-v="{{ r.before }}">{{ r.before|money }} {{ delta(r.value, r.before) }}</td>
+        <td data-v="{{ r.waste_qty }}">{{ r.waste_qty or '' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<div class="empty-state"><i class="bi bi-box-seam"></i> {{ t('consumption.nothing') }}</div>{% endif %}
+  {% if part in ('store', 'drugs') and current_user.can_open('inventory') %}
+  <a class="mb-more" href="{{ url_for('inventory.store_usage') }}"><i class="bi bi-graph-down-arrow"></i> {{ t('consumption.to_stockouts') }}</a>
+  {% endif %}
+</div>
+
+{% else %}
+{# ------------------------------------------------------------ assistant #}
+<div class="mb-kpis gc-scale-in" data-cons-kpis>
+  <div class="mb-kpi" data-kpi="calls">
+    <span class="l">{{ t('consumption.calls') }}</span>
+    <span class="v num">{{ data.now.calls }}</span>
+    <span class="row">{{ delta(data.now.calls, data.before.calls) }}<small class="hint num" style="margin:0;">{{ t('board_med.before_n', n=data.before.calls) }}</small></span>
+  </div>
+  <div class="mb-kpi" data-kpi="tokens">
+    <span class="l">{{ t('consumption.tokens') }}</span>
+    <span class="v num">{{ '{:,}'.format(data.now.tokens) }}</span>
+    <span class="row">{{ delta(data.now.tokens, data.before.tokens) }}<small class="hint num" style="margin:0;">{{ t('board_med.before_n', n='{:,}'.format(data.before.tokens)) }}</small></span>
+  </div>
+</div>
+<p class="hint" style="margin:0 0 14px;max-width:80ch;" data-cons-ai-money><i class="bi bi-info-circle"></i> {{ t('consumption.ai_money') }}</p>
+
+<div class="mb-grid">
+  <div class="card gc-scale-in">
+    <h2 class="section-title mb-h">{{ t('consumption.trend_tokens') }} <small class="hint">{{ t('board_admin.by_' ~ data.step) }}</small></h2>
+    {% if data.trend|sum(attribute='tokens') %}
+    {{ trend_chart(data.trend, 'tokens', None, t('consumption.trend_tokens')) }}
+    {% else %}<div class="empty-state"><i class="bi bi-stars"></i> {{ t('consumption.nothing') }}</div>{% endif %}
+  </div>
+  <div class="card gc-scale-in" data-cons-users>
+    <h2 class="section-title mb-h">{{ t('consumption.by_user') }}</h2>
+    {% if data.users %}
+    <div class="mb-rise">
+      {% for r in data.users %}
+      <div><span>{{ r.user.full_name if r.user else t('consumption.no_user') }}</span><span class="num">{{ '{:,}'.format(r.tokens) }} · {{ t('consumption.calls_n', n=r.calls) }}</span></div>
+      {% endfor %}
+    </div>
+    {% else %}<div class="empty-state"><i class="bi bi-person"></i> {{ t('consumption.nothing') }}</div>{% endif %}
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-cons-features>
+  <h2 class="section-title mb-h">{{ t('consumption.by_feature') }}</h2>
+  {% if data.features %}
+  <div style="overflow-x:auto;"><table class="table mb-sortable" style="font-variant-numeric:tabular-nums;">
+    <thead><tr><th scope="col">{{ t('consumption.feature') }}</th><th scope="col" data-sort>{{ t('consumption.calls') }}</th><th scope="col" data-sort aria-sort="descending">{{ t('consumption.tokens') }}</th><th scope="col" data-sort>{{ t('consumption.before') }}</th></tr></thead>
+    <tbody>
+    {% for r in data.features %}
+      <tr data-cons-feature="{{ r.feature }}">
+        <td>{{ t('ai.feature_' ~ r.feature) }}</td>
+        <td data-v="{{ r.calls }}">{{ r.calls }}</td>
+        <td data-v="{{ r.tokens }}">{{ '{:,}'.format(r.tokens) }}</td>
+        <td data-v="{{ r.before }}">{{ '{:,}'.format(r.before) }} {{ delta(r.tokens, r.before) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<div class="empty-state"><i class="bi bi-stars"></i> {{ t('consumption.nothing') }}</div>{% endif %}
+  {% if current_user.can_open('ai') %}<a class="mb-more" href="{{ url_for('ai.index') }}"><i class="bi bi-stars"></i> {{ t('consumption.to_ai') }}</a>{% endif %}
+</div>
+{% endif %}
+
+{% include "reports/_board_style.html" %}
+<style>
+:root{--cb-waste:#c2413b;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--cb-waste:#ef8a84;}}
+:root[data-theme="dark"]{--cb-waste:#ef8a84;}
+svg[data-cons-trend] text{fill:var(--muted);font-size:10.5px;}
+[data-cons-filters] label{min-width:160px;}
+</style>
+{% endblock %}
+{% block scripts %}{% include "reports/_board_sort.html" %}{% endblock %}
