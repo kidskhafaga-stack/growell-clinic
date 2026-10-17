@@ -14539,7 +14539,7 @@
     "tt_redirect_is": "Redirect URL:",
     "tt_hook_is": "Webhook URL:",
     "tt_account": "Connected account:",
-    "tt_steps": "In the TikTok for Business portal: My Apps → App Detail. Copy the App ID, secret and authorization URL, and put the redirect URL above under 'TikTok account holder redirect URL'. Save here, then 'Connect the TikTok account' and authorize, then 'Turn on receiving messages'. Required: the app has passed TikTok's data security review, the account is a verified Business account (not personal), its owner is over 18, and it accepts messages from everyone. Not available for accounts in Europe, the UK or Switzerland.",
+    "tt_steps": "The developer app is your own organisation's, and you pass TikTok's review yourselves. In the TikTok for Business portal: My Apps → App Detail. Copy the App ID, secret and authorization URL, and put the redirect URL above under 'TikTok account holder redirect URL'. Save here, then 'Connect the TikTok account' and authorize, then 'Turn on receiving messages'. Required: the app has passed TikTok's data security review, the account is a verified Business account (not personal), its owner is over 18, and it accepts messages from everyone. Not available for accounts in Europe, the UK or Switzerland.",
     "tt_start": "Connect the TikTok account",
     "tt_subscribe": "Turn on receiving messages",
     "tt_state_bad": "The return from TikTok could not be verified (an old link, or not from this session). Start connecting again.",
