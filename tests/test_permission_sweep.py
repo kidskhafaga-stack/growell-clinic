@@ -75,6 +75,13 @@ PUBLIC = {
     # Where the family's phone lands after paying. It shows what a proved
     # confirmation already said, and decides nothing.
     ("GET", "/wa/webhook/pay/<name>/back/<reference>"),
+    # The public request page (``CONNECTHUB_PLAN.md``): a family asks for an
+    # appointment from a post or a QR. A 404 until the clinic opens it; open,
+    # it writes a *request* into the ordinary queue — rate-limited, CSRF, a
+    # trap field — and confirms nothing.
+    ("GET", "/book"),
+    ("POST", "/book"),
+    ("GET", "/book/done"),
 }
 
 # The one place a capability stands in for a whole module: reception collects

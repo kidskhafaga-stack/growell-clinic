@@ -111,6 +111,24 @@
   </div>
   {% endif %}
 
+  {# CONNECTHUB_PLAN.md — somebody asking who is not ready to book yet:
+     written down with the number and this conversation, followed up from
+     the leads board. One open lead per family; a second press adds a step. #}
+  <div class="card gc-scale-in" style="margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;" data-thread-lead>
+    {% if conv_lead %}
+    <span><i class="bi bi-person-lines-fill"></i> {{ t('leads.thread_has') }}
+      <span class="badge {{ 'badge--green' if conv_lead.stage == 'converted' else ('badge--muted' if conv_lead.stage == 'lost' else 'badge--warn') }}">{{ t('leads.st_' ~ conv_lead.stage) }}</span></span>
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.lead_view', lead_id=conv_lead.id) }}" data-thread-lead-link>{{ t('leads.open_lead') }}</a>
+    {% else %}
+    <span class="hint" style="margin:0;">{{ t('leads.thread_hint') }}</span>
+    <form method="post" action="{{ url_for('messages.inbox_lead', key=key) }}" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="name" maxlength="120" dir="auto" style="max-width:200px;" placeholder="{{ t('leads.name') }}" aria-label="{{ t('leads.name') }}" {% if not patient %}required{% endif %}>
+      <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-person-plus"></i> {{ t('leads.from_thread') }}</button>
+    </form>
+    {% endif %}
+  </div>
+
   {% if can_request %}
   {{ rb.styles() }}
   <!-- A booking request from the chat: the family asked here, so it is

@@ -20,6 +20,8 @@
       <i class="bi bi-chat-dots"></i> {{ t('messages_mod.desk_open_inbox') }}</a>
     {# Work, not setup: it reports on what this desk did, so everybody who
        sits here can open it. #}
+    <a class="btn btn-outline gc-press" data-to-leads href="{{ url_for('messages.leads_board') }}">
+      <i class="bi bi-person-lines-fill"></i> {{ t('leads.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('messages.outcomes') }}">
       <i class="bi bi-graph-up-arrow"></i> {{ t('outcomes.title') }}</a>
     {# Only for whoever is allowed to change how customer service works. A
@@ -29,6 +31,8 @@
     {% if can_setup %}
     <a class="btn btn-outline gc-press" href="{{ url_for('messages.occasions') }}">
       <i class="bi bi-sliders"></i> {{ t('messages_mod.desk_setup') }}</a>
+    <a class="btn btn-outline gc-press" data-to-channels href="{{ url_for('messages.channels_setup') }}">
+      <i class="bi bi-diagram-3"></i> {{ t('channels.title') }}</a>
     {% endif %}
   </div>
 </div>

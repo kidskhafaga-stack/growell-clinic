@@ -605,7 +605,16 @@ def inbox_thread(key):
         opted_out=bool(patient is not None and patient.wa_opt_out),
         canned=canned, ai_ready=ai_available(),
         topics=TRIAGE_TOPICS,
+        conv_lead=_lead_for(key),
         **_booking_from_thread(key, patient, phone, msgs, lang))
+
+
+def _lead_for(key):
+    """The newest lead taken from this conversation, if any."""
+    from app.models import Lead
+
+    return (Lead.query.filter_by(conversation_key=key)
+            .order_by(Lead.id.desc()).first())
 
 
 def _booking_from_thread(key, patient, phone, msgs, lang):

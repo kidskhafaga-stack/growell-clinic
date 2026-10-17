@@ -770,6 +770,10 @@ ADDITIONS = [
     ("booking_requests", "suggested_date", "DATE"),
     ("booking_requests", "suggested_time", "VARCHAR(5)"),
     ("booking_requests", "suggestion_outcome", "VARCHAR(8)"),
+    # ConnectHub, stage one: the lead a request was made from, and the
+    # campaign that brought the family. Old requests had neither.
+    ("booking_requests", "lead_id", "INTEGER"),
+    ("booking_requests", "campaign", "VARCHAR(80)"),
     # Cost centres. Empty on every row already there: a journal line posted
     # before centres existed belongs to none, and the report says so rather
     # than guessing; an expense, a service and an invoice line likewise.
