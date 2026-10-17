@@ -1073,6 +1073,23 @@ SECTIONS = [
         "icon": "eyedropper",
         "title": ("المعمل", "The lab"),
         "lines": [
+            ("<b>مكونات التحليل وأقسامه ومراجعه</b> (المعمل ← التحاليل): "
+             "التحليل المعروف (بول، براز، صورة دم، صفراء، وظائف كبد وكلى، "
+             "فيتامينات…) بيتعرض عليه مكوناته بأساميها ووحداتها من غير ولا "
+             "رقم — علّم على اللي بيطلع في تقريركم واحفظ. وكل تحليل بيتحط في "
+             "قسم من قايمة ثابتة زي عيلة الدوا («رتّب في أقسام»)، و«الفئة» "
+             "بتاعة الدكتور زي ما هي. والمراجع بتيجي من نشرة الكيت بتاعة "
+             "جهازكم: الشيت، أو باليد، أو «اقرا المراجع من نشرة الكيت» — "
+             "وكلها مسودة لحد ما مدير المعمل يوافق.",
+             "<b>A test's components, sections and ranges</b> (Lab → Tests): a "
+             "known test (urine, stool, CBC, bilirubin, liver and kidney "
+             "function, vitamins…) is offered its components by name and unit, "
+             "with no figure — tick what your report prints and save. Each test "
+             "goes into one section from a fixed list, like a medicine's family "
+             "(«Sort into sections»); the doctor's category stays as it is. "
+             "Ranges come from your analyser's kit insert: the sheet, by hand, "
+             "or «Read ranges from the kit insert» — all drafts until the "
+             "laboratory director approves."),
             ("<b>القيم الحرجة</b>: حدودها لكل تحليل من شاشة نطاقاته، والنتيجة "
              "اللي تعدّيها بتتعلّم لوحدها. النتيجة اللي ملهاش رقم (مزرعة إيجابية) "
              "الفني يعلّمها حرجة بسبب مكتوب. وعلى الطلب «سجّل الإبلاغ»: اتبلّغ مين، "

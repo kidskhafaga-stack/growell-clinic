@@ -1715,9 +1715,9 @@
     "ai_lab_review_section": "Laboratory: a second look before release",
     "ai_lab_review": "The assistant looks over a written result before release, when somebody asks",
     "ai_lab_review_hint": "It says only what needs checking: the sample (haemolysis, contamination, wrong tube), an impossible value, an inconsistent result, or a large change from last time. It does not diagnose, set ranges or release. Only the test's lines, the age and the sex are sent.",
-    "ai_lab_insert_section": "Laboratory: reading a control's insert",
-    "ai_lab_insert": "The assistant reads a control material's insert into the form",
-    "ai_lab_insert_hint": "An insert carries no child's data. The assistant reads the printed mean and SD only, and nothing is saved except what you tick."
+    "ai_lab_insert_section": "Laboratory: reading inserts (controls and kits)",
+    "ai_lab_insert": "The assistant reads a control's or a reagent kit's insert into the form",
+    "ai_lab_insert_hint": "An insert carries no child's data. The assistant copies only what is printed — the mean and SD on a control's insert, the reference table on a kit's — nothing is saved unless you tick it, and ranges stay drafts until the laboratory director approves."
   },
   "errors": {
     "403_title": "Forbidden",
@@ -14627,5 +14627,37 @@
     "suggested": "Suggested — check it",
     "saved": "{n} tests saved.",
     "all_sorted": "Every test has a section."
+  },
+  "lab_kit": {
+    "title": "Ranges from the kit insert",
+    "read_title": "Read ranges from the kit insert",
+    "file": "Photo or PDF of the kit insert",
+    "instrument": "Analyser (optional)",
+    "read": "Read the insert",
+    "read_hint": "The assistant copies the insert's «Expected values / Reference ranges» table as printed — no unit converted, nothing calculated, no figure of its own. You check each line and tick what is right. What is saved is a draft until the laboratory director approves it.",
+    "off_hint": "Reading inserts with the assistant is off. Turn it on in Settings → AI → «Laboratory: reading inserts». Until then, ranges are typed by hand or come from the Excel sheet.",
+    "check_sub": "These are proposals from the insert. Check every line against the insert itself — component, age, sex, limits, unit — and tick only what you will save.",
+    "advice": "The insert itself says:",
+    "kit": "Kit name",
+    "component": "Component of this test",
+    "age": "Age as written",
+    "sex": "Sex",
+    "sex_all": "All",
+    "sex_male": "Male",
+    "sex_female": "Female",
+    "low": "Low",
+    "high": "High",
+    "note": "Note",
+    "age_unread": "Write the age so the program can read it: «0-30 days», «1-12 months», «18 years+» or «all».",
+    "unit_differs": "The insert's unit is not the component's ({unit}). Nothing is converted; use the line in the same unit.",
+    "you_check": "The program writes no figure of its own. Only what you ticked is saved, as a draft marked as from the kit insert; once the director approves, it replaces this component's old ranges.",
+    "save": "Save the ticked lines as drafts",
+    "saved": "{n} ranges saved as drafts, waiting for the laboratory director's approval.",
+    "err_off": "Reading inserts with the assistant is turned off in Settings.",
+    "err_nothing_found": "The assistant found no clear reference table on this insert.",
+    "err_none_ticked": "No line was ticked.",
+    "err_no_components": "Add the test's components first, then read the insert.",
+    "err_need_analyte": "choose the component",
+    "err_unit": "the unit is not the component's"
   }
 }

@@ -1,0 +1,63 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_kit.title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_kit.title') }}{% endblock %}
+
+{% block content %}
+{# What the assistant read off a reagent kit's insert (`utils/lab_kit_insert`)
+   — proposals in a form. Only the ticked lines are saved, as drafts from the
+   laboratory; nothing judges a result until the director approves. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-stars"></i> {{ t('lab_kit.title') }} — {{ test.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;max-width:75ch;">{{ t('lab_kit.check_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.test_ranges', test_id=test.id) }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.cancel') }}</a>
+</div>
+
+{% if found.advice %}
+<p class="alert-pill warn" style="margin:0 0 12px;" data-kit-advice><i class="bi bi-info-circle"></i> {{ t('lab_kit.advice') }} <span dir="ltr">«{{ found.advice }}»</span></p>
+{% endif %}
+
+<form method="post" action="{{ url_for('labs.kit_insert_save', test_id=test.id) }}" class="card gc-scale-in" data-kit-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="count" value="{{ found.rows|length }}">
+  <input type="hidden" name="advice_all" value="{{ found.advice or '' }}">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px;">
+    <div class="form-row" style="margin:0;min-width:220px;flex:1;"><label for="kit_all">{{ t('lab_kit.kit') }}</label>
+      <input class="input" id="kit_all" name="kit_all" value="{{ found.kit or '' }}" maxlength="120" dir="auto"></div>
+    <div class="form-row" style="margin:0;min-width:140px;"><label for="lot_all">{{ t('lab_reagents.lot') }}</label>
+      <input class="input" id="lot_all" name="lot_all" value="{{ found.lot or '' }}" maxlength="60" dir="ltr"></div>
+  </div>
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:900px;font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('lab_insert.take') }}</th><th>{{ t('lab_insert.printed') }}</th><th>{{ t('lab_kit.component') }}</th><th>{{ t('lab_kit.age') }}</th><th>{{ t('lab_kit.sex') }}</th><th>{{ t('lab_kit.low') }}</th><th>{{ t('lab_kit.high') }}</th><th>{{ t('lab.unit') }}</th><th>{{ t('lab_kit.note') }}</th></tr></thead>
+    <tbody>
+    {% for r in found.rows %}{% set i = loop.index0 %}
+    <tr data-kit-row="{{ i }}">
+      <td><input type="checkbox" name="take" value="{{ i }}" aria-label="{{ t('lab_insert.take') }}" {{ 'checked' if r.ticked or (r.ticked is not defined and r.match and r.age_ok and not r.unit_differs) }}></td>
+      <td dir="ltr"><input type="hidden" name="printed_{{ i }}" value="{{ r.analyte }}">{{ r.analyte }}</td>
+      <td><select class="select" name="analyte_id_{{ i }}" aria-label="{{ t('lab_kit.component') }}">
+        <option value="">—</option>{% for link in test.analyte_links %}<option value="{{ link.analyte_id }}" {{ 'selected' if r.match and r.match.id == link.analyte_id }}>{{ link.analyte.display_name(current_lang) }}{% if link.analyte.unit %} ({{ link.analyte.unit }}){% endif %}</option>{% endfor %}</select>
+        {% if not r.match %}<div class="hint" style="margin:2px 0 0;" data-kit-unmatched>{{ t('lab_insert.no_match') }}</div>{% endif %}</td>
+      <td><input class="input" name="age_{{ i }}" value="{{ r.group or '' }}" maxlength="60" dir="ltr" style="width:130px;" aria-label="{{ t('lab_kit.age') }}">
+        {% if not r.age_ok %}<div class="hint" style="margin:2px 0 0;" data-kit-age-unread>{{ t('lab_kit.age_unread') }}</div>{% endif %}</td>
+      <td><select class="select" name="sex_{{ i }}" aria-label="{{ t('lab_kit.sex') }}">
+        {% for s in ('all', 'male', 'female') %}<option value="{{ s }}" {{ 'selected' if r.sex == s }}>{{ t('lab_kit.sex_' ~ s) }}</option>{% endfor %}</select></td>
+      <td><input class="input" name="low_{{ i }}" value="{{ ('%g'|format(r.low)) if r.low is number else (r.low or '') }}" inputmode="decimal" dir="ltr" style="width:90px;" aria-label="{{ t('lab_kit.low') }}"></td>
+      <td><input class="input" name="high_{{ i }}" value="{{ ('%g'|format(r.high)) if r.high is number else (r.high or '') }}" inputmode="decimal" dir="ltr" style="width:90px;" aria-label="{{ t('lab_kit.high') }}"></td>
+      <td><input class="input" name="unit_{{ i }}" value="{{ r.unit or '' }}" maxlength="30" dir="ltr" style="width:90px;" aria-label="{{ t('lab.unit') }}">
+        {% if r.unit_differs %}<div class="hint" style="margin:2px 0 0;color:var(--danger,#b91c1c);" data-kit-unit-differs>{{ t('lab_kit.unit_differs', unit=r.match.unit) }}</div>{% endif %}</td>
+      <td><input class="input" name="note_{{ i }}" value="{{ r.note or '' }}" maxlength="255" dir="auto" style="width:160px;" aria-label="{{ t('lab_kit.note') }}"></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="hint" style="max-width:75ch;"><i class="bi bi-shield-check"></i> {{ t('lab_kit.you_check') }}</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="btn btn-primary gc-press" type="submit" data-kit-save><i class="bi bi-check2"></i> {{ t('lab_kit.save') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('labs.test_ranges', test_id=test.id) }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+{% endblock %}

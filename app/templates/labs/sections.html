@@ -4,6 +4,10 @@
 {% block page_heading %}{{ t('lab_sections.title') }}{% endblock %}
 
 {% block content %}
+<style>
+  .sec-table { width:100%; }
+  @media (max-width: 560px) { .sec-table .sec-cat { display:none; } }
+</style>
 {# Each test into one of the laboratory's fixed sections (`utils/lab_sections`)
    — suggested where the program can tell, saved only by the button. #}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
@@ -24,15 +28,15 @@
   <form method="post" action="{{ url_for('labs.sort_sections', all='1' if show_all else None) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div style="overflow-x:auto;">
-    <table class="table" style="min-width:520px;">
-      <thead><tr><th>{{ t('lab_sections.test') }}</th><th>{{ t('lab_import.category') }}</th><th style="width:240px;">{{ t('lab_sections.section') }}</th></tr></thead>
+    <table class="table sec-table">
+      <thead><tr><th>{{ t('lab_sections.test') }}</th><th class="sec-cat">{{ t('lab_import.category') }}</th><th>{{ t('lab_sections.section') }}</th></tr></thead>
       <tbody>
       {% for row in rows %}{% set pick = row.section or suggested.get(row.id) %}
         <tr data-sort-row="{{ row.id }}" data-suggested="{{ suggested.get(row.id) or '' }}">
           <td>{{ row.display_name(current_lang) }}{% if row.name_en and current_lang != 'en' %} <span class="hint" dir="ltr">{{ row.name_en }}</span>{% endif %}</td>
-          <td>{{ row.category or '—' }}</td>
+          <td class="sec-cat">{{ row.category or '—' }}</td>
           <td>
-            <select class="select" name="s_{{ row.id }}" aria-label="{{ t('lab_sections.section') }}">
+            <select class="select" style="width:100%;min-width:130px;" name="s_{{ row.id }}" aria-label="{{ t('lab_sections.section') }}">
               <option value="">—</option>
               {% for k, label in sections %}<option value="{{ k }}" {{ 'selected' if k == pick else '' }}>{{ label }}</option>{% endfor %}
             </select>

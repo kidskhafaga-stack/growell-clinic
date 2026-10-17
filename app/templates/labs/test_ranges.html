@@ -267,6 +267,27 @@
 {% if not links %}
 <div class="card gc-scale-in"><p class="hint" style="margin:0;">{{ t('lab_import.no_analytes') }}</p></div>
 {% endif %}
+{% if test.kind == 'lab' and links %}
+<div class="card gc-scale-in" style="margin-bottom:14px;scroll-margin-top:80px;" id="kit-insert" data-kit-insert="{{ 'on' if kit_ready else 'off' }}">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-stars"></i> {{ t('lab_kit.read_title') }}</h2>
+  {% if kit_ready %}
+  <form method="post" enctype="multipart/form-data" action="{{ url_for('labs.kit_insert_read', test_id=test.id) }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;min-width:220px;flex:1;">
+      <label for="kit_file">{{ t('lab_kit.file') }}</label>
+      <input class="input" type="file" id="kit_file" name="insert" accept="image/*,application/pdf" required></div>
+    <div class="form-row" style="margin-bottom:0;min-width:180px;">
+      <label for="kit_instrument">{{ t('lab_kit.instrument') }}</label>
+      <input class="input" id="kit_instrument" name="instrument" maxlength="120" dir="ltr"></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-stars"></i> {{ t('lab_kit.read') }}</button>
+  </form>
+  <p class="hint" style="margin:8px 0 0;max-width:75ch;">{{ t('lab_kit.read_hint') }}</p>
+  {% else %}
+  <p class="hint" style="margin:0;max-width:75ch;">{{ t('lab_kit.off_hint') }}</p>
+  {% endif %}
+</div>
+{% endif %}
 {% for link in links %}
 {% set a = link.analyte %}
 <div class="card gc-scale-in" style="margin-bottom:12px;" data-analyte="{{ a.id }}">

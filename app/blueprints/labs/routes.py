@@ -1740,7 +1740,8 @@ def test_ranges(test_id):
                         .order_by(Investigation.name_ar).all()),
         used_cost=lab_stock.consumables_cost(row),
         double_taken=lab_stock.double_taken(row),
-        parts_offer=_lab_parts().offer(row))
+        parts_offer=_lab_parts().offer(row),
+        kit_ready=_lab_insert().ready())
 
 
 def _lab_parts():
@@ -1806,6 +1807,69 @@ def add_analyte(test_id):
     return _hand(test_id, lambda row, hand: hand.add_analyte(
         row, request.form.get("name"), request.form.get("name_ar"),
         request.form.get("unit")), "lab_hand.analyte_added")
+
+
+@labs_bp.route("/tests/<int:test_id>/insert", methods=["POST"])
+@module_required(MODULE)
+def kit_insert_read(test_id):
+    """The assistant reads a reagent kit's insert into a form beside this
+    test's components — and stops there (`utils/lab_kit_insert`)."""
+    _admin_only()
+    from app.utils import lab_kit_insert as kit
+
+    row = db.get_or_404(Investigation, test_id)
+    if not row.analyte_links:
+        flash(t("lab_kit.err_no_components"), "error")
+        return redirect(url_for("labs.test_ranges", test_id=row.id) + "#parts")
+    upload = request.files.get("insert")
+    try:
+        found = kit.read(row, upload, request.form.get("instrument"))
+    except kit.KitInsertError as err:
+        _kit_flash(str(err))
+        return redirect(url_for("labs.test_ranges", test_id=row.id) + "#kit-insert")
+    return render_template("labs/kit_insert.html", test=row, found=found)
+
+
+def _kit_flash(key):
+    if key.startswith("ai:"):
+        from app.utils import ai
+
+        flash(ai.error_sentence(key[3:]), "error")
+    elif key.startswith("line:"):
+        _, n, why = key.split(":", 2)
+        why = t(why) if "." in why else t(f"lab_kit.err_{why}")
+        flash(t("lab_insert.err_line", n=n, why=why), "error")
+    else:
+        flash(t(f"lab_kit.err_{key}") if key in _KIT_ERRORS else t(f"lab_insert.err_{key}"), "error")
+
+
+_KIT_ERRORS = ("off", "nothing_found", "none_ticked", "no_components")
+
+
+@labs_bp.route("/tests/<int:test_id>/insert/save", methods=["POST"])
+@module_required(MODULE)
+def kit_insert_save(test_id):
+    """The ticked lines, saved as drafts from the laboratory — approved, as
+    every range is, by the director on the test's page."""
+    _admin_only()
+    from app.models import ActivityLog
+    from app.utils import lab_kit_insert as kit
+    from app.utils.decorators import client_ip
+
+    row = db.get_or_404(Investigation, test_id)
+    try:
+        saved = kit.save_ticked(row, request.form, current_user)
+    except kit.KitInsertError as err:
+        db.session.rollback()
+        _kit_flash(str(err))
+        return render_template("labs/kit_insert.html", test=row,
+                               found=kit.from_form(row, request.form))
+    ActivityLog.record("lab.kit_insert_ranges", user_id=current_user.id,
+                       entity="investigation", entity_id=row.id,
+                       detail=str(len(saved)), ip_address=client_ip())
+    db.session.commit()
+    flash(t("lab_kit.saved", n=len(saved)), "success")
+    return redirect(url_for("labs.test_ranges", test_id=row.id))
 
 
 @labs_bp.route("/tests/sections", methods=["GET", "POST"])
