@@ -131,7 +131,9 @@ def social_receive():
     for item in social.parse_meta(payload):
         social_inbound.receive(item)
     db.session.commit()
-    return jsonify(ok=True)
+    # A file a family sent is fetched once the platform has its answer.
+    from app.utils.social_media import after_response
+    return after_response(jsonify(ok=True))
 
 
 # --------------------------------------------------------------- Telegram ---
@@ -151,7 +153,9 @@ def telegram_receive():
     for item in social.parse_telegram(request.get_json(silent=True) or {}):
         social_inbound.receive(item)
     db.session.commit()
-    return jsonify(ok=True)
+    # A file a family sent is fetched once the platform has its answer.
+    from app.utils.social_media import after_response
+    return after_response(jsonify(ok=True))
 
 
 # ---------------------------------------------------------------- TikTok ---
@@ -174,7 +178,9 @@ def tiktok_receive():
     for item in social.parse_tiktok(payload):
         social_inbound.receive(item)
     db.session.commit()
-    return jsonify(ok=True)
+    # A file a family sent is fetched once the platform has its answer.
+    from app.utils.social_media import after_response
+    return after_response(jsonify(ok=True))
 
 
 # ------------------------------------------------------------ payments ----

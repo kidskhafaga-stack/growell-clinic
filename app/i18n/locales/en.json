@@ -956,7 +956,8 @@
     "er_inhouse": "Our hospital's emergency department",
     "er_inhouse_hint": "Opens an attendance in the hospital's emergency department with this reason; the child appears on their screen at once.",
     "er_sent_ok": "The child was sent to the hospital's emergency department and is on their screen with the reason.",
-    "er_started": "The emergency department has already started with this child, so the transfer cannot be undone here. If it was a mistake, speak to the department."
+    "er_started": "The emergency department has already started with this child, so the transfer cannot be undone here. If it was a mistake, speak to the department.",
+    "inv_sent_on": "Sent by the family on {channel}"
   },
   "diagnosis_types": {
     "working": "Working",
@@ -14457,7 +14458,7 @@
     "how_messenger": "Page messages and comments reach the inbox once the clinic's Meta app is connected below. Until then, logged by hand.",
     "how_instagram": "An Instagram account linked to a Facebook Page reaches the inbox through the same Meta app. Until then, logged by hand.",
     "how_tiktok": "The clinic's TikTok Business account, authorized by its owner. Needs TikTok's data review; not available in Europe. Until connected, logged by hand.",
-    "how_email": "Connecting a mailbox (IMAP/SMTP) is a later stage. Until then, logged by hand.",
+    "how_email": "The clinic's mailbox: messages reach the inbox and replies go in the same thread. Until connected, logged by hand.",
     "how_phone": "Calls are logged by hand. Switchboard connections differ from place to place.",
     "how_walk_in": "Someone who asked at the desk and did not book.",
     "wa_settings": "WhatsApp settings",
@@ -14543,6 +14544,16 @@
     "tt_subscribe": "Turn on receiving messages",
     "tt_state_bad": "The return from TikTok could not be verified (an old link, or not from this session). Start connecting again.",
     "tt_connected": "The TikTok account is connected.",
-    "tt_subscribed": "Receiving TikTok messages is on."
+    "tt_subscribed": "Receiving TikTok messages is on.",
+    "mail_address": "Clinic e-mail",
+    "mail_user": "Login name",
+    "mail_password": "Password (or app password)",
+    "imap_host": "Incoming server (IMAP)",
+    "imap_port": "IMAP port",
+    "smtp_host": "Outgoing server (SMTP)",
+    "smtp_port": "SMTP port",
+    "mail_steps": "Any mailbox that accepts IMAP and SMTP with a password or an app password (e.g. Gmail with an app password). IMAP is usually 993, SMTP 587 or 465. Connections are encrypted and messages are read without marking them read. Newsletters, lists and automatic replies are not filed, and the program never answers itself. Accounts that only allow OAuth (such as Microsoft 365) are not supported yet.",
+    "mail_check": "Read the mailbox now",
+    "mail_checked": "Mailbox read: {n} new messages."
   }
 }

@@ -13,9 +13,9 @@ switchboard, a third only a phone. So:
   brings us bookings" has an answer from the first day, before any
   connection exists;
 * a direct connection is a separate fact (``connection``) and is honest about
-  itself: WhatsApp, Messenger, Instagram, Telegram and TikTok are connected
-  through the clinic's own accounts once their settings are filled in; e-mail
-  and the phone are entered by hand until their adapter is built from the
+  itself: WhatsApp, Messenger, Instagram, Telegram, TikTok and the clinic's
+  mailbox are connected through its own accounts once their settings are
+  filled in; the phone and walk-ins are entered by hand until their adapter is built from the
   platform's official documentation.
 
 **The public request page** is a channel too, but a door onto the open
@@ -39,7 +39,7 @@ CHANNELS = {
     "telegram": {"icon": "bi-telegram", "identity": "telegram_id",
                  "direct": True},
     "tiktok": {"icon": "bi-tiktok", "identity": "tiktok_uid", "direct": True},
-    "email": {"icon": "bi-envelope", "identity": "email", "direct": False},
+    "email": {"icon": "bi-envelope", "identity": "email", "direct": True},
     "phone": {"icon": "bi-telephone", "identity": "phone", "direct": False},
     "walk_in": {"icon": "bi-person-walking", "identity": "phone",
                 "direct": False},
@@ -110,6 +110,9 @@ def connection(key):
     if key == "tiktok":
         from app.utils.social import tiktok_ready
         return "connected" if tiktok_ready() else "manual"
+    if key == "email":
+        from app.utils.mail_channel import ready
+        return "connected" if ready() else "manual"
     return "manual"
 
 

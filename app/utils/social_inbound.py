@@ -18,7 +18,8 @@ notification into one shape; this decides what it means here:
 * **the Page's own replies** (typed in Meta's inbox) are kept as outbound,
   so the thread here is the whole conversation.
 
-Nothing here sends anything. The caller commits.
+Nothing here sends anything, except the clinic's own out-of-hours
+acknowledgement when it has one switched on. The caller commits.
 """
 from datetime import datetime, timedelta
 
@@ -109,6 +110,13 @@ def receive(item):
     db.session.add(log)
     db.session.flush()
     key = thread_key_for(contact)
+    if item.kind == "message":
+        # A file is fetched after the platform has its answer (social_media).
+        from app.utils.social_media import queue
+        queue(log, item)
+        # Outside working hours, say so — on the channel they wrote from.
+        from app.utils.service_desk import maybe_send_social_away
+        maybe_send_social_away(log)
 
     lead = None
     if item.kind == "comment" or item.ad:

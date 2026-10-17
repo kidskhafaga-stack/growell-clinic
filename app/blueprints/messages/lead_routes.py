@@ -260,6 +260,7 @@ def channels_setup():
         social_hook=base + url_for("webhooks.social_verify"),
         tg_hook=base + url_for("webhooks.telegram_receive"),
         tiktok=social.tiktok_config(), tt_ready=social.tiktok_ready(),
+        mail=_mail_shown(), mail_ready=_mail_ready(),
         tt_hook=base + url_for("webhooks.tiktok_receive"),
         tt_redirect=base + url_for("messages.channels_tiktok_callback"),
         on=channels.enabled(), page_open=channels.page_open(),
@@ -271,9 +272,11 @@ def channels_setup():
 
 # Secrets the clinic types once. Left blank, a secret keeps the value it
 # has — a form that re-shows a token is a form that leaks it.
-_META_PLAIN = ("meta_page_id", "meta_graph_version", "tt_app_id", "tt_auth_url")
+_META_PLAIN = ("meta_page_id", "meta_graph_version", "tt_app_id", "tt_auth_url",
+               "mail_imap_host", "mail_imap_port", "mail_smtp_host",
+               "mail_smtp_port", "mail_user", "mail_address")
 _SECRETS = ("meta_page_token", "meta_app_secret", "tg_bot_token",
-            "tt_app_secret")
+            "tt_app_secret", "mail_password")
 
 
 @messages_bp.route("/channels/connect", methods=["POST"])
@@ -287,7 +290,10 @@ def channels_connect():
     from app.models import Setting
 
     for key in _META_PLAIN:
-        Setting.set(key, (request.form.get(key) or "").strip()[:600])
+        value = (request.form.get(key) or "").strip()[:600]
+        if key.endswith("_port") and value and not value.isdigit():
+            value = ""
+        Setting.set(key, value)
     for key in _SECRETS:
         value = (request.form.get(key) or "").strip()
         if value:
@@ -396,4 +402,33 @@ def channels_tiktok_subscribe():
         ok, said = False, ""
     flash(t("social.tt_subscribed") if ok else t("social.failed", err=said or "—"),
           "success" if ok else "danger")
+    return redirect(url_for("messages.channels_setup", _anchor="connect"))
+
+
+# ---------------------------------------------------------------- mail ---
+def _mail_shown():
+    from app.utils import mail_channel
+
+    cfg = mail_channel.config()
+    cfg["has_password"] = bool(cfg.pop("password"))
+    return cfg
+
+
+def _mail_ready():
+    from app.utils import mail_channel
+
+    return mail_channel.ready()
+
+
+@messages_bp.route("/channels/mail-check", methods=["POST"])
+@capability_required("messages_setup")
+def channels_mail_check():
+    """Read the clinic's mailbox now, rather than at the next heartbeat."""
+    from app.utils import mail_channel
+
+    filed, error = mail_channel.poll()
+    if error:
+        flash(t("social.failed", err=error), "danger")
+    else:
+        flash(t("social.mail_checked", n=filed), "success")
     return redirect(url_for("messages.channels_setup", _anchor="connect"))

@@ -293,3 +293,82 @@ def test_the_secret_proof_and_the_settings_screen(hub):
     assert desk.post("/messages/channels/connect", data={}).status_code in (302, 403)
     with hub["app"].app_context():
         assert Setting.get("meta_page_id") == "PAGE2"
+
+
+def test_out_of_hours_is_said_on_the_channel_they_wrote_from(hub, monkeypatch):
+    from app.models import MessageLog, Setting
+    from app.utils import service_desk
+
+    monkeypatch.setattr(service_desk, "is_open", lambda *a, **k: False)
+    with hub["app"].app_context():
+        Setting.set("wa_away_enabled", "1")
+        Setting.set("meta_human_agent", "1")
+        hub["db"].session.commit()
+    out = hub["app"].test_client()
+    _meta(out, _msg("page", "PSID4", "mid.n1", "ابني سخن الساعة ٢ بالليل"))
+    _meta(out, _msg("page", "PSID4", "mid.n2", "لو سمحتوا"))
+    away = [b for _, b in hub["sent"]]
+    assert len(away) == 1, "once, not on every message"
+    assert away[0]["messaging_type"] == "RESPONSE" and "tag" not in away[0]
+    feed = {"object": "page", "entry": [{"id": "PAGE1", "time": 1, "changes": [{
+        "field": "feed", "value": {"from": {"id": "FB2", "name": "x"}, "item": "comment",
+                                   "comment_id": "C2", "post_id": "P2", "verb": "add",
+                                   "created_time": int(time.time()), "message": "?"}}]}]}
+    _meta(out, feed)
+    assert len(hub["sent"]) == 1, "a comment's one private reply is a person's, not the away note"
+    with hub["app"].app_context():
+        assert MessageLog.query.filter_by(template_type="away", channel="messenger").count() == 1
+
+
+def test_a_photo_is_kept_after_the_answer_and_filed_on_a_linked_child(hub, monkeypatch):
+    from app.models import Contact, MessageLog, PatientAttachment
+    from app.utils import leads, social_media
+
+    fetched = []
+
+    def fake_get(url, headers=None):
+        fetched.append(url)
+        return b"\xff\xd8\xff fake jpeg", "image/jpeg"
+    monkeypatch.setattr(social_media, "_get", fake_get)
+    with hub["app"].app_context():
+        contact = leads.contact_for("أم سلمى", {"instagram_igsid": "IGSID6"})
+        from app.models import Patient
+        leads.link_patient(contact, hub["db"].session.get(Patient, hub["ids"]["child"]), None)
+        hub["db"].session.commit()
+    out = hub["app"].test_client()
+    payload = _msg("instagram", "IGSID6", "ig.ph", "", own="IGID",
+                   attachments=[{"type": "image", "payload": {"url": "https://cdn.example/x.jpg"}}])
+    payload["entry"][0]["messaging"][0]["message"].pop("text")
+    resp = _meta(out, payload)
+    resp.close()          # the platform has its answer; the queue is worked
+    with hub["app"].app_context():
+        row = MessageLog.query.filter_by(provider_msg_id="ig.ph").one()
+        if row.error == social_media.PENDING:     # test client kept it open
+            social_media.fetch_pending()
+            row = MessageLog.query.filter_by(provider_msg_id="ig.ph").one()
+        assert row.error is None and row.image_url.startswith("static/uploads/patient_docs/")
+        att = PatientAttachment.query.one()
+        assert (att.patient_id, att.source) == (hub["ids"]["child"], "instagram")
+    assert fetched == ["https://cdn.example/x.jpg"]
+
+
+def test_telegram_files_come_through_getfile(hub, monkeypatch):
+    from app.models import MessageLog
+    from app.utils import social, social_media
+
+    def fake_post(url, payload, headers=None, timeout=10):
+        if url.endswith("/getFile"):
+            return 200, json.dumps({"ok": True, "result": {"file_path": "photos/f1.jpg"}})
+        return 200, json.dumps({"ok": True, "result": {"message_id": 1}})
+    monkeypatch.setattr(social, "_post", fake_post)
+    monkeypatch.setattr(social_media, "_get", lambda url, headers=None: (
+        b"bytes", "application/octet-stream"))
+    out = hub["app"].test_client()
+    _tg(out, {"update_id": 77, "message": {
+        "message_id": 3, "date": int(time.time()),
+        "chat": {"id": 42, "type": "private"}, "from": {"id": 42, "first_name": "س"},
+        "photo": [{"file_id": "small"}, {"file_id": "BIG"}], "caption": "نتيجة التحليل"}}).close()
+    with hub["app"].app_context():
+        social_media.fetch_pending()
+        row = MessageLog.query.one()
+        assert row.error is None and row.image_url.endswith(".jpg")

@@ -13,7 +13,7 @@
       {% if patient %}{{ patient_avatar(patient, 'sm') }}{% endif %}
       <div>
         <h1 class="page-title" style="margin:0;" dir="auto">{{ patient.display_name(current_lang) if patient else (contact.name if contact else phone) }}</h1>
-        {% if channel and channel != 'whatsapp' %}<span class="badge badge--muted" data-thread-channel="{{ channel }}"><i class="bi bi-{{ {'messenger': 'messenger', 'instagram': 'instagram', 'telegram': 'telegram', 'tiktok': 'tiktok'}.get(channel, 'chat') }}"></i> {{ t('channels.ch_' ~ channel) }}</span>{% endif %}
+        {% if channel and channel != 'whatsapp' %}<span class="badge badge--muted" data-thread-channel="{{ channel }}"><i class="bi bi-{{ {'messenger': 'messenger', 'instagram': 'instagram', 'telegram': 'telegram', 'tiktok': 'tiktok', 'email': 'envelope'}.get(channel, 'chat') }}"></i> {{ t('channels.ch_' ~ channel) }}</span>{% endif %}
         {% if phone %}<span class="num" dir="ltr" style="color:var(--muted);"><i class="bi bi-whatsapp"></i> {{ phone }}</span>{% endif %}
       </div>
     </div>

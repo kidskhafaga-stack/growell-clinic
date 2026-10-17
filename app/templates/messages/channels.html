@@ -84,6 +84,20 @@
       {% if tiktok.business_id %}<p class="hint" style="margin:6px 0 0;" data-tt-account>{{ t('social.tt_account') }} <code dir="ltr">{{ tiktok.business_id }}</code></p>{% endif %}
       <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.tt_steps') }}</p>
     </fieldset>
+    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-mail-fields>
+      <legend style="padding:0 6px;"><i class="bi bi-envelope"></i> {{ t('channels.ch_email') }}
+        <span class="badge {{ 'badge--green' if mail_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if mail_ready else t('social.not_set') }}</span></legend>
+      <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+        <div class="form-row" style="margin:0;"><label for="ml_a">{{ t('social.mail_address') }}</label><input class="input" id="ml_a" name="mail_address" value="{{ mail.address }}" dir="ltr" type="email" maxlength="160"></div>
+        <div class="form-row" style="margin:0;"><label for="ml_u">{{ t('social.mail_user') }}</label><input class="input" id="ml_u" name="mail_user" value="{{ mail.user }}" dir="ltr" maxlength="160" autocomplete="off"></div>
+        <div class="form-row" style="margin:0;"><label for="ml_p">{{ t('social.mail_password') }}</label><input class="input" id="ml_p" name="mail_password" type="password" autocomplete="off" dir="ltr" placeholder="{{ t('social.kept') if mail.has_password else '' }}"></div>
+        <div class="form-row" style="margin:0;"><label for="ml_ih">{{ t('social.imap_host') }}</label><input class="input" id="ml_ih" name="mail_imap_host" value="{{ mail.imap_host }}" dir="ltr" maxlength="160" placeholder="imap.example.com"></div>
+        <div class="form-row" style="margin:0;"><label for="ml_ip">{{ t('social.imap_port') }}</label><input class="input" id="ml_ip" name="mail_imap_port" value="{{ mail.imap_port }}" dir="ltr" inputmode="numeric" maxlength="5"></div>
+        <div class="form-row" style="margin:0;"><label for="ml_sh">{{ t('social.smtp_host') }}</label><input class="input" id="ml_sh" name="mail_smtp_host" value="{{ mail.smtp_host }}" dir="ltr" maxlength="160" placeholder="smtp.example.com"></div>
+        <div class="form-row" style="margin:0;"><label for="ml_sp">{{ t('social.smtp_port') }}</label><input class="input" id="ml_sp" name="mail_smtp_port" value="{{ mail.smtp_port }}" dir="ltr" inputmode="numeric" maxlength="5"></div>
+      </div>
+      <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.mail_steps') }}</p>
+    </fieldset>
     <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
   </form>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
@@ -97,6 +111,12 @@
   </form>
   {% endif %}
   </div>
+  {% if mail_ready %}
+  <form method="post" action="{{ url_for('messages.channels_mail_check') }}" style="margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit" data-mail-check><i class="bi bi-envelope-arrow-down"></i> {{ t('social.mail_check') }}</button>
+  </form>
+  {% endif %}
   {% if tg_ready %}
   <form method="post" action="{{ url_for('messages.channels_telegram_hook') }}" style="margin-top:10px;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

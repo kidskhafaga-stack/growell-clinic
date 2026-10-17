@@ -96,7 +96,9 @@ INSTAGRAM_MAX_BYTES = 1000      # "1,000 bytes or less"
 TELEGRAM_MAX_CHARS = 4096
 
 META_CHANNELS = ("messenger", "instagram")
-SOCIAL_CHANNELS = ("messenger", "instagram", "telegram", "tiktok")
+# The channels a reply goes out on through ``utils/social_outbound`` — the
+# platforms above, and the clinic's mailbox (``utils/mail_channel``).
+SOCIAL_CHANNELS = ("messenger", "instagram", "telegram", "tiktok", "email")
 
 #: The identity each channel's sender id is filed under.
 SENDER_KIND = {"messenger": "messenger_psid", "instagram": "instagram_igsid",

@@ -618,112 +618,25 @@ def inbox_thread(key):
 
 
 def _social_state(key, channel, msgs):
-    """What a reply on Messenger, Instagram or Telegram may be right now:
-    ``{"ready", "comment", "comment_open", "mode", "refused"}`` — or
-    ``None`` for WhatsApp. Said on the screen before anybody types."""
-    from app.utils import social
+    """What a reply on this channel may be right now (``utils/social_outbound``)."""
+    from app.utils.social_outbound import reply_state
 
-    if channel not in social.SOCIAL_CHANNELS:
-        return None
-    ready = {"telegram": social.telegram_ready,
-             "tiktok": social.tiktok_ready}.get(channel, social.meta_ready)()
-    state = {"ready": ready, "comment": None, "comment_open": False,
-             "mode": None, "refused": None}
-    last_in = next((m for m in reversed(msgs) if m.direction == "in"
-                    and m.channel_key == channel), None)
-    if channel == "tiktok":
-        # Ten replies within 48 hours of their last message; a comment is
-        # answered on TikTok itself (Comment-to-Message), not from here.
-        state["comment"] = last_in if (last_in is not None
-                                       and last_in.event == "comment") else None
-        if state["comment"] is None:
-            since = [m for m in msgs if m.direction == "out"
-                     and m.channel_key == "tiktok" and last_in is not None
-                     and m.created_at >= last_in.created_at]
-            try:
-                state["mode"] = social.tiktok_mode(
-                    last_in.created_at if last_in else None, len(since))
-            except social.SendRefused as exc:
-                state["refused"] = exc.code
-        return state
-    if last_in is not None and last_in.event == "comment":
-        used = MessageLog.query.filter_by(
-            reply_to=last_in.provider_msg_id, event="private_reply").first()
-        state["comment"] = last_in
-        state["comment_open"] = (
-            used is None and last_in.created_at >= datetime.utcnow()
-            - timedelta(days=social.PRIVATE_REPLY_DAYS))
-        return state
-    if channel in social.META_CHANNELS:
-        try:
-            state["mode"] = social.meta_mode(
-                last_in.created_at if last_in else None,
-                human_agent=social.meta_config()["human_agent"])
-        except social.SendRefused as exc:
-            state["refused"] = exc.code
-    return state
+    return reply_state(channel, msgs)
 
 
 def _social_reply(key, channel, body):
-    """Send a reply on Messenger, Instagram or Telegram, and log it in the
-    thread. A comment is answered once, privately; a message within the
-    platform's window. Refusals are said, not attempted."""
-    from app.utils import social
-    from app.utils.inbox import thread_query
+    """Send a person's reply on Messenger, Instagram, Telegram or TikTok and
+    say how it went. The rules are ``utils/social_outbound``'s."""
+    from app.utils.social_outbound import reply
 
-    msgs = thread_query(key).order_by(MessageLog.created_at).all()
-    last_in = next((m for m in reversed(msgs) if m.direction == "in"
-                    and m.channel_key == channel), None)
-    if last_in is None or last_in.contact is None:
-        flash(t("inbox.no_phone"), "danger")
+    log, refused = reply(key, channel, body, user_id=current_user.id)
+    if refused:
+        flash(t("social.refused_" + refused) if refused != "no_contact"
+              else t("inbox.no_phone"), "danger")
         return redirect(url_for("messages.inbox_thread", key=key))
-    contact = last_in.contact
-    state = _social_state(key, channel, msgs)
-    event = reply_to = None
-    try:
-        if not state["ready"]:
-            raise social.SendRefused("not_ready")
-        if state["comment"] is not None:
-            if channel == "tiktok":
-                raise social.SendRefused("tiktok_comment")
-            if not state["comment_open"]:
-                raise social.SendRefused("comment_used")
-            event, reply_to = "private_reply", last_in.provider_msg_id
-            ok, msg_id, error = social.send_meta(
-                channel, {"comment_id": reply_to}, body)
-        elif channel == "telegram":
-            ident = contact.identity("telegram_id")
-            if ident is None:
-                raise social.SendRefused("not_ready")
-            ok, msg_id, error = social.send_telegram(ident.value, body)
-        elif channel == "tiktok":
-            if state["refused"]:
-                raise social.SendRefused(state["refused"])
-            ident = contact.identity("tiktok_conversation")
-            if ident is None:
-                raise social.SendRefused("window")
-            ok, msg_id, error = social.send_tiktok(ident.value, body)
-        else:
-            if state["refused"]:
-                raise social.SendRefused(state["refused"])
-            ident = contact.identity(social.SENDER_KIND[channel])
-            if ident is None:
-                raise social.SendRefused("window")
-            ok, msg_id, error = social.send_meta(
-                channel, {"id": ident.value}, body, mode=state["mode"])
-    except social.SendRefused as exc:
-        flash(t("social.refused_" + exc.code), "danger")
-        return redirect(url_for("messages.inbox_thread", key=key))
-    now = datetime.utcnow()
-    db.session.add(MessageLog(
-        direction="out", provider=channel, channel=channel,
-        contact_id=contact.id, patient_id=last_in.patient_id, body=body,
-        status="sent" if ok else "failed", provider_msg_id=msg_id or None,
-        error=error, event=event, reply_to=reply_to,
-        created_by=current_user.id, created_at=now,
-        sent_at=now if ok else None))
     db.session.commit()
-    flash(t("inbox.sent") if ok else t("social.failed", err=error or "—"),
+    ok = log.status == "sent"
+    flash(t("inbox.sent") if ok else t("social.failed", err=log.error or "—"),
           "success" if ok else "danger")
     return redirect(url_for("messages.inbox_thread", key=key))
 
