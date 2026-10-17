@@ -42,10 +42,8 @@ _NAMES = {k: (ar, en) for k, ar, en in SECTIONS}
 #: ``lab_import.key``.
 _CATEGORY = {
     "امراض الدم": "hematology", "دم": "hematology", "hematology": "hematology",
-    "haematology": "hematology",
     "تجلط": "coagulation", "coagulation": "coagulation",
     "غدد": "hormones", "هرمونات": "hormones", "hormones": "hormones",
-    "endocrinology": "hormones",
     "فيتامينات": "vitamins", "vitamins": "vitamins",
     "مناعه": "immunology", "امصال": "immunology", "immunology": "immunology",
     "serology": "immunology",

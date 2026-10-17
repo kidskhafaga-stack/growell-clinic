@@ -2832,7 +2832,8 @@
     "feature_lab_read": "Reading a lab paper",
     "feature_rx_find": "Finding a drug",
     "feature_lab_review": "Lab second look",
-    "feature_lab_insert": "Control insert reading"
+    "feature_lab_insert": "Control insert reading",
+    "feature_lab_kit_insert": "Kit insert reading (ranges)"
   },
   "rx": {
     "title": "Drugs & Prescriptions",
