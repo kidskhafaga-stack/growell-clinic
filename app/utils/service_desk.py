@@ -110,9 +110,41 @@ def _recently_told(log, hours=AWAY_COOLDOWN_HOURS):
                                     MessageLog.created_at >= since)
     if log.patient_id:
         query = query.filter(MessageLog.patient_id == log.patient_id)
+    elif getattr(log, "contact_id", None):
+        query = query.filter(MessageLog.contact_id == log.contact_id)
     else:
         query = query.filter(MessageLog.to_phone == log.to_phone)
     return query.first() is not None
+
+
+def maybe_send_social_away(log):
+    """The same out-of-hours acknowledgement on Messenger, Instagram,
+    Telegram or TikTok, on the channel the family wrote from — under that
+    platform's rules (``utils/social_outbound``): never as the one private
+    reply a comment gets, and never under Meta's human-agent tag, which is
+    for a person. Quiet about failure, like the WhatsApp one."""
+    from app.utils import whatsapp as wa
+    from app.utils.social import SOCIAL_CHANNELS
+
+    cfg = hours_config()
+    if (not cfg["enabled"] or log is None or log.direction != "in"
+            or log.channel not in SOCIAL_CHANNELS or log.event):
+        return None
+    if is_open(cfg=cfg) or _recently_told(log):
+        return None
+    body = wa.render(cfg["body"], {
+        "clinic": Setting.get("clinic_name", "") or "",
+        "patient": (log.patient.display_name("ar") if log.patient else ""),
+        "hours": hours_label(cfg),
+    })
+    try:
+        from app.utils.inbox import thread_key
+        from app.utils.social_outbound import reply
+        sent, _ = reply(thread_key(log), log.channel, body,
+                        template_type="away", automated=True)
+        return sent
+    except Exception:  # noqa: BLE001 - never break receiving a message
+        return None
 
 
 def maybe_send_away_reply(log):

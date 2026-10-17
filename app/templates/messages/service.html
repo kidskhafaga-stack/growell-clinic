@@ -62,6 +62,22 @@
   <p class="hint" style="margin:8px 0 0;">{{ t('service.speed_hint') }}</p>
 </div>
 
+{# The same numbers per channel — which one families wait longest on. #}
+{% if stats.by_channel %}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-service-by-channel>
+  <h2 class="section-title"><i class="bi bi-diagram-3"></i> {{ t('service.by_channel') }}</h2>
+  <div style="overflow-x:auto;"><table class="table" style="font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('channels.channel') }}</th><th>{{ t('service.answered') }}</th><th>{{ t('service.median') }}</th><th>{{ t('service.missed') }}</th></tr></thead>
+    <tbody>{% for row in stats.by_channel %}
+    <tr data-service-channel="{{ row.channel }}:{{ row.asked }}">
+      <td>{{ t('channels.ch_' ~ row.channel) }}</td>
+      <td>{{ row.answered }} / {{ row.asked }}</td>
+      <td>{{ hours(row.median_hours) }}</td>
+      <td style="{{ 'color:var(--danger);font-weight:600;' if row.missed }}">{{ row.missed }}</td>
+    </tr>{% endfor %}</tbody></table></div>
+</div>
+{% endif %}
+
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">
   <div class="card gc-scale-in">
     <h2 class="section-title"><i class="bi bi-people"></i> {{ t('service.by_assignee') }}</h2>

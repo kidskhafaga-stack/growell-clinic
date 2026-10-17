@@ -1,0 +1,123 @@
+{% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('leads.title') }}{% endblock %}
+{% block page_heading %}{{ t('leads.title') }}{% endblock %}
+
+{# CONNECTHUB_PLAN.md stage one — families who asked on any channel and have
+   not come yet: an overdue follow-up first, then the ones nobody answered.
+   Every rule is in utils/leads; this page reads and hands over. #}
+{% macro ch(key) -%}
+  <span class="badge badge--muted" data-channel="{{ key }}"><i class="bi {{ all_channels[key].icon if key in all_channels else 'bi-question' }}"></i> {{ t('channels.ch_' ~ key) }}</span>
+{%- endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-person-lines-fill"></i> {{ t('leads.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('leads.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.inbox') }}"><i class="bi bi-chat-dots"></i> {{ t('inbox.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('appointments.requests_page') }}"><i class="bi bi-calendar-plus"></i> {{ t('leads.requests_queue') }}</a>
+    {% if current_user.can('messages_setup') %}
+    <a class="btn btn-outline gc-press" data-to-channels href="{{ url_for('messages.channels_setup') }}"><i class="bi bi-diagram-3"></i> {{ t('channels.title') }}</a>
+    {% endif %}
+  </div>
+</div>
+
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;" data-stage-counts>
+  {% for s in ('open', 'new', 'contacted', 'interested', 'waiting', 'converted', 'lost') %}
+  <a class="btn btn-sm gc-press {{ 'btn-primary' if stage == s else 'btn-outline' }}" data-stage-count="{{ s }}:{{ counts[s] }}"
+     href="{{ url_for('messages.leads_board', stage=s, channel=channel, mine='1' if mine else None) }}">{{ t('leads.st_' ~ s) }} ({{ counts[s] }})</a>
+  {% endfor %}
+  <a class="btn btn-sm gc-press {{ 'btn-primary' if due_only else 'btn-outline' }}" data-due="{{ due }}"
+     href="{{ url_for('messages.leads_board', due='1', stage='open') }}"><i class="bi bi-alarm"></i> {{ t('leads.due_n', n=due) }}</a>
+  <a class="btn btn-sm gc-press {{ 'btn-primary' if mine else 'btn-outline' }}"
+     href="{{ url_for('messages.leads_board', stage=stage, channel=channel, mine=None if mine else '1') }}"><i class="bi bi-person-check"></i> {{ t('leads.mine') }}</a>
+</div>
+
+<form method="get" action="{{ url_for('messages.leads_board') }}" class="no-print" style="display:flex;gap:6px;align-items:end;flex-wrap:wrap;margin-bottom:12px;">
+  <input type="hidden" name="stage" value="{{ stage }}">
+  {% if mine %}<input type="hidden" name="mine" value="1">{% endif %}
+  <div class="form-row" style="margin:0;"><label for="lf_ch">{{ t('leads.channel') }}</label>
+    <select class="input" id="lf_ch" name="channel"><option value="">{{ t('leads.all_channels') }}</option>
+      {% for k in all_channels %}<option value="{{ k }}" {% if channel == k %}selected{% endif %}>{{ t('channels.ch_' ~ k) }}</option>{% endfor %}</select></div>
+  <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.filter') }}</button>
+</form>
+
+<details class="card gc-scale-in" style="margin-bottom:14px;" {% if not rows %}open{% endif %} data-new-lead>
+  <summary style="cursor:pointer;font-weight:700;"><i class="bi bi-plus-circle"></i> {{ t('leads.new') }}</summary>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('leads.new_hint') }}</p>
+  <form method="post" action="{{ url_for('messages.lead_new') }}" style="display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="ln_name">{{ t('leads.name') }}</label><input class="input" id="ln_name" name="name" maxlength="120" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="ln_ph">{{ t('leads.phone') }}</label><input class="input" id="ln_ph" name="phone" maxlength="30" dir="ltr" inputmode="tel"></div>
+    {% for kind in ('email', 'instagram', 'messenger', 'tiktok', 'telegram') if kind in channels_on %}
+    <div class="form-row" style="margin:0;"><label for="ln_{{ kind }}">{{ t('leads.id_' ~ kind) }}</label><input class="input" id="ln_{{ kind }}" name="{{ kind }}" maxlength="160" dir="ltr"></div>
+    {% endfor %}
+    <div class="form-row" style="margin:0;"><label for="ln_ch">{{ t('leads.channel') }}</label>
+      <select class="input" id="ln_ch" name="channel" required>
+        {% for k in channels_on if k != 'page' %}<option value="{{ k }}">{{ t('channels.ch_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="ln_sk">{{ t('leads.source_kind') }}</label>
+      <select class="input" id="ln_sk" name="source_kind">{% for k in kinds %}<option value="{{ k }}">{{ t('leads.sk_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="ln_cp">{{ t('leads.campaign') }}</label><input class="input" id="ln_cp" name="campaign" maxlength="80" dir="auto" placeholder="{{ t('leads.campaign_ph') }}"></div>
+    <div class="form-row" style="margin:0;"><label for="ln_url">{{ t('leads.source_url') }}</label><input class="input" id="ln_url" name="source_url" maxlength="300" dir="ltr" type="url"></div>
+    {{ pickers.doctor_picker('doctor_id', None, t('leads.doctor'), doctors=doctors, autosubmit=False) }}
+    <div class="form-row" style="margin:0;"><label for="ln_int">{{ t('leads.interest') }}</label><input class="input" id="ln_int" name="interest" maxlength="200" dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="ln_own">{{ t('leads.owner') }}</label>
+      <select class="input" id="ln_own" name="owner_id">{% for u in staff %}<option value="{{ u.id }}" {% if u.id == current_user.id %}selected{% endif %}>{{ u.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="ln_fu">{{ t('leads.follow_up') }}</label><input class="input" type="date" id="ln_fu" name="follow_up_on" min="{{ today.isoformat() }}"></div>
+    <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="ln_msg">{{ t('leads.message') }}</label><textarea class="input" id="ln_msg" name="message" rows="2" dir="auto"></textarea></div>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('leads.save') }}</button></div>
+  </form>
+</details>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-leads>
+  {% if rows %}
+  <div style="overflow-x:auto;"><table class="table" style="min-width:780px;">
+    <thead><tr><th>{{ t('leads.name') }}</th><th>{{ t('leads.channel') }}</th><th>{{ t('leads.campaign') }}</th><th>{{ t('leads.stage') }}</th><th>{{ t('leads.owner') }}</th><th>{{ t('leads.follow_up') }}</th><th>{{ t('leads.opened_at') }}</th></tr></thead>
+    <tbody>{% for l in rows %}
+    {% set overdue = l.is_open and l.follow_up_on and l.follow_up_on <= today %}
+    <tr data-lead="{{ l.id }}" {% if overdue %}data-overdue{% endif %}>
+      <td><a href="{{ url_for('messages.lead_view', lead_id=l.id) }}" dir="auto"><b>{{ l.contact.name }}</b></a>
+        {% if l.contact.patient %}<div class="hint"><i class="bi bi-person-vcard"></i> {{ l.contact.patient.display_name(current_lang) }}</div>{% endif %}
+        {% if l.interest or l.doctor %}<div class="hint" dir="auto">{{ l.doctor.display_name(current_lang) if l.doctor }}{{ ' · ' if l.doctor and l.interest }}{{ l.interest or '' }}</div>{% endif %}</td>
+      <td>{{ ch(l.channel) }} <span class="hint">{{ t('leads.sk_' ~ l.source_kind) }}</span></td>
+      <td dir="auto">{{ l.campaign or '—' }}</td>
+      <td><span class="badge {{ 'badge--green' if l.stage == 'converted' else ('badge--muted' if l.stage == 'lost' else ('badge--warn' if l.stage == 'new' else 'badge--role')) }}">{{ t('leads.st_' ~ l.stage) }}</span></td>
+      <td>{{ l.owner.display_name(current_lang) if l.owner else '—' }}</td>
+      <td>{% if l.follow_up_on %}<span class="{{ 'badge badge--danger' if overdue else '' }}" dir="ltr">{{ l.follow_up_on.isoformat() }}</span>{% else %}—{% endif %}</td>
+      <td class="hint" dir="ltr">{{ l.created_at|clinic_stamp }}</td>
+    </tr>{% endfor %}</tbody></table></div>
+  {% else %}<div class="empty-state"><i class="bi bi-inbox"></i>{{ t('leads.none') }}</div>{% endif %}
+</div>
+
+<div class="card gc-scale-in" id="sources" data-lead-report>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h2 class="section-title" style="margin:0;"><i class="bi bi-bar-chart"></i> {{ t('leads.report') }}</h2>
+    <div style="display:flex;gap:6px;">{% for d in periods %}
+      <a class="btn btn-sm gc-press {{ 'btn-primary' if days == d else 'btn-outline' }}" href="{{ url_for('messages.leads_board', stage=stage, days=d, _anchor='sources') }}">{{ d }} {{ t('service.days') }}</a>{% endfor %}</div>
+  </div>
+  <p style="margin:8px 0;" data-report-all="{{ report.all.total }}:{{ report.all.converted }}">{{ t('leads.report_line', total=report.all.total, converted=report.all.converted, booked=report.all.booked, rate=report.all.rate) }}
+    {% if report.first_answer_hours is not none %} · {{ t('leads.first_answer', h=report.first_answer_hours) }}{% endif %}</p>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;">
+    <div style="overflow-x:auto;">
+      <h3 class="section-title" style="font-size:1rem;margin:6px 0;">{{ t('leads.by_channel') }}</h3>
+      {% if report.channels %}<table class="table" style="font-variant-numeric:tabular-nums;">
+        <thead><tr><th>{{ t('leads.channel') }}</th><th>{{ t('leads.r_total') }}</th><th>{{ t('leads.r_converted') }}</th><th>{{ t('leads.r_booked') }}</th><th>{{ t('leads.r_lost') }}</th><th>%</th></tr></thead>
+        <tbody>{% for k, b in report.channels %}<tr data-report-channel="{{ k }}:{{ b.total }}:{{ b.converted }}"><td>{{ ch(k) }}</td><td>{{ b.total }}</td><td>{{ b.converted }}</td><td>{{ b.booked }}</td><td>{{ b.lost }}</td><td>{{ b.rate }}</td></tr>{% endfor %}</tbody></table>
+      {% else %}<p class="hint">{{ t('leads.no_data') }}</p>{% endif %}
+    </div>
+    <div style="overflow-x:auto;">
+      <h3 class="section-title" style="font-size:1rem;margin:6px 0;">{{ t('leads.by_campaign') }}</h3>
+      {% if report.campaigns %}<table class="table" style="font-variant-numeric:tabular-nums;">
+        <thead><tr><th>{{ t('leads.campaign') }}</th><th>{{ t('leads.r_total') }}</th><th>{{ t('leads.r_converted') }}</th><th>{{ t('leads.r_booked') }}</th><th>%</th></tr></thead>
+        <tbody>{% for k, b in report.campaigns %}<tr data-report-campaign="{{ k }}"><td dir="auto">{{ k }}</td><td>{{ b.total }}</td><td>{{ b.converted }}</td><td>{{ b.booked }}</td><td>{{ b.rate }}</td></tr>{% endfor %}</tbody></table>
+      {% else %}<p class="hint">{{ t('leads.no_campaigns') }}</p>{% endif %}
+      {% if report.lost %}<h3 class="section-title" style="font-size:1rem;margin:10px 0 6px;">{{ t('leads.lost_why') }}</h3>
+      <p style="margin:0;">{% for r, n in report.lost %}<span class="badge badge--muted">{{ t('leads.lr_' ~ r) }}: {{ n }}</span> {% endfor %}</p>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

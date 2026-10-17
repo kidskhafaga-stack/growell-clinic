@@ -596,16 +596,57 @@ def inbox_thread(key):
     resolved = (record is not None
                 and record.is_resolved_for(last_inbound_at(key)))
     db.session.commit()
-    window = session_window(key)
+    from app.utils.inbox import reply_channel
+    channel = reply_channel(key)
+    window = session_window(key, channel=channel)
+    contact = next((m.contact for m in reversed(msgs) if m.contact), None)
     return render_template(
         "messages/thread.html", msgs=msgs, key=key, patient=patient,
         phone=phone, waits=waits, pending=pending,
         record=record, resolved=resolved, staff=_desk_staff(),
-        window=window, approved=_approved_for(window),
+        window=window,
+        # Approved templates are WhatsApp's; another channel has none.
+        approved=(_approved_for(window) if channel == "whatsapp"
+                  else {"available": False, "list": []}),
+        channel=channel, contact=contact,
+        social=_social_state(key, channel, msgs),
         opted_out=bool(patient is not None and patient.wa_opt_out),
         canned=canned, ai_ready=ai_available(),
         topics=TRIAGE_TOPICS,
+        conv_lead=_lead_for(key),
         **_booking_from_thread(key, patient, phone, msgs, lang))
+
+
+def _social_state(key, channel, msgs):
+    """What a reply on this channel may be right now (``utils/social_outbound``)."""
+    from app.utils.social_outbound import reply_state
+
+    return reply_state(channel, msgs)
+
+
+def _social_reply(key, channel, body):
+    """Send a person's reply on Messenger, Instagram, Telegram or TikTok and
+    say how it went. The rules are ``utils/social_outbound``'s."""
+    from app.utils.social_outbound import reply
+
+    log, refused = reply(key, channel, body, user_id=current_user.id)
+    if refused:
+        flash(t("social.refused_" + refused) if refused != "no_contact"
+              else t("inbox.no_phone"), "danger")
+        return redirect(url_for("messages.inbox_thread", key=key))
+    db.session.commit()
+    ok = log.status == "sent"
+    flash(t("inbox.sent") if ok else t("social.failed", err=log.error or "—"),
+          "success" if ok else "danger")
+    return redirect(url_for("messages.inbox_thread", key=key))
+
+
+def _lead_for(key):
+    """The newest lead taken from this conversation, if any."""
+    from app.models import Lead
+
+    return (Lead.query.filter_by(conversation_key=key)
+            .order_by(Lead.id.desc()).first())
 
 
 def _booking_from_thread(key, patient, phone, msgs, lang):
@@ -820,7 +861,11 @@ def inbox_link(key):
     if patient is None:
         flash(t("inbox.link_pick"), "warning")
         return redirect(url_for("messages.inbox_thread", key=key))
-    moved = link_phone_to_patient(key, patient)
+    if key.startswith("c") and key[1:].isdigit():
+        from app.utils.inbox import link_contact_to_patient
+        moved = link_contact_to_patient(int(key[1:]), patient, current_user)
+    else:
+        moved = link_phone_to_patient(key, patient)
     if not moved:
         flash(t("inbox.link_none"), "warning")
         return redirect(url_for("messages.inbox_thread", key=key))
@@ -837,6 +882,11 @@ def inbox_send(key):
     body = (request.form.get("body") or "").strip()
     if not body:
         return redirect(url_for("messages.inbox_thread", key=key))
+    from app.utils.inbox import reply_channel
+    from app.utils.social import SOCIAL_CHANNELS
+    channel = reply_channel(key)
+    if channel in SOCIAL_CHANNELS:
+        return _social_reply(key, channel, body)
     phone, patient_id = _thread_phone(key)
     if not phone:
         flash(t("inbox.no_phone"), "danger")
@@ -874,7 +924,11 @@ def inbox_template_send(key):
     the program had nothing to offer but a warning.
     """
     from app.utils import wa_templates
+    from app.utils.inbox import reply_channel
 
+    if reply_channel(key) != "whatsapp":
+        flash(t("inbox.tpl_unknown"), "warning")
+        return redirect(url_for("messages.inbox_thread", key=key))
     tpl = wa_templates.find((request.form.get("name") or "").strip().lower())
     if tpl is None:
         flash(t("inbox.tpl_unknown"), "warning")

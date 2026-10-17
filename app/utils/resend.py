@@ -86,6 +86,10 @@ def retryable(days=DEFAULT_DAYS, limit=MAX_PER_PRESS):
                     MessageLog.created_at >= since)
             .filter(db.or_(MessageLog.error.is_(None),
                            MessageLog.error.notin_(SKIP_REASONS)))
+            # A resend goes through WhatsApp; a failed Messenger, Instagram
+            # or Telegram reply is answered again from its own thread.
+            .filter(db.or_(MessageLog.channel.is_(None),
+                           MessageLog.channel == "whatsapp"))
             .order_by(MessageLog.created_at.desc())
             .limit(limit).all())
     retried = _already_retried_ids(rows)

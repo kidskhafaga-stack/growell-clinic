@@ -770,6 +770,16 @@ ADDITIONS = [
     ("booking_requests", "suggested_date", "DATE"),
     ("booking_requests", "suggested_time", "VARCHAR(5)"),
     ("booking_requests", "suggestion_outcome", "VARCHAR(8)"),
+    # ConnectHub, stage one: the lead a request was made from, and the
+    # campaign that brought the family. Old requests had neither.
+    ("booking_requests", "lead_id", "INTEGER"),
+    ("booking_requests", "campaign", "VARCHAR(80)"),
+    # ConnectHub, stage two: one log for every channel. Old rows have no
+    # channel and are WhatsApp; they have no contact, event or reply either.
+    ("message_logs", "channel", "VARCHAR(16)"),
+    ("message_logs", "contact_id", "INTEGER"),
+    ("message_logs", "event", "VARCHAR(16)"),
+    ("message_logs", "reply_to", "VARCHAR(120)"),
     # Cost centres. Empty on every row already there: a journal line posted
     # before centres existed belongs to none, and the report says so rather
     # than guessing; an expense, a service and an invoice line likewise.
@@ -1016,6 +1026,7 @@ ADDITIONS = [
     # GAHAR DAS.14 (h) / ICD.17 ev. 5 — the minimal retesting interval, and
     # why a test was repeated inside it.
     ("investigations", "retest_hours", "INTEGER"),
+    ("investigations", "section", "VARCHAR(20)"),
     ("visit_investigations", "repeat_reason", "VARCHAR(200)"),
     ("visit_investigations", "repeat_reason_by", "INTEGER"),
     # Leaving against advice (DAMA / LAMA): the doctor's assessment, the risk

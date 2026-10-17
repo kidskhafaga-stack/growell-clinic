@@ -77,6 +77,9 @@ def page(kind):
     _admin_only()
     q = (request.args.get("q") or "").strip()
     category = (request.args.get("category") or "").strip()
+    from app.utils import lab_sections
+
+    section = lab_sections.clean(request.args.get("section")) if kind == "lab" else None
     page_no = max(1, request.args.get("page", type=int) or 1)
     query = Investigation.query
     if q:
@@ -87,6 +90,8 @@ def page(kind):
                                  Investigation.code.ilike(like)))
     if category:
         query = query.filter(Investigation.category == category)
+    if section:
+        query = query.filter(Investigation.section == section)
     # Counted per kind *after* the search, so a search that found the echo
     # under the other room says so on that room's tab.
     per_kind = dict(query.with_entities(Investigation.kind, db.func.count())
@@ -112,6 +117,15 @@ def page(kind):
         # The lab's own: what the laboratory told us of each test, and
         # where a test is sent out. Its policy is on `labs.settings`.
         reference=lab._reference_state(rows) if is_lab else {},
+        # Tests with no components whose make-up is known (`utils/lab_parts`).
+        parts_known=_parts_known(rows) if is_lab else set(),
+        # The laboratory's fixed sections (`utils/lab_sections`), and how
+        # many tests are not sorted into one yet.
+        section=section, sections=lab_sections.choices(_lang()) if is_lab else [],
+        section_name=lambda k: lab_sections.name(k, _lang()),
+        unsorted=(Investigation.query.filter(Investigation.kind == "lab",
+                                             Investigation.section.is_(None)).count()
+                  if is_lab else 0),
         # Two copies of one test, suggested — merged only when somebody says
         # which stays (`utils/investigation_merge`).
         twins=_twins(kind) if is_lab and not q and page_no == 1 else [],
@@ -119,6 +133,19 @@ def page(kind):
         devices=lab._devices() if kind == "diagnostic" else [],
         modalities=rad.MODALITIES, dose_measures=rad.measures(),
         radiation_base=rad.base_unit)
+
+
+def _lang():
+    from flask import g
+
+    return getattr(g, "lang", "ar")
+
+
+def _parts_known(rows):
+    from app.utils import lab_parts
+
+    return {row.id for row in rows
+            if not row.analyte_links and lab_parts.panel_for(row) is not None}
 
 
 def _twins(kind):
@@ -217,6 +244,10 @@ def edit(test_id, kind=None):
     if row.kind == "lab":
         # A culture is answered with what grew (`utils/micro`) — the lab's tick.
         row.is_culture = request.form.get("is_culture") == "1" or None
+        if "section" in request.form:
+            from app.utils import lab_sections
+
+            row.section = lab_sections.clean(request.form.get("section"))
     if row.kind == "lab" and "referral_lab_id" in request.form:
         from app.models import ReferralLab
 

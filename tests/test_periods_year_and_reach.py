@@ -251,6 +251,14 @@ def test_no_page_is_left_without_a_link(boss, clinic):
             # A family's complaint: their verdict on the answer, and one they
             # write themselves — both reached by a link sent to them.
             "feedback.case_verdict", "feedback.case_new",
+            # Where the public request page lands a family after they send
+            # it (``CONNECTHUB_PLAN.md``) — reached by that redirect only.
+            "booking_page.done",
+            # Where TikTok sends the clinic's admin back after they authorize
+            # the app — reached by TikTok's redirect only.
+            "messages.channels_tiktok_callback",
+            "messages.channels_instagram_callback",
+            "messages.channels_mail_oauth_callback",
             # `/update` and `/update/install` — the addresses the update screen
             # used to have, kept so a bookmark does not become a 404. They
             # redirect to the settings tab that replaced them, and nothing

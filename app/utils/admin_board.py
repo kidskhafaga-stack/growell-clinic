@@ -230,4 +230,17 @@ def board(w):
         "step": step, "trend": points,
         "attention": attention(now_report, owed),
         "doctors": doctors(w["from"], w["to"]),
+        # Where new families came from, and what became of them — the same
+        # window, beside the one before (CONNECTHUB_PLAN.md).
+        "families": _families(w),
     }
+
+
+def _families(w):
+    from app.utils import leads
+
+    now = leads.report_for_dates(w["from"], w["to"])
+    before = leads.report_for_dates(w["prev_from"], w["prev_to"])
+    return {"now": now["all"], "before": before["all"],
+            "channels": now["channels"][:6], "campaigns": now["campaigns"][:5],
+            "first_answer_hours": now["first_answer_hours"]}

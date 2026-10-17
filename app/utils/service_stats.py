@@ -29,8 +29,15 @@ WINDOW_HOURS = 24
 
 
 def _thread_of(log):
-    """The conversation key a log row belongs to — same rule as the inbox."""
-    return f"p{log.patient_id}" if log.patient_id else (log.to_phone or "?")
+    """The conversation key a log row belongs to — same rule as the inbox:
+    the child, else the person on a channel with no number, else the number.
+    Without the middle one every Messenger, Instagram, Telegram, TikTok and
+    e-mail conversation was one thread called "?"."""
+    if log.patient_id:
+        return f"p{log.patient_id}"
+    if log.contact_id:
+        return f"c{log.contact_id}"
+    return log.to_phone or "?"
 
 
 def first_replies(days=30, now=None):
@@ -48,7 +55,8 @@ def first_replies(days=30, now=None):
     since = now - timedelta(days=days)
     rows = (db.session.query(MessageLog.id, MessageLog.direction,
                              MessageLog.patient_id, MessageLog.to_phone,
-                             MessageLog.created_at, MessageLog.status)
+                             MessageLog.created_at, MessageLog.status,
+                             MessageLog.contact_id, MessageLog.channel)
             .filter(MessageLog.created_at >= since)
             .order_by(MessageLog.created_at).all())
 
@@ -71,6 +79,7 @@ def first_replies(days=30, now=None):
                 continue                    # the clinic spoke first
             gap = (msg.created_at - pending.created_at).total_seconds() / 3600.0
             out.append({"key": key, "asked_at": pending.created_at,
+                        "channel": pending.channel or "whatsapp",
                         "replied_at": msg.created_at,
                         "hours": max(gap, 0), "answered": True,
                         "in_window": gap <= WINDOW_HOURS})
@@ -78,6 +87,7 @@ def first_replies(days=30, now=None):
         if pending is not None:
             waited = (now - pending.created_at).total_seconds() / 3600.0
             out.append({"key": key, "asked_at": pending.created_at,
+                        "channel": pending.channel or "whatsapp",
                         "replied_at": None, "hours": max(waited, 0),
                         "answered": False,
                         "in_window": waited <= WINDOW_HOURS})
@@ -88,11 +98,11 @@ class _Row:
     """A query row read by name — the tuple indexes were the bug waiting."""
 
     __slots__ = ("id", "direction", "patient_id", "to_phone", "created_at",
-                 "status")
+                 "status", "contact_id", "channel")
 
     def __init__(self, row):
         (self.id, self.direction, self.patient_id, self.to_phone,
-         self.created_at, self.status) = row
+         self.created_at, self.status, self.contact_id, self.channel) = row
 
 
 def summary(days=30, now=None):
@@ -119,7 +129,25 @@ def summary(days=30, now=None):
                         if replies else None),
         "by_assignee": _by_assignee(),
         "by_topic": _by_topic(),
+        "by_channel": _by_channel(replies),
     }
+
+
+def _by_channel(replies):
+    """The same numbers per channel the question came in on — which channel
+    the desk answers fastest, and which one families are left waiting on."""
+    groups = {}
+    for r in replies:
+        groups.setdefault(r.get("channel") or "whatsapp", []).append(r)
+    out = []
+    for channel, rows in groups.items():
+        times = sorted(r["hours"] for r in rows if r["answered"])
+        out.append({"channel": channel, "asked": len(rows),
+                    "answered": len(times),
+                    "missed": sum(1 for r in rows
+                                  if not r["answered"] and not r["in_window"]),
+                    "median_hours": _median(times)})
+    return sorted(out, key=lambda e: -e["asked"])
 
 
 def _median(values):

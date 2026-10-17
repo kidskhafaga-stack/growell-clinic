@@ -24,6 +24,9 @@ from app.models.waitlist import WAITLIST_STATUSES, WaitlistEntry
 from app.models.booking_request import (REQUEST_SOURCES, REQUEST_STATUSES,
                                         BookingRequest)
 from app.models.online_payment import OnlinePayment
+from app.models.crm import (IDENTITY_KINDS, LEAD_STAGES, LOST_REASONS,
+                            SOURCE_KINDS, Contact, ContactIdentity, Lead,
+                            LeadEvent)
 from app.models.clinic_room import ClinicRoom, RoomAssignment
 from app.models.nursing_station import NursingStation
 from app.models.vaccine_plan import VaccinePlanItem
@@ -933,4 +936,12 @@ __all__ = [
     "METHOD_CHECK_KINDS",
     "RANGE_KINDS",
     "RANGE_SEXES",
+    "Contact",
+    "ContactIdentity",
+    "Lead",
+    "LeadEvent",
+    "IDENTITY_KINDS",
+    "LEAD_STAGES",
+    "LOST_REASONS",
+    "SOURCE_KINDS",
 ]

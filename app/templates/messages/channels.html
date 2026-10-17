@@ -1,0 +1,194 @@
+{% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('channels.title') }}{% endblock %}
+{% block page_heading %}{{ t('channels.title') }}{% endblock %}
+
+{# CONNECTHUB_PLAN.md stage one — which channels this clinic uses, how each
+   reaches the program (honestly: connected, or entered by hand until its
+   adapter exists), the public request page, and links that carry their
+   campaign. Behind messages_setup, like the WhatsApp connection. #}
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-diagram-3"></i> {{ t('channels.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('channels.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('messages.leads_board') }}"><i class="bi bi-person-lines-fill"></i> {{ t('leads.title') }}</a>
+</div>
+
+<form method="post" action="{{ url_for('messages.channels_setup') }}" class="card gc-scale-in" style="margin-bottom:14px;" data-channels-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div style="overflow-x:auto;"><table class="table" style="min-width:620px;">
+    <thead><tr><th>{{ t('channels.used') }}</th><th>{{ t('channels.channel') }}</th><th>{{ t('channels.reaches') }}</th></tr></thead>
+    <tbody>
+    {% for k, c in all_channels.items() if k != 'page' %}
+    <tr data-channel-row="{{ k }}:{{ connection[k] }}">
+      <td><input type="checkbox" name="channel" value="{{ k }}" id="ch_{{ k }}" {% if k in on %}checked{% endif %}></td>
+      <td><label for="ch_{{ k }}" style="margin:0;"><i class="bi {{ c.icon }}"></i> {{ t('channels.ch_' ~ k) }}</label></td>
+      <td><span class="badge {{ 'badge--green' if connection[k] == 'connected' else 'badge--muted' }}">{{ t('channels.conn_' ~ connection[k]) }}</span>
+        <div class="hint">{{ t('channels.how_' ~ k) }}</div>
+        {% if k == 'whatsapp' %}<a class="hint" href="{{ url_for('messages.occasions') }}">{{ t('channels.wa_settings') }}</a>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody></table></div>
+
+  <h2 class="section-title" style="margin:14px 0 6px;"><i class="bi bi-globe2"></i> {{ t('channels.page') }}</h2>
+  <p class="hint" style="margin:0 0 6px;max-width:72ch;">{{ t('channels.page_hint') }}</p>
+  <label style="display:flex;gap:8px;align-items:center;margin:0 0 10px;"><input type="checkbox" name="page" value="on" {% if page_open %}checked{% endif %} data-page-toggle>
+    {{ t('channels.page_open') }}</label>
+  {% if page_open %}<p style="margin:0 0 10px;"><a href="{{ url_for('booking_page.form') }}" target="_blank" rel="noopener" data-page-preview><i class="bi bi-box-arrow-up-right"></i> {{ t('channels.page_preview') }}</a></p>{% endif %}
+  <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+</form>
+
+{# Stage two — the clinic's own accounts. Admin only (the keys to them);
+   a saved secret is never shown again, only whether one is there. #}
+{% if current_user.is_admin %}
+<div class="card gc-scale-in" id="connect" style="margin-bottom:14px;" data-connect>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-plug"></i> {{ t('social.connect_title') }}</h2>
+  <p class="hint" style="margin:0 0 10px;max-width:72ch;">{{ t('social.connect_sub') }}</p>
+  <form method="post" action="{{ url_for('messages.channels_connect') }}" style="display:grid;gap:14px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-meta-fields>
+      <legend style="padding:0 6px;"><i class="bi bi-messenger"></i> <i class="bi bi-instagram"></i> {{ t('social.meta') }}
+        <span class="badge {{ 'badge--green' if meta_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if meta_ready else t('social.not_set') }}</span></legend>
+      <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+        <div class="form-row" style="margin:0;"><label for="mt_p">{{ t('social.page_id') }}</label><input class="input" id="mt_p" name="meta_page_id" value="{{ meta.page_id }}" dir="ltr" maxlength="120"></div>
+        <div class="form-row" style="margin:0;"><label for="mt_t">{{ t('social.page_token') }}</label><input class="input" id="mt_t" name="meta_page_token" type="password" autocomplete="off" dir="ltr" placeholder="{{ t('social.kept') if has_page_token else '' }}"></div>
+        <div class="form-row" style="margin:0;"><label for="mt_s">{{ t('social.app_secret') }}</label><input class="input" id="mt_s" name="meta_app_secret" type="password" autocomplete="off" dir="ltr" placeholder="{{ t('social.kept') if has_app_secret else '' }}"></div>
+        <div class="form-row" style="margin:0;"><label for="mt_v">{{ t('social.graph_version') }}</label><input class="input" id="mt_v" name="meta_graph_version" value="{{ meta.version }}" dir="ltr" maxlength="10"></div>
+      </div>
+      <label style="display:flex;gap:8px;align-items:center;margin:8px 0 0;"><input type="checkbox" name="meta_human_agent" value="1" {% if meta.human_agent %}checked{% endif %}> {{ t('social.human_agent_ok') }}</label>
+      <p class="hint" style="margin:8px 0 0;">{{ t('social.callback') }} <code dir="ltr" data-social-hook>{{ social_hook }}</code>
+        · {{ t('social.verify_token') }} <code dir="ltr">{{ meta.verify_token or '—' }}</code>
+        <label style="display:inline-flex;gap:4px;align-items:center;margin-inline-start:6px;"><input type="checkbox" name="regen_meta" value="1"> {{ t('social.regen') }}</label></p>
+      <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.meta_steps') }}</p>
+    </fieldset>
+    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-ig-fields>
+      <legend style="padding:0 6px;"><i class="bi bi-instagram"></i> {{ t('channels.ch_instagram') }}
+        <span class="badge {{ 'badge--green' if ig_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if ig_ready else t('social.not_set') }}</span></legend>
+      <label style="display:flex;gap:8px;align-items:center;margin:0 0 4px;"><input type="radio" name="ig_mode" value="page" {% if ig_mode != 'login' %}checked{% endif %}> {{ t('social.ig_mode_page') }}</label>
+      <label style="display:flex;gap:8px;align-items:center;margin:0 0 8px;"><input type="radio" name="ig_mode" value="login" {% if ig_mode == 'login' %}checked{% endif %}> {{ t('social.ig_mode_login') }}</label>
+      <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+        <div class="form-row" style="margin:0;"><label for="ig_a">{{ t('social.ig_app_id') }}</label><input class="input" id="ig_a" name="ig_app_id" value="{{ ig.app_id }}" dir="ltr" maxlength="120"></div>
+        <div class="form-row" style="margin:0;"><label for="ig_s">{{ t('social.ig_app_secret') }}</label><input class="input" id="ig_s" name="ig_app_secret" type="password" autocomplete="off" dir="ltr" placeholder="{{ t('social.kept') if ig.has_secret else '' }}"></div>
+      </div>
+      <p class="hint" style="margin:8px 0 0;">{{ t('social.tt_redirect_is') }} <code dir="ltr" data-ig-redirect>{{ ig_redirect }}</code>
+        {% if ig.user_id %} · {{ t('social.tt_account') }} <code dir="ltr" data-ig-account>{{ ig.user_id }}</code>{% if ig.until %} · {{ t('social.ig_until', d=ig.until) }}{% endif %}{% endif %}</p>
+      <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.ig_steps') }}</p>
+    </fieldset>
+    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-tg-fields>
+      <legend style="padding:0 6px;"><i class="bi bi-telegram"></i> {{ t('channels.ch_telegram') }}
+        <span class="badge {{ 'badge--green' if tg_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if tg_ready else t('social.not_set') }}</span></legend>
+      <div class="form-row" style="margin:0;max-width:420px;"><label for="tg_t">{{ t('social.bot_token') }}</label><input class="input" id="tg_t" name="tg_bot_token" type="password" autocomplete="off" dir="ltr" placeholder="{{ t('social.kept') if has_tg_token else '' }}"></div>
+      <p class="hint" style="margin:8px 0 0;">{{ t('social.tg_hook_is') }} <code dir="ltr" data-tg-hook>{{ tg_hook }}</code>
+        <label style="display:inline-flex;gap:4px;align-items:center;margin-inline-start:6px;"><input type="checkbox" name="regen_tg" value="1"> {{ t('social.regen_secret') }}</label></p>
+      <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.tg_steps') }}</p>
+    </fieldset>
+    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-tt-fields>
+      <legend style="padding:0 6px;"><i class="bi bi-tiktok"></i> {{ t('channels.ch_tiktok') }}
+        <span class="badge {{ 'badge--green' if tt_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if tt_ready else t('social.not_set') }}</span></legend>
+      <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+        <div class="form-row" style="margin:0;"><label for="tt_a">{{ t('social.tt_app_id') }}</label><input class="input" id="tt_a" name="tt_app_id" value="{{ tiktok.app_id }}" dir="ltr" maxlength="120"></div>
+        <div class="form-row" style="margin:0;"><label for="tt_s">{{ t('social.tt_secret') }}</label><input class="input" id="tt_s" name="tt_app_secret" type="password" autocomplete="off" dir="ltr" placeholder="{{ t('social.kept') if tiktok.secret else '' }}"></div>
+        <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="tt_u">{{ t('social.tt_auth_url') }}</label><input class="input" id="tt_u" name="tt_auth_url" value="{{ tiktok.auth_url }}" dir="ltr" maxlength="600" type="url"></div>
+      </div>
+      <p class="hint" style="margin:8px 0 0;">{{ t('social.tt_redirect_is') }} <code dir="ltr" data-tt-redirect>{{ tt_redirect }}</code> · {{ t('social.tt_hook_is') }} <code dir="ltr" data-tt-hook>{{ tt_hook }}</code></p>
+      {% if tiktok.business_id %}<p class="hint" style="margin:6px 0 0;" data-tt-account>{{ t('social.tt_account') }} <code dir="ltr">{{ tiktok.business_id }}</code></p>{% endif %}
+      <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.tt_steps') }}</p>
+    </fieldset>
+    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-mail-fields>
+      <legend style="padding:0 6px;"><i class="bi bi-envelope"></i> {{ t('channels.ch_email') }}
+        <span class="badge {{ 'badge--green' if mail_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if mail_ready else t('social.not_set') }}</span></legend>
+      <div class="form-row" style="margin:0 0 8px;max-width:320px;"><label for="ml_auth">{{ t('social.mail_auth') }}</label>
+        <select class="select" id="ml_auth" name="mail_auth" data-mail-auth>
+          {% for m in ('password', 'google', 'microsoft') %}<option value="{{ m }}" {{ 'selected' if mail.auth == m else '' }}>{{ t('social.mail_auth_' ~ m) }}</option>{% endfor %}
+        </select></div>
+      <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+        <div class="form-row" style="margin:0;"><label for="ml_a">{{ t('social.mail_address') }}</label><input class="input" id="ml_a" name="mail_address" value="{{ mail.address }}" dir="ltr" type="email" maxlength="160"></div>
+        <div class="form-row" style="margin:0;"><label for="ml_u">{{ t('social.mail_user') }}</label><input class="input" id="ml_u" name="mail_user" value="{{ mail.user }}" dir="ltr" maxlength="160" autocomplete="off"></div>
+        <div class="form-row" style="margin:0;"><label for="ml_p">{{ t('social.mail_password') }}</label><input class="input" id="ml_p" name="mail_password" type="password" autocomplete="off" dir="ltr" placeholder="{{ t('social.kept') if mail.has_password else '' }}"></div>
+        <div class="form-row" style="margin:0;"><label for="ml_ih">{{ t('social.imap_host') }}</label><input class="input" id="ml_ih" name="mail_imap_host" value="{{ mail.imap_host }}" dir="ltr" maxlength="160" placeholder="imap.example.com"></div>
+        <div class="form-row" style="margin:0;"><label for="ml_ip">{{ t('social.imap_port') }}</label><input class="input" id="ml_ip" name="mail_imap_port" value="{{ mail.imap_port }}" dir="ltr" inputmode="numeric" maxlength="5"></div>
+        <div class="form-row" style="margin:0;"><label for="ml_sh">{{ t('social.smtp_host') }}</label><input class="input" id="ml_sh" name="mail_smtp_host" value="{{ mail.smtp_host }}" dir="ltr" maxlength="160" placeholder="smtp.example.com"></div>
+        <div class="form-row" style="margin:0;"><label for="ml_sp">{{ t('social.smtp_port') }}</label><input class="input" id="ml_sp" name="mail_smtp_port" value="{{ mail.smtp_port }}" dir="ltr" inputmode="numeric" maxlength="5"></div>
+      </div>
+      {% if mail.auth != 'password' %}
+      <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:8px;" data-mail-oauth-fields>
+        <div class="form-row" style="margin:0;"><label for="ml_ci">{{ t('social.mail_client_id') }}</label><input class="input" id="ml_ci" name="mail_oauth_client_id" value="{{ mail.client_id }}" dir="ltr" maxlength="200" autocomplete="off"></div>
+        <div class="form-row" style="margin:0;"><label for="ml_cs">{{ t('social.mail_client_secret') }}</label><input class="input" id="ml_cs" name="mail_oauth_client_secret" type="password" autocomplete="off" dir="ltr" placeholder="{{ t('social.kept') if mail.has_client_secret else '' }}"></div>
+        {% if mail.auth == 'microsoft' %}
+        <div class="form-row" style="margin:0;"><label for="ml_tn">{{ t('social.mail_tenant') }}</label><input class="input" id="ml_tn" name="mail_oauth_tenant" value="{{ mail.tenant }}" dir="ltr" maxlength="80" placeholder="common"></div>
+        {% endif %}
+      </div>
+      <p class="hint" style="margin:8px 0 0;">{{ t('social.tt_redirect_is') }} <code dir="ltr" data-mail-redirect>{{ mail_redirect }}</code></p>
+      <p class="hint" style="margin:6px 0 0;" data-mail-oauth-state="{{ 'error' if mail.oauth_error else ('on' if mail.oauth_connected else 'off') }}">
+        {% if mail.oauth_error %}<span class="badge badge--danger">{{ t('social.mail_oauth_again') }}</span>
+        {% elif mail.oauth_connected %}<span class="badge badge--green">{{ t('social.mail_oauth_on') }}</span>
+        <label style="margin-inline-start:8px;"><input type="checkbox" name="clear_mail_oauth" value="1"> {{ t('social.mail_oauth_clear') }}</label>
+        {% else %}<span class="badge badge--muted">{{ t('social.mail_oauth_off') }}</span>{% endif %}</p>
+      <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.mail_steps_' ~ mail.auth) }}</p>
+      {% else %}
+      <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.mail_steps') }}</p>
+      {% endif %}
+    </fieldset>
+    <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+  {% if ig_mode == 'login' and ig.app_id and ig.has_secret %}
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.channels_instagram_start') }}" data-ig-start><i class="bi bi-instagram"></i> {{ t('social.ig_start') }}</a>
+  {% endif %}
+  {% if ig_mode == 'login' and ig.user_id %}
+  <form method="post" action="{{ url_for('messages.channels_instagram_subscribe') }}" style="margin:0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-bell"></i> {{ t('social.ig_subscribe') }}</button>
+  </form>
+  {% endif %}
+  {% if mail.auth != 'password' and mail.client_id %}
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.channels_mail_oauth_start') }}" data-mail-oauth-start><i class="bi bi-envelope-check"></i> {{ t('social.mail_oauth_start') }}</a>
+  {% endif %}
+  {% if tiktok.app_id and tiktok.auth_url %}
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.channels_tiktok_start') }}" data-tt-start><i class="bi bi-tiktok"></i> {{ t('social.tt_start') }}</a>
+  {% endif %}
+  {% if tt_ready %}
+  <form method="post" action="{{ url_for('messages.channels_tiktok_subscribe') }}" style="margin:0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-bell"></i> {{ t('social.tt_subscribe') }}</button>
+  </form>
+  {% endif %}
+  </div>
+  {% if mail_ready %}
+  <form method="post" action="{{ url_for('messages.channels_mail_check') }}" style="margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit" data-mail-check><i class="bi bi-envelope-arrow-down"></i> {{ t('social.mail_check') }}</button>
+  </form>
+  {% endif %}
+  {% if tg_ready %}
+  <form method="post" action="{{ url_for('messages.channels_telegram_hook') }}" style="margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-link"></i> {{ t('social.tg_set_hook') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card gc-scale-in" data-campaign-links>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-link-45deg"></i> {{ t('channels.links') }}</h2>
+  <p class="hint" style="margin:0 0 8px;max-width:72ch;">{{ t('channels.links_hint') }}</p>
+  {% if not page_open %}<p style="margin:0 0 8px;"><span class="badge badge--warn" data-page-closed>{{ t('channels.page_closed_note') }}</span></p>{% endif %}
+  <form method="get" action="{{ url_for('messages.channels_setup') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <div class="form-row" style="margin:0;"><label for="cl_c">{{ t('channels.channel') }}</label>
+      <select class="input" id="cl_c" name="c"><option value="">—</option>{% for k in all_channels if k != 'page' %}<option value="{{ k }}" {% if request.args.get('c') == k %}selected{% endif %}>{{ t('channels.ch_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="cl_l">{{ t('channels.label') }}</label><input class="input" id="cl_l" name="label" maxlength="60" dir="ltr" value="{{ request.args.get('label', '') }}" placeholder="dr-ahmed-oct"></div>
+    {{ pickers.doctor_picker('doctor_id', doctor_id, t('leads.doctor'), doctors=doctors, autosubmit=False) }}
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('channels.make_link') }}</button>
+  </form>
+  {% if link %}
+  <div style="margin-top:10px;" data-link>
+    <input class="input" readonly value="{{ link }}" dir="ltr" aria-label="{{ t('channels.links') }}" onclick="this.select()">
+    {% if tag %}<p class="hint" style="margin:4px 0 0;">{{ t('channels.tag_is') }} <code dir="ltr">{{ tag }}</code></p>{% endif %}
+    {% if not public_base %}<p class="hint" style="margin:4px 0 0;">{{ t('channels.no_public_base') }}</p>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,725 @@
+{
+ "_about": "What a common test is made of — names, a group, and the unit most laboratories print — offered on a test's page when it has no components yet (utils/lab_parts). Structure only: there is not one figure in this file, and there must never be one. Ranges and critical limits are the laboratory's own, from its analyser's kit insert, and arrive by import, by hand or from the insert reader, approved by its director. A unit here is a suggestion the laboratory can change before saving. Specimen-specific names (Urine Glucose, Stool Pus Cells) are kept apart from the blood ones because a range belongs to an analyte, and urine glucose is not blood glucose.",
+ "panels": [
+  {
+   "key": "urine",
+   "section": "urine_stool",
+   "names": [
+    "Urine analysis",
+    "Complete urine analysis",
+    "Urinalysis",
+    "Urine routine",
+    "Urine R/E",
+    "Urine R/M",
+    "CUE",
+    "تحليل بول",
+    "تحليل بول كامل",
+    "بول كامل",
+    "تحليل البول"
+   ],
+   "parts": [
+    {
+     "name": "Urine Color",
+     "name_ar": "لون البول",
+     "group": "physical"
+    },
+    {
+     "name": "Urine Appearance",
+     "name_ar": "شكل البول (العكارة)",
+     "group": "physical"
+    },
+    {
+     "name": "Urine Specific Gravity",
+     "name_ar": "الكثافة النوعية",
+     "group": "chemical"
+    },
+    {
+     "name": "Urine pH",
+     "name_ar": "حموضة البول (pH)",
+     "group": "chemical"
+    },
+    {
+     "name": "Urine Protein",
+     "name_ar": "بروتين في البول",
+     "group": "chemical"
+    },
+    {
+     "name": "Urine Glucose",
+     "name_ar": "سكر في البول",
+     "group": "chemical"
+    },
+    {
+     "name": "Urine Ketones",
+     "name_ar": "كيتونات في البول",
+     "group": "chemical"
+    },
+    {
+     "name": "Urine Bilirubin",
+     "name_ar": "صفراء في البول",
+     "group": "chemical"
+    },
+    {
+     "name": "Urine Urobilinogen",
+     "name_ar": "يوروبيلينوجين",
+     "group": "chemical"
+    },
+    {
+     "name": "Urine Nitrite",
+     "name_ar": "نيتريت",
+     "group": "chemical"
+    },
+    {
+     "name": "Urine Leukocyte Esterase",
+     "name_ar": "إستراز كرات الدم البيضاء",
+     "group": "chemical"
+    },
+    {
+     "name": "Urine Blood",
+     "name_ar": "دم في البول",
+     "group": "chemical"
+    },
+    {
+     "name": "Urine Pus Cells",
+     "name_ar": "خلايا صديد",
+     "unit": "/HPF",
+     "group": "microscopic"
+    },
+    {
+     "name": "Urine RBCs",
+     "name_ar": "كرات دم حمراء",
+     "unit": "/HPF",
+     "group": "microscopic"
+    },
+    {
+     "name": "Urine Epithelial Cells",
+     "name_ar": "خلايا طلائية",
+     "unit": "/HPF",
+     "group": "microscopic"
+    },
+    {
+     "name": "Urine Casts",
+     "name_ar": "أسطوانات (Casts)",
+     "unit": "/LPF",
+     "group": "microscopic"
+    },
+    {
+     "name": "Urine Crystals",
+     "name_ar": "بلورات",
+     "group": "microscopic"
+    },
+    {
+     "name": "Urine Bacteria",
+     "name_ar": "بكتيريا",
+     "group": "microscopic"
+    },
+    {
+     "name": "Urine Yeast",
+     "name_ar": "فطريات (خميرة)",
+     "group": "microscopic"
+    },
+    {
+     "name": "Urine Mucus",
+     "name_ar": "مخاط",
+     "group": "microscopic"
+    }
+   ]
+  },
+  {
+   "key": "stool",
+   "section": "urine_stool",
+   "names": [
+    "Stool analysis",
+    "Stool examination",
+    "Stool routine",
+    "Stool R/E",
+    "Stool R/M",
+    "تحليل براز",
+    "تحليل براز كامل",
+    "براز كامل",
+    "تحليل البراز"
+   ],
+   "parts": [
+    {
+     "name": "Stool Color",
+     "name_ar": "لون البراز",
+     "group": "physical"
+    },
+    {
+     "name": "Stool Consistency",
+     "name_ar": "قوام البراز",
+     "group": "physical"
+    },
+    {
+     "name": "Stool Mucus",
+     "name_ar": "مخاط",
+     "group": "physical"
+    },
+    {
+     "name": "Stool Visible Blood",
+     "name_ar": "دم ظاهر",
+     "group": "physical"
+    },
+    {
+     "name": "Stool Pus Cells",
+     "name_ar": "خلايا صديد",
+     "unit": "/HPF",
+     "group": "microscopic"
+    },
+    {
+     "name": "Stool RBCs",
+     "name_ar": "كرات دم حمراء",
+     "unit": "/HPF",
+     "group": "microscopic"
+    },
+    {
+     "name": "Stool Ova",
+     "name_ar": "بويضات طفيليات",
+     "group": "microscopic"
+    },
+    {
+     "name": "Stool Cysts / Trophozoites",
+     "name_ar": "حويصلات وأطوار طفيليات",
+     "group": "microscopic"
+    },
+    {
+     "name": "Stool Fat Globules",
+     "name_ar": "دهون",
+     "group": "microscopic"
+    }
+   ]
+  },
+  {
+   "key": "cbc",
+   "section": "hematology",
+   "names": [
+    "CBC",
+    "Complete Blood Count",
+    "Complete Blood Picture",
+    "CBP",
+    "Hemogram",
+    "Full Blood Count",
+    "FBC",
+    "صورة دم كاملة",
+    "صورة دم",
+    "صوره دم كامله"
+   ],
+   "parts": [
+    {
+     "name": "Hemoglobin",
+     "name_ar": "الهيموجلوبين",
+     "unit": "g/dL",
+     "group": "red"
+    },
+    {
+     "name": "RBC Count",
+     "name_ar": "عدد كرات الدم الحمراء",
+     "unit": "x10^6/µL",
+     "group": "red"
+    },
+    {
+     "name": "Hematocrit",
+     "name_ar": "الهيماتوكريت",
+     "unit": "%",
+     "group": "red"
+    },
+    {
+     "name": "MCV",
+     "name_ar": "متوسط حجم الكرية",
+     "unit": "fL",
+     "group": "red"
+    },
+    {
+     "name": "MCH",
+     "name_ar": "متوسط هيموجلوبين الكرية",
+     "unit": "pg",
+     "group": "red"
+    },
+    {
+     "name": "MCHC",
+     "name_ar": "تركيز هيموجلوبين الكرية",
+     "unit": "g/dL",
+     "group": "red"
+    },
+    {
+     "name": "RDW-CV",
+     "name_ar": "توزيع حجم الكرات الحمراء",
+     "unit": "%",
+     "group": "red"
+    },
+    {
+     "name": "WBC Count",
+     "name_ar": "عدد كرات الدم البيضاء",
+     "unit": "x10^3/µL",
+     "group": "white"
+    },
+    {
+     "name": "Neutrophils",
+     "name_ar": "الخلايا المتعادلة",
+     "unit": "%",
+     "group": "white"
+    },
+    {
+     "name": "Lymphocytes",
+     "name_ar": "الخلايا الليمفاوية",
+     "unit": "%",
+     "group": "white"
+    },
+    {
+     "name": "Monocytes",
+     "name_ar": "الخلايا وحيدة النواة",
+     "unit": "%",
+     "group": "white"
+    },
+    {
+     "name": "Eosinophils",
+     "name_ar": "الخلايا الحمضية",
+     "unit": "%",
+     "group": "white"
+    },
+    {
+     "name": "Basophils",
+     "name_ar": "الخلايا القاعدية",
+     "unit": "%",
+     "group": "white"
+    },
+    {
+     "name": "Absolute Neutrophil Count",
+     "name_ar": "العدد المطلق للمتعادلة",
+     "unit": "x10^3/µL",
+     "group": "white"
+    },
+    {
+     "name": "Platelet Count",
+     "name_ar": "الصفائح الدموية",
+     "unit": "x10^3/µL",
+     "group": "platelets"
+    },
+    {
+     "name": "MPV",
+     "name_ar": "متوسط حجم الصفيحة",
+     "unit": "fL",
+     "group": "platelets"
+    }
+   ]
+  },
+  {
+   "key": "bilirubin",
+   "section": "chemistry",
+   "names": [
+    "Bilirubin",
+    "Serum bilirubin",
+    "Bilirubin total and direct",
+    "Bilirubin (T&D)",
+    "Bilirubin T & D",
+    "Total and direct bilirubin",
+    "Total & Direct Bilirubin",
+    "صفراء",
+    "الصفراء",
+    "صفراء كلية ومباشرة",
+    "نسبة الصفراء",
+    "نسبة الصفار",
+    "صفار"
+   ],
+   "parts": [
+    {
+     "name": "Total Bilirubin",
+     "name_ar": "الصفراء الكلية",
+     "unit": "mg/dL"
+    },
+    {
+     "name": "Direct Bilirubin",
+     "name_ar": "الصفراء المباشرة",
+     "unit": "mg/dL"
+    },
+    {
+     "name": "Indirect Bilirubin",
+     "name_ar": "الصفراء غير المباشرة",
+     "unit": "mg/dL",
+     "formula": "indirect_bili",
+     "inputs": {
+      "total": "Total Bilirubin",
+      "direct": "Direct Bilirubin"
+     }
+    }
+   ]
+  },
+  {
+   "key": "lft",
+   "section": "chemistry",
+   "names": [
+    "Liver function tests",
+    "Liver function test",
+    "LFT",
+    "LFTs",
+    "Liver profile",
+    "Liver panel",
+    "وظائف كبد",
+    "وظائف الكبد"
+   ],
+   "parts": [
+    {
+     "name": "ALT (SGPT)",
+     "name_ar": "إنزيم ALT",
+     "unit": "U/L"
+    },
+    {
+     "name": "AST (SGOT)",
+     "name_ar": "إنزيم AST",
+     "unit": "U/L"
+    },
+    {
+     "name": "Alkaline Phosphatase",
+     "name_ar": "الفوسفاتيز القلوي",
+     "unit": "U/L"
+    },
+    {
+     "name": "GGT",
+     "name_ar": "إنزيم GGT",
+     "unit": "U/L"
+    },
+    {
+     "name": "Total Bilirubin",
+     "name_ar": "الصفراء الكلية",
+     "unit": "mg/dL"
+    },
+    {
+     "name": "Direct Bilirubin",
+     "name_ar": "الصفراء المباشرة",
+     "unit": "mg/dL"
+    },
+    {
+     "name": "Indirect Bilirubin",
+     "name_ar": "الصفراء غير المباشرة",
+     "unit": "mg/dL",
+     "formula": "indirect_bili",
+     "inputs": {
+      "total": "Total Bilirubin",
+      "direct": "Direct Bilirubin"
+     }
+    },
+    {
+     "name": "Total Protein",
+     "name_ar": "البروتين الكلي",
+     "unit": "g/dL"
+    },
+    {
+     "name": "Albumin",
+     "name_ar": "الألبيومين",
+     "unit": "g/dL"
+    },
+    {
+     "name": "Globulin",
+     "name_ar": "الجلوبيولين",
+     "unit": "g/dL",
+     "formula": "globulin",
+     "inputs": {
+      "protein": "Total Protein",
+      "albumin": "Albumin"
+     }
+    }
+   ]
+  },
+  {
+   "key": "kft",
+   "section": "chemistry",
+   "names": [
+    "Kidney function tests",
+    "Kidney function test",
+    "KFT",
+    "Renal function tests",
+    "Renal function test",
+    "RFT",
+    "Renal profile",
+    "وظائف كلى",
+    "وظائف الكلى"
+   ],
+   "parts": [
+    {
+     "name": "Urea",
+     "name_ar": "اليوريا",
+     "unit": "mg/dL"
+    },
+    {
+     "name": "Creatinine",
+     "name_ar": "الكرياتينين",
+     "unit": "mg/dL"
+    },
+    {
+     "name": "Uric Acid",
+     "name_ar": "حمض اليوريك",
+     "unit": "mg/dL"
+    }
+   ]
+  },
+  {
+   "key": "electrolytes",
+   "section": "chemistry",
+   "names": [
+    "Electrolytes",
+    "Serum electrolytes",
+    "Electrolyte panel",
+    "Na K Cl",
+    "أملاح",
+    "الأملاح",
+    "أملاح الدم",
+    "صوديوم وبوتاسيوم"
+   ],
+   "parts": [
+    {
+     "name": "Sodium",
+     "name_ar": "الصوديوم",
+     "unit": "mmol/L"
+    },
+    {
+     "name": "Potassium",
+     "name_ar": "البوتاسيوم",
+     "unit": "mmol/L"
+    },
+    {
+     "name": "Chloride",
+     "name_ar": "الكلوريد",
+     "unit": "mmol/L"
+    }
+   ]
+  },
+  {
+   "key": "lipid",
+   "section": "chemistry",
+   "names": [
+    "Lipid profile",
+    "Lipid panel",
+    "Lipogram",
+    "دهون",
+    "صورة دهون",
+    "الدهون",
+    "دهون الدم"
+   ],
+   "parts": [
+    {
+     "name": "Total Cholesterol",
+     "name_ar": "الكوليسترول الكلي",
+     "unit": "mg/dL"
+    },
+    {
+     "name": "Triglycerides",
+     "name_ar": "الدهون الثلاثية",
+     "unit": "mg/dL"
+    },
+    {
+     "name": "HDL Cholesterol",
+     "name_ar": "الكوليسترول النافع HDL",
+     "unit": "mg/dL"
+    },
+    {
+     "name": "LDL Cholesterol",
+     "name_ar": "الكوليسترول الضار LDL",
+     "unit": "mg/dL"
+    }
+   ]
+  },
+  {
+   "key": "iron",
+   "section": "hematology",
+   "names": [
+    "Iron profile",
+    "Iron studies",
+    "Iron panel",
+    "صورة حديد",
+    "صورة الحديد",
+    "دراسة الحديد"
+   ],
+   "parts": [
+    {
+     "name": "Serum Iron",
+     "name_ar": "الحديد في الدم",
+     "unit": "µg/dL"
+    },
+    {
+     "name": "TIBC",
+     "name_ar": "السعة الكلية لربط الحديد",
+     "unit": "µg/dL"
+    },
+    {
+     "name": "Transferrin Saturation",
+     "name_ar": "نسبة تشبع الترانسفيرين",
+     "unit": "%"
+    },
+    {
+     "name": "Ferritin",
+     "name_ar": "الفيريتين",
+     "unit": "ng/mL"
+    }
+   ]
+  },
+  {
+   "key": "thyroid",
+   "section": "hormones",
+   "names": [
+    "Thyroid function tests",
+    "Thyroid function test",
+    "TFT",
+    "Thyroid profile",
+    "Thyroid panel",
+    "وظائف غدة درقية",
+    "وظائف الغدة الدرقية",
+    "الغدة الدرقية"
+   ],
+   "parts": [
+    {
+     "name": "TSH",
+     "name_ar": "الهرمون المنبه للدرقية",
+     "unit": "µIU/mL"
+    },
+    {
+     "name": "Free T4",
+     "name_ar": "T4 الحر",
+     "unit": "ng/dL"
+    },
+    {
+     "name": "Free T3",
+     "name_ar": "T3 الحر",
+     "unit": "pg/mL"
+    }
+   ]
+  },
+  {
+   "key": "coag",
+   "section": "coagulation",
+   "names": [
+    "Coagulation profile",
+    "Coagulation panel",
+    "PT PTT",
+    "PT & PTT",
+    "PT and PTT",
+    "PT/INR/PTT",
+    "سيولة",
+    "وظائف تجلط",
+    "تحليل سيولة",
+    "سيولة الدم"
+   ],
+   "parts": [
+    {
+     "name": "Prothrombin Time",
+     "name_ar": "زمن البروثرومبين",
+     "unit": "sec"
+    },
+    {
+     "name": "INR",
+     "name_ar": "نسبة INR"
+    },
+    {
+     "name": "aPTT",
+     "name_ar": "زمن الثرومبوبلاستين الجزئي",
+     "unit": "sec"
+    }
+   ]
+  },
+  {
+   "key": "blood_gas",
+   "section": "chemistry",
+   "names": [
+    "Blood gases",
+    "Blood gas",
+    "Arterial blood gases",
+    "Arterial blood gas",
+    "ABG",
+    "Venous blood gas",
+    "VBG",
+    "غازات الدم",
+    "غازات الدم الشرياني"
+   ],
+   "parts": [
+    {
+     "name": "Blood pH",
+     "name_ar": "حموضة الدم (pH)"
+    },
+    {
+     "name": "pCO2",
+     "name_ar": "pCO2",
+     "unit": "mmHg"
+    },
+    {
+     "name": "pO2",
+     "name_ar": "pO2",
+     "unit": "mmHg"
+    },
+    {
+     "name": "HCO3",
+     "name_ar": "البيكربونات",
+     "unit": "mmol/L"
+    },
+    {
+     "name": "Base Excess",
+     "name_ar": "Base Excess",
+     "unit": "mmol/L"
+    },
+    {
+     "name": "Oxygen Saturation",
+     "name_ar": "تشبع الأكسجين",
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "key": "vit_d",
+   "section": "vitamins",
+   "names": [
+    "Vitamin D",
+    "Vit D",
+    "25-OH Vitamin D",
+    "25 OH Vitamin D",
+    "25-Hydroxy Vitamin D",
+    "25 Hydroxy Vitamin D",
+    "Vitamin D3",
+    "فيتامين د",
+    "فيتامين دال"
+   ],
+   "parts": [
+    {
+     "name": "25-OH Vitamin D",
+     "name_ar": "فيتامين د (25-OH)",
+     "unit": "ng/mL"
+    }
+   ]
+  },
+  {
+   "key": "vit_b12",
+   "section": "vitamins",
+   "names": [
+    "Vitamin B12",
+    "Vit B12",
+    "B12",
+    "Cobalamin",
+    "فيتامين ب12",
+    "فيتامين ب 12",
+    "فيتامين بي 12"
+   ],
+   "parts": [
+    {
+     "name": "Vitamin B12",
+     "name_ar": "فيتامين ب12",
+     "unit": "pg/mL"
+    }
+   ]
+  },
+  {
+   "key": "folate",
+   "section": "vitamins",
+   "names": [
+    "Folate",
+    "Folic acid",
+    "Serum folate",
+    "حمض الفوليك",
+    "فوليك أسيد",
+    "الفوليك"
+   ],
+   "parts": [
+    {
+     "name": "Folate",
+     "name_ar": "حمض الفوليك",
+     "unit": "ng/mL"
+    }
+   ]
+  }
+ ]
+}

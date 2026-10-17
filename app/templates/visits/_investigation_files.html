@@ -21,11 +21,11 @@
 <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
   {% for f in inv.files %}
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:8px 10px;">
-    <i class="bi {{ 'bi-whatsapp' if f.arrived_by_whatsapp else 'bi-paperclip' }}"
+    <i class="bi {{ 'bi-whatsapp' if f.arrived_by_whatsapp else ('bi-' ~ f.source if f.arrived_from_family else 'bi-paperclip') }}"
        style="color:{{ 'var(--green-600)' if f.arrived_by_whatsapp else 'var(--muted)' }};"></i>
     <span style="flex:1;min-width:140px;">{{ f.label or f.original_name or t('visits.inv_file_open') }}</span>
     <span style="color:var(--muted);font-size:0.8rem;">
-      {% if f.arrived_by_whatsapp %}{{ t('visits.inv_sent_on_whatsapp') }}{% else %}{{ t('visits.inv_added_by_clinic') }}{% endif %}
+      {% if f.arrived_by_whatsapp %}{{ t('visits.inv_sent_on_whatsapp') }}{% elif f.arrived_from_family %}{{ t('visits.inv_sent_on', channel=t('channels.ch_' ~ f.source)) }}{% else %}{{ t('visits.inv_added_by_clinic') }}{% endif %}
       <span dir="ltr">· {{ f.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
     </span>
     {# A guess is labelled a guess until a person says otherwise. #}

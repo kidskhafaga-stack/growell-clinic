@@ -1,0 +1,95 @@
+{# Public, standalone "ask for an appointment" page (no login).
+   CONNECTHUB_PLAN.md stage one — a request in the ordinary queue, so the
+   page says it ARRIVED, never that a time is booked. #}
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ direction }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>{{ t('book.title') }} · {{ clinic }}</title>
+  <style>
+    :root { --bg:#eef3f2; --card:#ffffff; --ink:#18302c; --muted:#5f7470; --line:#d5e1de;
+            --accent:#1f8a70; --accent-ink:#ffffff; --warn-bg:#fff4e5; --warn-ink:#8a4b00;
+            --danger-bg:#fde8e8; --danger-ink:#9b1c1c; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#0f1918; --card:#172523; --ink:#e3efec; --muted:#9db3ae; --line:#2a3d3a;
+              --accent:#3cbf9a; --accent-ink:#0b1514; --warn-bg:#3a2a12; --warn-ink:#f5c98a;
+              --danger-bg:#3d1717; --danger-ink:#f7b4b4; }
+    }
+    * { box-sizing:border-box; }
+    body { background:var(--bg); color:var(--ink); margin:0; padding:24px 16px;
+           font-family:system-ui,"Segoe UI",Tahoma,sans-serif; line-height:1.55; }
+    .bk { max-width:520px; margin:0 auto; background:var(--card); border:1px solid var(--line);
+          border-radius:16px; padding:24px 20px; }
+    .bk-head { display:flex; gap:12px; align-items:center; margin-bottom:16px; }
+    .bk-head img { width:48px; height:48px; object-fit:contain; border-radius:10px; }
+    .bk-head h1 { margin:0; font-size:1.25rem; text-wrap:balance; }
+    .bk-head p { margin:0; color:var(--muted); font-size:.9rem; }
+    form { display:grid; gap:12px; }
+    label { display:block; font-weight:600; font-size:.92rem; margin-bottom:4px; }
+    .opt { color:var(--muted); font-weight:400; font-size:.82rem; }
+    input, select, textarea { width:100%; font:inherit; color:var(--ink); background:var(--card);
+          border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+    input:focus, select:focus, textarea:focus, button:focus-visible { outline:3px solid var(--accent); outline-offset:1px; }
+    .row2 { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }
+    button { font:inherit; font-weight:700; background:var(--accent); color:var(--accent-ink);
+             border:0; border-radius:10px; padding:12px; cursor:pointer; }
+    .note { border-radius:10px; padding:10px 12px; font-size:.9rem; }
+    .note--warn { background:var(--warn-bg); color:var(--warn-ink); }
+    .note--danger { background:var(--danger-bg); color:var(--danger-ink); font-weight:600; }
+    .trap { position:absolute; left:-10000px; width:1px; height:1px; overflow:hidden; }
+    .done { text-align:center; }
+    .done .big { font-size:2.4rem; }
+    a { color:var(--accent); }
+  </style>
+</head>
+<body>
+<main class="bk">
+  <div class="bk-head">
+    {% if logo_url %}<img src="{{ logo_url }}" alt="">{% endif %}
+    <div><h1>{{ clinic }}</h1><p>{{ t('book.title') }}</p></div>
+  </div>
+
+  {% if state == 'done' %}
+  <div class="done" data-book-done>
+    <div class="big" aria-hidden="true">✅</div>
+    <h2 style="margin:6px 0;">{{ t('book.arrived') }}</h2>
+    <p style="color:var(--muted);margin:0 0 12px;">{{ t('book.arrived_sub') }}</p>
+    {% if urgent %}
+    <p class="note note--danger" data-book-urgent>{{ t('book.urgent_now') }}
+      {% if clinic_phone %}<br><a href="tel:{{ clinic_phone }}" dir="ltr">{{ clinic_phone }}</a>{% endif %}</p>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="note note--warn" style="margin:0 0 14px;">{{ t('book.emergency_line') }}
+    {% if clinic_phone %} <a href="tel:{{ clinic_phone }}" dir="ltr">{{ clinic_phone }}</a>{% endif %}</p>
+  {% if error %}<p class="note note--danger" data-book-error style="margin:0 0 12px;">{{ t('book.need_who') }}</p>{% endif %}
+  <form method="post" action="{{ url_for('booking_page.submit') }}" data-book-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="src" value="{{ tag or '' }}">
+    <div class="trap" aria-hidden="true"><label for="bk_trap">Website</label><input id="bk_trap" name="{{ trap }}" tabindex="-1" autocomplete="off"></div>
+    <div><label for="bk_name">{{ t('book.name') }}</label>
+      <input id="bk_name" name="name" maxlength="120" required autocomplete="name" dir="auto" value="{{ values.get('name', '') }}"></div>
+    <div><label for="bk_phone">{{ t('book.phone') }}</label>
+      <input id="bk_phone" name="phone" type="tel" maxlength="30" required autocomplete="tel" inputmode="tel" dir="ltr" value="{{ values.get('phone', '') }}"></div>
+    <div><label for="bk_child">{{ t('book.child') }} <span class="opt">{{ t('book.optional') }}</span></label>
+      <input id="bk_child" name="child" maxlength="120" dir="auto" value="{{ values.get('child', '') }}"></div>
+    <div class="row2">
+      {# Not the staff doctor picker: that one searches behind the login.
+         The clinic's bookable doctors, by name only. #}
+      <div><label for="bk_doc">{{ t('book.doctor') }} <span class="opt">{{ t('book.optional') }}</span></label>
+        <select id="bk_doc" name="doctor"><option value="">{{ t('book.any_doctor') }}</option>
+          {% for d in doctors %}<option value="{{ d.id }}" {% if doctor and doctor.id == d.id %}selected{% endif %}>{{ d.display_name(lang) }}</option>{% endfor %}</select></div>
+      <div><label for="bk_date">{{ t('book.date') }} <span class="opt">{{ t('book.optional') }}</span></label>
+        <input id="bk_date" name="wanted_date" type="date" min="{{ today.isoformat() }}" value="{{ values.get('wanted_date', '') }}"></div>
+    </div>
+    <div><label for="bk_msg">{{ t('book.message') }} <span class="opt">{{ t('book.optional') }}</span></label>
+      <textarea id="bk_msg" name="message" rows="3" maxlength="2000" dir="auto" placeholder="{{ t('book.message_ph') }}">{{ values.get('message', '') }}</textarea></div>
+    <button type="submit">{{ t('book.send') }}</button>
+    <p style="color:var(--muted);font-size:.82rem;margin:0;">{{ t('book.not_booked_yet') }}</p>
+  </form>
+  {% endif %}
+</main>
+</body>
+</html>

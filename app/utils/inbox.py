@@ -31,10 +31,21 @@ RESPONSE_WINDOW_DAYS = 7
 
 
 def thread_key(log):
-    """The conversation a message belongs to: the patient, else the number."""
+    """The conversation a message belongs to: the patient, else the person
+    on a channel with no number (``c<contact>``), else the number."""
     if log.patient_id:
         return f"p{log.patient_id}"
+    if getattr(log, "contact_id", None):
+        return f"c{log.contact_id}"
     return log.to_phone or "?"
+
+
+def _is_patient_key(key):
+    return key.startswith("p") and key[1:].isdigit()
+
+
+def _is_contact_key(key):
+    return key.startswith("c") and key[1:].isdigit()
 
 
 def phone_variants(phone):
@@ -71,9 +82,13 @@ def _local_form(phone):
 
 def thread_query(key):
     """Every message in one conversation."""
-    if key.startswith("p") and key[1:].isdigit():
+    if _is_patient_key(key):
         return MessageLog.query.filter(MessageLog.patient_id == int(key[1:]))
+    if _is_contact_key(key):
+        return MessageLog.query.filter(MessageLog.patient_id.is_(None),
+                                       MessageLog.contact_id == int(key[1:]))
     return MessageLog.query.filter(MessageLog.patient_id.is_(None),
+                                   MessageLog.contact_id.is_(None),
                                    MessageLog.to_phone.in_(phone_variants(key)))
 
 
@@ -90,6 +105,7 @@ def _matches(conv, needle):
         return True
     needle = needle.strip().lower()
     haystack = " ".join(filter(None, [
+        (conv["contact"].name if conv.get("contact") else ""),
         (conv["patient"].full_name if conv["patient"] else ""),
         (conv["patient"].full_name_en if conv["patient"] else ""),
         (conv["patient"].patient_number if conv["patient"] else ""),
@@ -111,10 +127,13 @@ def conversations(search=None, only_open=False, limit=200, assignee=None):
     # One row per thread: the id of its newest message. Grouping in SQL keeps
     # this honest on a clinic with years of history behind it.
     newest = (db.session.query(db.func.max(MessageLog.id))
-              .group_by(db.case((MessageLog.patient_id.is_(None),
-                                 MessageLog.to_phone),
-                                else_=db.cast(MessageLog.patient_id,
-                                              db.String)))
+              .group_by(db.case(
+                  (MessageLog.patient_id.isnot(None),
+                   db.cast(MessageLog.patient_id, db.String)),
+                  # A person on Messenger, Instagram or Telegram: no number.
+                  (MessageLog.contact_id.isnot(None),
+                   db.literal("c") + db.cast(MessageLog.contact_id, db.String)),
+                  else_=MessageLog.to_phone))
               .subquery())
     # The patient comes back with the message rather than being fetched when
     # the row is drawn. Every caller reads `conv["patient"]` — the desk, the
@@ -122,7 +141,8 @@ def conversations(search=None, only_open=False, limit=200, assignee=None):
     # id = ?` per conversation: measured at 134 of the desk's 164 queries,
     # and it grew with the clinic while the rest of the screen did not.
     lasts = (MessageLog.query.filter(MessageLog.id.in_(db.select(newest)))
-             .options(db.joinedload(MessageLog.patient))
+             .options(db.joinedload(MessageLog.patient),
+                      db.joinedload(MessageLog.contact))
              .order_by(MessageLog.created_at.desc()).limit(limit).all())
     if not lasts:
         return []
@@ -134,7 +154,11 @@ def conversations(search=None, only_open=False, limit=200, assignee=None):
     # a settings read, and the last-inbound time was a query per conversation.
     from app.utils import whatsapp as wa
     provider = wa.resolve_provider(wa.get_config())
-    inbound_at = {} if provider == "web" else last_inbound_map(keys)
+    # Messenger and Instagram keep their own 24-hour window whatever the
+    # WhatsApp provider is, so their threads are always looked up.
+    inbound_at = last_inbound_map(
+        keys if provider != "web" else
+        [thread_key(m) for m in lasts if m.channel_key in ("messenger", "instagram")])
     out = []
     for last in lasts:
         key = thread_key(last)
@@ -149,6 +173,8 @@ def conversations(search=None, only_open=False, limit=200, assignee=None):
         conv = {
             "key": key,
             "patient": last.patient,
+            "contact": last.contact if last.patient_id is None else None,
+            "channel": last.channel_key,
             "phone": last.to_phone,
             "last": last,
             "count": counts.get(key, 1),
@@ -169,7 +195,8 @@ def conversations(search=None, only_open=False, limit=200, assignee=None):
             continue
         conv["waiting_hours"] = waiting_since(conv)
         window = session_window(conv["key"], provider=provider,
-                                last_inbound=inbound_at.get(conv["key"]))
+                                last_inbound=inbound_at.get(conv["key"]),
+                                channel=conv["channel"])
         # How long the clinic may still answer for free. A thread with forty
         # minutes left is more urgent than one that has waited longer but has
         # a day in hand — after the window shuts, the reply costs money and
@@ -254,10 +281,12 @@ def last_inbound_map(keys):
     """
     if not keys:
         return {}
-    pids, phones = [], []
+    pids, phones, cids = [], [], []
     for key in keys:
-        if key.startswith("p") and key[1:].isdigit():
+        if _is_patient_key(key):
             pids.append(int(key[1:]))
+        elif _is_contact_key(key):
+            cids.append(int(key[1:]))
         else:
             phones.append(key)
 
@@ -270,6 +299,14 @@ def last_inbound_map(keys):
                 .group_by(MessageLog.patient_id).all())
         for pid, when in rows:
             out[f"p{pid}"] = when
+    if cids:
+        rows = (db.session.query(MessageLog.contact_id,
+                                 db.func.max(MessageLog.created_at))
+                .filter(inbound, MessageLog.patient_id.is_(None),
+                        MessageLog.contact_id.in_(cids))
+                .group_by(MessageLog.contact_id).all())
+        for cid, when in rows:
+            out[f"c{cid}"] = when
     if phones:
         # Every spelling this thread may be stored under, mapped home.
         spellings = {}
@@ -280,6 +317,7 @@ def last_inbound_map(keys):
             rows = (db.session.query(MessageLog.to_phone,
                                      db.func.max(MessageLog.created_at))
                     .filter(inbound, MessageLog.patient_id.is_(None),
+                            MessageLog.contact_id.is_(None),
                             MessageLog.to_phone.in_(list(spellings)))
                     .group_by(MessageLog.to_phone).all())
             for phone, when in rows:
@@ -291,7 +329,18 @@ def last_inbound_map(keys):
     return out
 
 
-def session_window(key, provider=None, last_inbound=_UNKNOWN):
+def reply_channel(key):
+    """The channel a reply in this thread goes out on: where the person last
+    wrote from. A family on the file who wrote on Instagram is answered on
+    Instagram, not on a WhatsApp number they never used here."""
+    row = (thread_query(key).filter(MessageLog.direction == "in")
+           .order_by(MessageLog.created_at.desc()).first())
+    if row is None:
+        row = thread_query(key).order_by(MessageLog.created_at.desc()).first()
+    return row.channel_key if row is not None else "whatsapp"
+
+
+def session_window(key, provider=None, last_inbound=_UNKNOWN, channel=None):
     """How long the clinic may still reply freely → dict, or None.
 
     Returns None when the rule doesn't apply: click-to-send links open the
@@ -306,9 +355,15 @@ def session_window(key, provider=None, last_inbound=_UNKNOWN):
     """
     from app.utils import whatsapp as wa
 
-    provider = provider or wa.resolve_provider(wa.get_config())
-    if provider == "web":
+    channel = channel or reply_channel(key)
+    # Telegram has no window: a bot may answer whenever the person has
+    # written to it.
+    if channel == "telegram":
         return None
+    if channel not in ("messenger", "instagram"):
+        provider = provider or wa.resolve_provider(wa.get_config())
+        if provider == "web":
+            return None
     last = last_inbound_at(key) if last_inbound is _UNKNOWN else last_inbound
     if last is None:
         return {"open": False, "hours_left": 0, "expires_at": None,
@@ -333,14 +388,19 @@ def waiting_since(conv):
 
 def _thread_counts(keys):
     """Message totals and unread counts per conversation, in two queries."""
-    pids = [int(k[1:]) for k in keys if k.startswith("p") and k[1:].isdigit()]
-    phones = [k for k in keys if not (k.startswith("p") and k[1:].isdigit())]
+    pids = [int(k[1:]) for k in keys if _is_patient_key(k)]
+    cids = [int(k[1:]) for k in keys if _is_contact_key(k)]
+    phones = [k for k in keys if not (_is_patient_key(k) or _is_contact_key(k))]
     counts, unread = {}, {}
     clauses = []
     if pids:
         clauses.append(MessageLog.patient_id.in_(pids))
+    if cids:
+        clauses.append(db.and_(MessageLog.patient_id.is_(None),
+                               MessageLog.contact_id.in_(cids)))
     if phones:
         clauses.append(db.and_(MessageLog.patient_id.is_(None),
+                               MessageLog.contact_id.is_(None),
                                MessageLog.to_phone.in_(phones)))
     if not clauses:
         return counts, unread
@@ -459,6 +519,26 @@ def link_phone_to_patient(phone, patient):
     rows = (MessageLog.query
             .filter(MessageLog.patient_id.is_(None),
                     MessageLog.to_phone.in_(variants)).all())
+    for row in rows:
+        row.patient_id = patient.id
+    return len(rows)
+
+
+def link_contact_to_patient(contact_id, patient, user=None):
+    """A person says whose family this Messenger/Instagram/Telegram contact
+    is. The contact is linked (with who and when) and every message already
+    filed under it joins the child's conversation; later ones arrive there
+    by themselves. Returns how many messages moved."""
+    from app.models import Contact
+    from app.utils import leads
+
+    contact = db.session.get(Contact, contact_id)
+    if contact is None or patient is None:
+        return 0
+    leads.link_patient(contact, patient, user)
+    rows = (MessageLog.query
+            .filter(MessageLog.patient_id.is_(None),
+                    MessageLog.contact_id == contact.id).all())
     for row in rows:
         row.patient_id = patient.id
     return len(rows)

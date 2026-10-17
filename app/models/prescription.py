@@ -482,6 +482,13 @@ class Investigation(db.Model):
     #: A culture — answered with what grew and its susceptibility
     #: (`models/micro`), not with a number. The laboratory's tick.
     is_culture = db.Column(db.Boolean)
+    #: **The laboratory section** — one of a fixed list (`utils/lab_sections`),
+    #: the way a medicine belongs to a family. Not ``category``: that is the
+    #: clinic's own grouping for the doctor («كبد», «كلى»), free text, and
+    #: what insurance coverage and staff competency already read. A CRP is
+    #: «التهابات» to the doctor and chemistry to the bench. Empty until a
+    #: person sorts it.
+    section = db.Column(db.String(20), index=True)
 
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name_ar

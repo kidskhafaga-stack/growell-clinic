@@ -1073,6 +1073,23 @@ SECTIONS = [
         "icon": "eyedropper",
         "title": ("المعمل", "The lab"),
         "lines": [
+            ("<b>مكونات التحليل وأقسامه ومراجعه</b> (المعمل ← التحاليل): "
+             "التحليل المعروف (بول، براز، صورة دم، صفراء، وظائف كبد وكلى، "
+             "فيتامينات…) بيتعرض عليه مكوناته بأساميها ووحداتها من غير ولا "
+             "رقم — علّم على اللي بيطلع في تقريركم واحفظ. وكل تحليل بيتحط في "
+             "قسم من قايمة ثابتة زي عيلة الدوا («رتّب في أقسام»)، و«الفئة» "
+             "بتاعة الدكتور زي ما هي. والمراجع بتيجي من نشرة الكيت بتاعة "
+             "جهازكم: الشيت، أو باليد، أو «اقرا المراجع من نشرة الكيت» — "
+             "وكلها مسودة لحد ما مدير المعمل يوافق.",
+             "<b>A test's components, sections and ranges</b> (Lab → Tests): a "
+             "known test (urine, stool, CBC, bilirubin, liver and kidney "
+             "function, vitamins…) is offered its components by name and unit, "
+             "with no figure — tick what your report prints and save. Each test "
+             "goes into one section from a fixed list, like a medicine's family "
+             "(«Sort into sections»); the doctor's category stays as it is. "
+             "Ranges come from your analyser's kit insert: the sheet, by hand, "
+             "or «Read ranges from the kit insert» — all drafts until the "
+             "laboratory director approves."),
             ("<b>القيم الحرجة</b>: حدودها لكل تحليل من شاشة نطاقاته، والنتيجة "
              "اللي تعدّيها بتتعلّم لوحدها. النتيجة اللي ملهاش رقم (مزرعة إيجابية) "
              "الفني يعلّمها حرجة بسبب مكتوب. وعلى الطلب «سجّل الإبلاغ»: اتبلّغ مين، "
@@ -2602,6 +2619,116 @@ SECTIONS = [
              "بعينه — عشان البرنامج مايتحوّلش لمصدر إزعاج.",
              "<b>Sending limits</b>: a time window, a daily cap, and an opt-out "
              "per patient — so the system never becomes a nuisance."),
+        ],
+    },
+    {
+        # CONNECTHUB_PLAN.md — every channel in the one inbox, and the
+        # families who asked and have not come yet.
+        "key": "channels_desk",
+        "module": "messages",
+        "icon": "diagram-3",
+        "title": ("كل القنوات في صندوق واحد والعملاء المحتملين",
+                  "Every channel in one inbox, and leads"),
+        "lines": [
+            ("<b>الصندوق واحد لكل القنوات</b>: واتساب وماسنجر وإنستجرام وتليجرام "
+             "وتيك توك وإيميل العيادة — كل محادثة عليها علامة قناتها، والرد بيطلع "
+             "على القناة اللي الأهل كتبوا منها آخر مرة.",
+             "<b>One inbox for every channel</b>: WhatsApp, Messenger, "
+             "Instagram, Telegram, TikTok and the clinic's e-mail — each "
+             "conversation shows its channel, and a reply goes out on the "
+             "channel the family last wrote from."),
+            ("<b>الشخص بيتعرف من رقمه أو حسابه، عمره ما بيتعرف من اسمه.</b> "
+             "المحادثة اللي مش مربوطة بملف بتفضل لوحدها لحد ما تربطها بنفسك "
+             "بـ«اربط بملف» — وبعدها كل رسايلها بتنقل على ملف الطفل، والجديد "
+             "بيوصل هناك لوحده.",
+             "<b>A person is known by their number or account, never by "
+             "their name.</b> A conversation not on a file stays apart until "
+             "you link it yourself — then all its messages move to the "
+             "child's file, and new ones arrive there by themselves."),
+            ("<b>قبل ما تكتب الشاشة بتقولك المسموح</b>: ماسنجر وإنستجرام ٢٤ ساعة "
+             "من آخر رسالة منهم (وبعدها بس رد موظف لحد ٧ أيام لو العيادة واخدة "
+             "موافقة Meta)، تيك توك ١٠ ردود في ٤٨ ساعة، إنستجرام لحد ١٠٠٠ بايت. "
+             "و<b>التعليق على بوست</b> ليه رد خاص واحد بس في خلال ٧ أيام — "
+             "ومفيش أي كلام طبي في التعليقات العامة.",
+             "<b>Before you type, the screen says what is allowed</b>: "
+             "Messenger and Instagram 24 hours after their last message (then "
+             "only a person's reply for up to 7 days, if the clinic is "
+             "approved by Meta), TikTok 10 replies in 48 hours, Instagram up "
+             "to 1000 bytes. A <b>comment on a post</b> gets one private "
+             "reply within 7 days — and nothing medical in public comments."),
+            ("<b>العملاء المحتملين</b> (خدمة العملاء ← «العملاء المحتملين»): كل "
+             "حد سأل ولسه ما حجزش، من أي قناة — حتى المكالمة والحضور والتعليق "
+             "اللي شفته بإيدك. سجّله بالمصدر والحملة، وحط مسؤول وميعاد "
+             "متابعة؛ المتابعة اللي ميعادها فات بتطلع فوق. والتعليق والإعلان "
+             "بيعملوه لوحدهم.",
+             "<b>Leads</b> (Customer service → «Leads»): everyone who asked "
+             "and has not booked, from any channel — even a call, a walk-in "
+             "or a comment you saw yourself. Log the source and campaign, "
+             "give it an owner and a follow-up date; overdue follow-ups come "
+             "first. Comments and ads create them by themselves."),
+            ("<b>«حوّله لطلب موعد»</b> بيوديه لنفس طابور الطلبات ونفس موافقة "
+             "الدكتور — ومحتاج رقم تليفون. «غير مكتمل» محتاج سبب. وتحت اللوحة: "
+             "جم منين، كام اتحوّل، وكام اتحجز فعلاً، لكل قناة ولكل حملة.",
+             "<b>«Make a booking request»</b> sends it to the same request "
+             "queue and the same doctor approval — and needs a phone number. "
+             "«Not completed» needs a reason. Under the board: where they "
+             "came from, how many became a request and how many actually "
+             "booked, per channel and per campaign."),
+            ("<b>الصور والملفات</b> اللي الأهل بيبعتوها على أي قناة بتتحفظ — "
+             "مش لينك — ولو الشخص مربوط بملف بتنزل في ملف الطفل ومكتوب عليها "
+             "جت منين. و<b>رد خارج المواعيد</b> بيتبعت على نفس القناة مرة كل "
+             "١٢ ساعة.",
+             "<b>Photos and files</b> families send on any channel are kept — "
+             "not a link — and, when the person is on a file, land in the "
+             "child's file marked with where they came from. The <b>out-of-"
+             "hours reply</b> goes on the same channel once every 12 hours."),
+        ],
+    },
+    {
+        "key": "channels_setup",
+        "module": "messages",
+        "capability": "messages_setup",
+        "icon": "plug",
+        "title": ("ربط القنوات وصفحة «اطلب موعد»", "Connecting channels, and the request page"),
+        "lines": [
+            ("<b>القنوات</b> (خدمة العملاء ← «القنوات»): علّم على القنوات اللي "
+             "العيادة بتستخدمها بس. القناة اللي مش متربطة بتشتغل تسجيل يدوي "
+             "بمصدرها.",
+             "<b>Channels</b> (Customer service → «Channels»): tick only the "
+             "channels the clinic uses. A channel not connected works as "
+             "logging by hand with its source."),
+            ("<b>ربط الحسابات</b> (للمدير): تطبيق Meta بتاع العيادة لصفحة فيسبوك "
+             "وإنستجرام (مربوط بالصفحة، أو من غير صفحة بتسجيل دخول إنستجرام "
+             "ومفتاح بيتجدد لوحده كل ٦٠ يوم)، بوت تليجرام بزرار «اربط تليجرام»، تطبيق "
+             "تيك توك باسم المؤسسة («اربط حساب تيك توك» ثم «فعّل استقبال "
+             "الرسايل»)، وصندوق الإيميل (IMAP/SMTP بكلمة سر، أو بتسجيل دخول "
+             "Google أو Microsoft بتطبيق المؤسسة و«ربط صندوق الإيميل»). "
+             "المفاتيح بتتحفظ ومش بتظهر تاني. وكل منصة ليها شروطها مكتوبة جنبها.",
+             "<b>Connecting accounts</b> (admin): the clinic's Meta app for "
+             "its Facebook Page and Instagram (linked to the Page, or with no "
+             "Page through Instagram Login, its key renewed every 60 days), the "
+             "Telegram bot with «Connect Telegram», the organisation's own "
+             "TikTok app («Connect the TikTok account», then «Turn on "
+             "receiving messages»), and the mailbox (IMAP/SMTP with a "
+             "password, or by signing in with Google or Microsoft through the "
+             "organisation's own app and «Connect the mailbox»). Keys are "
+             "saved and never shown again; each platform's conditions are "
+             "written beside it."),
+            ("<b>صفحة «اطلب موعد» العامة</b>: مقفولة لحد ما تفتحها. بتكتب طلب "
+             "في الطابور العادي وبتقول للأهل «طلبك وصل وهنكلمك» — عمرها ما "
+             "بتقول «اتحجزلك» — ولو كلامهم فيه طوارئ بتقولهم فوراً يتصلوا أو "
+             "يروحوا الطوارئ.",
+             "<b>The public «Request an appointment» page</b>: closed until "
+             "you open it. It writes a request into the ordinary queue and "
+             "tells the family «your request arrived, we will call» — never "
+             "«booked» — and if their words sound urgent it tells them at "
+             "once to call or go to the emergency department."),
+            ("<b>لينكات الحملات</b>: لكل بوست أو إعلان لينك بعلامة مصدر (ومعاه "
+             "دكتور لو حبيت)، عشان تقرير العملاء المحتملين يقولك أنهي حملة "
+             "جابت حجوزات.",
+             "<b>Campaign links</b>: one link per post or ad, with a source "
+             "tag (and a doctor if you like), so the leads report says which "
+             "campaign brought bookings."),
         ],
     },
     {
