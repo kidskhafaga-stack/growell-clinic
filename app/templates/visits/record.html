@@ -600,7 +600,23 @@
               <div class="md-field">
                 <label>{{ f['label_' ~ current_lang] or f.label_ar }}{% if f.unit %}
                   <span class="hint" dir="ltr">({{ f.unit }})</span>{% endif %}</label>
-                {% if f.type == 'choice' %}
+                {% if f.type == 'choice' and f.options|length <= 6 %}
+                {# One tap, not a menu: most answers here are three to five
+                   words long, and a menu costs two presses and a scroll for
+                   each. The same name and the same values as the menu, so the
+                   server reads exactly what it always read; nothing ticked is
+                   nothing recorded, as «—» was. A second tap on the ticked one
+                   clears it; the number keys pick (see the script below). #}
+                <div class="pchips" role="radiogroup" data-pchips="{{ f.code }}"
+                     aria-label="{{ f['label_' ~ current_lang] or f.label_ar }}">
+                  {% for opt in f.options %}
+                  <label class="md-chip pchip{{ ' is-selected' if row and row.value_text == opt else '' }}">
+                    <input type="radio" name="m_{{ f.code }}" value="{{ opt }}"
+                           {{ 'checked' if row and row.value_text == opt else '' }}>
+                    <span>{{ opt }}</span></label>
+                  {% endfor %}
+                </div>
+                {% elif f.type == 'choice' %}
                 <select class="select" name="m_{{ f.code }}">
                   <option value="">—</option>
                   {% for opt in f.options %}
@@ -611,7 +627,7 @@
                 <input class="input" type="date" name="m_{{ f.code }}" dir="ltr"
                        value="{{ row.value_text if row else '' }}">
                 {% else %}
-                <input class="input" type="number" step="any" dir="ltr" name="m_{{ f.code }}"
+                <input class="input" type="number" step="any" dir="ltr" inputmode="decimal" name="m_{{ f.code }}"
                        x-ref="f_{{ f.code }}"
                        value="{{ row.value_num if row and row.value_num is not none else '' }}">
                 {% endif %}
@@ -2635,6 +2651,85 @@
       action="{{ url_for('visits.add_investigation', visit_id=visit.id) }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 </form>
+
+{# The specialty panel's one-tap answers (DOCTOR_EASE_PLAN.md أ-١, أ-٥):
+   a second tap on the ticked answer clears it; with an answer focused, the
+   number keys pick the first, second… answer; and Enter in a panel box moves
+   to the next box instead of saving the whole visit half-written. #}
+<style>
+  .pchips { display:flex; flex-wrap:wrap; gap:6px; }
+  .pchip { cursor:pointer; padding:6px 12px; }
+  .pchip input { position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; }
+  .pchip:focus-within { outline:2px solid var(--green-600); outline-offset:2px; }
+</style>
+<script>
+(function () {
+  var root = document.querySelectorAll('[data-panel-fields]');
+  if (!root.length) return;
+  function mark(group) {
+    group.querySelectorAll('.pchip').forEach(function (chip) {
+      chip.classList.toggle('is-selected', chip.querySelector('input').checked);
+    });
+  }
+  document.querySelectorAll('[data-pchips]').forEach(function (group) {
+    var was = null;
+    group.addEventListener('pointerdown', function (e) {
+      var chip = e.target.closest('.pchip');
+      was = chip && chip.querySelector('input').checked ? chip : null;
+    });
+    group.addEventListener('click', function (e) {
+      var chip = e.target.closest('.pchip');
+      if (!chip) return;
+      var input = chip.querySelector('input');
+      // A tap on the label reaches the radio as a second click; act there.
+      if (e.target !== input) return;
+      if (was === chip) {
+        input.checked = false;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      was = null;
+      mark(group);
+    });
+    group.addEventListener('change', function () { mark(group); });
+    group.addEventListener('keydown', function (e) {
+      var n = parseInt(e.key, 10);
+      var inputs = group.querySelectorAll('input');
+      if (n >= 1 && n <= inputs.length) {
+        e.preventDefault();
+        inputs[n - 1].checked = true;
+        inputs[n - 1].focus();
+        mark(group);
+      }
+    });
+  });
+  // Enter moves to the next box of the same panel, never submits the visit.
+  root.forEach(function (panel) {
+    panel.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' || e.target.tagName === 'TEXTAREA') return;
+      if (!e.target.matches('input, select')) return;
+      e.preventDefault();
+      var stops = Array.prototype.filter.call(
+        panel.querySelectorAll('input:not([type=hidden]), select, textarea'),
+        function (el) {
+          if (el.disabled || el.offsetParent === null) return false;
+          // One stop per group of answers: the ticked one, else the first.
+          if (el.type === 'radio') {
+            var group = panel.querySelectorAll('input[name="' + el.name + '"]');
+            var ticked = Array.prototype.find.call(group, function (r) { return r.checked; });
+            return el === (ticked || group[0]);
+          }
+          return true;
+        });
+      var at = stops.indexOf(e.target);
+      if (at === -1 && e.target.type === 'radio') {
+        at = stops.findIndex(function (el) { return el.name === e.target.name; });
+      }
+      var next = stops[at + 1];
+      if (next) next.focus();
+    });
+  });
+})();
+</script>
 
 {# Told, not reloaded: this screen carries forms, and throwing the page away
    would take a half-written note with it. #}
