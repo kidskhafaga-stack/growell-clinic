@@ -207,6 +207,42 @@
 </div>
 {% endif %}
 
+{% if parts_offer %}
+<div class="card gc-scale-in" style="margin-bottom:14px;scroll-margin-top:80px;" id="parts" data-parts-offer="{{ parts_offer.panel.key }}">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-list-check"></i> {{ t('lab_parts.title') }}</h2>
+  <p class="hint" style="margin:0 0 10px;max-width:75ch;">{{ t('lab_parts.lead') }}</p>
+  <form method="post" action="{{ url_for('labs.add_parts', test_id=test.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="overflow-x:auto;">
+    <table class="table" style="min-width:520px;">
+      <thead><tr><th style="width:44px;"></th><th>{{ t('lab_hand.analyte_name') }}</th><th>{{ t('lab_hand.analyte_name_ar') }}</th><th style="width:130px;">{{ t('lab.unit') }}</th><th></th></tr></thead>
+      <tbody>
+      {% set ns_g = namespace(last=None) %}
+      {% for r in parts_offer.rows %}
+        {% if r.part.group and r.part.group != ns_g.last %}{% set ns_g.last = r.part.group %}
+        <tr><td colspan="5" style="font-weight:600;padding-top:10px;" data-parts-group="{{ r.part.group }}">{{ t('lab_parts.group_' ~ r.part.group) }}</td></tr>
+        {% endif %}
+        <tr data-part="{{ r.i }}" data-part-state="{{ 'on' if r.on_test else ('reuse' if r.analyte else 'new') }}">
+          <td><input type="checkbox" name="part" value="{{ r.i }}" id="part_{{ r.i }}" aria-label="{{ r.part.name }}" {{ 'checked' if not r.on_test else 'disabled' }}></td>
+          <td dir="ltr"><label for="part_{{ r.i }}" style="margin:0;">{{ r.analyte.name if r.analyte else r.part.name }}</label></td>
+          <td>{{ r.part.name_ar }}</td>
+          <td><input class="input" name="unit_{{ r.i }}" value="{{ r.unit }}" maxlength="30" dir="ltr" style="min-width:90px;" {{ 'disabled' if r.on_test else '' }} aria-label="{{ t('lab.unit') }}"></td>
+          <td>
+            {% if r.on_test %}<span class="badge badge--green">{{ t('lab_parts.on_test') }}</span>
+            {% elif r.analyte %}<span class="badge badge--muted" title="{{ t('lab_parts.reuse_hint') }}">{{ t('lab_parts.reuse') }}</span>{% endif %}
+            {% if r.part.formula %}<span class="badge badge--muted" dir="ltr" data-part-formula>{{ formulas[r.part.formula].text }}</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p class="hint" style="margin:8px 0 10px;max-width:75ch;"><i class="bi bi-shield-check"></i> {{ t('lab_parts.no_figures') }}</p>
+    <button class="btn btn-primary gc-press" type="submit" data-parts-save><i class="bi bi-check2"></i> {{ t('lab_parts.save') }}</button>
+  </form>
+</div>
+{% endif %}
+
 {% if test.kind == 'lab' %}
 <div class="card gc-scale-in" style="margin-bottom:14px;scroll-margin-top:80px;" id="components" data-add-analyte>
   <h2 class="section-title" style="margin-top:0;"><i class="bi bi-plus-lg"></i> {{ t('lab_hand.add_analyte') }}</h2>

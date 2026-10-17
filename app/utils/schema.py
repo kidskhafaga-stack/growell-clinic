@@ -1026,6 +1026,7 @@ ADDITIONS = [
     # GAHAR DAS.14 (h) / ICD.17 ev. 5 — the minimal retesting interval, and
     # why a test was repeated inside it.
     ("investigations", "retest_hours", "INTEGER"),
+    ("investigations", "section", "VARCHAR(20)"),
     ("visit_investigations", "repeat_reason", "VARCHAR(200)"),
     ("visit_investigations", "repeat_reason_by", "INTEGER"),
     # Leaving against advice (DAMA / LAMA): the doctor's assessment, the risk

@@ -66,7 +66,17 @@
       {% for c in categories %}<option value="{{ c }}" {{ 'selected' if c == category else '' }}>{{ c }}</option>{% endfor %}
     </select>
   </div>
+  {% if sections %}
+  <div class="form-row" style="margin-bottom:0;min-width:200px;">
+    <label for="section">{{ t('lab_sections.section') }}</label>
+    <select class="select" id="section" name="section" data-section-filter>
+      <option value="">{{ t('lab_sections.all') }}</option>
+      {% for k, label in sections %}<option value="{{ k }}" {{ 'selected' if k == section else '' }}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endif %}
   <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-search"></i> {{ t('lab_import.find') }}</button>
+  {% if sections %}<a class="btn btn-outline gc-press" href="{{ url_for('labs.sort_sections') }}" data-to-sections><i class="bi bi-diagram-3"></i> {{ t('lab_sections.sort') }}{% if unsorted %} <span class="badge badge--warn" data-unsorted>{{ unsorted }}</span>{% endif %}</a>{% endif %}
   <span class="hint" style="margin:0;" data-total>{{ t('lab_import.showing', n=rows|length, total=total) }}</span>
 </form>
 
@@ -195,13 +205,14 @@
         <i class="bi bi-cash"></i> {{ ns.price.get(row.service_id) or t('lab_stock.not_charged') }}</span>
       {% if not row.is_active %}<span class="badge badge--muted" data-stopped>{{ t('lab.stopped_short') }}</span>{% endif %}
       {% if row.in_house is false %}<span class="badge badge--warn" data-sent-out>{{ t('lab.sent_out_short') }}</span>{% endif %}
+      {% if row.section and sections %}<span class="badge badge--muted" data-section-chip="{{ row.section }}"><i class="bi bi-diagram-3"></i> {{ section_name(row.section) }}</span>{% endif %}
       {% if row.is_culture %}<span class="badge badge--muted" data-culture-chip><i class="bi bi-virus2"></i> {{ t('micro.culture') }}</span>{% endif %}
     </span>
     {% if row.kind == 'lab' %}
     <a class="tc-ref" data-ref-line="{{ row.id }}" href="{{ url_for('labs.test_ranges', test_id=row.id) }}">
       <i class="bi bi-rulers"></i>
       {% if ref and ref.analytes %}{{ t('lab_import.ref_line', analytes=ref.analytes, ranges=ref.ranges) }}{% if ref.drafts %} · <span class="badge badge--warn">{{ t('lab_import.drafts_n', n=ref.drafts) }}</span>{% endif %}
-      {% else %}{{ t('lab_import.ref_none') }}{% endif %}</a>
+      {% else %}{{ t('lab_import.ref_none') }}{% if row.id in parts_known %} · <span class="badge badge--warn" data-parts-known>{{ t('lab_parts.suggested') }}</span>{% endif %}{% endif %}</a>
     {% endif %}
     <span class="tc-edit"><i class="bi bi-pencil"></i> {{ t('common.edit') }}</span>
   </summary>
@@ -296,6 +307,14 @@
              {{ 'checked' if row.in_house is not false else '' }}>
       {{ t('lab.in_house') }}</label>
     {% if row.kind == 'lab' %}
+    {% if sections %}
+    <div class="form-row" style="margin-bottom:0;min-width:170px;">
+      <label>{{ t('lab_sections.section') }}</label>
+      <select class="select" name="section" data-section-pick>
+        <option value="">—</option>
+        {% for k, label in sections %}<option value="{{ k }}" {{ 'selected' if k == row.section else '' }}>{{ label }}</option>{% endfor %}
+      </select></div>
+    {% endif %}
     <label class="hint" style="min-width:110px;" title="{{ t('micro.is_culture_hint') }}">
       <input type="checkbox" name="is_culture" value="1" data-is-culture {{ 'checked' if row.is_culture else '' }}> {{ t('micro.culture') }}</label>
     {% endif %}
@@ -345,7 +364,7 @@
 <nav style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:12px;" data-pages>
   {% for n in range(1, pages + 1) %}
   <a class="btn btn-sm {{ 'btn-primary' if n == page else 'btn-outline' }}"
-     href="{{ tab_url(kind, q=q, category=category, page=n) }}">{{ n }}</a>
+     href="{{ tab_url(kind, q=q, category=category, section=section, page=n) }}">{{ n }}</a>
   {% endfor %}
 </nav>
 {% endif %}

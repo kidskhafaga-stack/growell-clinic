@@ -1,0 +1,52 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_sections.title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_sections.title') }}{% endblock %}
+
+{% block content %}
+{# Each test into one of the laboratory's fixed sections (`utils/lab_sections`)
+   — suggested where the program can tell, saved only by the button. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-diagram-3"></i> {{ t('lab_sections.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:75ch;">{{ t('lab_sections.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.tests') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('lab.tests') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-sections-sort data-unsorted="{{ unsorted }}">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+    <span class="badge {{ 'badge--warn' if unsorted else 'badge--green' }}">{{ t('lab_sections.unsorted_n', n=unsorted) }}</span>
+    {% if show_all %}<a class="hint" href="{{ url_for('labs.sort_sections') }}">{{ t('lab_sections.only_unsorted') }}</a>
+    {% else %}<a class="hint" href="{{ url_for('labs.sort_sections', all='1') }}" data-sections-all>{{ t('lab_sections.show_all') }}</a>{% endif %}
+  </div>
+  {% if rows %}
+  <form method="post" action="{{ url_for('labs.sort_sections', all='1' if show_all else None) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="overflow-x:auto;">
+    <table class="table" style="min-width:520px;">
+      <thead><tr><th>{{ t('lab_sections.test') }}</th><th>{{ t('lab_import.category') }}</th><th style="width:240px;">{{ t('lab_sections.section') }}</th></tr></thead>
+      <tbody>
+      {% for row in rows %}{% set pick = row.section or suggested.get(row.id) %}
+        <tr data-sort-row="{{ row.id }}" data-suggested="{{ suggested.get(row.id) or '' }}">
+          <td>{{ row.display_name(current_lang) }}{% if row.name_en and current_lang != 'en' %} <span class="hint" dir="ltr">{{ row.name_en }}</span>{% endif %}</td>
+          <td>{{ row.category or '—' }}</td>
+          <td>
+            <select class="select" name="s_{{ row.id }}" aria-label="{{ t('lab_sections.section') }}">
+              <option value="">—</option>
+              {% for k, label in sections %}<option value="{{ k }}" {{ 'selected' if k == pick else '' }}>{{ label }}</option>{% endfor %}
+            </select>
+            {% if not row.section and suggested.get(row.id) %}<span class="hint" style="display:block;margin-top:2px;"><i class="bi bi-lightbulb"></i> {{ t('lab_sections.suggested') }}</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit" style="margin-top:10px;" data-sections-save><i class="bi bi-check2"></i> {{ t('common.save') }}</button>
+  </form>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('lab_sections.all_sorted') }}</p>
+  {% endif %}
+</div>
+{% endblock %}

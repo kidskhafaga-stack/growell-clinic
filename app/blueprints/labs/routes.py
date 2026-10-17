@@ -1739,7 +1739,14 @@ def test_ranges(test_id):
                                                    Investigation.is_active.is_(True))
                         .order_by(Investigation.name_ar).all()),
         used_cost=lab_stock.consumables_cost(row),
-        double_taken=lab_stock.double_taken(row))
+        double_taken=lab_stock.double_taken(row),
+        parts_offer=_lab_parts().offer(row))
+
+
+def _lab_parts():
+    from app.utils import lab_parts
+
+    return lab_parts
 
 
 @labs_bp.route("/tests/<int:test_id>/approve", methods=["POST"])
@@ -1799,6 +1806,63 @@ def add_analyte(test_id):
     return _hand(test_id, lambda row, hand: hand.add_analyte(
         row, request.form.get("name"), request.form.get("name_ar"),
         request.form.get("unit")), "lab_hand.analyte_added")
+
+
+@labs_bp.route("/tests/sections", methods=["GET", "POST"])
+@module_required(MODULE)
+def sort_sections():
+    """Put each test in one of the laboratory's fixed sections, like a
+    medicine in its family (`utils/lab_sections`). The program suggests
+    where it can tell; nothing is written until this is saved."""
+    _admin_only()
+    from flask import g
+
+    from app.utils import lab_sections
+
+    show_all = request.values.get("all") == "1"
+    query = Investigation.query.filter(Investigation.kind == "lab")
+    if not show_all:
+        query = query.filter(Investigation.section.is_(None))
+    rows = query.order_by(Investigation.name_ar).limit(500).all()
+    if request.method == "POST":
+        done = 0
+        for row in rows:
+            field = f"s_{row.id}"
+            if field not in request.form:
+                continue
+            chosen = lab_sections.clean(request.form.get(field))
+            if chosen != row.section:
+                row.section = chosen
+                done += 1
+        db.session.commit()
+        flash(t("lab_sections.saved", n=done), "success")
+        return redirect(url_for("labs.sort_sections", all="1" if show_all else None))
+    lang = getattr(g, "lang", "ar")
+    return render_template(
+        "labs/sections.html", rows=rows, show_all=show_all,
+        sections=lab_sections.choices(lang),
+        suggested={row.id: lab_sections.suggest(row) for row in rows if not row.section},
+        unsorted=Investigation.query.filter(Investigation.kind == "lab",
+                                            Investigation.section.is_(None)).count())
+
+
+@labs_bp.route("/tests/<int:test_id>/parts", methods=["POST"])
+@module_required(MODULE)
+def add_parts(test_id):
+    """The components offered for a known test, as the person ticked them —
+    names only; no range comes with them (`utils/lab_parts`)."""
+    _admin_only()
+    row = db.get_or_404(Investigation, test_id)
+    picked = {int(v) for v in request.form.getlist("part") if v.isdigit()}
+    units = {int(k[5:]): v for k, v in request.form.items()
+             if k.startswith("unit_") and k[5:].isdigit()}
+    if not picked:
+        flash(t("lab_parts.none_ticked"), "warning")
+        return redirect(url_for("labs.test_ranges", test_id=row.id) + "#parts")
+    added, calculated = _lab_parts().apply(row, picked, units)
+    db.session.commit()
+    flash(t("lab_parts.added", n=added, c=calculated), "success")
+    return redirect(url_for("labs.test_ranges", test_id=row.id) + "#components")
 
 
 @labs_bp.route("/tests/<int:test_id>/analytes/<int:analyte_id>/remove",

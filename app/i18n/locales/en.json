@@ -9792,7 +9792,8 @@
     "price": "The test's price — only given to a test with none; never changes an existing price.",
     "cost": "Cost of one run to the lab.",
     "consumable": "The store item's name or code — one row per item under the same test name.",
-    "consumable_qty": "How much of the item one run uses."
+    "consumable_qty": "How much of the item one run uses.",
+    "section": "The lab section from the fixed list: Haematology, Coagulation, Clinical chemistry, Hormones, Vitamins, Immunology, Urine & stool, Microbiology, Blood bank, Molecular, Other — in English or Arabic."
   },
   "lab_steps": {
     "name": "Name and kind",
@@ -14594,5 +14595,37 @@
     "mail_oauth_no_refresh": "Google did not return a refresh token. Connect again.",
     "mail_steps_google": "Your organisation creates its own OAuth client in Google Cloud Console (type Web application), adds the return address above exactly, and enables the scope https://mail.google.com/. An app used outside your organisation needs Google's verification. After saving, press «Connect the mailbox» and sign in with that same account. The servers are filled in for you: imap.gmail.com and smtp.gmail.com.",
     "mail_steps_microsoft": "Your organisation registers an app in Microsoft Entra (App registrations) as Web, adds the return address above exactly, adds the permissions IMAP.AccessAsUser.All, SMTP.Send and offline_access, and creates a client secret. Type the Tenant ID (or leave it empty for common). IMAP and SMTP AUTH must be enabled for this mailbox by your Microsoft 365 admin. After saving, press «Connect the mailbox». The servers are filled in for you: outlook.office365.com and smtp.office365.com."
+  },
+  "lab_parts": {
+    "title": "Suggested components for this test",
+    "lead": "This is a test whose make-up is known. Tick what your laboratory reports, correct a unit if yours prints a different one, and save. A component the laboratory already has is reused, not copied.",
+    "no_figures": "Names and units only, not one figure. Usual ranges and critical limits come from your analyser's kit insert, by import or by hand, and stay drafts until the laboratory director approves them.",
+    "save": "Add the ticked components",
+    "none_ticked": "No component was ticked.",
+    "added": "{n} components added; {c} of them are calculated.",
+    "on_test": "On this test",
+    "reuse": "Already in the lab",
+    "reuse_hint": "The laboratory already has this component; it is linked with its ranges.",
+    "group_physical": "Physical",
+    "group_chemical": "Chemical",
+    "group_microscopic": "Microscopic",
+    "group_red": "Red cells",
+    "group_white": "White cells",
+    "group_platelets": "Platelets",
+    "suggested": "Suggested components"
+  },
+  "lab_sections": {
+    "section": "Lab section",
+    "all": "All sections",
+    "sort": "Sort into sections",
+    "title": "Laboratory sections",
+    "sub": "Each test in one section from a fixed list, like a medicine in its family: haematology, chemistry, hormones, vitamins, immunology, urine and stool, microbiology… The program suggests where it can tell (a culture is microbiology, a urine analysis urine and stool); you check and save. The doctor's category (liver, kidney…) stays as it is.",
+    "unsorted_n": "{n} tests without a section",
+    "show_all": "Show every test",
+    "only_unsorted": "Only those without a section",
+    "test": "Test",
+    "suggested": "Suggested — check it",
+    "saved": "{n} tests saved.",
+    "all_sorted": "Every test has a section."
   }
 }
