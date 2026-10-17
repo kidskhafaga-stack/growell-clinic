@@ -100,6 +100,10 @@
     <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-mail-fields>
       <legend style="padding:0 6px;"><i class="bi bi-envelope"></i> {{ t('channels.ch_email') }}
         <span class="badge {{ 'badge--green' if mail_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if mail_ready else t('social.not_set') }}</span></legend>
+      <div class="form-row" style="margin:0 0 8px;max-width:320px;"><label for="ml_auth">{{ t('social.mail_auth') }}</label>
+        <select class="select" id="ml_auth" name="mail_auth" data-mail-auth>
+          {% for m in ('password', 'google', 'microsoft') %}<option value="{{ m }}" {{ 'selected' if mail.auth == m else '' }}>{{ t('social.mail_auth_' ~ m) }}</option>{% endfor %}
+        </select></div>
       <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
         <div class="form-row" style="margin:0;"><label for="ml_a">{{ t('social.mail_address') }}</label><input class="input" id="ml_a" name="mail_address" value="{{ mail.address }}" dir="ltr" type="email" maxlength="160"></div>
         <div class="form-row" style="margin:0;"><label for="ml_u">{{ t('social.mail_user') }}</label><input class="input" id="ml_u" name="mail_user" value="{{ mail.user }}" dir="ltr" maxlength="160" autocomplete="off"></div>
@@ -109,7 +113,24 @@
         <div class="form-row" style="margin:0;"><label for="ml_sh">{{ t('social.smtp_host') }}</label><input class="input" id="ml_sh" name="mail_smtp_host" value="{{ mail.smtp_host }}" dir="ltr" maxlength="160" placeholder="smtp.example.com"></div>
         <div class="form-row" style="margin:0;"><label for="ml_sp">{{ t('social.smtp_port') }}</label><input class="input" id="ml_sp" name="mail_smtp_port" value="{{ mail.smtp_port }}" dir="ltr" inputmode="numeric" maxlength="5"></div>
       </div>
+      {% if mail.auth != 'password' %}
+      <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:8px;" data-mail-oauth-fields>
+        <div class="form-row" style="margin:0;"><label for="ml_ci">{{ t('social.mail_client_id') }}</label><input class="input" id="ml_ci" name="mail_oauth_client_id" value="{{ mail.client_id }}" dir="ltr" maxlength="200" autocomplete="off"></div>
+        <div class="form-row" style="margin:0;"><label for="ml_cs">{{ t('social.mail_client_secret') }}</label><input class="input" id="ml_cs" name="mail_oauth_client_secret" type="password" autocomplete="off" dir="ltr" placeholder="{{ t('social.kept') if mail.has_client_secret else '' }}"></div>
+        {% if mail.auth == 'microsoft' %}
+        <div class="form-row" style="margin:0;"><label for="ml_tn">{{ t('social.mail_tenant') }}</label><input class="input" id="ml_tn" name="mail_oauth_tenant" value="{{ mail.tenant }}" dir="ltr" maxlength="80" placeholder="common"></div>
+        {% endif %}
+      </div>
+      <p class="hint" style="margin:8px 0 0;">{{ t('social.tt_redirect_is') }} <code dir="ltr" data-mail-redirect>{{ mail_redirect }}</code></p>
+      <p class="hint" style="margin:6px 0 0;" data-mail-oauth-state="{{ 'error' if mail.oauth_error else ('on' if mail.oauth_connected else 'off') }}">
+        {% if mail.oauth_error %}<span class="badge badge--danger">{{ t('social.mail_oauth_again') }}</span>
+        {% elif mail.oauth_connected %}<span class="badge badge--green">{{ t('social.mail_oauth_on') }}</span>
+        <label style="margin-inline-start:8px;"><input type="checkbox" name="clear_mail_oauth" value="1"> {{ t('social.mail_oauth_clear') }}</label>
+        {% else %}<span class="badge badge--muted">{{ t('social.mail_oauth_off') }}</span>{% endif %}</p>
+      <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.mail_steps_' ~ mail.auth) }}</p>
+      {% else %}
       <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.mail_steps') }}</p>
+      {% endif %}
     </fieldset>
     <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
   </form>
@@ -122,6 +143,9 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-bell"></i> {{ t('social.ig_subscribe') }}</button>
   </form>
+  {% endif %}
+  {% if mail.auth != 'password' and mail.client_id %}
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.channels_mail_oauth_start') }}" data-mail-oauth-start><i class="bi bi-envelope-check"></i> {{ t('social.mail_oauth_start') }}</a>
   {% endif %}
   {% if tiktok.app_id and tiktok.auth_url %}
   <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.channels_tiktok_start') }}" data-tt-start><i class="bi bi-tiktok"></i> {{ t('social.tt_start') }}</a>

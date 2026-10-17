@@ -2684,14 +2684,17 @@ SECTIONS = [
              "وإنستجرام (مربوط بالصفحة، أو من غير صفحة بتسجيل دخول إنستجرام "
              "ومفتاح بيتجدد لوحده كل ٦٠ يوم)، بوت تليجرام بزرار «اربط تليجرام»، تطبيق "
              "تيك توك باسم المؤسسة («اربط حساب تيك توك» ثم «فعّل استقبال "
-             "الرسايل»)، وصندوق الإيميل (IMAP/SMTP). المفاتيح بتتحفظ ومش "
-             "بتظهر تاني. وكل منصة ليها شروطها مكتوبة جنبها.",
+             "الرسايل»)، وصندوق الإيميل (IMAP/SMTP بكلمة سر، أو بتسجيل دخول "
+             "Google أو Microsoft بتطبيق المؤسسة و«ربط صندوق الإيميل»). "
+             "المفاتيح بتتحفظ ومش بتظهر تاني. وكل منصة ليها شروطها مكتوبة جنبها.",
              "<b>Connecting accounts</b> (admin): the clinic's Meta app for "
              "its Facebook Page and Instagram (linked to the Page, or with no "
              "Page through Instagram Login, its key renewed every 60 days), the "
              "Telegram bot with «Connect Telegram», the organisation's own "
              "TikTok app («Connect the TikTok account», then «Turn on "
-             "receiving messages»), and the mailbox (IMAP/SMTP). Keys are "
+             "receiving messages»), and the mailbox (IMAP/SMTP with a "
+             "password, or by signing in with Google or Microsoft through the "
+             "organisation's own app and «Connect the mailbox»). Keys are "
              "saved and never shown again; each platform's conditions are "
              "written beside it."),
             ("<b>صفحة «اطلب موعد» العامة</b>: مقفولة لحد ما تفتحها. بتكتب طلب "

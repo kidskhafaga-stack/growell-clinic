@@ -261,6 +261,7 @@ def channels_setup():
         tg_hook=base + url_for("webhooks.telegram_receive"),
         tiktok=social.tiktok_config(), tt_ready=social.tiktok_ready(),
         mail=_mail_shown(), mail_ready=_mail_ready(),
+        mail_redirect=base + url_for("messages.channels_mail_oauth_callback"),
         ig_mode=social.instagram_mode(), ig=_ig_shown(), ig_ready=social.instagram_ready(),
         ig_redirect=base + url_for("messages.channels_instagram_callback"),
         tt_hook=base + url_for("webhooks.tiktok_receive"),
@@ -277,9 +278,11 @@ def channels_setup():
 _META_PLAIN = ("meta_page_id", "meta_graph_version", "tt_app_id", "tt_auth_url",
                "ig_app_id",
                "mail_imap_host", "mail_imap_port", "mail_smtp_host",
-               "mail_smtp_port", "mail_user", "mail_address")
+               "mail_smtp_port", "mail_user", "mail_address",
+               "mail_oauth_client_id", "mail_oauth_tenant")
 _SECRETS = ("meta_page_token", "meta_app_secret", "tg_bot_token",
-            "tt_app_secret", "mail_password", "ig_app_secret")
+            "tt_app_secret", "mail_password", "ig_app_secret",
+            "mail_oauth_client_secret")
 
 
 @messages_bp.route("/channels/connect", methods=["POST"])
@@ -305,6 +308,7 @@ def channels_connect():
             Setting.set(key, "")
     Setting.set("meta_human_agent", "1" if request.form.get("meta_human_agent") else "")
     Setting.set("ig_mode", "login" if request.form.get("ig_mode") == "login" else "page")
+    _save_mail_auth(Setting)
     # The verify token and Telegram's secret are made here, long and random —
     # never typed, so never guessable.
     if request.form.get("regen_meta") or not Setting.get("meta_verify_token"):
@@ -415,7 +419,37 @@ def _mail_shown():
 
     cfg = mail_channel.config()
     cfg["has_password"] = bool(cfg.pop("password"))
+    oc = mail_channel.oauth_config()
+    cfg.update(auth=mail_channel.auth_mode(), client_id=oc["client_id"],
+               tenant=oc["tenant"] if oc["tenant"] != "common" else "",
+               has_client_secret=bool(oc["client_secret"]),
+               oauth_connected=bool(oc["refresh"]), oauth_error=oc["error"])
     return cfg
+
+
+def _save_mail_auth(Setting):
+    """How the box signs in. Choosing Google or Microsoft fills in their
+    mail servers where none were typed; changing the provider or the app
+    forgets the old tokens — they belonged to the other one."""
+    from app.utils import mail_channel
+
+    mode = request.form.get("mail_auth") or "password"
+    mode = mode if mode in mail_channel.AUTH_MODES else "password"
+    before = (Setting.get("mail_auth") or "password",
+              Setting.get("mail_oauth_client_id_was") or "")
+    Setting.set("mail_auth", mode)
+    if mode != "password":
+        prov = mail_channel.PROVIDERS[mode]
+        for key, (host, port) in (("imap", prov["imap"]), ("smtp", prov["smtp"])):
+            if not (Setting.get(f"mail_{key}_host") or "").strip():
+                Setting.set(f"mail_{key}_host", host)
+                Setting.set(f"mail_{key}_port", str(port))
+    client = (Setting.get("mail_oauth_client_id") or "").strip()
+    if before != (mode, client) or request.form.get("clear_mail_oauth"):
+        for key in ("mail_oauth_refresh", "mail_oauth_access",
+                    "mail_oauth_until", "mail_oauth_error"):
+            Setting.set(key, "")
+    Setting.set("mail_oauth_client_id_was", client)
 
 
 def _mail_ready():
@@ -435,6 +469,71 @@ def channels_mail_check():
         flash(t("social.failed", err=error), "danger")
     else:
         flash(t("social.mail_checked", n=filed), "success")
+    return redirect(url_for("messages.channels_setup", _anchor="connect"))
+
+
+def _mail_redirect():
+    base = channels.public_base() or request.url_root.rstrip("/")
+    return base + url_for("messages.channels_mail_oauth_callback")
+
+
+@messages_bp.route("/channels/mail-oauth/start")
+@admin_required
+def channels_mail_oauth_start():
+    """Send the admin to Google or Microsoft to let the program read and
+    send the clinic's mail — with ``state`` and a PKCE verifier kept in the
+    session, both checked on the way back."""
+    import secrets
+
+    from flask import session
+
+    from app.utils import mail_channel
+
+    verifier, challenge = mail_channel.pkce_pair()
+    state = secrets.token_urlsafe(24)
+    try:
+        url = mail_channel.authorize_url(_mail_redirect(), state, challenge)
+    except mail_channel.MailRefused:
+        flash(t("social.refused_not_ready"), "danger")
+        return redirect(url_for("messages.channels_setup", _anchor="connect"))
+    session["mail_oauth_state"] = state
+    session["mail_oauth_verifier"] = verifier
+    return redirect(url)
+
+
+@messages_bp.route("/channels/mail-oauth/callback")
+@admin_required
+def channels_mail_oauth_callback():
+    import hmac as _hmac
+
+    from flask import session
+
+    from app.utils import mail_channel
+
+    expected = session.pop("mail_oauth_state", None)
+    verifier = session.pop("mail_oauth_verifier", None)
+    if request.args.get("error"):
+        flash(t("social.mail_oauth_denied"), "warning")
+        return redirect(url_for("messages.channels_setup", _anchor="connect"))
+    code = request.args.get("code") or ""
+    given = request.args.get("state") or ""
+    if not expected or not verifier or not code \
+            or not _hmac.compare_digest(expected, given):
+        flash(t("social.tt_state_bad"), "danger")
+        return redirect(url_for("messages.channels_setup", _anchor="connect"))
+    try:
+        ok, said = mail_channel.exchange_code(code, _mail_redirect(), verifier)
+    except mail_channel.MailRefused:
+        ok, said = False, ""
+    db.session.commit()
+    if ok:
+        flash(t("social.mail_oauth_connected"), "success")
+    elif said == "scope":
+        flash(t("social.mail_oauth_scope"), "danger")
+    elif said == "no_refresh_token":
+        flash(t("social.mail_oauth_no_refresh"), "danger")
+    else:
+        flash(t("social.failed", err=said or "—"), "danger")
     return redirect(url_for("messages.channels_setup", _anchor="connect"))
 
 

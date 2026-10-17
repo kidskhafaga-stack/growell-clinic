@@ -258,6 +258,7 @@ def test_no_page_is_left_without_a_link(boss, clinic):
             # the app — reached by TikTok's redirect only.
             "messages.channels_tiktok_callback",
             "messages.channels_instagram_callback",
+            "messages.channels_mail_oauth_callback",
             # `/update` and `/update/install` — the addresses the update screen
             # used to have, kept so a bookmark does not become a 404. They
             # redirect to the settings tab that replaced them, and nothing

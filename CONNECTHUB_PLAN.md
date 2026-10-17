@@ -272,7 +272,7 @@ conversation، Return codes.
 * TLS متحقق منه في الاستقبال والإرسال.
 * **مفيش webhook للإيميل.** الصندوق بيتقري كل ٥ دقايق تقريباً مع تحديث لوحة
   المواعيد أو الخزنة (بعد الرد وبالدور)، وبزرار «اقرا الإيميل دلوقتي».
-* **مش مدعوم لسه:** الحسابات اللي بتطلب OAuth بس (زي Microsoft 365).
+* **الحسابات اللي بتطلب OAuth بس:** اتعملت بعدين (القسم ٩).
 
 
 ---
@@ -309,6 +309,40 @@ conversation، Return codes.
 * **التقارير** فيها كارت «العملاء المحتملين ومصادرهم» وكارت «سرعة الرد»، لكل
   اللي يقدر يفتح خدمة العملاء.
 
-**لسه:** الإيميل اللي بيطلب OAuth بس (Microsoft 365، وGoogle من غير App
-password). توثيق Google وMicrosoft لسه مقفول في بيئة الشغل
-(`developers.google.com` و`learn.microsoft.com`).
+**الإيميل بـ OAuth:** اتعمل في القسم ٩.
+
+
+---
+
+## 9) الإيميل بتسجيل دخول Google أو Microsoft (١٧ أكتوبر ٢٠٢٦)
+
+اتقرا من التوثيق الرسمي: Google «OAuth 2.0 mechanism» (Gmail IMAP/SMTP) و
+«Using OAuth 2.0 for Web Server Applications»، وMicrosoft «Authenticate an
+IMAP, POP or SMTP connection using OAuth» و«OAuth 2.0 authorization code flow».
+
+* **التطبيق بتاع المؤسسة**، زي تيك توك: كل مؤسسة بتعمل OAuth client في Google
+  Cloud أو App registration في Microsoft Entra، وتحط رابط الرجوع اللي على
+  الشاشة بالظبط.
+* **طريقة الدخول** بتتختار في خانة الإيميل: كلمة سر، أو Google، أو Microsoft.
+  اختيار Google أو Microsoft بيملا السيرفرات لوحده لو فاضية
+  (`imap.gmail.com`/`smtp.gmail.com`، `outlook.office365.com`/`smtp.office365.com`).
+* **الربط:** authorization code مع `state` و PKCE (S256)، والاتنين بيتأكدوا
+  في الرجوع.
+  * Google: `accounts.google.com/o/oauth2/v2/auth`، الصلاحية
+    `https://mail.google.com/`، و`access_type=offline` (من غيرها مفيش refresh
+    token) و`prompt=consent`. الكود بيتبدل في `oauth2.googleapis.com/token`.
+    Google بيسيب الشخص يشيل صلاحية، فالبرنامج بيتأكد إن صلاحية الإيميل اتدّت.
+  * Microsoft: `login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize`،
+    الصلاحيات `IMAP.AccessAsUser.All` و`SMTP.Send` و`offline_access`. والـ
+    tenant بيتكتب (فاضي = `common`).
+* **الدخول:** IMAP `AUTHENTICATE XOAUTH2` و SMTP `AUTH XOAUTH2`، بالصيغة
+  `base64("user=" user "^Aauth=Bearer " token "^A^A")`. ولو السيرفر رجّع تحدي
+  فيه خطأ، الرد سطر فاضي زي ما التوثيق بيقول.
+* **التجديد:** المفتاح عايش حوالي ساعة، وبيتجدد لما يفضل أقل من ٥ دقايق.
+  Microsoft ممكن يرجّع refresh token جديد، فبيتحفظ مكان القديم. ولو التجديد
+  اترفض (`invalid_grant`، يعني الإذن اتلغى أو الباسورد اتغيّر)، الشاشة بتقول
+  «اربطه تاني»، والصندوق ما بيتسابش من غير ما حد يعرف.
+* تغيير المزوّد أو الـ Client ID بيمسح المفاتيح القديمة، لأنها بتاعة التاني.
+* **مش متعمل، بقصد:** client credentials (التطبيق من غير مستخدم). ده محتاج
+  PowerShell عند أدمن Exchange (`New-ServicePrincipal`)، وتسجيل الدخول العادي
+  بيغطي صندوق العيادة.

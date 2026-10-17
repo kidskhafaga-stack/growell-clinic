@@ -17,13 +17,37 @@ Python's own ``imaplib``/``smtplib``/``email``:
   ``In-Reply-To`` and ``References`` (RFC 5322);
 * TLS is verified on both sides, with the system's trust store.
 
-Accounts that only allow OAuth (Microsoft 365, and Google without an app
-password) are not covered here — a mailbox that accepts IMAP/SMTP with a
-password or an app password is.
+**Signing in.** A mailbox that takes a password (or an app password) signs
+in with it. One that only allows OAuth — Microsoft 365, Outlook.com, and
+Gmail without an app password — signs in with **SASL XOAUTH2**, the format
+both providers document for IMAP ``AUTHENTICATE`` and SMTP ``AUTH``:
+``base64("user=" user "^Aauth=Bearer " token "^A^A")`` (``^A`` is
+``\\x01``); on a
+failure the server sends an error challenge, answered with an empty line.
+The token comes from the organisation's **own** OAuth app (its Google Cloud
+client, its Microsoft Entra app registration — as with TikTok, the buyer
+owns the app), by the authorization-code flow with ``state`` and PKCE
+(S256):
+
+* **Google** — ``accounts.google.com/o/oauth2/v2/auth`` with the scope
+  ``https://mail.google.com/``, ``access_type=offline`` (or no refresh
+  token comes back) and ``prompt=consent``; the code is exchanged at
+  ``oauth2.googleapis.com/token``. Google lets a person untick a scope, so
+  the scope granted is checked, not assumed;
+* **Microsoft** — ``login.microsoftonline.com/{tenant}/oauth2/v2.0/
+  authorize`` with ``https://outlook.office.com/IMAP.AccessAsUser.All``,
+  ``https://outlook.office.com/SMTP.Send`` and ``offline_access``; a
+  refresh may hand back a **new** refresh token, which replaces the old.
+
+The access token lives about an hour and is renewed from the refresh token
+when it has under five minutes left. A refresh token that stops working
+(revoked, a password changed) is said on the channels screen — the box is
+connected again, never silently skipped.
 
 There is no webhook for mail: the box is read on a ``check now`` button and
 on the same heartbeat that drains the WhatsApp queue (``maybe_poll``).
 """
+import base64
 import email
 import email.policy
 import email.utils
@@ -32,6 +56,7 @@ import json
 import re
 import smtplib
 import ssl
+import urllib.parse
 from datetime import datetime, timedelta
 from email.message import EmailMessage
 
@@ -44,6 +69,55 @@ POLL_MINUTES = 5
 BATCH = 25
 TIMEOUT = 20
 BODY_MAX = 4000
+
+
+#: How the box signs in.
+AUTH_MODES = ("password", "google", "microsoft")
+
+#: Each provider's documented endpoints, scopes and mail servers.
+PROVIDERS = {
+    "google": {
+        "authorize": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token": "https://oauth2.googleapis.com/token",
+        "scope": "https://mail.google.com/",
+        "imap": ("imap.gmail.com", 993), "smtp": ("smtp.gmail.com", 587),
+    },
+    "microsoft": {
+        "authorize": "https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize",
+        "token": "https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
+        "scope": ("https://outlook.office.com/IMAP.AccessAsUser.All "
+                  "https://outlook.office.com/SMTP.Send offline_access"),
+        "imap": ("outlook.office365.com", 993), "smtp": ("smtp.office365.com", 587),
+    },
+}
+#: Renew the access token when fewer than this many seconds are left.
+RENEW_BEFORE = 300
+
+
+class MailRefused(Exception):
+    """The box cannot sign in — the reason is a short code."""
+
+    def __init__(self, code):
+        super().__init__(code)
+        self.code = code
+
+
+def auth_mode():
+    mode = (Setting.get("mail_auth") or "password").strip()
+    return mode if mode in AUTH_MODES else "password"
+
+
+def oauth_config():
+    tenant = (Setting.get("mail_oauth_tenant") or "").strip() or "common"
+    return {
+        "client_id": (Setting.get("mail_oauth_client_id") or "").strip(),
+        "client_secret": Setting.get("mail_oauth_client_secret") or "",
+        "tenant": re.sub(r"[^A-Za-z0-9.\-]", "", tenant)[:80] or "common",
+        "refresh": Setting.get("mail_oauth_refresh") or "",
+        "access": Setting.get("mail_oauth_access") or "",
+        "until": Setting.get("mail_oauth_until") or "",
+        "error": Setting.get("mail_oauth_error") or "",
+    }
 
 
 def config():
@@ -60,8 +134,141 @@ def config():
 
 def ready():
     cfg = config()
-    return bool(cfg["imap_host"] and cfg["smtp_host"] and cfg["user"]
-                and cfg["password"] and cfg["address"])
+    base = bool(cfg["imap_host"] and cfg["smtp_host"] and cfg["user"]
+                and cfg["address"])
+    if auth_mode() == "password":
+        return base and bool(cfg["password"])
+    oc = oauth_config()
+    return base and bool(oc["client_id"] and oc["refresh"])
+
+
+# ---------------------------------------------------------------- OAuth ---
+def _endpoint(mode, which):
+    return PROVIDERS[mode][which].replace("{tenant}", oauth_config()["tenant"])
+
+
+def pkce_pair():
+    """A PKCE verifier and its S256 challenge (RFC 7636)."""
+    import hashlib
+    import secrets
+
+    verifier = secrets.token_urlsafe(48)
+    digest = hashlib.sha256(verifier.encode("ascii")).digest()
+    return verifier, base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+
+
+def authorize_url(redirect_uri, state, challenge):
+    mode = auth_mode()
+    if mode == "password":
+        raise MailRefused("not_oauth")
+    oc = oauth_config()
+    if not oc["client_id"]:
+        raise MailRefused("not_ready")
+    params = {"client_id": oc["client_id"], "redirect_uri": redirect_uri,
+              "response_type": "code", "scope": PROVIDERS[mode]["scope"],
+              "state": state, "code_challenge": challenge,
+              "code_challenge_method": "S256"}
+    hint = (Setting.get("mail_user") or "").strip()
+    if hint:
+        params["login_hint"] = hint
+    if mode == "google":
+        params.update(access_type="offline", prompt="consent")
+    else:
+        params["response_mode"] = "query"
+    return _endpoint(mode, "authorize") + "?" + urllib.parse.urlencode(params)
+
+
+def _token_call(fields):
+    from app.utils import social
+
+    mode = auth_mode()
+    oc = oauth_config()
+    fields = {"client_id": oc["client_id"], **fields}
+    if oc["client_secret"]:
+        fields["client_secret"] = oc["client_secret"]
+    return social._post_form(_endpoint(mode, "token"), fields)
+
+
+def _store(data, now=None):
+    now = now or datetime.utcnow()
+    Setting.set("mail_oauth_access", data["access_token"])
+    Setting.set("mail_oauth_until", (now + timedelta(
+        seconds=int(data.get("expires_in") or 3600))).isoformat())
+    if data.get("refresh_token"):
+        Setting.set("mail_oauth_refresh", data["refresh_token"])
+    Setting.set("mail_oauth_error", "")
+
+
+def _granted(mode, data):
+    """Whether the mail scope was granted — Google lets a person untick it."""
+    if mode != "google" or "scope" not in data:
+        return True
+    return PROVIDERS["google"]["scope"] in str(data.get("scope") or "").split()
+
+
+def exchange_code(code, redirect_uri, verifier):
+    """The provider came back with a code: keep the tokens. ``(ok, said)``."""
+    mode = auth_mode()
+    if mode == "password" or not oauth_config()["client_id"]:
+        raise MailRefused("not_ready")
+    _, data = _token_call({"grant_type": "authorization_code", "code": code,
+                           "redirect_uri": redirect_uri,
+                           "code_verifier": verifier})
+    if not data.get("access_token"):
+        return False, str(data.get("error_description") or data.get("error") or "")[:200]
+    if not _granted(mode, data):
+        return False, "scope"
+    if not data.get("refresh_token") and not oauth_config()["refresh"]:
+        return False, "no_refresh_token"
+    _store(data)
+    return True, ""
+
+
+def access_token(now=None):
+    """A live access token, renewed from the refresh token when it is near
+    its end. Raises :class:`MailRefused` when the box has to be connected
+    again."""
+    oc = oauth_config()
+    now = now or datetime.utcnow()
+    if not oc["refresh"]:
+        raise MailRefused("not_ready")
+    try:
+        left = (datetime.fromisoformat(oc["until"]) - now).total_seconds()
+    except ValueError:
+        left = 0
+    if oc["access"] and left > RENEW_BEFORE:
+        return oc["access"]
+    _, data = _token_call({"grant_type": "refresh_token",
+                           "refresh_token": oc["refresh"],
+                           **({"scope": PROVIDERS["microsoft"]["scope"]}
+                              if auth_mode() == "microsoft" else {})})
+    if not data.get("access_token"):
+        said = str(data.get("error") or "refresh_failed")[:60]
+        Setting.set("mail_oauth_error", said)
+        db.session.commit()
+        raise MailRefused(said)
+    _store(data, now)
+    db.session.commit()
+    return data["access_token"]
+
+
+def xoauth2(user, token):
+    """The SASL XOAUTH2 initial response, before base64 (imaplib and
+    smtplib encode it)."""
+    return f"user={user}\x01auth=Bearer {token}\x01\x01"
+
+
+def _answers(text):
+    """The answers to a server's XOAUTH2 challenges: the response first,
+    then the empty line both providers ask for after an error challenge."""
+    sent = []
+
+    def answer(challenge=None):
+        if sent:
+            return ""
+        sent.append(1)
+        return text
+    return answer
 
 
 # ------------------------------------------------------------- reading ---
@@ -156,11 +363,24 @@ def file_message(raw_bytes):
 
 
 def _connect_imap(cfg):
+    token = access_token() if auth_mode() != "password" else None
     box = imaplib.IMAP4_SSL(cfg["imap_host"], cfg["imap_port"],
                             ssl_context=ssl.create_default_context(),
                             timeout=TIMEOUT)
-    box.login(cfg["user"], cfg["password"])
+    if token is None:
+        box.login(cfg["user"], cfg["password"])
+    else:
+        answer = _answers(xoauth2(cfg["user"], token))
+        box.authenticate("XOAUTH2", lambda challenge: answer(challenge).encode())
     return box
+
+
+def _smtp_login(server, cfg):
+    if auth_mode() == "password":
+        server.login(cfg["user"], cfg["password"])
+        return
+    server.ehlo()
+    server.auth("XOAUTH2", _answers(xoauth2(cfg["user"], access_token())))
 
 
 def poll():
@@ -170,6 +390,8 @@ def poll():
     cfg = config()
     try:
         box = _connect_imap(cfg)
+    except MailRefused as exc:
+        return 0, f"oauth: {exc.code}"[:200]
     except (OSError, imaplib.IMAP4.error) as exc:
         return 0, f"imap: {exc}"[:200]
     filed = 0
@@ -283,12 +505,16 @@ def send(to_address, body, last_inbound=None, automatic=False):
             server = smtplib.SMTP(cfg["smtp_host"], cfg["smtp_port"], timeout=TIMEOUT)
             server.starttls(context=context)
         with server:
-            server.login(cfg["user"], cfg["password"])
+            _smtp_login(server, cfg)
             server.send_message(msg)
+    except MailRefused as exc:
+        return False, None, f"oauth: {exc.code}"[:200]
     except (OSError, smtplib.SMTPException) as exc:
         return False, None, f"smtp: {exc}"[:200]
     return True, f"mail:{msg_id}"[:120], None
 
 
-__all__ = ["after_response", "config", "file_message", "maybe_poll", "poll",
-           "ready", "send"]
+__all__ = ["AUTH_MODES", "MailRefused", "PROVIDERS", "access_token",
+           "after_response", "auth_mode", "authorize_url", "config",
+           "exchange_code", "file_message", "maybe_poll", "oauth_config",
+           "pkce_pair", "poll", "ready", "send", "xoauth2"]
