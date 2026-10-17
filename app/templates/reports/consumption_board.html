@@ -233,7 +233,7 @@
     {% if data.users %}
     <div class="mb-rise">
       {% for r in data.users %}
-      <div><span>{{ r.user.full_name if r.user else t('consumption.no_user') }}</span><span class="num">{{ '{:,}'.format(r.tokens) }} · {{ t('consumption.calls_n', n=r.calls) }}</span></div>
+      <div><span>{{ r.user.display_name(current_lang) if r.user else t('consumption.no_user') }}</span><span class="num">{{ '{:,}'.format(r.tokens) }} · {{ t('consumption.calls_n', n=r.calls) }}</span></div>
       {% endfor %}
     </div>
     {% else %}<div class="empty-state"><i class="bi bi-person"></i> {{ t('consumption.nothing') }}</div>{% endif %}
