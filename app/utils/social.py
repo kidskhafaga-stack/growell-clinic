@@ -47,6 +47,20 @@ API v1.3, read through the portal's own document API):
   **10 messages within 48 hours** of the person's last message, text up to
   6,000 characters; a business never writes first.
 
+**Instagram without a Facebook Page** — the Instagram API with Instagram
+Login (``…/instagram-platform/instagram-api-with-instagram-login``):
+
+* Business Login: ``www.instagram.com/oauth/authorize`` → a code valid one
+  hour (``#_`` stripped) → ``api.instagram.com/oauth/access_token`` (a
+  short-lived token and the account's ``user_id``) → ``graph.instagram.com/
+  access_token`` with ``ig_exchange_token`` (a token for **60 days**),
+  renewed with ``refresh_access_token`` once it is a day old and before it
+  runs out;
+* the account turns its webhooks on with ``POST /me/subscribed_apps``;
+  notifications are the same ``instagram`` object, signed the same way;
+* replies go to ``graph.instagram.com/<version>/<IG_ID>/messages`` with a
+  Bearer token — the same body, the same 24 hours, the same 1000 bytes.
+
 **Telegram** — ``core.telegram.org/bots/api``:
 
 * updates are POSTed as JSON; ``setWebhook``'s ``secret_token`` comes back
@@ -75,6 +89,14 @@ from app.models import Setting
 #: forward in its settings once Meta announces a newer one.
 DEFAULT_GRAPH_VERSION = "v25.0"
 GRAPH = "https://graph.facebook.com"
+IG_GRAPH = "https://graph.instagram.com"
+IG_OAUTH_AUTHORIZE = "https://www.instagram.com/oauth/authorize"
+IG_OAUTH_TOKEN = "https://api.instagram.com/oauth/access_token"
+#: What the clinic's Instagram account is asked to allow.
+IG_SCOPES = ("instagram_business_basic", "instagram_business_manage_messages",
+             "instagram_business_manage_comments")
+#: Renew the 60-day token when fewer than this many days are left.
+IG_REFRESH_DAYS = 10
 TELEGRAM = "https://api.telegram.org"
 TIKTOK = "https://business-api.tiktok.com/open_api/v1.3"
 
@@ -150,6 +172,34 @@ def meta_ready():
     cfg = meta_config()
     return bool(cfg["page_id"] and cfg["token"] and cfg["app_secret"]
                 and cfg["verify_token"])
+
+
+def instagram_mode():
+    """``page`` — through the Facebook Page it is linked to (the Messenger
+    Platform) — or ``login``: Instagram Login, for an account with no Page."""
+    return "login" if (Setting.get("ig_mode") or "") == "login" else "page"
+
+
+def ig_login_config():
+    return {
+        "app_id": (Setting.get("ig_app_id") or "").strip(),
+        "app_secret": (Setting.get("ig_app_secret") or "").strip(),
+        "user_id": (Setting.get("ig_user_id") or "").strip(),
+        "token": (Setting.get("ig_token") or "").strip(),
+        "until": (Setting.get("ig_token_until") or "").strip(),
+        "issued": (Setting.get("ig_token_issued") or "").strip(),
+    }
+
+
+def instagram_ready():
+    """Whether Instagram can be answered: through the Page app, or through
+    the account's own login. Webhooks are proved by the Meta app's secret
+    and handshake in both."""
+    if instagram_mode() == "page":
+        return meta_ready()
+    cfg, meta = ig_login_config(), meta_config()
+    return bool(cfg["user_id"] and cfg["token"] and meta["app_secret"]
+                and meta["verify_token"])
 
 
 def telegram_config():
@@ -492,6 +542,8 @@ def meta_mode(last_inbound, now=None, human_agent=False):
 def send_meta(channel, recipient, text, mode="RESPONSE"):
     """Reply on Messenger or Instagram. ``recipient`` is ``{"id": …}`` or
     ``{"comment_id": …}``. Returns ``(ok, message_id, error)``."""
+    if channel == "instagram" and instagram_mode() == "login":
+        return _send_instagram_login(recipient, text, mode)
     cfg = meta_config()
     if not meta_ready():
         raise SendRefused("not_ready")
@@ -521,6 +573,140 @@ def send_meta(channel, recipient, text, mode="RESPONSE"):
     err = (data.get("error") or {}) if isinstance(data, dict) else {}
     return False, None, (f"{err.get('code', status)}: {err.get('message', '')}"[:200]
                          if err else f"HTTP {status}")
+
+
+def _send_instagram_login(recipient, text, mode):
+    if not instagram_ready():
+        raise SendRefused("not_ready")
+    check_length("instagram", text)
+    token = instagram_token()
+    cfg = ig_login_config()
+    body = {"recipient": recipient, "message": {"text": text}}
+    if "id" in recipient and mode == "HUMAN_AGENT":
+        body["messaging_type"] = "MESSAGE_TAG"
+        body["tag"] = "HUMAN_AGENT"
+    version = meta_config()["version"]
+    try:
+        status, raw = _post(f"{IG_GRAPH}/{version}/{cfg['user_id']}/messages", body,
+                            headers={"Authorization": f"Bearer {token}"})
+    except Exception as exc:  # noqa: BLE001
+        return False, None, str(exc)[:200]
+    try:
+        data = json.loads(raw or "{}")
+    except ValueError:
+        data = {}
+    if 200 <= status < 300 and data.get("message_id"):
+        return True, str(data["message_id"]), None
+    err = data.get("error") or {}
+    return False, None, (f"{err.get('code', status)}: {err.get('message', '')}"[:200]
+                         if err else f"HTTP {status}")
+
+
+def _get_json(url):
+    """GET → ``(status, dict)``. Kept beside ``_post`` so tests replace it."""
+    req = urllib.request.Request(url, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+            raw = resp.read().decode("utf-8", "replace")
+            status = resp.status
+    except urllib.error.HTTPError as exc:
+        raw, status = exc.read().decode("utf-8", "replace"), exc.code
+    try:
+        return status, json.loads(raw or "{}")
+    except ValueError:
+        return status, {}
+
+
+def _post_form(url, fields):
+    """POST form fields → ``(status, dict)`` — Instagram's code exchange."""
+    data = urllib.parse.urlencode(fields).encode("utf-8")
+    req = urllib.request.Request(url, data=data, method="POST", headers={
+        "Content-Type": "application/x-www-form-urlencoded"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+            raw, status = resp.read().decode("utf-8", "replace"), resp.status
+    except urllib.error.HTTPError as exc:
+        raw, status = exc.read().decode("utf-8", "replace"), exc.code
+    try:
+        return status, json.loads(raw or "{}")
+    except ValueError:
+        return status, {}
+
+
+def instagram_authorize_url(redirect_uri, state):
+    cfg = ig_login_config()
+    return IG_OAUTH_AUTHORIZE + "?" + urllib.parse.urlencode({
+        "client_id": cfg["app_id"], "redirect_uri": redirect_uri,
+        "response_type": "code", "scope": ",".join(IG_SCOPES), "state": state})
+
+
+def _ig_store(token, expires_in, now=None):
+    now = now or datetime.utcnow()
+    Setting.set("ig_token", token)
+    Setting.set("ig_token_issued", now.isoformat())
+    Setting.set("ig_token_until",
+                (now + timedelta(seconds=int(expires_in or 0))).isoformat())
+
+
+def instagram_exchange_code(code, redirect_uri):
+    """Business Login came back: the code → a short-lived token → a 60-day
+    one. Returns ``(ok, message)``."""
+    cfg = ig_login_config()
+    if not (cfg["app_id"] and cfg["app_secret"]):
+        raise SendRefused("not_ready")
+    code = (code or "").split("#", 1)[0]
+    _, data = _post_form(IG_OAUTH_TOKEN, {
+        "client_id": cfg["app_id"], "client_secret": cfg["app_secret"],
+        "grant_type": "authorization_code", "redirect_uri": redirect_uri,
+        "code": code})
+    first = (data.get("data") or [data])[0] if isinstance(data, dict) else {}
+    short, user_id = first.get("access_token"), first.get("user_id")
+    if not short or not user_id:
+        return False, str(data.get("error_message") or data.get("message") or "")[:200]
+    _, long_ = _get_json(f"{IG_GRAPH}/access_token?" + urllib.parse.urlencode({
+        "grant_type": "ig_exchange_token", "client_secret": cfg["app_secret"],
+        "access_token": short}))
+    if not long_.get("access_token"):
+        return False, str((long_.get("error") or {}).get("message") or "")[:200]
+    Setting.set("ig_user_id", str(user_id))
+    _ig_store(long_["access_token"], long_.get("expires_in"))
+    return True, ""
+
+
+def instagram_token(now=None):
+    """The account's token, renewed for another 60 days when it is at least
+    a day old and fewer than ``IG_REFRESH_DAYS`` are left."""
+    cfg = ig_login_config()
+    now = now or datetime.utcnow()
+    try:
+        until = datetime.fromisoformat(cfg["until"])
+        issued = datetime.fromisoformat(cfg["issued"])
+    except ValueError:
+        return cfg["token"]
+    if (until - now < timedelta(days=IG_REFRESH_DAYS)
+            and now - issued >= timedelta(hours=24) and until > now):
+        _, data = _get_json(f"{IG_GRAPH}/refresh_access_token?" + urllib.parse.urlencode({
+            "grant_type": "ig_refresh_token", "access_token": cfg["token"]}))
+        if data.get("access_token"):
+            _ig_store(data["access_token"], data.get("expires_in"), now)
+            return data["access_token"]
+    return cfg["token"]
+
+
+def instagram_subscribe():
+    """Turn on the account's webhooks for messages and comments."""
+    cfg = ig_login_config()
+    if not (cfg["user_id"] and cfg["token"]):
+        raise SendRefused("not_ready")
+    version = meta_config()["version"]
+    query = urllib.parse.urlencode({"subscribed_fields": "messages,comments",
+                                    "access_token": instagram_token()})
+    try:
+        status, raw = _post(f"{IG_GRAPH}/{version}/{cfg['user_id']}/subscribed_apps?{query}", {})
+        data = json.loads(raw or "{}")
+    except Exception as exc:  # noqa: BLE001
+        return False, str(exc)[:200]
+    return bool(data.get("success")), str((data.get("error") or {}).get("message") or "")[:200]
 
 
 def send_telegram(chat_id, text):
@@ -653,6 +839,9 @@ def telegram_set_webhook(url):
 
 
 __all__ = ["DEFAULT_GRAPH_VERSION", "HUMAN_AGENT_DAYS", "Inbound",
+           "instagram_authorize_url", "instagram_exchange_code",
+           "instagram_mode", "instagram_ready", "instagram_subscribe",
+           "instagram_token", "ig_login_config",
            "parse_tiktok", "send_tiktok", "tiktok_access_token",
            "tiktok_config", "tiktok_exchange_code", "tiktok_mode",
            "tiktok_ready", "tiktok_signature_ok", "tiktok_subscribe",

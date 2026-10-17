@@ -2728,7 +2728,10 @@
     "disc_none": "No discounts in this period.",
     "patient": "Patient",
     "date": "Date",
-    "save_image": "Save as image"
+    "save_image": "Save as image",
+    "leads_card": "Leads and where they came from",
+    "leads_card_desc": "Per channel and campaign: how many asked, how many became a booking request, how many actually booked, and how long the first answer took.",
+    "service_card_desc": "How fast families are answered on each channel, and who was left unanswered."
   },
   "ai": {
     "title": "AI Assistant",
@@ -5151,7 +5154,8 @@
     "minutes": "min",
     "hours": "h",
     "days": "d",
-    "nav": "service board"
+    "nav": "service board",
+    "by_channel": "By channel"
   },
   "outcomes": {
     "title": "Outreach outcomes",
@@ -9376,7 +9380,14 @@
     "watch_near_expiry": "vaccine batches close to expiry",
     "watch_shared": "shared costs as a share of revenue",
     "watch_unplaced": "revenue not placed on a department",
-    "doctors_foot": "Recorded figures only, no rating. Revenue and the doctor's share are the bill lines in their name — the same as their statement."
+    "doctors_foot": "Recorded figures only, no rating. Revenue and the doctor's share are the bill lines in their name — the same as their statement.",
+    "families": "New families: where they came from",
+    "families_hint": "Everyone who asked on any channel, and what happened, in this period beside the one before",
+    "fam_total": "Asked",
+    "fam_converted": "Became a request",
+    "fam_booked": "Actually booked",
+    "fam_lost": "Not completed",
+    "before_was": "Period before: {n}"
   },
   "board_mine": {
     "title": "My patients",
@@ -14554,6 +14565,16 @@
     "smtp_port": "SMTP port",
     "mail_steps": "Any mailbox that accepts IMAP and SMTP with a password or an app password (e.g. Gmail with an app password). IMAP is usually 993, SMTP 587 or 465. Connections are encrypted and messages are read without marking them read. Newsletters, lists and automatic replies are not filed, and the program never answers itself. Accounts that only allow OAuth (such as Microsoft 365) are not supported yet.",
     "mail_check": "Read the mailbox now",
-    "mail_checked": "Mailbox read: {n} new messages."
+    "mail_checked": "Mailbox read: {n} new messages.",
+    "ig_mode_page": "Linked to a Facebook Page (through the Meta app above)",
+    "ig_mode_login": "No Facebook Page (Instagram Login)",
+    "ig_app_id": "Instagram App ID",
+    "ig_app_secret": "Instagram App Secret",
+    "ig_until": "key valid until {d}, renewed automatically",
+    "ig_steps": "For an Instagram account with no Page: in the Meta app dashboard → Instagram → API setup with Instagram login, copy the Instagram App ID and secret, and add the redirect URL above to the OAuth redirect URIs. Save, then 'Connect the Instagram account' and authorize, then 'Turn on receiving Instagram messages'. The webhook URL, verify token and app secret are the ones in the Meta box above. The account must be professional and public, and the app live and approved by Meta.",
+    "ig_start": "Connect the Instagram account",
+    "ig_subscribe": "Turn on receiving Instagram messages",
+    "ig_connected": "The Instagram account is connected; its key lasts 60 days and renews itself.",
+    "ig_denied": "The account owner did not authorize the connection."
   }
 }

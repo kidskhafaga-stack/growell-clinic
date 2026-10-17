@@ -325,8 +325,22 @@ def report(days=90, now=None):
     of those were booked, how many were not completed — and how long the
     first answer took (the median, in hours)."""
     now = now or datetime.utcnow()
-    since = now - timedelta(days=days)
-    leads = Lead.query.filter(Lead.created_at >= since).all()
+    return report_between(now - timedelta(days=days), now, days=days)
+
+
+def report_for_dates(d_from, d_to):
+    """The same report for the clinic's own days ``d_from``..``d_to`` — the
+    window the management board is read over."""
+    from app.utils.clock import to_utc
+
+    since = to_utc(datetime.combine(d_from, datetime.min.time()))
+    until = to_utc(datetime.combine(d_to + timedelta(days=1), datetime.min.time()))
+    return report_between(since, until, days=(d_to - d_from).days + 1)
+
+
+def report_between(since, until, days=None):
+    leads = Lead.query.filter(Lead.created_at >= since,
+                              Lead.created_at < until).all()
     booked_ids = set()
     req_ids = [lead.booking_request_id for lead in leads
                if lead.booking_request_id]
@@ -366,7 +380,7 @@ def report(days=90, now=None):
             "first_answer_hours": (round(median(waits), 1) if waits else None)}
 
 
-__all__ = ["assign", "board", "contact_for", "convert", "counts",
+__all__ = ["report_between", "report_for_dates", "assign", "board", "contact_for", "convert", "counts",
            "due_count", "find_contact", "follow_up", "link_patient", "move",
            "note", "open_lead", "open_lead_of", "report", "suggestions",
            "take_from_page"]

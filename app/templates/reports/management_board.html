@@ -163,6 +163,26 @@
   </div>
 </div>
 
+{# -------------------------------------------- where families came from #}
+{% set fam = families %}
+<div class="card gc-scale-in" id="families" style="margin-bottom:14px;" data-board-families="{{ fam.now.total }}:{{ fam.now.booked }}">
+  <h2 class="section-title mb-h">{{ t('board_admin.families') }} <small class="hint">{{ t('board_admin.families_hint') }}</small>
+    {% if current_user.can_access('messages') %}<a class="btn btn-outline btn-sm gc-press" style="margin-inline-start:auto;" href="{{ url_for('messages.leads_board', _anchor='sources') }}"><i class="bi bi-person-lines-fill"></i> {{ t('leads.title') }}</a>{% endif %}</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px;">
+    {% for key in ('total', 'converted', 'booked', 'lost') %}
+    <div class="stat-card"><div class="label">{{ t('board_admin.fam_' ~ key) }}</div>
+      <div class="value">{{ fam.now[key] }}</div>
+      <div class="hint" style="margin:0;">{{ t('board_admin.before_was', n=fam.before[key]) }}</div></div>
+    {% endfor %}
+  </div>
+  {% if fam.channels %}
+  <div style="overflow-x:auto;"><table class="table" style="font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('leads.channel') }}</th><th>{{ t('leads.r_total') }}</th><th>{{ t('leads.r_converted') }}</th><th>{{ t('leads.r_booked') }}</th><th>%</th></tr></thead>
+    <tbody>{% for k, b in fam.channels %}<tr><td>{{ t('channels.ch_' ~ k) }}</td><td>{{ b.total }}</td><td>{{ b.converted }}</td><td>{{ b.booked }}</td><td>{{ b.rate }}</td></tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('leads.no_data') }}</p>{% endif %}
+  {% if fam.first_answer_hours is not none %}<p class="hint" style="margin:8px 0 0;">{{ t('leads.first_answer', h=fam.first_answer_hours) }}</p>{% endif %}
+</div>
+
 {# --------------------------------------------------------------- doctors #}
 <div class="card gc-scale-in" id="doctors">
   <h2 class="section-title mb-h">{{ t('board_med.doctors') }} <small class="hint">{{ t('board_med.doctors_hint') }}</small>

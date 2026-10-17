@@ -261,6 +261,8 @@ def channels_setup():
         tg_hook=base + url_for("webhooks.telegram_receive"),
         tiktok=social.tiktok_config(), tt_ready=social.tiktok_ready(),
         mail=_mail_shown(), mail_ready=_mail_ready(),
+        ig_mode=social.instagram_mode(), ig=_ig_shown(), ig_ready=social.instagram_ready(),
+        ig_redirect=base + url_for("messages.channels_instagram_callback"),
         tt_hook=base + url_for("webhooks.tiktok_receive"),
         tt_redirect=base + url_for("messages.channels_tiktok_callback"),
         on=channels.enabled(), page_open=channels.page_open(),
@@ -273,10 +275,11 @@ def channels_setup():
 # Secrets the clinic types once. Left blank, a secret keeps the value it
 # has — a form that re-shows a token is a form that leaks it.
 _META_PLAIN = ("meta_page_id", "meta_graph_version", "tt_app_id", "tt_auth_url",
+               "ig_app_id",
                "mail_imap_host", "mail_imap_port", "mail_smtp_host",
                "mail_smtp_port", "mail_user", "mail_address")
 _SECRETS = ("meta_page_token", "meta_app_secret", "tg_bot_token",
-            "tt_app_secret", "mail_password")
+            "tt_app_secret", "mail_password", "ig_app_secret")
 
 
 @messages_bp.route("/channels/connect", methods=["POST"])
@@ -301,6 +304,7 @@ def channels_connect():
         elif request.form.get("clear_" + key):
             Setting.set(key, "")
     Setting.set("meta_human_agent", "1" if request.form.get("meta_human_agent") else "")
+    Setting.set("ig_mode", "login" if request.form.get("ig_mode") == "login" else "page")
     # The verify token and Telegram's secret are made here, long and random —
     # never typed, so never guessable.
     if request.form.get("regen_meta") or not Setting.get("meta_verify_token"):
@@ -431,4 +435,82 @@ def channels_mail_check():
         flash(t("social.failed", err=error), "danger")
     else:
         flash(t("social.mail_checked", n=filed), "success")
+    return redirect(url_for("messages.channels_setup", _anchor="connect"))
+
+
+# -------------------------------------------- Instagram with Instagram Login ---
+# An Instagram professional account with no Facebook Page connects through
+# Business Login for Instagram: the code comes back here (valid one hour,
+# ``#_`` stripped), becomes a 60-day token, and the account then turns its
+# webhooks on. The ``state`` is checked on the way back, as for TikTok.
+def _ig_shown():
+    from app.utils import social
+
+    cfg = social.ig_login_config()
+    return {"app_id": cfg["app_id"], "has_secret": bool(cfg["app_secret"]),
+            "user_id": cfg["user_id"], "until": cfg["until"][:10]}
+
+
+@messages_bp.route("/channels/instagram/start")
+@admin_required
+def channels_instagram_start():
+    import secrets
+
+    from flask import session
+
+    from app.utils import social
+
+    cfg = social.ig_login_config()
+    if not (cfg["app_id"] and cfg["app_secret"]):
+        flash(t("social.refused_not_ready"), "danger")
+        return redirect(url_for("messages.channels_setup", _anchor="connect"))
+    state = secrets.token_urlsafe(24)
+    session["ig_oauth_state"] = state
+    base = channels.public_base() or request.url_root.rstrip("/")
+    return redirect(social.instagram_authorize_url(
+        base + url_for("messages.channels_instagram_callback"), state))
+
+
+@messages_bp.route("/channels/instagram/callback")
+@admin_required
+def channels_instagram_callback():
+    import hmac as _hmac
+
+    from flask import session
+
+    from app.utils import social
+
+    expected = session.pop("ig_oauth_state", None)
+    given = request.args.get("state") or ""
+    if request.args.get("error"):
+        flash(t("social.ig_denied"), "warning")
+        return redirect(url_for("messages.channels_setup", _anchor="connect"))
+    code = request.args.get("code") or ""
+    if not expected or not _hmac.compare_digest(expected, given) or not code:
+        flash(t("social.tt_state_bad"), "danger")
+        return redirect(url_for("messages.channels_setup", _anchor="connect"))
+    base = channels.public_base() or request.url_root.rstrip("/")
+    try:
+        ok, said = social.instagram_exchange_code(
+            code, base + url_for("messages.channels_instagram_callback"))
+    except social.SendRefused:
+        ok, said = False, ""
+    db.session.commit()
+    flash(t("social.ig_connected") if ok else t("social.failed", err=said or "—"),
+          "success" if ok else "danger")
+    return redirect(url_for("messages.channels_setup", _anchor="connect"))
+
+
+@messages_bp.route("/channels/instagram/subscribe", methods=["POST"])
+@admin_required
+def channels_instagram_subscribe():
+    from app.utils import social
+
+    try:
+        ok, said = social.instagram_subscribe()
+    except social.SendRefused:
+        ok, said = False, ""
+    db.session.commit()
+    flash(t("social.tt_subscribed") if ok else t("social.failed", err=said or "—"),
+          "success" if ok else "danger")
     return redirect(url_for("messages.channels_setup", _anchor="connect"))

@@ -2214,8 +2214,8 @@ def cashier_poll():
     pending_refunds = RefundRequest.query.filter_by(status="pending").count()
     fp = hashlib.md5(repr((sorted(pays), open_invs, pending_refunds)).encode()).hexdigest()
     # And the clinic's mailbox, read after the answer (``utils/mail_channel``).
-    from app.utils import mail_channel
-    return mail_channel.after_response(jsonify({"fp": fp}))
+    from app.utils import heartbeat
+    return heartbeat.after_response(jsonify({"fp": fp}))
 
 
 @finance_bp.route("/cashier/float", methods=["POST"])

@@ -36,6 +36,7 @@ def reply_state(channel, msgs, automated=False):
     from app.utils import mail_channel
 
     ready = {"telegram": social.telegram_ready, "tiktok": social.tiktok_ready,
+             "instagram": social.instagram_ready,
              "email": mail_channel.ready}.get(channel, social.meta_ready)()
     state = {"ready": ready, "comment": None, "comment_open": False,
              "mode": None, "refused": None}

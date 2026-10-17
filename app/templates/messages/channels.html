@@ -64,6 +64,19 @@
         <label style="display:inline-flex;gap:4px;align-items:center;margin-inline-start:6px;"><input type="checkbox" name="regen_meta" value="1"> {{ t('social.regen') }}</label></p>
       <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.meta_steps') }}</p>
     </fieldset>
+    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-ig-fields>
+      <legend style="padding:0 6px;"><i class="bi bi-instagram"></i> {{ t('channels.ch_instagram') }}
+        <span class="badge {{ 'badge--green' if ig_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if ig_ready else t('social.not_set') }}</span></legend>
+      <label style="display:flex;gap:8px;align-items:center;margin:0 0 4px;"><input type="radio" name="ig_mode" value="page" {% if ig_mode != 'login' %}checked{% endif %}> {{ t('social.ig_mode_page') }}</label>
+      <label style="display:flex;gap:8px;align-items:center;margin:0 0 8px;"><input type="radio" name="ig_mode" value="login" {% if ig_mode == 'login' %}checked{% endif %}> {{ t('social.ig_mode_login') }}</label>
+      <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+        <div class="form-row" style="margin:0;"><label for="ig_a">{{ t('social.ig_app_id') }}</label><input class="input" id="ig_a" name="ig_app_id" value="{{ ig.app_id }}" dir="ltr" maxlength="120"></div>
+        <div class="form-row" style="margin:0;"><label for="ig_s">{{ t('social.ig_app_secret') }}</label><input class="input" id="ig_s" name="ig_app_secret" type="password" autocomplete="off" dir="ltr" placeholder="{{ t('social.kept') if ig.has_secret else '' }}"></div>
+      </div>
+      <p class="hint" style="margin:8px 0 0;">{{ t('social.tt_redirect_is') }} <code dir="ltr" data-ig-redirect>{{ ig_redirect }}</code>
+        {% if ig.user_id %} · {{ t('social.tt_account') }} <code dir="ltr" data-ig-account>{{ ig.user_id }}</code>{% if ig.until %} · {{ t('social.ig_until', d=ig.until) }}{% endif %}{% endif %}</p>
+      <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.ig_steps') }}</p>
+    </fieldset>
     <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-tg-fields>
       <legend style="padding:0 6px;"><i class="bi bi-telegram"></i> {{ t('channels.ch_telegram') }}
         <span class="badge {{ 'badge--green' if tg_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if tg_ready else t('social.not_set') }}</span></legend>
@@ -101,6 +114,15 @@
     <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
   </form>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+  {% if ig_mode == 'login' and ig.app_id and ig.has_secret %}
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.channels_instagram_start') }}" data-ig-start><i class="bi bi-instagram"></i> {{ t('social.ig_start') }}</a>
+  {% endif %}
+  {% if ig_mode == 'login' and ig.user_id %}
+  <form method="post" action="{{ url_for('messages.channels_instagram_subscribe') }}" style="margin:0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-bell"></i> {{ t('social.ig_subscribe') }}</button>
+  </form>
+  {% endif %}
   {% if tiktok.app_id and tiktok.auth_url %}
   <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.channels_tiktok_start') }}" data-tt-start><i class="bi bi-tiktok"></i> {{ t('social.tt_start') }}</a>
   {% endif %}

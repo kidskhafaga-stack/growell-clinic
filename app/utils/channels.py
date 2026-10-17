@@ -101,9 +101,12 @@ def connection(key):
         return "link"
     if key == "page":
         return "open" if page_open() else "closed"
-    if key in ("messenger", "instagram"):
+    if key == "messenger":
         from app.utils.social import meta_ready
         return "connected" if meta_ready() else "manual"
+    if key == "instagram":
+        from app.utils.social import instagram_ready
+        return "connected" if instagram_ready() else "manual"
     if key == "telegram":
         from app.utils.social import telegram_ready
         return "connected" if telegram_ready() else "manual"
