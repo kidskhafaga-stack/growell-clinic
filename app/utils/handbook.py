@@ -2533,7 +2533,7 @@ SECTIONS = [
         "key": "messages",
         "module": "messages",
         "icon": "whatsapp",
-        "title": ("واتساب وخدمة المرضى", "WhatsApp & patient service"),
+        "title": ("خدمة عملاء المرضى", "Patient Care"),
         "lines": [
             ("<b>التقييم بعد كل خدمة، مش بعد الكشف بس:</b> بعد الخروج من "
              "الداخلي والحضّانات والطوارئ الأهل بيوصلهم تقييم بتلات نواحي — "
