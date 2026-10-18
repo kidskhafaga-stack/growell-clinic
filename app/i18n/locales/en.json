@@ -14493,7 +14493,10 @@
     "no_public_base": "This address is from inside the network. Set the clinic's internet address in the WhatsApp settings (\"public URL\") so the link opens from outside.",
     "page_preview": "See the page as families will",
     "ch_telegram": "Telegram",
-    "how_telegram": "The clinic's Telegram bot. Families start the conversation; replies go from the inbox."
+    "how_telegram": "The clinic's Telegram bot. Families start the conversation; replies go from the inbox.",
+    "connect_settings": "Connection settings ↓",
+    "connect_by_admin": "An administrator connects it from this screen.",
+    "no_settings": "Needs no settings — logged from the inbox."
   },
   "book": {
     "title": "Request an appointment",

@@ -28,7 +28,14 @@
       <td><label for="ch_{{ k }}" style="margin:0;"><i class="bi {{ c.icon }}"></i> {{ t('channels.ch_' ~ k) }}</label></td>
       <td><span class="badge {{ 'badge--green' if connection[k] == 'connected' else 'badge--muted' }}">{{ t('channels.conn_' ~ connection[k]) }}</span>
         <div class="hint">{{ t('channels.how_' ~ k) }}</div>
-        {% if k == 'whatsapp' %}<a class="hint" href="{{ url_for('messages.occasions') }}">{{ t('channels.wa_settings') }}</a>{% endif %}</td>
+        {# Where each channel is set up: WhatsApp has its own screen, the
+           accounts the clinic connects are in «connect» below (admin only),
+           and the phone and the walk-in need nothing — they are logged. #}
+        {% if k == 'whatsapp' %}<a class="hint" href="{{ url_for('messages.occasions') }}" data-channel-settings="whatsapp"><i class="bi bi-gear"></i> {{ t('channels.wa_settings') }}</a>
+        {% elif k in ('messenger', 'instagram', 'telegram', 'tiktok', 'email') %}
+          {% if current_user.is_admin %}<a class="hint" href="#connect-{{ k }}" data-channel-settings="{{ k }}"><i class="bi bi-gear"></i> {{ t('channels.connect_settings') }}</a>
+          {% else %}<span class="hint" data-channel-settings="{{ k }}">{{ t('channels.connect_by_admin') }}</span>{% endif %}
+        {% else %}<span class="hint" data-channel-settings="{{ k }}">{{ t('channels.no_settings') }}</span>{% endif %}</td>
     </tr>
     {% endfor %}
     </tbody></table></div>
@@ -49,7 +56,7 @@
   <p class="hint" style="margin:0 0 10px;max-width:72ch;">{{ t('social.connect_sub') }}</p>
   <form method="post" action="{{ url_for('messages.channels_connect') }}" style="display:grid;gap:14px;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-meta-fields>
+    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;scroll-margin-top:80px;" id="connect-messenger" data-meta-fields>
       <legend style="padding:0 6px;"><i class="bi bi-messenger"></i> <i class="bi bi-instagram"></i> {{ t('social.meta') }}
         <span class="badge {{ 'badge--green' if meta_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if meta_ready else t('social.not_set') }}</span></legend>
       <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
@@ -64,7 +71,7 @@
         <label style="display:inline-flex;gap:4px;align-items:center;margin-inline-start:6px;"><input type="checkbox" name="regen_meta" value="1"> {{ t('social.regen') }}</label></p>
       <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.meta_steps') }}</p>
     </fieldset>
-    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-ig-fields>
+    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;scroll-margin-top:80px;" id="connect-instagram" data-ig-fields>
       <legend style="padding:0 6px;"><i class="bi bi-instagram"></i> {{ t('channels.ch_instagram') }}
         <span class="badge {{ 'badge--green' if ig_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if ig_ready else t('social.not_set') }}</span></legend>
       <label style="display:flex;gap:8px;align-items:center;margin:0 0 4px;"><input type="radio" name="ig_mode" value="page" {% if ig_mode != 'login' %}checked{% endif %}> {{ t('social.ig_mode_page') }}</label>
@@ -77,7 +84,7 @@
         {% if ig.user_id %} · {{ t('social.tt_account') }} <code dir="ltr" data-ig-account>{{ ig.user_id }}</code>{% if ig.until %} · {{ t('social.ig_until', d=ig.until) }}{% endif %}{% endif %}</p>
       <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.ig_steps') }}</p>
     </fieldset>
-    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-tg-fields>
+    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;scroll-margin-top:80px;" id="connect-telegram" data-tg-fields>
       <legend style="padding:0 6px;"><i class="bi bi-telegram"></i> {{ t('channels.ch_telegram') }}
         <span class="badge {{ 'badge--green' if tg_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if tg_ready else t('social.not_set') }}</span></legend>
       <div class="form-row" style="margin:0;max-width:420px;"><label for="tg_t">{{ t('social.bot_token') }}</label><input class="input" id="tg_t" name="tg_bot_token" type="password" autocomplete="off" dir="ltr" placeholder="{{ t('social.kept') if has_tg_token else '' }}"></div>
@@ -85,7 +92,7 @@
         <label style="display:inline-flex;gap:4px;align-items:center;margin-inline-start:6px;"><input type="checkbox" name="regen_tg" value="1"> {{ t('social.regen_secret') }}</label></p>
       <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.tg_steps') }}</p>
     </fieldset>
-    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-tt-fields>
+    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;scroll-margin-top:80px;" id="connect-tiktok" data-tt-fields>
       <legend style="padding:0 6px;"><i class="bi bi-tiktok"></i> {{ t('channels.ch_tiktok') }}
         <span class="badge {{ 'badge--green' if tt_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if tt_ready else t('social.not_set') }}</span></legend>
       <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
@@ -97,7 +104,7 @@
       {% if tiktok.business_id %}<p class="hint" style="margin:6px 0 0;" data-tt-account>{{ t('social.tt_account') }} <code dir="ltr">{{ tiktok.business_id }}</code></p>{% endif %}
       <p class="hint" style="margin:6px 0 0;max-width:72ch;">{{ t('social.tt_steps') }}</p>
     </fieldset>
-    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;" data-mail-fields>
+    <fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;scroll-margin-top:80px;" id="connect-email" data-mail-fields>
       <legend style="padding:0 6px;"><i class="bi bi-envelope"></i> {{ t('channels.ch_email') }}
         <span class="badge {{ 'badge--green' if mail_ready else 'badge--muted' }}">{{ t('channels.conn_connected') if mail_ready else t('social.not_set') }}</span></legend>
       <div class="form-row" style="margin:0 0 8px;max-width:320px;"><label for="ml_auth">{{ t('social.mail_auth') }}</label>
