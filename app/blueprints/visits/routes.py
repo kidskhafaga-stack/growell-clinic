@@ -2882,3 +2882,112 @@ def mine_followups_csv():
     db.session.commit()
     return Response("﻿" + buf.getvalue(), mimetype="text/csv; charset=utf-8",
                     headers={"Content-Disposition": "attachment; filename=followups.csv"})
+
+
+# ----------------------------------------------- certificates (ب-٣) -------
+def _cert_lang():
+    lang = request.values.get("lang")
+    return lang if lang in ("ar", "en") else getattr(g, "lang", "ar")
+
+
+@visits_bp.route("/<int:visit_id>/certificate", methods=["GET", "POST"])
+@module_required(MODULE)
+def cert_new(visit_id):
+    """A sick leave, a fitness certificate or a short visit report, written
+    from the visit — numbered, kept in the file, printed with the stamp."""
+    from app.models import CERT_KINDS
+    from app.utils import certificates
+    from app.utils.privacy import can_see_visit
+
+    visit = db.get_or_404(Visit, visit_id)
+    if not can_see_visit(visit):
+        abort(404)
+    if not (current_user.sees_patients(current_user.role, current_user.is_practitioner)
+            or current_user.is_admin):
+        flash(t("cert.doctors_only"), "warning")
+        return redirect(url_for("visits.record", visit_id=visit.id))
+    kind = request.values.get("kind")
+    kind = kind if kind in CERT_KINDS else "sick_leave"
+    if request.method == "POST":
+        try:
+            row = certificates.issue(
+                visit, current_user, kind, lang=_cert_lang(),
+                addressed_to=request.form.get("addressed_to"),
+                purpose=request.form.get("purpose"),
+                date_from=request.form.get("date_from"),
+                days=request.form.get("days"),
+                show_diagnosis=request.form.get("show_diagnosis") == "1",
+                note=request.form.get("note"))
+        except certificates.CertError as err:
+            db.session.rollback()
+            flash(t(f"cert.err_{err}"), "danger")
+            return redirect(url_for("visits.cert_new", visit_id=visit.id, kind=kind))
+        ActivityLog.record("certificate.issue", user_id=current_user.id,
+                           entity="medical_certificate", entity_id=row.id,
+                           ip_address=client_ip())
+        db.session.commit()
+        return redirect(url_for("visits.cert_print", cert_id=row.id))
+    return render_template("visits/cert_new.html", visit=visit, kind=kind,
+                           kinds=CERT_KINDS, lang=_cert_lang(),
+                           dx=certificates.diagnosis_of(visit, _cert_lang()),
+                           issued=certificates.for_patient(visit.patient_id)[:10])
+
+
+@visits_bp.route("/certificates/<int:cert_id>")
+@module_required(MODULE)
+def cert_print(cert_id):
+    """The certificate as it was issued, in its own language."""
+    from app.i18n import get_direction
+    from app.models import MedicalCertificate
+    from app.utils.privacy import can_see_visit
+
+    cert = db.get_or_404(MedicalCertificate, cert_id)
+    if cert.visit is not None and not can_see_visit(cert.visit):
+        abort(404)
+    g.lang, g.direction = cert.lang, get_direction(cert.lang)
+    return render_template("visits/cert_print.html", cert=cert)
+
+
+@visits_bp.route("/certificates/<int:cert_id>/void", methods=["POST"])
+@module_required(MODULE)
+def cert_void(cert_id):
+    """Cancelled, never deleted — with the reason."""
+    from app.models import MedicalCertificate
+    from app.utils import certificates
+
+    cert = db.get_or_404(MedicalCertificate, cert_id)
+    if not (current_user.is_admin or cert.issued_by == current_user.id):
+        abort(403)
+    try:
+        certificates.void(cert, current_user, request.form.get("reason"))
+    except certificates.CertError as err:
+        flash(t(f"cert.err_{err}"), "danger")
+        return redirect(url_for("visits.cert_print", cert_id=cert.id))
+    ActivityLog.record("certificate.void", user_id=current_user.id,
+                       entity="medical_certificate", entity_id=cert.id, ip_address=client_ip())
+    db.session.commit()
+    flash(t("cert.voided"), "success")
+    return redirect(url_for("visits.cert_print", cert_id=cert.id))
+
+
+@visits_bp.route("/certificates/texts", methods=["GET", "POST"])
+@module_required(MODULE)
+def cert_texts():
+    """The clinic's wording for each kind of certificate, in both languages."""
+    from app.models import CERT_KINDS
+    from app.utils import certificates
+
+    if not current_user.is_admin:
+        abort(403)
+    if request.method == "POST":
+        for kind in CERT_KINDS:
+            for lang in ("ar", "en"):
+                key = f"text_{kind}_{lang}"
+                if key in request.form:
+                    certificates.save_text(kind, lang, request.form.get(key))
+        db.session.commit()
+        flash(t("common.saved"), "success")
+        return redirect(url_for("visits.cert_texts"))
+    texts = {(k, lang): certificates.text_for(k, lang) for k in CERT_KINDS for lang in ("ar", "en")}
+    return render_template("visits/cert_texts.html", kinds=CERT_KINDS, texts=texts,
+                           placeholders=certificates.PLACEHOLDERS)

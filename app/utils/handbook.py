@@ -335,6 +335,22 @@ SECTIONS = [
              "latest weight on file shows with its date, and an old one is used only "
              "when you press «Use this weight». Allergy and interaction checks run "
              "as usual."),
+            ("<b>الشهادات من الكشف:</b> زرار «شهادة من الكشف» تحت الكشف بيطلّع إجازة "
+             "مرضية / عدم حضور، أو شهادة لياقة طبية، أو تقرير مختصر للزيارة — "
+             "بالعربي أو الإنجليزي. الاسم والسن والتاريخ بييجوا من الكشف، والطبيب "
+             "بيكتب عدد الأيام أو الغرض بس. التشخيص ما بيظهرش غير لو الأهل "
+             "وافقوا. كل شهادة ليها رقم وبتتسجل في ملف المريض (تاب الروشتات) بمين "
+             "طلّعها وإمتى، وتتطبع تاني بنفس الكلام، وتتلغي بسبب ومش بتتمسح. ونص كل "
+             "نوع بيتعدّل من «الإعدادات ← نصوص الشهادات».",
+             "<b>Certificates from the visit:</b> «Certificate from the visit» "
+             "under the visit issues a sick leave / absence, a medical fitness "
+             "certificate or a short visit report — in Arabic or English. The "
+             "name, age and date come from the visit; the doctor writes only the "
+             "days or the purpose. The diagnosis appears only if the family agreed. "
+             "Each certificate has a number and is kept in the patient's file "
+             "(prescriptions tab) with who issued it and when; it reprints with "
+             "the same words and is cancelled with a reason, never deleted. The "
+             "wording of each kind is edited under «Settings → Certificate wording»."),
             # Added with the feature. A suggestion the doctor cannot find
             # is a switch the clinic pays for and nobody uses.
             ("<b>اقتراح التشخيص.</b> في تاب التشخيصات، زرار «اقترح تشخيصات» "

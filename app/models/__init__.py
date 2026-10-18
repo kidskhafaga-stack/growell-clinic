@@ -42,6 +42,7 @@ from app.models.growth_record import GrowthRecord
 from app.models.measurement import Measurement
 from app.models.panel_template import PanelTemplate
 from app.models.visit_template import VisitTemplate
+from app.models.medical_certificate import CERT_KINDS, MedicalCertificate
 from app.models.place import (BED_KINDS, SPACE_KINDS, UNIT_KINDS,
                              Bed, Space, Unit)
 from app.models.admission import OUTCOMES, Admission, BedStay
@@ -585,6 +586,8 @@ __all__ = [
     "Measurement",
     "PanelTemplate",
     "VisitTemplate",
+    "MedicalCertificate",
+    "CERT_KINDS",
     "ROLES",
     "Role",
     "FLAG_LEVELS",

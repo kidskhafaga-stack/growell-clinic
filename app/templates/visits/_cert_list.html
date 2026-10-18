@@ -1,0 +1,16 @@
+{# The patient's certificates, newest first — number, kind, who and when.
+   `issued` is the list. #}
+<div style="overflow-x:auto;"><table class="table" style="min-width:520px;">
+  <thead><tr><th>{{ t('cert.number') }}</th><th>{{ t('cert.kind') }}</th><th>{{ t('cert.issued_at') }}</th><th>{{ t('cert.issued_by') }}</th><th></th></tr></thead>
+  <tbody>
+  {% for c in issued %}
+  <tr data-cert-row="{{ c.id }}">
+    <td dir="ltr" style="font-variant-numeric:tabular-nums;">{{ c.number }}</td>
+    <td>{{ t('cert.kind_' ~ c.kind) }}{% if c.days %} · {{ t('cert.n_days', n=c.days) }}{% endif %}
+      {% if c.is_void %}<span class="badge badge--muted" data-cert-void>{{ t('cert.void_badge') }}</span>{% endif %}</td>
+    <td dir="ltr">{{ c.issued_at|clinic_stamp('%Y-%m-%d %H:%M') }}</td>
+    <td>{{ c.issuer.display_name(current_lang) if c.issuer else '—' }}</td>
+    <td><a class="btn btn-sm btn-outline gc-press" href="{{ url_for('visits.cert_print', cert_id=c.id) }}"><i class="bi bi-printer"></i> {{ t('cert.open') }}</a></td>
+  </tr>
+  {% endfor %}
+  </tbody></table></div>

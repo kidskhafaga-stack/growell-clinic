@@ -1,0 +1,31 @@
+{% extends "shell.html" %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('cert.texts_title') }}{% endblock %}
+{% block page_heading %}{{ t('cert.texts_title') }}{% endblock %}
+
+{% block content %}
+{# The clinic's wording for each kind of certificate (ب-٣). Saved text is
+   used for certificates issued from now on; one already issued keeps the
+   words it was printed with. An emptied box goes back to the program's. #}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title"><i class="bi bi-file-earmark-text"></i> {{ t('cert.texts_title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('cert.texts_sub') }}</p>
+  <p class="hint" style="margin:6px 0 0;">{{ t('cert.placeholders') }}
+    {% for p in placeholders %}<code dir="ltr">{{ '{' ~ p ~ '}' }}</code> {% endfor %}</p>
+</div>
+<form method="post" action="{{ url_for('visits.cert_texts') }}" data-cert-texts>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% for k in kinds %}
+  <div class="card gc-scale-in" style="margin-bottom:12px;" data-cert-text="{{ k }}">
+    <h2 class="section-title" style="margin-top:0;">{{ t('cert.kind_' ~ k) }}</h2>
+    <div class="form-grid">
+      <div class="form-row"><label for="tx_{{ k }}_ar">العربية</label>
+        <textarea class="input" id="tx_{{ k }}_ar" name="text_{{ k }}_ar" rows="6" dir="rtl">{{ texts[(k, 'ar')] }}</textarea></div>
+      <div class="form-row"><label for="tx_{{ k }}_en">English</label>
+        <textarea class="input" id="tx_{{ k }}_en" name="text_{{ k }}_en" rows="6" dir="ltr">{{ texts[(k, 'en')] }}</textarea></div>
+    </div>
+  </div>
+  {% endfor %}
+  <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+</form>
+{% endblock %}

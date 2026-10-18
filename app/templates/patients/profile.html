@@ -3121,6 +3121,13 @@
       {% else %}
       <p style="color:var(--muted);">{{ t('patients.no_prescriptions') }}</p>
       {% endif %}
+
+      {# The certificates issued from this patient's visits (ب-٣): number,
+         kind, who issued it and when — each one opens to print again. #}
+      {% if certificates %}
+      <h3 class="section-title" style="margin:18px 0 8px;" data-patient-certs><i class="bi bi-file-earmark-text"></i> {{ t('cert.patient_list_title') }}</h3>
+      {% set issued = certificates %}{% include "visits/_cert_list.html" %}
+      {% endif %}
     </div>
 
     {% endif %}{# patient_medical: clinical panels #}

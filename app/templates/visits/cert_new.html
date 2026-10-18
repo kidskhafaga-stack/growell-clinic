@@ -1,0 +1,77 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import age_label with context %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('cert.new_title') }}{% endblock %}
+{% block page_heading %}{{ t('cert.new_title') }}{% endblock %}
+
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/material.css') }}">{% endblock %}
+
+{% block content %}
+{# A certificate from the visit (DOCTOR_EASE_PLAN.md ب-٣). The wording is the
+   clinic's (cert_texts); the visit fills in the name, the age and the date,
+   and the doctor writes only what the visit cannot know. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-file-earmark-text"></i> {{ t('cert.new_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ visit.patient.display_name(current_lang) }} · {{ age_label(visit.patient) }} · <span dir="ltr">{{ visit.visit_date }}</span></p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('visits.record', visit_id=visit.id) }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('cert.back_to_visit') }}</a>
+</div>
+
+<div class="cert-kinds gc-animate" role="tablist">
+  {% for k in kinds %}
+  <a class="md-chip {{ 'is-selected' if k == kind }}" role="tab" aria-selected="{{ 'true' if k == kind else 'false' }}"
+     href="{{ url_for('visits.cert_new', visit_id=visit.id, kind=k, lang=lang) }}" data-cert-kind="{{ k }}">
+    <i class="bi {{ {'sick_leave': 'bi-house-heart', 'fitness': 'bi-person-check', 'visit_report': 'bi-journal-medical'}[k] }}"></i>
+    {{ t('cert.kind_' ~ k) }}</a>
+  {% endfor %}
+</div>
+
+<form method="post" action="{{ url_for('visits.cert_new', visit_id=visit.id) }}" class="card gc-scale-in" data-cert-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="kind" value="{{ kind }}">
+  <p class="hint" style="margin:0 0 12px;max-width:72ch;">{{ t('cert.hint_' ~ kind) }}</p>
+  <div class="form-grid">
+    <div class="form-row"><label>{{ t('cert.lang') }}</label>
+      <div style="display:flex;gap:14px;align-items:center;min-height:40px;">
+        <label style="margin:0;font-weight:400;"><input type="radio" name="lang" value="ar" {{ 'checked' if lang == 'ar' }}> العربية</label>
+        <label style="margin:0;font-weight:400;"><input type="radio" name="lang" value="en" {{ 'checked' if lang == 'en' }}> English</label>
+      </div></div>
+    <div class="form-row"><label for="c_to">{{ t('cert.addressed_to') }}</label>
+      <input class="input" id="c_to" name="addressed_to" maxlength="160" placeholder="{{ t('cert.addressed_to_ph') }}"></div>
+    {% if kind == 'sick_leave' %}
+    <div class="form-row"><label for="c_from">{{ t('cert.date_from') }}</label>
+      <input class="input" id="c_from" type="date" name="date_from" value="{{ visit.visit_date }}" required></div>
+    <div class="form-row"><label for="c_days">{{ t('cert.days') }}</label>
+      <input class="input" id="c_days" type="number" name="days" min="1" max="365" required inputmode="numeric"></div>
+    {% elif kind == 'fitness' %}
+    <div class="form-row" style="grid-column:1/-1;"><label for="c_for">{{ t('cert.purpose') }}</label>
+      <input class="input" id="c_for" name="purpose" maxlength="160" required placeholder="{{ t('cert.purpose_ph') }}"></div>
+    {% endif %}
+  </div>
+  <label class="cert-dx" style="display:flex;gap:8px;align-items:flex-start;margin:6px 0 10px;">
+    <input type="checkbox" name="show_diagnosis" value="1" {{ 'disabled' if not dx }} style="margin-top:4px;">
+    <span>{{ t('cert.show_dx') }}
+      <span class="hint" style="display:block;margin:0;">{% if dx %}{{ t('cert.dx_will_read', dx=dx) }}{% else %}{{ t('cert.no_dx') }}{% endif %}</span></span>
+  </label>
+  <div class="form-row"><label for="c_note">{{ t('cert.note') }}</label>
+    <textarea class="input" id="c_note" name="note" rows="2" maxlength="1000"></textarea></div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-printer"></i> {{ t('cert.issue') }}</button>
+    <span class="hint" style="margin:0;">{{ t('cert.issue_hint') }}</span>
+    {% if current_user.is_admin %}<a class="hint" href="{{ url_for('visits.cert_texts') }}" style="margin:0;" data-to-cert-texts><i class="bi bi-pencil"></i> {{ t('cert.texts_title') }}</a>{% endif %}
+  </div>
+</form>
+
+{% if issued %}
+<div class="card gc-scale-in" style="margin-top:14px;" data-cert-issued>
+  <h2 class="section-title" style="margin-top:0;font-size:1rem;"><i class="bi bi-archive"></i> {{ t('cert.issued_before') }}</h2>
+  {% include "visits/_cert_list.html" %}
+</div>
+{% endif %}
+<style>
+  .cert-kinds { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .cert-kinds .md-chip { padding:7px 14px; text-decoration:none; }
+</style>
+{% endblock %}
