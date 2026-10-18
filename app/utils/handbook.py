@@ -2483,6 +2483,17 @@ SECTIONS = [
         "icon": "bar-chart-line",
         "title": ("التقارير", "Reports"),
         "lines": [
+            ("<b>لوحة الاستهلاك</b> (التقارير ← الاستهلاك): استهلكنا أد إيه "
+             "وبكام في أي فترة، جنب نفس المدة اللي قبلها — المخزن كله (حسب "
+             "القسم والمخزن ونوع الصنف)، والأدوية، ومستهلكات المعمل (وتكلفة كل "
+             "تحليل قدام سعره)، والذكاء الاصطناعي بالمكالمات والتوكنز. الهالك "
+             "لوحده، والصرف اللي من غير تكلفة متقال.",
+             "<b>Consumption board</b> (Reports → Consumption): how much was "
+             "used and what it cost over any period, beside the same stretch "
+             "before — the whole store (by department, warehouse and item "
+             "type), medicines, lab consumables (each test's cost against its "
+             "price), and the AI assistant in calls and tokens. Waste is apart, "
+             "and issues recorded without a cost are said."),
             ("<b>مالية</b>: الدخل، أعمار الديون، الخصومات، الضريبة، الميزان، "
              "والميزانية.",
              "<b>Financial</b>: income, AR ageing, discounts, VAT, trial "
@@ -2533,7 +2544,7 @@ SECTIONS = [
         "key": "messages",
         "module": "messages",
         "icon": "whatsapp",
-        "title": ("واتساب وخدمة المرضى", "WhatsApp & patient service"),
+        "title": ("خدمة عملاء المرضى", "Patient Care"),
         "lines": [
             ("<b>التقييم بعد كل خدمة، مش بعد الكشف بس:</b> بعد الخروج من "
              "الداخلي والحضّانات والطوارئ الأهل بيوصلهم تقييم بتلات نواحي — "

@@ -1161,6 +1161,67 @@ def medical_board_cases():
                     headers={"Content-Disposition": f"attachment; filename={name}"})
 
 
+# ================================================= the consumption board ====
+@reports_bp.route("/consumption")
+@module_required(MODULE)
+def consumption_board():
+    """What was used and what it cost, over any stretch of time beside the
+    stretch before — the store, the medicines, the laboratory's consumables
+    and the assistant (``utils/consumption``). Each part behind the module
+    it reports on."""
+    from flask import abort
+
+    from app.models import CostCentre, Warehouse
+    from app.utils import consumption, lookups, med_board
+
+    allowed = consumption.parts_for(current_user)
+    if not allowed:
+        abort(403, description=t("auth.no_permission"))
+    part = request.args.get("part")
+    part = part if part in allowed else allowed[0]
+    w = _board_window()
+    lang = getattr(g, "lang", "ar")
+    filters = {}
+    if part in ("store", "drugs"):
+        filters = {"centre": request.args.get("centre", type=int) or None,
+                   "warehouse": request.args.get("warehouse", type=int) or None,
+                   "type": (request.args.get("type") or "").strip()[:40] or None}
+    if part == "store":
+        data = consumption.store(w, item_type=filters["type"],
+                                 centre_id=filters["centre"],
+                                 warehouse_id=filters["warehouse"])
+    elif part == "drugs":
+        data = consumption.store(w, item_type="drug", centre_id=filters["centre"],
+                                 warehouse_id=filters["warehouse"])
+    elif part == "lab":
+        data = consumption.lab(w)
+    else:
+        data = consumption.ai(w)
+    return render_template(
+        "reports/consumption_board.html", w=w, presets=med_board.PRESETS,
+        part=part, allowed=allowed, data=data, filters=filters,
+        change=consumption.change,
+        centres=(CostCentre.query.filter_by(is_active=True)
+                 .order_by(CostCentre.sort_order, CostCentre.id).all()
+                 if part in ("store", "drugs") else []),
+        warehouses=(Warehouse.query.filter_by(is_active=True).order_by(Warehouse.name).all()
+                    if part in ("store", "drugs") else []),
+        item_types=(_item_type_choices(lang) if part == "store" else []),
+        type_label=lambda k: (dict(_item_type_choices(lang)).get(k, k) if k
+                              else t("consumption.no_type")))
+
+
+def _item_type_choices(lang):
+    """The store's item types: the clinic's own list, or the built-in one
+    where the clinic has not saved its own yet."""
+    from app.utils import lookups
+
+    rows = [(o.key, o.display_name(lang)) for o in lookups.options("item_type")]
+    if rows:
+        return rows
+    return [(k, en if lang == "en" else ar) for k, ar, en in lookups.BUILT_IN["item_type"]]
+
+
 # ================================================= the management board =====
 @reports_bp.route("/management")
 @module_required(MODULE)

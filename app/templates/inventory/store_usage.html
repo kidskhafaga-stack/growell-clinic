@@ -18,6 +18,7 @@
       <div class="form-row" style="margin:0;"><label for="sw_d">{{ t('stockwatch.window') }}</label><input class="input" id="sw_d" name="days" value="{{ data.days }}" inputmode="numeric" dir="ltr" style="max-width:90px;"></div>
       <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.filter') }}</button>
     </form>
+    {% if current_user.can_open('reports') %}<a class="btn btn-outline gc-press" href="{{ url_for('reports.consumption_board', part='store') }}" data-to-consumption><i class="bi bi-box-seam"></i> {{ t('consumption.title') }}</a>{% endif %}
     <a class="btn btn-outline gc-press" href="{{ url_for('inventory.store') }}"><i class="bi bi-arrow-return-left"></i> {{ t('common.back') }}</a>
   </div>
 </div>

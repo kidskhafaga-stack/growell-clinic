@@ -50,7 +50,8 @@
 {% if usage and usage.calls %}
 <div class="card gc-scale-in" style="margin-top:14px;">
   <h2 class="section-title"><i class="bi bi-speedometer2"></i> {{ t('ai.usage_title') }}</h2>
-  <p class="hint" style="margin-top:-6px;">{{ t('ai.usage_window', days=usage.days) }}</p>
+  <p class="hint" style="margin-top:-6px;">{{ t('ai.usage_window', days=usage.days) }}
+    {% if current_user.can_open('reports') %} · <a href="{{ url_for('reports.consumption_board', part='ai') }}" data-to-consumption>{{ t('consumption.over_periods') }}</a>{% endif %}</p>
   <div style="overflow-x:auto;">
     <table class="table" style="min-width:420px;">
       <thead><tr>
