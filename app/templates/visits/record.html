@@ -96,7 +96,13 @@
   {% if _active_problems %}
   <div class="card gc-scale-in no-print" style="border-inline-start:4px solid var(--warning);margin-bottom:14px;padding:10px 14px;">
     <strong style="font-size:0.9rem;"><i class="bi bi-card-checklist"></i> {{ t('problems.title_list') }}:</strong>
-    {% for pr in _active_problems %}<span class="badge badge--muted" style="margin:2px;">{{ pr.display_title(current_lang) }}{% if pr.icd_code %} <span dir="ltr">({{ pr.icd_code }})</span>{% endif %}</span>{% endfor %}
+    {% for pr in _active_problems %}<span class="badge badge--muted" style="margin:2px;">{{ pr.display_title(current_lang) }}{% if pr.icd_code %} <span dir="ltr">({{ pr.icd_code }})</span>{% endif %}</span>{% set _ro = (rx_repeat_offers or {}).get(pr.id) %}{% if _ro %}
+    {# «Repeat the last prescription» for this problem (DOCTOR_EASE_PLAN.md
+       ب-٢): opens a new prescription with the old lines, the doses worked
+       out again on today's weight — reviewed and saved by the doctor. #}
+    <a class="md-chip rx-repeat-chip" data-repeat="{{ _ro.rx }}" title="{{ t('rx_repeat.chip_title', date=_ro.date, n=_ro.count) }}"
+       href="{{ url_for('prescriptions.new', patient_id=visit.patient_id, doctor_id=visit.doctor_id, visit_id=visit.id, repeat=_ro.rx) }}"
+       style="padding:3px 10px;font-size:.8rem;"><i class="bi bi-arrow-repeat"></i> {{ t('rx_repeat.chip') }}</a>{% endif %}{% endfor %}
   </div>
   {% endif %}
 

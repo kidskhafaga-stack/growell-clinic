@@ -1075,6 +1075,26 @@ def new():
             })
         if visit_rx and not prefill_meds:
             flash(t("rx.visit_meds_all_prescribed"), "info")
+    # «Repeat the last prescription» for a long-term problem
+    # (DOCTOR_EASE_PLAN.md ب-١/ب-٢): the old lines come in to be reviewed,
+    # each with its weight rule so the dose is worked out again on today's
+    # weight by the screen's own code. Only this patient's prescription.
+    from app.utils import rx_repeat
+
+    rx_weight = rx_repeat.weight_info(patient)
+    repeat_rx = rx_repeat.repeatable(request.args.get("repeat", type=int), patient)
+    if repeat_rx is not None:
+        have = {(" ".join((m["name"] or "").split())).lower() for m in prefill_meds}
+        for line in rx_repeat.lines(repeat_rx):
+            if (" ".join((line["name"] or "").split())).lower() not in have:
+                prefill_meds.append(line)
+        if not prefill["diagnosis"]:
+            prefill["diagnosis"] = repeat_rx.diagnosis or ""
+            prefill["diagnosis_code"] = repeat_rx.diagnosis_code or ""
+        # Today's weight when the file has a recent one; an old one is shown
+        # beside the box and used only if the doctor presses for it.
+        if prefill["weight"] is None and rx_weight and not rx_weight["stale"]:
+            prefill["weight"] = rx_weight["kg"]
     # Medication reconciliation: the patient's recent meds to review while
     # prescribing (continue / stop / modify).
     recent_meds = []
@@ -1092,6 +1112,8 @@ def new():
         # prescription is applied on load, by the same code as a press on it
         # — the doses worked out for this child, never stored with it.
         auto_preset=_auto_preset(request.args.get("preset", type=int)),
+        repeat_rx=repeat_rx, rx_weight=rx_weight,
+        repeat_offers=rx_repeat.offers(patient, getattr(g, "lang", "ar")),
         # The doctor the field starts on: the one the visit carried over,
         # else the signed-in user when they see patients. Both the patient
         # list and the doctor list used to be sent whole and picked from a

@@ -14765,5 +14765,20 @@
     "deleted": "The ready visit was deleted.",
     "err_name": "Give the ready visit a name.",
     "err_empty": "Write the complaint, examination or plan first, or pick a prescription."
+  },
+  "rx_repeat": {
+    "title": "Repeat the last prescription for a long-term problem:",
+    "chip": "Repeat last prescription",
+    "chip_title": "Prescription of {date} — {n} medicines. Opens a new prescription for you to review; doses by weight are worked out again.",
+    "banner": "Repeating the prescription of {date}",
+    "banner_hint": "This is a new prescription, not yet saved. Medicines dosed by weight were worked out again on the weight above, and each line says when it changed. Review every line before saving.",
+    "kg": "kg",
+    "same_not_weight": "Same dose as last time — this medicine is not dosed by weight.",
+    "no_weight": "This is last time's dose — enter today's weight to work it out again",
+    "same_dose": "On today's weight the dose is the same as last time.",
+    "changed": "The dose changed on today's weight — check it. It was:",
+    "weight_on_file": "Latest weight on file: {kg} kg on {date}",
+    "weight_old": "{days} days ago, weigh the patient today",
+    "use_weight": "Use this weight"
   }
 }

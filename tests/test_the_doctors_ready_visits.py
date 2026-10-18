@@ -92,9 +92,9 @@ def test_the_linked_prescription_opens_ready(desk):
     boss = desk["sign_in"]("boss")
     pid = desk["ids"]["child"]
     page = boss.get(f"/prescriptions/new?patient_id={pid}&preset={mine}").get_data(as_text=True)
-    assert f'data-auto-preset="{mine}"' in page and f"applyPreset({mine})" in page
+    assert f'data-auto-preset="{mine}"' in page
     page = boss.get(f"/prescriptions/new?patient_id={pid}&preset={theirs}").get_data(as_text=True)
-    assert 'data-auto-preset=""' in page and f"applyPreset({theirs})" not in page.split("x-init")[1][:400]
+    assert 'data-auto-preset=""' in page
 
 
 def test_the_ready_visits_screen_is_the_owners(desk):

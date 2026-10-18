@@ -320,6 +320,21 @@ SECTIONS = [
              "the empty boxes only — what you wrote stays — and «Write the "
              "prescription from» opens the prescription ready. Edit or share them "
              "under «Ready visits»."),
+            ("<b>تكرار روشتة المرض المزمن:</b> جنب كل مشكلة نشطة في قايمة مشاكل "
+             "المريض زرار «كرر آخر روشتة» — في الكشف وفي شاشة الروشتة. بيفتح روشتة "
+             "جديدة فيها نفس الأدوية: اللي جرعته بالوزن بتتحسب من جديد على وزن "
+             "النهارده ومكتوب جنبه لو اتغيرت وكانت كام وعلى أنهي وزن، واللي جرعته مش "
+             "بالوزن بيفضل زي آخر مرة. آخر وزن في الملف بيظهر بتاريخه، ولو قديم مش "
+             "بيتحط غير لما تدوس «استخدم الوزن ده». وفحص الحساسية والتداخلات شغال عادي.",
+             "<b>Repeating a long-term prescription:</b> beside each active "
+             "problem on the patient's problem list is «Repeat last prescription» — "
+             "on the visit and on the prescription screen. It opens a new "
+             "prescription with the same medicines: one dosed by weight is worked "
+             "out again on today's weight and says when it changed, what it was and "
+             "on which weight; one not dosed by weight keeps last time's dose. The "
+             "latest weight on file shows with its date, and an old one is used only "
+             "when you press «Use this weight». Allergy and interaction checks run "
+             "as usual."),
             # Added with the feature. A suggestion the doctor cannot find
             # is a switch the clinic pays for and nobody uses.
             ("<b>اقتراح التشخيص.</b> في تاب التشخيصات، زرار «اقترح تشخيصات» "

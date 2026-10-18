@@ -14,10 +14,9 @@
 {% set pf = prefill or {} %}
 <form method="post" action="{{ url_for('prescriptions.new') }}"
       x-data="rxForm({{ (pf.weight or '')|tojson|forceescape }}, {{ (pf.diagnosis or '')|tojson|forceescape }}, {{ (pf.diagnosis_code or '')|tojson|forceescape }}, {{ (prefill_invs or [])|tojson|forceescape }}, {{ (prefill_meds or [])|tojson|forceescape }})"
+      data-auto-preset="{{ auto_preset or '' }}" data-repeat="{{ repeat_rx.id if repeat_rx else '' }}"
       x-init="lines.forEach(l => withPicker(l)); invs.forEach(v => withInvPicker(v));
-              if(!lines.length){ addLine(); } else { checkInteractions(); }
-              {% if auto_preset %}; applyPreset({{ auto_preset }}){% endif %}"
-      data-auto-preset="{{ auto_preset or '' }}">
+              if(!lines.length){ addLine(); } else { checkInteractions(); } opened($el)">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   {% if pf.visit_id %}<input type="hidden" name="visit_id" value="{{ pf.visit_id }}">{% endif %}
   {% if pf.visit_id %}
@@ -149,9 +148,41 @@
       </div>
       <div class="form-row"><label>{{ t('rx.child_weight') }}</label>
         <input class="input" type="number" step="0.1" min="0" x-model="weight" x-on:input="recalc()" placeholder="kg">
-        <div class="hint">{{ t('rx.child_weight_hint') }}</div></div>
+        <div class="hint">{{ t('rx.child_weight_hint') }}</div>
+        {% if rx_weight %}
+        {# The latest weight on file, always with its date (ب-٢). An old one is
+           never used on its own: it is one deliberate press. #}
+        <div class="hint rx-weight-on-file {{ 'is-warn' if rx_weight.stale }}" data-weight-on-file
+             data-stale="{{ 1 if rx_weight.stale else 0 }}">
+          <i class="bi bi-clipboard2-pulse"></i>
+          {{ t('rx_repeat.weight_on_file', kg=rx_weight.kg, date=rx_weight.date) }}
+          {% if rx_weight.stale %}— {{ t('rx_repeat.weight_old', days=rx_weight.days) }}{% endif %}
+          <button type="button" class="btn btn-sm btn-outline gc-press" x-show="weight != {{ rx_weight.kg }}"
+                  x-on:click="weight = {{ rx_weight.kg }}; recalc()" data-use-weight>{{ t('rx_repeat.use_weight') }}</button>
+        </div>
+        {% endif %}</div>
     </div>
   </div>
+
+  {% if repeat_rx %}
+  <div class="card gc-scale-in no-print rx-repeat-banner" data-repeat-of="{{ repeat_rx.id }}">
+    <strong><i class="bi bi-arrow-repeat"></i> {{ t('rx_repeat.banner', date=repeat_rx.rx_date.isoformat()) }}</strong>
+    {% if repeat_rx.diagnosis %}<span class="badge badge--muted">{{ repeat_rx.diagnosis }}</span>{% endif %}
+    <p class="hint" style="margin:4px 0 0;">{{ t('rx_repeat.banner_hint') }}</p>
+  </div>
+  {% elif repeat_offers %}
+  {# «Repeat the last prescription» beside each long-term problem (ب-٢). #}
+  <div class="card gc-scale-in no-print" data-repeat-offers style="padding:10px 14px;">
+    <strong style="font-size:.92rem;"><i class="bi bi-arrow-repeat"></i> {{ t('rx_repeat.title') }}</strong>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+      {% for o in repeat_offers %}
+      <a class="btn btn-sm btn-outline gc-press" data-repeat="{{ o.rx }}"
+         href="{{ url_for('prescriptions.new', patient_id=patient.id, visit_id=pf.visit_id, doctor_id=pf.doctor_id, repeat=o.rx) }}">
+        {{ o.title }} <span class="hint" style="margin:0;" dir="ltr">{{ o.date }}</span></a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 
   {% if recent_meds %}
   <!-- Medication reconciliation: review the patient's recent meds (GAHAR) -->
@@ -251,6 +282,9 @@
           <div class="hint" x-show="line.max" x-cloak>{{ t('rx.max_hint') }}: <span x-text="line.max"></span></div>
           <div class="hint" x-show="line.calc" x-cloak style="color:var(--green-700);">
             <i class="bi bi-calculator"></i> <span x-text="line.calc"></span></div>
+          <div class="hint rx-repeat-note" x-show="line.repeatNote" x-cloak data-repeat-note
+               :class="line.repeatLevel === 'warn' ? 'is-warn' : ''">
+            <i class="bi bi-arrow-repeat"></i> <span x-text="line.repeatNote"></span></div>
         </div>
         <div class="form-grid">
           <div class="form-row"><label>{{ t('rx.default_dose') }}</label>
@@ -569,9 +603,16 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
       return {drug_id:m.drug_id||'', name:m.name||'', dose:m.dose||'',
               frequency:m.frequency||'', duration:m.duration||'',
               instructions:m.instructions||'', max:'',
-              dosePerKg:null, maxPerKg:null, conc:null, calc:'', aiBusy:false, aiNote:'', aiCompare:null};
+              dosePerKg:(m.dose_per_kg || null), maxPerKg:(m.max_per_kg || null), conc:(m.conc || null),
+              calc:'', aiBusy:false, aiNote:'', aiCompare:null,
+              // A repeated line (ب-٢) remembers what it was, to say so.
+              prevDose:(m.prev_date ? (m.prev_dose || '') : null), prevWeight:(m.prev_weight || null),
+              prevDate:(m.prev_date || ''), repeatNote:''};
     }),
     interactions: [],
+    repeatWords: {{ {'kg': t('rx_repeat.kg'), 'same_not_weight': t('rx_repeat.same_not_weight'),
+                     'no_weight': t('rx_repeat.no_weight'), 'same_dose': t('rx_repeat.same_dose'),
+                     'changed': t('rx_repeat.changed')} | tojson }},
     doseFlags: [],
     allergyFlags: [],
     allergyLabels: {{ {
@@ -757,7 +798,27 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
       l.calc = txt;
       if(fillDose){ l.dose = mg + " mg" + (l.conc ? " ("+(Math.round((mg/l.conc)*10)/10)+" ml)" : ""); }
     },
-    recalc(){ this.lines.forEach(l => this.computeLine(l, true)); },
+    recalc(){ this.lines.forEach(l => { this.computeLine(l, true); this.noteRepeat(l); }); },
+    // What the screen was opened for: a ready visit's prescription (ب-١), or
+    // a repeated one whose doses are worked out again on today's weight (ب-٢).
+    opened(el){
+      if(el.dataset.autoPreset) this.applyPreset(Number(el.dataset.autoPreset));
+      if(el.dataset.repeat) this.recalc();
+    },
+    // A repeated line says what changed (ب-٢): the old dose and the weight it
+    // was on, beside the new one worked out on today's weight — or that it is
+    // last time's dose, unchanged, and why.
+    noteRepeat(l){
+      if(l.prevDose === null || l.prevDose === undefined) return;
+      const w = parseFloat(this.weight), words = this.repeatWords;
+      const was = l.prevDose + (l.prevWeight ? ' · ' + l.prevWeight + ' ' + words.kg : '') + ' · ' + l.prevDate;
+      if(!l.dosePerKg){ l.repeatNote = words.same_not_weight; l.repeatLevel = 'ok'; return; }
+      if(!(w>0)){ l.dose = l.prevDose; l.repeatNote = words.no_weight + ' (' + was + ')'; l.repeatLevel = 'warn'; return; }
+      const m = /([\d.]+)\s*mg/i.exec(l.prevDose || '');
+      const before = m ? parseFloat(m[1]) : null, now = Math.round(w * l.dosePerKg);
+      if(before !== null && Math.abs(before - now) < 0.5){ l.repeatNote = words.same_dose; l.repeatLevel = 'ok'; return; }
+      l.repeatNote = words.changed + ' ' + was; l.repeatLevel = 'warn';
+    },
     withInvPicker(v){
       v.picker = window.gcPicker({
         url: "{{ url_for('prescriptions.investigation_search') }}",
@@ -908,4 +969,10 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
 </script>
 {% endblock %}
 
-{% block head %}<style>[x-cloak]{display:none!important;}</style>{% endblock %}
+{% block head %}<style>[x-cloak]{display:none!important;}
+  .rx-repeat-banner { border-inline-start:4px solid var(--green-600); padding:10px 14px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .rx-repeat-banner p { flex-basis:100%; }
+  .rx-repeat-note { color:var(--green-700); }
+  .rx-repeat-note.is-warn, .rx-weight-on-file.is-warn { color:var(--warning-ink, #8a5a00); font-weight:600; }
+  .rx-weight-on-file { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:4px; }
+</style>{% endblock %}

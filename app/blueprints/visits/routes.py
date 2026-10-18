@@ -454,6 +454,7 @@ def record(visit_id):
         # Ready visits for common complaints (ب-١), and the ready
         # prescriptions one can open with.
         visit_tpls=_visit_tpls(), rx_presets_mine=_rx_presets(),
+        rx_repeat_offers=_rx_repeat_offers(visit),
         # Every panel, so picking one from the menu shows its fields at once
         # instead of asking for a save first. See panels.every_panel_for.
         panel_on=panel_on,
@@ -2237,6 +2238,17 @@ def complete(visit_id):
 def view(visit_id):
     visit = db.get_or_404(Visit, visit_id)
     return render_template("visits/view.html", visit=visit)
+
+
+def _rx_repeat_offers(visit):
+    """``{problem_id: offer}`` — the last prescription for each long-term
+    problem, to repeat from the problem list (DOCTOR_EASE_PLAN.md ب-٢)."""
+    from app.utils import rx_repeat
+
+    try:
+        return {o["problem"]: o for o in rx_repeat.offers(visit.patient, getattr(g, "lang", "ar"))}
+    except Exception:  # noqa: BLE001 — a side offer never breaks the visit
+        return {}
 
 
 # --------------------------------------------------- ready visits (ب-١) -----
