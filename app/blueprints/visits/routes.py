@@ -442,6 +442,8 @@ def record(visit_id):
         # copied into today's only by the doctor's press, and only for a
         # choice (DOCTOR_EASE_PLAN.md أ-٢).
         panel_last=_panels.last_values(visit), panel_carries=_panels.carries,
+        # The doctor's own panel templates, and the shared ones (أ-٣).
+        panel_tpls=_panel_tpls(mine),
         # Every panel, so picking one from the menu shows its fields at once
         # instead of asking for a save first. See panels.every_panel_for.
         panel_on=panel_on,
@@ -878,6 +880,14 @@ def _save_panel(visit):
             panels.save_history(visit.patient_id, key,
                                 request.form.get(f"panel_history_{key}"),
                                 current_user.id)
+
+    # The templates the doctor filled this visit from (أ-٣) — counted, so the
+    # ones used most come first next time.
+    used = [int(x) for x in (request.form.get("panel_templates_used") or "").split(",")
+            if x.strip().isdigit()][:20]
+    if used:
+        from app.utils import panel_templates
+        panel_templates.used(set(used), current_user)
 
     # A field shown only when another answer calls for it is saved only then
     # — the same rule as on the screen, so a crafted post or a stale box
@@ -2217,6 +2227,76 @@ def complete(visit_id):
 def view(visit_id):
     visit = db.get_or_404(Visit, visit_id)
     return render_template("visits/view.html", visit=visit)
+
+
+# --------------------------------------------------- my panel templates -----
+def _panel_tpls(keys):
+    """``{panel: [{id, name, values, shared, dropped}]}`` for the signed-in
+    doctor — what the template buttons above each panel fill."""
+    from app.utils import panel_templates
+
+    out = {}
+    for key in keys or []:
+        rows = panel_templates.for_doctor(current_user, key)
+        out[key] = [{"id": r.id, "name": r.name, "values": panel_templates.values(r),
+                     "shared": r.doctor_id != current_user.id,
+                     "by": r.doctor.display_name(getattr(g, "lang", "ar")) if r.doctor else "",
+                     "dropped": panel_templates.dropped(r)} for r in rows]
+    return out
+
+
+@visits_bp.route("/panel-templates", methods=["POST"])
+@module_required(MODULE)
+def panel_template_save():
+    """Save the panel as it stands as one of this doctor's templates —
+    from the visit screen, without leaving it (the answers ride in JSON)."""
+    from flask import jsonify
+
+    from app.utils import panel_templates
+
+    data = request.get_json(silent=True) or {}
+    try:
+        row = panel_templates.save(current_user, data.get("panel"), data.get("name"),
+                                   data.get("answers") or {}, shared=bool(data.get("shared")))
+    except panel_templates.TemplateError as err:
+        db.session.rollback()
+        return jsonify(ok=False, message=t(f"panel_tpl.err_{err}")), 400
+    db.session.commit()
+    return jsonify(ok=True, id=row.id, name=row.name,
+                   message=t("panel_tpl.saved", name=row.name))
+
+
+@visits_bp.route("/panel-templates/mine", methods=["GET", "POST"])
+@module_required(MODULE)
+def panel_templates_screen():
+    """«قوالبي» — rename, share or delete the doctor's own panel templates."""
+    from app.models import PanelTemplate
+    from app.utils import panel_templates, panels
+
+    if request.method == "POST":
+        row = db.session.get(PanelTemplate, request.form.get("id", type=int) or 0)
+        if row is None or row.doctor_id != current_user.id:
+            abort(404)
+        action = request.form.get("action")
+        if action == "delete":
+            db.session.delete(row)
+            flash(t("panel_tpl.deleted"), "success")
+        else:
+            name = (request.form.get("name") or "").strip()[:80]
+            if name:
+                row.name = name
+            row.is_shared = request.form.get("shared") == "1"
+            flash(t("common.saved"), "success")
+        db.session.commit()
+        return redirect(url_for("visits.panel_templates_screen"))
+    lang = getattr(g, "lang", "ar")
+    rows = panel_templates.mine(current_user)
+    return render_template(
+        "visits/panel_templates.html", rows=rows,
+        panel_name=lambda k: (panels.panel(k) or {}).get("name_en" if lang == "en" else "name_ar") or k,
+        values=panel_templates.values, dropped=panel_templates.dropped,
+        field_label=lambda k, c: ((panels.field_map(k).get(c) or {}).get("label_" + lang)
+                                  or (panels.field_map(k).get(c) or {}).get("label_ar") or c))
 
 
 # ----------------------------------------------------- my quick phrases -----

@@ -1,0 +1,43 @@
+{% extends "shell.html" %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('panel_tpl.mine') }}{% endblock %}
+{% block page_heading %}{{ t('panel_tpl.mine') }}{% endblock %}
+
+{% block content %}
+{# The doctor's own panel templates (DOCTOR_EASE_PLAN.md أ-٣) — made from the
+   visit screen with «save as a template», kept and shared here. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-bookmark-star"></i> {{ t('panel_tpl.mine') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('panel_tpl.mine_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('visits.phrases_screen') }}"><i class="bi bi-lightning-charge"></i> {{ t('phrases.title') }}</a>
+</div>
+
+{% if not rows %}
+<div class="card gc-scale-in"><p class="hint" style="margin:0;">{{ t('panel_tpl.none') }}</p></div>
+{% endif %}
+{% for r in rows %}
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-tpl-row="{{ r.id }}">
+  <form method="post" action="{{ url_for('visits.panel_templates_screen') }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="id" value="{{ r.id }}">
+    <div class="form-row" style="margin:0;min-width:200px;flex:1;">
+      <label>{{ panel_name(r.panel_key) }}</label>
+      <input class="input" name="name" value="{{ r.name }}" maxlength="80" aria-label="{{ t('panel_tpl.name_ph') }}"></div>
+    <label class="hint" style="margin:0;"><input type="checkbox" name="shared" value="1" {{ 'checked' if r.is_shared }}> {{ t('panel_tpl.share') }}</label>
+    <span class="badge badge--muted">{{ t('panel_tpl.used_n', n=r.use_count) }}</span>
+    <button class="btn btn-sm btn-primary gc-press" type="submit" name="action" value="save">{{ t('common.save') }}</button>
+    <button class="btn btn-sm btn-outline gc-press" type="submit" name="action" value="delete"
+            onclick="return confirm({{ t('panel_tpl.delete_q')|tojson|forceescape }});">{{ t('common.delete') }}</button>
+  </form>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+    {% for code, val in values(r).items() %}
+    <span class="badge badge--muted">{{ field_label(r.panel_key, code) }}: {{ val }}</span>
+    {% endfor %}
+  </div>
+  {% if dropped(r) %}<p class="hint" style="margin:6px 0 0;" data-tpl-dropped>{{ t('panel_tpl.dropped_n', n=dropped(r)) }}</p>{% endif %}
+</div>
+{% endfor %}
+{% endblock %}

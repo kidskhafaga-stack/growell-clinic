@@ -14721,5 +14721,25 @@
     "feature": "Use",
     "to_ai": "AI settings",
     "over_periods": "Details over any period"
+  },
+  "panel_tpl": {
+    "title": "My templates:",
+    "save": "Save the panel as a template",
+    "name_ph": "Template name (e.g. routine normal exam)",
+    "share": "Shared with doctors of this specialty",
+    "save_hint": "Saves the panel's choices as they are now — no numbers. Using it fills empty boxes only.",
+    "mine": "Specialty panel templates",
+    "mine_sub": "The templates you saved from the visit screen. Rename, share with doctors of the same specialty, or delete them.",
+    "none": "No templates yet. On the visit screen, fill the panel and press «Save the panel as a template».",
+    "saved": "Template «{name}» saved.",
+    "deleted": "Template deleted.",
+    "delete_q": "Delete this template?",
+    "used_n": "Used {n} times",
+    "shared_by": "Shared by {who}",
+    "dropped_n": "{n} of its answers are no longer on the panel and were skipped",
+    "err_panel": "Unknown panel.",
+    "err_name": "Give the template a name.",
+    "err_empty": "Choose answers on the panel first — a template keeps choices only.",
+    "err_net": "Not saved — try again."
   }
 }

@@ -465,6 +465,7 @@
           {# The panel the visit opened on, for the history. Which panels it
              actually recorded under is read back from the measurements. #}
           <input type="hidden" name="specialty_panel" :value="panelKey">
+          <input type="hidden" name="panel_templates_used" value="" data-tpl-used>
           <div x-show="open" x-cloak>
 
           {% for p in panel_all %}
@@ -593,6 +594,35 @@
               {{ t('panels.reads_hint') }}</p>
             {% endif %}
 
+            {# The doctor's own templates for this panel (DOCTOR_EASE_PLAN.md أ-٣):
+               one press fills the empty choices, never a number, never over an
+               answer already given. «Save as a template» keeps the panel's
+               choices as they stand now, without leaving the visit. #}
+            {% set tpls = (panel_tpls or {}).get(p.key) or [] %}
+            <div class="pl-tpls" data-tpls="{{ p.key }}">
+              <span class="hint" style="margin:0;"><i class="bi bi-bookmark-star"></i> {{ t('panel_tpl.title') }}</span>
+              {% for tp in tpls %}
+              <button type="button" class="md-chip" data-tpl="{{ tp.id }}"
+                      data-tpl-values="{{ tp['values']|tojson|forceescape }}"
+                      title="{{ t('panel_tpl.shared_by', who=tp.by) if tp.shared else '' }}{{ (' · ' ~ t('panel_tpl.dropped_n', n=tp.dropped)) if tp.dropped else '' }}"
+                      style="padding:4px 11px;font-size:.84rem;">
+                {% if tp.shared %}<i class="bi bi-people"></i>{% endif %} {{ tp.name }}</button>
+              {% endfor %}
+              <details class="pl-tpl-save">
+                <summary class="md-chip" style="padding:4px 11px;font-size:.84rem;list-style:none;cursor:pointer;">
+                  <i class="bi bi-plus-lg"></i> {{ t('panel_tpl.save') }}</summary>
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+                  <input class="input" data-tpl-name maxlength="80" style="max-width:220px;"
+                         placeholder="{{ t('panel_tpl.name_ph') }}" aria-label="{{ t('panel_tpl.name_ph') }}">
+                  <label class="hint" style="margin:0;"><input type="checkbox" data-tpl-shared> {{ t('panel_tpl.share') }}</label>
+                  <button type="button" class="btn btn-sm btn-outline gc-press" data-tpl-save="{{ p.key }}">{{ t('common.save') }}</button>
+                  <span class="hint" data-tpl-said style="margin:0;"></span>
+                </div>
+                <p class="hint" style="margin:4px 0 0;">{{ t('panel_tpl.save_hint') }}</p>
+              </details>
+              <a class="hint" href="{{ url_for('visits.panel_templates_screen') }}" data-to-panel-tpls style="margin:0;">{{ t('panel_tpl.mine') }}</a>
+            </div>
+
             {# «Same as last time» for the whole panel: fills only the empty
                choices that offer it, never a number, never over an answer
                the doctor already gave (DOCTOR_EASE_PLAN.md أ-٢). #}
@@ -657,9 +687,9 @@
                   <button type="button" class="md-chip" data-carry="{{ f.code }}" style="padding:2px 9px;font-size:.78rem;">
                     <i class="bi bi-arrow-repeat"></i> {{ t('panels.carry_one') }}</button>
                   {% endif %}
-                  <span class="pl-carried" hidden>{{ t('panels.carried') }}</span>
                 </p>
                 {% endif %}
+                {% if f.type == 'choice' %}<span class="pl-carried" hidden>{{ t('panels.carried') }}</span>{% endif %}
                 {# What the device already measured. Offered, never filled in:
                    the vitals above were taken minutes ago by the nurse, but an
                    echo was taken whenever it was taken, and a three-month-old
@@ -2690,6 +2720,8 @@
   .pchip input { position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; }
   .pchip:focus-within { outline:2px solid var(--green-600); outline-offset:2px; }
   [data-field][hidden] { display:none !important; }
+  .pl-tpls { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:10px; }
+  .pl-tpl-save summary::-webkit-details-marker { display:none; }
   [data-field].is-carried { background:color-mix(in srgb, var(--green-500) 8%, transparent); border-radius:10px; }
   .pl-carried { font-size:.75rem; font-weight:600; color:var(--green-700); }
 </style>
@@ -2788,6 +2820,68 @@
       applyShows(panel);
     });
   });
+  // The doctor's templates (أ-٣): fill the empty choices that apply.
+  function fillFrom(panel, valuesMap) {
+    var n = 0;
+    // Twice, so an answer that opens a conditional field can fill it too.
+    for (var pass = 0; pass < 2; pass++) {
+      Object.keys(valuesMap).forEach(function (code) {
+        var field = panel.querySelector('[data-field="' + code + '"]');
+        if (!field || field.hidden || !isEmpty(field)) return;
+        if (setChoice(field, valuesMap[code])) {
+          field.classList.add('is-carried');
+          var note = field.querySelector('.pl-carried');
+          if (note) note.hidden = false;
+          n++;
+        }
+      });
+      applyShows(panel);
+    }
+    return n;
+  }
+  document.querySelectorAll('[data-tpl]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var panel = btn.closest('[data-panel-fields]');
+      fillFrom(panel, JSON.parse(btn.getAttribute('data-tpl-values') || '{}'));
+      var used = document.querySelector('[data-tpl-used]');
+      if (used) {
+        var ids = used.value ? used.value.split(',') : [];
+        if (ids.indexOf(btn.getAttribute('data-tpl')) === -1) ids.push(btn.getAttribute('data-tpl'));
+        used.value = ids.join(',');
+      }
+    });
+  });
+  document.querySelectorAll('[data-tpl-save]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var panel = btn.closest('[data-panel-fields]');
+      var box = btn.closest('.pl-tpl-save');
+      var said = box.querySelector('[data-tpl-said]');
+      var answers = {};
+      panel.querySelectorAll('[data-field]').forEach(function (field) {
+        if (field.hidden) return;
+        var code = field.getAttribute('data-field');
+        var v = answerOf(panel, code);
+        if (v && (field.querySelector('input[type=radio]') || field.querySelector('select'))) answers[code] = v;
+      });
+      fetch({{ url_for('visits.panel_template_save')|tojson }}, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ panel: btn.getAttribute('data-tpl-save'),
+          name: box.querySelector('[data-tpl-name]').value,
+          shared: box.querySelector('[data-tpl-shared]').checked, answers: answers })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        said.textContent = d.message || '';
+        if (d.ok) {
+          var row = btn.closest('[data-tpls]');
+          var b = document.createElement('button');
+          b.type = 'button'; b.className = 'md-chip'; b.textContent = d.name;
+          b.style.cssText = 'padding:4px 11px;font-size:.84rem;';
+          b.addEventListener('click', function () { fillFrom(panel, answers); });
+          row.insertBefore(b, box);
+        }
+      }).catch(function () { said.textContent = {{ t('panel_tpl.err_net')|tojson }}; });
+    });
+  });
+
   // A field shown only when another answer calls for it (أ-٤). Hidden, its
   // boxes are disabled so nothing of it is sent — the server applies the same
   // rule on its side.
