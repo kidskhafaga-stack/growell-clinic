@@ -7,9 +7,11 @@ stamp, and **kept**: every certificate has a number and a row in the
 patient's file saying who issued it and when.
 
 What was printed is what is kept. The wording comes from the clinic's own
-text for that kind, filled in when it is issued, and stored as it was
-printed — so a reprint next year reads the same, whatever the clinic's text
-says by then. The diagnosis is kept and printed only when the family agreed
+text for that kind and is stored as it stood when the certificate was issued
+(``body``, with its ``{name}``-style blanks), beside what filled the blanks
+(``fields``) — so a reprint next year reads the same, whatever the clinic's
+text says by then, and the filled-in parts can be printed apart from the
+clinic's words. The diagnosis is kept and printed only when the family agreed
 to it appearing.
 
 A certificate is never deleted, only cancelled with a reason: a paper that
@@ -41,7 +43,8 @@ class MedicalCertificate(db.Model):
     days = db.Column(db.Integer)
     date_to = db.Column(db.Date)
     diagnosis = db.Column(db.String(255))                    # only if agreed
-    body = db.Column(db.Text, nullable=False)                # as printed
+    body = db.Column(db.Text, nullable=False)                # the wording, with blanks
+    fields = db.Column(db.Text)                              # JSON: what filled them
     note = db.Column(db.Text)
     voided_at = db.Column(db.DateTime)
     voided_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
@@ -51,6 +54,22 @@ class MedicalCertificate(db.Model):
     visit = db.relationship("Visit")
     doctor = db.relationship("User", foreign_keys=[doctor_id])
     issuer = db.relationship("User", foreign_keys=[issued_by])
+
+    @property
+    def values(self):
+        import json
+
+        try:
+            return json.loads(self.fields or "{}")
+        except ValueError:
+            return {}
+
+    @property
+    def text(self):
+        """The certificate as plain text, blanks filled."""
+        from app.utils.certificates import fill
+
+        return fill(self.body, self.values)
 
     @property
     def is_void(self):

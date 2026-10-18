@@ -156,16 +156,43 @@ def issue(visit, user, kind, lang="ar", addressed_to="", purpose="", date_from=N
         "plan": visit.plan or "—", "diagnosis": dx,
         "doctor": doctor.doctor_print_name(lang) if doctor else "",
     }
-    body = fill(text_for(kind, lang), values).strip()
+    import json
+
+    body = text_for(kind, lang).strip()
     row = MedicalCertificate(
         number=next_number(), kind=kind, lang=lang, patient_id=patient.id,
         visit_id=visit.id, doctor_id=doctor.id if doctor else None, issued_by=user.id,
         seen_on=visit.visit_date, addressed_to=addressed_to or None,
         purpose=purpose or None, date_from=start, days=days, date_to=end,
-        diagnosis=dx or None, body=body, note=(note or "").strip()[:1000] or None)
+        diagnosis=dx or None, body=body,
+        fields=json.dumps({k: str(v) for k, v in values.items()}, ensure_ascii=False),
+        note=(note or "").strip()[:1000] or None)
     db.session.add(row)
     db.session.flush()
     return row
+
+
+def render(cert):
+    """The certificate's text for the page: the clinic's words as written,
+    each filled-in blank set apart (``<strong class="cert-var">``) so the
+    parts that came from this visit read as such."""
+    import re
+
+    from markupsafe import Markup, escape
+
+    values = cert.values
+    out, last = [], 0
+    for m in re.finditer(r"\{([a-z_]+)\}", cert.body):
+        out.append(escape(cert.body[last:m.start()]))
+        key = m.group(1)
+        if key in values:
+            if values[key]:
+                out.append(Markup('<strong class="cert-var">%s</strong>') % values[key])
+        else:
+            out.append(escape(m.group(0)))
+        last = m.end()
+    out.append(escape(cert.body[last:]))
+    return Markup("").join(out)
 
 
 def void(cert, user, reason):
@@ -185,5 +212,5 @@ def for_patient(patient_id):
 
 
 __all__ = ["CERT_KINDS", "CertError", "PLACEHOLDERS", "age_text", "default_text",
-           "diagnosis_of", "fill", "for_patient", "issue", "next_number", "save_text",
-           "text_for", "void"]
+           "diagnosis_of", "fill", "for_patient", "issue", "next_number", "render",
+           "save_text", "text_for", "void"]

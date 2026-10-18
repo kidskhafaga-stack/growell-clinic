@@ -14809,7 +14809,7 @@
     "issue": "Issue the certificate",
     "issue_hint": "It gets a number and is kept in the patient's file; you can print it again.",
     "texts_title": "Certificate wording",
-    "texts_sub": "The text of each kind of certificate, in Arabic and English. What is in braces is filled in from the visit. New text applies to certificates issued from now on; issued ones keep their words. An emptied box goes back to the program's text.",
+    "texts_sub": "The text of each kind of certificate, in Arabic and English. Write the words as you like; the green blocks (name, age, dates…) are filled from the visit. New text applies to certificates issued from now on; issued ones keep their words. An emptied box goes back to the program's text. The paper itself (letterhead, signature, stamp, size) is the doctor's prescription layout.",
     "placeholders": "Filled in from the visit:",
     "issued_before": "Certificates issued for this patient",
     "patient_list_title": "Medical certificates",
@@ -14833,6 +14833,22 @@
     "default_sick_leave": "{name}, age {age}, file no. {file}, was examined at the clinic on {date}.\nRest and absence are advised for {days} day(s), from {from} to {to}.\nThis certificate is issued on request, to be presented to {to_whom}.",
     "default_fitness": "{name}, age {age}, file no. {file}, was examined at the clinic on {date}.\nThe examination found no medical reason preventing {purpose}.\nThis certificate is issued on request, to be presented to {to_whom}.",
     "default_visit_report": "{name}, age {age}, file no. {file}, was examined at the clinic on {date}.\nComplaint: {complaint}\nExamination: {exam}\nPlan: {plan}",
-    "to_whom_body": "the party concerned"
+    "to_whom_body": "the party concerned",
+    "layout": "Paper layout (prescription layout)",
+    "ph_name": "Name",
+    "ph_age": "Age",
+    "ph_file": "File no.",
+    "ph_date": "Visit date",
+    "ph_from": "From",
+    "ph_to": "To",
+    "ph_days": "Days",
+    "ph_purpose": "Purpose",
+    "ph_to_whom": "Addressed to",
+    "ph_complaint": "Complaint",
+    "ph_exam": "Examination",
+    "ph_plan": "Plan",
+    "ph_diagnosis": "Diagnosis (if agreed)",
+    "ph_doctor": "Doctor's name",
+    "texts_hint": "The green blocks are filled from the visit — add them with the buttons above each box, delete them like any word."
   }
 }

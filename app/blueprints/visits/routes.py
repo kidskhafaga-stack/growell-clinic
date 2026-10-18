@@ -2944,8 +2944,15 @@ def cert_print(cert_id):
     cert = db.get_or_404(MedicalCertificate, cert_id)
     if cert.visit is not None and not can_see_visit(cert.visit):
         abort(404)
+    from app.blueprints.prescriptions.routes import resolve_template
+    from app.utils import certificates
+
     g.lang, g.direction = cert.lang, get_direction(cert.lang)
-    return render_template("visits/cert_print.html", cert=cert)
+    # The doctor's prescription layout: the same paper, letterhead, margins,
+    # signature and stamp — set once on «Prescription layouts».
+    return render_template("visits/cert_print.html", cert=cert,
+                           tpl=resolve_template(cert.doctor),
+                           body=certificates.render(cert))
 
 
 @visits_bp.route("/certificates/<int:cert_id>/void", methods=["POST"])
@@ -2990,4 +2997,8 @@ def cert_texts():
         return redirect(url_for("visits.cert_texts"))
     texts = {(k, lang): certificates.text_for(k, lang) for k in CERT_KINDS for lang in ("ar", "en")}
     return render_template("visits/cert_texts.html", kinds=CERT_KINDS, texts=texts,
-                           placeholders=certificates.PLACEHOLDERS)
+                           placeholders=certificates.PLACEHOLDERS,
+                           # Each box names its blocks in its own language.
+                           labels={lang: {p: certificates._say(f"cert.ph_{p}", lang)
+                                          for p in certificates.PLACEHOLDERS}
+                                   for lang in ("ar", "en")})

@@ -116,10 +116,12 @@ def test_the_prescription_uses_it(doctor):
         doc.stamp_scale = 200
         db.session.commit()
 
-    with open(os.path.join(os.path.dirname(__file__), "..",
-                           "app/templates/prescriptions/_paper.html"),
-              encoding="utf-8") as fh:
-        source = fh.read()
+    source = ""
+    for name in ("_paper.html", "_letterhead.html"):   # the signature is shared
+        with open(os.path.join(os.path.dirname(__file__), "..",
+                               "app/templates/prescriptions", name),
+                  encoding="utf-8") as fh:
+            source += fh.read()
 
     assert "max-height:90px;max-width:140px" not in source, \
         "the stamp's printed size is still written into the template"

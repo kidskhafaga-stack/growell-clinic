@@ -340,8 +340,11 @@ SECTIONS = [
              "بالعربي أو الإنجليزي. الاسم والسن والتاريخ بييجوا من الكشف، والطبيب "
              "بيكتب عدد الأيام أو الغرض بس. التشخيص ما بيظهرش غير لو الأهل "
              "وافقوا. كل شهادة ليها رقم وبتتسجل في ملف المريض (تاب الروشتات) بمين "
-             "طلّعها وإمتى، وتتطبع تاني بنفس الكلام، وتتلغي بسبب ومش بتتمسح. ونص كل "
-             "نوع بيتعدّل من «الإعدادات ← نصوص الشهادات».",
+             "طلّعها وإمتى، وتتطبع تاني بنفس الكلام، وتتلغي بسبب ومش بتتمسح. وبتتطبع "
+             "على نفس قالب روشتة الطبيب (الترويسة والتوقيع والختم والمقاس) بخط Cairo، "
+             "واللي جاي من الكشف بيتطبع بخط تقيل. ونص كل نوع بيتعدّل من «الإعدادات ← "
+             "نصوص الشهادات»: الكلام بتكتبه زي ما تحب، والاسم والسن والتواريخ مربعات "
+             "ثابتة بتتحط بزرار.",
              "<b>Certificates from the visit:</b> «Certificate from the visit» "
              "under the visit issues a sick leave / absence, a medical fitness "
              "certificate or a short visit report — in Arabic or English. The "
@@ -349,8 +352,12 @@ SECTIONS = [
              "days or the purpose. The diagnosis appears only if the family agreed. "
              "Each certificate has a number and is kept in the patient's file "
              "(prescriptions tab) with who issued it and when; it reprints with "
-             "the same words and is cancelled with a reason, never deleted. The "
-             "wording of each kind is edited under «Settings → Certificate wording»."),
+             "the same words and is cancelled with a reason, never deleted. It "
+             "prints on the doctor's prescription layout (letterhead, signature, "
+             "stamp, size) in Cairo, with what came from the visit in bold. The "
+             "wording of each kind is edited under «Settings → Certificate "
+             "wording»: type the words freely; the name, age and dates are fixed "
+             "blocks added with a button."),
             # Added with the feature. A suggestion the doctor cannot find
             # is a switch the clinic pays for and nobody uses.
             ("<b>اقتراح التشخيص.</b> في تاب التشخيصات، زرار «اقترح تشخيصات» "

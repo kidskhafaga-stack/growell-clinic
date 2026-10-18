@@ -140,9 +140,11 @@ def test_the_arabic_file_is_actually_in_arabic():
 def test_the_prescription_says_licence_in_the_page_language(clinic):
     """It printed "License:" on an Arabic prescription, and on the copy the
     family opens."""
-    with open(os.path.join(ROOT, "app", "templates", "prescriptions",
-                           "_paper.html"), encoding="utf-8") as fh:
-        source = fh.read()
+    source = ""
+    for name in ("_paper.html", "_letterhead.html"):   # the signature is shared
+        with open(os.path.join(ROOT, "app", "templates", "prescriptions", name),
+                  encoding="utf-8") as fh:
+            source += fh.read()
 
     assert "License:" not in source
     assert "t('rx.license')" in source

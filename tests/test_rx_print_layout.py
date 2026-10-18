@@ -199,9 +199,7 @@ def test_the_offset_marker_is_not_on_the_same_edge_as_the_date(clinic):
     with open(os.path.join(ROOT, "app/templates/prescriptions/test_print.html"),
               encoding="utf-8") as fh:
         test_print = fh.read()
-    with open(os.path.join(ROOT, "app/templates/prescriptions/_paper.html"),
-              encoding="utf-8") as fh:
-        paper = fh.read()
+    paper = _paper_source()
 
     marker = test_print[test_print.index(".rx-offset-rule span {"):]
     marker = marker[:marker.index("}")]
@@ -282,9 +280,14 @@ def test_the_watermark_is_still_clipped_to_the_paper(clinic):
 # ------------------------------------------ the font size actually does work
 
 def _paper_source():
-    with open(os.path.join(ROOT, "app/templates/prescriptions/_paper.html"),
-              encoding="utf-8") as fh:
-        return fh.read()
+    """The prescription's markup: `_paper.html` and the letterhead and
+    signature it shares with the medical certificate."""
+    out = ""
+    for name in ("_paper.html", "_letterhead.html"):
+        with open(os.path.join(ROOT, "app/templates/prescriptions", name),
+                  encoding="utf-8") as fh:
+            out += fh.read()
+    return out
 
 
 def _theme_css():

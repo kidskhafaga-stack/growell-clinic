@@ -43,11 +43,16 @@ def test_a_sick_leave_is_numbered_kept_and_keeps_the_diagnosis_private(clinic):
         visit = clinic["db"].session.get(Visit, clinic["ids"]["visit"])
         assert (cert.days, cert.date_from, cert.date_to) == (3, date(2026, 10, 10), date(2026, 10, 12))
         assert cert.number.endswith("-00001") and cert.diagnosis is None
-        assert visit.patient.display_name("ar") in cert.body and "2026-10-12" in cert.body
-        assert "التهاب لوزتين" not in cert.body and "مدرسة النور" in cert.body
+        assert visit.patient.display_name("ar") in cert.text and "2026-10-12" in cert.text
+        assert "التهاب لوزتين" not in cert.text and "مدرسة النور" in cert.text
+        assert "{name}" in cert.body          # the wording kept with its blanks
         cid = cert.id
     page = doc.get(f"/visits/certificates/{cid}").get_data(as_text=True)
     assert "data-cert-print" in page and "التهاب لوزتين" not in page
+    # The visit's parts are set apart, on the doctor's prescription layout,
+    # in the Cairo shipped with the program.
+    assert '<strong class="cert-var">' in page and "vendor/cairo/cairo.css" in page
+    assert "class=\"rx-sign\"" in page
     # Days are the doctor's to write; none, or a slip, is refused.
     assert _issue(doc, clinic, kind="sick_leave", lang="ar").status_code == 302
     _issue(doc, clinic, kind="sick_leave", lang="ar", days="3000")
@@ -66,8 +71,8 @@ def test_the_diagnosis_only_when_the_family_agreed_and_in_the_certificate_s_lang
     with clinic["app"].app_context():
         report, fit = MedicalCertificate.query.order_by(MedicalCertificate.id).all()
         assert report.diagnosis == "Tonsillitis" and report.lang == "en"
-        assert report.body.startswith(report.patient.display_name("en") or "")
-        assert fit.kind == "fitness" and "الالتحاق بالحضانة" in fit.body
+        assert report.text.startswith(report.patient.display_name("en") or "")
+        assert fit.kind == "fitness" and "الالتحاق بالحضانة" in fit.text
         assert fit.number.endswith("-00002")
         rid = report.id
     page = doc.get(f"/visits/certificates/{rid}").get_data(as_text=True)
@@ -118,3 +123,5 @@ def test_the_clinic_writes_the_wording_and_an_issued_one_keeps_its_own(clinic):
     boss.post("/visits/certificates/texts", data={"text_visit_report_ar": ""})
     page = boss.get("/visits/certificates/texts").get_data(as_text=True)
     assert "تم الكشف بالعيادة بتاريخ {date}" in page
+    # The blanks are put in with a button, never typed.
+    assert 'data-insert="name"' in page and 'class="input cert-editor"' in page
