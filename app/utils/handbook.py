@@ -334,6 +334,19 @@ SECTIONS = [
         "icon": "clipboard-data",
         "title": ("قوالب التخصصات", "Specialty panels"),
         "lines": [
+            ("<b>أسرع في الإدخال:</b> الاختيارات أزرار بضغطة واحدة (وضغطة "
+             "تانية تلغي)، والأرقام ١، ٢، ٣ بتختار، وEnter بينقلك للخانة اللي "
+             "بعدها. جنب كل خانة إجابة الزيارة اللي فاتت بتاريخها، و«زي آخر "
+             "مرة» بتنقل الاختيار بس — الأرقام عمرها ما بتتنقل، واللي بيتقرر كل "
+             "جلسة ما لوش زرار. واللي اتنقل بيبان «منقول — راجعه». وبعض "
+             "الخانات بتظهر بس لما تلزم (سبب التخدير الكلي مع التخدير الكلي).",
+             "<b>Faster entry:</b> answers are one-tap buttons (a second tap "
+             "clears), the number keys 1, 2, 3 pick, and Enter moves to the next "
+             "box. Beside each box is the last visit's answer and its date; «Same "
+             "as last time» copies a choice only — numbers are never copied, and "
+             "what is decided each session has no button. What was copied shows "
+             "«Copied — check it». Some boxes appear only when they apply (the "
+             "reason for general anaesthesia, with general anaesthesia)."),
             ("<b>الزيارة العادية هي الأساس.</b> الشكوى والفحص والعلامات "
              "الحيوية والتشخيص والخطة موجودين دايمًا وما بيتغيروش بالتخصص — "
              "ده اللي بيخلّي ملف الطفل واحد، وطبيب الأسنان يشوف إن عنده فتحة "

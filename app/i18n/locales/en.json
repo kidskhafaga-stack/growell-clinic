@@ -5972,7 +5972,12 @@
     "waiting_doctor": "{n} alerts only a doctor can record",
     "case_history": "Case history",
     "case_history_hint": "Written once and kept across visits — add a line when something changes. Your phrase codes work here too.",
-    "read_temperature_c": "Temperature"
+    "read_temperature_c": "Temperature",
+    "last_time": "Last time:",
+    "carry_one": "Same as last time",
+    "carry_all": "Fill what hasn't changed from last time",
+    "carry_all_hint": "Fills empty choices only; numbers are never copied.",
+    "carried": "Copied — check it"
   },
   "curves": {
     "src_lab": "Lab",

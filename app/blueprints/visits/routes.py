@@ -438,6 +438,10 @@ def record(visit_id):
         panel_key=panel_key, panel=panel_meta,
         panel_choices=_panels.choices(getattr(g, "lang", "ar")),
         panel_readings=_panels.all_readings(visit),
+        # Each field's answer at the child's last visit, beside its box —
+        # copied into today's only by the doctor's press, and only for a
+        # choice (DOCTOR_EASE_PLAN.md أ-٢).
+        panel_last=_panels.last_values(visit), panel_carries=_panels.carries,
         # Every panel, so picking one from the menu shows its fields at once
         # instead of asking for a save first. See panels.every_panel_for.
         panel_on=panel_on,
@@ -875,8 +879,12 @@ def _save_panel(visit):
                                 request.form.get(f"panel_history_{key}"),
                                 current_user.id)
 
+    # A field shown only when another answer calls for it is saved only then
+    # — the same rule as on the screen, so a crafted post or a stale box
+    # cannot keep «سبب التخدير الكلي» on a visit with no anaesthesia.
+    answers = {code: (request.form.get(f"m_{code}") or "").strip() for code in fields}
     for code, (field, key) in fields.items():
-        raw = (request.form.get(f"m_{code}") or "").strip()
+        raw = answers[code] if panels.shown(field, answers) else ""
         row = existing.get(code)
         if not raw:
             if row is not None:

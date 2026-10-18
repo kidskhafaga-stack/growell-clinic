@@ -593,11 +593,27 @@
               {{ t('panels.reads_hint') }}</p>
             {% endif %}
 
+            {# «Same as last time» for the whole panel: fills only the empty
+               choices that offer it, never a number, never over an answer
+               the doctor already gave (DOCTOR_EASE_PLAN.md أ-٢). #}
+            {% set carry_codes = [] %}
+            {% for f in p.meta.fields if panel_carries(f) and (panel_last or {}).get(f.code) %}{% set _ = carry_codes.append(f.code) %}{% endfor %}
+            {% if carry_codes %}
+            <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <button type="button" class="md-chip" data-carry-all="{{ p.key }}"
+                      style="padding:5px 12px;font-size:.85rem;">
+                <i class="bi bi-arrow-repeat"></i> {{ t('panels.carry_all') }}</button>
+              <span class="hint" style="margin:0;">{{ t('panels.carry_all_hint') }}</span>
+            </div>
+            {% endif %}
             <div class="form-grid" style="margin-top:10px;row-gap:12px;align-items:start;">
               {% for f in p.meta.fields %}
               {% set row = panel_readings.get(f.code) %}
               {% set from_study = (panel_last_study or {}).get(f.code) %}
-              <div class="md-field">
+              {% set last = (panel_last or {}).get(f.code) %}
+              <div class="md-field" data-field="{{ f.code }}"
+                   {% if f.show_if %}data-show-if="{{ f.show_if.code }}" data-show-in="{{ f.show_if['in']|tojson|forceescape }}"{% endif %}
+                   {% if last and panel_carries(f) %}data-last="{{ last.value }}"{% endif %}>
                 <label>{{ f['label_' ~ current_lang] or f.label_ar }}{% if f.unit %}
                   <span class="hint" dir="ltr">({{ f.unit }})</span>{% endif %}</label>
                 {% if f.type == 'choice' and f.options|length <= 6 %}
@@ -632,6 +648,18 @@
                        value="{{ row.value_num if row and row.value_num is not none else '' }}">
                 {% endif %}
 
+                {% if last %}
+                <p class="hint pl-last" style="margin:2px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap;" data-last-of="{{ f.code }}">
+                  <span><i class="bi bi-clock-history"></i> {{ t('panels.last_time') }}
+                    <strong dir="auto">{{ last.value }}</strong>{% if f.unit and last.number %} <span dir="ltr">{{ f.unit }}</span>{% endif %}
+                    {% if last.date %}· <span dir="ltr">{{ last.date.strftime('%Y-%m-%d') }}</span>{% endif %}</span>
+                  {% if panel_carries(f) %}
+                  <button type="button" class="md-chip" data-carry="{{ f.code }}" style="padding:2px 9px;font-size:.78rem;">
+                    <i class="bi bi-arrow-repeat"></i> {{ t('panels.carry_one') }}</button>
+                  {% endif %}
+                  <span class="pl-carried" hidden>{{ t('panels.carried') }}</span>
+                </p>
+                {% endif %}
                 {# What the device already measured. Offered, never filled in:
                    the vitals above were taken minutes ago by the nurse, but an
                    echo was taken whenever it was taken, and a three-month-old
@@ -2661,6 +2689,9 @@
   .pchip { cursor:pointer; padding:6px 12px; }
   .pchip input { position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; }
   .pchip:focus-within { outline:2px solid var(--green-600); outline-offset:2px; }
+  [data-field][hidden] { display:none !important; }
+  [data-field].is-carried { background:color-mix(in srgb, var(--green-500) 8%, transparent); border-radius:10px; }
+  .pl-carried { font-size:.75rem; font-weight:600; color:var(--green-700); }
 </style>
 <script>
 (function () {
@@ -2698,10 +2729,85 @@
         e.preventDefault();
         inputs[n - 1].checked = true;
         inputs[n - 1].focus();
+        inputs[n - 1].dispatchEvent(new Event('change', { bubbles: true }));
         mark(group);
       }
     });
   });
+  // «Same as last time» (أ-٢): the doctor's press copies the last answer into
+  // an empty choice and marks it, until the doctor touches that field.
+  function setChoice(field, value) {
+    var radios = field.querySelectorAll('input[type=radio]');
+    if (radios.length) {
+      var hit = false;
+      radios.forEach(function (r) { if (r.value === value) { r.checked = true; hit = true; } });
+      var group = field.querySelector('[data-pchips]');
+      if (group) mark(group);
+      return hit;
+    }
+    var sel = field.querySelector('select');
+    if (sel && Array.prototype.some.call(sel.options, function (o) { return o.value === value; })) {
+      sel.value = value;
+      return true;
+    }
+    return false;
+  }
+  function isEmpty(field) {
+    var radios = field.querySelectorAll('input[type=radio]');
+    if (radios.length) return !Array.prototype.some.call(radios, function (r) { return r.checked; });
+    var sel = field.querySelector('select');
+    return sel ? !sel.value : false;
+  }
+  function carry(field) {
+    if (!setChoice(field, field.getAttribute('data-last'))) return;
+    field.classList.add('is-carried');
+    var note = field.querySelector('.pl-carried');
+    if (note) note.hidden = false;
+    applyShows(field.closest('[data-panel-fields]'));
+  }
+  document.querySelectorAll('[data-carry]').forEach(function (btn) {
+    btn.addEventListener('click', function () { carry(btn.closest('[data-field]')); });
+  });
+  document.querySelectorAll('[data-carry-all]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var panel = btn.closest('[data-panel-fields]');
+      panel.querySelectorAll('[data-field][data-last]').forEach(function (field) {
+        if (field.offsetParent !== null && isEmpty(field)) carry(field);
+      });
+      applyShows(panel);
+    });
+  });
+  root.forEach(function (panel) {
+    panel.addEventListener('change', function (e) {
+      var field = e.target.closest('[data-field]');
+      if (field) {
+        field.classList.remove('is-carried');
+        var note = field.querySelector('.pl-carried');
+        if (note) note.hidden = true;
+      }
+      applyShows(panel);
+    });
+  });
+  // A field shown only when another answer calls for it (أ-٤). Hidden, its
+  // boxes are disabled so nothing of it is sent — the server applies the same
+  // rule on its side.
+  function answerOf(panel, code) {
+    var r = panel.querySelector('input[type=radio][name="m_' + code + '"]:checked');
+    if (r) return r.value;
+    var sel = panel.querySelector('select[name="m_' + code + '"]');
+    return sel ? sel.value : '';
+  }
+  function applyShows(panel) {
+    if (!panel) return;
+    panel.querySelectorAll('[data-show-if]').forEach(function (field) {
+      var wanted = JSON.parse(field.getAttribute('data-show-in') || '[]');
+      var on = wanted.indexOf(answerOf(panel, field.getAttribute('data-show-if'))) !== -1;
+      field.hidden = !on;
+      field.querySelectorAll('input, select, textarea').forEach(function (el) { el.disabled = !on; });
+    });
+  }
+  root.forEach(applyShows);
+
   // Enter moves to the next box of the same panel, never submits the visit.
   root.forEach(function (panel) {
     panel.addEventListener('keydown', function (e) {
