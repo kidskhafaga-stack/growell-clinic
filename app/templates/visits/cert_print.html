@@ -1,0 +1,89 @@
+{% extends "shell.html" %}
+{% from "prescriptions/_letterhead.html" import letterhead, signature with context %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('cert.kind_' ~ cert.kind) }} {{ cert.number }}{% endblock %}
+{% block page_heading %}{{ t('cert.kind_' ~ cert.kind) }}{% endblock %}
+
+{% block content %}
+{# The certificate as it was issued (ب-٣), on the doctor's prescription
+   layout: the same letterhead (white or pre-printed paper), page size,
+   margins, signature and stamp — one copy of that markup, in
+   prescriptions/_letterhead.html. The clinic's words come from «Certificate
+   wording»; what the visit filled in is set apart in bold. A cancelled one
+   says so across the page. #}
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  {% if cert.visit_id %}
+  <a class="btn btn-outline gc-press" href="{{ url_for('visits.record', visit_id=cert.visit_id) }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('cert.back_to_visit') }}</a>
+  {% else %}<span></span>{% endif %}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    {% if current_user.is_admin %}
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.templates') }}" data-to-layout><i class="bi bi-layout-text-window"></i> {{ t('cert.layout') }}</a>
+    {% endif %}
+    {% if not cert.is_void and (current_user.is_admin or cert.issued_by == current_user.id) %}
+    <details class="cert-void">
+      <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-x-circle"></i> {{ t('cert.void') }}</summary>
+      <form method="post" action="{{ url_for('visits.cert_void', cert_id=cert.id) }}" style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="input" name="reason" required maxlength="255" placeholder="{{ t('cert.void_reason') }}" style="min-width:220px;">
+        <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('cert.void_confirm') }}</button>
+      </form>
+    </details>
+    {% endif %}
+    {% if not cert.is_void %}
+    <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()" data-cert-print><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+    {% endif %}
+  </div>
+</div>
+
+{% if cert.is_void %}
+<div class="card no-print" style="border-inline-start:4px solid var(--danger, #c0392b);margin-bottom:12px;padding:10px 14px;" data-cert-voided>
+  <strong>{{ t('cert.void_badge') }}</strong> — {{ cert.void_reason }}
+  <span class="hint" style="margin:0;" dir="ltr">{{ cert.voided_at|clinic_stamp('%Y-%m-%d %H:%M') }}</span>
+</div>
+{% endif %}
+
+{% set doc = cert.doctor %}
+{% if not tpl.show_program_line %}<style>@media print { .print-footer { display: none !important; } }</style>{% endif %}
+<div class="card gc-scale-in print-area cert-paper {{ 'is-void' if cert.is_void }}" data-cert="{{ cert.number }}"
+     style="font-size:{{ tpl.font_size }}px;">
+  {% call letterhead(tpl, doc) %}{{ t('cert.number') }}: <strong dir="ltr">{{ cert.number }}</strong><br>{{ t('cert.issued_at') }}: <strong dir="ltr">{{ cert.issued_at|clinic_stamp('%Y-%m-%d') }}</strong>{% endcall %}
+
+  <h2 class="cert-title">{{ t('cert.kind_' ~ cert.kind) }}</h2>
+  <p class="cert-to">{{ cert.addressed_to or t('cert.to_whom_default') }}</p>
+
+  <div class="cert-body" data-cert-body>{{ body }}</div>
+
+  {% if cert.diagnosis and cert.diagnosis not in cert.text %}
+  <p class="cert-dx"><strong>{{ t('cert.diagnosis') }}:</strong> <strong class="cert-var">{{ cert.diagnosis }}</strong></p>
+  {% endif %}
+  {% if cert.note %}<p class="cert-note">{{ cert.note }}</p>{% endif %}
+
+  {{ signature(tpl, doc) }}
+  {% if cert.is_void %}<div class="cert-void-mark" aria-hidden="true">{{ t('cert.void_badge') }}</div>{% endif %}
+</div>
+{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/cairo/cairo.css') }}">
+<style>
+  @page { size: {{ tpl.page_size or 'A4' }}; margin: {{ tpl.m_top }}mm {{ tpl.m_right }}mm {{ tpl.m_bottom }}mm {{ tpl.m_left }}mm; }
+  @media print {
+    .sidebar,.topbar,.no-print,.flashes{display:none!important;}
+    .main{margin:0!important;}.content{padding:0!important;}
+    .card{box-shadow:none!important;border:none!important;}
+    body{background:#fff!important;}
+  }
+  /* Cairo, shipped with the program (static/vendor/cairo) — the same on every
+     clinic computer, with or without the internet. */
+  .cert-paper, .cert-paper h2, .cert-paper strong { font-family: "Cairo Local", "Cairo", "Segoe UI", Tahoma, sans-serif; }
+  .cert-paper { position:relative; max-width:820px; margin-inline:auto; }
+  .cert-title { text-align:center; margin:0.4em 0 0.2em; font-size:1.6em; font-weight:800; letter-spacing:.01em; }
+  .cert-to { text-align:center; color:var(--muted); margin:0 0 1.2em; }
+  .cert-body { white-space:pre-line; line-height:2.1; font-size:1.12em; max-width:68ch; margin-inline:auto; }
+  .cert-var { font-weight:700; color:var(--ink); }
+  .cert-dx, .cert-note { max-width:68ch; margin:0.9em auto 0; line-height:1.9; }
+  .cert-void-mark { position:absolute; inset:0; display:grid; place-items:center; font-size:5rem; font-weight:800; color:rgba(192,57,43,.18); transform:rotate(-18deg); pointer-events:none; }
+  .cert-void summary::-webkit-details-marker { display:none; }
+</style>
+{% endblock %}

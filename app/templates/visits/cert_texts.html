@@ -1,0 +1,134 @@
+{% extends "shell.html" %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('cert.texts_title') }}{% endblock %}
+{% block page_heading %}{{ t('cert.texts_title') }}{% endblock %}
+
+{% block content %}
+{# The clinic's wording for each kind of certificate (ب-٣). The words are
+   typed freely; what the visit fills in (the name, the age, the dates…) sits
+   in the text as a fixed block, put there with a button and never typed —
+   so a misspelt «{nmae}» cannot print as itself on a child's certificate.
+   Saved text applies to certificates issued from now on; one already issued
+   keeps the words it was printed with. An emptied box goes back to the
+   program's own. The layout around the words — paper, letterhead, signature,
+   stamp — is the doctor's prescription layout. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-file-earmark-text"></i> {{ t('cert.texts_title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('cert.texts_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.templates') }}"><i class="bi bi-layout-text-window"></i> {{ t('cert.layout') }}</a>
+</div>
+
+<form method="post" action="{{ url_for('visits.cert_texts') }}" data-cert-texts>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% for k in kinds %}
+  <div class="card gc-scale-in" style="margin-bottom:12px;" data-cert-text="{{ k }}">
+    <h2 class="section-title" style="margin-top:0;">{{ t('cert.kind_' ~ k) }}</h2>
+    <div class="form-grid">
+      {% for lang in ('ar', 'en') %}
+      <div class="form-row" style="margin:0;">
+        <label>{{ 'العربية' if lang == 'ar' else 'English' }}</label>
+        <div class="cert-vars" role="toolbar" aria-label="{{ t('cert.placeholders') }}">
+          {% for p in placeholders %}
+          <button type="button" class="cert-var-btn" data-insert="{{ p }}" data-for="ed_{{ k }}_{{ lang }}">+ {{ labels[lang][p] }}</button>
+          {% endfor %}
+        </div>
+        <div class="input cert-editor" id="ed_{{ k }}_{{ lang }}" contenteditable="true" dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}"
+             data-target="tx_{{ k }}_{{ lang }}" data-lang="{{ lang }}" aria-multiline="true" role="textbox"></div>
+        <textarea hidden id="tx_{{ k }}_{{ lang }}" name="text_{{ k }}_{{ lang }}">{{ texts[(k, lang)] }}</textarea>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+    <span class="hint" style="margin:0;">{{ t('cert.texts_hint') }}</span>
+  </div>
+</form>
+
+<script type="application/json" id="certLabels">{{ labels|tojson }}</script>
+<script>
+(function () {
+  var labels = JSON.parse(document.getElementById('certLabels').textContent);
+  function chip(name, lang) {
+    var s = document.createElement('span');
+    s.className = 'cert-chip'; s.contentEditable = 'false';
+    s.setAttribute('data-ph', name); s.textContent = (labels[lang] || {})[name] || name;
+    return s;
+  }
+  // Text with {name} blanks → the editor's nodes.
+  function load(ed, text) {
+    var lang = ed.getAttribute('data-lang');
+    ed.innerHTML = '';
+    var re = /\{([a-z_]+)\}/g, last = 0, m;
+    function addText(str) {
+      str.split('\n').forEach(function (part, i) {
+        if (i) ed.appendChild(document.createElement('br'));
+        if (part) ed.appendChild(document.createTextNode(part));
+      });
+    }
+    while ((m = re.exec(text))) {
+      addText(text.slice(last, m.index));
+      ed.appendChild((labels[lang] || {})[m[1]] ? chip(m[1], lang) : document.createTextNode(m[0]));
+      last = re.lastIndex;
+    }
+    addText(text.slice(last));
+  }
+  // The editor's nodes → text with {name} blanks.
+  function save(ed) {
+    var out = '';
+    (function walk(node) {
+      node.childNodes.forEach(function (n) {
+        if (n.nodeType === 3) out += n.nodeValue.replace(/ /g, ' ');
+        else if (n.nodeName === 'BR') out += '\n';
+        else if (n.getAttribute && n.getAttribute('data-ph')) out += '{' + n.getAttribute('data-ph') + '}';
+        else { if (n.nodeName === 'DIV' && out && !out.endsWith('\n')) out += '\n'; walk(n); }
+      });
+    })(ed);
+    document.getElementById(ed.getAttribute('data-target')).value = out.replace(/\n+$/, '');
+  }
+  document.querySelectorAll('.cert-editor').forEach(function (ed) {
+    load(ed, document.getElementById(ed.getAttribute('data-target')).value);
+    ed.addEventListener('input', function () { save(ed); });
+    ed.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); document.execCommand('insertLineBreak'); save(ed); }
+    });
+    // Pasted text arrives as text: no fonts or colours from wherever it came.
+    ed.addEventListener('paste', function (e) {
+      e.preventDefault();
+      document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text'));
+      save(ed);
+    });
+  });
+  document.querySelectorAll('[data-insert]').forEach(function (btn) {
+    btn.addEventListener('mousedown', function (e) { e.preventDefault(); });   // keep the caret
+    btn.addEventListener('click', function () {
+      var ed = document.getElementById(btn.getAttribute('data-for'));
+      var sel = window.getSelection();
+      if (!sel.rangeCount || !ed.contains(sel.anchorNode)) {
+        ed.focus(); var r0 = document.createRange(); r0.selectNodeContents(ed); r0.collapse(false);
+        sel.removeAllRanges(); sel.addRange(r0);
+      }
+      var r = sel.getRangeAt(0); r.deleteContents();
+      var c = chip(btn.getAttribute('data-insert'), ed.getAttribute('data-lang')), space = document.createTextNode(' ');
+      r.insertNode(space); r.insertNode(c);
+      r.setStartAfter(space); r.collapse(true); sel.removeAllRanges(); sel.addRange(r);
+      save(ed);
+    });
+  });
+  document.querySelector('[data-cert-texts]').addEventListener('submit', function () {
+    document.querySelectorAll('.cert-editor').forEach(save);
+  });
+})();
+</script>
+<style>
+  .cert-vars { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px; }
+  .cert-var-btn { border:1px dashed var(--green-600); background:transparent; color:var(--green-700); border-radius:999px; padding:2px 10px; font-size:.8rem; cursor:pointer; }
+  .cert-var-btn:hover, .cert-var-btn:focus-visible { background:color-mix(in srgb, var(--green-500) 10%, transparent); outline:none; }
+  .cert-editor { min-height:9em; height:auto; line-height:2; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .cert-chip { display:inline-block; padding:0 8px; margin:0 1px; border-radius:6px; font-size:.88em; font-weight:700; line-height:1.6;
+               background:color-mix(in srgb, var(--green-500) 14%, transparent); color:var(--green-800); user-select:all; }
+</style>
+{% endblock %}

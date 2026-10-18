@@ -245,6 +245,13 @@ def record(visit_id):
 
         _save_vitals(visit)
         _save_panel(visit)
+        # The ready visits the doctor filled this one from (ب-١) — counted, so
+        # the ones used most come first.
+        used_vt = [int(x) for x in (request.form.get("visit_templates_used") or "").split(",")
+                   if x.strip().isdigit()][:20]
+        if used_vt:
+            from app.utils import visit_templates
+            visit_templates.used(set(used_vt), current_user)
         ActivityLog.record(
             "visit.update", user_id=current_user.id, entity="visit",
             entity_id=visit.id, ip_address=client_ip(),
@@ -438,6 +445,16 @@ def record(visit_id):
         panel_key=panel_key, panel=panel_meta,
         panel_choices=_panels.choices(getattr(g, "lang", "ar")),
         panel_readings=_panels.all_readings(visit),
+        # Each field's answer at the child's last visit, beside its box —
+        # copied into today's only by the doctor's press, and only for a
+        # choice (DOCTOR_EASE_PLAN.md أ-٢).
+        panel_last=_panels.last_values(visit), panel_carries=_panels.carries,
+        # The doctor's own panel templates, and the shared ones (أ-٣).
+        panel_tpls=_panel_tpls(mine),
+        # Ready visits for common complaints (ب-١), and the ready
+        # prescriptions one can open with.
+        visit_tpls=_visit_tpls(), rx_presets_mine=_rx_presets(),
+        rx_repeat_offers=_rx_repeat_offers(visit),
         # Every panel, so picking one from the menu shows its fields at once
         # instead of asking for a save first. See panels.every_panel_for.
         panel_on=panel_on,
@@ -875,8 +892,20 @@ def _save_panel(visit):
                                 request.form.get(f"panel_history_{key}"),
                                 current_user.id)
 
+    # The templates the doctor filled this visit from (أ-٣) — counted, so the
+    # ones used most come first next time.
+    used = [int(x) for x in (request.form.get("panel_templates_used") or "").split(",")
+            if x.strip().isdigit()][:20]
+    if used:
+        from app.utils import panel_templates
+        panel_templates.used(set(used), current_user)
+
+    # A field shown only when another answer calls for it is saved only then
+    # — the same rule as on the screen, so a crafted post or a stale box
+    # cannot keep «سبب التخدير الكلي» on a visit with no anaesthesia.
+    answers = {code: (request.form.get(f"m_{code}") or "").strip() for code in fields}
     for code, (field, key) in fields.items():
-        raw = (request.form.get(f"m_{code}") or "").strip()
+        raw = answers[code] if panels.shown(field, answers) else ""
         row = existing.get(code)
         if not raw:
             if row is not None:
@@ -2211,6 +2240,161 @@ def view(visit_id):
     return render_template("visits/view.html", visit=visit)
 
 
+def _rx_repeat_offers(visit):
+    """``{problem_id: offer}`` — the last prescription for each long-term
+    problem, to repeat from the problem list (DOCTOR_EASE_PLAN.md ب-٢)."""
+    from app.utils import rx_repeat
+
+    try:
+        return {o["problem"]: o for o in rx_repeat.offers(visit.patient, getattr(g, "lang", "ar"))}
+    except Exception:  # noqa: BLE001 — a side offer never breaks the visit
+        return {}
+
+
+# --------------------------------------------------- ready visits (ب-١) -----
+def _visit_tpls():
+    from app.utils import visit_templates
+
+    lang = getattr(g, "lang", "ar")
+    return [visit_templates.as_dict(r, current_user, lang)
+            for r in visit_templates.for_doctor(current_user)]
+
+
+def _rx_presets():
+    from app.blueprints.prescriptions.routes import visible_presets
+
+    try:
+        return visible_presets(current_user)
+    except Exception:  # noqa: BLE001 — a screen never breaks on a side list
+        return []
+
+
+@visits_bp.route("/visit-templates", methods=["POST"])
+@module_required(MODULE)
+def visit_template_save():
+    """Save the visit's complaint, examination and plan as a ready visit —
+    from the visit screen, without leaving it."""
+    from app.utils import visit_templates
+
+    data = request.get_json(silent=True) or {}
+    try:
+        row = visit_templates.save(current_user, data.get("name"), data.get("cc"),
+                                   data.get("exam"), data.get("plan"),
+                                   preset_id=data.get("preset") or None,
+                                   shared=bool(data.get("shared")))
+    except visit_templates.TemplateError as err:
+        db.session.rollback()
+        return jsonify(ok=False, message=t(f"visit_tpl.err_{err}")), 400
+    db.session.commit()
+    return jsonify(ok=True, template=visit_templates.as_dict(row, current_user,
+                                                             getattr(g, "lang", "ar")),
+                   message=t("visit_tpl.saved", name=row.name))
+
+
+@visits_bp.route("/visit-templates/mine", methods=["GET", "POST"])
+@module_required(MODULE)
+def visit_templates_screen():
+    """«الكشوف الجاهزة» — the doctor's own: edit, link a prescription, share,
+    delete."""
+    from app.models import VisitTemplate
+    from app.utils import visit_templates
+
+    if request.method == "POST":
+        row = db.session.get(VisitTemplate, request.form.get("id", type=int) or 0)
+        if row is None or row.doctor_id != current_user.id:
+            abort(404)
+        if request.form.get("action") == "delete":
+            db.session.delete(row)
+            db.session.commit()
+            flash(t("visit_tpl.deleted"), "success")
+            return redirect(url_for("visits.visit_templates_screen"))
+        try:
+            visit_templates.update(row, current_user, request.form.get("name"),
+                                   request.form.get("cc"), request.form.get("exam"),
+                                   request.form.get("plan"),
+                                   preset_id=request.form.get("preset", type=int),
+                                   shared=request.form.get("shared") == "1")
+            db.session.commit()
+            flash(t("common.saved"), "success")
+        except visit_templates.TemplateError as err:
+            db.session.rollback()
+            flash(t(f"visit_tpl.err_{err}"), "danger")
+        return redirect(url_for("visits.visit_templates_screen"))
+    return render_template("visits/visit_templates.html",
+                           rows=visit_templates.mine(current_user),
+                           presets=_rx_presets())
+
+
+# --------------------------------------------------- my panel templates -----
+def _panel_tpls(keys):
+    """``{panel: [{id, name, values, shared, dropped}]}`` for the signed-in
+    doctor — what the template buttons above each panel fill."""
+    from app.utils import panel_templates
+
+    out = {}
+    for key in keys or []:
+        rows = panel_templates.for_doctor(current_user, key)
+        out[key] = [{"id": r.id, "name": r.name, "values": panel_templates.values(r),
+                     "shared": r.doctor_id != current_user.id,
+                     "by": r.doctor.display_name(getattr(g, "lang", "ar")) if r.doctor else "",
+                     "dropped": panel_templates.dropped(r)} for r in rows]
+    return out
+
+
+@visits_bp.route("/panel-templates", methods=["POST"])
+@module_required(MODULE)
+def panel_template_save():
+    """Save the panel as it stands as one of this doctor's templates —
+    from the visit screen, without leaving it (the answers ride in JSON)."""
+    from flask import jsonify
+
+    from app.utils import panel_templates
+
+    data = request.get_json(silent=True) or {}
+    try:
+        row = panel_templates.save(current_user, data.get("panel"), data.get("name"),
+                                   data.get("answers") or {}, shared=bool(data.get("shared")))
+    except panel_templates.TemplateError as err:
+        db.session.rollback()
+        return jsonify(ok=False, message=t(f"panel_tpl.err_{err}")), 400
+    db.session.commit()
+    return jsonify(ok=True, id=row.id, name=row.name,
+                   message=t("panel_tpl.saved", name=row.name))
+
+
+@visits_bp.route("/panel-templates/mine", methods=["GET", "POST"])
+@module_required(MODULE)
+def panel_templates_screen():
+    """«قوالبي» — rename, share or delete the doctor's own panel templates."""
+    from app.models import PanelTemplate
+    from app.utils import panel_templates, panels
+
+    if request.method == "POST":
+        row = db.session.get(PanelTemplate, request.form.get("id", type=int) or 0)
+        if row is None or row.doctor_id != current_user.id:
+            abort(404)
+        action = request.form.get("action")
+        if action == "delete":
+            db.session.delete(row)
+            flash(t("panel_tpl.deleted"), "success")
+        else:
+            name = (request.form.get("name") or "").strip()[:80]
+            if name:
+                row.name = name
+            row.is_shared = request.form.get("shared") == "1"
+            flash(t("common.saved"), "success")
+        db.session.commit()
+        return redirect(url_for("visits.panel_templates_screen"))
+    lang = getattr(g, "lang", "ar")
+    rows = panel_templates.mine(current_user)
+    return render_template(
+        "visits/panel_templates.html", rows=rows,
+        panel_name=lambda k: (panels.panel(k) or {}).get("name_en" if lang == "en" else "name_ar") or k,
+        values=panel_templates.values, dropped=panel_templates.dropped,
+        field_label=lambda k, c: ((panels.field_map(k).get(c) or {}).get("label_" + lang)
+                                  or (panels.field_map(k).get(c) or {}).get("label_ar") or c))
+
+
 # ----------------------------------------------------- my quick phrases -----
 @visits_bp.route("/phrases", methods=["GET", "POST"])
 @module_required(MODULE)
@@ -2698,3 +2882,123 @@ def mine_followups_csv():
     db.session.commit()
     return Response("﻿" + buf.getvalue(), mimetype="text/csv; charset=utf-8",
                     headers={"Content-Disposition": "attachment; filename=followups.csv"})
+
+
+# ----------------------------------------------- certificates (ب-٣) -------
+def _cert_lang():
+    lang = request.values.get("lang")
+    return lang if lang in ("ar", "en") else getattr(g, "lang", "ar")
+
+
+@visits_bp.route("/<int:visit_id>/certificate", methods=["GET", "POST"])
+@module_required(MODULE)
+def cert_new(visit_id):
+    """A sick leave, a fitness certificate or a short visit report, written
+    from the visit — numbered, kept in the file, printed with the stamp."""
+    from app.models import CERT_KINDS
+    from app.utils import certificates
+    from app.utils.privacy import can_see_visit
+
+    visit = db.get_or_404(Visit, visit_id)
+    if not can_see_visit(visit):
+        abort(404)
+    if not (current_user.sees_patients(current_user.role, current_user.is_practitioner)
+            or current_user.is_admin):
+        flash(t("cert.doctors_only"), "warning")
+        return redirect(url_for("visits.record", visit_id=visit.id))
+    kind = request.values.get("kind")
+    kind = kind if kind in CERT_KINDS else "sick_leave"
+    if request.method == "POST":
+        try:
+            row = certificates.issue(
+                visit, current_user, kind, lang=_cert_lang(),
+                addressed_to=request.form.get("addressed_to"),
+                purpose=request.form.get("purpose"),
+                date_from=request.form.get("date_from"),
+                days=request.form.get("days"),
+                show_diagnosis=request.form.get("show_diagnosis") == "1",
+                note=request.form.get("note"))
+        except certificates.CertError as err:
+            db.session.rollback()
+            flash(t(f"cert.err_{err}"), "danger")
+            return redirect(url_for("visits.cert_new", visit_id=visit.id, kind=kind))
+        ActivityLog.record("certificate.issue", user_id=current_user.id,
+                           entity="medical_certificate", entity_id=row.id,
+                           ip_address=client_ip())
+        db.session.commit()
+        return redirect(url_for("visits.cert_print", cert_id=row.id))
+    return render_template("visits/cert_new.html", visit=visit, kind=kind,
+                           kinds=CERT_KINDS, lang=_cert_lang(),
+                           dx=certificates.diagnosis_of(visit, _cert_lang()),
+                           issued=certificates.for_patient(visit.patient_id)[:10])
+
+
+@visits_bp.route("/certificates/<int:cert_id>")
+@module_required(MODULE)
+def cert_print(cert_id):
+    """The certificate as it was issued, in its own language."""
+    from app.i18n import get_direction
+    from app.models import MedicalCertificate
+    from app.utils.privacy import can_see_visit
+
+    cert = db.get_or_404(MedicalCertificate, cert_id)
+    if cert.visit is not None and not can_see_visit(cert.visit):
+        abort(404)
+    from app.blueprints.prescriptions.routes import resolve_template
+    from app.utils import certificates
+
+    g.lang, g.direction = cert.lang, get_direction(cert.lang)
+    # The doctor's prescription layout: the same paper, letterhead, margins,
+    # signature and stamp — set once on «Prescription layouts».
+    return render_template("visits/cert_print.html", cert=cert,
+                           tpl=resolve_template(cert.doctor),
+                           body=certificates.render(cert))
+
+
+@visits_bp.route("/certificates/<int:cert_id>/void", methods=["POST"])
+@module_required(MODULE)
+def cert_void(cert_id):
+    """Cancelled, never deleted — with the reason."""
+    from app.models import MedicalCertificate
+    from app.utils import certificates
+
+    cert = db.get_or_404(MedicalCertificate, cert_id)
+    if not (current_user.is_admin or cert.issued_by == current_user.id):
+        abort(403)
+    try:
+        certificates.void(cert, current_user, request.form.get("reason"))
+    except certificates.CertError as err:
+        flash(t(f"cert.err_{err}"), "danger")
+        return redirect(url_for("visits.cert_print", cert_id=cert.id))
+    ActivityLog.record("certificate.void", user_id=current_user.id,
+                       entity="medical_certificate", entity_id=cert.id, ip_address=client_ip())
+    db.session.commit()
+    flash(t("cert.voided"), "success")
+    return redirect(url_for("visits.cert_print", cert_id=cert.id))
+
+
+@visits_bp.route("/certificates/texts", methods=["GET", "POST"])
+@module_required(MODULE)
+def cert_texts():
+    """The clinic's wording for each kind of certificate, in both languages."""
+    from app.models import CERT_KINDS
+    from app.utils import certificates
+
+    if not current_user.is_admin:
+        abort(403)
+    if request.method == "POST":
+        for kind in CERT_KINDS:
+            for lang in ("ar", "en"):
+                key = f"text_{kind}_{lang}"
+                if key in request.form:
+                    certificates.save_text(kind, lang, request.form.get(key))
+        db.session.commit()
+        flash(t("common.saved"), "success")
+        return redirect(url_for("visits.cert_texts"))
+    texts = {(k, lang): certificates.text_for(k, lang) for k in CERT_KINDS for lang in ("ar", "en")}
+    return render_template("visits/cert_texts.html", kinds=CERT_KINDS, texts=texts,
+                           placeholders=certificates.PLACEHOLDERS,
+                           # Each box names its blocks in its own language.
+                           labels={lang: {p: certificates._say(f"cert.ph_{p}", lang)
+                                          for p in certificates.PLACEHOLDERS}
+                                   for lang in ("ar", "en")})

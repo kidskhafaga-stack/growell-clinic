@@ -83,6 +83,9 @@
        prescription, so setting the clinic up meant printing something first. #}
     <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.templates') }}">
       <i class="bi bi-file-earmark-medical"></i> {{ t('rxtpl.manage') }}</a>
+    {# The wording of the certificates doctors issue from the visit (ب-٣). #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('visits.cert_texts') }}" data-to-cert-texts>
+      <i class="bi bi-file-earmark-text"></i> {{ t('cert.texts_title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('settings.data_tools') }}">
       <i class="bi bi-database-gear"></i> {{ t('data_tools.open') }}</a>
     {% if current_user.is_owner %}

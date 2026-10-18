@@ -735,6 +735,7 @@ def view(patient_id):
     # than from the raw dose rows, which could say what happened and never
     # what is coming.
     from app.utils.course_state import annotate as annotate_courses
+    from app.utils import certificates as _certs
     from app.utils.vaccines import (certificate_cards, next_due_dose,
                                     patient_plan)
 
@@ -751,6 +752,8 @@ def view(patient_id):
         # went in; a plate prepared and not used is not in anybody.
         implants_in=_implanted_in(patient.id),
         vaccine_cards=certificate_cards(vaccine_plan),
+        # The medical certificates issued from this patient's visits (ب-٣).
+        certificates=_certs.for_patient(patient.id),
         vaccine_plan=vaccine_plan,
         vaccine_next=vaccine_next,
         studies=patient_studies(patient, getattr(g, "lang", "ar")),

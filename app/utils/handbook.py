@@ -308,6 +308,56 @@ SECTIONS = [
              "بيتطبع أو بيتحفظ كصورة.",
              "<b>Editable quick phrases</b> cut the typing, and the visit "
              "summary prints or saves as an image."),
+            ("<b>كشوف جاهزة لكل شكوى:</b> اكتب الشكوى والفحص والخطة مرة لالتهاب "
+             "الحلق مثلاً ودوس «احفظ الكشف كقالب»، واربط بيه روشتة جاهزة لو حبيت. "
+             "المرة الجاية ضغطة على اسمه فوق خانة الشكوى بتكتب في الخانات "
+             "الفاضية بس — واللي انت كاتبه بيفضل زي ما هو — وبيظهر زرار «اكتب "
+             "الروشتة من» يفتح الروشتة جاهزة. تتعدّل أو تتشارك من «الكشوف الجاهزة».",
+             "<b>A ready visit for each complaint:</b> write the complaint, "
+             "examination and plan once — for a sore throat, say — press «Save "
+             "the visit as a template», and link a ready prescription if you like. "
+             "Next time one press on its name above the complaint box writes into "
+             "the empty boxes only — what you wrote stays — and «Write the "
+             "prescription from» opens the prescription ready. Edit or share them "
+             "under «Ready visits»."),
+            ("<b>تكرار روشتة المرض المزمن:</b> جنب كل مشكلة نشطة في قايمة مشاكل "
+             "المريض زرار «كرر آخر روشتة» — في الكشف وفي شاشة الروشتة. بيفتح روشتة "
+             "جديدة فيها نفس الأدوية: اللي جرعته بالوزن بتتحسب من جديد على وزن "
+             "النهارده ومكتوب جنبه لو اتغيرت وكانت كام وعلى أنهي وزن، واللي جرعته مش "
+             "بالوزن بيفضل زي آخر مرة. آخر وزن في الملف بيظهر بتاريخه، ولو قديم مش "
+             "بيتحط غير لما تدوس «استخدم الوزن ده». وفحص الحساسية والتداخلات شغال عادي.",
+             "<b>Repeating a long-term prescription:</b> beside each active "
+             "problem on the patient's problem list is «Repeat last prescription» — "
+             "on the visit and on the prescription screen. It opens a new "
+             "prescription with the same medicines: one dosed by weight is worked "
+             "out again on today's weight and says when it changed, what it was and "
+             "on which weight; one not dosed by weight keeps last time's dose. The "
+             "latest weight on file shows with its date, and an old one is used only "
+             "when you press «Use this weight». Allergy and interaction checks run "
+             "as usual."),
+            ("<b>الشهادات من الكشف:</b> زرار «شهادة من الكشف» تحت الكشف بيطلّع إجازة "
+             "مرضية / عدم حضور، أو شهادة لياقة طبية، أو تقرير مختصر للزيارة — "
+             "بالعربي أو الإنجليزي. الاسم والسن والتاريخ بييجوا من الكشف، والطبيب "
+             "بيكتب عدد الأيام أو الغرض بس. التشخيص ما بيظهرش غير لو الأهل "
+             "وافقوا. كل شهادة ليها رقم وبتتسجل في ملف المريض (تاب الروشتات) بمين "
+             "طلّعها وإمتى، وتتطبع تاني بنفس الكلام، وتتلغي بسبب ومش بتتمسح. وبتتطبع "
+             "على نفس قالب روشتة الطبيب (الترويسة والتوقيع والختم والمقاس) بخط Cairo، "
+             "واللي جاي من الكشف بيتطبع بخط تقيل. ونص كل نوع بيتعدّل من «الإعدادات ← "
+             "نصوص الشهادات»: الكلام بتكتبه زي ما تحب، والاسم والسن والتواريخ مربعات "
+             "ثابتة بتتحط بزرار.",
+             "<b>Certificates from the visit:</b> «Certificate from the visit» "
+             "under the visit issues a sick leave / absence, a medical fitness "
+             "certificate or a short visit report — in Arabic or English. The "
+             "name, age and date come from the visit; the doctor writes only the "
+             "days or the purpose. The diagnosis appears only if the family agreed. "
+             "Each certificate has a number and is kept in the patient's file "
+             "(prescriptions tab) with who issued it and when; it reprints with "
+             "the same words and is cancelled with a reason, never deleted. It "
+             "prints on the doctor's prescription layout (letterhead, signature, "
+             "stamp, size) in Cairo, with what came from the visit in bold. The "
+             "wording of each kind is edited under «Settings → Certificate "
+             "wording»: type the words freely; the name, age and dates are fixed "
+             "blocks added with a button."),
             # Added with the feature. A suggestion the doctor cannot find
             # is a switch the clinic pays for and nobody uses.
             ("<b>اقتراح التشخيص.</b> في تاب التشخيصات، زرار «اقترح تشخيصات» "
@@ -334,6 +384,26 @@ SECTIONS = [
         "icon": "clipboard-data",
         "title": ("قوالب التخصصات", "Specialty panels"),
         "lines": [
+            ("<b>أسرع في الإدخال:</b> الاختيارات أزرار بضغطة واحدة (وضغطة "
+             "تانية تلغي)، والأرقام ١، ٢، ٣ بتختار، وEnter بينقلك للخانة اللي "
+             "بعدها. جنب كل خانة إجابة الزيارة اللي فاتت بتاريخها، و«زي آخر "
+             "مرة» بتنقل الاختيار بس — الأرقام عمرها ما بتتنقل، واللي بيتقرر كل "
+             "جلسة ما لوش زرار. واللي اتنقل بيبان «منقول — راجعه». وبعض "
+             "الخانات بتظهر بس لما تلزم (سبب التخدير الكلي مع التخدير الكلي). "
+             "و<b>قوالبك</b>: املا اللوح زي الكشف الروتيني ودوس «احفظ اللوح كقالب»، "
+             "والمرة الجاية ضغطة على اسمه تملا الخانات الفاضية؛ وتتشارك مع "
+             "أطباء التخصص أو تتعدل من «قوالب لوح التخصص».",
+             "<b>Faster entry:</b> answers are one-tap buttons (a second tap "
+             "clears), the number keys 1, 2, 3 pick, and Enter moves to the next "
+             "box. Beside each box is the last visit's answer and its date; «Same "
+             "as last time» copies a choice only — numbers are never copied, and "
+             "what is decided each session has no button. What was copied shows "
+             "«Copied — check it». Some boxes appear only when they apply (the "
+             "reason for general anaesthesia, with general anaesthesia). And "
+             "<b>your templates</b>: fill the panel as a routine visit goes and "
+             "press «Save the panel as a template»; next time one press on its "
+             "name fills the empty boxes; share or edit them under «Specialty "
+             "panel templates»."),
             ("<b>الزيارة العادية هي الأساس.</b> الشكوى والفحص والعلامات "
              "الحيوية والتشخيص والخطة موجودين دايمًا وما بيتغيروش بالتخصص — "
              "ده اللي بيخلّي ملف الطفل واحد، وطبيب الأسنان يشوف إن عنده فتحة "

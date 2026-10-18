@@ -169,6 +169,55 @@ def all_readings(visit):
             for row in Measurement.query.filter_by(visit_id=visit.id).all()}
 
 
+def last_values(visit):
+    """``{code: {"value", "date", "number"}}`` — the newest reading of each
+    field for this child **before** this visit (DOCTOR_EASE_PLAN.md أ-٢).
+
+    Shown beside the box. A choice can be copied into today's box by the
+    doctor's own press; a number or a date never is — last month's blood
+    pressure is not a reading anybody took today.
+    """
+    from app.models import Measurement, Visit
+
+    if not visit or not getattr(visit, "id", None):
+        return {}
+    rows = (Measurement.query.join(Visit, Measurement.visit_id == Visit.id)
+            .filter(Measurement.patient_id == visit.patient_id,
+                    Measurement.visit_id != visit.id,
+                    Visit.visit_date <= visit.visit_date)
+            .order_by(Visit.visit_date.desc(), Measurement.recorded_at.desc(),
+                      Measurement.id.desc())
+            .all())
+    out = {}
+    for row in rows:
+        if row.code in out:
+            continue
+        if row.visit and row.visit.visit_date == visit.visit_date and row.visit_id > visit.id:
+            continue                    # a later visit the same day is not «before»
+        value = (row.value_text if row.value_num is None
+                 else ("%g" % row.value_num))
+        if value in (None, ""):
+            continue
+        out[row.code] = {"value": value, "date": row.visit.visit_date if row.visit else None,
+                         "number": row.value_num is not None}
+    return out
+
+
+def carries(field):
+    """Whether «same as last time» is offered for this field: a choice the
+    specialty did not mark ``carry: false``."""
+    return field.get("type") == "choice" and field.get("carry", True) is not False
+
+
+def shown(field, answers):
+    """Whether a field with a ``show_if`` applies, given ``{code: answer}``
+    for the same panel. A field without a condition always applies."""
+    cond = field.get("show_if")
+    if not cond:
+        return True
+    return (answers.get(cond.get("code")) or "") in (cond.get("in") or [])
+
+
 def every_panel_for(visit, vitals, lang="ar"):
     """Every panel, ready to render, so choosing one costs nothing.
 

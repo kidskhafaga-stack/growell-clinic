@@ -36,7 +36,10 @@
     'age_days': (visit.patient.age_days or 0),
     'vitalBands': vital_bands, 'vitalFixed': vital_fixed,
     'dxSuggestUrl': (url_for('ai.suggest_dx', visit_id=visit.id) if ai_dx_suggest else ''),
-    'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None)} | tojson }}
+    'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None),
+    'visitTpls': (visit_tpls or []), 'rxBase': _rx_base,
+    'vtSaveUrl': url_for('visits.visit_template_save'),
+    'vtWords': {'kept': t('visit_tpl.kept'), 'net': t('panel_tpl.err_net')}} | tojson }}
 </script>
 <div x-data="visitPage('{{ url_for('main.icd_search') }}',
         {{ visit.vitals.weight_kg if (visit.vitals and visit.vitals.weight_kg) else 'null' }}, {{ visit.vitals.height_cm if (visit.vitals and visit.vitals.height_cm) else 'null' }})"
@@ -93,7 +96,13 @@
   {% if _active_problems %}
   <div class="card gc-scale-in no-print" style="border-inline-start:4px solid var(--warning);margin-bottom:14px;padding:10px 14px;">
     <strong style="font-size:0.9rem;"><i class="bi bi-card-checklist"></i> {{ t('problems.title_list') }}:</strong>
-    {% for pr in _active_problems %}<span class="badge badge--muted" style="margin:2px;">{{ pr.display_title(current_lang) }}{% if pr.icd_code %} <span dir="ltr">({{ pr.icd_code }})</span>{% endif %}</span>{% endfor %}
+    {% for pr in _active_problems %}<span class="badge badge--muted" style="margin:2px;">{{ pr.display_title(current_lang) }}{% if pr.icd_code %} <span dir="ltr">({{ pr.icd_code }})</span>{% endif %}</span>{% set _ro = (rx_repeat_offers or {}).get(pr.id) %}{% if _ro %}
+    {# «Repeat the last prescription» for this problem (DOCTOR_EASE_PLAN.md
+       ب-٢): opens a new prescription with the old lines, the doses worked
+       out again on today's weight — reviewed and saved by the doctor. #}
+    <a class="md-chip rx-repeat-chip" data-repeat="{{ _ro.rx }}" title="{{ t('rx_repeat.chip_title', date=_ro.date, n=_ro.count) }}"
+       href="{{ url_for('prescriptions.new', patient_id=visit.patient_id, doctor_id=visit.doctor_id, visit_id=visit.id, repeat=_ro.rx) }}"
+       style="padding:3px 10px;font-size:.8rem;"><i class="bi bi-arrow-repeat"></i> {{ t('rx_repeat.chip') }}</a>{% endif %}{% endfor %}
   </div>
   {% endif %}
 
@@ -465,6 +474,7 @@
           {# The panel the visit opened on, for the history. Which panels it
              actually recorded under is read back from the measurements. #}
           <input type="hidden" name="specialty_panel" :value="panelKey">
+          <input type="hidden" name="panel_templates_used" value="" data-tpl-used>
           <div x-show="open" x-cloak>
 
           {% for p in panel_all %}
@@ -593,11 +603,56 @@
               {{ t('panels.reads_hint') }}</p>
             {% endif %}
 
+            {# The doctor's own templates for this panel (DOCTOR_EASE_PLAN.md أ-٣):
+               one press fills the empty choices, never a number, never over an
+               answer already given. «Save as a template» keeps the panel's
+               choices as they stand now, without leaving the visit. #}
+            {% set tpls = (panel_tpls or {}).get(p.key) or [] %}
+            <div class="pl-tpls" data-tpls="{{ p.key }}">
+              <span class="hint" style="margin:0;"><i class="bi bi-bookmark-star"></i> {{ t('panel_tpl.title') }}</span>
+              {% for tp in tpls %}
+              <button type="button" class="md-chip" data-tpl="{{ tp.id }}"
+                      data-tpl-values="{{ tp['values']|tojson|forceescape }}"
+                      title="{{ t('panel_tpl.shared_by', who=tp.by) if tp.shared else '' }}{{ (' · ' ~ t('panel_tpl.dropped_n', n=tp.dropped)) if tp.dropped else '' }}"
+                      style="padding:4px 11px;font-size:.84rem;">
+                {% if tp.shared %}<i class="bi bi-people"></i>{% endif %} {{ tp.name }}</button>
+              {% endfor %}
+              <details class="pl-tpl-save">
+                <summary class="md-chip" style="padding:4px 11px;font-size:.84rem;list-style:none;cursor:pointer;">
+                  <i class="bi bi-plus-lg"></i> {{ t('panel_tpl.save') }}</summary>
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+                  <input class="input" data-tpl-name maxlength="80" style="max-width:220px;"
+                         placeholder="{{ t('panel_tpl.name_ph') }}" aria-label="{{ t('panel_tpl.name_ph') }}">
+                  <label class="hint" style="margin:0;"><input type="checkbox" data-tpl-shared> {{ t('panel_tpl.share') }}</label>
+                  <button type="button" class="btn btn-sm btn-outline gc-press" data-tpl-save="{{ p.key }}">{{ t('common.save') }}</button>
+                  <span class="hint" data-tpl-said style="margin:0;"></span>
+                </div>
+                <p class="hint" style="margin:4px 0 0;">{{ t('panel_tpl.save_hint') }}</p>
+              </details>
+              <a class="hint" href="{{ url_for('visits.panel_templates_screen') }}" data-to-panel-tpls style="margin:0;">{{ t('panel_tpl.mine') }}</a>
+            </div>
+
+            {# «Same as last time» for the whole panel: fills only the empty
+               choices that offer it, never a number, never over an answer
+               the doctor already gave (DOCTOR_EASE_PLAN.md أ-٢). #}
+            {% set carry_codes = [] %}
+            {% for f in p.meta.fields if panel_carries(f) and (panel_last or {}).get(f.code) %}{% set _ = carry_codes.append(f.code) %}{% endfor %}
+            {% if carry_codes %}
+            <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <button type="button" class="md-chip" data-carry-all="{{ p.key }}"
+                      style="padding:5px 12px;font-size:.85rem;">
+                <i class="bi bi-arrow-repeat"></i> {{ t('panels.carry_all') }}</button>
+              <span class="hint" style="margin:0;">{{ t('panels.carry_all_hint') }}</span>
+            </div>
+            {% endif %}
             <div class="form-grid" style="margin-top:10px;row-gap:12px;align-items:start;">
               {% for f in p.meta.fields %}
               {% set row = panel_readings.get(f.code) %}
               {% set from_study = (panel_last_study or {}).get(f.code) %}
-              <div class="md-field">
+              {% set last = (panel_last or {}).get(f.code) %}
+              <div class="md-field" data-field="{{ f.code }}"
+                   {% if f.show_if %}data-show-if="{{ f.show_if.code }}" data-show-in="{{ f.show_if['in']|tojson|forceescape }}"{% endif %}
+                   {% if last and panel_carries(f) %}data-last="{{ last.value }}"{% endif %}>
                 <label>{{ f['label_' ~ current_lang] or f.label_ar }}{% if f.unit %}
                   <span class="hint" dir="ltr">({{ f.unit }})</span>{% endif %}</label>
                 {% if f.type == 'choice' and f.options|length <= 6 %}
@@ -632,6 +687,18 @@
                        value="{{ row.value_num if row and row.value_num is not none else '' }}">
                 {% endif %}
 
+                {% if last %}
+                <p class="hint pl-last" style="margin:2px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap;" data-last-of="{{ f.code }}">
+                  <span><i class="bi bi-clock-history"></i> {{ t('panels.last_time') }}
+                    <strong dir="auto">{{ last.value }}</strong>{% if f.unit and last.number %} <span dir="ltr">{{ f.unit }}</span>{% endif %}
+                    {% if last.date %}· <span dir="ltr">{{ last.date.strftime('%Y-%m-%d') }}</span>{% endif %}</span>
+                  {% if panel_carries(f) %}
+                  <button type="button" class="md-chip" data-carry="{{ f.code }}" style="padding:2px 9px;font-size:.78rem;">
+                    <i class="bi bi-arrow-repeat"></i> {{ t('panels.carry_one') }}</button>
+                  {% endif %}
+                </p>
+                {% endif %}
+                {% if f.type == 'choice' %}<span class="pl-carried" hidden>{{ t('panels.carried') }}</span>{% endif %}
                 {# What the device already measured. Offered, never filled in:
                    the vitals above were taken minutes ago by the nurse, but an
                    echo was taken whenever it was taken, and a three-month-old
@@ -747,6 +814,53 @@
         <button type="button" class="btn btn-outline btn-sm gc-press" x-show="prev" x-on:click="carryForward()">
           <i class="bi bi-arrow-counterclockwise"></i> {{ t('visits.carry_forward') }}</button>
       </div>
+
+      {# Ready visits (DOCTOR_EASE_PLAN.md ب-١): one press writes the complaint,
+         the examination and the plan the doctor saved for this picture — only
+         into boxes still empty, never over what is already written — and
+         offers the prescription linked to it. Nothing is saved until the
+         doctor presses «حفظ». #}
+      <div class="vt-row" data-visit-tpls>
+        <span class="hint" style="margin:0;"><i class="bi bi-lightning-charge"></i> {{ t('visit_tpl.title') }}</span>
+        <template x-for="tp in vtList" :key="tp.id">
+          <button type="button" class="md-chip vt-chip" x-on:click="useTpl(tp)" :data-vt="tp.id"
+                  :class="tplUsed.includes(tp.id) && 'is-selected'"
+                  :title="tp.shared ? {{ t('visit_tpl.shared_by_js')|tojson|forceescape }} + ' ' + tp.by : ''">
+            <i class="bi bi-people" x-show="tp.shared"></i>
+            <span x-text="tp.name"></span>
+            <i class="bi bi-capsule" x-show="tp.preset" title="{{ t('visit_tpl.has_rx') }}"></i>
+          </button>
+        </template>
+        <span class="hint" style="margin:0;" x-show="!vtList.length">{{ t('visit_tpl.none_yet') }}</span>
+        <details class="vt-save" x-ref="vtSave">
+          <summary class="md-chip vt-chip" style="list-style:none;cursor:pointer;">
+            <i class="bi bi-plus-lg"></i> {{ t('visit_tpl.save') }}</summary>
+          <div class="vt-save-box">
+            <input class="input" x-model="vt.name" maxlength="80" style="max-width:220px;"
+                   placeholder="{{ t('visit_tpl.name_ph') }}" aria-label="{{ t('visit_tpl.name_ph') }}">
+            <select class="input" x-model="vt.preset" style="max-width:240px;" aria-label="{{ t('visit_tpl.rx_link') }}">
+              <option value="">{{ t('visit_tpl.no_rx') }}</option>
+              {% for pr in rx_presets_mine or [] %}
+              <option value="{{ pr.id }}">{{ pr.name }}</option>
+              {% endfor %}
+            </select>
+            <label class="hint" style="margin:0;"><input type="checkbox" x-model="vt.shared"> {{ t('visit_tpl.share') }}</label>
+            <button type="button" class="btn btn-sm btn-outline gc-press" x-on:click="saveTpl()" data-vt-save>{{ t('common.save') }}</button>
+            <span class="hint" style="margin:0;" x-text="vt.said" data-vt-said></span>
+          </div>
+          <p class="hint" style="margin:4px 0 0;">{{ t('visit_tpl.save_hint') }}</p>
+        </details>
+        <a class="hint" href="{{ url_for('visits.visit_templates_screen') }}" data-to-visit-tpls style="margin:0;">{{ t('visit_tpl.mine') }}</a>
+      </div>
+      <p class="hint vt-note" x-show="vt.note" x-text="vt.note" style="margin:6px 0 0;"></p>
+      <div class="vt-rx" x-show="tplRx.length">
+        <i class="bi bi-capsule"></i> {{ t('visit_tpl.write_rx') }}
+        <template x-for="r in tplRx" :key="r.preset">
+          <a class="btn btn-sm btn-primary gc-press" :href="rxBase + '&preset=' + r.preset" data-vt-rx>
+            <span x-text="r.preset_name"></span></a>
+        </template>
+      </div>
+      <input type="hidden" name="visit_templates_used" :value="tplUsed.join(',')" data-vt-used>
 
       <div class="form-row"><label>{{ t('visits.chief_complaint') }}</label>
         {# The code expands as it is typed: "نورمال" + space becomes the
@@ -2057,6 +2171,12 @@
       <a class="btn btn-primary gc-press" :href="rxHref('{{ _rx_base }}')">
         <i class="bi bi-prescription2"></i> {{ t('rx.write_from_visit') }}</a>
       {% endif %}
+      {# A certificate from the visit (DOCTOR_EASE_PLAN.md ب-٣): sick leave,
+         fitness or a short report — numbered and kept in the file. #}
+      {% if current_user.sees_patients(current_user.role, current_user.is_practitioner) or current_user.is_admin %}
+      <a class="btn btn-outline gc-press" href="{{ url_for('visits.cert_new', visit_id=visit.id) }}" data-to-cert>
+        <i class="bi bi-file-earmark-text"></i> {{ t('cert.new_title') }}</a>
+      {% endif %}
       {% if current_user.can_access('appointments') %}
       <a class="btn btn-outline gc-press" href="{{ url_for('appointments.create', patient_id=visit.patient_id, doctor_id=visit.doctor_id) }}">
         <i class="bi bi-calendar-plus"></i> {{ t('visits.book_followup') }}</a>
@@ -2365,6 +2485,39 @@
       // and carry-forward can fill them with one click.
       cc: cfg.cc || '', exam: cfg.exam || '', planTxt: cfg.plan || '',
       normalText: cfg.normal || '', prev: cfg.prev || null,
+      // Ready visits (ب-١). `tplUsed` rides with the form so the server counts
+      // them; `tplRx` is the prescription each one used offers.
+      vtList: cfg.visitTpls || [], rxBase: cfg.rxBase || '', tplUsed: [], tplRx: [],
+      vt: { name: '', preset: '', shared: false, said: '', note: '' },
+      useTpl(t) {
+        let kept = false;
+        const put = (model, txt) => {
+          if (!txt) return;
+          if ((this[model] || '').trim()) { kept = kept || (this[model].trim() !== txt.trim()); return; }
+          this[model] = txt;
+        };
+        put('cc', t.cc); put('exam', t.exam); put('planTxt', t.plan);
+        if (!this.tplUsed.includes(t.id)) this.tplUsed.push(t.id);
+        if (t.preset && !this.tplRx.some(r => r.preset === t.preset)) {
+          this.tplRx.push({ preset: t.preset, preset_name: t.preset_name });
+        }
+        this.vt.note = kept ? ((cfg.vtWords || {}).kept || '') : '';
+      },
+      saveTpl() {
+        const words = cfg.vtWords || {};
+        fetch(cfg.vtSaveUrl, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: this.vt.name, cc: this.cc, exam: this.exam,
+            plan: this.planTxt, preset: this.vt.preset ? Number(this.vt.preset) : null,
+            shared: !!this.vt.shared })
+        }).then(r => r.json()).then(d => {
+          this.vt.said = d.message || '';
+          if (!d.ok) return;
+          const i = this.vtList.findIndex(x => x.id === d.template.id);
+          if (i >= 0) this.vtList.splice(i, 1, d.template); else this.vtList.unshift(d.template);
+          this.vt.name = '';
+        }).catch(() => { this.vt.said = words.net || ''; });
+      },
       addComplaint(txt) {
         const s = (this.cc || '').trim();
         if (s.split('،').map(x => x.trim()).includes(txt)) return;  // no dupes
@@ -2661,6 +2814,16 @@
   .pchip { cursor:pointer; padding:6px 12px; }
   .pchip input { position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; }
   .pchip:focus-within { outline:2px solid var(--green-600); outline-offset:2px; }
+  [data-field][hidden] { display:none !important; }
+  .pl-tpls { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:10px; }
+  .vt-row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:10px; }
+  .vt-chip { padding:4px 11px; font-size:.84rem; }
+  .vt-save summary::-webkit-details-marker { display:none; }
+  .vt-save-box { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+  .vt-rx { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; font-size:.88rem; }
+  .pl-tpl-save summary::-webkit-details-marker { display:none; }
+  [data-field].is-carried { background:color-mix(in srgb, var(--green-500) 8%, transparent); border-radius:10px; }
+  .pl-carried { font-size:.75rem; font-weight:600; color:var(--green-700); }
 </style>
 <script>
 (function () {
@@ -2698,10 +2861,147 @@
         e.preventDefault();
         inputs[n - 1].checked = true;
         inputs[n - 1].focus();
+        inputs[n - 1].dispatchEvent(new Event('change', { bubbles: true }));
         mark(group);
       }
     });
   });
+  // «Same as last time» (أ-٢): the doctor's press copies the last answer into
+  // an empty choice and marks it, until the doctor touches that field.
+  function setChoice(field, value) {
+    var radios = field.querySelectorAll('input[type=radio]');
+    if (radios.length) {
+      var hit = false;
+      radios.forEach(function (r) { if (r.value === value) { r.checked = true; hit = true; } });
+      var group = field.querySelector('[data-pchips]');
+      if (group) mark(group);
+      return hit;
+    }
+    var sel = field.querySelector('select');
+    if (sel && Array.prototype.some.call(sel.options, function (o) { return o.value === value; })) {
+      sel.value = value;
+      return true;
+    }
+    return false;
+  }
+  function isEmpty(field) {
+    var radios = field.querySelectorAll('input[type=radio]');
+    if (radios.length) return !Array.prototype.some.call(radios, function (r) { return r.checked; });
+    var sel = field.querySelector('select');
+    return sel ? !sel.value : false;
+  }
+  function carry(field) {
+    if (!setChoice(field, field.getAttribute('data-last'))) return;
+    field.classList.add('is-carried');
+    var note = field.querySelector('.pl-carried');
+    if (note) note.hidden = false;
+    applyShows(field.closest('[data-panel-fields]'));
+  }
+  document.querySelectorAll('[data-carry]').forEach(function (btn) {
+    btn.addEventListener('click', function () { carry(btn.closest('[data-field]')); });
+  });
+  document.querySelectorAll('[data-carry-all]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var panel = btn.closest('[data-panel-fields]');
+      panel.querySelectorAll('[data-field][data-last]').forEach(function (field) {
+        if (field.offsetParent !== null && isEmpty(field)) carry(field);
+      });
+      applyShows(panel);
+    });
+  });
+  root.forEach(function (panel) {
+    panel.addEventListener('change', function (e) {
+      var field = e.target.closest('[data-field]');
+      if (field) {
+        field.classList.remove('is-carried');
+        var note = field.querySelector('.pl-carried');
+        if (note) note.hidden = true;
+      }
+      applyShows(panel);
+    });
+  });
+  // The doctor's templates (أ-٣): fill the empty choices that apply.
+  function fillFrom(panel, valuesMap) {
+    var n = 0;
+    // Twice, so an answer that opens a conditional field can fill it too.
+    for (var pass = 0; pass < 2; pass++) {
+      Object.keys(valuesMap).forEach(function (code) {
+        var field = panel.querySelector('[data-field="' + code + '"]');
+        if (!field || field.hidden || !isEmpty(field)) return;
+        if (setChoice(field, valuesMap[code])) {
+          field.classList.add('is-carried');
+          var note = field.querySelector('.pl-carried');
+          if (note) note.hidden = false;
+          n++;
+        }
+      });
+      applyShows(panel);
+    }
+    return n;
+  }
+  document.querySelectorAll('[data-tpl]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var panel = btn.closest('[data-panel-fields]');
+      fillFrom(panel, JSON.parse(btn.getAttribute('data-tpl-values') || '{}'));
+      var used = document.querySelector('[data-tpl-used]');
+      if (used) {
+        var ids = used.value ? used.value.split(',') : [];
+        if (ids.indexOf(btn.getAttribute('data-tpl')) === -1) ids.push(btn.getAttribute('data-tpl'));
+        used.value = ids.join(',');
+      }
+    });
+  });
+  document.querySelectorAll('[data-tpl-save]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var panel = btn.closest('[data-panel-fields]');
+      var box = btn.closest('.pl-tpl-save');
+      var said = box.querySelector('[data-tpl-said]');
+      var answers = {};
+      panel.querySelectorAll('[data-field]').forEach(function (field) {
+        if (field.hidden) return;
+        var code = field.getAttribute('data-field');
+        var v = answerOf(panel, code);
+        if (v && (field.querySelector('input[type=radio]') || field.querySelector('select'))) answers[code] = v;
+      });
+      fetch({{ url_for('visits.panel_template_save')|tojson }}, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ panel: btn.getAttribute('data-tpl-save'),
+          name: box.querySelector('[data-tpl-name]').value,
+          shared: box.querySelector('[data-tpl-shared]').checked, answers: answers })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        said.textContent = d.message || '';
+        if (d.ok) {
+          var row = btn.closest('[data-tpls]');
+          var b = document.createElement('button');
+          b.type = 'button'; b.className = 'md-chip'; b.textContent = d.name;
+          b.style.cssText = 'padding:4px 11px;font-size:.84rem;';
+          b.addEventListener('click', function () { fillFrom(panel, answers); });
+          row.insertBefore(b, box);
+        }
+      }).catch(function () { said.textContent = {{ t('panel_tpl.err_net')|tojson }}; });
+    });
+  });
+
+  // A field shown only when another answer calls for it (أ-٤). Hidden, its
+  // boxes are disabled so nothing of it is sent — the server applies the same
+  // rule on its side.
+  function answerOf(panel, code) {
+    var r = panel.querySelector('input[type=radio][name="m_' + code + '"]:checked');
+    if (r) return r.value;
+    var sel = panel.querySelector('select[name="m_' + code + '"]');
+    return sel ? sel.value : '';
+  }
+  function applyShows(panel) {
+    if (!panel) return;
+    panel.querySelectorAll('[data-show-if]').forEach(function (field) {
+      var wanted = JSON.parse(field.getAttribute('data-show-in') || '[]');
+      var on = wanted.indexOf(answerOf(panel, field.getAttribute('data-show-if'))) !== -1;
+      field.hidden = !on;
+      field.querySelectorAll('input, select, textarea').forEach(function (el) { el.disabled = !on; });
+    });
+  }
+  root.forEach(applyShows);
+
   // Enter moves to the next box of the same panel, never submits the visit.
   root.forEach(function (panel) {
     panel.addEventListener('keydown', function (e) {
