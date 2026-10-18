@@ -245,6 +245,9 @@ def record(visit_id):
 
         _save_vitals(visit)
         _save_panel(visit)
+        # Assessment tools (ب-٤): each one finished is kept as a reading.
+        from app.utils import visit_scores
+        visit_scores.save(visit, request.form, current_user.id)
         # The ready visits the doctor filled this one from (ب-١) — counted, so
         # the ones used most come first.
         used_vt = [int(x) for x in (request.form.get("visit_templates_used") or "").split(",")
@@ -451,6 +454,7 @@ def record(visit_id):
         panel_last=_panels.last_values(visit), panel_carries=_panels.carries,
         # The doctor's own panel templates, and the shared ones (أ-٣).
         panel_tpls=_panel_tpls(mine),
+        score_tools=_score_tools(mine), score_state=_score_state(visit, mine),
         # Ready visits for common complaints (ب-١), and the ready
         # prescriptions one can open with.
         visit_tpls=_visit_tpls(), rx_presets_mine=_rx_presets(),
@@ -2248,6 +2252,22 @@ def _rx_repeat_offers(visit):
     try:
         return {o["problem"]: o for o in rx_repeat.offers(visit.patient, getattr(g, "lang", "ar"))}
     except Exception:  # noqa: BLE001 — a side offer never breaks the visit
+        return {}
+
+
+def _score_tools(panel_keys):
+    from app.utils import visit_scores
+
+    return visit_scores.tools_for(panel_keys)
+
+
+def _score_state(visit, panel_keys):
+    from app.utils import visit_scores
+
+    try:
+        return visit_scores.state(visit, visit_scores.tools_for(panel_keys),
+                                  getattr(g, "lang", "ar"))
+    except Exception:  # noqa: BLE001 — a side card never breaks the visit
         return {}
 
 
