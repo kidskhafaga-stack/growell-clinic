@@ -308,6 +308,18 @@ SECTIONS = [
              "بيتطبع أو بيتحفظ كصورة.",
              "<b>Editable quick phrases</b> cut the typing, and the visit "
              "summary prints or saves as an image."),
+            ("<b>كشوف جاهزة لكل شكوى:</b> اكتب الشكوى والفحص والخطة مرة لالتهاب "
+             "الحلق مثلاً ودوس «احفظ الكشف كقالب»، واربط بيه روشتة جاهزة لو حبيت. "
+             "المرة الجاية ضغطة على اسمه فوق خانة الشكوى بتكتب في الخانات "
+             "الفاضية بس — واللي انت كاتبه بيفضل زي ما هو — وبيظهر زرار «اكتب "
+             "الروشتة من» يفتح الروشتة جاهزة. تتعدّل أو تتشارك من «الكشوف الجاهزة».",
+             "<b>A ready visit for each complaint:</b> write the complaint, "
+             "examination and plan once — for a sore throat, say — press «Save "
+             "the visit as a template», and link a ready prescription if you like. "
+             "Next time one press on its name above the complaint box writes into "
+             "the empty boxes only — what you wrote stays — and «Write the "
+             "prescription from» opens the prescription ready. Edit or share them "
+             "under «Ready visits»."),
             # Added with the feature. A suggestion the doctor cannot find
             # is a switch the clinic pays for and nobody uses.
             ("<b>اقتراح التشخيص.</b> في تاب التشخيصات، زرار «اقترح تشخيصات» "

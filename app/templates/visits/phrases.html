@@ -10,7 +10,8 @@
 {% block content %}
 <h1 class="page-title gc-animate">{{ t('phrases.title') }}</h1>
 <p class="hint gc-animate" style="margin-top:-6px;max-width:70ch;">{{ t('phrases.intro') }}</p>
-<p class="gc-animate" style="margin:0 0 12px;"><a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.panel_templates_screen') }}" data-to-panel-tpls><i class="bi bi-bookmark-star"></i> {{ t('panel_tpl.mine') }}</a></p>
+<p class="gc-animate" style="margin:0 0 12px;"><a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.panel_templates_screen') }}" data-to-panel-tpls><i class="bi bi-bookmark-star"></i> {{ t('panel_tpl.mine') }}</a>
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.visit_templates_screen') }}" data-to-visit-tpls><i class="bi bi-lightning-charge"></i> {{ t('visit_tpl.mine') }}</a></p>
 
 <form method="post" action="{{ url_for('visits.phrases_screen') }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

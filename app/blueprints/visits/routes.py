@@ -245,6 +245,13 @@ def record(visit_id):
 
         _save_vitals(visit)
         _save_panel(visit)
+        # The ready visits the doctor filled this one from (ب-١) — counted, so
+        # the ones used most come first.
+        used_vt = [int(x) for x in (request.form.get("visit_templates_used") or "").split(",")
+                   if x.strip().isdigit()][:20]
+        if used_vt:
+            from app.utils import visit_templates
+            visit_templates.used(set(used_vt), current_user)
         ActivityLog.record(
             "visit.update", user_id=current_user.id, entity="visit",
             entity_id=visit.id, ip_address=client_ip(),
@@ -444,6 +451,9 @@ def record(visit_id):
         panel_last=_panels.last_values(visit), panel_carries=_panels.carries,
         # The doctor's own panel templates, and the shared ones (أ-٣).
         panel_tpls=_panel_tpls(mine),
+        # Ready visits for common complaints (ب-١), and the ready
+        # prescriptions one can open with.
+        visit_tpls=_visit_tpls(), rx_presets_mine=_rx_presets(),
         # Every panel, so picking one from the menu shows its fields at once
         # instead of asking for a save first. See panels.every_panel_for.
         panel_on=panel_on,
@@ -2227,6 +2237,80 @@ def complete(visit_id):
 def view(visit_id):
     visit = db.get_or_404(Visit, visit_id)
     return render_template("visits/view.html", visit=visit)
+
+
+# --------------------------------------------------- ready visits (ب-١) -----
+def _visit_tpls():
+    from app.utils import visit_templates
+
+    lang = getattr(g, "lang", "ar")
+    return [visit_templates.as_dict(r, current_user, lang)
+            for r in visit_templates.for_doctor(current_user)]
+
+
+def _rx_presets():
+    from app.blueprints.prescriptions.routes import visible_presets
+
+    try:
+        return visible_presets(current_user)
+    except Exception:  # noqa: BLE001 — a screen never breaks on a side list
+        return []
+
+
+@visits_bp.route("/visit-templates", methods=["POST"])
+@module_required(MODULE)
+def visit_template_save():
+    """Save the visit's complaint, examination and plan as a ready visit —
+    from the visit screen, without leaving it."""
+    from app.utils import visit_templates
+
+    data = request.get_json(silent=True) or {}
+    try:
+        row = visit_templates.save(current_user, data.get("name"), data.get("cc"),
+                                   data.get("exam"), data.get("plan"),
+                                   preset_id=data.get("preset") or None,
+                                   shared=bool(data.get("shared")))
+    except visit_templates.TemplateError as err:
+        db.session.rollback()
+        return jsonify(ok=False, message=t(f"visit_tpl.err_{err}")), 400
+    db.session.commit()
+    return jsonify(ok=True, template=visit_templates.as_dict(row, current_user,
+                                                             getattr(g, "lang", "ar")),
+                   message=t("visit_tpl.saved", name=row.name))
+
+
+@visits_bp.route("/visit-templates/mine", methods=["GET", "POST"])
+@module_required(MODULE)
+def visit_templates_screen():
+    """«الكشوف الجاهزة» — the doctor's own: edit, link a prescription, share,
+    delete."""
+    from app.models import VisitTemplate
+    from app.utils import visit_templates
+
+    if request.method == "POST":
+        row = db.session.get(VisitTemplate, request.form.get("id", type=int) or 0)
+        if row is None or row.doctor_id != current_user.id:
+            abort(404)
+        if request.form.get("action") == "delete":
+            db.session.delete(row)
+            db.session.commit()
+            flash(t("visit_tpl.deleted"), "success")
+            return redirect(url_for("visits.visit_templates_screen"))
+        try:
+            visit_templates.update(row, current_user, request.form.get("name"),
+                                   request.form.get("cc"), request.form.get("exam"),
+                                   request.form.get("plan"),
+                                   preset_id=request.form.get("preset", type=int),
+                                   shared=request.form.get("shared") == "1")
+            db.session.commit()
+            flash(t("common.saved"), "success")
+        except visit_templates.TemplateError as err:
+            db.session.rollback()
+            flash(t(f"visit_tpl.err_{err}"), "danger")
+        return redirect(url_for("visits.visit_templates_screen"))
+    return render_template("visits/visit_templates.html",
+                           rows=visit_templates.mine(current_user),
+                           presets=_rx_presets())
 
 
 # --------------------------------------------------- my panel templates -----

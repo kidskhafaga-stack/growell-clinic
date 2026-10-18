@@ -438,6 +438,13 @@ def visible_presets(user=None):
     return [p for p in rows if p.visible_to(user)]
 
 
+def _auto_preset(preset_id):
+    from app.models import RxPreset
+
+    row = db.session.get(RxPreset, preset_id) if preset_id else None
+    return row.id if row is not None and row.is_active and row.visible_to(current_user) else None
+
+
 @prescriptions_bp.route("/presets")
 @module_required(MODULE)
 def presets():
@@ -1081,6 +1088,10 @@ def new():
         prn_text=rx_complete.PRN_TEXT, prn_reasons=rx_complete.past_reasons(),
         visit_rx=visit_rx, recent_meds=recent_meds,
         presets=visible_presets(), frequencies=FREQUENCIES,
+        # Opened from a ready visit (DOCTOR_EASE_PLAN.md ب-١): its ready
+        # prescription is applied on load, by the same code as a press on it
+        # — the doses worked out for this child, never stored with it.
+        auto_preset=_auto_preset(request.args.get("preset", type=int)),
         # The doctor the field starts on: the one the visit carried over,
         # else the signed-in user when they see patients. Both the patient
         # list and the doctor list used to be sent whole and picked from a

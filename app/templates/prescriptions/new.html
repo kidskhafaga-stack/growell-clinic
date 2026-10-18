@@ -15,7 +15,9 @@
 <form method="post" action="{{ url_for('prescriptions.new') }}"
       x-data="rxForm({{ (pf.weight or '')|tojson|forceescape }}, {{ (pf.diagnosis or '')|tojson|forceescape }}, {{ (pf.diagnosis_code or '')|tojson|forceescape }}, {{ (prefill_invs or [])|tojson|forceescape }}, {{ (prefill_meds or [])|tojson|forceescape }})"
       x-init="lines.forEach(l => withPicker(l)); invs.forEach(v => withInvPicker(v));
-              if(!lines.length){ addLine(); } else { checkInteractions(); }">
+              if(!lines.length){ addLine(); } else { checkInteractions(); }
+              {% if auto_preset %}; applyPreset({{ auto_preset }}){% endif %}"
+      data-auto-preset="{{ auto_preset or '' }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   {% if pf.visit_id %}<input type="hidden" name="visit_id" value="{{ pf.visit_id }}">{% endif %}
   {% if pf.visit_id %}

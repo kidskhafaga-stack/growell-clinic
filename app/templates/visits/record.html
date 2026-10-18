@@ -36,7 +36,10 @@
     'age_days': (visit.patient.age_days or 0),
     'vitalBands': vital_bands, 'vitalFixed': vital_fixed,
     'dxSuggestUrl': (url_for('ai.suggest_dx', visit_id=visit.id) if ai_dx_suggest else ''),
-    'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None)} | tojson }}
+    'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None),
+    'visitTpls': (visit_tpls or []), 'rxBase': _rx_base,
+    'vtSaveUrl': url_for('visits.visit_template_save'),
+    'vtWords': {'kept': t('visit_tpl.kept'), 'net': t('panel_tpl.err_net')}} | tojson }}
 </script>
 <div x-data="visitPage('{{ url_for('main.icd_search') }}',
         {{ visit.vitals.weight_kg if (visit.vitals and visit.vitals.weight_kg) else 'null' }}, {{ visit.vitals.height_cm if (visit.vitals and visit.vitals.height_cm) else 'null' }})"
@@ -805,6 +808,53 @@
         <button type="button" class="btn btn-outline btn-sm gc-press" x-show="prev" x-on:click="carryForward()">
           <i class="bi bi-arrow-counterclockwise"></i> {{ t('visits.carry_forward') }}</button>
       </div>
+
+      {# Ready visits (DOCTOR_EASE_PLAN.md ب-١): one press writes the complaint,
+         the examination and the plan the doctor saved for this picture — only
+         into boxes still empty, never over what is already written — and
+         offers the prescription linked to it. Nothing is saved until the
+         doctor presses «حفظ». #}
+      <div class="vt-row" data-visit-tpls>
+        <span class="hint" style="margin:0;"><i class="bi bi-lightning-charge"></i> {{ t('visit_tpl.title') }}</span>
+        <template x-for="tp in vtList" :key="tp.id">
+          <button type="button" class="md-chip vt-chip" x-on:click="useTpl(tp)" :data-vt="tp.id"
+                  :class="tplUsed.includes(tp.id) && 'is-selected'"
+                  :title="tp.shared ? {{ t('visit_tpl.shared_by_js')|tojson|forceescape }} + ' ' + tp.by : ''">
+            <i class="bi bi-people" x-show="tp.shared"></i>
+            <span x-text="tp.name"></span>
+            <i class="bi bi-capsule" x-show="tp.preset" title="{{ t('visit_tpl.has_rx') }}"></i>
+          </button>
+        </template>
+        <span class="hint" style="margin:0;" x-show="!vtList.length">{{ t('visit_tpl.none_yet') }}</span>
+        <details class="vt-save" x-ref="vtSave">
+          <summary class="md-chip vt-chip" style="list-style:none;cursor:pointer;">
+            <i class="bi bi-plus-lg"></i> {{ t('visit_tpl.save') }}</summary>
+          <div class="vt-save-box">
+            <input class="input" x-model="vt.name" maxlength="80" style="max-width:220px;"
+                   placeholder="{{ t('visit_tpl.name_ph') }}" aria-label="{{ t('visit_tpl.name_ph') }}">
+            <select class="input" x-model="vt.preset" style="max-width:240px;" aria-label="{{ t('visit_tpl.rx_link') }}">
+              <option value="">{{ t('visit_tpl.no_rx') }}</option>
+              {% for pr in rx_presets_mine or [] %}
+              <option value="{{ pr.id }}">{{ pr.name }}</option>
+              {% endfor %}
+            </select>
+            <label class="hint" style="margin:0;"><input type="checkbox" x-model="vt.shared"> {{ t('visit_tpl.share') }}</label>
+            <button type="button" class="btn btn-sm btn-outline gc-press" x-on:click="saveTpl()" data-vt-save>{{ t('common.save') }}</button>
+            <span class="hint" style="margin:0;" x-text="vt.said" data-vt-said></span>
+          </div>
+          <p class="hint" style="margin:4px 0 0;">{{ t('visit_tpl.save_hint') }}</p>
+        </details>
+        <a class="hint" href="{{ url_for('visits.visit_templates_screen') }}" data-to-visit-tpls style="margin:0;">{{ t('visit_tpl.mine') }}</a>
+      </div>
+      <p class="hint vt-note" x-show="vt.note" x-text="vt.note" style="margin:6px 0 0;"></p>
+      <div class="vt-rx" x-show="tplRx.length">
+        <i class="bi bi-capsule"></i> {{ t('visit_tpl.write_rx') }}
+        <template x-for="r in tplRx" :key="r.preset">
+          <a class="btn btn-sm btn-primary gc-press" :href="rxBase + '&preset=' + r.preset" data-vt-rx>
+            <span x-text="r.preset_name"></span></a>
+        </template>
+      </div>
+      <input type="hidden" name="visit_templates_used" :value="tplUsed.join(',')" data-vt-used>
 
       <div class="form-row"><label>{{ t('visits.chief_complaint') }}</label>
         {# The code expands as it is typed: "نورمال" + space becomes the
@@ -2423,6 +2473,39 @@
       // and carry-forward can fill them with one click.
       cc: cfg.cc || '', exam: cfg.exam || '', planTxt: cfg.plan || '',
       normalText: cfg.normal || '', prev: cfg.prev || null,
+      // Ready visits (ب-١). `tplUsed` rides with the form so the server counts
+      // them; `tplRx` is the prescription each one used offers.
+      vtList: cfg.visitTpls || [], rxBase: cfg.rxBase || '', tplUsed: [], tplRx: [],
+      vt: { name: '', preset: '', shared: false, said: '', note: '' },
+      useTpl(t) {
+        let kept = false;
+        const put = (model, txt) => {
+          if (!txt) return;
+          if ((this[model] || '').trim()) { kept = kept || (this[model].trim() !== txt.trim()); return; }
+          this[model] = txt;
+        };
+        put('cc', t.cc); put('exam', t.exam); put('planTxt', t.plan);
+        if (!this.tplUsed.includes(t.id)) this.tplUsed.push(t.id);
+        if (t.preset && !this.tplRx.some(r => r.preset === t.preset)) {
+          this.tplRx.push({ preset: t.preset, preset_name: t.preset_name });
+        }
+        this.vt.note = kept ? ((cfg.vtWords || {}).kept || '') : '';
+      },
+      saveTpl() {
+        const words = cfg.vtWords || {};
+        fetch(cfg.vtSaveUrl, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: this.vt.name, cc: this.cc, exam: this.exam,
+            plan: this.planTxt, preset: this.vt.preset ? Number(this.vt.preset) : null,
+            shared: !!this.vt.shared })
+        }).then(r => r.json()).then(d => {
+          this.vt.said = d.message || '';
+          if (!d.ok) return;
+          const i = this.vtList.findIndex(x => x.id === d.template.id);
+          if (i >= 0) this.vtList.splice(i, 1, d.template); else this.vtList.unshift(d.template);
+          this.vt.name = '';
+        }).catch(() => { this.vt.said = words.net || ''; });
+      },
       addComplaint(txt) {
         const s = (this.cc || '').trim();
         if (s.split('،').map(x => x.trim()).includes(txt)) return;  // no dupes
@@ -2721,6 +2804,11 @@
   .pchip:focus-within { outline:2px solid var(--green-600); outline-offset:2px; }
   [data-field][hidden] { display:none !important; }
   .pl-tpls { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:10px; }
+  .vt-row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:10px; }
+  .vt-chip { padding:4px 11px; font-size:.84rem; }
+  .vt-save summary::-webkit-details-marker { display:none; }
+  .vt-save-box { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+  .vt-rx { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; font-size:.88rem; }
   .pl-tpl-save summary::-webkit-details-marker { display:none; }
   [data-field].is-carried { background:color-mix(in srgb, var(--green-500) 8%, transparent); border-radius:10px; }
   .pl-carried { font-size:.75rem; font-weight:600; color:var(--green-700); }

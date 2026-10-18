@@ -14741,5 +14741,29 @@
     "err_name": "Give the template a name.",
     "err_empty": "Choose answers on the panel first — a template keeps choices only.",
     "err_net": "Not saved — try again."
+  },
+  "visit_tpl": {
+    "title": "Ready visits:",
+    "none_yet": "None yet — write a visit and press «Save the visit as a template».",
+    "save": "Save the visit as a template",
+    "name_ph": "Ready visit name (e.g. sore throat)",
+    "rx_link": "Linked prescription",
+    "no_rx": "No prescription",
+    "has_rx": "Comes with a ready prescription",
+    "share": "Shared with the other doctors",
+    "shared_by_js": "Shared by",
+    "save_hint": "Keeps the complaint, examination and plan as written now. Used, it writes only into empty boxes, and nothing is saved to the visit until you press «Save».",
+    "kept": "What you had written was left as it is — the ready visit only filled the empty boxes.",
+    "write_rx": "Write the prescription from:",
+    "mine": "Ready visits",
+    "mine_sub": "The visits you saved from the visit screen for complaints you see often: complaint, examination and plan, with a ready prescription if you like. Edit, share or delete them.",
+    "rx_sets": "Ready prescriptions",
+    "none": "No ready visits yet. On the visit screen write the complaint, examination and plan, then press «Save the visit as a template».",
+    "used_n": "Used {n} times",
+    "delete_q": "Delete this ready visit?",
+    "saved": "Ready visit «{name}» saved.",
+    "deleted": "The ready visit was deleted.",
+    "err_name": "Give the ready visit a name.",
+    "err_empty": "Write the complaint, examination or plan first, or pick a prescription."
   }
 }

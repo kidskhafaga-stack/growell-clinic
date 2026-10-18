@@ -1,0 +1,60 @@
+{% extends "shell.html" %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('visit_tpl.mine') }}{% endblock %}
+{% block page_heading %}{{ t('visit_tpl.mine') }}{% endblock %}
+
+{% block content %}
+{# The doctor's ready visits (DOCTOR_EASE_PLAN.md ب-١) — made on the visit
+   screen with «احفظ الكشف كقالب», edited, linked to a saved prescription and
+   shared here. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-lightning-charge"></i> {{ t('visit_tpl.mine') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('visit_tpl.mine_sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('visits.phrases_screen') }}"><i class="bi bi-chat-square-text"></i> {{ t('phrases.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.presets') }}"><i class="bi bi-capsule"></i> {{ t('visit_tpl.rx_sets') }}</a>
+  </div>
+</div>
+
+{% if not rows %}
+<div class="card gc-scale-in"><p class="hint" style="margin:0;">{{ t('visit_tpl.none') }}</p></div>
+{% endif %}
+{% for r in rows %}
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-vt-row="{{ r.id }}">
+  <form method="post" action="{{ url_for('visits.visit_templates_screen') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="id" value="{{ r.id }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <div class="form-row" style="margin:0;min-width:200px;flex:1;">
+        <label>{{ t('visit_tpl.name_ph') }}</label>
+        <input class="input" name="name" value="{{ r.name }}" maxlength="80" required></div>
+      <div class="form-row" style="margin:0;min-width:200px;flex:1;">
+        <label>{{ t('visit_tpl.rx_link') }}</label>
+        <select class="input" name="preset">
+          <option value="">{{ t('visit_tpl.no_rx') }}</option>
+          {% for pr in presets %}
+          <option value="{{ pr.id }}" {{ 'selected' if pr.id == r.rx_preset_id }}>{{ pr.name }}</option>
+          {% endfor %}
+        </select></div>
+      <label class="hint" style="margin:0;"><input type="checkbox" name="shared" value="1" {{ 'checked' if r.is_shared }}> {{ t('visit_tpl.share') }}</label>
+      <span class="badge badge--muted">{{ t('visit_tpl.used_n', n=r.use_count) }}</span>
+    </div>
+    <div class="form-grid" style="margin-top:10px;">
+      <div class="form-row"><label>{{ t('visits.chief_complaint') }}</label>
+        <textarea class="input" name="cc" rows="2">{{ r.chief_complaint or '' }}</textarea></div>
+      <div class="form-row"><label>{{ t('visits.clinical_exam') }}</label>
+        <textarea class="input" name="exam" rows="2">{{ r.clinical_exam or '' }}</textarea></div>
+      <div class="form-row"><label>{{ t('visits.plan') }}</label>
+        <textarea class="input" name="plan" rows="2">{{ r.plan or '' }}</textarea></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-sm btn-primary gc-press" type="submit" name="action" value="save">{{ t('common.save') }}</button>
+      <button class="btn btn-sm btn-outline gc-press" type="submit" name="action" value="delete" formnovalidate
+              onclick="return confirm({{ t('visit_tpl.delete_q')|tojson|forceescape }});">{{ t('common.delete') }}</button>
+    </div>
+  </form>
+</div>
+{% endfor %}
+{% endblock %}
