@@ -392,6 +392,14 @@
   </div>
   {% endif %}
 
+  {# Referred to another doctor (ب-٨) — only when the doctor ticked it. #}
+  {% if rx_referrals %}
+  <div class="rx-block" style="margin-top:1.15em;" data-paper-referral>
+    {{ rx_section('person-badge', t('docref.on_paper')) }}
+    {% for line in rx_referrals %}<div>{{ line }}</div>{% endfor %}
+  </div>
+  {% endif %}
+
   {% if rx.notes %}<p style="margin-top:0.85em;"><strong>{{ t('rx.notes') }}:</strong> {{ rx.notes }}</p>{% endif %}
 
   {# On the copy that leaves the building. A signed PDF travelling over

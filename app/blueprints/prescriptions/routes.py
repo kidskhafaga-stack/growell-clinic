@@ -1125,6 +1125,18 @@ def new():
     )
 
 
+def _rx_referrals(rx):
+    """«Referred to Dr. … — specialty» lines the doctor chose to put on this
+    visit's prescription (DOCTOR_EASE_PLAN.md ب-٨). Never raises."""
+    from app.utils import referrals
+
+    try:
+        lang = getattr(g, "lang", "ar")
+        return [referrals.doctor_line(r, lang) for r in referrals.on_paper(rx.visit_id)]
+    except Exception:  # noqa: BLE001 — one line never stops a prescription printing
+        return []
+
+
 def _next_appt(rx):
     """The follow-up already booked for this patient, or ``None``.
 
@@ -1196,7 +1208,7 @@ def view(rx_id):
     return render_template("prescriptions/view.html", rx=rx, warnings=warnings,
                            gaps=gaps,
                            tpl=tpl, rx_vaccines=rx_vaccines, digital=digital,
-                           next_appt=_next_appt(rx),
+                           next_appt=_next_appt(rx), rx_referrals=_rx_referrals(rx),
                            templates=RxPrintTemplate.query.order_by(RxPrintTemplate.name).all())
 
 
@@ -1454,7 +1466,7 @@ def public_copy(token):
         rx_vaccines = []
     return render_template("prescriptions/public.html", rx=rx, tpl=tpl,
                            rx_vaccines=rx_vaccines, digital=True,
-                           next_appt=_next_appt(rx))
+                           next_appt=_next_appt(rx), rx_referrals=_rx_referrals(rx))
 
 
 @prescriptions_bp.route("/<int:rx_id>/send", methods=["POST"])

@@ -436,6 +436,10 @@ ADDITIONS = [
     ("message_logs", "scheduled_at", "DATETIME"),
     # ب-٦: the visit an after-care message belongs to.
     ("message_logs", "visit_id", "INTEGER"),
+    # ب-٨: referral to a doctor (inside the clinic or outside it).
+    ("referrals", "to_doctor_id", "INTEGER"),
+    ("referrals", "external_doctor_id", "INTEGER"),
+    ("referrals", "on_rx", "BOOLEAN DEFAULT 0"),
     ("message_logs", "sent_at", "DATETIME"),
     ("message_logs", "direction", "VARCHAR(3) DEFAULT 'out'"),
     ("patients", "wa_opt_out", "BOOLEAN DEFAULT 0"),

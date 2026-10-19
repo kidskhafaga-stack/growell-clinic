@@ -102,7 +102,8 @@ from app.models.nutrition import (DIET_DOMAIN, DietOrder,
 from app.models.abbreviation import (Abbreviation,
                                      CONTEXTS as ABBREV_CONTEXTS,
                                      KINDS as ABBREV_KINDS)
-from app.models.referral import (Referral,
+from app.models.referral import (ExternalDoctor, Referral,
+                                 DOCTOR as DOCTOR_REFERRAL_KIND,
                                  KINDS as REFERRAL_KINDS,
                                  REFERRAL as REFERRAL_KIND,
                                  TRANSFER as TRANSFER_KIND)
@@ -504,6 +505,8 @@ __all__ = [
     "ABBREV_KINDS",
     "ABBREV_CONTEXTS",
     "Referral",
+    "ExternalDoctor",
+    "DOCTOR_REFERRAL_KIND",
     "REFERRAL_KINDS",
     "REFERRAL_KIND",
     "TRANSFER_KIND",

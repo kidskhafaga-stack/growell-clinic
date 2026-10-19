@@ -456,6 +456,9 @@ def record(visit_id):
         panel_tpls=_panel_tpls(mine),
         score_tools=_score_tools(mine), score_state=_score_state(visit, mine),
         aftercare_state=_aftercare_state(visit),
+        # Referral to a doctor (ب-٨): this visit's, and the ones made to
+        # whoever is seeing the child now.
+        docref=_doctor_referral_state(visit),
         # Ready visits for common complaints (ب-١), and the ready
         # prescriptions one can open with.
         visit_tpls=_visit_tpls(), rx_presets_mine=_rx_presets(),
@@ -2192,6 +2195,153 @@ def referral_review(referral_id):
     return redirect(request.referrer or url_for("visits.referrals"))
 
 
+# ------------------------------------------------- referral to a doctor -----
+def _doctor_referral_state(visit):
+    """What the «Referral to a doctor» card needs (DOCTOR_EASE_PLAN.md ب-٨)."""
+    from app.utils import referrals as refs
+    from app.utils.appointments import list_doctors
+
+    try:
+        rows = refs.for_visit(visit.id)
+        seeing = visit.doctor_id or current_user.id
+        return {
+            "rows": rows,
+            "booked": {r.id: refs.booking(r) for r in rows if r.to_doctor_id},
+            "to_me": [r for r in refs.open_for(visit.patient_id, seeing)
+                      if r.visit_id != visit.id],
+            "doctors": [d for d in list_doctors() if d.id != visit.doctor_id],
+            "outside": refs.external_doctors(),
+        }
+    except Exception:  # noqa: BLE001 — a side card never breaks the visit
+        return None
+
+
+@visits_bp.route("/<int:visit_id>/refer-doctor", methods=["POST"])
+@module_required(MODULE)
+def refer_doctor(visit_id):
+    """Refer this child to one doctor — inside the clinic, picked from the
+    list, or outside it, from the clinic's book (or written in once and
+    kept). The reason is required: it is what the other doctor reads first.
+    """
+    from app.models import User
+    from app.utils import referrals as refs
+    from app.utils.privacy import can_see_visit
+
+    visit = db.get_or_404(Visit, visit_id)
+    if not can_see_visit(visit):
+        abort(404)
+    back = url_for("visits.record", visit_id=visit.id) + "#docref"
+    reason = (request.form.get("reason") or "").strip()
+    if not reason:
+        flash(t("docref.err_reason"), "error")
+        return redirect(back)
+    where = request.form.get("where")
+    inside = outside = None
+    if where == "inside":
+        inside = db.session.get(User, request.form.get("to_doctor_id", type=int) or 0)
+        if inside is None or not inside.is_active or not User.sees_patients(
+                inside.role, inside.is_practitioner):
+            flash(t("docref.err_doctor"), "error")
+            return redirect(back)
+    else:
+        picked = request.form.get("external_id", type=int)
+        if picked:
+            from app.models import ExternalDoctor
+
+            outside = db.session.get(ExternalDoctor, picked)
+        else:
+            outside = refs.external_doctor(request.form.get("ext_name"),
+                                           request.form.get("ext_specialty"),
+                                           request.form.get("ext_place"),
+                                           request.form.get("ext_phone"))
+        if outside is None:
+            flash(t("docref.err_doctor"), "error")
+            return redirect(back)
+        db.session.flush()
+    row = refs.refer_to_doctor(visit, reason, user=current_user, to_doctor=inside,
+                               external=outside, on_rx=bool(request.form.get("on_rx")))
+    db.session.flush()
+    ActivityLog.record("visit.refer_doctor", user_id=current_user.id, entity="referral",
+                       entity_id=row.id, detail=row.sent_to or "", ip_address=client_ip())
+    db.session.commit()
+    flash(t("docref.saved"), "success")
+    return redirect(back)
+
+
+def _own_doctor_referral(referral_id):
+    from app.models import Referral
+    from app.models.referral import DOCTOR
+
+    row = db.get_or_404(Referral, referral_id)
+    if row.kind != DOCTOR:
+        abort(404)
+    if row.visit is not None:
+        from app.utils.privacy import can_see_visit
+
+        if not can_see_visit(row.visit):
+            abort(404)
+    return row
+
+
+@visits_bp.route("/referrals/<int:referral_id>/doctor", methods=["POST"])
+@module_required(MODULE)
+def referral_doctor_edit(referral_id):
+    """Put the line on the prescription or take it off; or cancel the
+    referral (kept, marked cancelled — never deleted)."""
+    from app.utils import referrals as refs
+
+    row = _own_doctor_referral(referral_id)
+    if not (current_user.is_admin or row.decided_by_id == current_user.id):
+        abort(403)
+    action = request.form.get("action")
+    if action == "rx_on":
+        row.on_rx = True
+    elif action == "rx_off":
+        row.on_rx = False
+    elif action == "cancel":
+        refs.cancel(row)
+    else:
+        abort(400)
+    ActivityLog.record("referral.doctor_" + action, user_id=current_user.id,
+                       entity="referral", entity_id=row.id, ip_address=client_ip())
+    db.session.commit()
+    flash(t("docref.cancelled" if action == "cancel" else "common.saved"),
+          "info" if action == "cancel" else "success")
+    target = (url_for("visits.record", visit_id=row.visit_id) + "#docref"
+              if row.visit_id else url_for("visits.referrals"))
+    return redirect(target)
+
+
+@visits_bp.route("/referrals/<int:referral_id>/letter")
+@module_required(MODULE)
+def referral_letter(referral_id):
+    """The referral letter on the referring doctor's prescription layout —
+    the same letterhead, signature and stamp — in Arabic or English."""
+    from app.blueprints.prescriptions.routes import resolve_template
+    from app.i18n import get_direction
+    from app.utils import referrals as refs
+
+    row = _own_doctor_referral(referral_id)
+    lang = request.args.get("lang")
+    if lang in ("ar", "en"):
+        g.lang, g.direction = lang, get_direction(lang)
+    lang = getattr(g, "lang", "ar")
+    doctor = row.decided_by or (row.visit.doctor if row.visit else None) or current_user
+    visit = row.visit
+    diagnoses = []
+    if visit is not None:
+        finals = visit.final_diagnoses()
+        diagnoses = [d.display_title(lang) for d in (finals or visit.diagnoses or [])]
+    from app.utils import certificates, rx_repeat
+
+    return render_template("visits/referral_letter.html", row=row, visit=visit,
+                           sheet=refs.sheet(row), diagnoses=diagnoses, doc=doctor,
+                           age=certificates.age_text(row.patient, lang),
+                           weight=rx_repeat.weight_info(row.patient),
+                           to_line=refs.doctor_line(row, lang),
+                           tpl=resolve_template(doctor), lang=lang)
+
+
 @visits_bp.route("/referrals")
 @module_required(MODULE)
 def referrals():
@@ -2205,6 +2355,7 @@ def referrals():
 
     rows = refs.waiting()
     return render_template("visits/referrals.html", rows=rows,
+                           to_me=refs.to_me(current_user.id),
                            unsigned=refs.unsigned(),
                            incomplete=refs.incomplete(),
                            missing=refs.missing)
