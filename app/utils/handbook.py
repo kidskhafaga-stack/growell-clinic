@@ -360,6 +360,22 @@ SECTIONS = [
              "administrator enters the official text and the licence holder under "
              "«Settings → Licensed tools», and the tool appears among the assessment "
              "tools like the others. Until then it stays hidden."),
+            ("<b>رسايل للأهل بعد الكشف:</b> تحت «تعليمات المتابعة» في الكشف: «ابعت "
+             "التعليمات للأهل» بيبعت كلام الطبيب نفسه دلوقتي — على القناة اللي الأهل "
+             "بيكلمونا منها لو الرد لسه مسموح فيها، وإلا على واتساب. و«فكّرهم بميعاد "
+             "المتابعة» بيتجدول قبلها بيوم، ولو حجزوا أو جم قبلها ما بيتبعتش. و«اسأل "
+             "على الطفل بعد … يوم» بيبعت «عامل إيه؟»، والرد بيدخل صندوق خدمة العملاء. "
+             "التذكير والسؤال محتاجين الإرسال التلقائي شغال من إعدادات واتساب، ونصوصهم "
+             "بتتعدل من قوالب الرسايل.",
+             "<b>Messages to the family after the visit:</b> under «Follow-up "
+             "instructions» on the visit: «Send the instructions to the family» "
+             "sends the doctor's own words now — on the channel the family writes "
+             "from when a reply is still allowed there, otherwise WhatsApp. «Remind "
+             "them of the follow-up» is queued a day before, and is not sent if they "
+             "have booked or come. «Ask how the child is after … days» sends «how is "
+             "he doing?», and the answer lands in the customer-service inbox. The "
+             "reminder and the check-in need automatic sending switched on in the "
+             "WhatsApp settings; their wording is edited in the message templates."),
             ("<b>الشهادات من الكشف:</b> زرار «شهادة من الكشف» تحت الكشف بيطلّع إجازة "
              "مرضية / عدم حضور، أو شهادة لياقة طبية، أو تقرير مختصر للزيارة — "
              "بالعربي أو الإنجليزي. الاسم والسن والتاريخ بييجوا من الكشف، والطبيب "

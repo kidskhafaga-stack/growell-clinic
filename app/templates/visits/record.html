@@ -1004,6 +1004,67 @@
           <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
       </form>
 
+      {# After the visit (DOCTOR_EASE_PLAN.md ب-٦): the family hears from the
+         clinic — the doctor's instructions now, a reminder of the follow-up
+         date while nothing is booked, and «how is he doing?» a few days on.
+         Each one a press here; the words are the doctor's and the clinic's
+         templates, and a reply lands in the customer-service inbox. #}
+      {% set ac = aftercare_state %}
+      {% if ac %}
+      <div class="aftercare" id="aftercare" data-aftercare>
+        <div class="aftercare-head"><i class="bi bi-chat-heart"></i> {{ t('aftercare.title') }}</div>
+        <form method="post" action="{{ url_for('visits.aftercare', visit_id=visit.id) }}" class="aftercare-row">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="instructions">
+          <button class="btn btn-sm btn-outline gc-press" type="submit" data-ac-instructions
+                  {{ 'disabled' if not visit.followup_instructions }}><i class="bi bi-send"></i> {{ t('aftercare.send_instructions') }}</button>
+          <span class="hint" style="margin:0;">{{ t('aftercare.instructions_hint') if visit.followup_instructions else t('aftercare.instructions_empty') }}</span>
+        </form>
+        {% if visit.followup_due %}
+        <form method="post" action="{{ url_for('visits.aftercare', visit_id=visit.id) }}" class="aftercare-row">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          {% if ac.due %}
+          <input type="hidden" name="action" value="cancel_due">
+          <span class="badge badge--green" data-ac-due-queued>{{ t('aftercare.due_queued', date=(ac.due.scheduled_at|clinic_stamp('%Y-%m-%d'))) }}</span>
+          <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('aftercare.cancel') }}</button>
+          {% else %}
+          <input type="hidden" name="action" value="due">
+          <button class="btn btn-sm btn-outline gc-press" type="submit" data-ac-due {{ 'disabled' if not ac.auto.followup_due }}>
+            <i class="bi bi-alarm"></i> {{ t('aftercare.remind_due', n=ac.lead_days) }}</button>
+          <span class="hint" style="margin:0;">{{ t('aftercare.due_hint') if ac.auto.followup_due else t('aftercare.needs_auto') }}</span>
+          {% endif %}
+        </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('visits.aftercare', visit_id=visit.id) }}" class="aftercare-row">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          {% if ac.checkin %}
+          <input type="hidden" name="action" value="cancel_checkin">
+          <span class="badge badge--green" data-ac-checkin-queued>{{ t('aftercare.checkin_queued', date=(ac.checkin.scheduled_at|clinic_stamp('%Y-%m-%d'))) }}</span>
+          <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('aftercare.cancel') }}</button>
+          {% else %}
+          <input type="hidden" name="action" value="checkin">
+          <button class="btn btn-sm btn-outline gc-press" type="submit" data-ac-checkin {{ 'disabled' if not ac.auto.visit_checkin }}>
+            <i class="bi bi-heart-pulse"></i> {{ t('aftercare.checkin') }}</button>
+          <select class="input" name="days" style="max-width:90px;" aria-label="{{ t('aftercare.days') }}" {{ 'disabled' if not ac.auto.visit_checkin }}>
+            {% for n in range(1, 8) %}<option value="{{ n }}" {{ 'selected' if n == ac.checkin_days }}>{{ t('aftercare.n_days', n=n) }}</option>{% endfor %}
+          </select>
+          {% if not ac.auto.visit_checkin %}<span class="hint" style="margin:0;">{{ t('aftercare.needs_auto') }}</span>{% endif %}
+          {% endif %}
+        </form>
+        {% if ac.sent %}
+        <ul class="aftercare-log">
+          {% for m in ac.sent %}
+          <li data-ac-log="{{ m.template_type }}"><span>{{ t('occasions.occ_' ~ m.template_type) }}</span>
+            <span class="badge badge--muted">{{ t('aftercare.status_' ~ m.status) if m.status in ('sent','scheduled','link','failed','skipped','delivered','read','queued') else m.status }}</span>
+            <span class="hint" style="margin:0;" dir="ltr">{{ (m.scheduled_at if m.status == 'scheduled' else m.created_at)|clinic_stamp('%Y-%m-%d %H:%M') }}</span>
+            {% if m.status == 'link' and m.link %}<a class="btn btn-sm btn-primary gc-press" href="{{ m.link }}" target="_blank" rel="noopener" data-ac-link><i class="bi bi-whatsapp"></i> {{ t('aftercare.open_link') }}</a>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+      {% endif %}
+
       <form method="post" action="{{ url_for('visits.refer', visit_id=visit.id) }}"
             class="form-row">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -2864,6 +2925,11 @@
   .pchip:focus-within { outline:2px solid var(--green-600); outline-offset:2px; }
   [data-field][hidden] { display:none !important; }
   .pl-tpls { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:10px; }
+  .aftercare { border:1px dashed var(--line); border-radius:10px; padding:8px 10px; margin:4px 0 12px; display:grid; gap:6px; }
+  .aftercare-head { font-weight:700; font-size:.9rem; }
+  .aftercare-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0; }
+  .aftercare-log { list-style:none; margin:2px 0 0; padding:0; display:grid; gap:4px; font-size:.86rem; }
+  .aftercare-log li { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .vs-tools { border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin:4px 0 14px; display:grid; gap:6px; }
   .vs-head { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
   .vs-tool { border-top:1px dashed var(--line); padding-top:6px; }

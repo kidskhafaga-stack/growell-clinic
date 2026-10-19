@@ -68,6 +68,11 @@ SYSTEM_TEMPLATE_TYPES = [
     # confirmation goes out when the booking is made — often weeks earlier —
     # and by then it is a receipt, not a reminder.
     "appointment_reminder",
+    # After the visit (DOCTOR_EASE_PLAN.md ب-٦): the doctor's own instructions
+    # sent to the family, a reminder of the follow-up date while nothing is
+    # booked, and «how is he doing?» a few days later. Each pressed or ticked
+    # by a person on the visit screen — see app/utils/aftercare.py.
+    "visit_instructions", "followup_due", "visit_checkin",
     # The child who did not come. A missed follow-up is the appointment most
     # worth one message and the one nothing here ever sent: ``no_show`` was a
     # terminal state that fed the reports and stopped.
@@ -104,6 +109,11 @@ TEMPLATE_VARIABLES = {
     # clinical words are not the wrapper's to invent.
     "post_op": ["patient", "first_name", "procedure", "instructions",
                 "followup", "clinic"],
+    # The doctor's words are `instructions`; `followup` is the date line,
+    # empty when no date was set.
+    "visit_instructions": ["patient", "first_name", "doctor", "instructions", "followup", "clinic"],
+    "followup_due": ["patient", "first_name", "doctor", "date", "clinic"],
+    "visit_checkin": ["patient", "first_name", "doctor", "clinic"],
     "appointment_confirm": ["patient", "first_name", "clinic", "date", "time", "doctor", "queue"],
     "appointment_reminder": ["patient", "first_name", "clinic", "date", "time", "doctor"],
     "no_show_followup": ["patient", "first_name", "clinic", "date", "doctor"],
@@ -132,6 +142,21 @@ TEMPLATE_VARIABLES = {
 
 # Built-in defaults used to seed the registry / fall back when none exists.
 TEMPLATE_DEFAULTS = {
+    # After the visit (ب-٦). Wrappers only: the one clinical sentence is the
+    # doctor's own `{instructions}`; none of these gives advice of its own.
+    "visit_instructions": (
+        "تعليمات {doctor} لـ{patient} بعد الكشف:\n\n{instructions}\n\n{followup}\n"
+        "لو عندكم أي سؤال ردّوا على الرسالة."
+    ),
+    "followup_due": (
+        "تذكير من {clinic}: {doctor} طلب متابعة {patient} يوم {date}.\n"
+        "لو لسه ما حجزتوش، ردّوا على الرسالة وهنحجزلكم."
+    ),
+    "visit_checkin": (
+        "اطمنّا على {patient} 🌿\n"
+        "عامل إيه دلوقتي بعد الكشف في {clinic}؟ ردّوا علينا بكلمتين، "
+        "ولو فيه أي حاجة جديدة قولولنا."
+    ),
     # Deliberately a wrapper and nothing else: the sentence that matters is
     # `{instructions}`, which the surgeon wrote against the procedure. A
     # default that offered clinical advice of its own would be this program
@@ -322,6 +347,9 @@ class MessageLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=True, index=True)
     appointment_id = db.Column(db.Integer, db.ForeignKey("appointments.id"), nullable=True)
+    # The visit an after-care message belongs to (ب-٦), so the follow-up
+    # reminder can read the follow-up again when it is due to go.
+    visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=True, index=True)
     to_phone = db.Column(db.String(30))
     body = db.Column(db.Text, nullable=False)
     image_url = db.Column(db.String(300))
