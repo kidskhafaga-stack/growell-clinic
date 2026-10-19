@@ -379,6 +379,17 @@ SECTIONS = [
              "prescription» prints «Referred to Dr. …» on the visit's prescription. "
              "The reply comes back to the referring doctor to review — on the visit "
              "or on the referrals screen."),
+            ("<b>اختصارات الكيبورد:</b> في الكشف Ctrl+S بيحفظ (حتى وانت بتكتب)، "
+             "وR روشتة، وC شهادة، وB حجز متابعة؛ وفي الروشتة Ctrl+S حفظ وطباعة وP "
+             "طباعة. اضغط ? (أو زرار الكيبورد تحت) تشوف اختصارات الصفحة. الحروف "
+             "بتشتغل والكيبورد عربي، ومش بتشتغل وانت في خانة كتابة، ولو فيه كلام "
+             "ما اتحفظش بتسأل قبل ما تسيب الصفحة.",
+             "<b>Keyboard shortcuts:</b> on the visit, Ctrl+S saves (even while "
+             "typing), R opens a prescription, C a certificate, B a follow-up "
+             "booking; on the prescription, Ctrl+S saves and prints and P prints. "
+             "Press ? (or the keyboard button below) to see the page's shortcuts. "
+             "Letters work with the keyboard on Arabic, not inside a box, and ask "
+             "before leaving the page when something typed is not saved."),
             ("<b>رسايل للأهل بعد الكشف:</b> تحت «تعليمات المتابعة» في الكشف: «ابعت "
              "التعليمات للأهل» بيبعت كلام الطبيب نفسه دلوقتي — على القناة اللي الأهل "
              "بيكلمونا منها لو الرد لسه مسموح فيها، وإلا على واتساب. و«فكّرهم بميعاد "

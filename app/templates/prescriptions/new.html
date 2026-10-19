@@ -542,7 +542,7 @@
   </div>
 
   <div class="gc-animate" style="margin-top:14px;display:flex;gap:10px;">
-    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-printer"></i> {{ t('rx.save_print') }}</button>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit" data-key-save title="{{ t('rx.save_print') }} (Ctrl+S)"><i class="bi bi-printer"></i> {{ t('rx.save_print') }}</button>
     <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.index') }}">{{ t('common.cancel') }}</a>
   </div>
 </form>

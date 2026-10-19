@@ -14993,5 +14993,12 @@
     "slip_hint": "Please write your opinion here and send the sheet back with the family.",
     "slip_name": "Name and signature",
     "slip_date": "Date"
+  },
+  "keys": {
+    "title": "Shortcuts",
+    "sidebar": "Show or hide the side menu",
+    "this_list": "This list",
+    "hint": "Letters work when the cursor is not in a box, with the keyboard on Arabic or English. Ctrl+S saves at any time.",
+    "unsaved": "Something you typed is not saved. Leave the page without saving?"
   }
 }

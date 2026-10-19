@@ -436,7 +436,7 @@
   // find the mouse each time. Ignored while typing, or the shortcut would eat
   // a bracket out of a prescription.
   document.addEventListener('keydown', function (e) {
-    if (e.key !== '[' || e.ctrlKey || e.metaKey || e.altKey) return;
+    if ((e.key !== '[' && e.code !== 'BracketLeft') || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
     var el = document.activeElement;
     var tag = el && el.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' ||
@@ -444,5 +444,85 @@
     e.preventDefault();
     toggleSidebar();
   });
+
+  // Page shortcuts (DOCTOR_EASE_PLAN.md ب-٧). A button names its own key:
+  // `data-key="KeyR"` (the physical key, so it works with the keyboard on
+  // Arabic or English), or `data-key-save` for Ctrl+S. Letters are ignored
+  // while typing; Ctrl+S works anywhere, because the doctor is usually
+  // mid-sentence when they want to save. `?` lists what this page has.
+  (function () {
+    function typing() {
+      var el = document.activeElement, tag = el && el.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el && el.isContentEditable);
+    }
+    function visible(el) { return !!(el && (el.offsetWidth || el.offsetHeight || el.getClientRects().length)); }
+    // Typed and not saved yet: a key that leaves the page asks first. A stray
+    // «R» outside a box should not cost the doctor a paragraph.
+    var dirty = false;
+    document.addEventListener('input', function (e) { if (e.target.form) dirty = true; }, true);
+    document.addEventListener('submit', function () { dirty = false; }, true);
+    function press(el) {
+      if (!el || !visible(el) || el.disabled) return false;
+      if (dirty && el.tagName === 'A' && !window.confirm(document.getElementById('keysBox').getAttribute('data-unsaved'))) return true;
+      el.click();
+      return true;
+    }
+    function letter(code) { return code.replace(/^Key/, '').replace(/^Digit/, ''); }
+    function list() {
+      var rows = [];
+      var save = document.querySelector('[data-key-save]');
+      if (save && visible(save)) rows.push(['Ctrl + S', save.getAttribute('data-key-label') || save.textContent.trim()]);
+      document.querySelectorAll('[data-key]').forEach(function (el) {
+        if (visible(el)) rows.push([letter(el.getAttribute('data-key')), el.getAttribute('data-key-label') || el.textContent.trim()]);
+      });
+      rows.push(['[', document.getElementById('keysBox').getAttribute('data-sidebar')]);
+      rows.push(['?', document.getElementById('keysBox').getAttribute('data-this')]);
+      return rows;
+    }
+    function openBox() {
+      var box = document.getElementById('keysBox'), body = box.querySelector('[data-keys-list]');
+      body.textContent = '';
+      list().forEach(function (r) {
+        var li = document.createElement('li'), k = document.createElement('kbd'), t = document.createElement('span');
+        k.textContent = r[0]; t.textContent = r[1].replace(/\s+/g, ' ');
+        li.appendChild(k); li.appendChild(t); body.appendChild(li);
+      });
+      box.hidden = false;
+      box.querySelector('[data-keys-close]').focus();
+    }
+    function closeBox() { var box = document.getElementById('keysBox'); if (box) box.hidden = true; }
+    window.gcOpenKeys = openBox;
+    document.addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.code === 'KeyS') {
+        var save = document.querySelector('[data-key-save]');
+        if (save && visible(save)) { e.preventDefault(); press(save); }
+        return;
+      }
+      if (e.key === 'Escape') { closeBox(); return; }
+      if (e.ctrlKey || e.metaKey || e.altKey || typing()) return;
+      if (e.key === '?' || (e.shiftKey && e.code === 'Slash')) { e.preventDefault(); openBox(); return; }
+      if (e.shiftKey) return;
+      var el = document.querySelector('[data-key="' + e.code + '"]');
+      if (el && press(el)) e.preventDefault();
+    });
+  })();
 </script>
+<div id="keysBox" class="keys-box no-print" role="dialog" aria-modal="true" aria-labelledby="keysTitle" hidden
+     data-sidebar="{{ t('keys.sidebar') }}" data-this="{{ t('keys.this_list') }}" data-unsaved="{{ t('keys.unsaved') }}">
+  <div class="keys-card">
+    <div class="keys-head"><strong id="keysTitle"><i class="bi bi-keyboard"></i> {{ t('keys.title') }}</strong>
+      <button type="button" class="btn btn-sm btn-outline" data-keys-close onclick="document.getElementById('keysBox').hidden = true" aria-label="{{ t('common.close') }}"><i class="bi bi-x-lg"></i></button></div>
+    <ul class="keys-list" data-keys-list></ul>
+    <p class="hint" style="margin:8px 0 0;">{{ t('keys.hint') }}</p>
+  </div>
+</div>
+<style>
+  .keys-box { position:fixed; inset:0; z-index:1200; display:grid; place-items:center; background:rgba(15,23,42,.35); }
+  .keys-box[hidden] { display:none; }
+  .keys-card { background:var(--card, #fff); color:var(--ink); border-radius:14px; padding:14px 16px; width:min(420px, calc(100vw - 32px)); box-shadow:0 12px 40px rgba(0,0,0,.25); }
+  .keys-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; }
+  .keys-list { list-style:none; margin:0; padding:0; display:grid; gap:6px; }
+  .keys-list li { display:flex; gap:10px; align-items:center; }
+  .keys-list kbd { min-width:64px; text-align:center; font:600 .85rem/1.6 ui-monospace, monospace; direction:ltr; background:var(--soft, rgba(0,0,0,.06)); border:1px solid var(--line); border-bottom-width:2px; border-radius:6px; padding:0 8px; }
+</style>
 {% endblock %}

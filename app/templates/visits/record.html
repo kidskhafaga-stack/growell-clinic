@@ -2435,21 +2435,24 @@
   <!-- Sticky action bar: the few primary actions, always reachable -->
   <div class="visit-actionbar no-print">
     <div class="visit-actionbar__inner">
-      <button class="btn btn-primary gc-press gc-ripple" type="submit" form="visitForm">
+      <button class="btn btn-primary gc-press gc-ripple" type="submit" form="visitForm" data-key-save
+              title="{{ t('visits.save_visit') }} (Ctrl+S)">
         <i class="bi bi-save"></i> {{ t('visits.save_visit') }}</button>
       {% if current_user.can_access('prescriptions') %}
-      <a class="btn btn-primary gc-press" :href="rxHref('{{ _rx_base }}')">
+      <a class="btn btn-primary gc-press" :href="rxHref('{{ _rx_base }}')" data-key="KeyR" title="{{ t('rx.write_from_visit') }} (R)">
         <i class="bi bi-prescription2"></i> {{ t('rx.write_from_visit') }}</a>
       {% endif %}
       {# A certificate from the visit (DOCTOR_EASE_PLAN.md ب-٣): sick leave,
          fitness or a short report — numbered and kept in the file. #}
       {% if current_user.sees_patients(current_user.role, current_user.is_practitioner) or current_user.is_admin %}
-      <a class="btn btn-outline gc-press" href="{{ url_for('visits.cert_new', visit_id=visit.id) }}" data-to-cert>
+      <a class="btn btn-outline gc-press" href="{{ url_for('visits.cert_new', visit_id=visit.id) }}" data-to-cert data-key="KeyC" title="{{ t('cert.new_title') }} (C)">
         <i class="bi bi-file-earmark-text"></i> {{ t('cert.new_title') }}</a>
       {% endif %}
       {% if current_user.can_access('appointments') %}
-      <a class="btn btn-outline gc-press" href="{{ url_for('appointments.create', patient_id=visit.patient_id, doctor_id=visit.doctor_id) }}">
+      <a class="btn btn-outline gc-press" href="{{ url_for('appointments.create', patient_id=visit.patient_id, doctor_id=visit.doctor_id) }}" data-key="KeyB" title="{{ t('visits.book_followup') }} (B)">
         <i class="bi bi-calendar-plus"></i> {{ t('visits.book_followup') }}</a>
+      <button type="button" class="btn btn-outline gc-press" onclick="gcOpenKeys()" data-keys-open title="{{ t('keys.title') }} (?)" aria-label="{{ t('keys.title') }}">
+        <i class="bi bi-keyboard"></i></button>
       {% endif %}
       {% if not visit.is_completed %}
       <form method="post" action="{{ url_for('visits.complete', visit_id=visit.id) }}" style="margin-inline-start:auto;">
