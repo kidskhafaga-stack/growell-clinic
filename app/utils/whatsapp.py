@@ -483,6 +483,14 @@ def dispatch_due(cfg=None, limit=500):
             log.status, log.error = "skipped", "opted_out"
             skipped += 1
             continue
+        # After-care (ب-٦): a follow-up reminder is read again now — a
+        # family that has booked or come since is not reminded.
+        if log.template_type in ("followup_due",):
+            from app.utils import aftercare
+            if not aftercare.still_wanted(log):
+                log.status, log.error = "skipped", "not_needed"
+                skipped += 1
+                continue
         if log.provider in ("cloud_api", "wapilot") and (
                 not _in_window(cfg, now) or _cap_reached(cfg, now)):
             log.scheduled_at = _next_slot(cfg, now)

@@ -455,6 +455,7 @@ def record(visit_id):
         # The doctor's own panel templates, and the shared ones (أ-٣).
         panel_tpls=_panel_tpls(mine),
         score_tools=_score_tools(mine), score_state=_score_state(visit, mine),
+        aftercare_state=_aftercare_state(visit),
         # Ready visits for common complaints (ب-١), and the ready
         # prescriptions one can open with.
         visit_tpls=_visit_tpls(), rx_presets_mine=_rx_presets(),
@@ -2255,6 +2256,21 @@ def _rx_repeat_offers(visit):
         return {}
 
 
+def _aftercare_state(visit):
+    """What the follow-up card shows about messages to the family (ب-٦)."""
+    from app.utils import aftercare as ac
+    from app.utils import whatsapp as wa
+
+    try:
+        return {"due": ac.pending(visit, ac.DUE), "checkin": ac.pending(visit, ac.CHECKIN),
+                "sent": ac.sent(visit)[:6], "checkin_days": ac.checkin_days(),
+                "lead_days": ac.due_lead_days(),
+                "auto": {k: wa.sends_itself(k) and not wa.type_is_off(k)
+                         for k in (ac.DUE, ac.CHECKIN)}}
+    except Exception:  # noqa: BLE001 — a side card never breaks the visit
+        return None
+
+
 def _score_tools(panel_keys):
     from app.utils import visit_scores
 
@@ -3060,3 +3076,43 @@ def licensed_tools():
     rows = [{"tool": tl, "text": visit_scores.licence_text(tl["key"]),
              "ready": visit_scores.licence_ready(tl)} for tl in tools]
     return render_template("visits/licensed_tools.html", rows=rows)
+
+
+# ------------------------------------------------ after the visit (ب-٦) ----
+@visits_bp.route("/<int:visit_id>/aftercare", methods=["POST"])
+@module_required(MODULE)
+def aftercare(visit_id):
+    """Send the doctor's instructions now, or queue the follow-up reminder or
+    the «how is he doing?» message — each one a person's press."""
+    from app.utils import aftercare as ac
+    from app.utils.privacy import can_see_visit
+
+    visit = db.get_or_404(Visit, visit_id)
+    if not can_see_visit(visit):
+        abort(404)
+    action = request.form.get("action")
+    lang = getattr(g, "lang", "ar")
+    try:
+        if action == "instructions":
+            log = ac.send_instructions(visit, current_user, lang)
+            flash(t("aftercare.sent_link") if log.status == "link" else t("aftercare.sent"),
+                  "success")
+        elif action == "due":
+            ac.schedule_due_reminder(visit, current_user, lang)
+            flash(t("aftercare.queued_due"), "success")
+        elif action == "checkin":
+            ac.schedule_checkin(visit, current_user, request.form.get("days", type=int), lang)
+            flash(t("aftercare.queued_checkin"), "success")
+        elif action in ("cancel_due", "cancel_checkin"):
+            ac.cancel(visit, ac.DUE if action == "cancel_due" else ac.CHECKIN)
+            flash(t("aftercare.cancelled"), "info")
+        else:
+            abort(400)
+    except ac.AftercareError as err:
+        db.session.rollback()
+        flash(t(f"aftercare.err_{err}"), "warning")
+        return redirect(url_for("visits.record", visit_id=visit.id) + "#aftercare")
+    ActivityLog.record(f"visit.aftercare.{action}", user_id=current_user.id, entity="visit",
+                       entity_id=visit.id, ip_address=client_ip())
+    db.session.commit()
+    return redirect(url_for("visits.record", visit_id=visit.id) + "#aftercare")

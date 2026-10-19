@@ -742,6 +742,9 @@ def _seed_drugs_safe():
 _CRM_TPL_NAMES = {
     "appointment_confirm": "تأكيد موعد",
     "appointment_reminder": "تذكير قبل الموعد",
+    "visit_instructions": "تعليمات الطبيب بعد الكشف",
+    "followup_due": "تذكير بميعاد المتابعة",
+    "visit_checkin": "الاطمئنان بعد الكشف",
     "no_show_followup": "متابعة الغياب",
     "patient_recall": "استدعاء مريض غايب",
     "doctor_schedule": "جدول الطبيب اليومي",

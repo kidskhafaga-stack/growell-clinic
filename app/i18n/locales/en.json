@@ -3352,7 +3352,10 @@
     "occ_vaccine_back": "Vaccine back in stock",
     "occ_rx_copy": "Prescription copy",
     "body_female": "Wording for a girl (optional)",
-    "body_female_hint": "Leave it empty when one wording is enough. Fill it in and girls get this one; everybody else gets the first."
+    "body_female_hint": "Leave it empty when one wording is enough. Fill it in and girls get this one; everybody else gets the first.",
+    "occ_visit_instructions": "Doctor's instructions after the visit",
+    "occ_followup_due": "Follow-up date reminder",
+    "occ_visit_checkin": "Check-in after the visit"
   },
   "feedback": {
     "title": "Rate your visit",
@@ -14879,5 +14882,41 @@
     "lic_saved_on": "Saved, and the tool is shown in the visit.",
     "lic_saved_off": "Saved, but the tool is still hidden: it needs the licence holder and every question and answer in at least one language.",
     "lic_link": "Licensed tools (c-ACT / ACT)"
+  },
+  "aftercare": {
+    "title": "Messages to the family after the visit",
+    "send_instructions": "Send the instructions to the family",
+    "instructions_hint": "Sent on the channel the family writes to us from when a reply is still allowed there, otherwise on WhatsApp.",
+    "instructions_empty": "Write the instructions above and save them first.",
+    "remind_due": "Remind them of the follow-up {n} day(s) before",
+    "due_hint": "If they book or come before then, the reminder is not sent.",
+    "needs_auto": "Needs automatic sending switched on for this message in the WhatsApp settings.",
+    "checkin": "Ask how the child is after",
+    "days": "After how many days",
+    "n_days": "{n} days",
+    "due_queued": "Reminder queued for {date}",
+    "checkin_queued": "Check-in queued for {date}",
+    "cancel": "Cancel",
+    "open_link": "Open WhatsApp and send",
+    "sent": "The instructions were sent.",
+    "sent_link": "The message is ready — open WhatsApp below and send it.",
+    "queued_due": "The reminder is queued.",
+    "queued_checkin": "The check-in is queued.",
+    "cancelled": "Cancelled.",
+    "followup_line": "Follow-up: {date}",
+    "err_no_instructions": "There are no saved instructions on this visit.",
+    "err_off": "This kind of message is switched off in the WhatsApp settings.",
+    "err_manual": "This message is sent by hand, so nothing can be queued — switch on automatic sending in the WhatsApp settings.",
+    "err_no_phone": "There is no mobile number in the patient's file.",
+    "err_too_late": "That date has already passed.",
+    "err_no_due": "There is no follow-up date on this visit.",
+    "status_sent": "Sent",
+    "status_scheduled": "Queued",
+    "status_link": "Ready to send",
+    "status_failed": "Failed",
+    "status_skipped": "Not sent",
+    "status_delivered": "Delivered",
+    "status_read": "Read",
+    "status_queued": "Queued"
   }
 }
