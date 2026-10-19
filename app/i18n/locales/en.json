@@ -5980,7 +5980,19 @@
     "carry_one": "Same as last time",
     "carry_all": "Fill what hasn't changed from last time",
     "carry_all_hint": "Fills empty choices only; numbers are never copied.",
-    "carried": "Copied — check it"
+    "carried": "Copied — check it",
+    "trend_label": "Last {n} readings",
+    "delta_same": "same as last time",
+    "delta_from_last": "from last time",
+    "flags_none": "Nothing new",
+    "flags_rest": "The rest no",
+    "flags_hint": "One tap = yes, a second = no, a third clears. What you don't touch isn't recorded.",
+    "flag_yes": "Yes",
+    "flag_no": "No",
+    "flag_was": "Was «yes» last time",
+    "flags_not_asked": "Not asked",
+    "flags_nothing_new": "Nothing new",
+    "flags_rest_no": "the rest no"
   },
   "curves": {
     "src_lab": "Lab",

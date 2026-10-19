@@ -125,10 +125,16 @@ def test_a_panel_is_well_formed(key):
     assert panel.get("icon")
     assert panel.get("fields"), f"{key} asks for nothing"
     for field in panel["fields"]:
-        assert field["type"] in ("number", "choice", "date"), field["code"]
+        assert field["type"] in ("number", "choice", "date", "flag"), field["code"]
         assert field.get("label_ar") and field.get("label_en"), field["code"]
         if field["type"] == "choice":
             assert field.get("options"), f"{field['code']} offers no choices"
+        if field["type"] == "flag":
+            # A symptom chip has a picture and a group with a heading, and is
+            # decided every visit — never «same as last time».
+            assert field.get("icon"), f"{field['code']} has no picture"
+            assert field.get("group") in (panel.get("groups") or {}), field["code"]
+            assert field.get("carry") is False, field["code"]
 
 
 def test_no_two_panels_name_the_same_field():

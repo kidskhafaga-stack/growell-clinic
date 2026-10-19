@@ -190,16 +190,56 @@ def last_values(visit):
             .all())
     out = {}
     for row in rows:
-        if row.code in out:
-            continue
         if row.visit and row.visit.visit_date == visit.visit_date and row.visit_id > visit.id:
             continue                    # a later visit the same day is not «before»
+        if row.code in out:
+            # The readings before the last one, for the trend beside a
+            # number (أ-٧): newest first here, turned round below.
+            seen = out[row.code]
+            if seen["number"] and row.value_num is not None and len(seen["trend"]) < TREND_POINTS:
+                seen["trend"].append({"v": row.value_num, "date": row.visit.visit_date.isoformat()
+                                      if row.visit else ""})
+            continue
         value = (row.value_text if row.value_num is None
                  else ("%g" % row.value_num))
         if value in (None, ""):
             continue
-        out[row.code] = {"value": value, "date": row.visit.visit_date if row.visit else None,
-                         "number": row.value_num is not None}
+        day = row.visit.visit_date if row.visit else None
+        out[row.code] = {"value": value, "date": day, "number": row.value_num is not None,
+                         "num": row.value_num,
+                         "trend": ([{"v": row.value_num, "date": day.isoformat() if day else ""}]
+                                   if row.value_num is not None else [])}
+    for item in out.values():
+        item["trend"].reverse()         # oldest first, as a line is read
+    return out
+
+
+#: How many earlier readings the small line beside a number shows (أ-٧).
+#: A display length, not a clinical number.
+TREND_POINTS = 6
+
+
+#: What a «flag» field (one symptom, yes or no — أ-٧) can hold. Not touched
+#: is not saved at all: «not asked» is a different answer from «no».
+FLAG_YES, FLAG_NO = "نعم", "لأ"
+FLAG_VALUES = (FLAG_YES, FLAG_NO)
+
+
+def flag_groups(meta):
+    """The panel's flag fields in their groups, in catalogue order:
+    ``[{"key", "label_ar", "label_en", "fields": [...]}]``."""
+    out, seen = [], {}
+    labels = meta.get("groups") or {}
+    for f in meta.get("fields", []):
+        if f.get("type") != "flag":
+            continue
+        key = f.get("group") or "_"
+        if key not in seen:
+            info = labels.get(key) or {}
+            seen[key] = {"key": key, "label_ar": info.get("label_ar", ""),
+                         "label_en": info.get("label_en", ""), "fields": []}
+            out.append(seen[key])
+        seen[key]["fields"].append(f)
     return out
 
 

@@ -452,6 +452,7 @@ def record(visit_id):
         # copied into today's only by the doctor's press, and only for a
         # choice (DOCTOR_EASE_PLAN.md أ-٢).
         panel_last=_panels.last_values(visit), panel_carries=_panels.carries,
+        panel_flag_groups=_panels.flag_groups,
         # The doctor's own panel templates, and the shared ones (أ-٣).
         panel_tpls=_panel_tpls(mine),
         score_tools=_score_tools(mine), score_state=_score_state(visit, mine),
@@ -914,6 +915,8 @@ def _save_panel(visit):
     answers = {code: (request.form.get(f"m_{code}") or "").strip() for code in fields}
     for code, (field, key) in fields.items():
         raw = answers[code] if panels.shown(field, answers) else ""
+        if field.get("type") == "flag" and raw not in panels.FLAG_VALUES:
+            raw = ""        # a symptom is «yes», «no», or not asked — nothing else
         row = existing.get(code)
         if not raw:
             if row is not None:
