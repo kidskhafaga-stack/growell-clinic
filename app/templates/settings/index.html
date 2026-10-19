@@ -1050,6 +1050,16 @@
       <label for="ai_enabled" style="margin:0;font-weight:400;">{{ t('settings.ai_enabled') }}</label>
     </div>
 
+    {# Voice dictation (DOCTOR_EASE_PLAN.md ب-٥). Its own switch, separate
+       from the assistant: the browser — not this program — sends the voice
+       to its speech service (Google, in Chrome and Edge), and that is a
+       decision for whoever answers for the clinic's privacy. #}
+    <div class="form-row checkbox" data-voice-setting>
+      <input type="checkbox" id="voice_dictation" name="voice_dictation" value="1" {{ 'checked' if values.get('voice_dictation')=='1' else '' }}>
+      <label for="voice_dictation" style="margin:0;font-weight:400;">{{ t('voice.setting') }}</label>
+    </div>
+    <p class="hint" style="margin:-4px 0 10px;"><i class="bi bi-shield-exclamation"></i> {{ t('voice.setting_hint') }}</p>
+
     <div class="form-grid">
       <div class="form-row"><label>{{ t('settings.ai_provider') }}</label>
         <select class="select" name="ai_provider" x-model="provider">

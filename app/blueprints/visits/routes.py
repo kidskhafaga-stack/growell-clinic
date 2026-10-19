@@ -453,6 +453,7 @@ def record(visit_id):
         # choice (DOCTOR_EASE_PLAN.md أ-٢).
         panel_last=_panels.last_values(visit), panel_carries=_panels.carries,
         panel_flag_groups=_panels.flag_groups,
+        voice_on=Setting.get("voice_dictation", "0") == "1",
         # The doctor's own panel templates, and the shared ones (أ-٣).
         panel_tpls=_panel_tpls(mine),
         score_tools=_score_tools(mine), score_state=_score_state(visit, mine),

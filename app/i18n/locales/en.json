@@ -15049,5 +15049,13 @@
     "test_needs_on": "Switch SMS on and save first.",
     "test_text": "A test message from {clinic}.",
     "test_sent": "Sent to {phone}."
+  },
+  "voice": {
+    "setting": "Voice dictation in the visit (complaint, examination, case history)",
+    "setting_hint": "The browser (Chrome or Edge) sends the doctor's voice to Google's speech service to turn it into words — the program records no audio. Switch it on only if the clinic agrees to that.",
+    "mic": "Dictate",
+    "mic_title": "Press and speak; press again to stop. The words are added at the end of the box — check them before saving.",
+    "lang_title": "Dictation language: Arabic or English",
+    "denied": "The browser did not allow the microphone — allow it in the site settings."
   }
 }

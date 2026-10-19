@@ -98,6 +98,10 @@ TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled"
                "ai_lab_insert",
                # The assistant reads the medical and management boards.
                "ai_boards",
+               # Voice dictation in the visit (ب-٥): the browser sends the
+               # voice to its own speech service, so it is off until a person
+               # who may decide that switches it on.
+               "voice_dictation",
                # The clinician has read the jaundice table and accepted it.
                # Until then the calculator answers nothing.
                "jaundice_table_confirmed",

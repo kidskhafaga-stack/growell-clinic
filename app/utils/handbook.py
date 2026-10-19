@@ -379,6 +379,18 @@ SECTIONS = [
              "prescription» prints «Referred to Dr. …» on the visit's prescription. "
              "The reply comes back to the referring doctor to review — on the visit "
              "or on the referrals screen."),
+            ("<b>الإملاء بالصوت:</b> مقفول لحد ما الإدارة تفتحه من الإعدادات (جنب "
+             "المساعد الذكي)، لأن المتصفح بيبعت الصوت لخدمة جوجل علشان يحوّله لكلام. "
+             "لما يتفتح، تحت الشكوى والفحص وقصة الحالة زرار «إملاء»: اضغط واتكلم، "
+             "واضغط تاني توقف، و«ع / EN» بيغيّر اللغة. الكلام بيتضاف آخر الخانة — "
+             "راجعه قبل الحفظ. بيشتغل في كروم وإيدج.",
+             "<b>Voice dictation:</b> off until the administration switches it on "
+             "in Settings (beside the assistant), because the browser sends the "
+             "voice to Google's speech service. Once on, the complaint, examination "
+             "and case history have a «Dictate» button: press and speak, press "
+             "again to stop; the language button beside it switches Arabic and English. The words are added at "
+             "the end of the box — check them before saving. Works in Chrome and "
+             "Edge."),
             ("<b>اختصارات الكيبورد:</b> في الكشف Ctrl+S بيحفظ (حتى وانت بتكتب)، "
              "وR روشتة، وC شهادة، وB حجز متابعة؛ وفي الروشتة Ctrl+S حفظ وطباعة وP "
              "طباعة. اضغط ? (أو زرار الكيبورد تحت) تشوف اختصارات الصفحة. الحروف "
