@@ -190,17 +190,33 @@ def last_values(visit):
             .all())
     out = {}
     for row in rows:
-        if row.code in out:
-            continue
         if row.visit and row.visit.visit_date == visit.visit_date and row.visit_id > visit.id:
             continue                    # a later visit the same day is not «before»
+        if row.code in out:
+            # The readings before the last one, for the trend beside a
+            # number (أ-٧): newest first here, turned round below.
+            seen = out[row.code]
+            if seen["number"] and row.value_num is not None and len(seen["trend"]) < TREND_POINTS:
+                seen["trend"].append({"v": row.value_num, "date": row.visit.visit_date.isoformat()
+                                      if row.visit else ""})
+            continue
         value = (row.value_text if row.value_num is None
                  else ("%g" % row.value_num))
         if value in (None, ""):
             continue
-        out[row.code] = {"value": value, "date": row.visit.visit_date if row.visit else None,
-                         "number": row.value_num is not None}
+        day = row.visit.visit_date if row.visit else None
+        out[row.code] = {"value": value, "date": day, "number": row.value_num is not None,
+                         "num": row.value_num,
+                         "trend": ([{"v": row.value_num, "date": day.isoformat() if day else ""}]
+                                   if row.value_num is not None else [])}
+    for item in out.values():
+        item["trend"].reverse()         # oldest first, as a line is read
     return out
+
+
+#: How many earlier readings the small line beside a number shows (أ-٧).
+#: A display length, not a clinical number.
+TREND_POINTS = 6
 
 
 def carries(field):

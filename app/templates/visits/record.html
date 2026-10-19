@@ -692,6 +692,27 @@
                   <span><i class="bi bi-clock-history"></i> {{ t('panels.last_time') }}
                     <strong dir="auto">{{ last.value }}</strong>{% if f.unit and last.number %} <span dir="ltr">{{ f.unit }}</span>{% endif %}
                     {% if last.date %}· <span dir="ltr">{{ last.date.strftime('%Y-%m-%d') }}</span>{% endif %}</span>
+                  {# The way this number has gone (أ-٧): the earlier readings as
+                     a small line, and today's against the last as the doctor
+                     types — the difference only, in the reading's own unit,
+                     in one neutral colour. Whether up is good or bad is the
+                     doctor's to say, not the program's. #}
+                  {% if last.number and f.type == 'number' %}
+                  {% set pts = last.trend %}
+                  {% if pts|length >= 2 %}
+                  {% set lo = pts|map(attribute='v')|min %}{% set hi = pts|map(attribute='v')|max %}
+                  {% set span = (hi - lo) or 1 %}
+                  {% set step = 72 / (pts|length - 1) %}
+                  <svg class="pl-spark" width="80" height="22" viewBox="0 0 80 22" role="img" data-trend-of="{{ f.code }}"
+                       aria-label="{{ t('panels.trend_label', n=pts|length) }}">
+                    <polyline fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"
+                      points="{% for q in pts %}{{ '%.1f'|format(4 + loop.index0 * step) }},{{ '%.1f'|format(18 - (q.v - lo) / span * 14) }} {% endfor %}"/>
+                    {% for q in pts %}<circle cx="{{ '%.1f'|format(4 + loop.index0 * step) }}" cy="{{ '%.1f'|format(18 - (q.v - lo) / span * 14) }}" r="{{ 2.4 if loop.last else 1.6 }}" fill="currentColor"><title>{{ q.date }}: {{ '%g'|format(q.v) }}{% if f.unit %} {{ f.unit }}{% endif %}</title></circle>{% endfor %}
+                  </svg>
+                  {% endif %}
+                  <span class="pl-delta" data-delta-of="{{ f.code }}" data-prev="{{ '%g'|format(last.num) }}"
+                        data-unit="{{ f.unit or '' }}" data-same="{{ t('panels.delta_same') }}" data-word="{{ t('panels.delta_from_last') }}" hidden><bdi dir="ltr" data-delta-num></bdi> <span data-delta-word></span></span>
+                  {% endif %}
                   {% if panel_carries(f) %}
                   <button type="button" class="md-chip" data-carry="{{ f.code }}" style="padding:2px 9px;font-size:.78rem;">
                     <i class="bi bi-arrow-repeat"></i> {{ t('panels.carry_one') }}</button>
@@ -3027,6 +3048,8 @@
   .aftercare { border:1px dashed var(--line); border-radius:10px; padding:8px 10px; margin:4px 0 12px; display:grid; gap:6px; }
   .aftercare-head { font-weight:700; font-size:.9rem; }
   .aftercare-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0; }
+  .pl-spark { color:var(--accent, var(--green-600)); vertical-align:middle; flex:none; }
+  .pl-delta { font-weight:600; color:var(--ink); background:var(--soft, rgba(0,0,0,.05)); border-radius:999px; padding:1px 8px; }
   .docref { border-top:1px dashed var(--line); margin-top:12px; padding-top:10px; display:grid; gap:8px; }
   .docref-in { border:1px solid var(--line); border-inline-start:4px solid var(--green-600, var(--accent)); border-radius:10px; padding:8px 10px; display:grid; gap:6px; }
   .docref-reply { display:grid; gap:6px; margin:0; }
@@ -3308,6 +3331,38 @@
       var next = stops[at + 1];
       if (next) next.focus();
     });
+  });
+})();
+</script>
+<script>
+/* Today's number against the last one, as the doctor types (أ-٧): the
+   difference in the reading's own unit, nothing more. */
+(function () {
+  function fmt(n) { return String(Math.round(n * 100) / 100); }
+  function update(input) {
+    var field = input.closest('[data-field]');
+    var out = field && field.querySelector('[data-delta-of]');
+    if (!out) return;
+    var raw = (input.value || '').trim();
+    var now = parseFloat(raw), prev = parseFloat(out.getAttribute('data-prev'));
+    if (raw === '' || isNaN(now) || isNaN(prev)) { out.hidden = true; return; }
+    var d = now - prev, unit = out.getAttribute('data-unit');
+    var num = out.querySelector('[data-delta-num]'), word = out.querySelector('[data-delta-word]');
+    if (Math.abs(d) < 1e-9) {
+      num.textContent = '=';
+      word.textContent = out.getAttribute('data-same');
+    } else {
+      num.textContent = (d > 0 ? '\u2191 +' : '\u2193 \u2212') + fmt(Math.abs(d)) + (unit ? ' ' + unit : '');
+      word.textContent = out.getAttribute('data-word');
+    }
+    out.hidden = false;
+  }
+  document.querySelectorAll('[data-delta-of]').forEach(function (out) {
+    var field = out.closest('[data-field]');
+    var input = field && field.querySelector('input[type=number]');
+    if (!input) return;
+    input.addEventListener('input', function () { update(input); });
+    update(input);
   });
 })();
 </script>

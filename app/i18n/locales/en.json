@@ -5980,7 +5980,10 @@
     "carry_one": "Same as last time",
     "carry_all": "Fill what hasn't changed from last time",
     "carry_all_hint": "Fills empty choices only; numbers are never copied.",
-    "carried": "Copied — check it"
+    "carried": "Copied — check it",
+    "trend_label": "Last {n} readings",
+    "delta_same": "same as last time",
+    "delta_from_last": "from last time"
   },
   "curves": {
     "src_lab": "Lab",
