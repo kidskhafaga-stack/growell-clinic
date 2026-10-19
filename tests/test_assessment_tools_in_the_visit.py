@@ -17,8 +17,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 def test_every_tool_is_whole_and_sourced():
     from app.utils import visit_scores
 
-    tools = visit_scores.all_tools()
-    assert {t["key"] for t in tools} >= {"westley", "cds", "mcisaac"}
+    tools = visit_scores.catalogue_tools()
+    assert {t["key"] for t in tools} >= {"westley", "cds", "mcisaac", "cact", "act"}
     for t in tools:
         assert t["reference"] and t["code"].startswith("score_")
         lo = sum(min(o["points"] for o in it["options"]) for it in t["items"])
@@ -107,3 +107,55 @@ def test_the_score_draws_a_curve_under_the_tool_s_name(clinic):
         db.session.commit()
         names = [c["name"] for c in series.curves_for(v1.patient_id, "en")]
         assert "Westley croup score" in names
+
+
+def _cact_text(complete=True):
+    items = []
+    for i in range(7):
+        n = 4 if i < 4 else 6
+        items.append({"ar": f"سؤال {i + 1}", "en": "" if complete else "",
+                      "options_ar": [f"إجابة {k}" for k in range(n)], "options_en": []})
+    if not complete:
+        items[6]["options_ar"][5] = ""
+    return items
+
+
+def test_a_licensed_tool_has_only_its_shape_until_the_clinic_enters_the_wording(clinic):
+    from app.utils import visit_scores
+
+    cact = next(t for t in visit_scores.catalogue_tools() if t["key"] == "cact")
+    # The shape only: no question or answer text ships with the program.
+    assert all("label_ar" not in it and "label_en" not in it for it in cact["items"])
+    assert all(set(o) == {"points"} for it in cact["items"] for o in it["options"])
+    assert [[o["points"] for o in it["options"]] for it in cact["items"]] == \
+        [[0, 1, 2, 3]] * 4 + [[5, 4, 3, 2, 1, 0]] * 3
+    with clinic["app"].app_context():
+        assert "cact" not in {t["key"] for t in visit_scores.tools_for()}
+    doc = clinic["sign_in"]("doc")
+    page = doc.get(f"/visits/{clinic['ids']['visit']}/record").get_data(as_text=True)
+    assert 'data-score="cact"' not in page
+
+    boss = clinic["sign_in"]("boss")
+    assert doc.get("/visits/scores/licensed").status_code == 403
+    assert "data-to-licensed" in boss.get("/settings/").get_data(as_text=True)
+
+    def post(holder, items):
+        form = {"tool": "cact", "holder": holder, "ref": "LIC-1"}
+        for i, it in enumerate(items):
+            form[f"q_{i}_ar"] = it["ar"]
+            for k, o in enumerate(it["options_ar"]):
+                form[f"o_{i}_{k}_ar"] = o
+        return boss.post("/visits/scores/licensed", data=form)
+
+    post("", _cact_text())                       # no licence holder: stays hidden
+    post("GSK", _cact_text(complete=False))      # one answer missing: stays hidden
+    with clinic["app"].app_context():
+        assert "cact" not in {t["key"] for t in visit_scores.tools_for()}
+    post("GSK", _cact_text())
+    with clinic["app"].app_context():
+        tool = next(t for t in visit_scores.tools_for() if t["key"] == "cact")
+        assert tool["items"][0]["label_ar"] == "سؤال 1" and tool["licence_holder"] == "GSK"
+    page = boss.get("/visits/scores/licensed").get_data(as_text=True)
+    assert "data-lic-on" in page
+    page = doc.get(f"/visits/{clinic['ids']['visit']}/record").get_data(as_text=True)
+    assert 'data-score="cact"' in page and "سؤال 1" in page and "GSK" in page

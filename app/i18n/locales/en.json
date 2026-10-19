@@ -14862,6 +14862,22 @@
     "reference": "Source",
     "bands_reference": "Bands",
     "answered": "{n} of {m} marked — the score is saved once all are.",
-    "done": "Complete — it will be saved with the visit."
+    "done": "Complete — it will be saved with the visit.",
+    "lic_title": "Licensed assessment tools",
+    "lic_sub": "Tools such as c-ACT and ACT have copyrighted wording, so the program carries only their shape: how many questions and each answer's points. If the clinic holds a licence, enter the official text and the licence holder here; the tool appears among «Assessment tools» in the visit once at least one language is complete. Until then it stays hidden.",
+    "lic_note_en": "The questions and their wording are copyrighted (GSK). The program carries the tool's shape only — how many questions and each answer's points — and a clinic holding a licence enters the official text itself.",
+    "lic_on": "Shown in the visit ({langs})",
+    "lic_off": "Hidden — no complete text or licence holder",
+    "lic_holder": "Licence holder / granted by",
+    "lic_holder_ph": "e.g. licensed to the clinic by GSK",
+    "lic_ref": "Licence number or reference",
+    "lic_question": "Question {n}",
+    "lic_points": "This answer's points",
+    "lic_answer_ar": "Arabic text of the answer worth {p}",
+    "lic_answer_en": "English text of the answer worth {p}",
+    "lic_save_hint": "Type the text exactly as in the official version. A language missing a question or an answer is not shown.",
+    "lic_saved_on": "Saved, and the tool is shown in the visit.",
+    "lic_saved_off": "Saved, but the tool is still hidden: it needs the licence holder and every question and answer in at least one language.",
+    "lic_link": "Licensed tools (c-ACT / ACT)"
   }
 }

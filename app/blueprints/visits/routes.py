@@ -3022,3 +3022,41 @@ def cert_texts():
                            labels={lang: {p: certificates._say(f"cert.ph_{p}", lang)
                                           for p in certificates.PLACEHOLDERS}
                                    for lang in ("ar", "en")})
+
+
+# ------------------------------------------ licensed assessment tools -----
+@visits_bp.route("/scores/licensed", methods=["GET", "POST"])
+@module_required(MODULE)
+def licensed_tools():
+    """c-ACT and ACT: the program carries their shape only. A clinic holding
+    a licence enters the official wording here — and whose licence it is —
+    and only then does the tool appear among the assessment tools."""
+    from app.utils import visit_scores
+
+    if not current_user.is_admin:
+        abort(403)
+    tools = [t for t in visit_scores.catalogue_tools() if t.get("licensed")]
+    if request.method == "POST":
+        key = request.form.get("tool")
+        tool = next((t for t in tools if t["key"] == key), None)
+        if tool is None:
+            abort(404)
+        items = []
+        for i, shape in enumerate(tool["items"]):
+            items.append({
+                "ar": (request.form.get(f"q_{i}_ar") or "").strip()[:400],
+                "en": (request.form.get(f"q_{i}_en") or "").strip()[:400],
+                "options_ar": [(request.form.get(f"o_{i}_{k}_ar") or "").strip()[:200]
+                               for k in range(len(shape["options"]))],
+                "options_en": [(request.form.get(f"o_{i}_{k}_en") or "").strip()[:200]
+                               for k in range(len(shape["options"]))],
+            })
+        visit_scores.save_licence(key, request.form.get("holder"), request.form.get("ref"), items)
+        db.session.commit()
+        ready = visit_scores.licence_ready(tool)
+        flash(t("vs.lic_saved_on") if ready else t("vs.lic_saved_off"),
+              "success" if ready else "warning")
+        return redirect(url_for("visits.licensed_tools") + f"#tool-{key}")
+    rows = [{"tool": tl, "text": visit_scores.licence_text(tl["key"]),
+             "ready": visit_scores.licence_ready(tl)} for tl in tools]
+    return render_template("visits/licensed_tools.html", rows=rows)

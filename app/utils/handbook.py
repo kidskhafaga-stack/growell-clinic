@@ -349,6 +349,17 @@ SECTIONS = [
              "the last score from an earlier visit beside it, and «Write it in the "
              "examination» adds it to the text. A finished score is saved with the "
              "visit and shows in the patient's curves."),
+            ("<b>أدوات بترخيص (c-ACT وACT للربو):</b> صياغة أسئلتها محمية بحقوق، "
+             "فالبرنامج فيه شكلها بس (عدد الأسئلة ونقط كل إجابة). لو العيادة معاها "
+             "ترخيص، المدير بيكتب النص الرسمي وصاحب الترخيص من «الإعدادات ← أدوات "
+             "بترخيص»، والأداة بتظهر في «أدوات التقييم» زي التانيين. من غير كده "
+             "بتفضل مخفية.",
+             "<b>Licensed tools (c-ACT and ACT for asthma):</b> their wording is "
+             "copyrighted, so the program carries only their shape (how many "
+             "questions, each answer's points). If the clinic holds a licence, an "
+             "administrator enters the official text and the licence holder under "
+             "«Settings → Licensed tools», and the tool appears among the assessment "
+             "tools like the others. Until then it stays hidden."),
             ("<b>الشهادات من الكشف:</b> زرار «شهادة من الكشف» تحت الكشف بيطلّع إجازة "
              "مرضية / عدم حضور، أو شهادة لياقة طبية، أو تقرير مختصر للزيارة — "
              "بالعربي أو الإنجليزي. الاسم والسن والتاريخ بييجوا من الكشف، والطبيب "
