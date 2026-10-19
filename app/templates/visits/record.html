@@ -645,8 +645,41 @@
               <span class="hint" style="margin:0;">{{ t('panels.carry_all_hint') }}</span>
             </div>
             {% endif %}
+            {# Symptoms as one-tap chips with a picture (أ-٧): a tap is «yes»,
+               a second «no», a third clears it; «the rest no» marks what was
+               left as no. A chip nobody touched is not saved — «not asked» is
+               not the same answer as «no». #}
+            {% for grp in panel_flag_groups(p.meta) %}
+            <div class="pflags" data-flag-group="{{ grp.key }}" style="margin-top:10px;">
+              <div class="pflags-head">
+                <strong>{{ grp['label_' ~ current_lang] or grp.label_ar }}</strong>
+                <button type="button" class="md-chip pflags-rest" data-flag-rest
+                        data-none="{{ t('panels.flags_none') }}" data-rest="{{ t('panels.flags_rest') }}">
+                  <i class="bi bi-check2-all"></i> <span>{{ t('panels.flags_none') }}</span></button>
+                <span class="hint" style="margin:0;">{{ t('panels.flags_hint') }}</span>
+              </div>
+              <div class="pflags-row">
+                {% for f in grp.fields %}
+                {% set row = panel_readings.get(f.code) %}
+                {% set now = row.value_text if row else '' %}
+                {% set last = (panel_last or {}).get(f.code) %}
+                {% set label = f['label_' ~ current_lang] or f.label_ar %}
+                <button type="button" class="pflag" data-flag="{{ f.code }}" data-state="{{ 'yes' if now == 'نعم' else ('no' if now == 'لأ' else '') }}"
+                        aria-label="{{ label }}"
+                        title="{{ label }}{% if last %} — {{ t('panels.last_time') }} {{ last.value }}{% if last.date %} ({{ last.date.strftime('%Y-%m-%d') }}){% endif %}{% endif %}">
+                  <span class="pflag-ic"><i class="bi bi-{{ f.icon or 'dot' }}"></i></span>
+                  <span class="pflag-txt">{{ label }}</span>
+                  <span class="pflag-mark pflag-yes">{{ t('panels.flag_yes') }}</span>
+                  <span class="pflag-mark pflag-no">{{ t('panels.flag_no') }}</span>
+                  {% if last and last.value == 'نعم' %}<span class="pflag-was" data-flag-was>{{ t('panels.flag_was') }}</span>{% endif %}
+                  <input type="hidden" name="m_{{ f.code }}" value="{{ now if now in ('نعم', 'لأ') else '' }}">
+                </button>
+                {% endfor %}
+              </div>
+            </div>
+            {% endfor %}
             <div class="form-grid" style="margin-top:10px;row-gap:12px;align-items:start;">
-              {% for f in p.meta.fields %}
+              {% for f in p.meta.fields if f.type != 'flag' %}
               {% set row = panel_readings.get(f.code) %}
               {% set from_study = (panel_last_study or {}).get(f.code) %}
               {% set last = (panel_last or {}).get(f.code) %}
@@ -3048,6 +3081,27 @@
   .aftercare { border:1px dashed var(--line); border-radius:10px; padding:8px 10px; margin:4px 0 12px; display:grid; gap:6px; }
   .aftercare-head { font-weight:700; font-size:.9rem; }
   .aftercare-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0; }
+  .pflags { border:1px dashed var(--line); border-radius:12px; padding:10px 12px; }
+  .pflags-head { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+  .pflags-rest { padding:4px 11px; font-size:.84rem; }
+  .pflags-row { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px; }
+  .pflag { position:relative; display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center;
+           padding:10px 8px 8px; border:1.5px solid var(--line); border-radius:14px; background:var(--card, #fff);
+           color:var(--ink); font:inherit; font-size:.86rem; line-height:1.35; cursor:pointer; min-height:96px;
+           transition:border-color .12s ease, background-color .12s ease; }
+  .pflag:focus-visible { outline:2px solid var(--accent, #1f6feb); outline-offset:2px; }
+  .pflag-ic { display:grid; place-items:center; width:38px; height:38px; border-radius:50%;
+              background:var(--soft, rgba(0,0,0,.05)); font-size:1.25rem; color:var(--accent, #1f6feb); }
+  .pflag-mark { display:none; font-weight:700; font-size:.78rem; border-radius:999px; padding:0 9px; }
+  .pflag[data-state="yes"] { border-color:var(--accent, #1f6feb); background:color-mix(in srgb, var(--accent, #1f6feb) 10%, transparent); }
+  .pflag[data-state="yes"] .pflag-ic { background:var(--accent, #1f6feb); color:#fff; }
+  .pflag[data-state="yes"] .pflag-yes { display:inline-block; background:var(--accent, #1f6feb); color:#fff; }
+  .pflag[data-state="no"] { color:var(--muted); border-style:dashed; }
+  .pflag[data-state="no"] .pflag-ic { color:var(--muted); }
+  .pflag[data-state="no"] .pflag-no { display:inline-block; background:var(--soft, rgba(0,0,0,.06)); color:var(--muted); }
+  .pflag-was { position:absolute; top:6px; inset-inline-end:6px; font-size:.68rem; color:var(--muted);
+               border:1px solid var(--line); border-radius:999px; padding:0 6px; }
+  @media (prefers-reduced-motion: reduce) { .pflag { transition:none; } }
   .pl-spark { color:var(--accent, var(--green-600)); vertical-align:middle; flex:none; }
   .pl-delta { font-weight:600; color:var(--ink); background:var(--soft, rgba(0,0,0,.05)); border-radius:999px; padding:1px 8px; }
   .docref { border-top:1px dashed var(--line); margin-top:12px; padding-top:10px; display:grid; gap:8px; }
@@ -3331,6 +3385,42 @@
       var next = stops[at + 1];
       if (next) next.focus();
     });
+  });
+})();
+</script>
+<script>
+/* Symptom chips (أ-٧): «» → yes → no → «». «Nothing new» / «the rest no»
+   marks every untouched chip «no». */
+(function () {
+  var NEXT = {'': 'yes', yes: 'no', no: ''};
+  var VALUE = {'': '', yes: '\u0646\u0639\u0645', no: '\u0644\u0623'};
+  function set(chip, state) {
+    chip.setAttribute('data-state', state);
+    chip.setAttribute('aria-pressed', state === 'yes' ? 'true' : 'false');
+    chip.querySelector('input').value = VALUE[state];
+  }
+  function relabel(group) {
+    var btn = group.querySelector('[data-flag-rest]');
+    if (!btn) return;
+    var anyYes = group.querySelector('.pflag[data-state="yes"]');
+    btn.querySelector('span').textContent = btn.getAttribute(anyYes ? 'data-rest' : 'data-none');
+  }
+  document.querySelectorAll('[data-flag-group]').forEach(function (group) {
+    group.querySelectorAll('.pflag').forEach(function (chip) {
+      set(chip, chip.getAttribute('data-state') || '');
+      chip.addEventListener('click', function () {
+        set(chip, NEXT[chip.getAttribute('data-state') || '']);
+        relabel(group);
+      });
+    });
+    var rest = group.querySelector('[data-flag-rest]');
+    if (rest) rest.addEventListener('click', function () {
+      group.querySelectorAll('.pflag').forEach(function (chip) {
+        if ((chip.getAttribute('data-state') || '') === '') set(chip, 'no');
+      });
+      relabel(group);
+    });
+    relabel(group);
   });
 })();
 </script>

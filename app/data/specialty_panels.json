@@ -26,6 +26,96 @@
       ],
       "fields": [
         {
+          "code": "sym_breathless",
+          "label_ar": "نهجان أو نفَس سريع",
+          "label_en": "Breathless or breathing fast",
+          "type": "flag",
+          "icon": "lungs",
+          "group": "since_last",
+          "carry": false
+        },
+        {
+          "code": "sym_feed_sweat",
+          "label_ar": "تعب أو عرق مع الرضاعة أو المجهود",
+          "label_en": "Tired or sweating with feeds or effort",
+          "type": "flag",
+          "icon": "moisture",
+          "group": "since_last",
+          "carry": false
+        },
+        {
+          "code": "sym_poor_feed",
+          "label_ar": "الرضاعة قلّت أو الوزن مش بيزيد",
+          "label_en": "Feeding less or not gaining weight",
+          "type": "flag",
+          "icon": "graph-down-arrow",
+          "group": "since_last",
+          "carry": false
+        },
+        {
+          "code": "sym_cyanosis",
+          "label_ar": "زرقة",
+          "label_en": "Cyanosis (blue colour)",
+          "type": "flag",
+          "icon": "droplet-fill",
+          "group": "since_last",
+          "carry": false
+        },
+        {
+          "code": "sym_syncope",
+          "label_ar": "إغماء أو دوخة",
+          "label_en": "Fainting or dizziness",
+          "type": "flag",
+          "icon": "person-fill-down",
+          "group": "since_last",
+          "carry": false
+        },
+        {
+          "code": "sym_palpitations",
+          "label_ar": "خفقان",
+          "label_en": "Palpitations",
+          "type": "flag",
+          "icon": "heart-pulse",
+          "group": "since_last",
+          "carry": false
+        },
+        {
+          "code": "sym_chest_pain",
+          "label_ar": "ألم في الصدر",
+          "label_en": "Chest pain",
+          "type": "flag",
+          "icon": "lightning-charge",
+          "group": "since_last",
+          "carry": false
+        },
+        {
+          "code": "sym_swelling",
+          "label_ar": "تورّم أو البول قلّ",
+          "label_en": "Swelling or passing less urine",
+          "type": "flag",
+          "icon": "arrows-angle-expand",
+          "group": "since_last",
+          "carry": false
+        },
+        {
+          "code": "sym_less_active",
+          "label_ar": "النشاط أو اللعب قلّ",
+          "label_en": "Less active, plays less",
+          "type": "flag",
+          "icon": "battery-half",
+          "group": "since_last",
+          "carry": false
+        },
+        {
+          "code": "sym_hospital",
+          "label_ar": "دخل طوارئ أو مستشفى",
+          "label_en": "Seen in emergency or admitted",
+          "type": "flag",
+          "icon": "hospital",
+          "group": "since_last",
+          "carry": false
+        },
+        {
           "code": "bp_right_arm",
           "label_ar": "الضغط الانقباضي — الذراع اليمنى",
           "label_en": "Systolic BP — right arm",
@@ -259,7 +349,14 @@
           }
         }
       ],
-      "_alerts_note_ar": "التنبيهات اللي التخصص ده طلبها في الاستبيان، وكل واحد مكتوب جنبه **محتاج إيه** علشان يشتغل:\n• `overdue` — تاريخ البرنامج عارفه خلاص (ميعاد متابعة عدّى، تحليل مامتعملش من مدة).\n• `trend` — مقارنة بين زيارتين، من غير رقم مطلق.\n• `number` — محتاج رقم **العيادة** تحطه. الاستبيان نفسه بيرفض يحط رقم موحّد، والبرنامج ما بيخترعش أرقام إكلينيكية — فالتنبيه ده مايشتغلش لحد ما العيادة تكتب رقمها.\n• `cross_check` — محتاج قاعدة معرفة للأدوية والحساسية والتطعيمات لسه مش موجودة.\n• `doctor` — حاجة الطبيب هو اللي بيلاحظها (فقد مهارة، انتكاسة)، والبرنامج ما يقدرش يستنتجها.\n`live: true` معناها متنفّذ فعلاً دلوقتي. الباقي معلن ومستني، والشاشة بتقول كده بدل ما تسكت."
+      "_alerts_note_ar": "التنبيهات اللي التخصص ده طلبها في الاستبيان، وكل واحد مكتوب جنبه **محتاج إيه** علشان يشتغل:\n• `overdue` — تاريخ البرنامج عارفه خلاص (ميعاد متابعة عدّى، تحليل مامتعملش من مدة).\n• `trend` — مقارنة بين زيارتين، من غير رقم مطلق.\n• `number` — محتاج رقم **العيادة** تحطه. الاستبيان نفسه بيرفض يحط رقم موحّد، والبرنامج ما بيخترعش أرقام إكلينيكية — فالتنبيه ده مايشتغلش لحد ما العيادة تكتب رقمها.\n• `cross_check` — محتاج قاعدة معرفة للأدوية والحساسية والتطعيمات لسه مش موجودة.\n• `doctor` — حاجة الطبيب هو اللي بيلاحظها (فقد مهارة، انتكاسة)، والبرنامج ما يقدرش يستنتجها.\n`live: true` معناها متنفّذ فعلاً دلوقتي. الباقي معلن ومستني، والشاشة بتقول كده بدل ما تسكت.",
+      "groups": {
+        "since_last": {
+          "label_ar": "أعراض من آخر زيارة",
+          "label_en": "Symptoms since the last visit"
+        }
+      },
+      "_flags_note_ar": "«flag» = عَرَض نعم/لأ بزرار عليه أيقونة (أ-٧، قرار صاحب العيادة: «كل عَرَض نعم/لأ لوحده… بأشكال»). ضغطة = نعم، التانية = لأ، التالتة تمسح، و«الباقي لأ» بيعلّم اللي محدش لمسه لأ. اللي ما اتلمسش ما بيتحفظش — يعني «ما اتسألش» مش «لأ». القايمة من نقاش «استشاري القلب بيتابع إيه في كل زيارة» ومستنية مراجعة دكتور القلب."
     },
     "dentistry": {
       "name_ar": "أسنان الأطفال",

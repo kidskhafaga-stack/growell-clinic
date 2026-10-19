@@ -219,6 +219,30 @@ def last_values(visit):
 TREND_POINTS = 6
 
 
+#: What a «flag» field (one symptom, yes or no — أ-٧) can hold. Not touched
+#: is not saved at all: «not asked» is a different answer from «no».
+FLAG_YES, FLAG_NO = "نعم", "لأ"
+FLAG_VALUES = (FLAG_YES, FLAG_NO)
+
+
+def flag_groups(meta):
+    """The panel's flag fields in their groups, in catalogue order:
+    ``[{"key", "label_ar", "label_en", "fields": [...]}]``."""
+    out, seen = [], {}
+    labels = meta.get("groups") or {}
+    for f in meta.get("fields", []):
+        if f.get("type") != "flag":
+            continue
+        key = f.get("group") or "_"
+        if key not in seen:
+            info = labels.get(key) or {}
+            seen[key] = {"key": key, "label_ar": info.get("label_ar", ""),
+                         "label_en": info.get("label_en", ""), "fields": []}
+            out.append(seen[key])
+        seen[key]["fields"].append(f)
+    return out
+
+
 def carries(field):
     """Whether «same as last time» is offered for this field: a choice the
     specialty did not mark ``carry: false``."""

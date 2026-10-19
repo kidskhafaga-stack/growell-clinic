@@ -5983,7 +5983,13 @@
     "carried": "منقول — راجعه",
     "trend_label": "آخر {n} قراءات",
     "delta_same": "زي آخر مرة",
-    "delta_from_last": "عن آخر مرة"
+    "delta_from_last": "عن آخر مرة",
+    "flags_none": "مفيش جديد",
+    "flags_rest": "الباقي لأ",
+    "flags_hint": "ضغطة = نعم، التانية = لأ، التالتة تمسح. اللي ما تلمسوش ما بيتسجلش.",
+    "flag_yes": "نعم",
+    "flag_no": "لأ",
+    "flag_was": "آخر مرة: نعم"
   },
   "curves": {
     "src_lab": "تحليل",
