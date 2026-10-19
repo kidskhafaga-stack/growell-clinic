@@ -896,6 +896,53 @@
         </div>
       </div>
 
+      {# Assessment tools (DOCTOR_EASE_PLAN.md ب-٤): the doctor marks what they
+         see and the score is added up — a score, never a decision. Items,
+         points and bands exactly as their published source, which is named
+         under each (data/visit_scores.json). A finished score is saved with
+         the visit as a reading, so it draws a curve; the server adds it up
+         again from the answers. #}
+      {% if score_tools %}
+      <div class="vs-tools" data-score-tools>
+        <div class="vs-head"><strong><i class="bi bi-calculator"></i> {{ t('vs.title') }}</strong>
+          <span class="hint" style="margin:0;">{{ t('vs.hint') }}</span></div>
+        {% for tool in score_tools %}{% set st = (score_state or {}).get(tool.key) or {} %}
+        <details class="vs-tool" data-score="{{ tool.key }}" data-max="{{ tool.max }}"
+                 data-name="{{ tool['name_' ~ current_lang] or tool.name_ar }}"
+                 data-bands="{{ tool.bands|tojson|forceescape }}" {{ 'open' if st.total is not none }}>
+          <summary>
+            <span class="vs-name">{{ tool['name_' ~ current_lang] or tool.name_ar }}</span>
+            <span class="vs-total" data-total dir="ltr">{% if st.total is not none %}{{ st.total }} / {{ tool.max }}{% endif %}</span>
+            <span class="vs-band" data-band>{{ st.band }}</span>
+            {% if st.last %}<span class="hint vs-last" style="margin:0;" data-score-last>{{ t('vs.last', total=st.last.total, date='\u2066' ~ st.last.date ~ '\u2069') }}</span>{% endif %}
+          </summary>
+          {% if not st.in_age %}<p class="hint vs-warn" data-score-age>{{ t('vs.age_out', a=tool.age_months[0], b=tool.age_months[1]) }}</p>{% endif %}
+          {% if not st.age_found %}<p class="hint vs-warn">{{ t('vs.age_pick') }}</p>{% endif %}
+          {% for item in tool['items'] %}{% set i = loop.index0 %}
+          <div class="vs-item">
+            <div class="vs-label">{{ item['label_' ~ current_lang] or item.label_ar }}</div>
+            <div class="pchips" role="radiogroup" aria-label="{{ item['label_' ~ current_lang] or item.label_ar }}">
+              {% for opt in item.options %}
+              <label class="md-chip pchip {{ 'is-selected' if (st.picks or {}).get(i) == loop.index0 }}">
+                <input type="radio" name="sc_{{ tool.key }}_{{ item.code }}" value="{{ loop.index0 }}"
+                       data-points="{{ opt.points }}" {{ 'checked' if (st.picks or {}).get(i) == loop.index0 }}>
+                {{ opt[current_lang] or opt.ar }} <span class="vs-pts" dir="ltr">{{ '%+d'|format(opt.points) if opt.points < 0 else opt.points }}</span></label>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+          <div class="vs-foot">
+            <button type="button" class="btn btn-sm btn-outline gc-press" data-score-to-exam><i class="bi bi-box-arrow-in-down"></i> {{ t('vs.to_exam') }}</button>
+            <button type="button" class="btn btn-sm btn-outline gc-press" data-score-clear><i class="bi bi-eraser"></i> {{ t('vs.clear') }}</button>
+            <span class="hint" style="margin:0;" data-score-progress></span>
+            <input type="hidden" name="sc_{{ tool.key }}_clear" value="" data-score-clear-flag>
+          </div>
+          <p class="hint vs-ref">{{ t('vs.reference') }}: <span dir="ltr">{{ tool.reference }}</span>{% if tool.bands_reference %}<br>{{ t('vs.bands_reference') }}: <span dir="ltr">{{ tool.bands_reference }}</span>{% endif %}</p>
+        </details>
+        {% endfor %}
+      </div>
+      {% endif %}
+
       <div class="form-grid">
         <div class="form-row"><label>{{ t('visits.plan') }}</label>
           <textarea class="input" name="plan" rows="2" x-model="planTxt"
@@ -2816,6 +2863,19 @@
   .pchip:focus-within { outline:2px solid var(--green-600); outline-offset:2px; }
   [data-field][hidden] { display:none !important; }
   .pl-tpls { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:10px; }
+  .vs-tools { border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin:4px 0 14px; display:grid; gap:6px; }
+  .vs-head { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
+  .vs-tool { border-top:1px dashed var(--line); padding-top:6px; }
+  .vs-tool summary { cursor:pointer; display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; padding:4px 0; }
+  .vs-name { font-weight:600; }
+  .vs-total { font-weight:800; font-variant-numeric:tabular-nums; color:var(--green-800); }
+  .vs-band { font-weight:600; color:var(--ink); }
+  .vs-item { display:grid; gap:4px; margin:8px 0; }
+  .vs-label { font-size:.88rem; font-weight:600; }
+  .vs-pts { font-size:.75rem; opacity:.65; font-variant-numeric:tabular-nums; margin-inline-start:2px; }
+  .vs-foot { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+  .vs-ref { margin:6px 0 2px; font-size:.78rem; }
+  .vs-warn { color:var(--warning-ink, #8a5a00); margin:4px 0; }
   .vt-row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:10px; }
   .vt-chip { padding:4px 11px; font-size:.84rem; }
   .vt-save summary::-webkit-details-marker { display:none; }
@@ -2825,6 +2885,48 @@
   [data-field].is-carried { background:color-mix(in srgb, var(--green-500) 8%, transparent); border-radius:10px; }
   .pl-carried { font-size:.75rem; font-weight:600; color:var(--green-700); }
 </style>
+<script>
+// Assessment tools (ب-٤): add up the marked answers as the doctor goes. The
+// server adds them up again on save — this is only what the page shows.
+(function () {
+  var WORDS = {{ {'answered': t('vs.answered'), 'done': t('vs.done')}|tojson }};
+  document.querySelectorAll('[data-score]').forEach(function (tool) {
+    var bands = JSON.parse(tool.getAttribute('data-bands') || '[]');
+    var groups = tool.querySelectorAll('.pchips');
+    var flag = tool.querySelector('[data-score-clear-flag]');
+    function compute() {
+      var total = 0, answered = 0;
+      groups.forEach(function (g) {
+        var on = g.querySelector('input:checked');
+        g.querySelectorAll('.pchip').forEach(function (l) { l.classList.toggle('is-selected', l.contains(on)); });
+        if (on) { answered++; total += Number(on.getAttribute('data-points')); }
+      });
+      var done = answered === groups.length;
+      var band = '';
+      if (done) { for (var i = 0; i < bands.length; i++) { if (total <= bands[i].max) { band = bands[i][document.documentElement.lang] || bands[i].ar; break; } } }
+      tool.querySelector('[data-total]').textContent = done ? (total + ' / ' + tool.getAttribute('data-max')) : '';
+      tool.querySelector('[data-band]').textContent = band;
+      tool.querySelector('[data-score-progress]').textContent = done ? WORDS.done :
+        WORDS.answered.replace('{n}', answered).replace('{m}', groups.length);
+      return done ? { total: total, band: band } : null;
+    }
+    tool.addEventListener('change', function () { flag.value = ''; compute(); });
+    tool.querySelector('[data-score-clear]').addEventListener('click', function () {
+      tool.querySelectorAll('input[type=radio]').forEach(function (r) { r.checked = false; });
+      flag.value = '1'; compute();
+    });
+    tool.querySelector('[data-score-to-exam]').addEventListener('click', function () {
+      var r = compute(); if (!r) return;
+      var line = tool.getAttribute('data-name') + ': ' + r.total + '/' + tool.getAttribute('data-max') + (r.band ? ' (' + r.band + ')' : '');
+      var box = document.querySelector('textarea[name=clinical_exam]');
+      if (!box || box.value.indexOf(line) !== -1) return;
+      box.value = (box.value.trim() ? box.value.replace(/\s*$/, '') + '\n' : '') + line;
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    compute();
+  });
+})();
+</script>
 <script>
 (function () {
   var root = document.querySelectorAll('[data-panel-fields]');

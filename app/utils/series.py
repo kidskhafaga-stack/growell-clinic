@@ -106,6 +106,11 @@ def _panel_points(patient_id, lang="ar"):
     for meta in panels.all_panels().values():
         for field in meta.get("fields", []):
             labels.setdefault(field["code"], field)
+    # The assessment tools' scores (ب-٤) are readings too, named by the tool.
+    from app.utils import visit_scores
+
+    for tool in visit_scores.all_tools():
+        labels.setdefault(tool["code"], {"label_ar": tool["name_ar"], "label_en": tool["name_en"]})
 
     out = []
     for row in rows:

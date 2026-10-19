@@ -335,6 +335,20 @@ SECTIONS = [
              "latest weight on file shows with its date, and an old one is used only "
              "when you press «Use this weight». Allergy and interaction checks run "
              "as usual."),
+            ("<b>أدوات التقييم جوه الكشف:</b> تحت خانة الفحص «أدوات التقييم»: درجة "
+             "الخانوق (Westley)، ودرجة الجفاف (Clinical Dehydration Scale)، ودرجة الحلق "
+             "(Centor / McIsaac). علّم اللي شايفه والبرنامج بيجمع الدرجة وبيكتب الفئة "
+             "لو المرجع نفسه بيحددها — والنتيجة درجة مش قرار. المرجع مكتوب تحت كل "
+             "أداة، وآخر درجة من زيارة قبل كده جنبها، وزرار «اكتبها في الفحص». الدرجة "
+             "الكاملة بتتحفظ مع الكشف وبتطلع في منحنيات المريض.",
+             "<b>Assessment tools in the visit:</b> under the examination box, "
+             "«Assessment tools»: the Westley croup score, the Clinical Dehydration "
+             "Scale and the Centor / McIsaac sore-throat score. Mark what you see; "
+             "the score is added up, with its band where the source itself defines "
+             "one — a score, not a decision. The source is written under each tool, "
+             "the last score from an earlier visit beside it, and «Write it in the "
+             "examination» adds it to the text. A finished score is saved with the "
+             "visit and shows in the patient's curves."),
             ("<b>الشهادات من الكشف:</b> زرار «شهادة من الكشف» تحت الكشف بيطلّع إجازة "
              "مرضية / عدم حضور، أو شهادة لياقة طبية، أو تقرير مختصر للزيارة — "
              "بالعربي أو الإنجليزي. الاسم والسن والتاريخ بييجوا من الكشف، والطبيب "

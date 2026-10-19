@@ -14850,5 +14850,18 @@
     "ph_diagnosis": "Diagnosis (if agreed)",
     "ph_doctor": "Doctor's name",
     "texts_hint": "The green blocks are filled from the visit — add them with the buttons above each box, delete them like any word."
+  },
+  "vs": {
+    "title": "Assessment tools",
+    "hint": "Mark what you see and the score is added up — a score, not a decision.",
+    "last": "Last time: {total} ({date})",
+    "age_out": "This tool is for ages {a} to {b} months — the patient is outside them.",
+    "age_pick": "The age is outside what the source scores; pick it yourself.",
+    "to_exam": "Write it in the examination",
+    "clear": "Clear",
+    "reference": "Source",
+    "bands_reference": "Bands",
+    "answered": "{n} of {m} marked — the score is saved once all are.",
+    "done": "Complete — it will be saved with the visit."
   }
 }

@@ -1,0 +1,123 @@
+{
+  "_note_ar": "أدوات التقييم جوه الكشف (DOCTOR_EASE_PLAN.md ب-٤). كل أداة بنودها ونقطها زي المرجع المنشور بالظبط، والمرجع مكتوب جنبها. البرنامج بيجمع الدرجة بس — والنتيجة درجة مش قرار. الفئات (bands) بتتكتب بس لما المرجع نفسه بيحددها، وبالمرجع بتاعها. أداة جديدة بتتضاف هنا من غير كود. «for» قايمة ألواح التخصص اللي الأداة بتظهر معاها، و«*» يعني في كل كشف.",
+  "_note_en": "Assessment tools in the visit (DOCTOR_EASE_PLAN.md ب-٤). Items and points exactly as published, the reference beside each. The program only adds up the score — a score, not a decision. Bands only where the source itself defines them, with their source. c-ACT/ACT are not here: their wording is copyrighted (GSK); the asthma panel keeps the total typed by hand.",
+  "tools": [
+    {
+      "key": "westley",
+      "code": "score_westley",
+      "name_ar": "درجة الخانوق (Westley)",
+      "name_en": "Westley croup score",
+      "min": 0,
+      "max": 17,
+      "for": ["*"],
+      "reference": "Westley CR, Cotton EK, Brooks JG. Nebulized racemic epinephrine by IPPB for the treatment of croup: a double-blind study. Am J Dis Child. 1978;132(5):484–487.",
+      "items": [
+        {"code": "conscious", "label_ar": "مستوى الوعي", "label_en": "Level of consciousness",
+         "options": [
+           {"ar": "طبيعي (ويشمل النوم)", "en": "Normal, including asleep", "points": 0},
+           {"ar": "مشوَّش", "en": "Disoriented", "points": 5}]},
+        {"code": "cyanosis", "label_ar": "الزُّرقة", "label_en": "Cyanosis",
+         "options": [
+           {"ar": "مفيش", "en": "None", "points": 0},
+           {"ar": "مع الهياج", "en": "With agitation", "points": 4},
+           {"ar": "وهو هادي", "en": "At rest", "points": 5}]},
+        {"code": "stridor", "label_ar": "الصرير", "label_en": "Stridor",
+         "options": [
+           {"ar": "مفيش", "en": "None", "points": 0},
+           {"ar": "مع الهياج", "en": "With agitation", "points": 1},
+           {"ar": "وهو هادي", "en": "At rest", "points": 2}]},
+        {"code": "air_entry", "label_ar": "دخول الهواء", "label_en": "Air entry",
+         "options": [
+           {"ar": "طبيعي", "en": "Normal", "points": 0},
+           {"ar": "قليل", "en": "Decreased", "points": 1},
+           {"ar": "قليل جدًا", "en": "Markedly decreased", "points": 2}]},
+        {"code": "retractions", "label_ar": "انسحاب الصدر", "label_en": "Retractions",
+         "options": [
+           {"ar": "مفيش", "en": "None", "points": 0},
+           {"ar": "خفيف", "en": "Mild", "points": 1},
+           {"ar": "متوسط", "en": "Moderate", "points": 2},
+           {"ar": "شديد", "en": "Severe", "points": 3}]}
+      ],
+      "bands": [
+        {"max": 2, "ar": "خفيف", "en": "Mild"},
+        {"max": 7, "ar": "متوسط", "en": "Moderate"},
+        {"max": 11, "ar": "شديد", "en": "Severe"},
+        {"max": 17, "ar": "فشل تنفسي وشيك", "en": "Impending respiratory failure"}
+      ],
+      "bands_reference": "Bjornson CL, Johnson DW. Croup in children. CMAJ. 2013;185(15):1317–1323 (severity categories of the Westley score)."
+    },
+    {
+      "key": "cds",
+      "code": "score_cds",
+      "name_ar": "درجة الجفاف (Clinical Dehydration Scale)",
+      "name_en": "Clinical Dehydration Scale",
+      "min": 0,
+      "max": 8,
+      "for": ["*"],
+      "age_months": [1, 36],
+      "reference": "Friedman JN, Goldman RD, Srivastava R, Parkin PC. Development of a clinical dehydration scale for use in children between 1 and 36 months of age. J Pediatr. 2004;145(2):201–207.",
+      "items": [
+        {"code": "appearance", "label_ar": "الشكل العام", "label_en": "General appearance",
+         "options": [
+           {"ar": "طبيعي", "en": "Normal", "points": 0},
+           {"ar": "عطشان أو مش مستقر أو خامل لكن بيتضايق لما نلمسه", "en": "Thirsty, restless, or lethargic but irritable when touched", "points": 1},
+           {"ar": "نعسان، مرخي، بارد أو عرقان، أو غايب عن الوعي", "en": "Drowsy, limp, cold or sweaty, with or without coma", "points": 2}]},
+        {"code": "eyes", "label_ar": "العينين", "label_en": "Eyes",
+         "options": [
+           {"ar": "طبيعية", "en": "Normal", "points": 0},
+           {"ar": "غايرة شوية", "en": "Slightly sunken", "points": 1},
+           {"ar": "غايرة جدًا", "en": "Very sunken", "points": 2}]},
+        {"code": "mucosa", "label_ar": "الأغشية المخاطية (اللسان)", "label_en": "Mucous membranes (tongue)",
+         "options": [
+           {"ar": "رطبة", "en": "Moist", "points": 0},
+           {"ar": "لزجة", "en": "Sticky", "points": 1},
+           {"ar": "ناشفة", "en": "Dry", "points": 2}]},
+        {"code": "tears", "label_ar": "الدموع", "label_en": "Tears",
+         "options": [
+           {"ar": "موجودة", "en": "Tears", "points": 0},
+           {"ar": "قليلة", "en": "Decreased tears", "points": 1},
+           {"ar": "مفيش", "en": "Absent tears", "points": 2}]}
+      ],
+      "bands": [
+        {"max": 0, "ar": "مفيش جفاف", "en": "No dehydration"},
+        {"max": 4, "ar": "جفاف بسيط", "en": "Some dehydration"},
+        {"max": 8, "ar": "جفاف متوسط أو شديد", "en": "Moderate or severe dehydration"}
+      ],
+      "bands_reference": "Friedman JN et al., J Pediatr 2004 (the scale's own categories)."
+    },
+    {
+      "key": "mcisaac",
+      "code": "score_mcisaac",
+      "name_ar": "درجة الحلق (Centor / McIsaac)",
+      "name_en": "Sore throat score (Centor / McIsaac)",
+      "min": -1,
+      "max": 5,
+      "for": ["*"],
+      "reference": "McIsaac WJ, White D, Tannenbaum D, Low DE. A clinical score to reduce unnecessary antibiotic use in patients with sore throat. CMAJ. 1998;158(1):75–83. (Modified from Centor RM et al., Med Decis Making. 1981;1(3):239–246.)",
+      "items": [
+        {"code": "fever", "label_ar": "حرارة أعلى من ٣٨°م", "label_en": "Temperature above 38 °C",
+         "options": [
+           {"ar": "لأ", "en": "No", "points": 0},
+           {"ar": "أيوه", "en": "Yes", "points": 1}]},
+        {"code": "no_cough", "label_ar": "الكحة", "label_en": "Cough",
+         "options": [
+           {"ar": "موجودة", "en": "Present", "points": 0},
+           {"ar": "مفيش كحة", "en": "Absent", "points": 1}]},
+        {"code": "nodes", "label_ar": "غدد رقبة أمامية متورمة ومؤلمة", "label_en": "Swollen, tender anterior cervical nodes",
+         "options": [
+           {"ar": "لأ", "en": "No", "points": 0},
+           {"ar": "أيوه", "en": "Yes", "points": 1}]},
+        {"code": "tonsils", "label_ar": "تورّم اللوز أو صديد عليها", "label_en": "Tonsillar swelling or exudate",
+         "options": [
+           {"ar": "لأ", "en": "No", "points": 0},
+           {"ar": "أيوه", "en": "Yes", "points": 1}]},
+        {"code": "age", "label_ar": "السن", "label_en": "Age", "from_age": true,
+         "options": [
+           {"ar": "٣ – ١٤ سنة", "en": "3–14 years", "points": 1, "years": [3, 14]},
+           {"ar": "١٥ – ٤٤ سنة", "en": "15–44 years", "points": 0, "years": [15, 44]},
+           {"ar": "٤٥ سنة أو أكتر", "en": "45 years or more", "points": -1, "years": [45, 200]}]}
+      ],
+      "bands": []
+    }
+  ]
+}

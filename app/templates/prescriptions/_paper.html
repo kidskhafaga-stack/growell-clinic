@@ -16,7 +16,13 @@
 {% if not tpl.show_program_line %}
 <style>@media print { .print-footer { display: none !important; } }</style>
 {% endif %}
-<div class="card gc-scale-in print-area" id="rxPaper" style="font-size:{{ tpl.font_size }}px;">
+{# Cairo, shipped with the program (static/vendor/cairo) — the prescription and
+   the certificate print in the same face on every clinic computer, with or
+   without the internet. Here rather than in each page that includes the
+   paper: the staff view, the family's page and the test print all get it. #}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/cairo/cairo.css') }}">
+<style>.rx-cairo, .rx-cairo h2, .rx-cairo strong, .rx-cairo .table { font-family: "Cairo Local", "Cairo", "Segoe UI", Tahoma, sans-serif; }</style>
+<div class="card gc-scale-in print-area rx-cairo" id="rxPaper" style="font-size:{{ tpl.font_size }}px;">
 {# Shrink the type until the whole prescription fits one sheet.
 
    The measurement is the awkward part. On screen the paper is as wide as the
@@ -74,6 +80,9 @@
 
   if (document.readyState === 'complete') fit();
   else window.addEventListener('load', fit);
+  // And again once Cairo has arrived: a fit measured in the fallback face is
+  // wrong by however much taller Cairo's lines are.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
 })();
 </script>
 {% endif %}
