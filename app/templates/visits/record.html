@@ -1106,6 +1106,105 @@
           <i class="bi bi-hospital"></i> {{ t('visits.refer_now') }}</button>
         {% endif %}
       </form>
+
+      {# Referral to a doctor (ب-٨): one inside the clinic, picked from the
+         list — it shows on their «Referred to you» list and on the child's
+         visit when they open it — or one outside, written once into the
+         clinic's book. The letter prints on the prescription layout, and a
+         line can go on this visit's prescription. #}
+      {% if docref %}
+      <div class="docref" id="docref" data-docref>
+        <label><i class="bi bi-person-badge"></i> {{ t('docref.title') }}</label>
+        {% for r in docref.to_me %}
+        <div class="docref-in" data-docref-to-me="{{ r.id }}">
+          <div><i class="bi bi-arrow-down-left-circle"></i> <strong>{{ t('docref.referred_to_you') }}</strong>
+            {% if r.decided_by %}{{ t('docref.from') }} {{ r.decided_by.doctor_print_name(current_lang) }}{% endif %}
+            <span class="hint" style="margin:0;" dir="ltr">{{ r.decided_at|clinic_stamp('%Y-%m-%d') }}</span></div>
+          <div>{{ r.reason }}</div>
+          <form method="post" action="{{ url_for('visits.referral_feedback', referral_id=r.id) }}" class="docref-reply">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <textarea class="input" name="feedback" rows="2" required placeholder="{{ t('docref.reply_ph') }}"></textarea>
+            <button class="btn btn-sm btn-primary gc-press" type="submit" data-docref-reply="{{ r.id }}"><i class="bi bi-reply"></i> {{ t('docref.reply') }}</button>
+          </form>
+        </div>
+        {% endfor %}
+
+        {% if docref.rows %}
+        <ul class="docref-list">
+          {% for r in docref.rows %}
+          <li data-docref-row="{{ r.id }}">
+            <div><strong>{{ t('docref.to') }} {{ r.doctor_name(current_lang) }}</strong>{% if r.doctor_specialty() %} — {{ r.doctor_specialty() }}{% endif %}{% if r.external_doctor and r.external_doctor.place %} · {{ r.external_doctor.place }}{% endif %}
+              {% if r.to_doctor_id %}<span class="badge badge--role">{{ t('docref.inside') }}</span>{% else %}<span class="badge badge--muted">{{ t('docref.outside') }}</span>{% endif %}</div>
+            <div class="hint" style="margin:2px 0;">{{ r.reason }}</div>
+            {% if r.answered %}
+            <div class="docref-answer" data-docref-answer="{{ r.id }}"><i class="bi bi-chat-left-text"></i> <strong>{{ t('docref.answer') }}:</strong> {{ r.feedback }}
+              {% if not r.signed %}
+              <form method="post" action="{{ url_for('visits.referral_review', referral_id=r.id) }}" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-outline gc-press" type="submit" data-docref-sign="{{ r.id }}"><i class="bi bi-pen"></i> {{ t('referrals.sign') }}</button>
+              </form>
+              {% else %}<span class="badge badge--role">{{ t('docref.signed') }}</span>{% endif %}
+            </div>
+            {% else %}
+            <div class="hint" style="margin:2px 0;">{{ t('docref.no_answer') }}</div>
+            {% endif %}
+            <div class="docref-acts">
+              <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('visits.referral_letter', referral_id=r.id) }}" target="_blank" data-docref-letter="{{ r.id }}"><i class="bi bi-printer"></i> {{ t('docref.letter') }}</a>
+              {% if r.to_doctor_id %}
+              {% set bk = docref.booked.get(r.id) %}
+              {% if bk %}<span class="badge badge--role" data-docref-booked="{{ r.id }}"><i class="bi bi-calendar-check"></i> {{ t('docref.booked') }} <span dir="ltr">{{ bk.appt_date }}</span></span>
+              {% else %}<a class="btn btn-sm btn-outline gc-press" href="{{ url_for('appointments.create', patient_id=visit.patient_id, doctor_id=r.to_doctor_id) }}" data-docref-book="{{ r.id }}"><i class="bi bi-calendar-plus"></i> {{ t('docref.book') }}</a>{% endif %}
+              {% endif %}
+              {% if current_user.is_admin or r.decided_by_id == current_user.id %}
+              <form method="post" action="{{ url_for('visits.referral_doctor_edit', referral_id=r.id) }}" style="display:inline-flex;gap:6px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% if r.on_rx %}<button class="btn btn-sm btn-outline gc-press" name="action" value="rx_off" data-docref-rx="{{ r.id }}"><i class="bi bi-file-earmark-minus"></i> {{ t('docref.rx_off') }}</button>
+                {% else %}<button class="btn btn-sm btn-outline gc-press" name="action" value="rx_on" data-docref-rx="{{ r.id }}"><i class="bi bi-file-earmark-plus"></i> {{ t('docref.rx_on') }}</button>{% endif %}
+                <button class="btn btn-sm btn-outline gc-press" name="action" value="cancel" data-docref-cancel="{{ r.id }}" onclick="return confirm('{{ t('docref.cancel_q')|forceescape }}')"><i class="bi bi-x-circle"></i> {{ t('docref.cancel') }}</button>
+              </form>
+              {% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+
+        <details class="docref-new" {% if not docref.rows %}open{% endif %}>
+          <summary class="btn btn-sm btn-outline gc-press" style="list-style:none;"><i class="bi bi-plus-lg"></i> {{ t('docref.new') }}</summary>
+          <form method="post" action="{{ url_for('visits.refer_doctor', visit_id=visit.id) }}"
+                x-data="{ where: '{{ 'inside' if docref.doctors else 'outside' }}', ext: '' }" class="docref-form" data-docref-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="docref-where" role="radiogroup">
+              {% if docref.doctors %}<label><input type="radio" name="where" value="inside" x-model="where"> {{ t('docref.inside_long') }}</label>{% endif %}
+              <label><input type="radio" name="where" value="outside" x-model="where"> {{ t('docref.outside_long') }}</label>
+            </div>
+            {% if docref.doctors %}
+            <select class="input" name="to_doctor_id" x-show="where === 'inside'" data-docref-doctor>
+              {% for d in docref.doctors %}<option value="{{ d.id }}">{{ d.doctor_print_name(current_lang) }}{% if d.specialty %} — {{ d.specialty }}{% endif %}</option>{% endfor %}
+            </select>
+            {% endif %}
+            <div x-show="where === 'outside'" {% if docref.doctors %}x-cloak{% endif %} class="docref-out">
+              {% if docref.outside %}
+              <select class="input" name="external_id" x-model="ext" data-docref-book-pick>
+                <option value="">{{ t('docref.new_outside') }}</option>
+                {% for e in docref.outside %}<option value="{{ e.id }}">{{ e.display(current_lang) }}{% if e.specialty %} — {{ e.specialty }}{% endif %}{% if e.place %} · {{ e.place }}{% endif %}</option>{% endfor %}
+              </select>
+              {% endif %}
+              <div class="docref-grid" x-show="!ext">
+                <input class="input" name="ext_name" maxlength="160" placeholder="{{ t('docref.ext_name') }}">
+                <input class="input" name="ext_specialty" maxlength="160" placeholder="{{ t('docref.ext_specialty') }}">
+                <input class="input" name="ext_place" maxlength="200" placeholder="{{ t('docref.ext_place') }}">
+                <input class="input" name="ext_phone" maxlength="40" dir="ltr" placeholder="{{ t('docref.ext_phone') }}">
+              </div>
+            </div>
+            <textarea class="input" name="reason" rows="2" required placeholder="{{ t('docref.reason_ph') }}"></textarea>
+            <label class="docref-check"><input type="checkbox" name="on_rx" value="1" checked> {{ t('docref.on_rx') }}</label>
+            <p class="hint" style="margin:0;">{{ t('docref.hint') }}</p>
+            <button class="btn btn-sm btn-primary gc-press" type="submit" style="align-self:start;"><i class="bi bi-send"></i> {{ t('docref.save') }}</button>
+          </form>
+        </details>
+      </div>
+      {% endif %}
     </div>
 
     <form>
@@ -2928,6 +3027,19 @@
   .aftercare { border:1px dashed var(--line); border-radius:10px; padding:8px 10px; margin:4px 0 12px; display:grid; gap:6px; }
   .aftercare-head { font-weight:700; font-size:.9rem; }
   .aftercare-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0; }
+  .docref { border-top:1px dashed var(--line); margin-top:12px; padding-top:10px; display:grid; gap:8px; }
+  .docref-in { border:1px solid var(--line); border-inline-start:4px solid var(--green-600, var(--accent)); border-radius:10px; padding:8px 10px; display:grid; gap:6px; }
+  .docref-reply { display:grid; gap:6px; margin:0; }
+  .docref-list { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
+  .docref-list li { border:1px solid var(--line); border-radius:10px; padding:8px 10px; }
+  .docref-answer { margin:4px 0; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .docref-acts { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:6px; }
+  .docref-new summary::-webkit-details-marker { display:none; }
+  .docref-form { display:grid; gap:6px; margin-top:8px; }
+  .docref-where { display:flex; gap:14px; flex-wrap:wrap; }
+  .docref-where label, .docref-check { display:inline-flex; gap:6px; align-items:center; font-weight:400; }
+  .docref-out { display:grid; gap:6px; }
+  .docref-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:6px; }
   .aftercare-log { list-style:none; margin:2px 0 0; padding:0; display:grid; gap:4px; font-size:.86rem; }
   .aftercare-log li { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .vs-tools { border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin:4px 0 14px; display:grid; gap:6px; }

@@ -44,6 +44,49 @@
     <i class="bi bi-arrow-right"></i> {{ t('nav.visits') }}</a>
 </div>
 
+{# ب-٨: children another doctor here referred to **you**, still without
+   your answer. The answer goes back to the doctor who referred, who signs
+   it in the list below like any other reply. #}
+{% if to_me %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;" data-referrals-to-me>
+  <div style="padding:12px 16px;border-bottom:1px solid var(--line);">
+    <strong>{{ t('docref.to_me_title') }}</strong>
+    <div class="hint" style="margin-top:2px;">{{ t('docref.to_me_sub') }}</div>
+  </div>
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('referrals.child') }}</th><th>{{ t('docref.from') }}</th>
+      <th>{{ t('referrals.el_reason') }}</th><th>{{ t('referrals.days') }}</th>
+      <th>{{ t('docref.reply') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for row in to_me %}
+      <tr data-to-me="{{ row.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">{{ row.patient.name }}</a></td>
+        <td>{{ row.decided_by.doctor_print_name(current_lang) if row.decided_by else '—' }}</td>
+        <td>{{ row.reason }}
+          {% if row.visit_id %}<div><a class="hint" href="{{ url_for('visits.referral_letter', referral_id=row.id) }}" target="_blank"><i class="bi bi-file-earmark-text"></i> {{ t('docref.letter') }}</a></div>{% endif %}</td>
+        <td data-days="{{ row.waiting_days }}">{{ row.waiting_days }}</td>
+        <td>
+          <form method="post" action="{{ url_for('visits.referral_feedback', referral_id=row.id) }}"
+                style="display:flex;gap:6px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="input" name="feedback" style="max-width:220px;" required
+                   placeholder="{{ t('docref.reply_ph') }}">
+            <button class="btn btn-sm btn-primary gc-press" type="submit">
+              <i class="bi bi-reply"></i> {{ t('common.save') }}</button>
+          </form>
+          <a class="btn btn-sm btn-outline gc-press" style="margin-top:4px;" href="{{ url_for('appointments.create', patient_id=row.patient_id, doctor_id=current_user.id) }}"><i class="bi bi-calendar-plus"></i> {{ t('docref.book') }}</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
 {# **الردود اللي محدّش وقّع عليها فوق، عن قصد.**
 
    «راحت ومحدّش رد» بتبان ناقصة من بعيد — مفيش رد، خلاص. أما الصف اللي

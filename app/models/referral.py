@@ -41,7 +41,11 @@ from app.extensions import db
 
 #: النوعين اللي النية بتسمّيهم. نفس الورقة، والفرق إن الطفل راجع ولا لأ.
 REFERRAL, TRANSFER = ("referral", "transfer")
-KINDS = (REFERRAL, TRANSFER)
+#: **تحويل لطبيب** (DOCTOR_EASE_PLAN.md ب-٨): لدكتور جوّه العيادة من
+#: القايمة، أو لدكتور بره باسمه وتخصصه ومكانه. نفس الدايرة — راح، ورجع
+#: منه إيه، ومين راجعه — من غير بنود النقل اللي بتخص المستشفى التانية.
+DOCTOR = "doctor"
+KINDS = (REFERRAL, TRANSFER, DOCTOR)
 
 
 class Referral(db.Model):
@@ -109,6 +113,15 @@ class Referral(db.Model):
     #: يفضل مقروء.
     cancelled_at = db.Column(db.DateTime)
 
+    # ---- ب-٨: تحويل لطبيب ---------------------------------------------
+    #: لطبيب جوّه العيادة: بيظهر عنده في «محوّلين ليك» وعلى زيارة الطفل.
+    to_doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    #: أو لطبيب بره، من دفتر العيادة — اسمه وتخصصه ومكانه بيتكتبوا مرة.
+    external_doctor_id = db.Column(db.Integer, db.ForeignKey("external_doctors.id"),
+                                   index=True)
+    #: «محوّل إلى د. فلان — التخصص» على روشتة الزيارة دي، لما الطبيب يختار.
+    on_rx = db.Column(db.Boolean, default=False, nullable=False)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow,
                            nullable=False)
 
@@ -117,6 +130,8 @@ class Referral(db.Model):
     decided_by = db.relationship("User", foreign_keys=[decided_by_id])
     recorded_by = db.relationship("User", foreign_keys=[recorded_by_id])
     reviewed_by = db.relationship("User", foreign_keys=[reviewed_by_id])
+    to_doctor = db.relationship("User", foreign_keys=[to_doctor_id])
+    external_doctor = db.relationship("ExternalDoctor")
 
     @property
     def live(self):
@@ -158,5 +173,49 @@ class Referral(db.Model):
         end = self.feedback_at or datetime.utcnow()
         return int((end - self.decided_at).total_seconds() // 86400)
 
+    def doctor_name(self, lang="ar"):
+        """The doctor this referral went to, as it prints."""
+        if self.to_doctor is not None:
+            return self.to_doctor.doctor_print_name(lang)
+        if self.external_doctor is not None:
+            return self.external_doctor.display(lang)
+        return self.sent_to or ""
+
+    def doctor_specialty(self):
+        if self.to_doctor is not None:
+            return self.to_doctor.specialty or ""
+        if self.external_doctor is not None:
+            return self.external_doctor.specialty or ""
+        return ""
+
     def __repr__(self):
         return f"<Referral {self.kind} → {self.sent_to}>"
+
+
+class ExternalDoctor(db.Model):
+    """طبيب بره العيادة بتحوّل له — بيتكتب مرة ويتختار بعد كده.
+
+    عيادة لوحدها بتحوّل لنفس دكتور القلب ونفس دكتور العيون كل أسبوع،
+    وكتابة اسمه وعنوانه كل مرة هي اللي بتخلّي الخانة تتساب فاضية.
+    """
+
+    __tablename__ = "external_doctors"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(160), nullable=False)
+    specialty = db.Column(db.String(160))
+    #: مستشفى أو عيادة أو عنوان — اللي الأهل محتاجينه علشان يوصلوا.
+    place = db.Column(db.String(200))
+    phone = db.Column(db.String(40))
+    active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def display(self, lang="ar"):
+        name = (self.name or "").strip()
+        prefix = "د. " if lang == "ar" else "Dr. "
+        if name.startswith(("د.", "د ", "Dr", "dr", "Prof", "أ.د")):
+            return name
+        return prefix + name
+
+    def __repr__(self):
+        return f"<ExternalDoctor {self.name}>"

@@ -114,8 +114,13 @@ class Visit(db.Model):
 
     @property
     def referral(self):
-        """ورقة `ACT.14` الحيّة بتاعة الزيارة دي، لو فيه."""
-        rows = [row for row in (self.referrals or []) if row.live]
+        """ورقة `ACT.14` الحيّة بتاعة الزيارة دي، لو فيه.
+
+        **مش التحويل لطبيب** (ب-٨): طفل اتحوّل لدكتور عيون مش طفل خرج
+        من الكشف لمستشفى، وما ينفعش يبان «محوّل للطوارئ» على كل شاشة.
+        """
+        rows = [row for row in (self.referrals or [])
+                if row.live and row.kind != "doctor"]
         return max(rows, key=lambda r: (r.decided_at, r.id)) if rows else None
 
     @property

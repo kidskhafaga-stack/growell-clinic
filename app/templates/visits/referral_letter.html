@@ -1,0 +1,125 @@
+{% extends "shell.html" %}
+{% from "prescriptions/_letterhead.html" import letterhead, signature with context %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('docref.letter_title') }} — {{ row.patient.display_name(lang) }}{% endblock %}
+{% block page_heading %}{{ t('docref.letter_title') }}{% endblock %}
+
+{% block content %}
+{# The referral letter (ب-٨), on the referring doctor's prescription layout:
+   the same letterhead, page, margins, signature and stamp, in Cairo. What it
+   says comes from the visit as it stands — complaint, examination,
+   diagnosis, this visit's medicines — never typed again. A doctor outside
+   the clinic gets a reply slip at the bottom for the family to bring back. #}
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  {% if row.visit_id %}
+  <a class="btn btn-outline gc-press" href="{{ url_for('visits.record', visit_id=row.visit_id) }}#docref">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('cert.back_to_visit') }}</a>
+  {% else %}<span></span>{% endif %}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.referral_letter', referral_id=row.id, lang=('en' if lang == 'ar' else 'ar')) }}" data-letter-lang>
+      <i class="bi bi-translate"></i> {{ 'English' if lang == 'ar' else 'عربي' }}</a>
+    {% if row.live %}
+    <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()" data-letter-print><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+    {% endif %}
+  </div>
+</div>
+
+{% if not row.live %}
+<div class="card no-print" style="border-inline-start:4px solid var(--danger, #c0392b);margin-bottom:12px;padding:10px 14px;" data-letter-cancelled>
+  <strong>{{ t('docref.cancelled_badge') }}</strong>
+</div>
+{% endif %}
+
+{% if not tpl.show_program_line %}<style>@media print { .print-footer { display: none !important; } }</style>{% endif %}
+<div class="card gc-scale-in print-area ref-paper" data-referral-letter="{{ row.id }}" style="font-size:{{ tpl.font_size }}px;">
+  {% call letterhead(tpl, doc) %}{{ t('docref.letter_date') }}: <strong dir="ltr">{{ row.decided_at|clinic_stamp('%Y-%m-%d') }}</strong>{% endcall %}
+
+  <h2 class="ref-title">{{ t('docref.letter_title') }}</h2>
+
+  <p class="ref-to" data-letter-to><strong>{{ t('docref.letter_to') }}:</strong> {{ to_line }}
+    {% if row.external_doctor and row.external_doctor.phone %} · <span dir="ltr">{{ row.external_doctor.phone }}</span>{% endif %}</p>
+
+  <div class="ref-patient">
+    <span><strong>{{ t('docref.letter_child') }}:</strong> {{ row.patient.display_name(lang) }}</span>
+    <span><strong>{{ t('docref.letter_age') }}:</strong> {{ age }}</span>
+    {% if row.patient.gender %}<span><strong>{{ t('genders.' ~ row.patient.gender) }}</strong></span>{% endif %}
+    {% if row.patient.patient_number %}<span><strong>{{ t('docref.letter_file') }}:</strong> <bdi dir="ltr">{{ row.patient.patient_number }}</bdi></span>{% endif %}
+    {% if weight %}<span><strong>{{ t('docref.letter_weight') }}:</strong> <bdi dir="ltr">{{ weight.kg }} kg</bdi> <span class="ref-muted">(<bdi dir="ltr">{{ weight.date }}</bdi>)</span></span>{% endif %}
+  </div>
+
+  <p class="ref-greet">{{ t('docref.letter_greet') }}</p>
+
+  <div class="ref-block" data-letter-reason>
+    <div class="ref-h">{{ t('docref.letter_reason') }}</div>
+    <div class="ref-text">{{ row.reason }}</div>
+  </div>
+
+  {% set a = sheet.assessments if sheet else {} %}
+  {% if a.get('complaint') or a.get('exam') or diagnoses %}
+  <div class="ref-block" data-letter-summary>
+    <div class="ref-h">{{ t('docref.letter_summary') }}</div>
+    {% if a.get('complaint') %}<p><strong>{{ t('docref.letter_complaint') }}:</strong> {{ a.complaint }}</p>{% endif %}
+    {% if a.get('exam') %}<p><strong>{{ t('docref.letter_exam') }}:</strong> {{ a.exam }}</p>{% endif %}
+    {% if diagnoses %}<p><strong>{{ t('docref.letter_dx') }}:</strong> {{ diagnoses|join('، ' if lang == 'ar' else ', ') }}</p>{% endif %}
+    {% if a.get('plan') %}<p><strong>{{ t('docref.letter_plan') }}:</strong> {{ a.plan }}</p>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if row.patient.allergies %}
+  <div class="ref-block ref-allergy" data-letter-allergy>
+    <div class="ref-h">{{ t('docref.letter_allergies') }}</div>
+    <div class="ref-text">{{ row.patient.allergies }}</div>
+  </div>
+  {% endif %}
+
+  <div class="ref-block" data-letter-meds>
+    <div class="ref-h">{{ t('docref.letter_meds') }}</div>
+    {% if sheet and sheet.medicines %}
+    <ol>{% for m in sheet.medicines %}<li>{{ m.name }}{% if m.dose %} — {{ m.dose }}{% endif %}{% if m.frequency %} · {{ m.frequency }}{% endif %}{% if m.duration %} · {{ m.duration }}{% endif %}</li>{% endfor %}</ol>
+    {% else %}<div class="ref-muted">{{ t('docref.letter_no_meds') }}</div>{% endif %}
+  </div>
+
+  <p class="ref-thanks">{{ t('docref.letter_thanks') }}</p>
+
+  {{ signature(tpl, doc) }}
+
+  {% if not row.to_doctor_id %}
+  <div class="ref-slip" data-letter-slip>
+    <div class="ref-h">{{ t('docref.slip_title') }}</div>
+    <div class="ref-muted">{{ t('docref.slip_hint') }}</div>
+    <div class="ref-lines"><span></span><span></span><span></span><span></span></div>
+    <div class="ref-slip-foot"><span>{{ t('docref.slip_name') }}: ..................................</span><span>{{ t('docref.slip_date') }}: ............</span></div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/cairo/cairo.css') }}">
+<style>
+  @page { size: {{ tpl.page_size or 'A4' }}; margin: {{ tpl.m_top }}mm {{ tpl.m_right }}mm {{ tpl.m_bottom }}mm {{ tpl.m_left }}mm; }
+  @media print {
+    .sidebar,.topbar,.no-print,.flashes{display:none!important;}
+    .main{margin:0!important;}.content{padding:0!important;}
+    .card{box-shadow:none!important;border:none!important;}
+    body{background:#fff!important;}
+  }
+  .ref-paper, .ref-paper h2, .ref-paper strong { font-family: "Cairo Local", "Cairo", "Segoe UI", Tahoma, sans-serif; }
+  .ref-paper { position:relative; max-width:820px; margin-inline:auto; line-height:1.85; }
+  .ref-title { text-align:center; margin:0.4em 0 0.6em; font-size:1.5em; font-weight:800; }
+  .ref-to { margin:0 0 0.6em; }
+  .ref-patient { display:flex; flex-wrap:wrap; gap:0.4em 1.4em; padding:0.5em 0; border-block:1px solid var(--line); margin-bottom:0.8em; }
+  .ref-greet, .ref-thanks { margin:0.6em 0; }
+  .ref-block { margin:0.7em 0; }
+  .ref-block p { margin:0.15em 0; }
+  .ref-block ol { margin:0.2em 0; padding-inline-start:22px; }
+  .ref-h { font-weight:700; color:var(--green-800, var(--ink)); border-bottom:1px solid var(--green-200, var(--line)); padding-bottom:0.15em; margin-bottom:0.35em; }
+  .ref-text { white-space:pre-line; }
+  .ref-muted { color:var(--muted); }
+  .ref-allergy .ref-h { color:var(--danger, #b42318); }
+  .ref-slip { margin-top:1.4em; padding-top:0.8em; border-top:2px dashed var(--line); break-inside:avoid; }
+  .ref-lines { display:grid; gap:1.4em; margin:0.9em 0; }
+  .ref-lines span { border-bottom:1px solid var(--line); height:0; }
+  .ref-slip-foot { display:flex; justify-content:space-between; gap:1em; flex-wrap:wrap; }
+</style>
+{% endblock %}

@@ -24,7 +24,7 @@
 from datetime import datetime
 
 from app.extensions import db
-from app.models.referral import KINDS, REFERRAL, Referral
+from app.models.referral import DOCTOR, KINDS, REFERRAL, ExternalDoctor, Referral
 
 #: البنود اللي **حد لازم يكتبها** — ودي اللي :func:`missing` بتعدّها.
 #:
@@ -127,6 +127,11 @@ def missing(row):
     """ناقص إيه من الورقة — **بالاسم**، مش «غير مكتملة»."""
     if row is None:
         return []
+    if row.kind == DOCTOR:
+        # A doctor down the corridor or across town: no ambulance, no
+        # monitoring on the way. Who it went to and why are taken at the
+        # door, so only (viii) can still be missing.
+        return [] if row.decided_by_id is not None else ["decided_by"]
     gaps = [name for name in WRITTEN
             if not (getattr(row, name, None) or "").strip()]
     # (viii) مش نص، فبيتسأل لوحده: **مين قرّر**. وده البند اللي
@@ -146,7 +151,10 @@ def for_patient(patient_id, limit=50):
 
 
 def latest_for_visit(visit_id):
-    return (_live(Referral.query.filter_by(visit_id=visit_id))
+    """The emergency/hospital paper of this visit — not a referral to a
+    doctor, which has its own card and its own cancel."""
+    return (_live(Referral.query.filter(Referral.visit_id == visit_id,
+                                        Referral.kind != DOCTOR))
             .order_by(Referral.decided_at.desc(), Referral.id.desc()).first())
 
 
@@ -160,7 +168,7 @@ def waiting(limit=200):
     **وأقدم الأول**، زي كل قايمة انتظار في البرنامج: اللي بتحطّ النهاردة
     فوق هي اللي بتاعة الشهر اللي فات لسه فيها آخر السنة.
     """
-    return (_live(Referral.query.filter(Referral.kind == REFERRAL,
+    return (_live(Referral.query.filter(Referral.kind.in_((REFERRAL, DOCTOR)),
                                         Referral.feedback_at.is_(None)))
             .order_by(Referral.decided_at.asc()).limit(limit).all())
 
@@ -238,6 +246,120 @@ def _medicines(row):
     return [{"name": item.drug_name, "dose": item.dose,
              "frequency": item.frequency, "duration": item.duration}
             for item in query.order_by(PrescriptionItem.id).all()]
+
+
+# ---- ب-٨: تحويل لطبيب -------------------------------------------------
+def external_doctor(name, specialty=None, place=None, phone=None):
+    """The clinic's book of outside doctors: the same name at the same
+    place is the same doctor, kept once. ``None`` without a name."""
+    name = " ".join((name or "").split())[:160]
+    if not name:
+        return None
+    place = " ".join((place or "").split())[:200] or None
+    row = (ExternalDoctor.query
+           .filter(db.func.lower(ExternalDoctor.name) == name.lower())
+           .filter(db.func.lower(db.func.coalesce(ExternalDoctor.place, ""))
+                   == (place or "").lower())
+           .first())
+    if row is None:
+        row = ExternalDoctor(name=name, place=place)
+        db.session.add(row)
+    spec = " ".join((specialty or "").split())[:160]
+    if spec:
+        row.specialty = spec
+    tel = (phone or "").strip()[:40]
+    if tel:
+        row.phone = tel
+    row.active = True
+    return row
+
+
+def external_doctors():
+    return (ExternalDoctor.query.filter_by(active=True)
+            .order_by(ExternalDoctor.name).all())
+
+
+def _line(row, lang):
+    parts = [row.doctor_name(lang)]
+    if row.doctor_specialty():
+        parts.append(row.doctor_specialty())
+    if row.external_doctor is not None and row.external_doctor.place:
+        parts.append(row.external_doctor.place)
+    return " — ".join(p for p in parts if p)
+
+
+def refer_to_doctor(visit, reason, user=None, to_doctor=None, external=None,
+                    on_rx=False, at=None):
+    """A referral to one doctor: inside the clinic (``to_doctor``, a user
+    who sees patients) or outside it (``external``, from the book). The
+    caller commits."""
+    if visit is None:
+        raise ValueError("no visit")
+    if (to_doctor is None) == (external is None):
+        raise ValueError("one doctor")
+    row = refer(visit.patient, reason, kind=DOCTOR, user=user, visit=visit, at=at)
+    row.to_doctor_id = getattr(to_doctor, "id", None)
+    row.external_doctor_id = getattr(external, "id", None)
+    row.to_doctor, row.external_doctor = to_doctor, external
+    row.on_rx = bool(on_rx)
+    # The ordinary «sent to» column too, so every list that already shows
+    # where a paper went shows this one without knowing about doctors.
+    row.sent_to = _line(row, "ar")[:120]
+    return row
+
+
+def doctor_line(row, lang="ar"):
+    """«د. فلان — التخصص — المكان», as the prescription and lists print it."""
+    return _line(row, lang)
+
+
+def for_visit(visit_id):
+    """This visit's referrals to doctors, newest first."""
+    return (_live(Referral.query.filter_by(visit_id=visit_id, kind=DOCTOR))
+            .order_by(Referral.decided_at.desc(), Referral.id.desc()).all())
+
+
+def on_paper(visit_id):
+    """The ones the doctor asked to appear on this visit's prescription."""
+    if not visit_id:
+        return []
+    return [r for r in for_visit(visit_id) if r.on_rx]
+
+
+def to_me(user_id, limit=200):
+    """Children referred to this doctor who have no answer yet — oldest
+    first, like every waiting list."""
+    return (_live(Referral.query.filter(Referral.kind == DOCTOR,
+                                        Referral.to_doctor_id == user_id,
+                                        Referral.feedback_at.is_(None)))
+            .order_by(Referral.decided_at.asc()).limit(limit).all())
+
+
+def open_for(patient_id, doctor_id):
+    """What this child was referred to this doctor for and is still
+    waiting on — shown when the doctor opens the child's visit."""
+    if not (patient_id and doctor_id):
+        return []
+    return (_live(Referral.query.filter(Referral.kind == DOCTOR,
+                                        Referral.patient_id == patient_id,
+                                        Referral.to_doctor_id == doctor_id,
+                                        Referral.feedback_at.is_(None)))
+            .order_by(Referral.decided_at.asc()).all())
+
+
+def booking(row):
+    """The appointment the child has with the doctor it was referred to,
+    made on or after the referral — ``None`` when nothing is booked yet."""
+    from app.models import Appointment
+
+    if row is None or row.to_doctor_id is None:
+        return None
+    return (Appointment.query
+            .filter(Appointment.patient_id == row.patient_id,
+                    Appointment.doctor_id == row.to_doctor_id,
+                    Appointment.appt_date >= row.decided_at.date(),
+                    Appointment.status.notin_(("cancelled", "no_show")))
+            .order_by(Appointment.appt_date.asc()).first())
 
 
 def counts():
