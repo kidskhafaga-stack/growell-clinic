@@ -2800,6 +2800,22 @@ SECTIONS = [
              "the company sends delivery reports, give it the address on the "
              "screen and messages are marked delivered or failed. An Arabic SMS "
              "is 70 characters, 67 per part. Automatic sending only."),
+            ("<b>اختيار شركة SMS في مصر:</b> الشركات بتبيع باقات رسايل مدفوعة مقدماً، "
+             "والرسالة بتتحسب بقروش (بتقل كل ما الباقة تكبر)، وكل جزء من الرسالة "
+             "الطويلة بيتحسب لوحده. اسم المرسل (اسم العيادة بالإنجليزي) لازم يتسجل "
+             "الأول، ومحتاج غالباً السجل التجاري وخطاب من العيادة، وبياخد من أسبوعين "
+             "لتلاتة؛ والأسماء العامة زي INFO ما بتتقبلش. قبل ما تختار اسأل الشركة: "
+             "عندها API؟ بتبعت تقارير وصول على عنوان؟ بتغطي الأربع شبكات؟ وخد منها "
+             "شرح الـAPI علشان تملا خانات الشاشة.",
+             "<b>Choosing an SMS company in Egypt:</b> companies sell prepaid "
+             "message bundles; each message costs a fraction of a pound (less in "
+             "larger bundles), and every part of a long message is charged. The "
+             "sender name (the clinic's name in English) must be registered first, "
+             "usually with the commercial registration and a letter from the "
+             "clinic, and takes two to three weeks; generic names such as INFO are "
+             "refused. Before choosing, ask the company: does it have an API? Does "
+             "it send delivery reports to an address? Does it cover all four "
+             "networks? And get its API documentation to fill in the screen."),
         ],
     },
     {
