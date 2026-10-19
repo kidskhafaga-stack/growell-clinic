@@ -21,7 +21,7 @@
     {% if current_user.can_access('settings') %}
     <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.templates') }}"><i class="bi bi-sliders"></i> {{ t('rxtpl.manage') }}</a>
     {% endif %}
-    <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('rx.print') }}</button>
+    <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()" data-key="KeyP" title="{{ t('rx.print') }} (P)"><i class="bi bi-printer"></i> {{ t('rx.print') }}</button>
     {# The digital copy is a different document from the printed one, so it is
        a different button rather than a checkbox somebody forgets to tick. #}
     {% if not digital %}
