@@ -78,3 +78,17 @@ def test_a_conditional_field_is_saved_only_when_it_applies(desk):
     _save(desk, specialty_panel="dentistry", m_behaviour_route="إقناع وتطمين",
           m_ga_reason="صغر السن", m_occlusion="طبيعي")
     assert "ga_reason" not in _readings(desk)
+
+
+def test_asa_and_fasting_show_with_sedation_and_general_anaesthesia():
+    """Asked and answered: «الاتنين» — with general anaesthesia and with
+    sedation (nitrous oxide or an oral sedative), not with reassurance alone."""
+    from app.utils import panels
+
+    fields = {f["code"]: f for f in panels.all_panels()["dentistry"]["fields"]}
+    for code in ("asa_grade", "fasting_confirmed"):
+        field = fields[code]
+        for route in ("تخدير كلي", "أكسيد النيتروز", "مهدئ بالفم"):
+            assert panels.shown(field, {"behaviour_route": route}), (code, route)
+        for route in ("إقناع وتطمين", "لم يُقرَّر", ""):
+            assert not panels.shown(field, {"behaviour_route": route}), (code, route)

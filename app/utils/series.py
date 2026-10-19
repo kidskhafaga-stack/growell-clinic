@@ -109,7 +109,7 @@ def _panel_points(patient_id, lang="ar"):
     # The assessment tools' scores (ب-٤) are readings too, named by the tool.
     from app.utils import visit_scores
 
-    for tool in visit_scores.all_tools():
+    for tool in visit_scores.catalogue_tools():
         labels.setdefault(tool["code"], {"label_ar": tool["name_ar"], "label_en": tool["name_en"]})
 
     out = []

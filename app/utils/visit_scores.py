@@ -27,12 +27,94 @@ def _catalogue():
         return json.load(fh)
 
 
-def all_tools():
+def catalogue_tools():
+    """The tools as the catalogue has them — a licensed one without wording."""
     return list(_catalogue()["tools"])
 
 
+# ---- licensed tools (c-ACT, ACT) ---------------------------------------
+# Their wording is copyrighted. The catalogue carries only their shape; a
+# clinic that holds a licence enters the official text and who granted it
+# (Setting ``score_text:<key>``), and only then does the tool appear.
+def licence_text(key):
+    from app.models import Setting
+
+    try:
+        data = json.loads(Setting.get(f"score_text:{key}") or "{}")
+    except (TypeError, ValueError):
+        data = {}
+    return data if isinstance(data, dict) else {}
+
+
+def _lang_ready(tool, text, lang):
+    items = text.get("items") or []
+    if len(items) != len(tool["items"]):
+        return False
+    for shape, given in zip(tool["items"], items):
+        opts = given.get(f"options_{lang}") or []
+        if not (given.get(lang) or "").strip() or len(opts) != len(shape["options"]) \
+                or not all((o or "").strip() for o in opts):
+            return False
+    return True
+
+
+def licence_ready(tool, text=None):
+    """``[langs]`` the clinic has entered the full wording in, when it has
+    also said whose licence it is; ``[]`` otherwise."""
+    if not tool.get("licensed"):
+        return ["ar", "en"]
+    text = licence_text(tool["key"]) if text is None else text
+    if not (text.get("holder") or "").strip():
+        return []
+    return [lang for lang in ("ar", "en") if _lang_ready(tool, text, lang)]
+
+
+def _with_text(tool):
+    """A licensed tool with the clinic's wording put into its shape."""
+    if not tool.get("licensed"):
+        return tool
+    text = licence_text(tool["key"])
+    langs = licence_ready(tool, text)
+    if not langs:
+        return None
+    out = dict(tool, licence_holder=text.get("holder", ""), licence_ref=text.get("ref", ""))
+    items = []
+    for shape, given in zip(tool["items"], text["items"]):
+        item = dict(shape)
+        for lang in langs:
+            item[f"label_{lang}"] = given[lang].strip()
+        item.setdefault("label_ar", item.get("label_en", ""))
+        options = []
+        for k, opt in enumerate(shape["options"]):
+            o = dict(opt)
+            for lang in langs:
+                o[lang] = given[f"options_{lang}"][k].strip()
+            o.setdefault("ar", o.get("en", ""))
+            options.append(o)
+        item["options"] = options
+        items.append(item)
+    out["items"] = items
+    return out
+
+
+def all_tools():
+    """Every tool ready to use: a licensed one only once its wording is in."""
+    return [t for t in (_with_text(t) for t in catalogue_tools()) if t is not None]
+
+
+def save_licence(key, holder, ref, items):
+    """Keep a clinic's licensed wording. ``items``: one dict per question,
+    ``{ar, en, options_ar: [...], options_en: [...]}``."""
+    from app.models import Setting
+
+    Setting.set(f"score_text:{key}", json.dumps(
+        {"holder": (holder or "").strip()[:200], "ref": (ref or "").strip()[:200],
+         "items": items}, ensure_ascii=False))
+
+
 def by_code():
-    return {t["code"]: t for t in all_tools()}
+    """Every tool in the catalogue by its reading code (shape and names)."""
+    return {t["code"]: t for t in catalogue_tools()}
 
 
 def tools_for(panel_keys=()):

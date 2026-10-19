@@ -905,7 +905,8 @@
       {% if score_tools %}
       <div class="vs-tools" data-score-tools>
         <div class="vs-head"><strong><i class="bi bi-calculator"></i> {{ t('vs.title') }}</strong>
-          <span class="hint" style="margin:0;">{{ t('vs.hint') }}</span></div>
+          <span class="hint" style="margin:0;">{{ t('vs.hint') }}</span>
+          {% if current_user.is_admin %}<a class="hint" href="{{ url_for('visits.licensed_tools') }}" data-to-licensed style="margin:0;margin-inline-start:auto;"><i class="bi bi-patch-check"></i> {{ t('vs.lic_link') }}</a>{% endif %}</div>
         {% for tool in score_tools %}{% set st = (score_state or {}).get(tool.key) or {} %}
         <details class="vs-tool" data-score="{{ tool.key }}" data-max="{{ tool.max }}"
                  data-name="{{ tool['name_' ~ current_lang] or tool.name_ar }}"
@@ -937,7 +938,7 @@
             <span class="hint" style="margin:0;" data-score-progress></span>
             <input type="hidden" name="sc_{{ tool.key }}_clear" value="" data-score-clear-flag>
           </div>
-          <p class="hint vs-ref">{{ t('vs.reference') }}: <span dir="ltr">{{ tool.reference }}</span>{% if tool.bands_reference %}<br>{{ t('vs.bands_reference') }}: <span dir="ltr">{{ tool.bands_reference }}</span>{% endif %}</p>
+          <p class="hint vs-ref">{{ t('vs.reference') }}: <span dir="ltr">{{ tool.reference }}</span>{% if tool.licence_holder %}<br>{{ t('vs.lic_holder') }}: {{ tool.licence_holder }}{% if tool.licence_ref %} · <span dir="ltr">{{ tool.licence_ref }}</span>{% endif %}{% endif %}{% if tool.bands_reference %}<br>{{ t('vs.bands_reference') }}: <span dir="ltr">{{ tool.bands_reference }}</span>{% endif %}</p>
         </details>
         {% endfor %}
       </div>

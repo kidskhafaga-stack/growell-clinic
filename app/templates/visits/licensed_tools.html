@@ -1,0 +1,69 @@
+{% extends "shell.html" %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('vs.lic_title') }}{% endblock %}
+{% block page_heading %}{{ t('vs.lic_title') }}{% endblock %}
+
+{% block content %}
+{# Licensed assessment tools (ب-٤): c-ACT and ACT. Their wording is
+   copyrighted, so the program carries only their shape — how many questions
+   and each answer's points. A clinic that holds a licence types the official
+   wording here, with whose licence it is; the tool appears in «Assessment
+   tools» once a language is complete, and stays hidden until then. #}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title"><i class="bi bi-patch-check"></i> {{ t('vs.lic_title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('vs.lic_sub') }}</p>
+</div>
+
+{% for r in rows %}{% set tool = r.tool %}{% set tx = r.text %}
+<form method="post" action="{{ url_for('visits.licensed_tools') }}" class="card gc-scale-in lic-tool" id="tool-{{ tool.key }}" data-lic-tool="{{ tool.key }}" style="margin-bottom:14px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="tool" value="{{ tool.key }}">
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline;">
+    <h2 class="section-title" style="margin:0;">{{ tool['name_' ~ current_lang] or tool.name_ar }}</h2>
+    {% if r.ready %}<span class="badge badge--green" data-lic-on>{{ t('vs.lic_on', langs=(r.ready|join(' · '))) }}</span>
+    {% else %}<span class="badge badge--muted" data-lic-off>{{ t('vs.lic_off') }}</span>{% endif %}
+  </div>
+  <p class="hint" style="margin:6px 0 10px;max-width:72ch;">{{ tool.licence_note_ar if current_lang == 'ar' else t('vs.lic_note_en') }}
+    <br><span dir="ltr">{{ tool.reference }}</span></p>
+  <div class="form-grid">
+    <div class="form-row"><label for="h_{{ tool.key }}">{{ t('vs.lic_holder') }}</label>
+      <input class="input" id="h_{{ tool.key }}" name="holder" maxlength="200" value="{{ tx.holder or '' }}" placeholder="{{ t('vs.lic_holder_ph') }}"></div>
+    <div class="form-row"><label for="r_{{ tool.key }}">{{ t('vs.lic_ref') }}</label>
+      <input class="input" id="r_{{ tool.key }}" name="ref" maxlength="200" value="{{ tx.ref or '' }}" dir="auto"></div>
+  </div>
+  {% for shape in tool['items'] %}{% set i = loop.index0 %}{% set given_all = tx.get('items') or [] %}{% set given = given_all[i] if given_all|length > i else {} %}
+  <fieldset class="lic-q">
+    <legend>{{ t('vs.lic_question', n=loop.index) }}</legend>
+    <div class="form-grid">
+      <div class="form-row" style="margin:0;"><label>العربية</label>
+        <textarea class="input" name="q_{{ i }}_ar" rows="2" dir="rtl">{{ given.get('ar') or '' }}</textarea></div>
+      <div class="form-row" style="margin:0;"><label>English</label>
+        <textarea class="input" name="q_{{ i }}_en" rows="2" dir="ltr">{{ given.get('en') or '' }}</textarea></div>
+    </div>
+    <div class="lic-opts">
+      {% for opt in shape.options %}{% set k = loop.index0 %}
+      <div class="lic-opt">
+        <span class="lic-pts" title="{{ t('vs.lic_points') }}">{{ opt.points }}</span>
+        <input class="input" name="o_{{ i }}_{{ k }}_ar" dir="rtl" maxlength="200" value="{{ (given.get('options_ar') or [])[k] if (given.get('options_ar') or [])|length > k else '' }}" aria-label="{{ t('vs.lic_answer_ar', p=opt.points) }}">
+        <input class="input" name="o_{{ i }}_{{ k }}_en" dir="ltr" maxlength="200" value="{{ (given.get('options_en') or [])[k] if (given.get('options_en') or [])|length > k else '' }}" aria-label="{{ t('vs.lic_answer_en', p=opt.points) }}">
+      </div>
+      {% endfor %}
+    </div>
+  </fieldset>
+  {% endfor %}
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;">
+    <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+    <span class="hint" style="margin:0;">{{ t('vs.lic_save_hint') }}</span>
+  </div>
+</form>
+{% endfor %}
+<style>
+  .lic-q { border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:10px 0 0; }
+  .lic-q legend { padding:0 6px; font-weight:700; }
+  .lic-opts { display:grid; gap:6px; margin-top:8px; }
+  .lic-opt { display:grid; grid-template-columns:2.2em 1fr 1fr; gap:6px; align-items:center; }
+  .lic-pts { font-weight:800; text-align:center; font-variant-numeric:tabular-nums; color:var(--green-800);
+             background:color-mix(in srgb, var(--green-500) 12%, transparent); border-radius:6px; padding:4px 0; }
+  @media (max-width: 640px) { .lic-opt { grid-template-columns:2.2em 1fr; } .lic-opt input[dir=ltr] { grid-column:2; } }
+</style>
+{% endblock %}
