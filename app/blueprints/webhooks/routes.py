@@ -86,6 +86,28 @@ def wapilot_receive(secret):
     return jsonify(ok=True)
 
 
+# --------------------------------------------------------------- SMS ----
+# Delivery reports from the clinic's SMS company. Proved like WaPilot's: a
+# long secret in the path, since companies differ in what (if anything) they
+# sign. Many send these as a GET with the fields in the query string, so both
+# methods are read. Field names and values are the clinic's settings
+# (``utils/sms.normalize_dlr``) — nothing is guessed.
+@webhooks_bp.route("/sms/<secret>", methods=["GET", "POST"])
+@limit("webhook", WEBHOOK_PER_MINUTE, methods=("GET", "POST"))
+def sms_report(secret):
+    from app.utils import sms
+
+    if not path_secret_ok(secret, Setting.get("sms_webhook_secret", "")):
+        abort(403)
+    payload = request.get_json(silent=True)
+    if payload is None:
+        payload = request.form.to_dict() or request.args.to_dict()
+    for item in sms.normalize_dlr(payload):
+        inbound.apply_status(item)
+    db.session.commit()
+    return jsonify(ok=True)
+
+
 # --------------------------------------------- Messenger, Instagram ----
 # ``CONNECTHUB_PLAN.md`` stage two: the clinic's own Meta app, subscribed to
 # its Page (``page``) and the Instagram account linked to it (``instagram``).

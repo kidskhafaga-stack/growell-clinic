@@ -1593,7 +1593,14 @@ def occasions():
         # has no wording for would otherwise render as a blank line exactly
         # where a warning belongs.
         probe_wording={v: t("crm.probe_" + v) for v in wa_connect.VERDICTS},
+        sms_presets=_sms_presets(),
     )
+
+
+def _sms_presets():
+    from app.utils import sms
+
+    return sms.PRESETS
 
 
 @messages_bp.route("/occasions/template/<int:tpl_id>/enqueue", methods=["POST"])
@@ -1640,6 +1647,65 @@ def connection_test():
     from app.utils import wa_connect
 
     return jsonify(wa_connect.check())
+
+
+@messages_bp.route("/sms", methods=["POST"])
+@admin_required
+def sms_save():
+    """Save the SMS channel: off until switched on, and nothing assumed about
+    the company — the clinic writes what its documentation says."""
+    import secrets
+
+    from app.utils import sms
+
+    for key in ("sms_endpoint", "sms_auth_header", "sms_sender", "sms_payload",
+                "sms_id_field", "sms_ok_text", "sms_dlr_id_field",
+                "sms_dlr_status_field", "sms_dlr_delivered", "sms_dlr_failed"):
+        Setting.set(key, (request.form.get(key) or "").strip()[:2000])
+    method = request.form.get("sms_method")
+    Setting.set("sms_method", method if method in sms.METHODS else "json")
+    fmt = request.form.get("sms_phone_format")
+    Setting.set("sms_phone_format", fmt if fmt in sms.PHONE_FORMATS else "intl")
+    # A blank key box keeps the saved key: it is shown as dots, not echoed.
+    key_value = (request.form.get("sms_auth_value") or "").strip()
+    if key_value or request.form.get("sms_auth_clear"):
+        Setting.set("sms_auth_value", key_value)
+    Setting.set("sms_enabled", "1" if request.form.get("sms_enabled") else "0")
+    Setting.set("sms_fallback", "1" if request.form.get("sms_fallback") else "0")
+    known = set(AUTOMATION_TYPES)
+    Setting.set("sms_types", ",".join(t for t in request.form.getlist("sms_types") if t in known))
+    if request.form.get("sms_payload") and request.form.get("sms_method", "json") == "json":
+        try:
+            sms.build_request(sms.config(), "201000000000", "test")
+        except ValueError:
+            flash(t("sms.payload_invalid"), "warning")
+    if request.form.get("regen_sms_secret") or not Setting.get("sms_webhook_secret", ""):
+        Setting.set("sms_webhook_secret", secrets.token_urlsafe(24))
+    db.session.commit()
+    flash(t("settings.saved"), "success")
+    return redirect(url_for("messages.occasions") + "#sms")
+
+
+@messages_bp.route("/sms/test", methods=["POST"])
+@admin_required
+def sms_test():
+    """One SMS to one number, now — before any family gets one."""
+    from app.utils import sms
+
+    phone = (request.form.get("phone") or "").strip()
+    if not phone:
+        flash(t("crm.test_no_phone"), "warning")
+        return redirect(url_for("messages.occasions") + "#sms")
+    clinic = Setting.get("clinic_name_ar") or Setting.get("clinic_name") or ""
+    body = (request.form.get("text") or "").strip() or t("sms.test_text", clinic=clinic)
+    log = sms.send(body, phone, user_id=current_user.id, template_type="test",
+                   ignore_window=True)
+    db.session.commit()
+    if log.status == "sent":
+        flash(t("sms.test_sent", phone=log.to_phone or phone), "success")
+    else:
+        flash(t("crm.test_failed").replace("{err}", log.error or "—"), "danger")
+    return redirect(url_for("messages.occasions") + "#sms")
 
 
 @messages_bp.route("/type/<int:tpl_id>/save", methods=["POST"])

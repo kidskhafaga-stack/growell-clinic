@@ -2784,6 +2784,22 @@ SECTIONS = [
              "بعينه — عشان البرنامج مايتحوّلش لمصدر إزعاج.",
              "<b>Sending limits</b>: a time window, a daily cap, and an opt-out "
              "per patient — so the system never becomes a nuisance."),
+            ("<b>رسايل SMS</b> (قناة إضافية، مقفولة لحد ما تشغّلها): من «الاتصال "
+             "بواتساب والإعدادات ← رسايل SMS» اكتب بيانات شركة الـSMS زي شرحها — العنوان، "
+             "واسم المرسل، والمفتاح، وشكل الطلب — أو اختار OpenSMS لموبايل Android "
+             "على شبكة العيادة. علّم أنهي أنواع رسايل تروح SMS بدل واتساب، أو خليها "
+             "تتبعت SMS لما رسالة واتساب تفشل. ولو الشركة بتبعت تقارير وصول، حط "
+             "العنوان اللي في الشاشة عندها، والرسالة بتتعلّم «وصلت» أو «فشلت». "
+             "الرسالة العربي ٧٠ حرف والجزء ٦٧. بيشتغل مع الإرسال التلقائي بس.",
+             "<b>SMS messages</b> (an extra channel, off until switched on): under "
+             "«WhatsApp connection & settings → SMS messages» enter your SMS company's "
+             "details as its documentation gives them — address, sender name, key "
+             "and request body — or pick OpenSMS for an Android phone on the "
+             "clinic's network. Tick which message types go by SMS instead of "
+             "WhatsApp, or have a failed WhatsApp message sent again by SMS. If "
+             "the company sends delivery reports, give it the address on the "
+             "screen and messages are marked delivered or failed. An Arabic SMS "
+             "is 70 characters, 67 per part. Automatic sending only."),
         ],
     },
     {
