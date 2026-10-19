@@ -5989,7 +5989,10 @@
     "flags_hint": "One tap = yes, a second = no, a third clears. What you don't touch isn't recorded.",
     "flag_yes": "Yes",
     "flag_no": "No",
-    "flag_was": "Last time: yes"
+    "flag_was": "Was «yes» last time",
+    "flags_not_asked": "Not asked",
+    "flags_nothing_new": "Nothing new",
+    "flags_rest_no": "the rest no"
   },
   "curves": {
     "src_lab": "Lab",

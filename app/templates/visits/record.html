@@ -650,14 +650,16 @@
                left as no. A chip nobody touched is not saved — «not asked» is
                not the same answer as «no». #}
             {% for grp in panel_flag_groups(p.meta) %}
-            <div class="pflags" data-flag-group="{{ grp.key }}" style="margin-top:10px;">
-              <div class="pflags-head">
+            {# Folds to one line that says what was recorded; stays folded for
+               a doctor who folded it (remembered in this browser only). #}
+            <details class="pflags" data-flag-group="{{ grp.key }}" open
+                     data-not-asked="{{ t('panels.flags_not_asked') }}" data-nothing="{{ t('panels.flags_nothing_new') }}"
+                     data-rest-no="{{ t('panels.flags_rest_no') }}">
+              <summary class="pflags-head">
+                <i class="bi bi-chevron-down pflags-caret" aria-hidden="true"></i>
                 <strong>{{ grp['label_' ~ current_lang] or grp.label_ar }}</strong>
-                <button type="button" class="md-chip pflags-rest" data-flag-rest
-                        data-none="{{ t('panels.flags_none') }}" data-rest="{{ t('panels.flags_rest') }}">
-                  <i class="bi bi-check2-all"></i> <span>{{ t('panels.flags_none') }}</span></button>
-                <span class="hint" style="margin:0;">{{ t('panels.flags_hint') }}</span>
-              </div>
+                <span class="pflags-sum" data-flag-sum></span>
+              </summary>
               <div class="pflags-row">
                 {% for f in grp.fields %}
                 {% set row = panel_readings.get(f.code) %}
@@ -665,18 +667,24 @@
                 {% set last = (panel_last or {}).get(f.code) %}
                 {% set label = f['label_' ~ current_lang] or f.label_ar %}
                 <button type="button" class="pflag" data-flag="{{ f.code }}" data-state="{{ 'yes' if now == 'نعم' else ('no' if now == 'لأ' else '') }}"
-                        aria-label="{{ label }}"
+                        data-label="{{ label }}" aria-label="{{ label }}"
                         title="{{ label }}{% if last %} — {{ t('panels.last_time') }} {{ last.value }}{% if last.date %} ({{ last.date.strftime('%Y-%m-%d') }}){% endif %}{% endif %}">
-                  <span class="pflag-ic"><i class="bi bi-{{ f.icon or 'dot' }}"></i></span>
+                  <i class="bi bi-{{ f.icon or 'dot' }} pflag-ic" aria-hidden="true"></i>
                   <span class="pflag-txt">{{ label }}</span>
                   <span class="pflag-mark pflag-yes">{{ t('panels.flag_yes') }}</span>
                   <span class="pflag-mark pflag-no">{{ t('panels.flag_no') }}</span>
-                  {% if last and last.value == 'نعم' %}<span class="pflag-was" data-flag-was>{{ t('panels.flag_was') }}</span>{% endif %}
+                  {% if last and last.value == 'نعم' %}<span class="pflag-was" data-flag-was title="{{ t('panels.flag_was') }}">•</span>{% endif %}
                   <input type="hidden" name="m_{{ f.code }}" value="{{ now if now in ('نعم', 'لأ') else '' }}">
                 </button>
                 {% endfor %}
               </div>
-            </div>
+              <div class="pflags-foot">
+                <button type="button" class="md-chip pflags-rest" data-flag-rest
+                        data-none="{{ t('panels.flags_none') }}" data-rest="{{ t('panels.flags_rest') }}">
+                  <i class="bi bi-check2-all"></i> <span>{{ t('panels.flags_none') }}</span></button>
+                <span class="hint" style="margin:0;">{{ t('panels.flags_hint') }}</span>
+              </div>
+            </details>
             {% endfor %}
             <div class="form-grid" style="margin-top:10px;row-gap:12px;align-items:start;">
               {% for f in p.meta.fields if f.type != 'flag' %}
@@ -3081,26 +3089,31 @@
   .aftercare { border:1px dashed var(--line); border-radius:10px; padding:8px 10px; margin:4px 0 12px; display:grid; gap:6px; }
   .aftercare-head { font-weight:700; font-size:.9rem; }
   .aftercare-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0; }
-  .pflags { border:1px dashed var(--line); border-radius:12px; padding:10px 12px; }
-  .pflags-head { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
-  .pflags-rest { padding:4px 11px; font-size:.84rem; }
-  .pflags-row { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px; }
-  .pflag { position:relative; display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center;
-           padding:10px 8px 8px; border:1.5px solid var(--line); border-radius:14px; background:var(--card, #fff);
-           color:var(--ink); font:inherit; font-size:.86rem; line-height:1.35; cursor:pointer; min-height:96px;
+  .pflags { border:1px dashed var(--line); border-radius:10px; padding:6px 10px; margin-top:10px; }
+  .pflags-head { display:flex; gap:8px; align-items:center; flex-wrap:wrap; cursor:pointer; list-style:none; padding:2px 0; font-size:.9rem; }
+  .pflags-head::-webkit-details-marker { display:none; }
+  .pflags-caret { font-size:.8rem; color:var(--muted); transition:transform .15s ease; }
+  .pflags:not([open]) .pflags-caret { transform:rotate(-90deg); }
+  [dir="rtl"] .pflags:not([open]) .pflags-caret { transform:rotate(90deg); }
+  .pflags-sum { color:var(--muted); font-size:.84rem; }
+  .pflags-sum::before { content:"— "; color:var(--muted); font-weight:400; }
+  .pflags-sum.has-yes { color:var(--ink); font-weight:600; }
+  .pflags-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .pflags-foot { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+  .pflags-rest { padding:3px 10px; font-size:.8rem; }
+  .pflag { position:relative; display:inline-flex; align-items:center; gap:5px; padding:3px 10px 3px 8px;
+           border:1px solid var(--line); border-radius:999px; background:var(--card, #fff); color:var(--ink);
+           font:inherit; font-size:.82rem; line-height:1.5; cursor:pointer;
            transition:border-color .12s ease, background-color .12s ease; }
   .pflag:focus-visible { outline:2px solid var(--accent, #1f6feb); outline-offset:2px; }
-  .pflag-ic { display:grid; place-items:center; width:38px; height:38px; border-radius:50%;
-              background:var(--soft, rgba(0,0,0,.05)); font-size:1.25rem; color:var(--accent, #1f6feb); }
-  .pflag-mark { display:none; font-weight:700; font-size:.78rem; border-radius:999px; padding:0 9px; }
-  .pflag[data-state="yes"] { border-color:var(--accent, #1f6feb); background:color-mix(in srgb, var(--accent, #1f6feb) 10%, transparent); }
-  .pflag[data-state="yes"] .pflag-ic { background:var(--accent, #1f6feb); color:#fff; }
+  .pflag-ic { font-size:.95rem; color:var(--accent, #1f6feb); }
+  .pflag-mark { display:none; font-weight:700; font-size:.72rem; border-radius:999px; padding:0 6px; }
+  .pflag[data-state="yes"] { border-color:var(--accent, #1f6feb); background:color-mix(in srgb, var(--accent, #1f6feb) 12%, transparent); font-weight:600; }
   .pflag[data-state="yes"] .pflag-yes { display:inline-block; background:var(--accent, #1f6feb); color:#fff; }
   .pflag[data-state="no"] { color:var(--muted); border-style:dashed; }
   .pflag[data-state="no"] .pflag-ic { color:var(--muted); }
   .pflag[data-state="no"] .pflag-no { display:inline-block; background:var(--soft, rgba(0,0,0,.06)); color:var(--muted); }
-  .pflag-was { position:absolute; top:6px; inset-inline-end:6px; font-size:.68rem; color:var(--muted);
-               border:1px solid var(--line); border-radius:999px; padding:0 6px; }
+  .pflag-was { color:var(--accent, #1f6feb); font-weight:800; line-height:1; }
   @media (prefers-reduced-motion: reduce) { .pflag { transition:none; } }
   .pl-spark { color:var(--accent, var(--green-600)); vertical-align:middle; flex:none; }
   .pl-delta { font-weight:600; color:var(--ink); background:var(--soft, rgba(0,0,0,.05)); border-radius:999px; padding:1px 8px; }
@@ -3401,9 +3414,28 @@
   }
   function relabel(group) {
     var btn = group.querySelector('[data-flag-rest]');
-    if (!btn) return;
-    var anyYes = group.querySelector('.pflag[data-state="yes"]');
-    btn.querySelector('span').textContent = btn.getAttribute(anyYes ? 'data-rest' : 'data-none');
+    var chips = Array.prototype.slice.call(group.querySelectorAll('.pflag'));
+    var yes = chips.filter(function (c) { return c.getAttribute('data-state') === 'yes'; });
+    var no = chips.filter(function (c) { return c.getAttribute('data-state') === 'no'; });
+    if (btn) btn.querySelector('span').textContent = btn.getAttribute(yes.length ? 'data-rest' : 'data-none');
+    var sum = group.querySelector('[data-flag-sum]');
+    if (!sum) return;
+    var text;
+    if (!yes.length && !no.length) text = group.getAttribute('data-not-asked');
+    else if (!yes.length) text = group.getAttribute('data-nothing');
+    else {
+      text = yes.map(function (c) { return c.getAttribute('data-label'); }).join('\u060C ');
+      if (no.length) text += ' \u00B7 ' + group.getAttribute('data-rest-no');
+    }
+    sum.textContent = text;
+    sum.classList.toggle('has-yes', yes.length > 0);
+  }
+  function remember(group) {
+    var key = 'pflags-open:' + group.getAttribute('data-flag-group');
+    try { if (window.localStorage.getItem(key) === '0') group.open = false; } catch (e) {}
+    group.addEventListener('toggle', function () {
+      try { window.localStorage.setItem(key, group.open ? '1' : '0'); } catch (e) {}
+    });
   }
   document.querySelectorAll('[data-flag-group]').forEach(function (group) {
     group.querySelectorAll('.pflag').forEach(function (chip) {
@@ -3421,6 +3453,7 @@
       relabel(group);
     });
     relabel(group);
+    remember(group);
   });
 })();
 </script>
