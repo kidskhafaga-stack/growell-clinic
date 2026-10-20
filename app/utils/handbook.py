@@ -2649,6 +2649,17 @@ SECTIONS = [
         "icon": "bar-chart-line",
         "title": ("التقارير", "Reports"),
         "lines": [
+            ("<b>كل التقارير في صفحة واحدة:</b> شاشة التقارير فيها تقاريرها وتقارير "
+             "الأقسام (الإحالات، زمن المعمل والأشعة، الصيدلية، العمليات، رضا المرضى…) "
+             "متقسمة مالية وطبية وتشغيل وجودة، وكل واحد بيشوف اللي يقدر يفتحه بس. "
+             "اكتب كلمة في خانة البحث (أو اضغط /) تلاقي التقرير، والنجمة بتحطه في "
+             "«المفضلة» فوق — ليك لوحدك ومن أي جهاز.",
+             "<b>All reports on one page:</b> the reports screen lists its own "
+             "reports and the departments' (referrals, lab and imaging turnaround, "
+             "pharmacy, theatres, patient satisfaction…), grouped as finance, medical, "
+             "operations and quality, each shown only to whoever may open it. Type a "
+             "word in the search box (or press /) to find a report, and the star puts "
+             "it under «Starred» at the top — yours alone, on any computer."),
             ("<b>لوحة الاستهلاك</b> (التقارير ← الاستهلاك): استهلكنا أد إيه "
              "وبكام في أي فترة، جنب نفس المدة اللي قبلها — المخزن كله (حسب "
              "القسم والمخزن ونوع الصنف)، والأدوية، ومستهلكات المعمل (وتكلفة كل "

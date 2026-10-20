@@ -81,7 +81,26 @@ def _utc_window(date_from, date_to):
 @reports_bp.route("/")
 @module_required(MODULE)
 def index():
-    return render_template("reports/index.html")
+    """All reports, searchable, with the person's starred ones first
+    (REPORTS_PLAN.md ت-١) — the reports screen's own and the departments'."""
+    from app.utils import report_catalog as cat
+
+    cards = cat.visible(current_user)
+    mine = cat.stars(current_user)
+    return render_template("reports/index.html", cards=cards, groups=cat.GROUPS,
+                           starred=[c for ep in mine for c in cards if c["endpoint"] == ep],
+                           star_set=set(mine))
+
+
+@reports_bp.route("/star", methods=["POST"])
+@module_required(MODULE)
+def star():
+    """Star or unstar a report for the person pressing it."""
+    from app.utils import report_catalog as cat
+
+    cat.toggle_star(current_user, (request.form.get("endpoint") or "").strip())
+    db.session.commit()
+    return redirect(url_for("reports.index"))
 
 
 @reports_bp.route("/financial")

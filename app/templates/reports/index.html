@@ -3,65 +3,125 @@
 {% block title %}{{ t('reports.title') }}{% endblock %}
 {% block page_heading %}{{ t('reports.title') }}{% endblock %}
 
-{% block content %}
-<h1 class="page-title gc-animate">{{ t('reports.title') }}</h1>
-<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('reports.subtitle') }}</p>
-
-<div class="grid gc-stagger" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-top:14px;">
-  {% set ns = namespace(cards=[
-      ('reports.medical_board','heart-pulse', t('board_med.title'), t('board_med.desc'),'edge-teal'),
-      ('reports.financial','cash-coin', t('reports.financial'), t('reports.financial_desc'),'edge-green'),
-      ('reports.income','graph-up-arrow', t('reports.income'), t('reports.income_desc'),'edge-green'),
-      ('reports.cost_centres','diagram-3', t('cost_centres.title'), t('cost_centres.desc'),'edge-teal'),
-      ('reports.trial_balance','list-columns-reverse', t('trial.title'), t('trial.desc'),'edge-blue'),
-      ('reports.balance_sheet','columns-gap', t('balsheet.title'), t('balsheet.desc'),'edge-green'),
-      ('reports.vat_summary','percent', t('vat.title'), t('vat.desc'),'edge-teal'),
-      ('reports.ar_aging','hourglass-split', t('reports.ar_aging'), t('reports.ar_aging_desc'),'edge-yellow'),
-      ('reports.operational','calendar-check', t('reports.operational'), t('reports.operational_desc'),'edge-blue'),
-      ('reports.inventory','box-seam', t('reports.inventory'), t('reports.inventory_desc'),'edge-yellow'),
-      ('reports.analytics','clipboard2-data', t('reports.analytics'), t('reports.analytics_desc'),'edge-green'),
-      ('reports.discounts','tags', t('reports.discounts'), t('reports.discounts_desc'),'edge-yellow'),
-      ('reports.staff','people', t('reports.staff'), t('reports.staff_desc'),'edge-blue'),
-      ('reports.vaccines','shield-plus', t('reports.vaccines'), t('reports.vaccines_desc'),'edge-green'),
-      ('hand_hygiene.index','droplet-half', t('hh.title'), t('hh.desc'),'edge-teal')]) %}
-  {# GAHAR IMT.09. Behind the admin flag because the route is — a card that
-     leads to a refusal is a dead switch, and this repo has a guard against
-     exactly that. It sits among the reports because evidence 3 is «the
-     hospital leaders are reported on the review's findings», and the leaders
-     are already standing here. #}
-  {% if current_user.can('finance_manage') %}
-  {% set ns.cards = [('reports.management_board','building', t('board_admin.title'), t('board_admin.desc'),'edge-green')] + ns.cards %}
-  {% endif %}
-  {% if current_user.is_admin %}
-  {% set ns.cards = ns.cards + [('facility.index','building-check', t('facility.title'), t('facility.desc'),'edge-yellow')] %}
-  {% set ns.cards = ns.cards + [('reports.record_review','clipboard-check',
-       t('record_review.title'), t('record_review.desc'),'edge-blue')] %}
-  {% endif %}
-  {# Customer service (CONNECTHUB_PLAN.md): where families came from and
-     what became of them, and how fast they are answered — for whoever can
-     open customer service, since that is where the cards lead. #}
-  {% if current_user.can_access('messages') %}
-  {% set ns.cards = ns.cards + [('messages.leads_board','person-lines-fill', t('reports.leads_card'), t('reports.leads_card_desc'),'edge-teal'),
-       ('messages.service_board','speedometer2', t('service.title'), t('reports.service_card_desc'),'edge-blue')] %}
-  {% endif %}
-  {# What was used and what it cost, over any period (utils/consumption) —
-     for whoever may open at least one of the parts it reports on. #}
-  {% if current_user.can_open('inventory') or current_user.can_open('labs') or current_user.can_open('ai') or current_user.can('finance_manage') %}
-  {% set ns.cards = ns.cards + [('reports.consumption_board','box-seam', t('consumption.title'), t('consumption.desc'),'edge-teal')] %}
-  {% endif %}
-  {% for ep, icon, title, desc, edge in ns.cards %}
-  <a class="card gc-lift" href="{{ url_for(ep) }}" style="text-decoration:none;">
-    <div class="hub-ico {{ edge }}"><i class="bi bi-{{ icon }}"></i></div>
-    <h3 style="margin:10px 0 4px;">{{ title }}</h3>
-    <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ desc }}</p>
+{% macro card(c, starred) %}
+<div class="rep-card card" data-rep="{{ c.endpoint }}" data-group="{{ c.group }}"
+     data-search="{{ t(c.title) }} {{ t(c.desc) }} {{ t('allrep.g_' ~ c.group) }}">
+  <a class="rep-link" href="{{ url_for(c.endpoint) }}">
+    <div class="hub-ico edge-{{ c.group }}"><i class="bi bi-{{ c.icon }}"></i></div>
+    <div class="rep-text">
+      <h3>{{ t(c.title) }}</h3>
+      <p>{{ t(c.desc) }}</p>
+    </div>
   </a>
-  {% endfor %}
+  <form method="post" action="{{ url_for('reports.star') }}" class="rep-star-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="endpoint" value="{{ c.endpoint }}">
+    <button type="submit" class="rep-star {{ 'is-on' if starred }}" data-star="{{ c.endpoint }}"
+            title="{{ t('allrep.unstar') if starred else t('allrep.star') }}"
+            aria-label="{{ t('allrep.unstar') if starred else t('allrep.star') }}" aria-pressed="{{ 'true' if starred else 'false' }}">
+      <i class="bi bi-star{{ '-fill' if starred }}"></i></button>
+  </form>
 </div>
+{% endmacro %}
+
+{% block content %}
+{# All reports (REPORTS_PLAN.md ت-١): the reports screen's own and the
+   departments' boards, in one place, searchable — each shown only to whoever
+   may open it (utils/report_catalog). Starred ones first, per person. #}
+<h1 class="page-title gc-animate">{{ t('reports.title') }}</h1>
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('allrep.sub') }}</p>
+
+<div class="rep-search gc-animate">
+  <i class="bi bi-search"></i>
+  <input class="input" type="search" id="repSearch" data-rep-search autocomplete="off"
+         placeholder="{{ t('allrep.search_ph') }}" aria-label="{{ t('allrep.search_ph') }}">
+</div>
+<p class="hint" id="repNone" data-rep-none hidden>{{ t('allrep.none') }}</p>
+
+{% if starred %}
+<section class="rep-group" data-rep-section="starred">
+  <h2 class="rep-h"><i class="bi bi-star-fill"></i> {{ t('allrep.starred') }}</h2>
+  <div class="rep-grid">
+    {% for c in starred %}{{ card(c, True) }}{% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% for g in groups %}
+{% set mine = cards|selectattr('group', 'equalto', g)|list %}
+{% if mine %}
+<section class="rep-group" data-rep-section="{{ g }}">
+  <h2 class="rep-h"><i class="bi bi-{{ {'finance':'cash-stack','medical':'heart-pulse','operations':'gear-wide-connected','quality':'patch-check'}[g] }}"></i> {{ t('allrep.g_' ~ g) }}</h2>
+  <div class="rep-grid">
+    {% for c in mine %}{{ card(c, c.endpoint in star_set) }}{% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endfor %}
+
+<script>
+/* Search as you type, in Arabic or English: hamza forms, ya/alef maqsura,
+   ta marbuta and the tashkeel are read as the same letter, and a leading
+   «ال» is not needed, so «الاعمار» finds «أعمار الديون». */
+(function () {
+  var box = document.getElementById('repSearch');
+  if (!box) return;
+  function norm(s) {
+    return (s || '').toLowerCase()
+      .replace(/[ً-ْـ]/g, '')
+      .replace(/[آأإ]/g, 'ا')
+      .replace(/ى/g, 'ي').replace(/ة/g, 'ه');
+  }
+  var cards = Array.prototype.slice.call(document.querySelectorAll('[data-rep]'));
+  cards.forEach(function (c) { c._s = norm(c.getAttribute('data-search')); });
+  function run() {
+    var words = norm(box.value).split(/\s+/).filter(Boolean);
+    var shown = 0;
+    cards.forEach(function (c) {
+      var ok = words.every(function (w) {
+        if (c._s.indexOf(w) !== -1) return true;
+        // «الاعمار» finds «أعمار»: the article is not part of the word.
+        var bare = w.length > 3 ? w.replace(/^(\u0648?\u0627\u0644)/, '') : w;
+        return bare !== w && c._s.indexOf(bare) !== -1;
+      });
+      c.hidden = !ok; if (ok) shown++;
+    });
+    document.querySelectorAll('[data-rep-section]').forEach(function (sec) {
+      sec.hidden = !sec.querySelector('[data-rep]:not([hidden])');
+    });
+    document.getElementById('repNone').hidden = shown > 0;
+  }
+  box.addEventListener('input', run);
+  document.addEventListener('keydown', function (e) {
+    var el = document.activeElement, tag = el && el.tagName;
+    if (e.key === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA') { e.preventDefault(); box.focus(); }
+  });
+})();
+</script>
 {% endblock %}
 
 {% block head %}
 <style>
-  .hub-ico { width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:#fff;background:var(--green-600); }
-  .hub-ico.edge-blue { background:#3b82f6; } .hub-ico.edge-yellow { background:#f0ad4e; }
+  .rep-search { position:relative; max-width:560px; margin:14px 0 6px; }
+  .rep-search i { position:absolute; inset-inline-start:12px; top:50%; transform:translateY(-50%); color:var(--muted); }
+  .rep-search .input { padding-inline-start:36px; }
+  .rep-group { margin-top:18px; }
+  .rep-group[hidden] { display:none; }
+  .rep-h { font-size:1rem; margin:0 0 10px; display:flex; gap:8px; align-items:center; }
+  .rep-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:12px; }
+  .rep-card { position:relative; padding:0; display:flex; transition:transform .12s ease, box-shadow .12s ease; }
+  .rep-card[hidden] { display:none; }
+  .rep-card:hover { transform:translateY(-2px); }
+  .rep-link { display:flex; gap:12px; align-items:flex-start; padding:14px; padding-inline-end:40px; text-decoration:none; color:inherit; flex:1; }
+  .rep-text h3 { margin:2px 0 4px; font-size:.98rem; }
+  .rep-text p { color:var(--muted); margin:0; font-size:.86rem; }
+  .rep-star-form { position:absolute; top:8px; inset-inline-end:8px; margin:0; }
+  .rep-star { background:none; border:0; padding:4px; cursor:pointer; color:var(--muted); font-size:1.05rem; border-radius:6px; }
+  .rep-star.is-on { color:#e0a100; }
+  .rep-star:focus-visible { outline:2px solid var(--accent, #1f6feb); }
+  .hub-ico { flex:none; width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.25rem; color:#fff; background:var(--green-600); }
+  .hub-ico.edge-finance { background:#16a34a; } .hub-ico.edge-medical { background:#0d9488; }
+  .hub-ico.edge-operations { background:#3b82f6; } .hub-ico.edge-quality { background:#d97706; }
+  @media (prefers-reduced-motion: reduce) { .rep-card { transition:none; } .rep-card:hover { transform:none; } }
 </style>
 {% endblock %}
