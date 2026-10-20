@@ -165,7 +165,7 @@ function crmTabs(){
     // panel nobody is looking at. `templates` is here too so that a reload
     // after the watcher has rewritten the hash still lands where it says.
     inside: { types:'types', custom:'templates', templates:'templates',
-              connection:'connection' },
+              connection:'connection', sms:'connection' },
     init(){
       const asked = (window.location.hash || '').slice(1);
       if (this.inside[asked]) this.tab = this.inside[asked];
@@ -669,6 +669,108 @@ function crmTabs(){
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
 </details>
+
+<!-- ============ SMS (an added channel — off until switched on) ============ -->
+{% set sms_types = (values.get('sms_types','') or '').split(',') %}
+{% set sms_secret = values.get('sms_webhook_secret','') %}
+<details class="card gc-scale-in" id="sms" style="animation-delay:0.25s;margin-top:14px;" x-show="tab==='connection'" x-cloak data-sms-settings>
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-chat-left-text"></i> {{ t('sms.title') }}
+    {% if values.get('sms_enabled') == '1' %}<span class="badge badge--green">{{ t('sms.on') }}</span>{% else %}<span class="badge badge--muted">{{ t('sms.off') }}</span>{% endif %}</summary>
+  <p class="hint" style="margin-top:4px;">{{ t('sms.hint') }}</p>
+  <form method="post" action="{{ url_for('messages.sms_save') }}" style="margin-top:10px;" x-data="smsForm()">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="checkbox" style="display:flex;align-items:center;gap:8px;margin:0 0 10px;font-weight:600;">
+      <input type="checkbox" name="sms_enabled" value="1" {{ 'checked' if values.get('sms_enabled')=='1' else '' }}> {{ t('sms.enable') }}</label>
+
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+      <span class="hint" style="margin:0;">{{ t('sms.preset') }}</span>
+      <button type="button" class="md-chip" x-on:click="opensms()" data-sms-preset="opensms"><i class="bi bi-phone"></i> OpenSMS</button>
+      <span class="hint" style="margin:0;">{{ t('sms.preset_hint') }}</span>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('sms.endpoint') }}</label>
+        <input class="input" name="sms_endpoint" dir="ltr" x-ref="endpoint" value="{{ values.get('sms_endpoint','') }}" placeholder="https://api.example-sms.com/send"></div>
+      <div class="form-row"><label>{{ t('sms.method') }}</label>
+        <select class="select" name="sms_method" x-ref="method">
+          {% for m in ['json','form','get'] %}<option value="{{ m }}" {{ 'selected' if values.get('sms_method','json')==m else '' }}>{{ t('sms.method_' ~ m) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('sms.sender') }}</label>
+        <input class="input" name="sms_sender" dir="ltr" maxlength="40" value="{{ values.get('sms_sender','') }}" placeholder="GrowWell">
+        <div class="hint">{{ t('sms.sender_hint') }}</div></div>
+      <div class="form-row"><label>{{ t('sms.phone_format') }}</label>
+        <select class="select" name="sms_phone_format" x-ref="fmt" dir="ltr">
+          {% for f in ['intl','plus','local'] %}<option value="{{ f }}" {{ 'selected' if values.get('sms_phone_format','intl')==f else '' }}>{{ t('sms.fmt_' ~ f) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('sms.auth_header') }}</label>
+        <input class="input" name="sms_auth_header" dir="ltr" x-ref="header" value="{{ values.get('sms_auth_header','') }}" placeholder="Authorization"></div>
+      <div class="form-row"><label>{{ t('sms.auth_value') }}</label>
+        <input class="input" name="sms_auth_value" type="password" dir="ltr" autocomplete="off" placeholder="{{ '••••••••' if values.get('sms_auth_value') else 'Bearer …' }}">
+        <div class="hint">{{ t('sms.auth_value_hint') }}</div></div>
+    </div>
+    <div class="form-row"><label>{{ t('sms.payload') }}</label>
+      <textarea class="input" name="sms_payload" rows="3" dir="ltr" x-ref="payload" style="font-family:monospace;font-size:.82rem;"
+                placeholder='{"to": "{to}", "message": "{text}", "sender": "{sender}"}'>{{ values.get('sms_payload','') }}</textarea>
+      <div class="hint">{{ t('sms.payload_hint') }}</div></div>
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('sms.id_field') }}</label>
+        <input class="input" name="sms_id_field" dir="ltr" value="{{ values.get('sms_id_field','') }}" placeholder="data.message_id">
+        <div class="hint">{{ t('sms.id_field_hint') }}</div></div>
+      <div class="form-row"><label>{{ t('sms.ok_text') }}</label>
+        <input class="input" name="sms_ok_text" dir="ltr" value="{{ values.get('sms_ok_text','') }}" placeholder="success">
+        <div class="hint">{{ t('sms.ok_text_hint') }}</div></div>
+    </div>
+
+    <h3 style="font-size:0.95rem;margin:14px 0 6px;"><i class="bi bi-signpost-split"></i> {{ t('sms.which_title') }}</h3>
+    <p class="hint" style="margin-top:0;">{{ t('sms.which_hint') }}</p>
+    <div style="display:flex;gap:6px 14px;flex-wrap:wrap;">
+      {% for tp in system_templates %}
+      <label class="checkbox" style="display:inline-flex;gap:6px;align-items:center;font-weight:400;">
+        <input type="checkbox" name="sms_types" value="{{ tp.occasion }}" {{ 'checked' if tp.occasion in sms_types else '' }}> {{ t('occasions.occ_' ~ tp.occasion) }}</label>
+      {% endfor %}
+    </div>
+    <label class="checkbox" style="display:flex;align-items:center;gap:8px;margin:10px 0 0;font-weight:400;">
+      <input type="checkbox" name="sms_fallback" value="1" {{ 'checked' if values.get('sms_fallback')=='1' else '' }}> {{ t('sms.fallback') }}</label>
+    <p class="hint">{{ t('sms.auto_only') }}</p>
+
+    <h3 style="font-size:0.95rem;margin:14px 0 6px;"><i class="bi bi-check2-all"></i> {{ t('sms.dlr_title') }}</h3>
+    <p class="hint" style="margin-top:0;">{{ t('sms.dlr_hint') }}</p>
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('sms.dlr_id') }}</label><input class="input" name="sms_dlr_id_field" dir="ltr" value="{{ values.get('sms_dlr_id_field','') }}" placeholder="message_id"></div>
+      <div class="form-row"><label>{{ t('sms.dlr_status') }}</label><input class="input" name="sms_dlr_status_field" dir="ltr" value="{{ values.get('sms_dlr_status_field','') }}" placeholder="status"></div>
+      <div class="form-row"><label>{{ t('sms.dlr_delivered') }}</label><input class="input" name="sms_dlr_delivered" dir="ltr" value="{{ values.get('sms_dlr_delivered','') }}" placeholder="DELIVRD, delivered"></div>
+      <div class="form-row"><label>{{ t('sms.dlr_failed') }}</label><input class="input" name="sms_dlr_failed" dir="ltr" value="{{ values.get('sms_dlr_failed','') }}" placeholder="UNDELIV, REJECTD, failed"></div>
+    </div>
+    <div class="form-row"><label>{{ t('sms.dlr_url') }}</label>
+      <code dir="ltr" style="font-size:.8rem;user-select:all;" data-sms-dlr-url>{{ (values.get('wa_public_base_url','')|trim or '‹'~t('crm.public_base')~'›') }}/wa/webhook/sms/{{ sms_secret or '‹secret›' }}</code>
+      <label class="checkbox" style="display:flex;align-items:center;gap:6px;margin:6px 0 0;font-weight:400;font-size:.82rem;">
+        <input type="checkbox" name="regen_sms_secret" value="1"> {{ t('crm.regen_secret') }}</label></div>
+
+    <p class="hint" style="margin-top:10px;"><i class="bi bi-info-circle"></i> {{ t('sms.length_note') }}</p>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+
+  <form method="post" action="{{ url_for('messages.sms_test') }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;border-top:1px dashed var(--line);padding-top:10px;" data-sms-test>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <strong style="font-size:.9rem;">{{ t('sms.test_title') }}</strong>
+    <input class="input" name="phone" dir="ltr" style="max-width:180px;" placeholder="010…" required>
+    <button class="btn btn-outline gc-press" type="submit" {{ 'disabled' if values.get('sms_enabled') != '1' }}><i class="bi bi-send"></i> {{ t('sms.test_send') }}</button>
+    {% if values.get('sms_enabled') != '1' %}<span class="hint" style="margin:0;">{{ t('sms.test_needs_on') }}</span>{% endif %}
+  </form>
+</details>
+<script>
+  function smsForm() {
+    return {
+      opensms() {
+        this.$refs.endpoint.value = {{ sms_presets.opensms.sms_endpoint|tojson }};
+        this.$refs.method.value = 'json';
+        this.$refs.header.value = 'Authorization';
+        this.$refs.fmt.value = {{ sms_presets.opensms.sms_phone_format|tojson }};
+        this.$refs.payload.value = {{ sms_presets.opensms.sms_payload|tojson }};
+      },
+    };
+  }
+</script>
 {% endif %}
 
 </div>

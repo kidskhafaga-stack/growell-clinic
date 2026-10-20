@@ -323,6 +323,9 @@ def _next_slot(cfg, now):
 def _dispatch(log, cfg):
     """Actually hand ``log`` to its provider (or build a link) and stamp it."""
     phone, body, image_url = log.to_phone, log.body, log.image_url
+    if log.channel == "sms":
+        from app.utils import sms
+        return sms.dispatch(log)
     if log.provider == "cloud_api":
         ok, err, msg_id = _send_cloud(cfg, phone, body, image_url)
         log.status, log.error = ("sent", None) if ok else ("failed", err)
@@ -341,6 +344,14 @@ def _dispatch(log, cfg):
         log.status = "link"
         log.link = wa_link(phone, body)
     log.sent_at = datetime.utcnow()
+    if log.status == "failed":
+        # Sent again by SMS when the clinic asked for that — a new row, so
+        # the WhatsApp failure stays on record.
+        try:
+            from app.utils import sms
+            sms.fallback(log)
+        except Exception:  # noqa: BLE001 — a fallback never breaks the send
+            pass
     return log
 
 
@@ -361,6 +372,15 @@ def send(body, to_phone, patient_id=None, appointment_id=None, user_id=None,
     cfg = cfg or get_config()
     phone = normalize_phone(to_phone, cfg["country_code"])
     provider = resolve_provider(cfg, template_type)
+    # A type the clinic sends by SMS (automatic sending only — manual mode is
+    # a WhatsApp link a person presses).
+    if provider != "web":
+        from app.utils import sms
+        if sms.wanted_for(template_type):
+            return sms.send(body, to_phone, patient_id=patient_id,
+                            appointment_id=appointment_id, user_id=user_id,
+                            template_type=template_type, scheduled_at=scheduled_at,
+                            wa_cfg=cfg, ignore_window=ignore_window)
     log = MessageLog(
         patient_id=patient_id, appointment_id=appointment_id, to_phone=phone,
         body=body, image_url=image_url, provider=provider,
@@ -491,7 +511,7 @@ def dispatch_due(cfg=None, limit=500):
                 log.status, log.error = "skipped", "not_needed"
                 skipped += 1
                 continue
-        if log.provider in ("cloud_api", "wapilot") and (
+        if log.provider in ("cloud_api", "wapilot", "sms") and (
                 not _in_window(cfg, now) or _cap_reached(cfg, now)):
             log.scheduled_at = _next_slot(cfg, now)
             continue  # still scheduled — try again next run

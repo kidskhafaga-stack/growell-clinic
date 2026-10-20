@@ -2784,6 +2784,38 @@ SECTIONS = [
              "بعينه — عشان البرنامج مايتحوّلش لمصدر إزعاج.",
              "<b>Sending limits</b>: a time window, a daily cap, and an opt-out "
              "per patient — so the system never becomes a nuisance."),
+            ("<b>رسايل SMS</b> (قناة إضافية، مقفولة لحد ما تشغّلها): من «الاتصال "
+             "بواتساب والإعدادات ← رسايل SMS» اكتب بيانات شركة الـSMS زي شرحها — العنوان، "
+             "واسم المرسل، والمفتاح، وشكل الطلب — أو اختار OpenSMS لموبايل Android "
+             "على شبكة العيادة. علّم أنهي أنواع رسايل تروح SMS بدل واتساب، أو خليها "
+             "تتبعت SMS لما رسالة واتساب تفشل. ولو الشركة بتبعت تقارير وصول، حط "
+             "العنوان اللي في الشاشة عندها، والرسالة بتتعلّم «وصلت» أو «فشلت». "
+             "الرسالة العربي ٧٠ حرف والجزء ٦٧. بيشتغل مع الإرسال التلقائي بس.",
+             "<b>SMS messages</b> (an extra channel, off until switched on): under "
+             "«WhatsApp connection & settings → SMS messages» enter your SMS company's "
+             "details as its documentation gives them — address, sender name, key "
+             "and request body — or pick OpenSMS for an Android phone on the "
+             "clinic's network. Tick which message types go by SMS instead of "
+             "WhatsApp, or have a failed WhatsApp message sent again by SMS. If "
+             "the company sends delivery reports, give it the address on the "
+             "screen and messages are marked delivered or failed. An Arabic SMS "
+             "is 70 characters, 67 per part. Automatic sending only."),
+            ("<b>اختيار شركة SMS في مصر:</b> الشركات بتبيع باقات رسايل مدفوعة مقدماً، "
+             "والرسالة بتتحسب بقروش (بتقل كل ما الباقة تكبر)، وكل جزء من الرسالة "
+             "الطويلة بيتحسب لوحده. اسم المرسل (اسم العيادة بالإنجليزي) لازم يتسجل "
+             "الأول، ومحتاج غالباً السجل التجاري وخطاب من العيادة، وبياخد من أسبوعين "
+             "لتلاتة؛ والأسماء العامة زي INFO ما بتتقبلش. قبل ما تختار اسأل الشركة: "
+             "عندها API؟ بتبعت تقارير وصول على عنوان؟ بتغطي الأربع شبكات؟ وخد منها "
+             "شرح الـAPI علشان تملا خانات الشاشة.",
+             "<b>Choosing an SMS company in Egypt:</b> companies sell prepaid "
+             "message bundles; each message costs a fraction of a pound (less in "
+             "larger bundles), and every part of a long message is charged. The "
+             "sender name (the clinic's name in English) must be registered first, "
+             "usually with the commercial registration and a letter from the "
+             "clinic, and takes two to three weeks; generic names such as INFO are "
+             "refused. Before choosing, ask the company: does it have an API? Does "
+             "it send delivery reports to an address? Does it cover all four "
+             "networks? And get its API documentation to fill in the screen."),
         ],
     },
     {
