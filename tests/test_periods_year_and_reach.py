@@ -241,6 +241,13 @@ def test_no_page_is_left_without_a_link(boss, clinic):
     linked |= set(re.findall(r"""["']endpoint["']:\s*["']([a-z_]+\.[a-z_0-9]+)["']""",
                              feed))
 
+    # And «All reports» (REPORTS_PLAN.md ت-١): the reports page builds every
+    # card from the catalogue's endpoint names, the same way the hub did from
+    # its own list — so a report listed there has its way in.
+    from app.utils.report_catalog import CATALOG
+
+    linked |= {row[0] for row in CATALOG}
+
     skip = ("search", "slots", "export", "print", "download", "healthz",
             "webhook", "verify", "qr", "logout", "static", "api", "_json",
             "preset_lines", "feedback.rate",
