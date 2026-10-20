@@ -517,7 +517,7 @@
               </label>
               <textarea class="input" rows="3" dir="auto"
                         name="panel_history_{{ p.key }}"
-                        data-panel-history="{{ p.key }}"
+                        data-panel-history="{{ p.key }}" {% if voice_on %}data-dictate{% endif %}
                         x-on:input="expand('exam', null, $event)"
                         placeholder="{{ t('panels.case_history_hint') }}">{{ hist.text if hist else '' }}</textarea>
             </div>
@@ -927,7 +927,7 @@
       <div class="form-row"><label>{{ t('visits.chief_complaint') }}</label>
         {# The code expands as it is typed: "نورمال" + space becomes the
            sentence. See app/utils/phrases.py — the doctor writes it once. #}
-        <textarea class="input" name="chief_complaint" rows="2" x-model="cc"
+        <textarea class="input" name="chief_complaint" rows="2" x-model="cc" {% if voice_on %}data-dictate{% endif %}
                   x-on:input="expand('complaint', 'cc', $event)"></textarea>
         <div class="smart-chips">
           {% for phrase in complaint_chips %}
@@ -942,7 +942,7 @@
       </div>
 
       <div class="form-row"><label>{{ t('visits.clinical_exam') }}</label>
-        <textarea class="input" name="clinical_exam" rows="3" x-model="exam"
+        <textarea class="input" name="clinical_exam" rows="3" x-model="exam" {% if voice_on %}data-dictate{% endif %}
                   x-on:input="expand('exam', 'exam', $event)"></textarea>
         <div class="smart-chips">
           <button type="button" class="chip chip--primary" x-on:click="normalExam()">
@@ -3092,6 +3092,13 @@
   .aftercare { border:1px dashed var(--line); border-radius:10px; padding:8px 10px; margin:4px 0 12px; display:grid; gap:6px; }
   .aftercare-head { font-weight:700; font-size:.9rem; }
   .aftercare-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0; }
+  .dictate-bar { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:4px; }
+  .dictate-btn, .dictate-lang { padding:2px 10px; font-size:.8rem; }
+  .dictate-btn.is-on { background:var(--danger, #c0392b); border-color:var(--danger, #c0392b); color:#fff; }
+  .dictate-btn.is-on i { animation:dictate-pulse 1s ease-in-out infinite; }
+  .dictate-heard { margin:0; font-style:italic; }
+  @keyframes dictate-pulse { 50% { opacity:.35; } }
+  @media (prefers-reduced-motion: reduce) { .dictate-btn.is-on i { animation:none; } }
   .pflags { border:1px dashed var(--line); border-radius:10px; padding:6px 10px; margin-top:10px; }
   .pflags-head { display:flex; gap:8px; align-items:center; flex-wrap:wrap; cursor:pointer; list-style:none; padding:2px 0; font-size:.9rem; }
   .pflags-head::-webkit-details-marker { display:none; }
@@ -3404,6 +3411,81 @@
   });
 })();
 </script>
+{% if voice_on %}
+<script>
+/* Voice dictation (ب-٥), switched on by the clinic. The browser's own speech
+   service turns the voice into words; what it hears is added at the end of
+   the box exactly as typing would add it, and nothing is saved until the
+   doctor saves. A browser without the service shows no microphone. */
+(function () {
+  var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Rec) return;
+  var LANGKEY = 'gc-dictate-lang';
+  var lang;
+  try { lang = window.localStorage.getItem(LANGKEY); } catch (e) {}
+  lang = lang || ({{ (current_lang or 'ar')|tojson }} === 'en' ? 'en-US' : 'ar-EG');
+  var live = null;
+  function stop() { if (live) { try { live.rec.stop(); } catch (e) {} } }
+  function start(box, btn, heard) {
+    stop();
+    var rec = new Rec();
+    rec.lang = lang; rec.continuous = true; rec.interimResults = true;
+    live = {rec: rec, box: box, btn: btn};
+    btn.classList.add('is-on'); btn.setAttribute('aria-pressed', 'true');
+    rec.onresult = function (ev) {
+      var interim = '';
+      for (var i = ev.resultIndex; i < ev.results.length; i++) {
+        var text = ev.results[i][0].transcript;
+        if (ev.results[i].isFinal) {
+          var cur = box.value;
+          box.value = cur + (cur && !/\s$/.test(cur) ? ' ' : '') + text.trim();
+          box.dispatchEvent(new Event('input', {bubbles: true}));
+        } else { interim += text; }
+      }
+      heard.textContent = interim;
+    };
+    rec.onerror = function (ev) {
+      heard.textContent = ev.error === 'not-allowed' ? btn.getAttribute('data-denied') : '';
+    };
+    rec.onend = function () {
+      btn.classList.remove('is-on'); btn.setAttribute('aria-pressed', 'false');
+      if (!heard.textContent || heard.textContent !== btn.getAttribute('data-denied')) heard.textContent = '';
+      if (live && live.rec === rec) live = null;
+    };
+    rec.start();
+  }
+  document.querySelectorAll('textarea[data-dictate]').forEach(function (box) {
+    var bar = document.createElement('div'); bar.className = 'dictate-bar';
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'md-chip dictate-btn'; btn.setAttribute('aria-pressed', 'false');
+    btn.setAttribute('data-dictate-btn', '');
+    btn.setAttribute('data-denied', {{ t('voice.denied')|tojson }});
+    btn.title = {{ t('voice.mic_title')|tojson }};
+    btn.innerHTML = '<i class="bi bi-mic"></i> <span></span>';
+    btn.querySelector('span').textContent = {{ t('voice.mic')|tojson }};
+    var lng = document.createElement('button');
+    lng.type = 'button'; lng.className = 'md-chip dictate-lang'; lng.setAttribute('data-dictate-lang', '');
+    lng.title = {{ t('voice.lang_title')|tojson }};
+    function showLang() { lng.textContent = lang.indexOf('ar') === 0 ? '\u0639' : 'EN'; }
+    showLang();
+    var heard = document.createElement('span'); heard.className = 'dictate-heard hint';
+    bar.appendChild(btn); bar.appendChild(lng); bar.appendChild(heard);
+    box.insertAdjacentElement('afterend', bar);
+    btn.addEventListener('click', function () {
+      if (live && live.box === box) { stop(); return; }
+      start(box, btn, heard);
+    });
+    lng.addEventListener('click', function () {
+      lang = lang.indexOf('ar') === 0 ? 'en-US' : 'ar-EG';
+      try { window.localStorage.setItem(LANGKEY, lang); } catch (e) {}
+      document.querySelectorAll('[data-dictate-lang]').forEach(function (b) { b.textContent = lang.indexOf('ar') === 0 ? '\u0639' : 'EN'; });
+      if (live) { var l = live; stop(); setTimeout(function () { start(l.box, l.btn, l.btn.parentNode.querySelector('.dictate-heard')); }, 250); }
+    });
+  });
+  window.addEventListener('beforeunload', stop);
+})();
+</script>
+{% endif %}
 <script>
 /* Symptom chips (أ-٧): «» → yes → no → «». «Nothing new» / «the rest no»
    marks every untouched chip «no». */
