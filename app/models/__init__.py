@@ -201,6 +201,7 @@ from app.models.quality import (ImprovementProject, MeasureValue, PerformanceMea
 from app.models.user_capability import UserCapability
 from app.models.permissions import MODULES, ROLE_PERMISSIONS, ROLES
 from app.models.role import Role
+from app.models.saved_report import SavedReport
 from app.models.setting import Setting
 from app.models.user import User
 from app.models.visit import (
@@ -421,6 +422,7 @@ from app.models.device import (
 __all__ = [
     "User",
     "Setting",
+    "SavedReport",
     "AboutPerson",
     "ActivityLog",
     "AiUsage",

@@ -31,6 +31,12 @@ def _consumption(u):
                                       or u.can_open("ai") or u.can("finance_manage"))
 
 
+def _builder(u):
+    from app.utils.report_builder import available
+
+    return bool(available(u))
+
+
 #: (endpoint, group, icon, title key, description key, who may open it)
 CATALOG = [
     # ---- money ----
@@ -47,6 +53,9 @@ CATALOG = [
     ("reports.staff", FINANCE, "people", "reports.staff", "reports.staff_desc", _reports_and()),
     ("finance.statements", FINANCE, "journal-text", "allrep.statements", "allrep.statements_d", _opens("finance")),
     # ---- medical ----
+    # The builder makes the rest (REPORTS_PLAN.md ت-٢): any source the
+    # person may use — money only with the finance rights.
+    ("reports.builder", MEDICAL, "sliders", "allrep.builder", "allrep.builder_d", _builder),
     ("reports.medical_board", MEDICAL, "heart-pulse", "board_med.title", "board_med.desc", _reports_and()),
     ("reports.analytics", MEDICAL, "clipboard2-data", "reports.analytics", "reports.analytics_desc", _reports_and()),
     ("reports.vaccines", MEDICAL, "shield-plus", "reports.vaccines", "reports.vaccines_desc", _reports_and()),

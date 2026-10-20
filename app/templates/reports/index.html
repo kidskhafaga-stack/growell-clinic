@@ -31,6 +31,14 @@
 <h1 class="page-title gc-animate">{{ t('reports.title') }}</h1>
 <p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('allrep.sub') }}</p>
 
+{% if builder_on %}
+<a class="card rep-builder gc-animate gc-press" href="{{ url_for('reports.builder') }}" data-builder-door>
+  <div class="hub-ico edge-medical"><i class="bi bi-sliders"></i></div>
+  <div class="rep-text"><h3>{{ t('allrep.builder') }}</h3><p>{{ t('allrep.builder_d') }}</p></div>
+  <i class="bi bi-arrow-{{ 'left' if current_lang == 'ar' else 'right' }}-short rep-go" aria-hidden="true"></i>
+</a>
+{% endif %}
+
 <div class="rep-search gc-animate">
   <i class="bi bi-search"></i>
   <input class="input" type="search" id="repSearch" data-rep-search autocomplete="off"
@@ -102,6 +110,10 @@
 
 {% block head %}
 <style>
+  .rep-builder { display:flex; gap:12px; align-items:center; padding:14px 16px; margin:12px 0 4px; max-width:760px; text-decoration:none; color:inherit; border:1px solid var(--green-600); }
+  .rep-builder h3 { margin:0 0 2px; font-size:1rem; }
+  .rep-builder p { margin:0; color:var(--muted); font-size:.88rem; }
+  .rep-builder .rep-go { margin-inline-start:auto; font-size:1.6rem; color:var(--green-600); }
   .rep-search { position:relative; max-width:560px; margin:14px 0 6px; }
   .rep-search i { position:absolute; inset-inline-start:12px; top:50%; transform:translateY(-50%); color:var(--muted); }
   .rep-search .input { padding-inline-start:36px; }

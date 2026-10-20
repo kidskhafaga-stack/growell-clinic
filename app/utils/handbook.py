@@ -2660,6 +2660,23 @@ SECTIONS = [
              "operations and quality, each shown only to whoever may open it. Type a "
              "word in the search box (or press /) to find a report, and the star puts "
              "it under «Starred» at the top — yours alone, on any computer."),
+            ("<b>منشئ التقارير:</b> من «كل التقارير» ← «منشئ التقارير». اختار المصدر "
+             "(الزيارات، التشخيصات، الأدوية، الحجوزات، الفواتير، الخدمات المفوترة) والفترة، "
+             "وتعدّ إيه أو تجمع إيه، وقسّمه بالشهر أو الطبيب أو جهة الدفع أو السن. «قارن "
+             "الفترة بـ» بتحط الفترة جنب اللي قبلها أو نفس التواريخ السنة اللي فاتت (أول "
+             "٦ شهور السنة دي قصاد اللي فاتت شهر بشهر)، و«جنب بعض بـ» بتحط طبيب جنب طبيب أو "
+             "نقدي جنب تعاقد أو شركة جنب شركة. وللسن والمبالغ فيه إحصاء وصفي: المتوسط "
+             "والوسيط والانحراف المعياري. الأرقام مجمّعة من غير أسماء، والفلوس بصلاحية "
+             "المالية بس. وتقدر تصدّره Excel وتحفظه لنفسك أو لزمايلك.",
+             "<b>Report builder:</b> from «All reports» → «Report builder». Pick the source "
+             "(visits, diagnoses, medicines, bookings, bills, billed services) and the period, "
+             "what to count or add up, and split it by month, doctor, payer or age. «Compare "
+             "the period with» puts it beside the period before or the same dates last year "
+             "(this year's first six months against last year's, month by month), and «side "
+             "by side by» puts doctor beside doctor, cash beside contracts or payer beside "
+             "payer. Ages and amounts have descriptive statistics: mean, median and standard "
+             "deviation. Figures are totals without names, and money needs the finance "
+             "rights. Export it to Excel and save it for yourself or your colleagues."),
             ("<b>لوحة الاستهلاك</b> (التقارير ← الاستهلاك): استهلكنا أد إيه "
              "وبكام في أي فترة، جنب نفس المدة اللي قبلها — المخزن كله (حسب "
              "القسم والمخزن ونوع الصنف)، والأدوية، ومستهلكات المعمل (وتكلفة كل "
