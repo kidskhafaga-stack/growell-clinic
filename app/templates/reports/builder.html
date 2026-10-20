@@ -1,0 +1,269 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('builder.title') }}{% endblock %}
+{% block page_heading %}{{ t('builder.title') }}{% endblock %}
+
+{# The report builder (REPORTS_PLAN.md ت-٢) — utils/report_builder. A source,
+   a period, what to count or add up, a split, and a comparison. Aggregates
+   only: no source splits by child, so no names come out of this page. #}
+
+{% macro cell(v, f, signed=False) -%}
+  {%- if v is none -%}<span class="muted">—</span>
+  {%- elif f == 'money' -%}<bdi>{{ v|money }}</bdi>
+  {%- elif f == 'pct' -%}<bdi dir="ltr">{{ ('%+.1f' if signed else '%.1f')|format(v) }}%</bdi>
+  {%- elif f == 'int' -%}<bdi dir="ltr">{{ ('{:+,}' if signed else '{:,}').format(v|int) }}</bdi>
+  {%- else -%}<bdi dir="ltr">{{ ('{:+,.1f}' if signed else '{:,.1f}').format(v) }}</bdi>
+  {%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+{% include "reports/_board_style.html" %}
+<style>
+:root{--rb-0:#0f8a96;--rb-1:#c9802a;--rb-2:#6c5fc7;--rb-3:#c2413b;--rb-4:#3f8f4f;--rb-5:#7a6f63;--rb-bar:rgba(15,138,150,.16);}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--rb-0:#4cc3cf;--rb-1:#e6a65a;--rb-2:#a59af0;--rb-3:#ec7a73;--rb-4:#7ccb8a;--rb-5:#b8ad9f;--rb-bar:rgba(76,195,207,.18);}}
+:root[data-theme="dark"]{--rb-0:#4cc3cf;--rb-1:#e6a65a;--rb-2:#a59af0;--rb-3:#ec7a73;--rb-4:#7ccb8a;--rb-5:#b8ad9f;--rb-bar:rgba(76,195,207,.18);}
+.rb-src{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.rb-src label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 14px;cursor:pointer;font-weight:600;}
+.rb-src input{position:absolute;opacity:0;pointer-events:none;}
+.rb-src label:has(input:checked){border-color:var(--green-600);background:var(--green-50,rgba(15,154,168,.12));}
+.rb-src label:has(input:focus-visible){outline:2px solid var(--green-600);outline-offset:2px;}
+.rb-row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:end;}
+.rb-row>label{display:flex;flex-direction:column;gap:3px;font-size:.8rem;color:var(--muted);min-width:150px;}
+.rb-row>label .input,.rb-row>label select{min-width:150px;}
+.rb-steps{display:grid;gap:12px;}
+.rb-step{display:grid;gap:6px;}
+.rb-step>b{font-size:.85rem;}
+.rb-filters{display:flex;flex-wrap:wrap;gap:12px;}
+.rb-filters fieldset{border:1px solid var(--line);border-radius:10px;padding:6px 10px;max-height:180px;overflow:auto;min-width:160px;margin:0;}
+.rb-filters legend{font-size:.8rem;color:var(--muted);padding:0 4px;}
+.rb-filters label{display:flex;gap:6px;align-items:center;font-size:.88rem;white-space:nowrap;}
+.rb-table{width:100%;border-collapse:collapse;}
+.rb-table th,.rb-table td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:start;vertical-align:middle;}
+.rb-table td.v{position:relative;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.rb-table td.v .bar{position:absolute;inset-block:5px;inset-inline-start:0;background:var(--rb-bar);border-radius:6px;z-index:0;}
+.rb-table td.v>bdi,.rb-table td.v>span{position:relative;z-index:1;}
+.rb-table tfoot td{font-weight:700;border-top:2px solid var(--line);}
+.rb-chart{width:100%;height:auto;max-height:260px;display:block;}
+.rb-chart text{fill:var(--muted);font-size:11px;}
+.rb-chart .ax{stroke:var(--line);stroke-width:1;}
+.rb-chart .grid{stroke:var(--line);stroke-dasharray:4 4;}
+{% for i in range(6) %}.rb-l{{ i }}{stroke:var(--rb-{{ i }});fill:var(--rb-{{ i }});}{% endfor %}
+.rb-chart polyline{fill:none;stroke-width:2.4;stroke-linejoin:round;}
+.rb-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:.85rem;}
+.rb-legend span::before{content:"";display:inline-block;width:12px;height:3px;border-radius:2px;margin-inline-end:6px;vertical-align:middle;background:currentColor;}
+.rb-saved{display:grid;gap:4px;}
+.rb-saved li{display:flex;gap:8px;align-items:center;justify-content:space-between;}
+.rb-note{font-size:.82rem;color:var(--muted);margin:0;}
+.muted{color:var(--muted);}
+.rb-row>label[hidden]{display:none;}
+@media print{ #rbForm,.mb-grid,.mb-top .btn,[data-export]{display:none!important;}}
+</style>
+
+<div class="gc-animate mb-top">
+  <div>
+    <h1 class="page-title"><i class="bi bi-sliders"></i> {{ t('builder.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:75ch;">{{ t('builder.sub') }}</p>
+  </div>
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('reports.index') }}"><i class="bi bi-grid"></i> {{ t('builder.all_reports') }}</a>
+</div>
+
+<form method="get" action="{{ url_for('reports.builder') }}" class="card" data-builder-form id="rbForm">
+  <div class="rb-src" role="radiogroup" aria-label="{{ t('builder.source') }}">
+    {% for key in spec.sources %}
+    <label data-src="{{ key }}"><input type="radio" name="src" value="{{ key }}" {{ 'checked' if key == spec.src }} data-src-pick>
+      <i class="bi bi-{{ sources[key].icon }}"></i> {{ t('builder.src_' ~ key) }}</label>
+    {% endfor %}
+  </div>
+  <p class="rb-note" style="margin-bottom:12px;">{{ t('builder.src_' ~ spec.src ~ '_d') }}</p>
+
+  <div class="rb-steps">
+    <div class="rb-row">
+      <label>{{ t('builder.period') }}
+        <select class="input" name="preset" data-preset>
+          {% for p in ('7', '30', 'month', '90', 'year') %}
+          <option value="{{ p }}" {{ 'selected' if spec.preset == p }}>{{ t('builder.preset_' ~ p) }}</option>
+          {% endfor %}
+          <option value="" {{ 'selected' if not spec.preset }}>{{ t('builder.preset_dates') }}</option>
+        </select></label>
+      <label>{{ t('builder.from') }}<input class="input" type="date" name="from" data-date value="{{ spec['from'].isoformat() if not spec.preset }}"></label>
+      <label>{{ t('builder.to') }}<input class="input" type="date" name="to" data-date value="{{ spec['to'].isoformat() if not spec.preset }}"></label>
+      <span class="rb-note" style="align-self:center;"><bdi dir="ltr">{{ spec['from'].isoformat() }} → {{ spec['to'].isoformat() }}</bdi></span>
+    </div>
+
+    <div class="rb-row">
+      <label>{{ t('builder.measure') }}
+        <select class="input" name="m" data-measure>
+          {% for key, mdef in src.measures.items() %}
+          <option value="{{ key }}" data-num="{{ 1 if mdef[0] == 'num' else 0 }}" {{ 'selected' if key == spec.m }}>{{ t('builder.m_' ~ key) }}</option>
+          {% endfor %}
+        </select></label>
+      <label data-agg-box {{ 'hidden' if src.measures[spec.m][0] != 'num' }}>{{ t('builder.agg') }}
+        <select class="input" name="agg">
+          {% for a in aggs %}<option value="{{ a }}" {{ 'selected' if a == spec.agg }}>{{ t('builder.agg_' ~ a) }}</option>{% endfor %}
+        </select></label>
+      <label>{{ t('builder.by') }}
+        <select class="input" name="by">
+          {% for d in src.dims %}<option value="{{ d }}" {{ 'selected' if d == spec.by }}>{{ t('builder.d_' ~ d) }}</option>{% endfor %}
+        </select></label>
+      <label>{{ t('builder.split') }}
+        <select class="input" name="split">
+          <option value="">{{ t('builder.split_none') }}</option>
+          {% for d in src.dims %}<option value="{{ d }}" {{ 'selected' if d == spec.split }}>{{ t('builder.d_' ~ d) }}</option>{% endfor %}
+        </select></label>
+      <label>{{ t('builder.compare') }}
+        <select class="input" name="vs" data-vs>
+          <option value="">{{ t('builder.vs_none') }}</option>
+          {% for v in ('prev', 'year', 'custom') %}<option value="{{ v }}" {{ 'selected' if v == spec.vs }}>{{ t('builder.vs_' ~ v) }}</option>{% endfor %}
+        </select></label>
+      <label data-vs-custom {{ 'hidden' if spec.vs != 'custom' }}>{{ t('builder.from2') }}<input class="input" type="date" name="from2" value="{{ spec.b_from.isoformat() if spec.vs == 'custom' }}"></label>
+      <label data-vs-custom {{ 'hidden' if spec.vs != 'custom' }}>{{ t('builder.to2') }}<input class="input" type="date" name="to2" value="{{ spec.b_to.isoformat() if spec.vs == 'custom' }}"></label>
+    </div>
+    <p class="rb-note">{{ t('builder.how_compare') }}</p>
+
+    <details {{ 'open' if spec.filters or spec.q }}>
+      <summary><b>{{ t('builder.filters') }}</b>{% if spec.filters or spec.q %} <span class="mb-d flat">{{ (spec.filters|length) + (1 if spec.q else 0) }}</span>{% endif %}</summary>
+      <div class="rb-filters" style="margin-top:8px;">
+        {% if src.text_dim %}
+        <label style="flex-direction:column;align-items:stretch;gap:3px;font-size:.8rem;color:var(--muted);">{{ t('builder.q_' ~ src.text_dim) }}
+          <input class="input" type="search" name="q" value="{{ spec.q }}" placeholder="{{ t('builder.q_ph') }}"></label>
+        {% endif %}
+        {% for dim in src.filters %}{% set opts = table.options.get(dim, []) %}
+        {% if opts|length > 1 or spec.filters.get(dim) %}
+        <fieldset data-filter="{{ dim }}">
+          <legend>{{ t('builder.d_' ~ dim) }}</legend>
+          {% for key, name in opts %}
+          <label><input type="checkbox" name="f_{{ dim }}" value="{{ key }}" {{ 'checked' if key in spec.filters.get(dim, ()) }}> {{ name }}</label>
+          {% endfor %}
+        </fieldset>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </details>
+
+    <div class="rb-row">
+      <button type="submit" class="btn btn-primary gc-press"><i class="bi bi-play-fill"></i> {{ t('builder.show') }}</button>
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('reports.builder', src=spec.src) }}">{{ t('builder.reset') }}</a>
+    </div>
+  </div>
+</form>
+
+<section class="card" style="margin-top:14px;" data-builder-result="{{ table.mode }}">
+  <div class="mb-h" style="justify-content:space-between;">
+    <h2 style="margin:0;font-size:1.05rem;">{{ t('builder.m_' ~ spec.m) }}{% if src.measures[spec.m][0] == 'num' and spec.agg != 'sum' %} — {{ t('builder.agg_' ~ spec.agg) }}{% endif %}
+      <small class="muted">· {{ t('builder.by_word') }} {{ t('builder.d_' ~ spec.by) }}{% if spec.split %} · {{ t('builder.split_word') }} {{ t('builder.d_' ~ spec.split) }}{% endif %}</small></h2>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('reports.builder_export') }}?{{ query }}&amp;fmt=csv" data-export="csv"><i class="bi bi-filetype-csv"></i> CSV</a>
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('reports.builder_export') }}?{{ query }}&amp;fmt=xlsx" data-export="xlsx"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+      <button type="button" class="btn btn-outline btn-sm gc-press" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('builder.print') }}</button>
+    </div>
+  </div>
+  <p class="rb-note">{{ t('builder.rows_read', n=table.n) }}{% if src.money %} {{ t('builder.money_note') }}{% endif %}{% if spec.m == 'age_m' %} {{ t('builder.age_note') }}{% endif %}{% if spec.agg == 'sd' or spec.agg == 'stats' %} {{ t('builder.sd_note') }}{% endif %}</p>
+
+  {% if table.chart %}{% set c = table.chart %}
+  <div dir="ltr" style="margin:10px 0;">
+    <svg class="rb-chart" viewBox="0 0 {{ c.w }} {{ c.h }}" role="img" aria-label="{{ t('builder.chart') }}" data-builder-chart>
+      <line class="ax" x1="{{ c.pad }}" y1="{{ c.base }}" x2="{{ c.w - c.pad }}" y2="{{ c.base }}"></line>
+      <line class="grid" x1="{{ c.pad }}" y1="{{ c.y_mid }}" x2="{{ c.w - c.pad }}" y2="{{ c.y_mid }}"></line>
+      <line class="grid" x1="{{ c.pad }}" y1="{{ c.y_top }}" x2="{{ c.w - c.pad }}" y2="{{ c.y_top }}"></line>
+      <text x="2" y="{{ c.y_top + 4 }}">{{ '{:,.0f}'.format(c.top) }}</text>
+      <text x="2" y="{{ c.y_mid + 4 }}">{{ '{:,.0f}'.format(c.top / 2) }}</text>
+      {% for l in c.lines %}
+      <polyline class="rb-l{{ l.n }}" points="{{ l.points }}"></polyline>
+      <circle class="rb-l{{ l.n }}" cx="{{ l.last[0] }}" cy="{{ l.last[1] }}" r="4"></circle>
+      {% endfor %}
+      {% for x, lab in c.ticks %}<text x="{{ x }}" y="{{ c.h - 10 }}" text-anchor="middle">{{ lab }}</text>{% endfor %}
+    </svg>
+  </div>
+  {% if c.lines|length > 1 %}
+  <div class="rb-legend">{% for l in c.lines %}<span style="color:var(--rb-{{ l.n }});"><bdi style="color:var(--text,inherit);">{{ l.label }}</bdi></span>{% endfor %}</div>
+  {% endif %}
+  {% endif %}
+
+  {% if table.rows %}
+  <div style="overflow-x:auto;margin-top:8px;">
+    <table class="rb-table" data-builder-table>
+      <thead><tr><th>{{ t('builder.d_' ~ spec.by) }}</th>{% for col in table.cols %}<th data-col="{{ col }}"><bdi>{{ col }}</bdi></th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for r in table.rows %}
+        <tr data-row="{{ r.label }}"><td><bdi>{{ r.label }}</bdi></td>
+          {% for v in r.cells %}{% set i = loop.index0 %}
+          <td class="v" data-v="{{ '' if v is none else v }}">{% if table.bar[i] and v and table.max[i] %}<span class="bar" style="width:{{ ((v|abs) * 100 / table.max[i])|round(1) }}%"></span>{% endif %}{{ cell(v, table.col_fmt[i], signed=(table.mode == 'vs' and i >= 2)) }}</td>
+          {% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+      <tfoot><tr data-row="__total__"><td>{{ t('builder.total') }}</td>{% for v in table.total %}{% set i = loop.index0 %}<td class="v" data-v="{{ '' if v is none else v }}">{{ cell(v, table.col_fmt[i], signed=(table.mode == 'vs' and i >= 2)) }}</td>{% endfor %}</tr></tfoot>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint" data-builder-empty>{{ t('builder.empty') }}</p>
+  {% endif %}
+</section>
+
+<div class="mb-grid" style="margin-top:14px;">
+  <section class="card">
+    <h2 class="mb-h" style="font-size:1rem;"><i class="bi bi-bookmark-plus"></i> {{ t('builder.save') }}</h2>
+    <form method="post" action="{{ url_for('reports.builder_save') }}" class="rb-row" data-builder-save>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="query" value="{{ query }}">
+      <label>{{ t('builder.save_name') }}<input class="input" name="name" maxlength="120" required></label>
+      <label style="flex-direction:row;align-items:center;gap:6px;min-width:0;"><input type="checkbox" name="shared" value="1"> {{ t('builder.save_shared') }}</label>
+      <button type="submit" class="btn btn-outline gc-press">{{ t('builder.save_btn') }}</button>
+    </form>
+    <p class="rb-note" style="margin-top:6px;">{{ t('builder.save_hint') }}</p>
+  </section>
+  <section class="card" data-builder-saved>
+    <h2 class="mb-h" style="font-size:1rem;"><i class="bi bi-bookmarks"></i> {{ t('builder.saved_title') }}</h2>
+    {% if mine or shared %}
+    <ul class="rb-saved" style="list-style:none;padding:0;margin:0;">
+      {% for r in mine %}
+      <li data-saved="{{ r.id }}"><a href="{{ url_for('reports.builder') }}?{{ r.args }}">{{ r.name }}</a>
+        <span style="display:flex;gap:6px;align-items:center;">{% if r.shared %}<span class="mb-d flat">{{ t('builder.shared_tag') }}</span>{% endif %}
+        <form method="post" action="{{ url_for('reports.builder_delete', report_id=r.id) }}" onsubmit="return confirm({{ t('builder.delete_q')|tojson|forceescape }});">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-ghost btn-sm" aria-label="{{ t('builder.delete') }}" title="{{ t('builder.delete') }}"><i class="bi bi-trash"></i></button></form></span></li>
+      {% endfor %}
+      {% for r in shared %}
+      <li data-saved="{{ r.id }}"><a href="{{ url_for('reports.builder') }}?{{ r.args }}">{{ r.name }}</a>
+        <span class="muted" style="font-size:.82rem;">{{ r.owner.display_name(current_lang) if r.owner }}</span></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="hint" style="margin:0;">{{ t('builder.saved_none') }}</p>
+    {% endif %}
+  </section>
+</div>
+
+<script>
+(function () {
+  var form = document.getElementById('rbForm');
+  if (!form) return;
+  // A new source has its own splits and measures: show it at once.
+  form.querySelectorAll('[data-src-pick]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      ['m', 'by', 'split', 'agg', 'q'].forEach(function (n) {
+        var el = form.elements[n]; if (el) el.disabled = true;
+      });
+      form.querySelectorAll('[data-filter] input').forEach(function (i) { i.disabled = true; });
+      form.submit();
+    });
+  });
+  // Typed dates win over a preset; a preset clears the dates.
+  var preset = form.querySelector('[data-preset]');
+  form.querySelectorAll('[data-date]').forEach(function (d) {
+    d.addEventListener('change', function () { if (d.value) preset.value = ''; });
+  });
+  preset.addEventListener('change', function () {
+    if (preset.value) form.querySelectorAll('[data-date]').forEach(function (d) { d.value = ''; });
+  });
+  // The statistic applies to amounts and ages, not to counts.
+  var m = form.querySelector('[data-measure]'), aggBox = form.querySelector('[data-agg-box]');
+  m.addEventListener('change', function () {
+    aggBox.hidden = m.selectedOptions[0].getAttribute('data-num') !== '1';
+  });
+  var vs = form.querySelector('[data-vs]');
+  vs.addEventListener('change', function () {
+    form.querySelectorAll('[data-vs-custom]').forEach(function (b) { b.hidden = vs.value !== 'custom'; });
+  });
+})();
+</script>
+{% endblock %}

@@ -81,7 +81,143 @@ def _utc_window(date_from, date_to):
 @reports_bp.route("/")
 @module_required(MODULE)
 def index():
-    return render_template("reports/index.html")
+    """All reports, searchable, with the person's starred ones first
+    (REPORTS_PLAN.md ت-١) — the reports screen's own and the departments'."""
+    from app.utils import report_catalog as cat
+
+    cards = cat.visible(current_user)
+    mine = cat.stars(current_user)
+    return render_template("reports/index.html", cards=cards, groups=cat.GROUPS,
+                           starred=[c for ep in mine for c in cards if c["endpoint"] == ep],
+                           star_set=set(mine),
+                           builder_on=any(c["endpoint"] == "reports.builder" for c in cards))
+
+
+@reports_bp.route("/star", methods=["POST"])
+@module_required(MODULE)
+def star():
+    """Star or unstar a report for the person pressing it."""
+    from app.utils import report_catalog as cat
+
+    cat.toggle_star(current_user, (request.form.get("endpoint") or "").strip())
+    db.session.commit()
+    return redirect(url_for("reports.index"))
+
+
+# ================================================ the report builder ========
+def _builder_spec(args):
+    from flask import abort
+
+    from app.utils import report_builder as rb
+
+    spec = rb.spec_from(args, current_user)
+    if spec is None:
+        abort(403)
+    return spec
+
+
+def _saved_reports():
+    from app.models import SavedReport
+
+    rows = (SavedReport.query
+            .filter(db.or_(SavedReport.owner_id == current_user.id, SavedReport.shared.is_(True)))
+            .order_by(SavedReport.name).all())
+    return ([r for r in rows if r.owner_id == current_user.id],
+            [r for r in rows if r.owner_id != current_user.id])
+
+
+@reports_bp.route("/builder")
+@module_required(MODULE)
+def builder():
+    """The report on your own terms (REPORTS_PLAN.md ت-٢): a source, a period,
+    what to count or add up, a split, and a comparison — aggregates only."""
+    from urllib.parse import urlencode
+
+    from app.utils import report_builder as rb
+
+    spec = _builder_spec(request.args)
+    table = rb.run(spec, getattr(g, "lang", "ar"))
+    mine, shared = _saved_reports()
+    return render_template("reports/builder.html", spec=spec, table=table,
+                           src=rb.SOURCES[spec["src"]], sources=rb.SOURCES,
+                           aggs=rb.AGGS, query=urlencode(rb.query_args(spec)),
+                           mine=mine, shared=shared)
+
+
+@reports_bp.route("/builder/export")
+@module_required(MODULE)
+def builder_export():
+    from app.utils import report_builder as rb
+
+    spec = _builder_spec(request.args)
+    table = rb.run(spec, getattr(g, "lang", "ar"))
+    head, body = rb.export_rows(spec, table)
+    fname = f"report_{spec['src']}_{spec['from']}_{spec['to']}"
+    if (request.args.get("fmt") or "").lower() == "xlsx":
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Report"
+        ws.sheet_view.rightToLeft = getattr(g, "lang", "ar") == "ar"
+        ws.append(head)
+        for row in body:
+            ws.append(row)
+        buf = io.BytesIO()
+        wb.save(buf)
+        return Response(
+            buf.getvalue(),
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={fname}.xlsx"})
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(head)
+    w.writerows(body)
+    return Response("\ufeff" + buf.getvalue(), mimetype="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f"attachment; filename={fname}.csv"})
+
+
+@reports_bp.route("/builder/save", methods=["POST"])
+@module_required(MODULE)
+def builder_save():
+    """Keep the question (not the numbers) under a name, for oneself or the
+    team. It runs again on today's data with the opener's permissions."""
+    from urllib.parse import parse_qsl, urlencode
+
+    from werkzeug.datastructures import MultiDict
+
+    from app.models import SavedReport
+    from app.utils import report_builder as rb
+
+    spec = _builder_spec(MultiDict(parse_qsl(request.form.get("query") or "")))
+    query = urlencode(rb.query_args(spec))
+    name = (request.form.get("name") or "").strip()[:120]
+    if not name:
+        flash(t("builder.err_name"), "warning")
+        return redirect(url_for("reports.builder") + "?" + query)
+    db.session.add(SavedReport(name=name, owner_id=current_user.id, args=query,
+                               shared=bool(request.form.get("shared"))))
+    db.session.commit()
+    flash(t("builder.saved", name=name), "success")
+    return redirect(url_for("reports.builder") + "?" + query)
+
+
+@reports_bp.route("/builder/<int:report_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def builder_delete(report_id):
+    from flask import abort
+
+    from app.models import SavedReport
+
+    row = db.session.get(SavedReport, report_id)
+    if row is None:
+        abort(404)
+    if row.owner_id != current_user.id and not current_user.is_admin:
+        abort(403)
+    db.session.delete(row)
+    db.session.commit()
+    flash(t("builder.deleted", name=row.name), "info")
+    return redirect(url_for("reports.builder"))
 
 
 @reports_bp.route("/financial")
