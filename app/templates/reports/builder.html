@@ -218,7 +218,7 @@
       {% for r in mine %}
       <li data-saved="{{ r.id }}"><a href="{{ url_for('reports.builder') }}?{{ r.args }}">{{ r.name }}</a>
         <span style="display:flex;gap:6px;align-items:center;">{% if r.shared %}<span class="mb-d flat">{{ t('builder.shared_tag') }}</span>{% endif %}
-        <form method="post" action="{{ url_for('reports.builder_delete', report_id=r.id) }}" onsubmit="return confirm({{ t('builder.delete_q')|tojson }});">
+        <form method="post" action="{{ url_for('reports.builder_delete', report_id=r.id) }}" onsubmit="return confirm({{ t('builder.delete_q')|tojson|forceescape }});">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-ghost btn-sm" aria-label="{{ t('builder.delete') }}" title="{{ t('builder.delete') }}"><i class="bi bi-trash"></i></button></form></span></li>
       {% endfor %}
