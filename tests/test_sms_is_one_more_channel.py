@@ -175,3 +175,67 @@ def test_the_settings_screen_saves_and_keeps_the_key(clinic):
     assert clinic["sign_in"]("desk").post("/messages/sms", data={"sms_enabled": "0"}).status_code in (302, 403)
     with clinic["app"].app_context():
         assert Setting.get("sms_enabled") == "1"
+
+
+def test_a_number_without_whatsapp_reported_later_still_gets_the_sms(clinic, monkeypatch):
+    """«لو مش واتس اب يبعت اس ام اس». WhatsApp takes the message and only
+    reports minutes later that the number is not on WhatsApp — the fallback
+    has to happen then, once."""
+    from app.models import MessageLog
+    from app.utils import inbound
+
+    with clinic["app"].app_context():
+        db = clinic["db"]
+        _setup(clinic, sms_fallback="1")
+        _capture(monkeypatch)
+        wa_row = MessageLog(to_phone="201001234567", body="ميعادك بكرة", status="sent",
+                            provider="cloud_api", provider_msg_id="wamid.X1")
+        db.session.add(wa_row)
+        db.session.commit()
+        inbound.apply_status({"msg_id": "wamid.X1", "status": "failed",
+                              "error": "Message undeliverable"})
+        db.session.commit()
+        again = MessageLog.query.filter_by(retry_of=wa_row.id).one()
+        assert again.channel == "sms" and again.body == "ميعادك بكرة"
+        # A second copy of the same receipt sends nothing more.
+        inbound.apply_status({"msg_id": "wamid.X1", "status": "failed"})
+        db.session.commit()
+        assert MessageLog.query.filter_by(channel="sms").count() == 1
+
+
+def test_without_the_fallback_switched_on_a_late_failure_sends_nothing(clinic, monkeypatch):
+    from app.models import MessageLog
+    from app.utils import inbound
+
+    with clinic["app"].app_context():
+        db = clinic["db"]
+        _setup(clinic, sms_fallback="0")
+        seen = _capture(monkeypatch)
+        db.session.add(MessageLog(to_phone="201001234567", body="x", status="sent",
+                                  provider="cloud_api", provider_msg_id="wamid.X2"))
+        db.session.commit()
+        inbound.apply_status({"msg_id": "wamid.X2", "status": "failed"})
+        db.session.commit()
+        assert not seen and MessageLog.query.filter_by(channel="sms").count() == 0
+
+
+def test_sms_is_on_the_channels_screen_with_its_settings(clinic):
+    from app.models import Setting
+
+    boss = clinic["sign_in"]("boss")
+    page = boss.get("/messages/channels").get_data(as_text=True)
+    assert 'data-channel-row="sms:off"' in page and 'data-channel-settings="sms"' in page
+    assert 'href="/messages/occasions#sms"' in page
+    # Switched on from here: on, but not filled in yet.
+    form = {"channel": ["whatsapp", "phone"], "sms_row": "1", "sms_on": "1"}
+    boss.post("/messages/channels", data=form)
+    page = boss.get("/messages/channels").get_data(as_text=True)
+    assert 'data-channel-row="sms:setup"' in page and 'data-sms-fallback="off"' in page
+    with clinic["app"].app_context():
+        _setup(clinic, sms_fallback="1")
+    page = boss.get("/messages/channels").get_data(as_text=True)
+    assert 'data-channel-row="sms:on"' in page and 'data-sms-fallback="on"' in page
+    # Saving the channels without the box ticked switches it off again.
+    boss.post("/messages/channels", data={"channel": ["whatsapp"], "sms_row": "1"})
+    with clinic["app"].app_context():
+        assert Setting.get("sms_enabled") == "0"

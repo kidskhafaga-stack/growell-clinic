@@ -2828,7 +2828,9 @@ SECTIONS = [
              "بواتساب والإعدادات ← رسايل SMS» اكتب بيانات شركة الـSMS زي شرحها — العنوان، "
              "واسم المرسل، والمفتاح، وشكل الطلب — أو اختار OpenSMS لموبايل Android "
              "على شبكة العيادة. علّم أنهي أنواع رسايل تروح SMS بدل واتساب، أو خليها "
-             "تتبعت SMS لما رسالة واتساب تفشل. ولو الشركة بتبعت تقارير وصول، حط "
+             "تتبعت SMS لما الرسالة ما توصلش على واتساب — لو الإرسال فشل، أو واتساب رجع "
+             "قال بعدها إن الرقم ملوش واتساب. والـSMS ظاهرة كمان في «القنوات» بحالتها "
+             "(شغالة، محتاجة إعداد، مقفولة) ولينك إعداداتها. ولو الشركة بتبعت تقارير وصول، حط "
              "العنوان اللي في الشاشة عندها، والرسالة بتتعلّم «وصلت» أو «فشلت». "
              "الرسالة العربي ٧٠ حرف والجزء ٦٧. بيشتغل مع الإرسال التلقائي بس.",
              "<b>SMS messages</b> (an extra channel, off until switched on): under "
@@ -2836,7 +2838,10 @@ SECTIONS = [
              "details as its documentation gives them — address, sender name, key "
              "and request body — or pick OpenSMS for an Android phone on the "
              "clinic's network. Tick which message types go by SMS instead of "
-             "WhatsApp, or have a failed WhatsApp message sent again by SMS. If "
+             "WhatsApp, or have a message sent by SMS when it does not reach "
+             "WhatsApp — when sending fails, or when WhatsApp reports later that "
+             "the number has no WhatsApp. SMS also shows on «Channels» with its "
+             "state (sending, needs setting up, off) and a link to its settings. If "
              "the company sends delivery reports, give it the address on the "
              "screen and messages are marked delivered or failed. An Arabic SMS "
              "is 70 characters, 67 per part. Automatic sending only."),

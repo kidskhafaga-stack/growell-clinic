@@ -14514,7 +14514,15 @@
     "how_telegram": "The clinic's Telegram bot. Families start the conversation; replies go from the inbox.",
     "connect_settings": "Connection settings ↓",
     "connect_by_admin": "An administrator connects it from this screen.",
-    "no_settings": "Needs no settings — logged from the inbox."
+    "no_settings": "Needs no settings — logged from the inbox.",
+    "ch_sms": "SMS",
+    "how_sms": "Sending only: an Egyptian SMS company that sends under the clinic's name and reports delivery, or a phone acting as a gateway. You choose which messages go by SMS instead of WhatsApp.",
+    "sms_on": "Sending",
+    "sms_setup": "Switched on, needs setting up",
+    "sms_off": "Off",
+    "sms_fallback_on": "If a message does not reach WhatsApp (the number has no WhatsApp, or sending failed): it is sent by SMS.",
+    "sms_fallback_off": "If a message does not reach WhatsApp: it is not sent by SMS. You can switch that on in the settings.",
+    "sms_settings": "SMS settings"
   },
   "book": {
     "title": "Request an appointment",
@@ -15034,7 +15042,7 @@
     "ok_text_hint": "If the company answers 200 even when it refuses, write the word it uses when it accepts.",
     "which_title": "Which messages go by SMS",
     "which_hint": "Ticked types go by SMS instead of WhatsApp. The rest are unchanged.",
-    "fallback": "If a WhatsApp message fails, send it by SMS",
+    "fallback": "If a message does not reach WhatsApp (the number has no WhatsApp, or sending failed), send it by SMS",
     "auto_only": "SMS works with automatic sending only. In manual mode staff press a WhatsApp link.",
     "dlr_title": "Delivery reports",
     "dlr_hint": "If the company sends delivery reports, give it this address and write the field names and words as its documentation does. The message is marked delivered or failed in the message log.",

@@ -38,6 +38,18 @@
         {% else %}<span class="hint" data-channel-settings="{{ k }}">{{ t('channels.no_settings') }}</span>{% endif %}</td>
     </tr>
     {% endfor %}
+    {# SMS — one more way out, beside WhatsApp (utils/sms). Not a way in, so
+       it is not one of the lead channels above it; its settings are on the
+       messages screen, behind the admin like WhatsApp's connection. #}
+    <tr data-channel-row="sms:{{ sms.state }}">
+      <td><input type="hidden" name="sms_row" value="1"><input type="checkbox" name="sms_on" value="1" id="ch_sms" {% if sms.enabled %}checked{% endif %} {% if not current_user.is_admin %}disabled{% endif %}></td>
+      <td><label for="ch_sms" style="margin:0;"><i class="bi bi-chat-left-text"></i> {{ t('channels.ch_sms') }}</label></td>
+      <td><span class="badge {{ 'badge--green' if sms.state == 'on' else ('badge--warn' if sms.state == 'setup' else 'badge--muted') }}" data-sms-state="{{ sms.state }}">{{ t('channels.sms_' ~ sms.state) }}</span>
+        <div class="hint">{{ t('channels.how_sms') }}</div>
+        <div class="hint" data-sms-fallback="{{ 'on' if sms.fallback else 'off' }}"><i class="bi bi-arrow-return-right"></i> {{ t('channels.sms_fallback_on') if sms.fallback else t('channels.sms_fallback_off') }}</div>
+        {% if current_user.is_admin %}<a class="hint" href="{{ url_for('messages.occasions') }}#sms" data-channel-settings="sms"><i class="bi bi-gear"></i> {{ t('channels.sms_settings') }}</a>
+        {% else %}<span class="hint" data-channel-settings="sms">{{ t('channels.connect_by_admin') }}</span>{% endif %}</td>
+    </tr>
     </tbody></table></div>
 
   <h2 class="section-title" style="margin:14px 0 6px;"><i class="bi bi-globe2"></i> {{ t('channels.page') }}</h2>
