@@ -1659,7 +1659,8 @@ def sms_save():
     from app.utils import sms
 
     for key in ("sms_endpoint", "sms_auth_header", "sms_sender", "sms_payload",
-                "sms_id_field", "sms_ok_text", "sms_dlr_id_field",
+                "sms_id_field", "sms_ok_text", "sms_ok_field", "sms_username",
+                "sms_lang_plain", "sms_lang_unicode", "sms_dlr_id_field",
                 "sms_dlr_status_field", "sms_dlr_delivered", "sms_dlr_failed"):
         Setting.set(key, (request.form.get(key) or "").strip()[:2000])
     method = request.form.get("sms_method")

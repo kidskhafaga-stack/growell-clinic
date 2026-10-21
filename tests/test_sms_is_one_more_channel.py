@@ -239,3 +239,84 @@ def test_sms_is_on_the_channels_screen_with_its_settings(clinic):
     boss.post("/messages/channels", data={"channel": ["whatsapp"], "sms_row": "1"})
     with clinic["app"].app_context():
         assert Setting.get("sms_enabled") == "0"
+
+
+def _preset(clinic, name, **extra):
+    from app.utils import sms
+
+    values = dict(sms.PRESETS[name])
+    values.update({"sms_enabled": "1", "sms_sender": "GrowWell", "sms_username": "clinic",
+                   "sms_auth_value": "pa ss"})
+    values.update(extra)
+    _setup(clinic, **values)
+
+
+def test_sms_misr_fields_ride_in_the_address_and_1901_is_success(clinic, monkeypatch):
+    """«الاعدادات بتاعت SMS متوافقة مع الشركات فى مصر؟» — SMS Misr: a POST
+    with every field in the address, Arabic as language 2, and an answer of
+    200 whatever happened, success being code 1901."""
+    import urllib.parse
+
+    from app.utils import sms
+
+    with clinic["app"].app_context():
+        _preset(clinic, "smsmisr")
+        seen = _capture(monkeypatch, reply='{"code": "1901", "SMSID": 77}')
+        ok, err, _ = sms.deliver(sms.config(), "201001234567", "ميعادك بكرة")
+        assert ok and err is None
+        req = seen[0]
+        assert req.get_method() == "POST" and req.data in (b"", None)
+        q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(req.full_url).query))
+        assert q["username"] == "clinic" and q["password"] == "pa ss" and q["sender"] == "GrowWell"
+        assert q["mobile"] == "201001234567" and q["message"] == "ميعادك بكرة" and q["language"] == "2"
+        # English goes as language 1.
+        sms.deliver(sms.config(), "201001234567", "See you tomorrow")
+        q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(seen[1].full_url).query))
+        assert q["language"] == "1"
+        # 200 with another code is a refusal.
+        _capture(monkeypatch, reply='{"code": "1903"}')
+        ok, err, _ = sms.deliver(sms.config(), "201001234567", "x")
+        assert not ok and "1903" in err
+
+
+def test_victory_link_0_is_sent_and_minus_10_is_not_mistaken_for_it(clinic, monkeypatch):
+    import urllib.parse
+
+    from app.utils import sms
+
+    with clinic["app"].app_context():
+        _preset(clinic, "victorylink")
+        seen = _capture(monkeypatch, reply="0")
+        ok, _err, msg_id = sms.deliver(sms.config(), "201001234567", "ميعادك بكرة")
+        form = dict(urllib.parse.parse_qsl(seen[0].data.decode()))
+        assert ok and form["SMSLang"] == "a" and form["SMSReceiver"] == "201001234567"
+        assert form["UserName"] == "clinic" and form["Password"] == "pa ss"
+        # The program's own reference goes with it and is what delivery is reported against.
+        assert form["SMSID"] and msg_id == form["SMSID"]
+        for refusal in ("-10", "-5", "-100", '<int xmlns="http://tempuri.org/">-1</int>'):
+            _capture(monkeypatch, reply=refusal)
+            ok, err, _ = sms.deliver(sms.config(), "201001234567", "x")
+            assert not ok, refusal
+        _capture(monkeypatch, reply='<int xmlns="http://tempuri.org/">0</int>')
+        assert sms.deliver(sms.config(), "201001234567", "x")[0]
+
+
+def test_cequens_is_json_with_a_bearer_token(clinic, monkeypatch):
+    from app.utils import sms
+
+    with clinic["app"].app_context():
+        _preset(clinic, "cequens", sms_auth_value="Bearer T0K")
+        seen = _capture(monkeypatch, reply='{"data": {"SentSMSIDs": []}}')
+        ok, _e, _m = sms.deliver(sms.config(), "201001234567", "ميعادك بكرة")
+        body = json.loads(seen[0].data.decode())
+        assert ok and seen[0].get_header("Authorization") == "Bearer T0K"
+        assert body == {"senderName": "GrowWell", "messageType": "text", "shortURL": False,
+                        "messageText": "ميعادك بكرة", "recipients": "201001234567"}
+
+
+def test_the_settings_screen_offers_the_egyptian_companies(clinic):
+    page = clinic["sign_in"]("boss").get("/messages/occasions").get_data(as_text=True)
+    for key in ("smsmisr", "victorylink", "cequens", "opensms"):
+        assert f'data-sms-preset="{key}"' in page
+    assert 'name="sms_username"' in page and 'name="sms_lang_unicode"' in page
+    assert 'value="post_query"' in page
