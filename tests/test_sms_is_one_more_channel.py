@@ -320,3 +320,21 @@ def test_the_settings_screen_offers_the_egyptian_companies(clinic):
         assert f'data-sms-preset="{key}"' in page
     assert 'name="sms_username"' in page and 'name="sms_lang_unicode"' in page
     assert 'value="post_query"' in page
+
+
+def test_a_message_mixing_arabic_and_english_goes_with_the_arabic_code(clinic, monkeypatch):
+    """«مش ممكن تكون جزء عربى وانجليزي فى الرسالة؟» — yes, and then the whole
+    message goes in the encoding that carries Arabic: one Arabic letter is
+    enough, and it counts 70 to a message."""
+    import urllib.parse
+
+    from app.utils import sms
+
+    with clinic["app"].app_context():
+        _preset(clinic, "smsmisr")
+        seen = _capture(monkeypatch, reply='{"code": "1901"}')
+        mixed = "ميعاد Dr. Ahmed بكرة 5 PM"
+        sms.deliver(sms.config(), "201001234567", mixed)
+        q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(seen[0].full_url).query))
+        assert q["language"] == "2" and q["message"] == mixed
+        assert sms.segments(mixed)[2] is True and sms.segments("Dr. Ahmed 5 PM")[2] is False
