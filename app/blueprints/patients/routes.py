@@ -743,6 +743,8 @@ def view(patient_id):
     vaccine_plan = annotate_courses(patient_plan(patient, vlang))
     vaccine_next = next_due_dose(vaccine_plan)
 
+    from app.utils import coverage_card as _card
+
     return render_template(
         "patients/profile.html",
         # What this file still owes the clinic, worked out now rather than
@@ -790,6 +792,7 @@ def view(patient_id):
         may_sign_consent=_consent_utils.may_sign(current_user),
         categories=CLIENT_CATEGORIES,
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
+        card_history=_card.history(patient), card_state=_card.state(patient),
         ai_patient=ai_patient, ai_discuss=ai_discuss,
         prescriptions=prescriptions, invoices=invoices, fin=fin,
         # Courses this family paid for up front. Shown on the file and not
@@ -1652,7 +1655,9 @@ def add_coverage(patient_id):
         except ValueError:
             return None
 
-    card = (request.form.get("membership_number") or "").strip() or None
+    from app.utils import coverage_card
+
+    details = coverage_card.details_from(request.form)
     expiry = _exp()
     targets = [patient]
     # Optionally apply the same entity to siblings (each keeps its own card).
@@ -1660,16 +1665,66 @@ def add_coverage(patient_id):
         targets += patient.siblings
 
     for tgt in targets:
-        # Per-patient card number only for the main patient; siblings share the
-        # entity but get their own (blank) card to fill later.
-        db.session.add(PatientCoverage(
-            patient_id=tgt.id, payer_id=payer.id,
-            membership_number=card if tgt.id == patient.id else None,
-            expiry_date=expiry, is_active=True,
-        ))
+        # Per-patient card details only for the main patient; siblings share
+        # the entity but get their own (blank) card to fill later.
+        mine = tgt.id == patient.id
+        row = PatientCoverage(patient_id=tgt.id, payer_id=payer.id,
+                              expiry_date=expiry, is_active=True)
+        if mine:
+            for key in ("membership_number", "issue_date", "plan_name", "holder_name",
+                        "holder_relation"):
+                setattr(row, key, details[key])
+            try:
+                coverage_card.save_pictures(row, request.files)
+            except coverage_card.CardError as exc:
+                db.session.rollback()
+                flash(t("card.err_" + str(exc)), "danger")
+                return redirect(url_for("patients.view", patient_id=patient.id) + "#coverage")
+        db.session.add(row)
     db.session.commit()
     flash(t("coverage.added"), "success")
     return redirect(url_for("patients.view", patient_id=patient.id) + "#coverage")
+
+
+def _safe_next(raw):
+    raw = (raw or "").strip()
+    return raw if raw.startswith("/") and not raw.startswith("//") else None
+
+
+@patients_bp.route("/coverage/<int:coverage_id>/renew", methods=["POST"])
+@module_required(MODULE)
+def renew_coverage(coverage_id):
+    """A renewed card: new dates and the new card's picture (CONTRACTS_PLAN.md
+    ع-١). The old card stays, switched off. Back to the cashier when the
+    renewal was asked for from there."""
+    from app.models import PatientCoverage
+    from app.utils import coverage_card
+
+    cov = db.get_or_404(PatientCoverage, coverage_id)
+    back = _safe_next(request.form.get("next"))
+    try:
+        new = coverage_card.renew(cov, request.form, request.files, current_user)
+    except coverage_card.CardError as exc:
+        db.session.rollback()
+        flash(t("card.err_" + str(exc)), "danger")
+        return redirect(url_for("patients.view", patient_id=cov.patient_id, renew=cov.id,
+                                next=back or None) + "#coverage")
+    db.session.commit()
+    flash(t("card.renewed", date=new.expiry_date.isoformat()), "success")
+    return redirect(back or url_for("patients.view", patient_id=cov.patient_id) + "#coverage")
+
+
+@patients_bp.route("/coverage/expiring")
+@module_required(MODULE)
+def expiring_cards():
+    """The cards running out soon, or run out this month and not renewed —
+    the list reception calls the families from."""
+    from app.utils import coverage_card
+
+    within = request.args.get("days", type=int) or coverage_card.SOON_DAYS
+    within = within if within in (7, 14, 30, 60) else coverage_card.SOON_DAYS
+    return render_template("patients/expiring_cards.html",
+                           rows=coverage_card.expiring(within), within=within)
 
 
 @patients_bp.route("/coverage/<int:coverage_id>/delete", methods=["POST"])

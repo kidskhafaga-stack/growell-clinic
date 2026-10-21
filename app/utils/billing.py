@@ -73,11 +73,18 @@ def apply_coverage(invoice, patient, warn=None, then=None):
     a bed charge with nobody standing in front of the screen.
     """
     warn = warn or (lambda key: None)
-    coverage = patient.active_coverage if patient else None
-    # If the card exists but is expired/inactive, warn and skip auto-apply.
+    # The card that holds on the bill's day — a stay's first day for a stay's
+    # bill (CONTRACTS_PLAN.md ع-١: a card running out mid-stay still covers
+    # the stay it began under).
+    from app.utils import coverage_card
+
+    coverage = (coverage_card.card_on(patient, coverage_card.billing_day(invoice))
+                if patient else None)
+    # If the card exists but is expired/inactive, warn and skip auto-apply —
+    # unless somebody already decided this bill is cash.
     if coverage is None:
         expired = [c for c in getattr(patient, "coverages", []) if not c.is_valid]
-        if expired:
+        if expired and invoice.coverage_decision != "cash":
             warn("coverage.expired_warn")
         # No payer → the clinic's own cash price list applies, automatically.
         # It is not a third party that pays, so no payer is stamped on the

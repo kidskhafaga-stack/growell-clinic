@@ -1845,33 +1845,79 @@
         <summary style="cursor:pointer;list-style:none;">
           <span class="section-title" id="coverage"><i class="bi bi-shield-check"></i> {{ t('coverage.section') }}</span>
         </summary>
-        {% set covs = patient.coverages %}
+        {# CONTRACTS_PLAN.md ع-١ — the card as the payer's form needs it, its
+           pictures, and a renewal that keeps the old card (utils/coverage_card). #}
+        {% set covs = card_history %}
+        {% set back_to = request.args.get('next', '') %}
         {% if covs %}
-        <div class="gc-stagger" style="display:flex;flex-direction:column;gap:8px;">
-          {% for cov in covs %}
-          <div class="card" style="box-shadow:none;border:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px;">
-            <div>
-              <strong>{{ cov.payer.display_name(current_lang) }}</strong>
-              <span class="badge {{ 'badge--green' if cov.is_valid else 'badge--danger' }}">{{ t('coverage.valid') if cov.is_valid else t('coverage.expired') }}</span>
-              <div style="color:var(--muted);font-size:0.85rem;margin-top:2px;">
-                {% if cov.membership_number %}{{ t('coverage.card') }}: <span dir="ltr">{{ cov.membership_number }}</span>{% endif %}
-                {% if cov.expiry_date %} · {{ t('coverage.expiry') }}: <span dir="ltr">{{ cov.expiry_date }}</span>{% endif %}
+        <div class="gc-stagger" style="display:flex;flex-direction:column;gap:8px;" data-cards>
+          {% for cov in covs if cov.is_active %}
+          {% set st = card_state if card_state.card is not none and card_state.card.id == cov.id else none %}
+          <div class="card" style="box-shadow:none;border:1px solid var(--line);display:grid;gap:8px;" id="card-{{ cov.id }}" data-card="{{ cov.id }}">
+            <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;">
+              <div>
+                <strong>{{ cov.payer.display_name(current_lang) }}</strong>
+                {% if st %}{% include "patients/_card_chip.html" %}
+                {% else %}<span class="badge {{ 'badge--green' if cov.is_valid else 'badge--danger' }}">{{ t('coverage.valid') if cov.is_valid else t('coverage.expired') }}</span>{% endif %}
+                <div style="color:var(--muted);font-size:0.85rem;margin-top:2px;display:flex;gap:4px 12px;flex-wrap:wrap;">
+                  {% if cov.membership_number %}<span>{{ t('coverage.card') }}: <bdi dir="ltr">{{ cov.membership_number }}</bdi></span>{% endif %}
+                  {% if cov.plan_name %}<span>{{ t('card.plan') }}: {{ cov.plan_name }}</span>{% endif %}
+                  {% if cov.holder_name %}<span>{{ t('card.holder') }}: {{ cov.holder_name }}{% if cov.holder_relation %} ({{ cov.holder_relation }}){% endif %}</span>{% endif %}
+                  {% if cov.issue_date %}<span>{{ t('card.issue') }}: <bdi dir="ltr">{{ cov.issue_date }}</bdi></span>{% endif %}
+                  {% if cov.expiry_date %}<span>{{ t('coverage.expiry') }}: <bdi dir="ltr">{{ cov.expiry_date }}</bdi></span>{% endif %}
+                </div>
+                <div style="display:flex;gap:10px;margin-top:4px;font-size:.85rem;">
+                  {% for side in ('card_front', 'card_back') %}{% if cov[side] %}
+                  <a href="{{ url_for('static', filename='uploads/patient_docs/' ~ cov[side]) }}" target="_blank" rel="noopener" data-card-photo="{{ side }}"><i class="bi bi-image"></i> {{ t('card.' ~ side) }}</a>
+                  {% endif %}{% endfor %}
+                  {% if not cov.card_front %}<span class="muted" data-card-no-photo>{{ t('card.no_photo') }}</span>{% endif %}
+                </div>
               </div>
+              <form method="post" action="{{ url_for('patients.delete_coverage', coverage_id=cov.id) }}" onsubmit="return confirm({{ (t('common.confirm') ~ '?')|tojson|forceescape }});">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-outline btn-sm gc-press" type="submit" aria-label="{{ t('common.delete') }}"><i class="bi bi-trash"></i></button></form>
             </div>
-            <form method="post" action="{{ url_for('patients.delete_coverage', coverage_id=cov.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
+            <details {{ 'open' if request.args.get('renew')|int == cov.id }} data-renew="{{ cov.id }}">
+              <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;width:max-content;"><i class="bi bi-arrow-repeat"></i> {{ t('card.renew') }}</summary>
+              <form method="post" enctype="multipart/form-data" action="{{ url_for('patients.renew_coverage', coverage_id=cov.id) }}" style="margin-top:8px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="{{ back_to }}">
+                <p class="hint" style="margin:0 0 6px;">{{ t('card.renew_hint') }}</p>
+                <div class="form-grid">
+                  <div class="form-row"><label>{{ t('coverage.membership_number') }}</label><input class="input" name="membership_number" dir="ltr" value="{{ cov.membership_number or '' }}"></div>
+                  <div class="form-row"><label>{{ t('card.issue') }}</label><input class="input" type="date" name="issue_date"></div>
+                  <div class="form-row"><label>{{ t('coverage.expiry') }} *</label><input class="input" type="date" name="expiry_date" required></div>
+                  <div class="form-row"><label>{{ t('card.plan') }}</label><input class="input" name="plan_name" maxlength="80" value="{{ cov.plan_name or '' }}"></div>
+                  <div class="form-row"><label>{{ t('card.card_front') }} *</label><input class="input" type="file" name="card_front" accept="image/*,application/pdf" required></div>
+                  <div class="form-row"><label>{{ t('card.card_back') }}</label><input class="input" type="file" name="card_back" accept="image/*,application/pdf"></div>
+                </div>
+                <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('card.renew_save') }}</button>
+              </form>
+            </details>
           </div>
           {% endfor %}
+          {% set old_cards = covs|rejectattr('is_active')|list %}
+          {% if old_cards %}
+          <details data-old-cards>
+            <summary class="hint" style="cursor:pointer;">{{ t('card.old_cards', n=old_cards|length) }}</summary>
+            <ul style="margin:6px 0 0;padding-inline-start:18px;font-size:.85rem;color:var(--muted);">
+              {% for cov in old_cards %}
+              <li>{{ cov.payer.display_name(current_lang) }} · <bdi dir="ltr">{{ cov.membership_number or '—' }}</bdi> · {{ t('coverage.expiry') }} <bdi dir="ltr">{{ cov.expiry_date or '—' }}</bdi>
+                {% if cov.card_front %} · <a href="{{ url_for('static', filename='uploads/patient_docs/' ~ cov.card_front) }}" target="_blank" rel="noopener">{{ t('card.card_front') }}</a>{% endif %}</li>
+              {% endfor %}
+            </ul>
+          </details>
+          {% endif %}
         </div>
         {% else %}
         <p style="color:var(--muted);">{{ t('coverage.none') }}</p>
         {% endif %}
 
+        <p style="margin:8px 0 0;font-size:.85rem;"><a href="{{ url_for('patients.expiring_cards') }}" data-expiring-door><i class="bi bi-hourglass-split"></i> {{ t('card.expiring_title') }}</a></p>
         {% if payers %}
         <details style="margin-top:12px;">
           <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-plus-lg"></i> {{ t('coverage.add') }}</summary>
-          <form method="post" action="{{ url_for('patients.add_coverage', patient_id=patient.id) }}" style="margin-top:10px;">
+          <form method="post" enctype="multipart/form-data" action="{{ url_for('patients.add_coverage', patient_id=patient.id) }}" style="margin-top:10px;">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-grid">
               <div class="form-row"><label>{{ t('coverage.entity') }} *</label>
@@ -1880,7 +1926,14 @@
                   {% for pe in payers %}<option value="{{ pe.id }}">{{ pe.display_name(current_lang) }}</option>{% endfor %}
                 </select></div>
               <div class="form-row"><label>{{ t('coverage.membership_number') }}</label><input class="input" name="membership_number" dir="ltr"></div>
+              <div class="form-row"><label>{{ t('card.issue') }}</label><input class="input" type="date" name="issue_date"></div>
               <div class="form-row"><label>{{ t('coverage.expiry') }}</label><input class="input" type="date" name="expiry_date"></div>
+              <div class="form-row"><label>{{ t('card.plan') }}</label><input class="input" name="plan_name" maxlength="80"></div>
+              <div class="form-row"><label>{{ t('card.holder') }}</label><input class="input" name="holder_name" maxlength="120"></div>
+              <div class="form-row"><label>{{ t('card.relation') }}</label><input class="input" name="holder_relation" maxlength="30" list="card-relations">
+                <datalist id="card-relations">{% for r in ('father', 'mother', 'self', 'other') %}<option value="{{ t('card.rel_' ~ r) }}">{% endfor %}</datalist></div>
+              <div class="form-row"><label>{{ t('card.card_front') }}</label><input class="input" type="file" name="card_front" accept="image/*,application/pdf"></div>
+              <div class="form-row"><label>{{ t('card.card_back') }}</label><input class="input" type="file" name="card_back" accept="image/*,application/pdf"></div>
             </div>
             {% if patient.siblings %}
             <div class="form-row checkbox"><input type="checkbox" id="apply_siblings" name="apply_siblings" value="1">

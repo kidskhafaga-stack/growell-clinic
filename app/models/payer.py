@@ -530,9 +530,29 @@ class PatientCoverage(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     notes = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    # CONTRACTS_PLAN.md ع-١ — what is on the card, so the payer's form and the
+    # claim can be filled from it: «تاريخ الانتاج», the plan or grade, and who
+    # holds the subscription (the father employed by the company…).
+    issue_date = db.Column(db.Date)
+    plan_name = db.Column(db.String(80))
+    holder_name = db.Column(db.String(120))
+    holder_relation = db.Column(db.String(30))
+    # The card itself, front and back (uploads/patient_docs, like an
+    # approval's letter). A renewal needs the new card's picture.
+    card_front = db.Column(db.String(80))
+    card_back = db.Column(db.String(80))
+    # A renewal is a new row; the card it replaced stays, switched off, so a
+    # claim refused months later can be answered with the card it was billed on.
+    renewed_from_id = db.Column(db.Integer, db.ForeignKey("patient_coverages.id"))
+    renewed_by = db.Column(db.Integer, db.ForeignKey("users.id"))
 
     patient = db.relationship("Patient", backref="coverages")
     payer = db.relationship("PayerEntity")
+    renewed_from = db.relationship("PatientCoverage", remote_side=[id])
+
+    def is_valid_on(self, day):
+        """Switched on and not past its date on ``day``."""
+        return bool(self.is_active and not (self.expiry_date and day and self.expiry_date < day))
 
     @property
     def is_expired(self):

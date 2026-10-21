@@ -60,6 +60,39 @@
 
   <form method="post" action="{{ post_url }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {# CONTRACTS_PLAN.md ع-١ — the family's card, said before the money. A card
+       that ran out is a decision: renew it (with the new card's picture), or
+       this visit is cash — never a bill that turned cash on its own. #}
+    {% if card and card.state != 'none' %}
+    {% set st = card %}
+    {% if card.needs_decision and not card.decided %}
+    <div class="card gc-scale-in" id="card" style="margin-bottom:14px;border-inline-start:4px solid var(--danger,#c2413b);" data-card-decision>
+      <div style="display:flex;gap:12px;align-items:start;flex-wrap:wrap;">
+        <i class="bi bi-shield-x" style="font-size:1.4rem;color:var(--danger,#c2413b);"></i>
+        <div style="flex:1;min-width:240px;display:grid;gap:6px;">
+          <strong>{{ t('card.decide_title_' ~ card.state) }} {% include "patients/_card_chip.html" %}</strong>
+          <div class="hint" style="margin:0;">{{ card.card.payer.display_name(current_lang) if card.card.payer }}
+            · {{ t('coverage.card') }} <bdi dir="ltr">{{ card.card.membership_number or '—' }}</bdi>
+            · {{ t('coverage.expiry') }} <bdi dir="ltr">{{ card.card.expiry_date or '—' }}</bdi></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <a class="btn btn-primary btn-sm gc-press" data-card-renew
+               href="{{ url_for('patients.view', patient_id=patient.id, renew=card.card.id, next=post_url) }}#coverage"><i class="bi bi-arrow-repeat"></i> {{ t('card.renew') }}</a>
+            <label style="display:flex;gap:6px;align-items:center;margin:0;font-weight:600;">
+              <input type="checkbox" name="coverage_cash" value="1" required data-card-cash> {{ t('card.cash_this_visit') }}</label>
+          </div>
+          <div class="hint" style="margin:0;">{{ t('card.decide_hint') }}</div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="hint" style="margin:0 0 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;" data-card-line>
+      <i class="bi bi-shield-check"></i> {{ card.card.payer.display_name(current_lang) if card.card and card.card.payer }}
+      {% include "patients/_card_chip.html" %}
+      {% if card.state == 'soon' %}<span>{{ t('card.remind_family') }}</span>{% endif %}
+      {% if card.decided %}<span>{{ t('card.decided_cash') }}</span>{% endif %}
+    </div>
+    {% endif %}
+    {% endif %}
     {# The doctor this screen resolved on the way in, carried back with the
        submission. Re-deriving it on POST asks "whose work is still unbilled?"
        *while billing it* — the answer comes back empty and the invoice is

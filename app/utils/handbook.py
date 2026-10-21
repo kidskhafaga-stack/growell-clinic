@@ -2502,6 +2502,24 @@ SECTIONS = [
         "icon": "file-earmark-medical",
         "title": ("الجهات والمطالبات", "Payers & claims"),
         "lines": [
+            ("<b>كارت التأمين والاستقبال:</b> في ملف الطفل (العيلة ← التأمين) الكارت فيه "
+             "رقم العضوية وفئة الاشتراك وصاحب الاشتراك وصلته بالطفل وتاريخ الإصدار والانتهاء "
+             "وصورته وش وضهر. حالة الكارت بتظهر جنب اسم الطفل عند الحجز وفي لوحة اليوم "
+             "وعند الخزنة: ساري · هينتهي خلال ١٤ يوم · منتهي · عقد الشركة منتهي. ولو الكارت "
+             "منتهي، الخزنة مش بتقبل الدفع غير بقرار: «جدّد الكارت» (تاريخ جديد وصورة الكارت "
+             "الجديد، والقديم بيفضل في السجل، وبترجع للخزنة والفاتورة على الشركة) أو «الزيارة "
+             "دي كاش» واسمك بيتسجّل على الفاتورة. الإقامة بتتحسب بيوم الدخول. وقايمة «كروت "
+             "التأمين اللي هتنتهي» (من التقارير أو ملف الطفل) عشان تكلّم الأهل قبل الزيارة.",
+             "<b>The insurance card and reception:</b> in the child's file (Family → "
+             "Insurance) the card holds the membership number, the plan, the subscription "
+             "holder and relation, the issue and expiry dates and its photo front and back. "
+             "Its state shows beside the child's name at booking, on the day's board and at "
+             "the till: valid · ends within 14 days · expired · payer's contract ended. An "
+             "expired card stops payment until somebody decides: «Renew the card» (new dates "
+             "and the new card's photo; the old card stays on record; you come back to the "
+             "till and the bill goes to the payer) or «This visit is cash», with your name "
+             "kept on the bill. A stay is judged on its first day. «Insurance cards running "
+             "out» (from Reports or the child's file) is the list to call families from."),
             ("<b>الجهات</b> (تأمين/نادي/نقابة) وجدول التغطية لكل خدمة.",
              "<b>Payers</b> (insurer / club / syndicate) and the per-service "
              "benefits table."),

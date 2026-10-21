@@ -206,7 +206,16 @@ def index():
         doctor_marks=_doctor_marks(),
         doctor_locked=bool(locked),
         doctor_tags=_doctor_tags(doctors) if not doctor_id else {},
+        # CONTRACTS_PLAN.md ع-١ — the family's card beside the name, for the
+        # children who have one, in one query.
+        cards=_cards_for(appointments, on_date),
     )
+
+
+def _cards_for(appointments, on_date):
+    from app.utils import coverage_card
+
+    return coverage_card.states_for([a.patient_id for a in appointments], on_date)
 
 
 def _fix_services(services):
@@ -1371,7 +1380,21 @@ def _patient_brief(p, wanted=None):
         "missing": basics.missing(p, keys=wanted),
         # Two children of one name told apart: born, mother, phone.
         "hint": _hint(p),
+        # CONTRACTS_PLAN.md ع-١ — the family's card, said while booking.
+        "card": _card_brief(p),
     }
+
+
+def _card_brief(p):
+    from app.utils import coverage_card
+
+    st = coverage_card.state(p)
+    if st["state"] == coverage_card.NONE:
+        return None
+    label = (t("card.st_soon", n=st["days_left"]) if st["state"] == coverage_card.SOON
+             else t("card.st_" + st["state"]))
+    payer = st["card"].payer.display_name(getattr(g, "lang", "ar")) if st["card"].payer else ""
+    return {"state": st["state"], "label": label, "payer": payer}
 
 
 def _hint(patient):

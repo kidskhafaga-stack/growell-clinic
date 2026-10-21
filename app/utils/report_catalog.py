@@ -80,6 +80,8 @@ CATALOG = [
      _reports_and(lambda u: u.can_open("messages"))),
     ("messages.service_board", OPERATIONS, "speedometer2", "service.title", "reports.service_card_desc",
      _reports_and(lambda u: u.can_open("messages"))),
+    ("patients.expiring_cards", OPERATIONS, "hourglass-split", "allrep.expiring", "allrep.expiring_d",
+     _opens("patients")),
     ("messages.satisfaction", OPERATIONS, "star-half", "allrep.satisfaction", "allrep.satisfaction_d", _opens("messages")),
     ("messages.outcomes", OPERATIONS, "arrow-repeat", "allrep.outcomes", "allrep.outcomes_d", _opens("messages")),
     ("ambulance.report", OPERATIONS, "truck-front", "allrep.ambulance", "allrep.ambulance_d", _opens("ambulance")),

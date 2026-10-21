@@ -72,6 +72,11 @@ class Invoice(db.Model):
     deductible_taken = db.Column(db.Float)
     coverage_card = db.Column(db.String(60))   # snapshot: membership/card no.
     coverage_expiry = db.Column(db.Date)        # snapshot: card expiry
+    # CONTRACTS_PLAN.md ع-١ — the family's card had run out and somebody
+    # decided this bill is cash, rather than the bill turning cash by itself.
+    coverage_decision = db.Column(db.String(12))
+    coverage_decided_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    coverage_decided_at = db.Column(db.DateTime)
     # Named discount applied to this invoice (snapshot of the rule's name).
     discount_id = db.Column(db.Integer, db.ForeignKey("named_discounts.id"), nullable=True)
     discount_name = db.Column(db.String(120))

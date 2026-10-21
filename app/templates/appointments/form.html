@@ -83,6 +83,10 @@
                       x-show="chosen.missing && chosen.missing.length" x-cloak
                       :title="(chosen.missing || []).map(k => BASICS[k] || k).join(' \u00b7 ')"
                       x-text="BASICS_N.replace('{n}', (chosen.missing || []).length)"></span>
+                <span class="badge" data-card-state x-show="chosen.card" x-cloak
+                      :class="{'badge--green': chosen.card && chosen.card.state === 'valid', 'badge--warn': chosen.card && chosen.card.state === 'soon', 'badge--danger': chosen.card && (chosen.card.state === 'expired' || chosen.card.state === 'contract')}"
+                      :title="chosen.card ? chosen.card.payer : ''"
+                      x-text="chosen.card ? chosen.card.label : ''"></span>
               </div>
               <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="clear()">
                 <i class="bi bi-x-lg"></i> {{ t('appointments.change_patient') }}</button>
