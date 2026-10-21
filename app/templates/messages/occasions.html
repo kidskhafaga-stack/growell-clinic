@@ -673,7 +673,7 @@ function crmTabs(){
 <!-- ============ SMS (an added channel — off until switched on) ============ -->
 {% set sms_types = (values.get('sms_types','') or '').split(',') %}
 {% set sms_secret = values.get('sms_webhook_secret','') %}
-<details class="card gc-scale-in" id="sms" style="animation-delay:0.25s;margin-top:14px;" x-show="tab==='connection'" x-cloak data-sms-settings>
+<details class="card gc-scale-in" id="sms" style="animation-delay:0.25s;margin-top:14px;" x-show="tab==='connection'" x-cloak data-sms-settings x-init="if (window.location.hash === '#sms') $el.open = true">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-chat-left-text"></i> {{ t('sms.title') }}
     {% if values.get('sms_enabled') == '1' %}<span class="badge badge--green">{{ t('sms.on') }}</span>{% else %}<span class="badge badge--muted">{{ t('sms.off') }}</span>{% endif %}</summary>
   <p class="hint" style="margin-top:4px;">{{ t('sms.hint') }}</p>
@@ -684,16 +684,19 @@ function crmTabs(){
 
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
       <span class="hint" style="margin:0;">{{ t('sms.preset') }}</span>
-      <button type="button" class="md-chip" x-on:click="opensms()" data-sms-preset="opensms"><i class="bi bi-phone"></i> OpenSMS</button>
-      <span class="hint" style="margin:0;">{{ t('sms.preset_hint') }}</span>
+      {% for key, label, icon in [('smsmisr', 'SMS Misr', 'building'), ('victorylink', 'Victory Link', 'building'), ('cequens', 'CEQUENS', 'building'), ('opensms', 'OpenSMS', 'phone')] %}
+      <button type="button" class="md-chip" x-on:click="use({{ key|tojson|forceescape }})" data-sms-preset="{{ key }}"><i class="bi bi-{{ icon }}"></i> {{ label }}</button>
+      {% endfor %}
     </div>
+    <p class="hint" style="margin:0 0 8px;" x-show="picked" x-text="hints[picked] || ''" data-sms-preset-hint></p>
+    <p class="hint" style="margin:0 0 8px;">{{ t('sms.preset_check') }}</p>
 
     <div class="form-grid">
       <div class="form-row"><label>{{ t('sms.endpoint') }}</label>
         <input class="input" name="sms_endpoint" dir="ltr" x-ref="endpoint" value="{{ values.get('sms_endpoint','') }}" placeholder="https://api.example-sms.com/send"></div>
       <div class="form-row"><label>{{ t('sms.method') }}</label>
         <select class="select" name="sms_method" x-ref="method">
-          {% for m in ['json','form','get'] %}<option value="{{ m }}" {{ 'selected' if values.get('sms_method','json')==m else '' }}>{{ t('sms.method_' ~ m) }}</option>{% endfor %}
+          {% for m in ['json','form','get','post_query'] %}<option value="{{ m }}" {{ 'selected' if values.get('sms_method','json')==m else '' }}>{{ t('sms.method_' ~ m) }}</option>{% endfor %}
         </select></div>
       <div class="form-row"><label>{{ t('sms.sender') }}</label>
         <input class="input" name="sms_sender" dir="ltr" maxlength="40" value="{{ values.get('sms_sender','') }}" placeholder="GrowWell">
@@ -702,6 +705,9 @@ function crmTabs(){
         <select class="select" name="sms_phone_format" x-ref="fmt" dir="ltr">
           {% for f in ['intl','plus','local'] %}<option value="{{ f }}" {{ 'selected' if values.get('sms_phone_format','intl')==f else '' }}>{{ t('sms.fmt_' ~ f) }}</option>{% endfor %}
         </select></div>
+      <div class="form-row"><label>{{ t('sms.username') }}</label>
+        <input class="input" name="sms_username" dir="ltr" x-ref="username" autocomplete="off" value="{{ values.get('sms_username','') }}">
+        <div class="hint">{{ t('sms.username_hint') }}</div></div>
       <div class="form-row"><label>{{ t('sms.auth_header') }}</label>
         <input class="input" name="sms_auth_header" dir="ltr" x-ref="header" value="{{ values.get('sms_auth_header','') }}" placeholder="Authorization"></div>
       <div class="form-row"><label>{{ t('sms.auth_value') }}</label>
@@ -714,11 +720,19 @@ function crmTabs(){
       <div class="hint">{{ t('sms.payload_hint') }}</div></div>
     <div class="form-grid">
       <div class="form-row"><label>{{ t('sms.id_field') }}</label>
-        <input class="input" name="sms_id_field" dir="ltr" value="{{ values.get('sms_id_field','') }}" placeholder="data.message_id">
+        <input class="input" name="sms_id_field" dir="ltr" x-ref="id_field" value="{{ values.get('sms_id_field','') }}" placeholder="data.message_id">
         <div class="hint">{{ t('sms.id_field_hint') }}</div></div>
+      <div class="form-row"><label>{{ t('sms.ok_field') }}</label>
+        <input class="input" name="sms_ok_field" dir="ltr" x-ref="ok_field" value="{{ values.get('sms_ok_field','') }}" placeholder="code">
+        <div class="hint">{{ t('sms.ok_field_hint') }}</div></div>
       <div class="form-row"><label>{{ t('sms.ok_text') }}</label>
-        <input class="input" name="sms_ok_text" dir="ltr" value="{{ values.get('sms_ok_text','') }}" placeholder="success">
+        <input class="input" name="sms_ok_text" dir="ltr" x-ref="ok_text" value="{{ values.get('sms_ok_text','') }}" placeholder="success">
         <div class="hint">{{ t('sms.ok_text_hint') }}</div></div>
+      <div class="form-row"><label>{{ t('sms.lang_plain') }}</label>
+        <input class="input" name="sms_lang_plain" dir="ltr" x-ref="lang_plain" maxlength="20" value="{{ values.get('sms_lang_plain','') }}"></div>
+      <div class="form-row"><label>{{ t('sms.lang_unicode') }}</label>
+        <input class="input" name="sms_lang_unicode" dir="ltr" x-ref="lang_unicode" maxlength="20" value="{{ values.get('sms_lang_unicode','') }}">
+        <div class="hint">{{ t('sms.lang_hint') }}</div></div>
     </div>
 
     <h3 style="font-size:0.95rem;margin:14px 0 6px;"><i class="bi bi-signpost-split"></i> {{ t('sms.which_title') }}</h3>
@@ -759,14 +773,24 @@ function crmTabs(){
   </form>
 </details>
 <script>
+  // The presets (utils/sms.PRESETS): how each company is called. The key and
+  // the sender name are the clinic's own and are never filled in here.
   function smsForm() {
     return {
-      opensms() {
-        this.$refs.endpoint.value = {{ sms_presets.opensms.sms_endpoint|tojson }};
-        this.$refs.method.value = 'json';
-        this.$refs.header.value = 'Authorization';
-        this.$refs.fmt.value = {{ sms_presets.opensms.sms_phone_format|tojson }};
-        this.$refs.payload.value = {{ sms_presets.opensms.sms_payload|tojson }};
+      picked: '',
+      presets: {{ sms_presets|tojson }},
+      hints: {{ {'smsmisr': t('sms.preset_smsmisr'), 'victorylink': t('sms.preset_victorylink'), 'cequens': t('sms.preset_cequens'), 'opensms': t('sms.preset_hint')}|tojson }},
+      use(name) {
+        const p = this.presets[name];
+        if (!p) return;
+        const map = {endpoint: 'sms_endpoint', method: 'sms_method', header: 'sms_auth_header',
+                     fmt: 'sms_phone_format', payload: 'sms_payload', id_field: 'sms_id_field',
+                     ok_field: 'sms_ok_field', ok_text: 'sms_ok_text',
+                     lang_plain: 'sms_lang_plain', lang_unicode: 'sms_lang_unicode'};
+        for (const [ref, key] of Object.entries(map)) {
+          if (this.$refs[ref] && key in p) this.$refs[ref].value = p[key];
+        }
+        this.picked = name;
       },
     };
   }

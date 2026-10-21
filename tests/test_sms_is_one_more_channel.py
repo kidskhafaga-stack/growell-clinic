@@ -175,3 +175,166 @@ def test_the_settings_screen_saves_and_keeps_the_key(clinic):
     assert clinic["sign_in"]("desk").post("/messages/sms", data={"sms_enabled": "0"}).status_code in (302, 403)
     with clinic["app"].app_context():
         assert Setting.get("sms_enabled") == "1"
+
+
+def test_a_number_without_whatsapp_reported_later_still_gets_the_sms(clinic, monkeypatch):
+    """«لو مش واتس اب يبعت اس ام اس». WhatsApp takes the message and only
+    reports minutes later that the number is not on WhatsApp — the fallback
+    has to happen then, once."""
+    from app.models import MessageLog
+    from app.utils import inbound
+
+    with clinic["app"].app_context():
+        db = clinic["db"]
+        _setup(clinic, sms_fallback="1")
+        _capture(monkeypatch)
+        wa_row = MessageLog(to_phone="201001234567", body="ميعادك بكرة", status="sent",
+                            provider="cloud_api", provider_msg_id="wamid.X1")
+        db.session.add(wa_row)
+        db.session.commit()
+        inbound.apply_status({"msg_id": "wamid.X1", "status": "failed",
+                              "error": "Message undeliverable"})
+        db.session.commit()
+        again = MessageLog.query.filter_by(retry_of=wa_row.id).one()
+        assert again.channel == "sms" and again.body == "ميعادك بكرة"
+        # A second copy of the same receipt sends nothing more.
+        inbound.apply_status({"msg_id": "wamid.X1", "status": "failed"})
+        db.session.commit()
+        assert MessageLog.query.filter_by(channel="sms").count() == 1
+
+
+def test_without_the_fallback_switched_on_a_late_failure_sends_nothing(clinic, monkeypatch):
+    from app.models import MessageLog
+    from app.utils import inbound
+
+    with clinic["app"].app_context():
+        db = clinic["db"]
+        _setup(clinic, sms_fallback="0")
+        seen = _capture(monkeypatch)
+        db.session.add(MessageLog(to_phone="201001234567", body="x", status="sent",
+                                  provider="cloud_api", provider_msg_id="wamid.X2"))
+        db.session.commit()
+        inbound.apply_status({"msg_id": "wamid.X2", "status": "failed"})
+        db.session.commit()
+        assert not seen and MessageLog.query.filter_by(channel="sms").count() == 0
+
+
+def test_sms_is_on_the_channels_screen_with_its_settings(clinic):
+    from app.models import Setting
+
+    boss = clinic["sign_in"]("boss")
+    page = boss.get("/messages/channels").get_data(as_text=True)
+    assert 'data-channel-row="sms:off"' in page and 'data-channel-settings="sms"' in page
+    assert 'href="/messages/occasions#sms"' in page
+    # Switched on from here: on, but not filled in yet.
+    form = {"channel": ["whatsapp", "phone"], "sms_row": "1", "sms_on": "1"}
+    boss.post("/messages/channels", data=form)
+    page = boss.get("/messages/channels").get_data(as_text=True)
+    assert 'data-channel-row="sms:setup"' in page and 'data-sms-fallback="off"' in page
+    with clinic["app"].app_context():
+        _setup(clinic, sms_fallback="1")
+    page = boss.get("/messages/channels").get_data(as_text=True)
+    assert 'data-channel-row="sms:on"' in page and 'data-sms-fallback="on"' in page
+    # Saving the channels without the box ticked switches it off again.
+    boss.post("/messages/channels", data={"channel": ["whatsapp"], "sms_row": "1"})
+    with clinic["app"].app_context():
+        assert Setting.get("sms_enabled") == "0"
+
+
+def _preset(clinic, name, **extra):
+    from app.utils import sms
+
+    values = dict(sms.PRESETS[name])
+    values.update({"sms_enabled": "1", "sms_sender": "GrowWell", "sms_username": "clinic",
+                   "sms_auth_value": "pa ss"})
+    values.update(extra)
+    _setup(clinic, **values)
+
+
+def test_sms_misr_fields_ride_in_the_address_and_1901_is_success(clinic, monkeypatch):
+    """«الاعدادات بتاعت SMS متوافقة مع الشركات فى مصر؟» — SMS Misr: a POST
+    with every field in the address, Arabic as language 2, and an answer of
+    200 whatever happened, success being code 1901."""
+    import urllib.parse
+
+    from app.utils import sms
+
+    with clinic["app"].app_context():
+        _preset(clinic, "smsmisr")
+        seen = _capture(monkeypatch, reply='{"code": "1901", "SMSID": 77}')
+        ok, err, _ = sms.deliver(sms.config(), "201001234567", "ميعادك بكرة")
+        assert ok and err is None
+        req = seen[0]
+        assert req.get_method() == "POST" and req.data in (b"", None)
+        q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(req.full_url).query))
+        assert q["username"] == "clinic" and q["password"] == "pa ss" and q["sender"] == "GrowWell"
+        assert q["mobile"] == "201001234567" and q["message"] == "ميعادك بكرة" and q["language"] == "2"
+        # English goes as language 1.
+        sms.deliver(sms.config(), "201001234567", "See you tomorrow")
+        q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(seen[1].full_url).query))
+        assert q["language"] == "1"
+        # 200 with another code is a refusal.
+        _capture(monkeypatch, reply='{"code": "1903"}')
+        ok, err, _ = sms.deliver(sms.config(), "201001234567", "x")
+        assert not ok and "1903" in err
+
+
+def test_victory_link_0_is_sent_and_minus_10_is_not_mistaken_for_it(clinic, monkeypatch):
+    import urllib.parse
+
+    from app.utils import sms
+
+    with clinic["app"].app_context():
+        _preset(clinic, "victorylink")
+        seen = _capture(monkeypatch, reply="0")
+        ok, _err, msg_id = sms.deliver(sms.config(), "201001234567", "ميعادك بكرة")
+        form = dict(urllib.parse.parse_qsl(seen[0].data.decode()))
+        assert ok and form["SMSLang"] == "a" and form["SMSReceiver"] == "201001234567"
+        assert form["UserName"] == "clinic" and form["Password"] == "pa ss"
+        # The program's own reference goes with it and is what delivery is reported against.
+        assert form["SMSID"] and msg_id == form["SMSID"]
+        for refusal in ("-10", "-5", "-100", '<int xmlns="http://tempuri.org/">-1</int>'):
+            _capture(monkeypatch, reply=refusal)
+            ok, err, _ = sms.deliver(sms.config(), "201001234567", "x")
+            assert not ok, refusal
+        _capture(monkeypatch, reply='<int xmlns="http://tempuri.org/">0</int>')
+        assert sms.deliver(sms.config(), "201001234567", "x")[0]
+
+
+def test_cequens_is_json_with_a_bearer_token(clinic, monkeypatch):
+    from app.utils import sms
+
+    with clinic["app"].app_context():
+        _preset(clinic, "cequens", sms_auth_value="Bearer T0K")
+        seen = _capture(monkeypatch, reply='{"data": {"SentSMSIDs": []}}')
+        ok, _e, _m = sms.deliver(sms.config(), "201001234567", "ميعادك بكرة")
+        body = json.loads(seen[0].data.decode())
+        assert ok and seen[0].get_header("Authorization") == "Bearer T0K"
+        assert body == {"senderName": "GrowWell", "messageType": "text", "shortURL": False,
+                        "messageText": "ميعادك بكرة", "recipients": "201001234567"}
+
+
+def test_the_settings_screen_offers_the_egyptian_companies(clinic):
+    page = clinic["sign_in"]("boss").get("/messages/occasions").get_data(as_text=True)
+    for key in ("smsmisr", "victorylink", "cequens", "opensms"):
+        assert f'data-sms-preset="{key}"' in page
+    assert 'name="sms_username"' in page and 'name="sms_lang_unicode"' in page
+    assert 'value="post_query"' in page
+
+
+def test_a_message_mixing_arabic_and_english_goes_with_the_arabic_code(clinic, monkeypatch):
+    """«مش ممكن تكون جزء عربى وانجليزي فى الرسالة؟» — yes, and then the whole
+    message goes in the encoding that carries Arabic: one Arabic letter is
+    enough, and it counts 70 to a message."""
+    import urllib.parse
+
+    from app.utils import sms
+
+    with clinic["app"].app_context():
+        _preset(clinic, "smsmisr")
+        seen = _capture(monkeypatch, reply='{"code": "1901"}')
+        mixed = "ميعاد Dr. Ahmed بكرة 5 PM"
+        sms.deliver(sms.config(), "201001234567", mixed)
+        q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(seen[0].full_url).query))
+        assert q["language"] == "2" and q["message"] == mixed
+        assert sms.segments(mixed)[2] is True and sms.segments("Dr. Ahmed 5 PM")[2] is False

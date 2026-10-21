@@ -115,8 +115,21 @@ def apply_status(item):
         return None
     incoming = item.get("status")
     if incoming == "failed":
+        was = row.status
         row.status = "failed"
         row.error = item.get("error") or row.error or "provider_failed"
+        if was != "failed":
+            # «لو مش واتس اب يبعت اس ام اس». A number that is not on WhatsApp
+            # is accepted when sent and reported failed only here, minutes
+            # later — so the SMS fallback has to be offered here too, not
+            # only when the send itself is refused. ``fallback`` decides
+            # (switched on, a WhatsApp row, not a test, not sent twice).
+            try:
+                from app.utils import sms
+
+                sms.fallback(row)
+            except Exception:  # noqa: BLE001 — a receipt is recorded whatever happens
+                pass
         return row
     if incoming not in DELIVERY_RANK:
         return None

@@ -235,6 +235,12 @@ def channels_setup():
     if request.method == "POST":
         channels.set_enabled(request.form.getlist("channel"))
         channels.set_page(request.form.get("page") == "on")
+        # SMS is switched on here too, beside the other channels — by whoever
+        # may change its settings (the admin), like its own screen.
+        if current_user.is_admin and request.form.get("sms_row") == "1":
+            from app.models import Setting
+
+            Setting.set("sms_enabled", "1" if request.form.get("sms_on") else "0")
         db.session.commit()
         flash(t("common.saved"), "success")
         return redirect(url_for("messages.channels_setup"))
@@ -270,7 +276,19 @@ def channels_setup():
         connection={k: channels.connection(k) for k in channels.CHANNELS},
         public_base=channels.public_base(), link=link, tag=tag,
         doctors=list_doctors(), doctor_id=doctor_id,
-        lang=getattr(g, "lang", "ar"))
+        lang=getattr(g, "lang", "ar"), sms=_sms_shown())
+
+
+def _sms_shown():
+    """SMS as the channels screen shows it: off, switched on but not filled
+    in yet, or sending — and whether a WhatsApp message that did not arrive
+    is sent again by SMS."""
+    from app.utils import sms
+
+    cfg = sms.config()
+    state = "on" if sms.ready(cfg) else ("setup" if cfg["enabled"] else "off")
+    return {"state": state, "enabled": cfg["enabled"], "fallback": cfg["fallback"],
+            "types": len(cfg["types"])}
 
 
 # Secrets the clinic types once. Left blank, a secret keeps the value it
