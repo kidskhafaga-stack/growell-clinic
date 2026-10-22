@@ -575,6 +575,11 @@
       </select>
     </div>
     <p class="hint">{{ t('credit.setting_hint') }}</p>
+    <div class="form-row" style="max-width:260px;" data-card-wait-setting>
+      <label for="card_wait_days">{{ t('card.wait_setting') }}</label>
+      <input class="input" type="number" min="0" max="365" step="1" id="card_wait_days" name="card_wait_days"
+             value="{{ values.get('card_wait_days') or '' }}" placeholder="30"></div>
+    <p class="hint">{{ t('card.wait_setting_hint') }}</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;" data-deposit-suggest>
       {% for setting in ['emergency', 'inpatient', 'nicu', 'icu'] %}
       <div class="form-row" style="max-width:170px;">

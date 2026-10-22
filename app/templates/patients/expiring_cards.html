@@ -42,4 +42,28 @@
   <p class="hint" style="margin:0;" data-expiring-none>{{ t('card.expiring_none') }}</p>
   {% endif %}
 </div>
+
+{# The bills paid in cash while the card was out, waiting for the new one —
+   saving the new card turns them into contract bills by themselves. #}
+<div class="card gc-scale-in" style="margin-top:14px;" data-waiting-bills>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-receipt"></i> {{ t('card.waiting_title') }}</h2>
+  <p class="hint" style="margin:0 0 8px;">{{ t('card.waiting_sub', n=wait_days) }}</p>
+  {% if waiting %}
+  <div style="overflow-x:auto;"><table class="table">
+    <thead><tr><th>{{ t('card.child') }}</th><th>{{ t('invoices.number') }}</th><th>{{ t('invoices.date') }}</th><th>{{ t('invoices.paid') }}</th><th>{{ t('card.waits_until') }}</th></tr></thead>
+    <tbody>
+      {% for w in waiting %}
+      <tr data-waiting-row="{{ w.invoice.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=w.patient.id) }}#coverage">{{ w.patient.display_name(current_lang) }}</a></td>
+        <td><a href="{{ url_for('finance.invoice_view', invoice_id=w.invoice.id) }}" dir="ltr">{{ w.invoice.invoice_number }}</a></td>
+        <td><bdi dir="ltr">{{ w.invoice.invoice_date }}</bdi></td>
+        <td>{{ w.invoice.paid|money }}</td>
+        <td><bdi dir="ltr">{{ w.ends or '—' }}</bdi></td>
+      </tr>
+      {% endfor %}
+    </tbody></table></div>
+  {% else %}
+  <p class="hint" style="margin:0;" data-waiting-none>{{ t('card.waiting_none') }}</p>
+  {% endif %}
+</div>
 {% endblock %}

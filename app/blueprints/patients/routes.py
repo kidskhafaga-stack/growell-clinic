@@ -1711,6 +1711,14 @@ def renew_coverage(coverage_id):
                                 next=back or None) + "#coverage")
     db.session.commit()
     flash(t("card.renewed", date=new.expiry_date.isoformat()), "success")
+    done = getattr(new, "converted", None) or {}
+    if done.get("converted"):
+        from app.utils.money import format_money
+
+        total = round(sum(amount for _inv, amount in done["converted"]), 2)
+        flash(t("card.converted", n=len(done["converted"]), amount=format_money(total)), "success")
+    if done.get("kept"):
+        flash(t("card.kept", n=len(done["kept"])), "warning")
     return redirect(back or url_for("patients.view", patient_id=cov.patient_id) + "#coverage")
 
 
@@ -1723,8 +1731,11 @@ def expiring_cards():
 
     within = request.args.get("days", type=int) or coverage_card.SOON_DAYS
     within = within if within in (7, 14, 30, 60) else coverage_card.SOON_DAYS
-    return render_template("patients/expiring_cards.html",
-                           rows=coverage_card.expiring(within), within=within)
+    rows = coverage_card.expiring(within)
+    waiting = coverage_card.all_waiting()
+    db.session.commit()             # bills whose wait ran out are now cash
+    return render_template("patients/expiring_cards.html", rows=rows, within=within,
+                           waiting=waiting, wait_days=coverage_card.wait_days())
 
 
 @patients_bp.route("/coverage/<int:coverage_id>/delete", methods=["POST"])

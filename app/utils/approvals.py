@@ -115,7 +115,6 @@ def refund_collected(invoices, user=None):
     """The approval arrived: cover the bills again, and what the family paid
     beyond their share now goes to their own account — never left as a
     negative balance on a bill. Returns ``[(invoice, amount)]`` moved."""
-    from app.models import CREDIT_METHOD, Payment, PatientCredit
     from app.utils import billing
 
     moved = []
@@ -124,22 +123,39 @@ def refund_collected(invoices, user=None):
             continue
         billing.apply_coverage(invoice, invoice.patient)
         db.session.flush()
-        surplus = round(invoice.paid - invoice.total, 2)
-        if surplus > 0.009:
-            pay = Payment(amount=surplus, method=CREDIT_METHOD, kind="refund",
-                          received_by=getattr(user, "id", None),
-                          notes="بعد الموافقة — للحساب الدائن")
-            invoice.payments.append(pay)
-            db.session.flush()
-            db.session.add(PatientCredit(
-                patient_id=invoice.patient_id, kind="in", amount=surplus,
-                method="bill", invoice_id=invoice.id, payment_id=pay.id,
-                note=f"بعد موافقة الجهة — {invoice.invoice_number}"[:200],
-                created_by=getattr(user, "id", None)))
+        surplus, pay = _credit(invoice, user, "بعد الموافقة", "بعد موافقة الجهة")
+        if surplus:
             moved.append((invoice, surplus, pay))
         invoice.recalc_status()
     db.session.flush()
     return moved
+
+
+def credit_surplus(invoice, user, reason):
+    """What the family paid beyond their share of this bill, moved to their own
+    account — the same movement an approval makes. Returns the amount (0 when
+    nothing was over)."""
+    surplus, _pay = _credit(invoice, user, reason, reason)
+    return surplus
+
+
+def _credit(invoice, user, pay_note, credit_note):
+    from app.models import CREDIT_METHOD, Payment, PatientCredit
+
+    surplus = round(invoice.paid - invoice.total, 2)
+    if surplus <= 0.009:
+        return 0, None
+    pay = Payment(amount=surplus, method=CREDIT_METHOD, kind="refund",
+                  received_by=getattr(user, "id", None),
+                  notes=f"{pay_note} — للحساب الدائن"[:200])
+    invoice.payments.append(pay)
+    db.session.flush()
+    db.session.add(PatientCredit(
+        patient_id=invoice.patient_id, kind="in", amount=surplus,
+        method="bill", invoice_id=invoice.id, payment_id=pay.id,
+        note=f"{credit_note} — {invoice.invoice_number}"[:200],
+        created_by=getattr(user, "id", None)))
+    return surplus, pay
 
 
 def decide(approval, approved, user, number=None, amount=None, valid_until=None,
