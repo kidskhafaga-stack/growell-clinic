@@ -1,0 +1,69 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('card.expiring_title') }}{% endblock %}
+{% block page_heading %}{{ t('card.expiring_title') }}{% endblock %}
+
+{# CONTRACTS_PLAN.md ع-١ — the cards running out soon, or run out in the last
+   month and not renewed: reception calls the families before the visit, so
+   the card is renewed before anybody stands at the desk with it. #}
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-hourglass-split"></i> {{ t('card.expiring_title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('card.expiring_sub') }}</p>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;" role="group" aria-label="{{ t('card.within') }}">
+    {% for d in (7, 14, 30, 60) %}
+    <a class="btn btn-sm {{ 'btn-primary' if d == within else 'btn-outline' }} gc-press" href="{{ url_for('patients.expiring_cards', days=d) }}" aria-pressed="{{ 'true' if d == within else 'false' }}">{{ t('card.within_days', n=d) }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card gc-scale-in">
+  {% if rows %}
+  <div style="overflow-x:auto;"><table class="table" data-expiring>
+    <thead><tr><th>{{ t('card.child') }}</th><th>{{ t('coverage.entity') }}</th><th>{{ t('coverage.card') }}</th><th>{{ t('coverage.expiry') }}</th><th>{{ t('card.phone') }}</th><th></th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr data-expiring-row="{{ r.card.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=r.patient.id) }}#coverage">{{ r.patient.display_name(current_lang) }}</a>
+          <div class="num muted" dir="ltr" style="font-size:.8rem;">{{ r.patient.patient_number }}</div></td>
+        <td>{{ r.card.payer.display_name(current_lang) if r.card.payer }}</td>
+        <td><bdi dir="ltr">{{ r.card.membership_number or '—' }}</bdi></td>
+        <td><bdi dir="ltr">{{ r.card.expiry_date }}</bdi><br>
+          {% if r.days_left < 0 %}<span class="badge badge--danger">{{ t('card.st_expired') }}</span>
+          {% else %}<span class="badge badge--warn">{{ t('card.st_soon', n=r.days_left) }}</span>{% endif %}</td>
+        <td>{% set ph = r.patient.contact_phone %}{% if ph %}<a href="tel:{{ ph }}" dir="ltr">{{ ph }}</a>{% else %}—{% endif %}</td>
+        <td><a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=r.patient.id, renew=r.card.id) }}#coverage"><i class="bi bi-arrow-repeat"></i> {{ t('card.renew') }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody></table></div>
+  {% else %}
+  <p class="hint" style="margin:0;" data-expiring-none>{{ t('card.expiring_none') }}</p>
+  {% endif %}
+</div>
+
+{# The bills paid in cash while the card was out, waiting for the new one —
+   saving the new card turns them into contract bills by themselves. #}
+<div class="card gc-scale-in" style="margin-top:14px;" data-waiting-bills>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-receipt"></i> {{ t('card.waiting_title') }}</h2>
+  <p class="hint" style="margin:0 0 8px;">{{ t('card.waiting_sub', n=wait_days) }}</p>
+  {% if waiting %}
+  <div style="overflow-x:auto;"><table class="table">
+    <thead><tr><th>{{ t('card.child') }}</th><th>{{ t('invoices.number') }}</th><th>{{ t('invoices.date') }}</th><th>{{ t('invoices.paid') }}</th><th>{{ t('card.waits_until') }}</th></tr></thead>
+    <tbody>
+      {% for w in waiting %}
+      <tr data-waiting-row="{{ w.invoice.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=w.patient.id) }}#coverage">{{ w.patient.display_name(current_lang) }}</a></td>
+        <td><a href="{{ url_for('finance.invoice_view', invoice_id=w.invoice.id) }}" dir="ltr">{{ w.invoice.invoice_number }}</a></td>
+        <td><bdi dir="ltr">{{ w.invoice.invoice_date }}</bdi></td>
+        <td>{{ w.invoice.paid|money }}</td>
+        <td><bdi dir="ltr">{{ w.ends or '—' }}</bdi></td>
+      </tr>
+      {% endfor %}
+    </tbody></table></div>
+  {% else %}
+  <p class="hint" style="margin:0;" data-waiting-none>{{ t('card.waiting_none') }}</p>
+  {% endif %}
+</div>
+{% endblock %}

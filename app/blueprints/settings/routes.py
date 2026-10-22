@@ -43,6 +43,9 @@ TEXT_KEYS = [
     # follows the facility — on for a hospital or a dental clinic — and
     # «on» / «off» is the clinic's own word. `app/utils/patient_credit`.
     "patient_credit_mode",
+    # «المهلة» — how many days a bill paid in cash while the family's card was
+    # out waits for the new card (blank 30, 0 no waiting). utils/coverage_card.
+    "card_wait_days",
     # The deposit the hospital asks a cash patient for on admission, per
     # department — a figure the desk reads on the stay (`patient_credit`).
     "deposit_suggest:emergency", "deposit_suggest:inpatient",

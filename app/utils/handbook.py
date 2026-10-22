@@ -2502,6 +2502,33 @@ SECTIONS = [
         "icon": "file-earmark-medical",
         "title": ("الجهات والمطالبات", "Payers & claims"),
         "lines": [
+            ("<b>كارت التأمين والاستقبال:</b> في ملف الطفل (العيلة ← التأمين) الكارت فيه "
+             "رقم العضوية وفئة الاشتراك وصاحب الاشتراك وصلته بالطفل وتاريخ الإصدار والانتهاء "
+             "وصورته وش وضهر. حالة الكارت بتظهر جنب اسم الطفل عند الحجز وفي لوحة اليوم "
+             "وعند الخزنة: ساري · هينتهي خلال ١٤ يوم · منتهي · عقد الشركة منتهي. ولو الكارت "
+             "منتهي، الأهل بيدفعوا كاش عادي من غير أي قرار، والفاتورة بتستنى الكارت الجديد "
+             "«المهلة» (٣٠ يوم، وبتتغير من الإعدادات). أول ما الكارت الجديد يتسجّل بتاريخ إصداره "
+             "وصورته، كل فاتورة مستنية ويومها جوه مدة الكارت بتتحول للشركة لوحدها، والفرق بيروح "
+             "رصيد في حساب الأسرة (ياخدوه كاش من «رد الرصيد» لو طلبوا). خصم الفئة النقدي بيتشال "
+             "من الخدمة اللي الشركة بتغطيها، والخدمة اللي محتاجة موافقة بتستنى الموافقة، والفاتورة "
+             "مش بتتحول لو هتعمل على الأهل فلوس. و«كاش نهائي» للي مش هيجددوا. الإقامة بتتحسب "
+             "بيوم الدخول. وقايمة «كروت "
+             "التأمين اللي هتنتهي» (من التقارير أو ملف الطفل) عشان تكلّم الأهل قبل الزيارة.",
+             "<b>The insurance card and reception:</b> in the child's file (Family → "
+             "Insurance) the card holds the membership number, the plan, the subscription "
+             "holder and relation, the issue and expiry dates and its photo front and back. "
+             "Its state shows beside the child's name at booking, on the day's board and at "
+             "the till: valid · ends within 14 days · expired · payer's contract ended. With "
+             "an expired card the family pays in cash with no decision asked, and the bill "
+             "waits for the new card for the clinic's wait (30 days, changed in Settings). "
+             "Once the new card is saved with its issue date and photo, every waiting bill "
+             "whose day it covers turns into a contract bill by itself and the difference goes "
+             "to the family's account (handed back from «Give back the balance» if they ask). "
+             "The cash-category discount comes off what the payer covers, a line needing an "
+             "approval waits for it, and a bill is never converted into a debt for the "
+             "family. «Cash for good» is for a family that will not renew. A stay is judged "
+             "on its first day. «Insurance cards running "
+             "out» (from Reports or the child's file) is the list to call families from."),
             ("<b>الجهات</b> (تأمين/نادي/نقابة) وجدول التغطية لكل خدمة.",
              "<b>Payers</b> (insurer / club / syndicate) and the per-service "
              "benefits table."),

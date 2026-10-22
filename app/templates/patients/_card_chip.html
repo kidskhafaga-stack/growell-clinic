@@ -1,0 +1,10 @@
+{# The family's card in one chip — utils/coverage_card.state(), as ``st``.
+   Shown where reception looks: the booking, the day's board, the cashier,
+   the file. Nothing when the child has no card. #}
+{% if st and st.state != 'none' %}
+{% set cls = {'valid': 'badge--green', 'soon': 'badge--warn', 'expired': 'badge--danger', 'contract': 'badge--danger'}[st.state] %}
+<span class="badge {{ cls }}" data-card-state="{{ st.state }}"
+      title="{{ st.card.payer.display_name(current_lang) if st.card and st.card.payer }}{% if st.card and st.card.expiry_date %} · {{ t('coverage.expiry') }} {{ st.card.expiry_date }}{% endif %}">
+  <i class="bi bi-{{ 'shield-check' if st.state == 'valid' else ('hourglass-split' if st.state == 'soon' else 'shield-x') }}"></i>
+  {% if st.state == 'soon' %}{{ t('card.st_soon', n=st.days_left) }}{% else %}{{ t('card.st_' ~ st.state) }}{% endif %}</span>
+{% endif %}

@@ -60,6 +60,47 @@
 
   <form method="post" action="{{ post_url }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {# CONTRACTS_PLAN.md ع-١ — the family's card, said before the money. A card
+       that ran out stops nothing and asks for no decision: the family pays,
+       the bill waits for the new card, and saving the new card turns it into
+       a contract bill by itself (utils/coverage_card.convert_waiting). #}
+    {% if card and card.state != 'none' %}
+    {% set st = card %}
+    {% if card.needs_decision and not card.decided %}
+    <div class="card gc-scale-in" id="card" style="margin-bottom:14px;border-inline-start:4px solid var(--warning,#d9a400);" data-card-expired>
+      <div style="display:flex;gap:12px;align-items:start;flex-wrap:wrap;">
+        <i class="bi bi-hourglass-split" style="font-size:1.4rem;color:var(--warning,#d9a400);"></i>
+        <div style="flex:1;min-width:240px;display:grid;gap:6px;">
+          <strong>{{ t('card.title_' ~ card.state) }} {% include "patients/_card_chip.html" %}</strong>
+          <div class="hint" style="margin:0;">{{ card.card.payer.display_name(current_lang) if card.card.payer }}
+            · {{ t('coverage.card') }} <bdi dir="ltr">{{ card.card.membership_number or '—' }}</bdi>
+            · {{ t('coverage.expiry') }} <bdi dir="ltr">{{ card.card.expiry_date or '—' }}</bdi></div>
+          {% if card.wait_days > 0 %}
+          <div style="margin:0;" data-card-wait="{{ card.wait_days }}">{{ t('card.will_wait', n=card.wait_days) }}</div>
+          {% else %}
+          <div style="margin:0;" data-card-wait="0">{{ t('card.no_wait') }}</div>
+          {% endif %}
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <a class="btn btn-outline btn-sm gc-press" data-card-renew
+               href="{{ url_for('patients.view', patient_id=patient.id, renew=card.card.id, next=post_url) }}#coverage"><i class="bi bi-arrow-repeat"></i> {{ t('card.renew_now') }}</a>
+            {% if card.wait_days > 0 %}
+            <label class="hint" style="display:flex;gap:6px;align-items:center;margin:0;">
+              <input type="checkbox" name="coverage_cash" value="1" data-card-cash> {{ t('card.cash_for_good') }}</label>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="hint" style="margin:0 0 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;" data-card-line>
+      <i class="bi bi-shield-check"></i> {{ card.card.payer.display_name(current_lang) if card.card and card.card.payer }}
+      {% include "patients/_card_chip.html" %}
+      {% if card.state == 'soon' %}<span>{{ t('card.remind_family') }}</span>{% endif %}
+      {% if card.decided == 'waiting' %}<span data-card-decided="waiting">{{ t('card.decided_waiting') }}</span>
+      {% elif card.decided == 'cash' %}<span data-card-decided="cash">{{ t('card.decided_cash') }}</span>{% endif %}
+    </div>
+    {% endif %}
+    {% endif %}
     {# The doctor this screen resolved on the way in, carried back with the
        submission. Re-deriving it on POST asks "whose work is still unbilled?"
        *while billing it* — the answer comes back empty and the invoice is

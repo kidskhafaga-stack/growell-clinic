@@ -3385,6 +3385,19 @@ def _screen_doctor(appt, patient_id):
     return doctor_id
 
 
+def _checkout_card(patient):
+    """The family's card as the cashier needs it, and whether today's bill
+    already carries the decision to bill cash."""
+    from app.utils import coverage_card
+
+    card = coverage_card.state(patient)
+    today = _todays_invoice(patient.id)
+    card["decided"] = (today.coverage_decision
+                       if today is not None and today.status != "refunded" else None)
+    card["wait_days"] = coverage_card.wait_days()
+    return card
+
+
 def _checkout_screen(appt, patient):
     """Reception checkout: show the charges with editable prices, let the user
     add services, pick a named discount, and collect with one or several
@@ -3408,6 +3421,10 @@ def _checkout_screen(appt, patient):
         if _basics.needs_completion(patient, services_now=lines_now):
             flash(t("basics.complete_first"), "error")
             return redirect(_checkout_url(appt, patient_id) + "?complete=1")
+
+    # CONTRACTS_PLAN.md ع-١ — a card that ran out does not stop the family
+    # paying: the bill waits for the new card (utils/coverage_card).
+    card = _checkout_card(patient)
 
     if request.method == "POST":
         # One invoice per visit-day: append to today's invoice when it exists
@@ -3440,6 +3457,13 @@ def _checkout_screen(appt, patient):
             # would quietly move the first one's money onto another row.
             if appt is not None and invoice.appointment_id is None:
                 invoice.appointment_id = appt.id
+        if card["needs_decision"] and not invoice.coverage_decision:
+            from app.utils import coverage_card
+
+            if request.form.get("coverage_cash"):
+                coverage_card.decide_cash(invoice, current_user)      # «cash for good»
+            else:
+                coverage_card.mark_waiting(invoice, current_user)
 
         descs = request.form.getlist("line_desc")
         sids = request.form.getlist("line_service_id")
@@ -3782,7 +3806,7 @@ def _checkout_screen(appt, patient):
              or (_basics.needs_completion(patient, services_now=2)
                  if request.args.get("complete") == "1" else []))
     return render_template(
-        "finance/checkout.html", appt=appt, patient=patient, lines=lines,
+        "finance/checkout.html", appt=appt, patient=patient, lines=lines, card=card,
         **(_window(patient, _checkout_url(appt, patient_id)) if asked else {}),
         post_url=_checkout_url(appt, patient_id),
         doctor=db.session.get(User, doctor_id) if doctor_id else None,

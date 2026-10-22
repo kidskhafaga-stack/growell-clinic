@@ -1056,6 +1056,19 @@ ADDITIONS = [
     ("fire_drills", "committee_told_on", "DATE"),
     ("fire_training", "topic", "VARCHAR(12) DEFAULT 'fire'"),
     ("quality_meetings", "circulated_to", "VARCHAR(255)"),
+    # CONTRACTS_PLAN.md ع-١ — the card's details and pictures, its renewals,
+    # and the decision when an expired card's bill went cash.
+    ("patient_coverages", "issue_date", "DATE"),
+    ("patient_coverages", "plan_name", "VARCHAR(80)"),
+    ("patient_coverages", "holder_name", "VARCHAR(120)"),
+    ("patient_coverages", "holder_relation", "VARCHAR(30)"),
+    ("patient_coverages", "card_front", "VARCHAR(80)"),
+    ("patient_coverages", "card_back", "VARCHAR(80)"),
+    ("patient_coverages", "renewed_from_id", "INTEGER"),
+    ("patient_coverages", "renewed_by", "INTEGER"),
+    ("invoices", "coverage_decision", "VARCHAR(12)"),
+    ("invoices", "coverage_decided_by", "INTEGER"),
+    ("invoices", "coverage_decided_at", "DATETIME"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"
