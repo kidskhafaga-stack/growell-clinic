@@ -101,6 +101,9 @@ TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled"
                "ai_lab_insert",
                # The assistant reads the medical and management boards.
                "ai_boards",
+               # «Ask the reports»: the question and the builder's words go to
+               # the assistant, never a record (REPORTS_PLAN.md ت-٣).
+               "ai_reports_ask",
                # Voice dictation in the visit (ب-٥): the browser sends the
                # voice to its own speech service, so it is off until a person
                # who may decide that switches it on.

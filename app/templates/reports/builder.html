@@ -67,6 +67,21 @@
   <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('reports.index') }}"><i class="bi bi-grid"></i> {{ t('builder.all_reports') }}</a>
 </div>
 
+{# «Ask the reports» (ت-٣): a question in words becomes the settings below —
+   shown, to check and change. Only the question and the builder's words go
+   to the assistant (utils/report_ask). #}
+{% if ask_ready %}
+<form method="post" action="{{ url_for('reports.ask_reports') }}" class="card" style="margin-bottom:14px;" data-ask-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label for="askQ" style="font-weight:600;display:flex;gap:6px;align-items:center;"><i class="bi bi-stars"></i> {{ t('ask.title') }}</label>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+    <input class="input" id="askQ" name="question" maxlength="400" required style="flex:1;min-width:240px;" placeholder="{{ t('ask.placeholder') }}">
+    <button type="submit" class="btn btn-primary gc-press"><i class="bi bi-arrow-return-left"></i> {{ t('ask.go') }}</button>
+  </div>
+  <p class="rb-note" style="margin-top:6px;">{{ t('ask.privacy') }}</p>
+</form>
+{% endif %}
+
 <form method="get" action="{{ url_for('reports.builder') }}" class="card" data-builder-form id="rbForm">
   <div class="rb-src" role="radiogroup" aria-label="{{ t('builder.source') }}">
     {% for key in spec.sources %}
@@ -196,6 +211,25 @@
   </div>
   {% else %}
   <p class="hint" data-builder-empty>{{ t('builder.empty') }}</p>
+  {% endif %}
+
+  {% if ask_ready and table.rows %}
+  <form method="post" action="{{ url_for('reports.builder_explain') }}" style="margin-top:10px;" data-explain-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="query" value="{{ query }}">
+    <button type="submit" class="btn btn-outline btn-sm gc-press"><i class="bi bi-stars"></i> {{ t('ask.explain') }}</button>
+    <span class="rb-note">{{ t('ask.explain_note') }}</span>
+  </form>
+  {% endif %}
+  {% if explained %}
+  <div class="card" style="margin-top:10px;box-shadow:none;border:1px dashed var(--line);" data-explained="{{ 'ok' if explained.ok else 'error' }}">
+    {% if explained.ok %}
+    <div class="hint" style="margin:0 0 6px;"><i class="bi bi-stars"></i> {{ t('ask.explained_by') }}</div>
+    <div style="white-space:pre-line;">{{ explained.text }}</div>
+    {% else %}
+    <p class="hint" style="margin:0;">{{ explained.message }}</p>
+    {% endif %}
+  </div>
   {% endif %}
 </section>
 
