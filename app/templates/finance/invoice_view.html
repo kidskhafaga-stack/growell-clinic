@@ -199,6 +199,10 @@
           {% endif %}
           {# Why the family pays what it pays on this line — the contract's
              own reason (`utils/contract_terms`). #}
+          {% if it.contract_group or it.group_discount %}
+          <div data-line-group><span class="badge badge--role"><i class="bi bi-collection"></i>
+            {% if it.contract_group %}{{ it.contract_group.name }}{% endif %}{% if it.group_discount %}{% if it.contract_group %} · {% endif %}{{ t('groups.family_discount_line') }} {{ it.group_discount|money }}{% endif %}</span></div>
+          {% endif %}
           {% if invoice.payer_id and it.cover_note %}
           <div data-cover-note="{{ it.cover_note }}"><span class="badge badge--muted">{{ t('limits.note_' ~ it.cover_note) }}{% if it.cover_cut %} · {{ it.cover_cut|money }}{% endif %}</span></div>
           {% endif %}</td>

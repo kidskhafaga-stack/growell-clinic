@@ -521,9 +521,17 @@ class InvoiceItem(db.Model):
     # says, and on every line billed before this existed.
     cover_note = db.Column(db.String(16))
     cover_cut = db.Column(db.Float)
+    # **Which of the contract's groups decided this line** (ع-٦), and the
+    # family's discount its rule gave on the family's own share — kept apart
+    # from the cover so the claim reads the cover alone, and so the line's
+    # discount is known to be the contract's and recomputed with it.
+    contract_group_id = db.Column(db.Integer,
+                                  db.ForeignKey("payer_contract_groups.id"))
+    group_discount = db.Column(db.Float)
 
     invoice = db.relationship("Invoice", back_populates="items")
     approval = db.relationship("InsuranceApproval")
+    contract_group = db.relationship("PayerContractGroup")
     service = db.relationship("Service")
     doctor = db.relationship("User", foreign_keys=[doctor_id])
     cost_centre = db.relationship("CostCentre")

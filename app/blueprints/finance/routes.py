@@ -5423,8 +5423,12 @@ def contract_rates(contract_id):
     from app.models.service import SERVICE_CATEGORIES
     from app.utils.care_setting import SETTINGS
 
+    from app.models import PayerContract as _PC
+
+    others = (_PC.query.filter(_PC.id != c.id).order_by(_PC.id.desc()).all())
     return render_template("finance/contract_rates.html", contract=c,
                            payer=c.payer, services=services,
+                           other_contracts=[o for o in others if o.groups],
                            rates={r.service_id: r for r in c.rates},
                            coverage_types=COVERAGE_TYPES,
                            settings=SETTINGS, categories=SERVICE_CATEGORIES)
@@ -5444,7 +5448,7 @@ def contract_rule_add(contract_id):
     back = url_for("finance.contract_rates", contract_id=c.id) + "#rules"
     setting = request.form.get("setting") or "any"
     scope = request.form.get("scope") or "all"
-    if setting not in ("any",) + tuple(SETTINGS) or scope not in ("service", "category", "all"):
+    if setting not in ("any",) + tuple(SETTINGS) or scope not in ("service", "group", "category", "all"):
         flash(t("contracts.rule_bad"), "danger")
         return redirect(back)
     rule = PayerContractRule(contract_id=c.id, setting=setting, scope=scope)
@@ -5454,6 +5458,13 @@ def contract_rule_add(contract_id):
             flash(t("contracts.rule_need_service"), "danger")
             return redirect(back)
         rule.service_id = svc.id
+    elif scope == "group":
+        group = next((g for g in c.groups
+                      if g.id == request.form.get("group_id", type=int)), None)
+        if group is None:
+            flash(t("groups.need_group"), "danger")
+            return redirect(back)
+        rule.group_id = group.id
     elif scope == "category":
         category = request.form.get("category")
         if category not in SERVICE_CATEGORIES:
@@ -5463,22 +5474,218 @@ def contract_rule_add(contract_id):
     rule.excluded = request.form.get("excluded") == "1"
     rule.needs_approval = request.form.get("needs_approval") == "1"
     if not rule.excluded:
-        ctype = request.form.get("coverage_type")
-        value = request.form.get("coverage_value", type=float)
-        if ctype not in COVERAGE_TYPES or value is None or value <= 0 \
-                or (ctype == "percent" and value > 100):
-            flash(t("contracts.rule_need_value"), "danger")
+        if not _rule_figures(rule):
             return redirect(back)
-        rule.coverage_type, rule.coverage_value = ctype, value
-    # One rule per department and subject: a second one replaces the first,
-    # so the screen never holds two answers to the same question.
-    for old in list(c.rules):
-        if (old.setting, old.scope, old.service_id, old.category) == (
-                rule.setting, rule.scope, rule.service_id, rule.category):
+    _replace_rule(c, rule)
+    db.session.add(rule)
+    db.session.commit()
+    flash(t("contracts.rule_saved"), "success")
+    return redirect(back)
+
+
+def _rule_figures(rule):
+    """The payer's share and the family's discount from the form, onto
+    ``rule``. Either may be zero, not both: «نقدي» is a family discount with
+    no cover, «تعاقد» cover with no discount (ع-٦). False, with the reason
+    flashed, when the figures do not make a rule."""
+    ctype = request.form.get("coverage_type") or "percent"
+    value = request.form.get("coverage_value", type=float) or 0
+    family = request.form.get("family_discount", type=float) or 0
+    if ctype not in COVERAGE_TYPES or value < 0 or not 0 <= family <= 100 \
+            or (ctype == "percent" and value > 100) or (value <= 0 and family <= 0):
+        flash(t("contracts.rule_need_value"), "danger")
+        return False
+    rule.coverage_type, rule.coverage_value = ctype, value
+    rule.family_discount = family or None
+    return True
+
+
+def _replace_rule(contract, rule):
+    """Save ``rule``, replacing the one that answers the same question — one
+    rule per department and subject, so the screen never holds two answers."""
+    for old in list(contract.rules):
+        if (old.setting, old.scope, old.service_id, old.category, old.group_id) == (
+                rule.setting, rule.scope, rule.service_id, rule.category, rule.group_id):
             db.session.delete(old)
     db.session.add(rule)
     db.session.commit()
     flash(t("contracts.rule_saved"), "success")
+
+
+# ------------------------------------------- groups inside a contract (ع-٦) --
+def _groups_back(contract_id):
+    return url_for("finance.contract_rates", contract_id=contract_id) + "#groups"
+
+
+def _picked_services(group=None):
+    """The services the form names: picked one by one, and a whole category
+    at once. ``(services, clashes)`` — a clash is a service already in
+    another group of the same contract, which is refused, never moved."""
+    from app.models.service import SERVICE_CATEGORIES
+
+    ids = {int(v) for v in request.form.getlist("service_ids") if str(v).isdigit()}
+    picked = [db.session.get(Service, i) for i in ids]
+    category = request.form.get("category")
+    if category in SERVICE_CATEGORIES:
+        picked += Service.query.filter_by(category=category, is_active=True).all()
+    picked = list({s.id: s for s in picked if s is not None}.values())
+    return picked
+
+
+def _clashes(contract, services, group=None):
+    """``[(service, other_group)]`` for each service already in another group
+    of ``contract``."""
+    out = []
+    for svc in services:
+        for g in contract.groups:
+            if g is not group and g.holds(svc):
+                out.append((svc, g))
+    return out
+
+
+def _flash_clashes(clashes):
+    lang = getattr(g, "lang", "ar")
+    flash(t("groups.clash", items="، ".join(
+        f"{svc.display_name(lang)} ← {grp.name}" for svc, grp in clashes)), "danger")
+
+
+@finance_bp.route("/contract/<int:contract_id>/groups", methods=["POST"])
+@module_required(MODULE)
+def contract_group_add(contract_id):
+    """A group of the clinic's own choosing inside this contract, with what
+    it pays: the payer's share, the family's discount, or both (ع-٦)."""
+    from app.models import PayerContract, PayerContractGroup, PayerContractRule
+    from app.utils.care_setting import SETTINGS
+
+    c = db.get_or_404(PayerContract, contract_id)
+    back = _groups_back(c.id)
+    name = " ".join((request.form.get("name") or "").split())[:120]
+    if not name:
+        flash(t("groups.need_name"), "danger")
+        return redirect(back)
+    if any(g.name == name for g in c.groups):
+        flash(t("groups.name_taken", name=name), "danger")
+        return redirect(back)
+    services = _picked_services()
+    if not services:
+        flash(t("groups.need_services"), "danger")
+        return redirect(back)
+    clashes = _clashes(c, services)
+    if clashes:
+        _flash_clashes(clashes)
+        return redirect(back)
+    setting = request.form.get("setting") or "any"
+    if setting not in ("any",) + tuple(SETTINGS):
+        setting = "any"
+    group = PayerContractGroup(name=name, services=services)
+    c.groups.append(group)
+    db.session.flush()
+    rule = PayerContractRule(contract_id=c.id, setting=setting, scope="group",
+                             group_id=group.id,
+                             needs_approval=request.form.get("needs_approval") == "1")
+    if not _rule_figures(rule):
+        db.session.rollback()
+        return redirect(back)
+    ActivityLog.record("contract.group_add", user_id=current_user.id,
+                       entity="payer_contract", entity_id=c.id, detail=name,
+                       ip_address=client_ip())
+    _replace_rule(c, rule)
+    return redirect(back)
+
+
+@finance_bp.route("/contract/group/<int:group_id>/services", methods=["POST"])
+@module_required(MODULE)
+def contract_group_services(group_id):
+    """Add services to a group, or take one out."""
+    from app.models import PayerContractGroup
+
+    group = db.get_or_404(PayerContractGroup, group_id)
+    back = _groups_back(group.contract_id)
+    remove = request.form.get("remove_id", type=int)
+    if remove:
+        group.services = [s for s in group.services if s.id != remove]
+        db.session.commit()
+        flash(t("groups.saved"), "success")
+        return redirect(back)
+    services = _picked_services()
+    if not services:
+        flash(t("groups.need_services"), "danger")
+        return redirect(back)
+    clashes = _clashes(group.contract, services, group)
+    if clashes:
+        _flash_clashes(clashes)
+        return redirect(back)
+    have = {s.id for s in group.services}
+    group.services = list(group.services) + [s for s in services if s.id not in have]
+    db.session.commit()
+    flash(t("groups.saved"), "success")
+    return redirect(back)
+
+
+@finance_bp.route("/contract/group/<int:group_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def contract_group_delete(group_id):
+    """A group and the rules about it. Bills already written keep their
+    figures; the line only stops naming the group."""
+    from app.models import InvoiceItem, PayerContractGroup
+
+    group = db.get_or_404(PayerContractGroup, group_id)
+    contract = group.contract
+    for rule in [r for r in contract.rules if r.group_id == group.id]:
+        db.session.delete(rule)
+    InvoiceItem.query.filter_by(contract_group_id=group.id).update(
+        {"contract_group_id": None}, synchronize_session=False)
+    ActivityLog.record("contract.group_delete", user_id=current_user.id,
+                       entity="payer_contract", entity_id=contract.id,
+                       detail=group.name, ip_address=client_ip())
+    db.session.delete(group)
+    db.session.commit()
+    flash(t("groups.deleted"), "info")
+    return redirect(_groups_back(contract.id))
+
+
+@finance_bp.route("/contract/<int:contract_id>/groups/copy", methods=["POST"])
+@module_required(MODULE)
+def contract_groups_copy(contract_id):
+    """Another contract's groups, with their rules, copied into this one.
+    A group whose name is already here is left out, and so is a service
+    already in one of this contract's groups — said, not guessed."""
+    from app.models import PayerContract, PayerContractGroup, PayerContractRule
+
+    c = db.get_or_404(PayerContract, contract_id)
+    back = _groups_back(c.id)
+    source = db.session.get(PayerContract, request.form.get("from_id", type=int) or 0)
+    if source is None or source.id == c.id:
+        flash(t("groups.need_source"), "danger")
+        return redirect(back)
+    made, skipped = 0, []
+    names = {g.name for g in c.groups}
+    for src in source.groups:
+        if src.name in names:
+            skipped.append(src.name)
+            continue
+        free = [s for s in src.services if not _clashes(c, [s])]
+        if not free:
+            skipped.append(src.name)
+            continue
+        group = PayerContractGroup(name=src.name, services=free)
+        c.groups.append(group)
+        db.session.flush()
+        for r in source.rules:
+            if r.group_id == src.id:
+                c.rules.append(PayerContractRule(
+                    setting=r.setting, scope="group", group_id=group.id,
+                    coverage_type=r.coverage_type, coverage_value=r.coverage_value,
+                    family_discount=r.family_discount, excluded=r.excluded,
+                    needs_approval=r.needs_approval))
+        made += 1
+    ActivityLog.record("contract.groups_copy", user_id=current_user.id,
+                       entity="payer_contract", entity_id=c.id,
+                       detail=f"from {source.id}: {made}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("groups.copied", n=made), "success" if made else "info")
+    if skipped:
+        flash(t("groups.copy_skipped", names="، ".join(skipped)), "warning")
     return redirect(back)
 
 
