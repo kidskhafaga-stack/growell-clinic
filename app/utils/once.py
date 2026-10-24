@@ -62,7 +62,7 @@ def once_per_form(view):
             if request.method == "POST" else ""
         if not _SHAPE.match(key):
             return view(*args, **kwargs)
-        seen = db.session.get(FormKey, key)
+        seen = FormKey.query.filter_by(key=key).first()
         if seen is not None:
             _already()
             return redirect(_back(seen))
@@ -73,7 +73,7 @@ def once_per_form(view):
             # Sent twice at the same instant: the other one saved first.
             db.session.rollback()
             _already()
-            return redirect(_back(db.session.get(FormKey, key)))
+            return redirect(_back(FormKey.query.filter_by(key=key).first()))
         # The key is kept only if the view itself saved: a view that turned
         # the form away without saving leaves nothing — and the same form may
         # be sent again.
@@ -91,7 +91,7 @@ def once_per_form(view):
         if not saved:
             db.session.rollback()
             return response
-        row = db.session.get(FormKey, key)
+        row = FormKey.query.filter_by(key=key).first()
         if row is not None:
             if getattr(response, "status_code", 200) in (301, 302, 303):
                 row.went_to = (response.headers.get("Location") or "")[:255] or None

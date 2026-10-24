@@ -13,7 +13,10 @@ from app.extensions import db
 class FormKey(db.Model):
     __tablename__ = "form_keys"
 
-    key = db.Column(db.String(40), primary_key=True)
+    # An ``id`` like every table here: the demo clean-up and the patient
+    # merge walk tables by it. The key is what is unique.
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(40), unique=True, nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     # Where the first sending ended — the receipt, the bill — so the second
     # is shown what was done instead of an error.
