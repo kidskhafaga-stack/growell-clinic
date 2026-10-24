@@ -5898,7 +5898,8 @@ def _payer_record(asked=False):
     from app.utils import ai, board_ai, payer_record
 
     data = payer_record.board(request.args.get("months", type=int)
-                              or payer_record.DEFAULT_MONTHS)
+                              or payer_record.DEFAULT_MONTHS,
+                              only_attention=request.args.get("show") == "attention")
     ai_reply = None
     if asked:
         if not board_ai.enabled():

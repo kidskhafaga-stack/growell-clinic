@@ -23,7 +23,7 @@ What the assistant may read of it (the boards' switch) is payers, services,
 departments and money: no child, no file number.
 """
 from collections import Counter
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 PERIODS = (3, 6, 12)
 DEFAULT_MONTHS = 12
@@ -62,20 +62,22 @@ def _top(counter):
     return [(k, round(v, 2)) for k, v in counter.most_common(TOP)]
 
 
-def record(payer, since, today):
+def record(payer, since, today, claims=None, asked=None):
     """One payer's figures: claims by the day they were sent, approvals by the
-    day they were asked, both from ``since`` to ``today``."""
+    day they were asked, both from ``since`` to ``today``.
+
+    ``claims`` and ``asked``: the payer's rows when :func:`board` already read
+    every payer's in one go — forty companies are two reads, not eighty."""
     from app.models import Claim, InsuranceApproval
     from app.utils import claim_clock, claims_desk
     from app.utils.clock import local_date
 
-    claims = []
-    for c in (Claim.query.filter(Claim.payer_id == payer.id,
-                                 Claim.submitted_at.isnot(None))
-              .order_by(Claim.id).all()):
-        sent = claim_clock.sent_on(c)
-        if sent is not None and since <= sent <= today:
-            claims.append(c)
+    if claims is None:
+        claims = Claim.query.filter(Claim.payer_id == payer.id,
+                                    Claim.submitted_at.isnot(None)).all()
+    claims = [c for c in claims
+              if claim_clock.sent_on(c) is not None
+              and since <= claim_clock.sent_on(c) <= today]
 
     claimed = accepted = refused = paid = overdue_amount = 0.0
     decided = late = overdue = 0
@@ -113,8 +115,10 @@ def record(payer, since, today):
             overdue_amount += (sums["accepted"] if sums["accepted"] is not None
                                else sums["claimed"])
 
-    asked = [a for a in InsuranceApproval.query
-             .filter(InsuranceApproval.payer_id == payer.id).all()
+    if asked is None:
+        asked = (InsuranceApproval.query
+                 .filter(InsuranceApproval.payer_id == payer.id).all())
+    asked = [a for a in asked
              if a.requested_at and since <= local_date(a.requested_at) <= today]
     answer_days = [(a.decided_at - a.requested_at).total_seconds() / 86400
                    for a in asked
@@ -169,20 +173,57 @@ def words(row):
     return out
 
 
-def board(months=DEFAULT_MONTHS, today=None):
-    """Every payer with a claim sent or an approval asked in the period."""
-    from app.models import PayerEntity
+#: The words that call for somebody to look — the rest is good news or «too
+#: few to say».
+ATTENTION = ("late", "refuses", "slow_approvals")
+
+
+def board(months=DEFAULT_MONTHS, today=None, only_attention=False):
+    """Every payer with a claim sent or an approval asked in the period, the
+    ones that need looking at first (overdue money, then refusals, then slow
+    approvals), then by name.
+
+    Every claim with its lines and every approval are read once for all the
+    payers, so the page costs the same with four companies or forty."""
+    from collections import defaultdict
+
+    from sqlalchemy.orm import selectinload
+
+    from app.models import Claim, InsuranceApproval, PayerEntity
     from app.utils.clock import local_today
 
     today = today or local_today()
     months = months if months in PERIODS else DEFAULT_MONTHS
     since = today - timedelta(days=round(months * 30.4))
+    # A day either side: ``sent_on`` reads the clinic's calendar, the column
+    # is UTC; the exact edge is judged in :func:`record`.
+    edge = datetime.combine(since - timedelta(days=1), datetime.min.time())
+    by_payer = defaultdict(list)
+    for c in (Claim.query.filter(Claim.submitted_at.isnot(None),
+                                 Claim.submitted_at >= edge)
+              .options(selectinload(Claim.lines)).all()):
+        by_payer[c.payer_id].append(c)
+    asked_by = defaultdict(list)
+    for a in InsuranceApproval.query.filter(InsuranceApproval.requested_at >= edge).all():
+        asked_by[a.payer_id].append(a)
+    payers = (PayerEntity.query
+              .filter(PayerEntity.id.in_(set(by_payer) | set(asked_by)))
+              .options(selectinload(PayerEntity.contracts)).all()
+              if by_payer or asked_by else [])
     rows = []
-    for payer in PayerEntity.query.order_by(PayerEntity.name).all():
-        row = record(payer, since, today)
+    for payer in payers:
+        row = record(payer, since, today, by_payer.get(payer.id, []),
+                     asked_by.get(payer.id, []))
         if row["claims"] or row["approvals"]:
+            row["attention"] = [w for w in ATTENTION if w in row["words"]]
             rows.append(row)
-    return {"rows": rows, "since": since, "today": today, "months": months}
+    rows.sort(key=lambda r: ([w not in r["attention"] for w in ATTENTION],
+                             -r["overdue_amount"], r["payer"].name))
+    shown = [r for r in rows if r["attention"]] if only_attention else rows
+    return {"rows": shown, "count": len(rows),
+            "attention": sum(1 for r in rows if r["attention"]),
+            "since": since, "today": today, "months": months,
+            "only_attention": only_attention}
 
 
 def facts(data, lang="ar"):

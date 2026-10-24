@@ -15361,6 +15361,21 @@
     "rules": "The words come from the figures: «too few to say» when fewer than {few} claims were answered and paid; «refuses a lot» at {pct}% or more of what it answered refused; «slow to approve» when it answers after more than {days} days on average; «pays late» when a claim was paid after its due day or is past it today.",
     "ai_read": "Read the record",
     "ai_ask_ph": "Ask about the payers… e.g. which one holds our money longest?",
-    "ai_privacy": "Only the claims' and approvals' figures and the names of payers and services are sent — no child. The reply is not kept."
+    "ai_privacy": "Only the claims' and approvals' figures and the names of payers and services are sent — no child. The reply is not kept.",
+    "show_all": "All payers ({n})",
+    "show_attention": "Need attention ({n})",
+    "search": "Search by payer name…",
+    "none_attention": "No payer needs attention in this period.",
+    "verdict": "Verdict",
+    "col_claims": "Claims",
+    "col_days": "Pays after (days)",
+    "col_late": "Paid late",
+    "col_refused": "Refused",
+    "col_reason": "Top refusal reason",
+    "col_approvals": "Approval answer (days)",
+    "n_waiting": "{n} waiting",
+    "details": "Details",
+    "col_terms": "Contract (days)",
+    "col_overdue": "Past due"
   }
 }

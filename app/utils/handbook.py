@@ -2584,7 +2584,8 @@ SECTIONS = [
              "claim tied to it, or written off by decision — never both. The "
              "claim downloads as an Excel sheet for the payer."),
             ("<b>تقييم كل جهة</b> (من المطالبات أو الجهات، أو «كل التقارير»): لكل "
-             "شركة بتدفع بعد كام يوم فعلاً قصاد الأيام اللي في العقد، وكام مطالبة "
+             "شركة — صف واحد في جدول، واللي محتاجة انتباه فوق، وزرار «محتاجة "
+             "انتباه» يعرضهم لوحدهم، وبحث بالاسم، و«التفاصيل» تحت الصف: بتدفع بعد كام يوم فعلاً قصاد الأيام اللي في العقد، وكام مطالبة "
              "اتدفعت متأخر وكام عدّت ميعادها النهارده؛ ونسبة المرفوض من اللي ردّت "
              "عليه، وأكتر أسباب الرفض والخدمات والأقسام؛ والموافقات: كام اتطلبت "
              "واتقبلت واترفضت ولسه، وبترد في كام يوم. وكلمة بسيطة — «ملتزمة» أو "
@@ -2593,7 +2594,9 @@ SECTIONS = [
              "مساعد اللوحات شغال: «اقرا التقييم» — بيروح له أرقام وأسماء شركات "
              "وخدمات بس، من غير أي طفل.",
              "<b>Each payer's record</b> (from the claims or the payers screen, "
-             "or «All reports»): for each company, how many days it actually "
+             "or «All reports»): one row per company, the ones that need "
+             "attention on top, «Need attention» to show them alone, a search "
+             "by name and «Details» under the row — how many days it actually "
              "takes to pay against the days its contract gives, how many claims "
              "were paid late and how many are past their day now; the share "
              "refused of what it answered, with its top refusal reasons, "

@@ -255,3 +255,77 @@ def test_the_assistant_reads_payers_and_money_never_a_child(payers, asked):
     assert "insurance companies" in asked[0]["system"]
     with payers["app"].app_context():
         assert ActivityLog.query.filter_by(action="ai.board_payers").count() == 1
+
+
+# ------------------------------------------------------- many companies --
+def _many(fx, n):
+    """``n`` more companies, each with three claims paid inside its terms."""
+    from app.models import PayerContract, PayerEntity
+
+    db = fx["db"]
+    with fx["app"].app_context():
+        for i in range(n):
+            payer = PayerEntity(name=f"جهة {i:02d}", entity_type="insurance", is_active=True)
+            db.session.add(payer)
+            db.session.flush()
+            db.session.add(PayerContract(payer_id=payer.id, number=f"M-{i}",
+                                         start_date=local_today() - timedelta(days=500),
+                                         end_date=local_today() + timedelta(days=400),
+                                         is_active=True, payment_days=30))
+            fx["payers"][f"m{i}"] = payer.id
+        db.session.commit()
+    for i in range(n):
+        for sent, paid in ((80, 60), (60, 45), (40, 20)):
+            _claim(fx, f"m{i}", sent, paid)
+
+
+def _queries(fx):
+    from sqlalchemy import event
+
+    from app.utils import payer_record
+
+    seen = []
+    with fx["app"].app_context():
+        engine = fx["db"].engine
+        record = lambda *a, **k: seen.append(1)  # noqa: E731
+        event.listen(engine, "before_cursor_execute", record)
+        try:
+            rows = payer_record.board()["rows"]
+        finally:
+            event.remove(engine, "before_cursor_execute", record)
+    return len(seen), len(rows)
+
+
+def test_forty_companies_cost_the_same_reads_as_four(payers):
+    _many(payers, 4)
+    few, rows_few = _queries(payers)
+    _many(payers, 36)
+    many, rows_many = _queries(payers)
+    assert (rows_few, rows_many) == (4, 40)
+    assert many == few
+
+
+def test_the_ones_that_need_looking_at_come_first_and_can_be_shown_alone(payers):
+    _many(payers, 12)
+    _claim(payers, "slow", 50)                        # past its due day
+    for sent, paid in ((90, 60), (70, 50), (50, 30)):
+        _claim(payers, "good", sent, paid, lines=(
+            (1000, "accepted", 600, None, "كشف", None),
+            (400, "refused", 0, "سبب", "أشعة", None)))
+    boss = payers["sign_in"]()
+    page = boss.get("/finance/payers/record").get_data(as_text=True)
+    order = [page.index(f'data-record-payer="{payers["payers"][k]}"')
+             for k in ("slow", "good", "m0")]
+    assert order == sorted(order)                     # overdue, refuses, then the rest
+    assert "data-record-search" in page and "data-record-open" in page
+    only = boss.get("/finance/payers/record?show=attention").get_data(as_text=True)
+    assert only.count("data-record-payer=") == 2
+    assert f'data-record-payer="{payers["payers"]["m0"]}"' not in only
+    # The period buttons keep the filter.
+    assert 'name="show" value="attention"' in only
+
+
+def test_attention_alone_with_nothing_wrong_says_so(payers):
+    _many(payers, 3)
+    page = payers["sign_in"]().get("/finance/payers/record?show=attention").get_data(as_text=True)
+    assert "data-record-all-fine" in page
