@@ -306,3 +306,30 @@ def test_covered_again_after_the_group_changes_the_line_follows_it(contract):
         billing.apply_coverage(invoice, db.session.get(Patient, contract["ids"]["child"]))
         item = invoice.items[0]
         assert (item.payer_amount, item.group_discount, item.net) == (100, 10, 90)
+
+
+def test_the_doctors_share_before_or_after_the_discount_is_the_contracts_choice(contract):
+    """«احتساب نسبة الطبيب قبل او بعد على حسب العقد»: after the family's
+    discount unless the contract says before — and a renewal keeps it."""
+    from app.models import PayerContract
+
+    _group(contract, "الاتنين", ["exam"], payer_pct=25, family_pct=10)
+    _group(contract, "نقدي", ["nebul"], family_pct=10)
+    after = _bill(contract, "exam", "nebul")
+    assert after["exam"][4] == round((200 - 15) * 0.4, 2)
+    assert after["nebul"][4] == round((150 - 15) * 0.5, 2)
+    boss = contract["sign_in"]()
+    cid = contract["ids"]["contract"]
+    got = boss.post(f"/finance/contract/{cid}/edit", data={"share_base": "before"})
+    assert f"/finance/contract/{cid}/rates" in got.headers["Location"]
+    before = _bill(contract, "exam", "nebul")
+    assert before["exam"][4] == 80                     # 40% of the full 200
+    assert before["nebul"][4] == 75                    # 50% of the full 150
+    assert before["exam"][0] == after["exam"][0]       # the family pays the same
+    with contract["app"].app_context():
+        db = contract["db"]
+        c = db.session.get(PayerContract, cid)
+        assert c.copy_to(number="K-2").share_before_discount is True
+    boss.post(f"/finance/contract/{cid}/edit", data={"share_base": "after"})
+    assert _bill(contract, "exam")["exam"][4] == round((200 - 15) * 0.4, 2)
+    assert "data-share-base" in boss.get(f"/finance/contract/{cid}/rates").get_data(as_text=True)

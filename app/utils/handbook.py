@@ -2616,8 +2616,10 @@ SECTIONS = [
              "10؛ «تعاقد 25%» = الشركة 25. الخدمة في مجموعة واحدة بس في العقد، "
              "والقاعدة اللي على الخدمة لوحدها بتغلب المجموعة، والمجموعة بتغلب "
              "الفئة. سطر الفاتورة بيقول من أنهي مجموعة وكام خصم الأهل، والمطالبة "
-             "بتاخد نصيب الشركة بس. التجديد بينقل المجموعات، و«انسخ المجموعات من "
-             "عقد تاني» بيجيبها من عقد تاني من غير ما يلمس اللي هنا.",
+             "بتاخد نصيب الشركة بس. ونسبة الطبيب على السطر ده بتتحسب بعد خصم الأهل، "
+             "إلا لو العقد مكتوب فيه «قبل الخصم» (اختيار تحت المجموعات). التجديد "
+             "بينقل المجموعات، و«انسخ المجموعات من عقد تاني» بيجيبها من عقد تاني "
+             "من غير ما يلمس اللي هنا.",
              "<b>Groups inside a contract</b> (the contract's rates screen → «Groups "
              "inside the contract»): gather any services under a name of your "
              "own — picked by search, or a whole category at once — and give "
@@ -2627,7 +2629,10 @@ SECTIONS = [
              "a contract at most; a rule for the service alone wins over its "
              "group, and a group wins over a category. The bill line says which "
              "group and the family's discount, and the claim takes the payer's "
-             "share only. A renewal carries the groups, and «Copy the groups "
+             "share only. The doctor's share on such a line is worked out after "
+             "the family's discount, unless the contract is set to «before the "
+             "discount» (a choice under the groups). A renewal carries the "
+             "groups, and «Copy the groups "
              "from another contract» brings another's in without touching what "
              "is here."),
             ("<b>نصيب الأسرة وسقوف الجهة</b> على شاشة أسعار العقد: مبلغ ثابت "

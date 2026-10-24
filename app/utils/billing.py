@@ -184,11 +184,12 @@ def apply_coverage(invoice, patient, warn=None, then=None):
                 # written onto ``unit_price``, so ``gross`` is exactly the
                 # contract price of the work.
                 #
-                # The family's discount (ع-٦) is a discount in every sense —
-                # the clinic's price to the payer's members — so it comes off
-                # the share the way a named discount does.
+                # The family's discount (ع-٦) comes off the share the way a
+                # named discount does — unless the contract says the doctor's
+                # share is on the price before it.
                 item.commission_amount = item.service.doctor_share(
-                    round(item.gross - family_cut, 2), item.doctor or invoice.doctor)
+                    _share_base(item.gross, family_cut, contract),
+                    item.doctor or invoice.doctor)
         else:
             # «نقدي»: the payer pays nothing on this line and the family gets
             # its discount — a cash agreement (ع-٦).
@@ -199,7 +200,8 @@ def apply_coverage(invoice, patient, warn=None, then=None):
                 item.group_discount = family_cut
                 if item.service is not None:
                     item.commission_amount = item.service.doctor_share(
-                        item.net, item.doctor or invoice.doctor)
+                        _share_base(item.gross, family_cut, contract),
+                        item.doctor or invoice.doctor)
                 continue
             # Why the family pays this line: the contract excludes it here,
             # or names nothing for it. Said on the bill (`cover_note`).
@@ -218,6 +220,14 @@ def apply_coverage(invoice, patient, warn=None, then=None):
     # so nothing above touched the invoice — its member discount lands there.
     if then is not None:
         then(invoice, patient)
+
+
+def _share_base(gross, family_cut, contract):
+    """What the doctor's share is worked out on, on a line carrying the
+    contract's family discount: after it, unless the contract says before."""
+    if contract is not None and contract.share_before_discount:
+        return gross
+    return round(gross - family_cut, 2)
 
 
 def _deciding_rule(contract, service, setting):

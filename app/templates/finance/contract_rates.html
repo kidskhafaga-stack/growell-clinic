@@ -115,6 +115,15 @@
     <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('groups.create') }}</button>
   </form>
 
+  <form method="post" action="{{ url_for('finance.contract_edit', contract_id=contract.id) }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;" data-share-base>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <span class="hint">{{ t('groups.share_base') }}</span>
+    <label style="display:flex;gap:4px;align-items:center;"><input type="radio" name="share_base" value="after" {{ 'checked' if not contract.share_before_discount }}> {{ t('groups.share_after') }}</label>
+    <label style="display:flex;gap:4px;align-items:center;"><input type="radio" name="share_base" value="before" {{ 'checked' if contract.share_before_discount }}> {{ t('groups.share_before') }}</label>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+
   {% if other_contracts %}
   <form method="post" action="{{ url_for('finance.contract_groups_copy', contract_id=contract.id) }}"
         style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:12px;" data-group-copy>

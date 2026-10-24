@@ -5363,6 +5363,9 @@ def contract_edit(contract_id):
     # The terms. Blank clears them back to "nothing agreed", which has to stay
     # reachable: a clinic that typed 90 by mistake must be able to get back to
     # no deadline rather than being stuck with a wrong one.
+    # The doctor's share before or after the family's discount (ع-٦).
+    if "share_base" in request.form:
+        c.share_before_discount = request.form.get("share_base") == "before" or None
     if "terms" in request.form:
         for field in ("filing_days", "payment_days", "cycle_day"):
             raw = (request.form.get(field) or "").strip()
@@ -5371,6 +5374,8 @@ def contract_edit(contract_id):
     db.session.commit()
     flash(t("contracts.updated"), "success")
     _warn_overlap(c)
+    if "share_base" in request.form:
+        return redirect(_groups_back(c.id))
     return redirect(url_for("finance.payers"))
 
 

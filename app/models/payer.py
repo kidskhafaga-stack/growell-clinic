@@ -227,6 +227,11 @@ class PayerContract(db.Model):
     # the approval arrives (`utils/approvals.link_waiting`). Never for an
     # urgent emergency child.
     approval_policy = db.Column(db.String(10))
+    # The doctor's share on a line where this contract gives the family a
+    # discount (ع-٦): on what the family is charged after it (empty — the
+    # default, like any named discount), or on the full price when the
+    # agreement says the discount is the clinic's alone and not the doctor's.
+    share_before_discount = db.Column(db.Boolean)
     deductible_year = db.Column(db.Float)
     # The most the payer pays for one member in that year; past it the
     # family pays.
@@ -300,7 +305,8 @@ class PayerContract(db.Model):
             filing_days=self.filing_days, payment_days=self.payment_days,
             cycle_day=self.cycle_day,
             deductible_year=self.deductible_year, ceiling_year=self.ceiling_year,
-            approval_policy=self.approval_policy)
+            approval_policy=self.approval_policy,
+            share_before_discount=self.share_before_discount)
         for t in self.terms:
             clone.terms.append(PayerContractTerm(
                 setting=t.setting, copay_amount=t.copay_amount,

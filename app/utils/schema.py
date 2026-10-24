@@ -1076,6 +1076,7 @@ ADDITIONS = [
     ("payer_contract_rules", "family_discount", "FLOAT"),
     ("invoice_items", "contract_group_id", "INTEGER"),
     ("invoice_items", "group_discount", "FLOAT"),
+    ("payer_contracts", "share_before_discount", "BOOLEAN"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"
