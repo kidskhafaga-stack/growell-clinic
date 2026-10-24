@@ -52,6 +52,7 @@ CATALOG = [
     ("reports.discounts", FINANCE, "tags", "reports.discounts", "reports.discounts_desc", _reports_and()),
     ("reports.staff", FINANCE, "people", "reports.staff", "reports.staff_desc", _reports_and()),
     ("finance.statements", FINANCE, "journal-text", "allrep.statements", "allrep.statements_d", _opens("finance")),
+    ("finance.payer_record", FINANCE, "award", "payer_record.title", "payer_record.desc", _opens("finance")),
     # ---- medical ----
     # The builder makes the rest (REPORTS_PLAN.md ت-٢): any source the
     # person may use — money only with the finance rights.

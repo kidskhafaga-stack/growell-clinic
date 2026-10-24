@@ -1,0 +1,108 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('payer_record.title') }}{% endblock %}
+{% block page_heading %}{{ t('payer_record.title') }}{% endblock %}
+
+{# Each payer's record — utils/payer_record. Every word on a card comes from
+   a figure printed on the same card, so the words can be checked. #}
+{% block content %}
+<style>
+  .pr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:14px;}
+  .pr-card h2{margin:0;font-size:1.05rem;}
+  .pr-sec{border-top:1px solid var(--line);padding-top:10px;margin-top:10px;}
+  .pr-sec h3{margin:0 0 6px;font-size:.85rem;color:var(--muted);letter-spacing:.02em;}
+  .pr-kv{display:grid;grid-template-columns:1fr auto;gap:3px 12px;font-size:.9rem;}
+  .pr-kv dt{color:var(--muted);}
+  .pr-kv dd{margin:0;font-variant-numeric:tabular-nums;text-align:end;}
+  .pr-top{margin:6px 0 0;padding:0;list-style:none;font-size:.85rem;}
+  .pr-top li{display:flex;justify-content:space-between;gap:10px;}
+  .pr-top li span:last-child{font-variant-numeric:tabular-nums;color:var(--danger);}
+  .pr-words{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+</style>
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
+  <h1 class="page-title">{{ t('payer_record.title') }}</h1>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.claims') }}"><i class="bi bi-inboxes"></i> {{ t('claims.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.approvals') }}"><i class="bi bi-patch-check"></i> {{ t('approvals.title') }}</a>
+  </div>
+</div>
+<p class="hint" style="margin:0 0 12px;max-width:70ch;">{{ t('payer_record.intro') }}</p>
+
+<form method="get" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px;" data-record-period>
+  <span class="hint">{{ t('payer_record.period') }}</span>
+  {% for m in periods %}
+  <button class="btn btn-sm gc-press {{ 'btn-primary' if m == data.months else 'btn-outline' }}" type="submit" name="months" value="{{ m }}">{{ t('payer_record.months', n=m) }}</button>
+  {% endfor %}
+  <span class="hint" dir="ltr">{{ data.since }} → {{ data.today }}</span>
+</form>
+
+{% include "reports/_board_ai.html" %}
+
+{% if not data.rows %}
+<div class="card" data-record-empty><p class="hint" style="margin:0;">{{ t('payer_record.empty') }}</p></div>
+{% else %}
+<div class="pr-grid">
+  {% for r in data.rows %}
+  <section class="card pr-card" data-record-payer="{{ r.payer.id }}">
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap;">
+      <h2><a href="{{ url_for('finance.claim_detail', payer_id=r.payer.id) }}">{{ r.payer.display_name(current_lang) }}</a></h2>
+      <span class="hint">{{ t('payer_record.n_claims', n=r.claims) }}</span>
+    </div>
+    <div class="pr-words" data-record-words>
+      {% for w in r.words %}
+      {% set cls = {'few': 'badge--muted', 'on_time': 'badge--green', 'late': 'badge--danger', 'refuses': 'badge--warn', 'slow_approvals': 'badge--warn'}[w] %}
+      <span class="badge {{ cls }}" data-word="{{ w }}">{{ t('payer_record.w_' ~ w) }}</span>
+      {% endfor %}
+    </div>
+
+    <div class="pr-sec">
+      <h3><i class="bi bi-cash-coin"></i> {{ t('payer_record.paying') }}</h3>
+      <dl class="pr-kv">
+        <dt>{{ t('payer_record.contract_days') }}</dt><dd>{{ r.payment_days if r.payment_days else t('payer_record.not_set') }}</dd>
+        <dt>{{ t('payer_record.avg_days') }}</dt><dd data-avg-days>{{ r.avg_days if r.avg_days is not none else '—' }}</dd>
+        <dt>{{ t('payer_record.longest') }}</dt><dd>{{ r.longest_days if r.longest_days is not none else '—' }}</dd>
+        <dt>{{ t('payer_record.paid') }}</dt><dd>{{ r.paid|money }} <span class="hint">({{ r.paid_claims }})</span></dd>
+        <dt>{{ t('payer_record.late') }}</dt><dd data-late>{{ r.late }}</dd>
+        <dt>{{ t('payer_record.overdue') }}</dt><dd data-overdue style="{{ 'color:var(--danger);font-weight:700;' if r.overdue else '' }}">{{ r.overdue }}{% if r.overdue %} · {{ r.overdue_amount|money }}{% endif %}</dd>
+      </dl>
+    </div>
+
+    <div class="pr-sec">
+      <h3><i class="bi bi-x-octagon"></i> {{ t('payer_record.refusing') }}</h3>
+      <dl class="pr-kv">
+        <dt>{{ t('payer_record.claimed') }}</dt><dd>{{ r.claimed|money }}</dd>
+        <dt>{{ t('payer_record.accepted') }}</dt><dd>{{ r.accepted|money }}</dd>
+        <dt>{{ t('payer_record.refused') }}</dt><dd data-refused>{{ r.refused|money }}{% if r.refused_pct is not none %} · {{ r.refused_pct }}%{% endif %}</dd>
+      </dl>
+      {% if r.reasons %}
+      <div class="hint" style="margin-top:8px;">{{ t('payer_record.top_reasons') }}</div>
+      <ul class="pr-top" data-top-reasons>{% for k, v in r.reasons %}<li><span dir="auto">{{ k }}</span><span>{{ v|money }}</span></li>{% endfor %}</ul>
+      {% endif %}
+      {% if r.services %}
+      <div class="hint" style="margin-top:8px;">{{ t('payer_record.top_services') }}</div>
+      <ul class="pr-top" data-top-services>{% for k, v in r.services %}<li><span dir="auto">{{ k }}</span><span>{{ v|money }}</span></li>{% endfor %}</ul>
+      {% endif %}
+      {% if r.settings %}
+      <div class="hint" style="margin-top:8px;">{{ t('payer_record.top_settings') }}</div>
+      <ul class="pr-top">{% for k, v in r.settings %}<li><span>{{ t('contracts.setting_' ~ k) }}</span><span>{{ v|money }}</span></li>{% endfor %}</ul>
+      {% endif %}
+    </div>
+
+    <div class="pr-sec">
+      <h3><i class="bi bi-patch-check"></i> {{ t('payer_record.approvals') }}</h3>
+      {% if r.approvals %}
+      <dl class="pr-kv" data-record-approvals>
+        <dt>{{ t('payer_record.asked') }}</dt><dd>{{ r.approvals }}</dd>
+        <dt>{{ t('payer_record.granted') }}</dt><dd>{{ r.approved }}</dd>
+        <dt>{{ t('payer_record.rejected') }}</dt><dd>{{ r.rejected }}</dd>
+        <dt>{{ t('payer_record.waiting') }}</dt><dd>{{ r.waiting }}</dd>
+        <dt>{{ t('payer_record.answer_days') }}</dt><dd>{{ r.approval_days if r.approval_days is not none else '—' }}</dd>
+      </dl>
+      {% else %}<p class="hint" style="margin:0;">{{ t('payer_record.no_approvals') }}</p>{% endif %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
+<p class="hint" style="margin-top:14px;max-width:70ch;" data-record-rules>{{ t('payer_record.rules', few=rec.MIN_CLAIMS, pct=rec.REFUSAL_HIGH|int, days=rec.APPROVAL_SLOW_DAYS|int) }}</p>
+{% endif %}
+{% endblock %}

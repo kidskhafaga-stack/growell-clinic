@@ -5876,6 +5876,51 @@ def claims():
                            date_from=date_from, date_to=date_to)
 
 
+@finance_bp.route("/payers/record")
+@module_required(MODULE)
+def payer_record():
+    """Each payer's record — pays on time, refuses what, answers approvals
+    how fast — worked out from the claims and the approvals
+    (``utils/payer_record``, CONTRACTS_PLAN.md ع-٢)."""
+    return _payer_record()
+
+
+@finance_bp.route("/payers/record/ai", methods=["POST"])
+@module_required(MODULE)
+def payer_record_ai():
+    """The same record, with the assistant's reading of it underneath. The
+    period rides on the query string, so what is read is what is shown."""
+    return _payer_record(asked=True)
+
+
+def _payer_record(asked=False):
+    from app.models import ActivityLog
+    from app.utils import ai, board_ai, payer_record
+
+    data = payer_record.board(request.args.get("months", type=int)
+                              or payer_record.DEFAULT_MONTHS)
+    ai_reply = None
+    if asked:
+        if not board_ai.enabled():
+            ai_reply = {"ok": False, "error": "boards_disabled"}
+        elif not ai.is_ready():
+            ai_reply = {"ok": False, "error": "not_configured"}
+        else:
+            ai_reply = payer_record.ask(data, request.form.get("question"),
+                                        lang=getattr(g, "lang", "ar"))
+        if ai_reply.get("ok"):
+            ActivityLog.record("ai.board_payers", user_id=current_user.id,
+                               ip_address=client_ip())
+            db.session.commit()
+        else:
+            ai_reply["message"] = ai.error_sentence(ai_reply.get("error"))
+    return render_template("finance/payer_record.html", data=data,
+                           periods=payer_record.PERIODS, rec=payer_record,
+                           ai_board=board_ai.ready(), ai_reply=ai_reply,
+                           ai_endpoint="finance.payer_record_ai",
+                           ai_words="payer_record")
+
+
 def _claim_number():
     """Serial claim number: CLM-2026-000001 (per year)."""
     prefix = f"CLM-{datetime.utcnow().year}-"
