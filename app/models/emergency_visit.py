@@ -90,6 +90,11 @@ class EmergencyVisit(db.Model):
     # البند الوحيد اللي البرنامج بيقراه. تلات حالات: `None` محدّش قال.
     urgent = db.Column(db.Boolean)
     triage_note = db.Column(db.Text)
+    # When a doctor first saw the child (HOSPITAL_PLAN.md ٥‑د, «من الوصول لحد
+    # ما الطبيب شافه»): pressed on the attendance, or stamped by the first
+    # order a doctor writes. Empty = nobody said, never guessed.
+    seen_at = db.Column(db.DateTime, index=True)
+    seen_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     # GAHAR IPC.07 — respiratory symptoms seen at the first point of entry
     # (cough, congestion, rhinorrhoea, secretions), and whether the child
     # was given a mask; ev. 4: identified, and placed in the designated area.
@@ -131,6 +136,7 @@ class EmergencyVisit(db.Model):
     from_visit = db.relationship("Visit", foreign_keys=[from_visit_id])
     admission = db.relationship("Admission")
     triaged_by = db.relationship("User", foreign_keys=[triaged_by_id])
+    seen_by = db.relationship("User", foreign_keys=[seen_by_id])
     by = db.relationship("User", foreign_keys=[by_id])
     pay_clearer = db.relationship("User", foreign_keys=[pay_cleared_by])
 
@@ -156,6 +162,13 @@ class EmergencyVisit(db.Model):
         if self.triaged_at is None:
             return None
         return int((self.triaged_at - self.arrived_at).total_seconds() // 60)
+
+    @property
+    def wait_to_doctor(self):
+        """من الوصول لحد ما الطبيب شافه، بالدقايق — أو ``None``."""
+        if self.seen_at is None:
+            return None
+        return max(int((self.seen_at - self.arrived_at).total_seconds() // 60), 0)
 
     def __repr__(self):
         return f"<EmergencyVisit patient={self.patient_id} {self.arrived_at}>"

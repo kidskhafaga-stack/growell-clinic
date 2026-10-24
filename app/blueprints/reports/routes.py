@@ -1319,6 +1319,27 @@ def _medical_board(asked=False):
         ai_endpoint="reports.medical_board_ai")
 
 
+@reports_bp.route("/hospital")
+@module_required(MODULE)
+def hospital_board():
+    """The hospital's indicators (HOSPITAL_PLAN.md ٥‑د, REPORTS_PLAN.md ت-٦):
+    each section only with its department switched on, and none of it for a
+    clinic that runs none of them — ``utils/hospital_kpis``."""
+    from flask import abort
+
+    from app.utils import hospital_kpis, med_board
+
+    on = hospital_kpis.parts()
+    if not any(on.values()):
+        abort(404)
+    w = _board_window()
+    return render_template(
+        "reports/hospital_board.html", w=w, on=on,
+        now=hospital_kpis.board(w["from"], w["to"], on),
+        before=hospital_kpis.board(w["prev_from"], w["prev_to"], on),
+        presets=med_board.PRESETS, place=None)
+
+
 @reports_bp.route("/medical/diagnoses.csv")
 @module_required(MODULE)
 def medical_board_diagnoses():

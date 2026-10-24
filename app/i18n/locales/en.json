@@ -9369,7 +9369,8 @@
     "ages_period": "Seen in the period",
     "ages_all": "All files",
     "ages_roster_hint": "Every active file, at today's age — the split the patient analytics page showed.",
-    "tab_consumption": "Consumption"
+    "tab_consumption": "Consumption",
+    "tab_hospital": "Hospital indicators"
   },
   "board_admin": {
     "title": "Management board",
@@ -11929,7 +11930,8 @@
     "late": "Late",
     "c_patient_rights": "Patient rights or discrimination",
     "c_smoking": "Smoking where not allowed",
-    "c_hazmat": "Hazardous material spill or exposure"
+    "c_hazmat": "Hazardous material spill or exposure",
+    "c_pressure_injury": "Pressure injury"
   },
   "lab_nav": {
     "aria": "Laboratory sections",
@@ -15432,5 +15434,56 @@
   },
   "forms": {
     "already_sent": "This was already recorded — nothing was done twice. Here is what the first one did."
+  },
+  "er_seen": {
+    "press": "Doctor has seen the child",
+    "seen": "seen by a doctor at {when} ({n} min after arrival)"
+  },
+  "hosp_kpi": {
+    "title": "Hospital indicators",
+    "desc": "Emergency times, theatres, return to intensive care, and falls, pressure injuries and medication errors per 1000 bed days.",
+    "sub": "Each section shows only when its department runs here. Numbers, not judgements — the targets are in the quality measures. «—» means nothing to read, not zero.",
+    "minutes": "min",
+    "of_n": "of {n}",
+    "er_title": "Emergency",
+    "er_total": "Attendances",
+    "er_triage": "Arrival to triage (median)",
+    "er_doctor": "Arrival to doctor (median)",
+    "er_stay": "Length of stay (median)",
+    "er_unseen": "Left unseen",
+    "er_back": "Back within {h} hours",
+    "er_seen_hint": "«Seen by a doctor» is not being recorded yet: the «Doctor has seen the child» button on the attendance, and the doctor's first order records it by itself.",
+    "ot_title": "Theatres",
+    "ot_total": "Operations booked",
+    "ot_done": "{n} done",
+    "ot_used": "Time used of time booked",
+    "ot_hours": "{used} of {booked} hours",
+    "ot_first": "First case on time (±{n} min)",
+    "ot_first_n": "{n} of {of} days",
+    "ot_turnover": "Changeover between cases (median)",
+    "ot_cancelled": "Cancelled",
+    "ot_postponed": "Postponed",
+    "ot_reasons": "Top reasons for cancelling and postponing",
+    "icu_title": "Back in intensive care within {h} hours of leaving",
+    "icu_back": "Back in {unit}",
+    "icu_of": "of {n} who left",
+    "unit_icu": "ICU",
+    "unit_nicu": "NICU",
+    "safe_title": "Safety per 1000 bed days",
+    "safe_sub": "From incident reports (falls, pressure injuries) and medication-error reports that reached the child, over the bed days of the period.",
+    "unit": "Unit",
+    "bed_days": "Bed days",
+    "falls": "Falls",
+    "pressure": "Pressure injuries",
+    "med_errors": "Medication errors reaching the child",
+    "whole": "Whole hospital",
+    "rate_note": "The figure in brackets is per 1000 bed days.",
+    "no_bed_days": "No bed days in this period.",
+    "unit_ward": "Ward",
+    "unit_emergency": "Emergency",
+    "unit_day_care": "Day care",
+    "unit_recovery": "Recovery",
+    "unit_None": "No unit",
+    "not_here": "Stays, occupancy, deaths, readmissions and emergency triage are on the medical board. Deaths against severity are still to come — the scoring scale's licence must be confirmed first."
   }
 }

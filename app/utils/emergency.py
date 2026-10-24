@@ -309,3 +309,16 @@ def depart(row, disposition, condition=None, followup=None, user=None,
     if user is not None and row.by_id is None:
         row.by_id = user.id
     return row
+
+
+def mark_seen(row, user, at=None):
+    """The doctor saw the child — once: the first time is the one the
+    department is measured by, and pressing again changes nothing.
+    Returns whether it was stamped now."""
+    from datetime import datetime
+
+    if row is None or row.seen_at is not None:
+        return False
+    row.seen_at = at or datetime.utcnow()
+    row.seen_by_id = getattr(user, "id", None)
+    return True

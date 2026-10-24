@@ -1,0 +1,130 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('hosp_kpi.title') }}{% endblock %}
+{% block page_heading %}{{ t('hosp_kpi.title') }}{% endblock %}
+
+{# The hospital's indicators — utils/hospital_kpis (HOSPITAL_PLAN.md ٥‑د).
+   Each section exists only with its department switched on; a number, not a
+   judgement — the targets live in the quality measures. «—» = nothing to
+   read, never zero. #}
+
+{% macro tile(key, label, value, unit=None, sub=None, before_v=None) %}
+<div class="mb-kpi" data-kpi="{{ key }}">
+  <span class="l">{{ label }}</span>
+  <span class="v num">{% if value is none %}—{% else %}{{ value }}{% if unit %}<small> {{ unit }}</small>{% endif %}{% endif %}</span>
+  <span class="row">
+    {% if sub %}<small class="hint" style="margin:0;">{{ sub }}</small>{% endif %}
+    {% if before_v is not none %}<small class="hint num" style="margin:0;">{{ t('board_med.before_n', n=before_v) }}</small>{% endif %}
+  </span>
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate mb-top">
+  <div>
+    <h1 class="page-title"><i class="bi bi-hospital"></i> {{ t('hosp_kpi.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('hosp_kpi.sub') }}</p>
+  </div>
+  {% set board_tab = 'hospital' %}{% include "reports/_board_tabs.html" %}
+</div>
+
+{% set board_endpoint = 'reports.hospital_board' %}
+{% include "reports/_board_bar.html" %}
+
+{% set m = t('hosp_kpi.minutes') %}
+{# -------------------------------------------------------- emergency #}
+{% if now.emergency %}
+{% set e, eb = now.emergency, before.emergency %}
+<section class="card gc-scale-in" style="margin-bottom:14px;" data-kpi-section="emergency">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-truck-front"></i> {{ t('hosp_kpi.er_title') }}</h2>
+  <div class="mb-kpis">
+    {{ tile('er_total', t('hosp_kpi.er_total'), e.total, before_v=eb.total) }}
+    {{ tile('er_triage', t('hosp_kpi.er_triage'), e.triage_median, m, t('hosp_kpi.of_n', n=e.triaged), eb.triage_median) }}
+    {{ tile('er_doctor', t('hosp_kpi.er_doctor'), e.doctor_median, m, t('hosp_kpi.of_n', n=e.seen), eb.doctor_median) }}
+    {{ tile('er_stay', t('hosp_kpi.er_stay'), e.stay_median, m, t('hosp_kpi.of_n', n=e.left), eb.stay_median) }}
+    {{ tile('er_unseen', t('hosp_kpi.er_unseen'), e.unseen, None, (e.unseen_pct ~ '%') if e.unseen_pct is not none else None, eb.unseen) }}
+    {{ tile('er_back', t('hosp_kpi.er_back', h=e.back_hours), e.back, None, (e.back_pct ~ '%') if e.back_pct is not none else None, eb.back) }}
+  </div>
+  {% if e.total and not e.seen %}
+  <p class="hint" style="margin:8px 0 0;" data-er-seen-hint><i class="bi bi-info-circle"></i> {{ t('hosp_kpi.er_seen_hint') }}</p>
+  {% endif %}
+</section>
+{% endif %}
+
+{# --------------------------------------------------------- theatres #}
+{% if now.theatres %}
+{% set o, ob = now.theatres, before.theatres %}
+<section class="card gc-scale-in" style="margin-bottom:14px;" data-kpi-section="theatres">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-scissors"></i> {{ t('hosp_kpi.ot_title') }}</h2>
+  <div class="mb-kpis">
+    {{ tile('ot_total', t('hosp_kpi.ot_total'), o.total, None, t('hosp_kpi.ot_done', n=o.done), ob.total) }}
+    {{ tile('ot_used', t('hosp_kpi.ot_used'), o.used_pct, '%', t('hosp_kpi.ot_hours', used=o.used_hours, booked=o.booked_hours), ob.used_pct) }}
+    {{ tile('ot_first', t('hosp_kpi.ot_first', n=o.on_time_minutes), o.on_time_pct, '%', t('hosp_kpi.ot_first_n', n=o.on_time, of=o.first_cases), ob.on_time_pct) }}
+    {{ tile('ot_turnover', t('hosp_kpi.ot_turnover'), o.turnover_median, m, t('hosp_kpi.of_n', n=o.turnovers), ob.turnover_median) }}
+    {{ tile('ot_cancelled', t('hosp_kpi.ot_cancelled'), o.cancelled, None, (o.cancelled_pct ~ '%') if o.cancelled_pct is not none else None, ob.cancelled) }}
+    {{ tile('ot_postponed', t('hosp_kpi.ot_postponed'), o.postponed, None, (o.postponed_pct ~ '%') if o.postponed_pct is not none else None, ob.postponed) }}
+  </div>
+  {% if o.reasons %}
+  <div style="margin-top:10px;" data-ot-reasons>
+    <div class="hint" style="margin:0 0 4px;">{{ t('hosp_kpi.ot_reasons') }}</div>
+    <ul style="margin:0;padding-inline-start:18px;">
+      {% for why, n in o.reasons %}<li><span dir="auto">{{ why }}</span> — <span class="num">{{ n }}</span></li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
+{# ------------------------------------------------ back in intensive care #}
+{% if now.critical %}
+<section class="card gc-scale-in" style="margin-bottom:14px;" data-kpi-section="critical">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-activity"></i> {{ t('hosp_kpi.icu_title', h=now.critical.hours) }}</h2>
+  <div class="mb-kpis">
+    {% for kind in ('icu', 'nicu') if module_enabled(kind) %}
+    {% set c, cb = now.critical.units[kind], before.critical.units[kind] %}
+    {{ tile('icu_' ~ kind, t('hosp_kpi.icu_back', unit=t('hosp_kpi.unit_' ~ kind)), c.back, None, t('hosp_kpi.icu_of', n=c.left) ~ ((' · ' ~ c.back_pct ~ '%') if c.back_pct is not none else ''), cb.back) }}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{# --------------------------------------------- safety per 1000 bed days #}
+{% if now.safety %}
+{% set sf = now.safety %}
+<section class="card gc-scale-in" style="margin-bottom:14px;" data-kpi-section="safety">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-shield-exclamation"></i> {{ t('hosp_kpi.safe_title') }}</h2>
+  <p class="hint" style="margin:0 0 8px;max-width:72ch;">{{ t('hosp_kpi.safe_sub') }}</p>
+  {% if sf.days %}
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:620px;">
+    <thead><tr><th>{{ t('hosp_kpi.unit') }}</th><th class="num">{{ t('hosp_kpi.bed_days') }}</th>
+      <th class="num">{{ t('hosp_kpi.falls') }}</th><th class="num">{{ t('hosp_kpi.pressure') }}</th><th class="num">{{ t('hosp_kpi.med_errors') }}</th></tr></thead>
+    <tbody>
+      {% for r in sf.rows %}
+      <tr data-safety-row="{{ r.kind }}">
+        <td>{{ t('hosp_kpi.unit_' ~ r.kind) }}</td>
+        <td class="num">{{ r.days }}</td>
+        {% for key in ('fall', 'pressure_injury', 'med_error') %}
+        <td class="num">{{ r[key].n }}{% if r[key].rate is not none %} <small class="hint">({{ r[key].rate }})</small>{% endif %}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+      <tr style="font-weight:700;" data-safety-total>
+        <td>{{ t('hosp_kpi.whole') }}</td><td class="num">{{ sf.days }}</td>
+        {% for key in ('fall', 'pressure_injury', 'med_error') %}
+        <td class="num">{{ sf.whole[key].n }}{% if sf.whole[key].rate is not none %} <small class="hint">({{ sf.whole[key].rate }})</small>{% endif %}</td>
+        {% endfor %}
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="hint" style="margin:6px 0 0;">{{ t('hosp_kpi.rate_note') }}</p>
+  {% else %}
+  <p class="hint" style="margin:0;" data-safety-none>{{ t('hosp_kpi.no_bed_days') }}</p>
+  {% endif %}
+</section>
+{% endif %}
+
+<p class="hint" style="max-width:72ch;">{{ t('hosp_kpi.not_here') }}</p>
+{% include "reports/_board_style.html" %}
+{% endblock %}

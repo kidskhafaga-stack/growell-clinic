@@ -203,6 +203,20 @@ def triage(visit_id):
     return _back(t("emergency.triaged"), "success")
 
 
+@emergency_bp.route("/attendance/<int:attendance_id>/seen", methods=["POST"])
+@module_required(MODULE)
+def seen(attendance_id):
+    """«الطبيب شاف الطفل» — the time the department is measured by
+    (HOSPITAL_PLAN.md ٥‑د). Once: the first press is the one kept."""
+    from app.models import EmergencyVisit
+    from app.utils import emergency as er
+
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    er.mark_seen(row, current_user)
+    db.session.commit()
+    return redirect(url_for("emergency.attendance", attendance_id=row.id))
+
+
 @emergency_bp.route("/depart/<int:visit_id>", methods=["POST"])
 @module_required(MODULE)
 def depart(visit_id):
@@ -455,6 +469,11 @@ def write_order(attendance_id):
         wanted = request.form.get(field, type=int)
         return db.session.get(model, wanted) if wanted else None
 
+    # Our doctor's first order is the doctor having seen the child.
+    if source == OURS:
+        from app.utils import emergency as er
+
+        er.mark_seen(row, current_user)
     try:
         eo.write(row, current_user, source=source,
                  name=request.form.get("name"), drug=pick(Drug, "drug_id"),

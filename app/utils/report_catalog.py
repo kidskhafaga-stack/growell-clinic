@@ -31,6 +31,12 @@ def _consumption(u):
                                       or u.can_open("ai") or u.can("finance_manage"))
 
 
+def _hospital():
+    from app.utils.hospital_kpis import any_part
+
+    return any_part()
+
+
 def _builder(u):
     from app.utils.report_builder import available
 
@@ -58,6 +64,9 @@ CATALOG = [
     # person may use — money only with the finance rights.
     ("reports.builder", MEDICAL, "sliders", "allrep.builder", "allrep.builder_d", _builder),
     ("reports.medical_board", MEDICAL, "heart-pulse", "board_med.title", "board_med.desc", _reports_and()),
+    # The hospital's indicators (ت-٦) — only with a hospital department on.
+    ("reports.hospital_board", MEDICAL, "hospital", "hosp_kpi.title", "hosp_kpi.desc",
+     _reports_and(lambda u: _hospital())),
     ("reports.analytics", MEDICAL, "clipboard2-data", "reports.analytics", "reports.analytics_desc", _reports_and()),
     ("reports.vaccines", MEDICAL, "shield-plus", "reports.vaccines", "reports.vaccines_desc", _reports_and()),
     # patients.analytics is not listed: it sends whoever can open the reports

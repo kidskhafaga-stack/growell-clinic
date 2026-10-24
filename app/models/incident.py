@@ -30,7 +30,11 @@ CATEGORIES = ("patient_care", "fall", "injury", "infection", "security",
               "patient_rights",
               # EFS.05 ev. 4–5 — smoking where it is not allowed; EFS.06 (g) —
               # a spill or an exposure to a hazardous material.
-              "smoking", "hazmat", "other")
+              "smoking", "hazmat",
+              # A pressure injury found on a child in a bed — counted per
+              # 1000 bed days on the hospital's indicators (HOSPITAL_PLAN.md
+              # ٥‑د). Its own word, because «patient_care» hides it.
+              "pressure_injury", "other")
 #: Who it touched.
 AFFECTED = ("patient", "staff", "visitor", "none")
 #: QPI.11's own definitions.
