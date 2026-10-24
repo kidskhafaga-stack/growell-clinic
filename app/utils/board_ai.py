@@ -175,19 +175,26 @@ def management_facts(w, data):
 
 
 # ---------------------------------------------------------------- the call --
-def ask(facts, codes, question=None, lang="ar"):
-    """``{"ok", "text"}`` or ``{"ok": False, "error"}``. Nothing is kept."""
+READ = ("Read this period: what changed most against the period before, "
+        "what deserves attention, and what is too small to conclude.")
+
+
+def ask(facts, codes, question=None, lang="ar", system=SYSTEM, feature="board_read",
+        read=READ):
+    """``{"ok", "text"}`` or ``{"ok": False, "error"}``. Nothing is kept.
+
+    ``system``, ``read`` and ``feature``: another board's own instructions,
+    its «read it» request and its line on the AI usage screen (the payers'
+    record — ``utils/payer_record``)."""
     if not enabled():
         return {"ok": False, "error": "boards_disabled"}
     question = " ".join((question or "").split())[:MAX_QUESTION]
     task = (f"Question from the clinic about these figures: {question}"
-            if question else
-            "Read this period: what changed most against the period before, "
-            "what deserves attention, and what is too small to conclude.")
+            if question else read)
     language = "Egyptian Arabic" if lang == "ar" else "English"
     reply = ai.chat([{"role": "user", "content": f"{facts}\n\n{task}"}],
-                    system=SYSTEM.format(language=language),
-                    feature="board_read")
+                    system=system.format(language=language),
+                    feature=feature)
     if not reply.get("ok"):
         return reply
     text = (reply.get("text") or "").strip()
