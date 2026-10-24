@@ -1219,6 +1219,11 @@
       <label for="ai_boards" style="margin:0;font-weight:400;">{{ t('settings.ai_boards') }}</label>
     </div>
     <p class="hint" style="margin:6px 0 0;"><i class="bi bi-info-circle"></i> {{ t('settings.ai_boards_hint') }}</p>
+    <div class="form-row checkbox" style="margin-top:10px;" data-ai-reports-ask>
+      <input type="checkbox" id="ai_reports_ask" name="ai_reports_ask" value="1" {{ 'checked' if values.get('ai_reports_ask')=='1' else '' }}>
+      <label for="ai_reports_ask" style="margin:0;font-weight:400;">{{ t('ask.setting') }}</label>
+    </div>
+    <p class="hint" style="margin:6px 0 0;"><i class="bi bi-info-circle"></i> {{ t('ask.setting_hint') }}</p>
 
     {# ICD-11 sits on the AI tab because it is the other thing on this screen
        that needs credentials from an outside body — not because WHO has

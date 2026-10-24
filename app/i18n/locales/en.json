@@ -2833,7 +2833,9 @@
     "feature_rx_find": "Finding a drug",
     "feature_lab_review": "Lab second look",
     "feature_lab_insert": "Control insert reading",
-    "feature_lab_kit_insert": "Kit insert reading (ranges)"
+    "feature_lab_kit_insert": "Kit insert reading (ranges)",
+    "feature_reports_ask": "Ask the reports",
+    "feature_reports_explain": "Explaining a report's result"
   },
   "rx": {
     "title": "Drugs & Prescriptions",
@@ -15301,5 +15303,23 @@
     "waiting_none": "No bills are waiting for a card.",
     "wait_setting": "Wait for the new card (days)",
     "wait_setting_hint": "A bill paid in cash while the card was out waits this long for the new card, then it is cash for good. Blank = 30 days, 0 = no waiting."
+  },
+  "ask": {
+    "title": "Ask the reports",
+    "placeholder": "e.g. each doctor's revenue this month against last month",
+    "go": "Ask",
+    "privacy": "Only your question and the report builder's own words go to the assistant, never patient data. The report is worked out inside the clinic and shown with its settings, so you see what was understood and can change it.",
+    "understood": "Understood as: {text} — check the settings below and change them if that is not what you meant.",
+    "missing": "These names were not found in the clinic, so they are not in the filter: {names}",
+    "explain": "Explain the result",
+    "explain_note": "Only the table's figures go, doctors as codes.",
+    "explained_by": "The assistant's reading — check it before relying on it:",
+    "err_ask_disabled": "«Ask the reports» is off. Switch it on in Settings → AI.",
+    "err_empty_question": "Type your question first.",
+    "err_no_sources": "There is no report source you may open.",
+    "err_not_understood": "The assistant did not return report settings that could be read. Try asking another way.",
+    "err_cannot_answer": "That question is not one of the reports the builder makes.",
+    "setting": "«Ask the reports»: the assistant turns a question into a report and explains the result",
+    "setting_hint": "It is sent the question and the report builder's words, and for «Explain the result» the table's figures with doctors as codes. Never a child's name or record."
   }
 }

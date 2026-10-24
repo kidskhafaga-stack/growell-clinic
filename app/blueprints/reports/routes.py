@@ -131,17 +131,88 @@ def _saved_reports():
 def builder():
     """The report on your own terms (REPORTS_PLAN.md ت-٢): a source, a period,
     what to count or add up, a split, and a comparison — aggregates only."""
+    return _builder_page(_builder_spec(request.args))
+
+
+def _builder_page(spec, explained=None):
     from urllib.parse import urlencode
 
-    from app.utils import report_builder as rb
+    from app.utils import report_ask, report_builder as rb
 
-    spec = _builder_spec(request.args)
     table = rb.run(spec, getattr(g, "lang", "ar"))
     mine, shared = _saved_reports()
     return render_template("reports/builder.html", spec=spec, table=table,
                            src=rb.SOURCES[spec["src"]], sources=rb.SOURCES,
                            aggs=rb.AGGS, query=urlencode(rb.query_args(spec)),
-                           mine=mine, shared=shared)
+                           mine=mine, shared=shared, ask_ready=report_ask.ready(),
+                           explained=explained)
+
+
+_ASK_ERRORS = ("ask_disabled", "empty_question", "no_sources", "not_understood",
+               "cannot_answer")
+
+
+def _ask_error(reply):
+    from app.utils import ai
+
+    key = reply.get("error")
+    return t("ask.err_" + key) if key in _ASK_ERRORS else ai.error_sentence(key)
+
+
+@reports_bp.route("/ask", methods=["POST"])
+@module_required(MODULE)
+def ask_reports():
+    """A question in words → a builder report, shown with its settings to
+    check and change (REPORTS_PLAN.md ت-٣). Only the question and the
+    builder's own words leave the clinic."""
+    from app.models import ActivityLog
+    from app.utils import ai, report_ask
+    from app.utils.decorators import client_ip
+
+    if not report_ask.ready():
+        flash(t("ask.err_ask_disabled") if not report_ask.enabled()
+              else ai.error_sentence("not_configured"), "warning")
+        return redirect(url_for("reports.builder"))
+    reply = report_ask.ask(request.form.get("question"), current_user,
+                           lang=getattr(g, "lang", "ar"))
+    if not reply.get("ok"):
+        message = _ask_error(reply)
+        if reply.get("understood"):
+            message += " — " + reply["understood"]
+        flash(message, "warning")
+        return redirect(url_for("reports.builder"))
+    ActivityLog.record("ai.reports_ask", user_id=current_user.id, ip_address=client_ip())
+    db.session.commit()
+    flash(t("ask.understood", text=reply["understood"] or reply["question"]), "info")
+    if reply["missing"]:
+        flash(t("ask.missing", names="، ".join(reply["missing"])), "warning")
+    return redirect(url_for("reports.builder") + "?" + reply["query"])
+
+
+@reports_bp.route("/builder/explain", methods=["POST"])
+@module_required(MODULE)
+def builder_explain():
+    """«Explain the result»: the table's totals, doctors as codes."""
+    from urllib.parse import parse_qsl
+
+    from werkzeug.datastructures import MultiDict
+
+    from app.models import ActivityLog
+    from app.utils import report_ask, report_builder as rb
+    from app.utils.decorators import client_ip
+
+    spec = _builder_spec(MultiDict(parse_qsl(request.form.get("query") or "")))
+    if not report_ask.ready():
+        reply = {"ok": False, "error": "ask_disabled"}
+    else:
+        table = rb.run(spec, getattr(g, "lang", "ar"))
+        reply = report_ask.explain(spec, table, lang=getattr(g, "lang", "ar"))
+    if reply.get("ok"):
+        ActivityLog.record("ai.reports_explain", user_id=current_user.id, ip_address=client_ip())
+        db.session.commit()
+    else:
+        reply["message"] = _ask_error(reply)
+    return _builder_page(spec, explained=reply)
 
 
 @reports_bp.route("/builder/export")

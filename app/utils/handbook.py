@@ -2704,6 +2704,20 @@ SECTIONS = [
              "payer. Ages and amounts have descriptive statistics: mean, median and standard "
              "deviation. Figures are totals without names, and money needs the finance "
              "rights. Export it to Excel and save it for yourself or your colleagues."),
+            ("<b>اسأل التقارير:</b> لو الذكاء الاصطناعي شغال و«اسأل التقارير» متشغّلة من "
+             "الإعدادات، فوق منشئ التقارير فيه خانة تكتب فيها سؤالك بالكلام («إيرادات كل دكتور "
+             "الشهر ده قصاد اللي فات»، «أكتر التشخيصات تحت سنتين»). التقرير بيطلع بإعداداته، "
+             "فتشوف فهم إيه وتعدّل وتحفظ. اللي بيروح للذكاء الاصطناعي سؤالك وأسماء الخانات بس، "
+             "وأسماء الدكاترة والشركات اللي في السؤال بتتطابق جوه البرنامج. و«اشرح النتيجة» "
+             "بيبعت الجدول بأرقامه والدكاترة بأكواد.",
+             "<b>Ask the reports:</b> with the assistant set up and «Ask the reports» on "
+             "in Settings, the report builder has a box for a question in words («each "
+             "doctor's revenue this month against last», «the commonest diagnoses under "
+             "two»). The report comes out with its settings, so you see what was "
+             "understood, change it and save it. Only your question and the builder's "
+             "words go to the assistant; doctors and payers named in the question are "
+             "matched inside the program. «Explain the result» sends the table's "
+             "figures, doctors as codes."),
             ("<b>لوحة الاستهلاك</b> (التقارير ← الاستهلاك): استهلكنا أد إيه "
              "وبكام في أي فترة، جنب نفس المدة اللي قبلها — المخزن كله (حسب "
              "القسم والمخزن ونوع الصنف)، والأدوية، ومستهلكات المعمل (وتكلفة كل "
