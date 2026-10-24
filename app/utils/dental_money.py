@@ -142,6 +142,11 @@ def take_deposit(plan, amount, method="cash", user_id=None, shift_id=None,
         raise DentalMoneyError("bad_amount")
 
     invoice = plan.invoice
+    # Held first, so two deposits at once are measured against what the
+    # other left (`utils/holds`, MONEY_SAFETY_PLAN.md ف-٢).
+    from app.utils import holds
+
+    holds.bill(invoice)
     # Never more than the bill. Change handed back at the counter is
     # `tendered`, which is a different column and a different fact; money
     # beyond what is owed belongs on the family's own account

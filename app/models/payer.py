@@ -227,6 +227,11 @@ class PayerContract(db.Model):
     # the approval arrives (`utils/approvals.link_waiting`). Never for an
     # urgent emergency child.
     approval_policy = db.Column(db.String(10))
+    # The doctor's share on a line where this contract gives the family a
+    # discount (ع-٦): on what the family is charged after it (empty — the
+    # default, like any named discount), or on the full price when the
+    # agreement says the discount is the clinic's alone and not the doctor's.
+    share_before_discount = db.Column(db.Boolean)
     deductible_year = db.Column(db.Float)
     # The most the payer pays for one member in that year; past it the
     # family pays.
@@ -244,6 +249,9 @@ class PayerContract(db.Model):
     terms = db.relationship("PayerContractTerm", back_populates="contract",
                             cascade="all, delete-orphan",
                             order_by="PayerContractTerm.id")
+    groups = db.relationship("PayerContractGroup", back_populates="contract",
+                             cascade="all, delete-orphan",
+                             order_by="PayerContractGroup.name")
 
     def term_for(self, setting=None):
         """The family's share and the ceilings for ``setting`` — that
@@ -261,16 +269,22 @@ class PayerContract(db.Model):
     def rule_for(self, service, setting=None):
         """The coverage rule that decides ``service`` in ``setting`` — the
         most specific one: this department before any department, a named
-        service before its category before «everything else»."""
+        service before its group before its category before «everything
+        else»."""
         if service is None or not self.rules:
             return None
         settings = ([setting] if setting else []) + ["any"]
-        for scope in ("service", "category", "all"):
+        # A named service, then the clinic's own group it is in (ع-٦), then
+        # its category, then «everything else».
+        for scope in ("service", "group", "category", "all"):
             for where in settings:
                 for r in self.rules:
                     if r.setting != where or r.scope != scope:
                         continue
                     if scope == "service" and r.service_id != service.id:
+                        continue
+                    if scope == "group" and (r.group is None
+                                             or not r.group.holds(service)):
                         continue
                     if scope == "category" and r.category != service.category:
                         continue
@@ -291,15 +305,22 @@ class PayerContract(db.Model):
             filing_days=self.filing_days, payment_days=self.payment_days,
             cycle_day=self.cycle_day,
             deductible_year=self.deductible_year, ceiling_year=self.ceiling_year,
-            approval_policy=self.approval_policy)
+            approval_policy=self.approval_policy,
+            share_before_discount=self.share_before_discount)
         for t in self.terms:
             clone.terms.append(PayerContractTerm(
                 setting=t.setting, copay_amount=t.copay_amount,
                 ceiling_case=t.ceiling_case, night_ceiling=t.night_ceiling,
                 deposit_amount=t.deposit_amount))
+        # The groups first, so the rules about them point at the copies.
+        copies = {}
+        for g in self.groups:
+            copies[g.id] = PayerContractGroup(name=g.name, services=list(g.services))
+            clone.groups.append(copies[g.id])
         for r in self.rules:
             clone.rules.append(PayerContractRule(
                 setting=r.setting, scope=r.scope, service_id=r.service_id,
+                group=copies.get(r.group_id), family_discount=r.family_discount,
                 category=r.category, coverage_type=r.coverage_type,
                 coverage_value=r.coverage_value, excluded=r.excluded,
                 needs_approval=r.needs_approval))
@@ -382,6 +403,52 @@ class PayerContractRate(db.Model):
         return f"<ContractRate c={self.contract_id} svc={self.service_id}>"
 
 
+#: The services in a contract's group — any services, of any category.
+payer_contract_group_services = db.Table(
+    "payer_contract_group_services",
+    db.Column("group_id", db.Integer, db.ForeignKey("payer_contract_groups.id"),
+              primary_key=True),
+    db.Column("service_id", db.Integer, db.ForeignKey("services.id"),
+              primary_key=True),
+)
+
+
+class PayerContractGroup(db.Model):
+    """A named set of services inside one contract (CONTRACTS_PLAN.md ع-٦).
+
+    Asked as *«محتاجين مجموعة جوه التعاقد علشان فى تعاقد نقدي 10% تعاقد 25%
+    مثلاُ على بعض الخدمات … ومحتاجها تبقى مرنة»*. A category is the program's
+    («every lab test»); a group is the clinic's own — the exam, the follow-up
+    and the ECG together, under the name the agreement gives them.
+
+    **What a group pays is a rule about it** (`PayerContractRule`, scope
+    ``group``): the payer's share, the family's discount on its own share, or
+    both, per department if the agreement says so. The group itself only
+    says which services.
+
+    **The contract's own.** Each contract has its groups and figures; a
+    renewal copies them (`PayerContract.copy_to`), and another contract's can
+    be copied in by hand. Changing one contract never touches another.
+    """
+    __tablename__ = "payer_contract_groups"
+
+    id = db.Column(db.Integer, primary_key=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("payer_contracts.id"),
+                            nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    contract = db.relationship("PayerContract", back_populates="groups")
+    services = db.relationship("Service", secondary=payer_contract_group_services,
+                               lazy="selectin", order_by="Service.name")
+
+    def holds(self, service):
+        return service is not None and any(s.id == service.id for s in self.services)
+
+    def __repr__(self):
+        return f"<PayerContractGroup {self.name}>"
+
+
 class PayerContractRule(db.Model):
     """What a contract covers in one department — «حسب كل عقد ايه الى داخل
     على العقد وايه الى المريض بيحاسب عنده».
@@ -399,9 +466,11 @@ class PayerContractRule(db.Model):
                             nullable=False, index=True)
     # `utils.care_setting.SETTINGS`, or "any".
     setting = db.Column(db.String(12), default="any", nullable=False)
-    # "service" · "category" · "all"
+    # "service" · "group" · "category" · "all"
     scope = db.Column(db.String(10), default="all", nullable=False)
     service_id = db.Column(db.Integer, db.ForeignKey("services.id"))
+    # One of the contract's own groups (ع-٦), for scope "group".
+    group_id = db.Column(db.Integer, db.ForeignKey("payer_contract_groups.id"))
     category = db.Column(db.String(30))
     coverage_type = db.Column(db.String(10), default="percent", nullable=False)
     coverage_value = db.Column(db.Float, default=0)
@@ -410,10 +479,23 @@ class PayerContractRule(db.Model):
     # rule decides is covered only with the payer's prior approval on file;
     # without it the line is flagged and its bill waits out of the claim.
     needs_approval = db.Column(db.Boolean)
+    # «نقدي 10%»: a discount, in percent, on **the family's own share** of a
+    # line this rule decides — the clinic's price to the payer's members.
+    # With no cover it is a cash agreement; with cover, both at once. Empty
+    # (every rule written before it) gives nothing, as before.
+    family_discount = db.Column(db.Float)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     contract = db.relationship("PayerContract", back_populates="rules")
     service = db.relationship("Service")
+    group = db.relationship("PayerContractGroup")
+
+    def family_cut(self, family_share):
+        """The family's discount on ``family_share`` under this rule."""
+        pct = self.family_discount or 0
+        if pct <= 0 or self.excluded:
+            return 0.0
+        return round(max(family_share or 0, 0) * min(pct, 100) / 100.0, 2)
 
     def cover(self, amount):
         """What the payer pays of a line of ``amount`` under this rule."""

@@ -4316,7 +4316,8 @@
     "approved": "Approved — refund paid out",
     "rejected": "Request rejected",
     "requests_title": "Refund requests",
-    "requests_subtitle": "Refunds waiting for a manager's approval, and recent decisions."
+    "requests_subtitle": "Refunds waiting for a manager's approval, and recent decisions.",
+    "nothing_left": "Everything paid on this bill has already been given back — there is nothing left to refund."
   },
   "storedocs": {
     "title": "Warehouse documents",
@@ -15385,5 +15386,43 @@
     "f_slow_approvals": "Slow to approve",
     "f_on_time": "Pay on time",
     "f_few": "Too few"
+  },
+  "groups": {
+    "title": "Groups inside the contract",
+    "hint": "Gather any services under a name of your own, each group with its figures: what share the payer covers, and what discount the family gets on its own share — or both. «Cash 10%» is payer 0 and family 10; «contract 25%» is payer 25. A service is in one group of a contract at most, and a rule for the service alone wins over its group.",
+    "services": "Services",
+    "search": "Search a service…",
+    "whole_category": "or add a whole category",
+    "name": "Group name",
+    "name_ph": "e.g. Exam and follow-up",
+    "payer_pct": "Payer covers %",
+    "family_pct": "Family discount %",
+    "create": "Create the group",
+    "payer_pays": "Payer",
+    "family_gets": "Family discount",
+    "none": "No groups in this contract yet — it bills by its rules as it is.",
+    "remove": "Take out of the group",
+    "add_services": "Add services to the group",
+    "delete_confirm": "Delete the group «{name}» and its rules? Bills already written keep their figures.",
+    "copy_from": "Copy the groups from another contract",
+    "copy": "Copy",
+    "scope_group": "Group",
+    "family_discount_line": "Family discount",
+    "need_group": "Choose the group.",
+    "need_name": "Type the group's name.",
+    "name_taken": "This contract already has a group called «{name}».",
+    "need_services": "Choose at least one service, or a category.",
+    "clash": "These services are in another group of this contract — take them out there first: {items}",
+    "saved": "Group saved.",
+    "deleted": "Group deleted.",
+    "need_source": "Choose the contract to copy from.",
+    "copied": "{n} groups copied.",
+    "copy_skipped": "Not copied (name already here, or its services are in other groups): {names}",
+    "share_base": "The doctor's share on lines with the family's discount:",
+    "share_after": "after the discount",
+    "share_before": "before the discount (on the full price)"
+  },
+  "forms": {
+    "already_sent": "This was already recorded — nothing was done twice. Here is what the first one did."
   }
 }

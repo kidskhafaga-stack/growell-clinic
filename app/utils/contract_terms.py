@@ -46,7 +46,9 @@ def _cut(item, amount, note):
     if amount <= 0:
         return 0.0
     item.payer_amount = round((item.payer_amount or 0) - amount, 2)
-    item.discount_value = item.payer_amount
+    # The family's group discount (ع-٦) stays: what the terms take back is
+    # the payer's cover, not the clinic's price to its members.
+    item.discount_value = round(item.payer_amount + (item.group_discount or 0), 2)
     item.discount_is_percent = False
     item.cover_cut = round((item.cover_cut or 0) + amount, 2)
     item.cover_note = note

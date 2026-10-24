@@ -130,6 +130,8 @@ def apply_coverage(invoice, patient, warn=None, then=None):
         item.payer_amount = 0.0
         item.cover_note = None
         item.cover_cut = None
+        item.group_discount = None
+        item.contract_group_id = None
         # Contract tariff (سعر تعاقدي): members are billed at the contract's
         # negotiated price for the service, then coverage splits it.
         tariff = payer.tariff(item.service, invoice.invoice_date)
@@ -137,10 +139,18 @@ def apply_coverage(invoice, patient, warn=None, then=None):
             item.unit_price = tariff
         covered = payer.covers(item.service, item.gross, invoice.invoice_date,
                                setting=setting)
+        # The rule that decided it — and with it the contract's group and
+        # the family's discount on its own share (ع-٦). None for a contract
+        # with no rules, which bills exactly as it did.
+        rule = _deciding_rule(contract, item.service, setting)
+        if rule is not None and rule.scope == "group":
+            item.contract_group_id = rule.group_id
         if covered > 0:
-            item.discount_value = covered
+            family_cut = rule.family_cut(item.gross - covered) if rule else 0.0
+            item.discount_value = round(covered + family_cut, 2)
             item.discount_is_percent = False
             item.payer_amount = covered
+            item.group_discount = family_cut or None
             # A contract may cover this only with the payer's approval on
             # file — the line carries its number, or is flagged and its bill
             # waits out of the claim (`utils/approvals`).
@@ -151,6 +161,7 @@ def apply_coverage(invoice, patient, warn=None, then=None):
             if item.approval_needed and approvals.collects(contract, invoice):
                 item.discount_value = 0
                 item.payer_amount = 0.0
+                item.group_discount = None
                 item.cover_note = "awaiting_approval"
                 continue
             if item.service is not None:
@@ -172,9 +183,26 @@ def apply_coverage(invoice, patient, warn=None, then=None):
                 # discount is skipped above), and the tariff has already been
                 # written onto ``unit_price``, so ``gross`` is exactly the
                 # contract price of the work.
+                #
+                # The family's discount (ع-٦) comes off the share the way a
+                # named discount does — unless the contract says the doctor's
+                # share is on the price before it.
                 item.commission_amount = item.service.doctor_share(
-                    item.gross, item.doctor or invoice.doctor)
+                    _share_base(item.gross, family_cut, contract),
+                    item.doctor or invoice.doctor)
         else:
+            # «نقدي»: the payer pays nothing on this line and the family gets
+            # its discount — a cash agreement (ع-٦).
+            family_cut = rule.family_cut(item.gross) if rule else 0.0
+            if family_cut > 0:
+                item.discount_value = family_cut
+                item.discount_is_percent = False
+                item.group_discount = family_cut
+                if item.service is not None:
+                    item.commission_amount = item.service.doctor_share(
+                        _share_base(item.gross, family_cut, contract),
+                        item.doctor or invoice.doctor)
+                continue
             # Why the family pays this line: the contract excludes it here,
             # or names nothing for it. Said on the bill (`cover_note`).
             rule = contract.rule_for(item.service, setting) if contract else None
@@ -194,6 +222,31 @@ def apply_coverage(invoice, patient, warn=None, then=None):
         then(invoice, patient)
 
 
+def _share_base(gross, family_cut, contract):
+    """What the doctor's share is worked out on, on a line carrying the
+    contract's family discount: after it, unless the contract says before."""
+    if contract is not None and contract.share_before_discount:
+        return gross
+    return round(gross - family_cut, 2)
+
+
+def _deciding_rule(contract, service, setting):
+    """The contract's rule that decides ``service`` here, when a rule does —
+    the same order `PayerEntity.covers` follows: a department's rule for the
+    service, then the price-list row (which carries no group and no family
+    discount), then the rules by service, group, category, everything else."""
+    if contract is None or service is None:
+        return None
+    rule = contract.rule_for(service, setting)
+    if rule is None:
+        return None
+    if rule.setting != "any" and rule.scope == "service":
+        return rule
+    if any(r.service_id == service.id for r in contract.rates):
+        return None
+    return rule
+
+
 def _cover_line(item):
     """Whether this line's discount is cover this module wrote (or there is
     none yet) — as against a discount somebody typed, which is kept."""
@@ -202,8 +255,10 @@ def _cover_line(item):
     # A discount typed on a line the payer does not cover (or covers only in
     # part) is the cashier's, whatever note the line carries — so it is the
     # match with the cover, never the note, that says the discount is ours.
-    return bool(item.payer_amount and not item.discount_is_percent
-                and abs((item.discount_value or 0) - item.payer_amount) < 0.005)
+    # The cover is the payer's share and the family's group discount (ع-٦).
+    ours = round((item.payer_amount or 0) + (item.group_discount or 0), 2)
+    return bool(ours and not item.discount_is_percent
+                and abs((item.discount_value or 0) - ours) < 0.005)
 
 
 def post_to_ledger(kind, obj, user_id=None):

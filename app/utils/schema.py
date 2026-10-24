@@ -1069,6 +1069,14 @@ ADDITIONS = [
     ("invoices", "coverage_decision", "VARCHAR(12)"),
     ("invoices", "coverage_decided_by", "INTEGER"),
     ("invoices", "coverage_decided_at", "DATETIME"),
+    # Groups inside a contract (CONTRACTS_PLAN.md ع-٦): a rule may be about a
+    # group, and may give the family a discount on its own share; a bill line
+    # says which group decided it and what that discount came to.
+    ("payer_contract_rules", "group_id", "INTEGER"),
+    ("payer_contract_rules", "family_discount", "FLOAT"),
+    ("invoice_items", "contract_group_id", "INTEGER"),
+    ("invoice_items", "group_discount", "FLOAT"),
+    ("payer_contracts", "share_before_discount", "BOOLEAN"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

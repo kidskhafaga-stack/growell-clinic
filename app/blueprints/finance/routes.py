@@ -51,6 +51,7 @@ from app.models import (
 from app.utils.decorators import (admin_required, capability_required,
                                    cashier_access, client_ip, module_required)
 from app.utils.paging import paginate
+from app.utils.once import once_per_form
 from app.utils.finance import generate_invoice_number
 from app.utils.money import format_money
 from app.utils.vaccine_settlement import apply_settlement, pending_settlements
@@ -100,6 +101,12 @@ def refund_request_decide(req_id):
     if not current_user.is_admin:
         abort(403)
     req = db.get_or_404(RefundRequest, req_id)
+    # Two managers deciding one request at once take turns, and the second
+    # finds it decided (`utils/holds`) — not a second refund.
+    from app.utils import holds
+
+    holds.bill(req.invoice)
+    db.session.refresh(req)
     if req.status != "pending":
         flash(t("refunds.already_decided"), "warning")
         return redirect(url_for("finance.refund_requests"))
@@ -145,6 +152,11 @@ def _post_refund(invoice, amount, method, reason, *, user_id):
     """
     from app.utils import refunds
 
+    # Held, then measured: what is left to give back is what is left after
+    # any refund saved in the same instant (`utils/holds`).
+    from app.utils import holds
+
+    holds.bill(invoice)
     amount = round(min(amount, invoice.paid), 2)
     scope = refunds.scope_of(invoice, amount)
     refund_pay = Payment(
@@ -1638,6 +1650,14 @@ def _sees_all_tills():
     return current_user.can_access("finance")
 
 
+def _safe_next(raw):
+    """A «back to» address from a form, kept only when it is a page of this
+    program — a path, never another site (``//host`` or ``https://…``)."""
+    raw = (raw or "").strip()
+    return raw if raw.startswith("/") and not raw.startswith("//") \
+        and "\\" not in raw else None
+
+
 def _my_till_or_403(account_id):
     """A till this user is allowed to act on, or 403.
 
@@ -2118,6 +2138,11 @@ def vaccine_settle(settlement_id):
     from app.models import RefundRequest, VaccineSettlement
 
     s = db.get_or_404(VaccineSettlement, settlement_id)
+    # Two cashiers settling one vaccine at once take turns; the second finds
+    # it done (`utils/holds`, MONEY_SAFETY_PLAN.md ف-٢).
+    from app.utils import holds
+
+    holds.this(s)
     if s.status != "pending":
         flash(t("vaccine_settle.already_done"), "warning")
         return redirect(url_for("finance.cashier"))
@@ -3314,6 +3339,7 @@ def _booked_vaccine_line(appt, lang, vaccine_lines):
 @finance_bp.route("/checkout/<int:appt_id>", methods=["GET", "POST"])
 @cashier_access
 @retry_on_number_clash
+@once_per_form
 def checkout(appt_id):
     """Reception checkout for a booked appointment."""
     from app.models import Appointment
@@ -3339,6 +3365,7 @@ def collect_pick():
 @finance_bp.route("/collect/<int:patient_id>", methods=["GET", "POST"])
 @cashier_access
 @retry_on_number_clash
+@once_per_form
 def collect(patient_id):
     """The same checkout, for a patient who has no appointment to collect on.
 
@@ -4506,6 +4533,7 @@ def invoice_receipt(invoice_id):
 
 @finance_bp.route("/invoices/<int:invoice_id>/payment", methods=["POST"])
 @cashier_access
+@once_per_form
 def invoice_payment(invoice_id):
     invoice = db.get_or_404(Invoice, invoice_id)
     # One invoice can be settled with several methods at once (e.g. 500 cash +
@@ -4530,7 +4558,12 @@ def invoice_payment(invoice_id):
     new_payments = []
     shift_id = _current_shift_id()
     # Never accept more than the open balance: a double click or a stale form
-    # can otherwise pay the same invoice twice (negative balance).
+    # can otherwise pay the same invoice twice (negative balance). The bill is
+    # held first, so two cashiers at once take turns and the second reads
+    # what the first collected (`utils/holds`).
+    from app.utils import holds
+
+    holds.bill(invoice)
     remaining = invoice.balance
     if remaining <= 0:
         flash(t("invoices.already_settled"), "warning")
@@ -4589,6 +4622,7 @@ def _after_refund(invoice):
 
 @finance_bp.route("/invoices/<int:invoice_id>/refund", methods=["POST"])
 @cashier_access
+@once_per_form
 def invoice_refund(invoice_id):
     """Return money to the patient (e.g. an exam re-billed as a consultation)
     and reconcile the cashier drawer.
@@ -4636,8 +4670,17 @@ def invoice_refund(invoice_id):
         db.session.commit()
         flash(t("refunds.request_sent"), "info")
         return redirect(_after_refund(invoice))
+    # Held first, so a second refund at the same moment is measured against
+    # what the first gave back (`utils/holds`).
+    from app.utils import holds
+
+    holds.bill(invoice)
     if amount > invoice.paid:  # can't refund more than was actually collected
         amount = invoice.paid
+    if amount <= 0:
+        db.session.rollback()
+        flash(t("refunds.nothing_left"), "warning")
+        return redirect(_after_refund(invoice))
     method = (request.form.get("method") or "cash").strip()
     refund_pay, _scope, closed = _post_refund(
         invoice, amount, method,
@@ -4697,6 +4740,7 @@ def patient_account(patient_id):
 
 @finance_bp.route("/patient/<int:patient_id>/account/take", methods=["POST"])
 @cashier_access
+@once_per_form
 def credit_take(patient_id):
     """Money received on the family's account — a deposit before a stay, a
     payment ahead of a plan."""
@@ -4769,6 +4813,7 @@ def invoice_from_credit(invoice_id):
 
 @finance_bp.route("/patient/<int:patient_id>/account/give-back", methods=["POST"])
 @cashier_access
+@once_per_form
 def credit_give_back(patient_id):
     """Hand back what is left. The same rule as a refund on a bill: unless
     the clinic turned the sign-off off, it is a manager's to do."""
@@ -5338,6 +5383,9 @@ def contract_edit(contract_id):
     # The terms. Blank clears them back to "nothing agreed", which has to stay
     # reachable: a clinic that typed 90 by mistake must be able to get back to
     # no deadline rather than being stuck with a wrong one.
+    # The doctor's share before or after the family's discount (ع-٦).
+    if "share_base" in request.form:
+        c.share_before_discount = request.form.get("share_base") == "before" or None
     if "terms" in request.form:
         for field in ("filing_days", "payment_days", "cycle_day"):
             raw = (request.form.get(field) or "").strip()
@@ -5346,6 +5394,8 @@ def contract_edit(contract_id):
     db.session.commit()
     flash(t("contracts.updated"), "success")
     _warn_overlap(c)
+    if "share_base" in request.form:
+        return redirect(_groups_back(c.id))
     return redirect(url_for("finance.payers"))
 
 
@@ -5398,8 +5448,12 @@ def contract_rates(contract_id):
     from app.models.service import SERVICE_CATEGORIES
     from app.utils.care_setting import SETTINGS
 
+    from app.models import PayerContract as _PC
+
+    others = (_PC.query.filter(_PC.id != c.id).order_by(_PC.id.desc()).all())
     return render_template("finance/contract_rates.html", contract=c,
                            payer=c.payer, services=services,
+                           other_contracts=[o for o in others if o.groups],
                            rates={r.service_id: r for r in c.rates},
                            coverage_types=COVERAGE_TYPES,
                            settings=SETTINGS, categories=SERVICE_CATEGORIES)
@@ -5419,7 +5473,7 @@ def contract_rule_add(contract_id):
     back = url_for("finance.contract_rates", contract_id=c.id) + "#rules"
     setting = request.form.get("setting") or "any"
     scope = request.form.get("scope") or "all"
-    if setting not in ("any",) + tuple(SETTINGS) or scope not in ("service", "category", "all"):
+    if setting not in ("any",) + tuple(SETTINGS) or scope not in ("service", "group", "category", "all"):
         flash(t("contracts.rule_bad"), "danger")
         return redirect(back)
     rule = PayerContractRule(contract_id=c.id, setting=setting, scope=scope)
@@ -5429,6 +5483,13 @@ def contract_rule_add(contract_id):
             flash(t("contracts.rule_need_service"), "danger")
             return redirect(back)
         rule.service_id = svc.id
+    elif scope == "group":
+        group = next((g for g in c.groups
+                      if g.id == request.form.get("group_id", type=int)), None)
+        if group is None:
+            flash(t("groups.need_group"), "danger")
+            return redirect(back)
+        rule.group_id = group.id
     elif scope == "category":
         category = request.form.get("category")
         if category not in SERVICE_CATEGORIES:
@@ -5438,22 +5499,218 @@ def contract_rule_add(contract_id):
     rule.excluded = request.form.get("excluded") == "1"
     rule.needs_approval = request.form.get("needs_approval") == "1"
     if not rule.excluded:
-        ctype = request.form.get("coverage_type")
-        value = request.form.get("coverage_value", type=float)
-        if ctype not in COVERAGE_TYPES or value is None or value <= 0 \
-                or (ctype == "percent" and value > 100):
-            flash(t("contracts.rule_need_value"), "danger")
+        if not _rule_figures(rule):
             return redirect(back)
-        rule.coverage_type, rule.coverage_value = ctype, value
-    # One rule per department and subject: a second one replaces the first,
-    # so the screen never holds two answers to the same question.
-    for old in list(c.rules):
-        if (old.setting, old.scope, old.service_id, old.category) == (
-                rule.setting, rule.scope, rule.service_id, rule.category):
+    _replace_rule(c, rule)
+    db.session.add(rule)
+    db.session.commit()
+    flash(t("contracts.rule_saved"), "success")
+    return redirect(back)
+
+
+def _rule_figures(rule):
+    """The payer's share and the family's discount from the form, onto
+    ``rule``. Either may be zero, not both: «نقدي» is a family discount with
+    no cover, «تعاقد» cover with no discount (ع-٦). False, with the reason
+    flashed, when the figures do not make a rule."""
+    ctype = request.form.get("coverage_type") or "percent"
+    value = request.form.get("coverage_value", type=float) or 0
+    family = request.form.get("family_discount", type=float) or 0
+    if ctype not in COVERAGE_TYPES or value < 0 or not 0 <= family <= 100 \
+            or (ctype == "percent" and value > 100) or (value <= 0 and family <= 0):
+        flash(t("contracts.rule_need_value"), "danger")
+        return False
+    rule.coverage_type, rule.coverage_value = ctype, value
+    rule.family_discount = family or None
+    return True
+
+
+def _replace_rule(contract, rule):
+    """Save ``rule``, replacing the one that answers the same question — one
+    rule per department and subject, so the screen never holds two answers."""
+    for old in list(contract.rules):
+        if (old.setting, old.scope, old.service_id, old.category, old.group_id) == (
+                rule.setting, rule.scope, rule.service_id, rule.category, rule.group_id):
             db.session.delete(old)
     db.session.add(rule)
     db.session.commit()
     flash(t("contracts.rule_saved"), "success")
+
+
+# ------------------------------------------- groups inside a contract (ع-٦) --
+def _groups_back(contract_id):
+    return url_for("finance.contract_rates", contract_id=contract_id) + "#groups"
+
+
+def _picked_services(group=None):
+    """The services the form names: picked one by one, and a whole category
+    at once. ``(services, clashes)`` — a clash is a service already in
+    another group of the same contract, which is refused, never moved."""
+    from app.models.service import SERVICE_CATEGORIES
+
+    ids = {int(v) for v in request.form.getlist("service_ids") if str(v).isdigit()}
+    picked = [db.session.get(Service, i) for i in ids]
+    category = request.form.get("category")
+    if category in SERVICE_CATEGORIES:
+        picked += Service.query.filter_by(category=category, is_active=True).all()
+    picked = list({s.id: s for s in picked if s is not None}.values())
+    return picked
+
+
+def _clashes(contract, services, group=None):
+    """``[(service, other_group)]`` for each service already in another group
+    of ``contract``."""
+    out = []
+    for svc in services:
+        for g in contract.groups:
+            if g is not group and g.holds(svc):
+                out.append((svc, g))
+    return out
+
+
+def _flash_clashes(clashes):
+    lang = getattr(g, "lang", "ar")
+    flash(t("groups.clash", items="، ".join(
+        f"{svc.display_name(lang)} ← {grp.name}" for svc, grp in clashes)), "danger")
+
+
+@finance_bp.route("/contract/<int:contract_id>/groups", methods=["POST"])
+@module_required(MODULE)
+def contract_group_add(contract_id):
+    """A group of the clinic's own choosing inside this contract, with what
+    it pays: the payer's share, the family's discount, or both (ع-٦)."""
+    from app.models import PayerContract, PayerContractGroup, PayerContractRule
+    from app.utils.care_setting import SETTINGS
+
+    c = db.get_or_404(PayerContract, contract_id)
+    back = _groups_back(c.id)
+    name = " ".join((request.form.get("name") or "").split())[:120]
+    if not name:
+        flash(t("groups.need_name"), "danger")
+        return redirect(back)
+    if any(g.name == name for g in c.groups):
+        flash(t("groups.name_taken", name=name), "danger")
+        return redirect(back)
+    services = _picked_services()
+    if not services:
+        flash(t("groups.need_services"), "danger")
+        return redirect(back)
+    clashes = _clashes(c, services)
+    if clashes:
+        _flash_clashes(clashes)
+        return redirect(back)
+    setting = request.form.get("setting") or "any"
+    if setting not in ("any",) + tuple(SETTINGS):
+        setting = "any"
+    group = PayerContractGroup(name=name, services=services)
+    c.groups.append(group)
+    db.session.flush()
+    rule = PayerContractRule(contract_id=c.id, setting=setting, scope="group",
+                             group_id=group.id,
+                             needs_approval=request.form.get("needs_approval") == "1")
+    if not _rule_figures(rule):
+        db.session.rollback()
+        return redirect(back)
+    ActivityLog.record("contract.group_add", user_id=current_user.id,
+                       entity="payer_contract", entity_id=c.id, detail=name,
+                       ip_address=client_ip())
+    _replace_rule(c, rule)
+    return redirect(back)
+
+
+@finance_bp.route("/contract/group/<int:group_id>/services", methods=["POST"])
+@module_required(MODULE)
+def contract_group_services(group_id):
+    """Add services to a group, or take one out."""
+    from app.models import PayerContractGroup
+
+    group = db.get_or_404(PayerContractGroup, group_id)
+    back = _groups_back(group.contract_id)
+    remove = request.form.get("remove_id", type=int)
+    if remove:
+        group.services = [s for s in group.services if s.id != remove]
+        db.session.commit()
+        flash(t("groups.saved"), "success")
+        return redirect(back)
+    services = _picked_services()
+    if not services:
+        flash(t("groups.need_services"), "danger")
+        return redirect(back)
+    clashes = _clashes(group.contract, services, group)
+    if clashes:
+        _flash_clashes(clashes)
+        return redirect(back)
+    have = {s.id for s in group.services}
+    group.services = list(group.services) + [s for s in services if s.id not in have]
+    db.session.commit()
+    flash(t("groups.saved"), "success")
+    return redirect(back)
+
+
+@finance_bp.route("/contract/group/<int:group_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def contract_group_delete(group_id):
+    """A group and the rules about it. Bills already written keep their
+    figures; the line only stops naming the group."""
+    from app.models import InvoiceItem, PayerContractGroup
+
+    group = db.get_or_404(PayerContractGroup, group_id)
+    contract = group.contract
+    for rule in [r for r in contract.rules if r.group_id == group.id]:
+        db.session.delete(rule)
+    InvoiceItem.query.filter_by(contract_group_id=group.id).update(
+        {"contract_group_id": None}, synchronize_session=False)
+    ActivityLog.record("contract.group_delete", user_id=current_user.id,
+                       entity="payer_contract", entity_id=contract.id,
+                       detail=group.name, ip_address=client_ip())
+    db.session.delete(group)
+    db.session.commit()
+    flash(t("groups.deleted"), "info")
+    return redirect(_groups_back(contract.id))
+
+
+@finance_bp.route("/contract/<int:contract_id>/groups/copy", methods=["POST"])
+@module_required(MODULE)
+def contract_groups_copy(contract_id):
+    """Another contract's groups, with their rules, copied into this one.
+    A group whose name is already here is left out, and so is a service
+    already in one of this contract's groups — said, not guessed."""
+    from app.models import PayerContract, PayerContractGroup, PayerContractRule
+
+    c = db.get_or_404(PayerContract, contract_id)
+    back = _groups_back(c.id)
+    source = db.session.get(PayerContract, request.form.get("from_id", type=int) or 0)
+    if source is None or source.id == c.id:
+        flash(t("groups.need_source"), "danger")
+        return redirect(back)
+    made, skipped = 0, []
+    names = {g.name for g in c.groups}
+    for src in source.groups:
+        if src.name in names:
+            skipped.append(src.name)
+            continue
+        free = [s for s in src.services if not _clashes(c, [s])]
+        if not free:
+            skipped.append(src.name)
+            continue
+        group = PayerContractGroup(name=src.name, services=free)
+        c.groups.append(group)
+        db.session.flush()
+        for r in source.rules:
+            if r.group_id == src.id:
+                c.rules.append(PayerContractRule(
+                    setting=r.setting, scope="group", group_id=group.id,
+                    coverage_type=r.coverage_type, coverage_value=r.coverage_value,
+                    family_discount=r.family_discount, excluded=r.excluded,
+                    needs_approval=r.needs_approval))
+        made += 1
+    ActivityLog.record("contract.groups_copy", user_id=current_user.id,
+                       entity="payer_contract", entity_id=c.id,
+                       detail=f"from {source.id}: {made}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("groups.copied", n=made), "success" if made else "info")
+    if skipped:
+        flash(t("groups.copy_skipped", names="، ".join(skipped)), "warning")
     return redirect(back)
 
 
@@ -7156,6 +7413,7 @@ def doctor_payouts():
 
 @finance_bp.route("/doctor-payouts/pay", methods=["POST"])
 @module_required(MODULE)
+@once_per_form
 def doctor_pay():
     """Record money handed to a doctor.
 
@@ -7213,7 +7471,7 @@ def doctor_pay():
                        ip_address=client_ip())
     db.session.commit()
     flash(t("payouts.paid_ok"), "success")
-    return redirect(request.form.get("next")
+    return redirect(_safe_next(request.form.get("next"))
                     or url_for("finance.doctor_payouts"))
 
 
@@ -7379,7 +7637,7 @@ def document_schedule(doc_id):
         doc.payment_terms = "installments"
     ap.generate_schedule(doc, count, start, every_days=every)
     flash(t("installments.saved"), "success")
-    return redirect(request.form.get("next")
+    return redirect(_safe_next(request.form.get("next"))
                     or url_for("finance.supplier_statement",
                                supplier_id=doc.supplier_id))
 
@@ -7399,5 +7657,5 @@ def installment_pay(inst_id):
                        detail=f"{inst.amount:.2f}", ip_address=client_ip())
     db.session.commit()
     flash(t("installments.paid"), "success")
-    return redirect(request.form.get("next")
+    return redirect(_safe_next(request.form.get("next"))
                     or url_for("finance.supplier_statement", supplier_id=supplier_id))

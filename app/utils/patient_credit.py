@@ -159,6 +159,12 @@ def apply_to(invoice, amount=None, user=None):
         raise CreditError("no_patient")
     if invoice.status == "refunded":
         raise CreditError("closed")
+    # Family first, then the bill: two desks paying from one account, or
+    # two accounts paying one bill, take turns (`utils/holds`).
+    from app.utils import holds
+
+    holds.family(invoice.patient_id)
+    holds.bill(invoice)
     held = balance(invoice.patient_id)
     owed = round(invoice.balance, 2)
     if amount in (None, ""):
@@ -195,6 +201,11 @@ def give_back(patient, amount, method="cash", user=None, shift_id=None,
     amount = _amount(amount)
     if method not in PAYMENT_METHODS:
         raise CreditError("bad_method")
+    # Held before it is read: two give-backs at once take turns, and the
+    # second is measured against what the first left (`utils/holds`).
+    from app.utils import holds
+
+    holds.family(patient.id)
     if amount > balance(patient.id) + 0.009:
         raise CreditError("over_held")
     row = PatientCredit(patient_id=patient.id, kind="refund", amount=amount,

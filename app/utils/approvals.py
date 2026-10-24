@@ -141,7 +141,11 @@ def credit_surplus(invoice, user, reason):
 
 def _credit(invoice, user, pay_note, credit_note):
     from app.models import CREDIT_METHOD, Payment, PatientCredit
+    from app.utils import holds
 
+    # Held, then measured: two passes at once (a renewal and an approval)
+    # move the surplus once (`utils/holds`, MONEY_SAFETY_PLAN.md ف-٢).
+    holds.bill(invoice)
     surplus = round(invoice.paid - invoice.total, 2)
     if surplus <= 0.009:
         return 0, None

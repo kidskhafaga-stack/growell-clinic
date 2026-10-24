@@ -297,6 +297,7 @@
         <td style="text-align:end;">
           <form method="post" action="{{ url_for('finance.invoice_payment', invoice_id=inv.id) }}" style="display:flex;gap:6px;justify-content:flex-end;align-items:center;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="form_key" value="{{ form_key() }}">
             <input type="hidden" name="next" value="cashier">
             <input class="input" type="number" step="0.01" name="amount" value="{{ inv.balance }}" style="width:90px;">
             <select class="select" name="method" style="width:auto;">

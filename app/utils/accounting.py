@@ -203,17 +203,19 @@ def post_entry(source_type, source_id, memo, lines, entry_date=None, user_id=Non
     # existing entry is refreshed (delete-orphan swaps the lines) so the
     # ledger always mirrors the document's current state.
     if source_type and source_id:
-        existing = JournalEntry.query.filter_by(
-            source_type=source_type, source_id=source_id).first()
-        if existing is not None:
+        # Held before it is asked, so the same document posted twice at once
+        # — the till and the «post again» button — is one entry
+        # (`utils/holds`).
+        from app.utils import holds
+
+        holds.document(source_type, source_id, built[0].account_id)
+        posted = (JournalEntry.query
+                  .filter_by(source_type=source_type, source_id=source_id)
+                  .order_by(JournalEntry.id).all())
+        if posted:
             if not replace:
                 return None
-            existing.lines = built
-            existing.memo = memo
-            if entry_date:
-                existing.entry_date = entry_date
-            db.session.commit()
-            return existing
+            return _restate(posted, built, memo, entry_date, user_id)
 
     entry = JournalEntry(entry_date=entry_date or local_today(),
                          memo=memo, source_type=source_type,
@@ -223,6 +225,68 @@ def post_entry(source_type, source_id, memo, lines, entry_date=None, user_id=Non
     # before taking it gave two cashiers collecting at once the same entry
     # number — and the second entry was refused and swallowed by the caller,
     # so a payment reached the till and never reached the ledger.
+    from app.utils.sequences import claim
+    claim(entry, "entry_number", _je_number)
+    db.session.commit()
+    return entry
+
+
+def _restate(posted, built, memo, entry_date, user_id):
+    """A document already in the journal has changed (MONEY_SAFETY_PLAN.md ف-٥).
+
+    **In an open month the entry is rebuilt in place**, as it always was — a
+    bill that grows during the visit, an expense corrected the same week: one
+    entry, with its number, saying what the document says.
+
+    **A closed month is never rewritten.** Measured before: a bill of a closed
+    month, covered later by an approval, had its entry quietly rewritten from
+    200 to 50 — the month the owner signed now said something else. So when
+    any entry of the document sits in a closed month (or it already carries a
+    correction), what is posted stays as it is, and **one entry dated today**
+    carries the difference between what they add up to and what the document
+    says now. Nothing to adjust, nothing written.
+    """
+    from app.utils.periods import locked_period
+
+    today = local_today()
+    first = posted[0]
+    target = entry_date or first.entry_date
+    sealed = any(locked_period(e.entry_date) is not None for e in posted)
+    if len(posted) == 1 and not sealed and locked_period(target) is None:
+        first.lines = built
+        first.memo = memo
+        first.entry_date = target
+        db.session.commit()
+        return first
+    have = {}
+    for entry in posted:
+        for ln in entry.lines:
+            key = (ln.account_id, ln.cost_centre_id)
+            have[key] = round(have.get(key, 0) + (ln.debit or 0) - (ln.credit or 0), 2)
+    want = {}
+    for ln in built:
+        key = (ln.account_id, ln.cost_centre_id)
+        want[key] = round(want.get(key, 0) + (ln.debit or 0) - (ln.credit or 0), 2)
+    lines = []
+    for key in sorted(set(have) | set(want), key=lambda k: (k[0], k[1] or 0)):
+        diff = round(want.get(key, 0) - have.get(key, 0), 2)
+        if abs(diff) < 0.005:
+            continue
+        lines.append(JournalLine(account_id=key[0], cost_centre_id=key[1],
+                                 debit=diff if diff > 0 else 0.0,
+                                 credit=-diff if diff < 0 else 0.0,
+                                 description=first.entry_number))
+    if not lines:
+        db.session.commit()
+        return posted[-1]
+    if locked_period(today) is not None:
+        # Today's own month closed too: nowhere honest to write it.
+        db.session.rollback()
+        return None
+    entry = JournalEntry(entry_date=today, memo=f"تعديل — {memo}"[:255],
+                         source_type=first.source_type, source_id=first.source_id,
+                         created_by=user_id)
+    entry.lines = lines
     from app.utils.sequences import claim
     claim(entry, "entry_number", _je_number)
     db.session.commit()

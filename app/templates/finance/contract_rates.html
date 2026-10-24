@@ -17,6 +17,126 @@
     <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('claims.payers_title') }}</a>
 </div>
 
+{# **Groups inside the contract** (CONTRACTS_PLAN.md ع-٦) — «فى تعاقد نقدي
+   10% تعاقد 25% مثلاُ على بعض الخدمات … مجموعات داخل التعاقد ومحتاجها تبقى
+   مرنة». Any services, of any category, under the agreement's own name; what
+   the group pays is its rule: the payer's share, the family's discount on its
+   own share, or both. A service is in one group of a contract at most. #}
+{% macro service_picker(key) %}
+<div x-data="{ q: '' }" style="flex:1 1 320px;min-width:260px;">
+  <label class="hint" style="display:block;margin-bottom:4px;">{{ t('groups.services') }}</label>
+  <input class="input" type="search" x-model="q" dir="auto" placeholder="{{ t('groups.search') }}" aria-label="{{ t('groups.search') }}" style="margin-bottom:6px;">
+  <div style="max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 8px;" data-group-picker="{{ key }}">
+    {% for s in services %}
+    <div data-name="{{ (s.name ~ ' ' ~ (s.name_en or ''))|lower }}"
+         x-show="!q.trim() || $el.dataset.name.includes(q.trim().toLowerCase())">
+      <label style="display:flex;gap:6px;align-items:center;padding:2px 0;">
+        <input type="checkbox" name="service_ids" value="{{ s.id }}"> {{ s.display_name(current_lang) }}
+        <span class="hint">· {{ t('contracts.cat_' ~ s.category) }}</span></label>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="form-row" style="margin:6px 0 0;"><label>{{ t('groups.whole_category') }}</label>
+    <select class="select" name="category">
+      <option value="">—</option>
+      {% for c in categories %}<option value="{{ c }}">{{ t('contracts.cat_' ~ c) }}</option>{% endfor %}
+    </select></div>
+</div>
+{% endmacro %}
+<div class="card gc-scale-in" style="margin-bottom:16px;scroll-margin-top:80px;" id="groups" data-contract-groups>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-collection"></i> {{ t('groups.title') }}</h2>
+  <p class="hint" style="margin:0 0 10px;max-width:75ch;">{{ t('groups.hint') }}</p>
+
+  {% for grp in contract.groups %}
+  {% set grules = contract.rules|selectattr('group_id', 'equalto', grp.id)|list %}
+  <section style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;" data-group="{{ grp.id }}">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:space-between;">
+      <strong>{{ grp.name }}</strong>
+      <span style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        {% for r in grules %}
+        <span class="badge badge--muted" data-group-rule>{{ t('contracts.setting_' ~ r.setting) }}:
+          {% if r.excluded %}{{ t('contracts.rule_excluded') }}{% else %}
+          {% if r.coverage_value %}{{ t('groups.payer_pays') }} {% if r.coverage_type == 'percent' %}<span dir="ltr">{{ '%g'|format(r.coverage_value) }}%</span>{% else %}{{ r.coverage_value|money }}{% endif %}{% endif %}
+          {% if r.coverage_value and r.family_discount %} · {% endif %}
+          {% if r.family_discount %}{{ t('groups.family_gets') }} <span dir="ltr">{{ '%g'|format(r.family_discount) }}%</span>{% endif %}
+          {% endif %}{% if r.needs_approval %} · {{ t('contracts.rule_needs_approval') }}{% endif %}</span>
+        {% endfor %}
+        <form method="post" action="{{ url_for('finance.contract_group_delete', group_id=grp.id) }}" style="margin:0;"
+              onsubmit="return confirm({{ t('groups.delete_confirm', name=grp.name)|tojson|forceescape }});">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm btn-outline gc-press" type="submit" aria-label="{{ t('common.delete') }}"><i class="bi bi-trash"></i></button>
+        </form>
+      </span>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;" data-group-services>
+      {% for svc in grp.services %}
+      <form method="post" action="{{ url_for('finance.contract_group_services', group_id=grp.id) }}" style="margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="remove_id" value="{{ svc.id }}">
+        <span class="badge badge--role" style="gap:4px;">{{ svc.display_name(current_lang) }}
+          <button type="submit" class="btn btn-sm" style="padding:0 4px;min-height:0;" aria-label="{{ t('groups.remove') }}" title="{{ t('groups.remove') }}"><i class="bi bi-x"></i></button></span>
+      </form>
+      {% endfor %}
+    </div>
+    <details style="margin-top:8px;">
+      <summary class="hint" style="cursor:pointer;">{{ t('groups.add_services') }}</summary>
+      <form method="post" action="{{ url_for('finance.contract_group_services', group_id=grp.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {{ service_picker('add-' ~ grp.id) }}
+        <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+      </form>
+    </details>
+  </section>
+  {% else %}
+  <p class="hint" data-no-groups>{{ t('groups.none') }}</p>
+  {% endfor %}
+
+  <form method="post" action="{{ url_for('finance.contract_group_add', contract_id=contract.id) }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;border-top:1px solid var(--line);padding-top:12px;margin-top:6px;" data-group-new>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;flex-direction:column;gap:8px;flex:0 1 260px;">
+      <div class="form-row" style="margin:0;"><label>{{ t('groups.name') }}</label>
+        <input class="input" name="name" maxlength="120" required placeholder="{{ t('groups.name_ph') }}"></div>
+      <div class="form-row" style="margin:0;"><label>{{ t('contracts.rule_setting') }}</label>
+        <select class="select" name="setting">
+          <option value="any">{{ t('contracts.setting_any') }}</option>
+          {% for st in settings %}<option value="{{ st }}">{{ t('contracts.setting_' ~ st) }}</option>{% endfor %}
+        </select></div>
+      <div style="display:flex;gap:8px;">
+        <div class="form-row" style="margin:0;flex:1;"><label>{{ t('groups.payer_pct') }}</label>
+          <input class="input" type="number" step="0.01" min="0" max="100" name="coverage_value" value="0">
+          <input type="hidden" name="coverage_type" value="percent"></div>
+        <div class="form-row" style="margin:0;flex:1;"><label>{{ t('groups.family_pct') }}</label>
+          <input class="input" type="number" step="0.01" min="0" max="100" name="family_discount" value="0"></div>
+      </div>
+      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" name="needs_approval" value="1"> {{ t('contracts.rule_needs_approval') }}</label>
+    </div>
+    {{ service_picker('new') }}
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('groups.create') }}</button>
+  </form>
+
+  <form method="post" action="{{ url_for('finance.contract_edit', contract_id=contract.id) }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;" data-share-base>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <span class="hint">{{ t('groups.share_base') }}</span>
+    <label style="display:flex;gap:4px;align-items:center;"><input type="radio" name="share_base" value="after" {{ 'checked' if not contract.share_before_discount }}> {{ t('groups.share_after') }}</label>
+    <label style="display:flex;gap:4px;align-items:center;"><input type="radio" name="share_base" value="before" {{ 'checked' if contract.share_before_discount }}> {{ t('groups.share_before') }}</label>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+
+  {% if other_contracts %}
+  <form method="post" action="{{ url_for('finance.contract_groups_copy', contract_id=contract.id) }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:12px;" data-group-copy>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;min-width:260px;"><label>{{ t('groups.copy_from') }}</label>
+      <select class="select" name="from_id">
+        {% for o in other_contracts %}<option value="{{ o.id }}">{{ o.payer.display_name(current_lang) }} — {{ o.number or ('#' ~ o.id) }} ({{ o.groups|length }})</option>{% endfor %}
+      </select></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-files"></i> {{ t('groups.copy') }}</button>
+  </form>
+  {% endif %}
+</div>
+
 {# **By department** — «شغال على كل الاقسام الطوارئ والداخلى والحضانة وحسب
    كل عقد ايه الى داخل على العقد وايه الى المريض بيحاسب عنده». The most
    specific rule decides: this department before any department, a named
@@ -35,11 +155,13 @@
     <tr data-rule="{{ r.id }}">
       <td>{{ t('contracts.setting_' ~ r.setting) }}</td>
       <td>{% if r.scope == 'service' and r.service %}{{ r.service.display_name(current_lang) }}
+          {% elif r.scope == 'group' and r.group %}<i class="bi bi-collection"></i> {{ r.group.name }}
           {% elif r.scope == 'category' %}{{ t('contracts.cat_' ~ r.category) }}
           {% else %}{{ t('contracts.scope_all') }}{% endif %}</td>
       <td>{% if r.excluded %}<span class="badge badge--danger">{{ t('contracts.rule_excluded') }}</span>
           {% elif r.coverage_type == 'percent' %}<span dir="ltr">{{ r.coverage_value|round(2) }}%</span>
           {% else %}{{ r.coverage_value|money }}{% endif %}
+          {% if r.family_discount and not r.excluded %} <span class="badge badge--green" data-family-discount>{{ t('groups.family_gets') }} <span dir="ltr">{{ '%g'|format(r.family_discount) }}%</span></span>{% endif %}
           {% if r.needs_approval %} <span class="badge badge--warn" data-needs-approval><i class="bi bi-patch-check"></i> {{ t('contracts.rule_needs_approval') }}</span>{% endif %}</td>
       <td style="text-align:end;">
         <form method="post" action="{{ url_for('finance.contract_rule_delete', rule_id=r.id) }}" style="margin:0;">
@@ -65,7 +187,14 @@
         <option value="all">{{ t('contracts.scope_all') }}</option>
         <option value="category">{{ t('contracts.scope_category') }}</option>
         <option value="service">{{ t('contracts.scope_service') }}</option>
+        {% if contract.groups %}<option value="group">{{ t('groups.scope_group') }}</option>{% endif %}
       </select></div>
+    {% if contract.groups %}
+    <div class="form-row" style="margin:0;min-width:160px;" x-show="scope === 'group'" x-cloak><label>{{ t('groups.scope_group') }}</label>
+      <select class="select" name="group_id">
+        {% for grp in contract.groups %}<option value="{{ grp.id }}">{{ grp.name }}</option>{% endfor %}
+      </select></div>
+    {% endif %}
     <div class="form-row" style="margin:0;min-width:150px;" x-show="scope === 'category'" x-cloak><label>{{ t('contracts.scope_category') }}</label>
       <select class="select" name="category">
         {% for c in categories %}<option value="{{ c }}">{{ t('contracts.cat_' ~ c) }}</option>{% endfor %}
@@ -84,6 +213,8 @@
       </select></div>
     <div class="form-row" style="margin:0;width:110px;" x-show="!excluded"><label>{{ t('coverage.coverage_value') }}</label>
       <input class="input" type="number" step="0.01" min="0" name="coverage_value"></div>
+    <div class="form-row" style="margin:0;width:120px;" x-show="!excluded"><label>{{ t('groups.family_pct') }}</label>
+      <input class="input" type="number" step="0.01" min="0" max="100" name="family_discount"></div>
     <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
   </form>
 </div>
