@@ -8,6 +8,8 @@
   <h1 class="page-title">{{ t('claims.entities') }}</h1>
   <a class="btn btn-outline gc-press" href="{{ url_for('finance.claims') }}">
     <i class="bi bi-file-earmark-medical"></i> {{ t('claims.title') }}</a>
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.payer_record') }}" data-to-payer-record>
+    <i class="bi bi-award"></i> {{ t('payer_record.title') }}</a>
 </div>
 
 <!-- The clinic's own cash price list: applies to everyone, no card needed -->
