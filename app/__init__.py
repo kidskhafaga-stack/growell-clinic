@@ -137,6 +137,8 @@ def create_app(config_name="default"):
     i18n.init_app(app)
     from app.utils import money as _money
     _money.init_app(app)
+    from app.utils import once as _once
+    _once.init_app(app)
     from app.utils import clock as _clock
     _clock.init_app(app)
     from app.utils import rx_complete as _rx_complete

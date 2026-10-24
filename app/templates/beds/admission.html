@@ -598,6 +598,7 @@
   <form method="post" action="{{ url_for('finance.credit_take', patient_id=admission.patient_id) }}"
         style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;" data-deposit-take>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="form_key" value="{{ form_key() }}">
     <input type="hidden" name="admission_id" value="{{ admission.id }}">
     <input type="hidden" name="next" value="admission:{{ admission.id }}">
     <div class="form-row" style="margin:0;width:130px;"><label>{{ t('invoices.amount') }}</label>

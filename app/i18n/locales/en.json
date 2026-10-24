@@ -15421,5 +15421,8 @@
     "share_base": "The doctor's share on lines with the family's discount:",
     "share_after": "after the discount",
     "share_before": "before the discount (on the full price)"
+  },
+  "forms": {
+    "already_sent": "This was already recorded — nothing was done twice. Here is what the first one did."
   }
 }

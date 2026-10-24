@@ -51,6 +51,7 @@ from app.models import (
 from app.utils.decorators import (admin_required, capability_required,
                                    cashier_access, client_ip, module_required)
 from app.utils.paging import paginate
+from app.utils.once import once_per_form
 from app.utils.finance import generate_invoice_number
 from app.utils.money import format_money
 from app.utils.vaccine_settlement import apply_settlement, pending_settlements
@@ -3338,6 +3339,7 @@ def _booked_vaccine_line(appt, lang, vaccine_lines):
 @finance_bp.route("/checkout/<int:appt_id>", methods=["GET", "POST"])
 @cashier_access
 @retry_on_number_clash
+@once_per_form
 def checkout(appt_id):
     """Reception checkout for a booked appointment."""
     from app.models import Appointment
@@ -3363,6 +3365,7 @@ def collect_pick():
 @finance_bp.route("/collect/<int:patient_id>", methods=["GET", "POST"])
 @cashier_access
 @retry_on_number_clash
+@once_per_form
 def collect(patient_id):
     """The same checkout, for a patient who has no appointment to collect on.
 
@@ -4530,6 +4533,7 @@ def invoice_receipt(invoice_id):
 
 @finance_bp.route("/invoices/<int:invoice_id>/payment", methods=["POST"])
 @cashier_access
+@once_per_form
 def invoice_payment(invoice_id):
     invoice = db.get_or_404(Invoice, invoice_id)
     # One invoice can be settled with several methods at once (e.g. 500 cash +
@@ -4618,6 +4622,7 @@ def _after_refund(invoice):
 
 @finance_bp.route("/invoices/<int:invoice_id>/refund", methods=["POST"])
 @cashier_access
+@once_per_form
 def invoice_refund(invoice_id):
     """Return money to the patient (e.g. an exam re-billed as a consultation)
     and reconcile the cashier drawer.
@@ -4735,6 +4740,7 @@ def patient_account(patient_id):
 
 @finance_bp.route("/patient/<int:patient_id>/account/take", methods=["POST"])
 @cashier_access
+@once_per_form
 def credit_take(patient_id):
     """Money received on the family's account — a deposit before a stay, a
     payment ahead of a plan."""
@@ -4807,6 +4813,7 @@ def invoice_from_credit(invoice_id):
 
 @finance_bp.route("/patient/<int:patient_id>/account/give-back", methods=["POST"])
 @cashier_access
+@once_per_form
 def credit_give_back(patient_id):
     """Hand back what is left. The same rule as a refund on a bill: unless
     the clinic turned the sign-off off, it is a manager's to do."""
@@ -7406,6 +7413,7 @@ def doctor_payouts():
 
 @finance_bp.route("/doctor-payouts/pay", methods=["POST"])
 @module_required(MODULE)
+@once_per_form
 def doctor_pay():
     """Record money handed to a doctor.
 

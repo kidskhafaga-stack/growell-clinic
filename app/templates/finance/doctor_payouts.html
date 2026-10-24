@@ -116,6 +116,7 @@
 
   <form method="post" action="{{ url_for('finance.doctor_pay') }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="form_key" value="{{ form_key() }}">
     <input type="hidden" name="doctor_id" :value="id">
     <p x-show="id" x-cloak style="margin:0 0 10px;">
       <strong x-text="name"></strong>

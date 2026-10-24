@@ -60,6 +60,7 @@
 
   <form method="post" action="{{ post_url }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="form_key" value="{{ form_key() }}">
     {# CONTRACTS_PLAN.md ع-١ — the family's card, said before the money. A card
        that ran out stops nothing and asks for no decision: the family pays,
        the bill waits for the new card, and saving the new card turns it into
@@ -362,6 +363,7 @@
     <form method="post" action="{{ url_for('finance.invoice_refund', invoice_id=inv.id) }}"
           style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="form_key" value="{{ form_key() }}">
       <input type="hidden" name="next" value="collect">
       <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
         <div style="min-width:190px;">

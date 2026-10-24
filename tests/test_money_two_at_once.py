@@ -527,3 +527,18 @@ def test_two_dental_deposits_on_one_plan_at_once_never_overpay_it(till, monkeypa
     assert errors == []
     assert sorted(replies) == ["ok", "over_balance"]
     assert _paid(till, bill) == (100, 0)
+
+
+# --------------------------------------- ف-٣: the same form, the same instant --
+def test_one_payment_form_sent_twice_at_the_same_instant_is_taken_once(till, slow_collect):
+    bill = till["ids"]["bills"][0]
+    desks = [till["sign_in"](f"cash{i}") for i in range(2)]
+
+    def pay(i):
+        return desks[i].post(f"/finance/invoices/{bill}/payment",
+                             data={"amount": "40", "method": "instapay",
+                                   "form_key": "d" * 32})
+
+    replies, errors = _together(2, pay)
+    assert errors == []
+    assert _paid(till, bill) == (40, 60)

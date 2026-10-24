@@ -101,6 +101,7 @@
     <form method="post" action="{{ url_for('finance.doctor_pay') }}"
           style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="form_key" value="{{ form_key() }}">
       <input type="hidden" name="doctor_id" value="{{ s.doctor_id }}">
       <input type="hidden" name="settlement_id" value="{{ s.id }}">
       <input type="hidden" name="next" value="{{ url_for('finance.settlement_view', settlement_id=s.id) }}">
