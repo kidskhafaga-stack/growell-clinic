@@ -5897,9 +5897,15 @@ def _payer_record(asked=False):
     from app.models import ActivityLog
     from app.utils import ai, board_ai, payer_record
 
+    from app.utils.paging import paginate_list
+
     data = payer_record.board(request.args.get("months", type=int)
                               or payer_record.DEFAULT_MONTHS,
-                              only_attention=request.args.get("show") == "attention")
+                              show=request.args.get("show", "all"),
+                              q=request.args.get("q", ""))
+    # A page at a time, like every long list; the assistant still reads the
+    # whole filtered list, not the page on the screen.
+    pagination = paginate_list(data["rows"])
     ai_reply = None
     if asked:
         if not board_ai.enabled():
@@ -5916,6 +5922,7 @@ def _payer_record(asked=False):
         else:
             ai_reply["message"] = ai.error_sentence(ai_reply.get("error"))
     return render_template("finance/payer_record.html", data=data,
+                           rows=pagination.items, pagination=pagination,
                            periods=payer_record.PERIODS, rec=payer_record,
                            ai_board=board_ai.ready(), ai_reply=ai_reply,
                            ai_endpoint="finance.payer_record_ai",

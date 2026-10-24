@@ -329,3 +329,45 @@ def test_attention_alone_with_nothing_wrong_says_so(payers):
     _many(payers, 3)
     page = payers["sign_in"]().get("/finance/payers/record?show=attention").get_data(as_text=True)
     assert "data-record-all-fine" in page
+
+
+def test_many_companies_come_a_page_at_a_time_and_search_reaches_every_page(payers):
+    _many(payers, 30)
+    _claim(payers, "slow", 50)                        # the one past its day
+    boss = payers["sign_in"]()
+    first = boss.get("/finance/payers/record?per_page=25").get_data(as_text=True)
+    second = boss.get("/finance/payers/record?page=2").get_data(as_text=True)
+    assert first.count("data-record-payer=") == 25
+    assert second.count("data-record-payer=") == 6     # 31 in all
+    assert "pager-bar" in first
+    # The one that needs looking at is on the first page, at the top.
+    top = first.index("data-record-payer=")
+    assert first.startswith(f'data-record-payer="{payers["payers"]["slow"]}"', top)
+    # A company on the second page is found from the first.
+    from app.models import PayerEntity
+
+    with payers["app"].app_context():
+        last = payers["db"].session.get(PayerEntity, payers["payers"]["m29"])
+        name = last.name
+    assert f'data-record-payer="{last.id}"' not in first
+    found = boss.get("/finance/payers/record", query_string={"q": name}).get_data(as_text=True)
+    assert found.count("data-record-payer=") == 1 and f'data-record-payer="{last.id}"' in found
+    # Searching for nobody says so.
+    none = boss.get("/finance/payers/record", query_string={"q": "مش موجودة"}).get_data(as_text=True)
+    assert "data-record-no-match" in none
+
+
+def test_each_word_is_a_filter_with_its_count(payers):
+    _many(payers, 3)
+    _claim(payers, "slow", 50)
+    boss = payers["sign_in"]()
+    page = boss.get("/finance/payers/record").get_data(as_text=True)
+    assert 'data-show="late"' in page and 'data-show="on_time"' in page
+    assert 'data-show="refuses"' not in page          # nobody refuses: no button
+    late = boss.get("/finance/payers/record?show=late").get_data(as_text=True)
+    assert late.count("data-record-payer=") == 1
+    on_time = boss.get("/finance/payers/record?show=on_time").get_data(as_text=True)
+    assert on_time.count("data-record-payer=") == 3
+    # Anything else in the address is everybody.
+    odd = boss.get("/finance/payers/record?show=nonsense").get_data(as_text=True)
+    assert odd.count("data-record-payer=") == 4

@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% from "_pagination.html" import render_pagination with context %}
 {% set active_module = 'finance' %}
 {% block title %}{{ t('payer_record.title') }}{% endblock %}
 {% block page_heading %}{{ t('payer_record.title') }}{% endblock %}
@@ -10,6 +11,7 @@
   [x-cloak]{display:none !important;}
   .pr-table{font-size:.9rem;}
   .pr-table td{vertical-align:middle;}
+  .pr-reason{white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis;}
   .pr-table th{white-space:normal;line-height:1.3;}
   .pr-table tbody+tbody{border-top:1px solid var(--line);}
   .pr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;padding:6px 2px;}
@@ -21,6 +23,7 @@
   .pr-top li{display:flex;justify-content:space-between;gap:10px;}
   .pr-top li span:last-child{font-variant-numeric:tabular-nums;color:var(--danger);}
   .pr-words{display:flex;gap:4px;flex-wrap:wrap;}
+  .pr-words .badge{white-space:nowrap;}
 </style>
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
   <h1 class="page-title">{{ t('payer_record.title') }}</h1>
@@ -32,7 +35,8 @@
 <p class="hint" style="margin:0 0 12px;max-width:70ch;">{{ t('payer_record.intro') }}</p>
 
 <form method="get" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;" data-record-period>
-  {% if data.only_attention %}<input type="hidden" name="show" value="attention">{% endif %}
+  {% if data.show != 'all' %}<input type="hidden" name="show" value="{{ data.show }}">{% endif %}
+  {% if data.q %}<input type="hidden" name="q" value="{{ data.q }}">{% endif %}
   <span class="hint">{{ t('payer_record.period') }}</span>
   {% for m in periods %}
   <button class="btn btn-sm gc-press {{ 'btn-primary' if m == data.months else 'btn-outline' }}" type="submit" name="months" value="{{ m }}">{{ t('payer_record.months', n=m) }}</button>
@@ -42,22 +46,33 @@
 
 {% include "reports/_board_ai.html" %}
 
-{% if not data.count %}
+{% if not data.total %}
 <div class="card" data-record-empty><p class="hint" style="margin:0;">{{ t('payer_record.empty') }}</p></div>
 {% else %}
-<div class="card" x-data="{ q: '' }" data-record-table>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
-    <a class="btn btn-sm gc-press {{ 'btn-outline' if data.only_attention else 'btn-primary' }}"
-       href="{{ url_for('finance.payer_record', months=data.months) }}" data-show-all>{{ t('payer_record.show_all', n=data.count) }}</a>
-    <a class="btn btn-sm gc-press {{ 'btn-primary' if data.only_attention else 'btn-outline' }}"
-       href="{{ url_for('finance.payer_record', months=data.months, show='attention') }}" data-show-attention>
-      <i class="bi bi-exclamation-triangle"></i> {{ t('payer_record.show_attention', n=data.attention) }}</a>
-    <span style="flex:1;"></span>
-    <input class="input" type="search" x-model="q" dir="auto" style="max-width:240px;"
+<div class="card" data-record-table>
+  <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;" data-record-search-form>
+    <input type="hidden" name="months" value="{{ data.months }}">
+    {% if data.show != 'all' %}<input type="hidden" name="show" value="{{ data.show }}">{% endif %}
+    <input class="input" type="search" name="q" value="{{ data.q }}" dir="auto" maxlength="80" style="flex:1;min-width:200px;max-width:320px;"
            placeholder="{{ t('payer_record.search') }}" aria-label="{{ t('payer_record.search') }}" data-record-search>
+    <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-search"></i> {{ t('payer_record.search_go') }}</button>
+    {% if data.q %}<a class="btn btn-sm gc-press" href="{{ url_for('finance.payer_record', months=data.months, show=data.show if data.show != 'all' else None) }}" data-record-clear><i class="bi bi-x-lg"></i> {{ t('payer_record.search_clear') }}</a>{% endif %}
+  </form>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;" data-record-filters>
+    {% for key in rec.SHOWS %}
+    {% if key in ('all', 'attention') or data.counts[key] or key == data.show %}
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if key == data.show else 'btn-outline' }}"
+       href="{{ url_for('finance.payer_record', months=data.months, show=key if key != 'all' else None, q=data.q or None) }}"
+       data-show="{{ key }}">{% if key == 'attention' %}<i class="bi bi-exclamation-triangle"></i> {% endif %}{{ t('payer_record.f_' ~ key) }} ({{ data.counts[key] }})</a>
+    {% endif %}
+    {% endfor %}
   </div>
-  {% if not data.rows %}
+  {% if not rows %}
+  {% if data.show == 'attention' and not data.q %}
   <p class="hint" style="margin:0;" data-record-all-fine><i class="bi bi-check2-circle"></i> {{ t('payer_record.none_attention') }}</p>
+  {% else %}
+  <p class="hint" style="margin:0;" data-record-no-match>{{ t('payer_record.no_match') }}</p>
+  {% endif %}
   {% else %}
   <div style="overflow-x:auto;">
   <table class="table pr-table" style="min-width:880px;">
@@ -73,11 +88,9 @@
       <th class="num">{{ t('payer_record.col_approvals') }}</th>
       <th></th>
     </tr></thead>
-    {% for r in data.rows %}
+    {% for r in rows %}
     {% set name = r.payer.display_name(current_lang) %}
-    <tbody x-data="{ open: false }" data-record-payer="{{ r.payer.id }}"
-           data-name="{{ (r.payer.name ~ ' ' ~ (r.payer.name_en or ''))|lower }}"
-           x-show="!q.trim() || $el.dataset.name.includes(q.trim().toLowerCase())">
+    <tbody x-data="{ open: false }" data-record-payer="{{ r.payer.id }}">
       <tr>
         <td><a href="{{ url_for('finance.claim_detail', payer_id=r.payer.id) }}">{{ name }}</a></td>
         <td><div class="pr-words" data-record-words>
@@ -92,7 +105,7 @@
         <td class="num">{{ r.late }}</td>
         <td class="num" style="{{ 'color:var(--danger);font-weight:700;' if r.overdue else '' }}">{{ r.overdue }}{% if r.overdue %}<div class="hint">{{ r.overdue_amount|money }}</div>{% endif %}</td>
         <td class="num" data-refused>{{ (r.refused_pct ~ '%') if r.refused_pct is not none else '—' }}</td>
-        <td dir="auto">{{ r.reasons[0][0] if r.reasons else '—' }}</td>
+        <td dir="auto" class="pr-reason" title="{{ r.reasons[0][0] if r.reasons else '' }}">{{ r.reasons[0][0] if r.reasons else '—' }}</td>
         <td class="num">{% if r.approvals %}{{ r.approval_days if r.approval_days is not none else '—' }}{% if r.waiting %}<div class="hint">{{ t('payer_record.n_waiting', n=r.waiting) }}</div>{% endif %}{% else %}—{% endif %}</td>
         <td><button type="button" class="btn btn-outline btn-sm gc-press" @click="open = !open" :aria-expanded="open" data-record-open>
           <i class="bi" :class="open ? 'bi-chevron-up' : 'bi-chevron-down'"></i> {{ t('payer_record.details') }}</button></td>
@@ -144,6 +157,7 @@
     {% endfor %}
   </table>
   </div>
+  {{ render_pagination(pagination) }}
   {% endif %}
 </div>
 <p class="hint" style="margin-top:14px;max-width:70ch;" data-record-rules>{{ t('payer_record.rules', few=rec.MIN_CLAIMS, pct=rec.REFUSAL_HIGH|int, days=rec.APPROVAL_SLOW_DAYS|int) }}</p>

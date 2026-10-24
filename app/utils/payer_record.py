@@ -178,10 +178,25 @@ def words(row):
 ATTENTION = ("late", "refuses", "slow_approvals")
 
 
-def board(months=DEFAULT_MONTHS, today=None, only_attention=False):
+#: The filters over the list: everybody, the ones that need looking at, or
+#: one word. Anything else in the address is «everybody».
+SHOWS = ("all", "attention", "late", "refuses", "slow_approvals", "on_time", "few")
+
+
+def _matches(row, show):
+    if show == "attention":
+        return bool(row["attention"])
+    return show == "all" or show in row["words"]
+
+
+def board(months=DEFAULT_MONTHS, today=None, show="all", q=""):
     """Every payer with a claim sent or an approval asked in the period, the
     ones that need looking at first (overdue money, then refusals, then slow
     approvals), then by name.
+
+    ``q`` keeps the payers whose name (either language) holds it; ``show``
+    one of :data:`SHOWS`. ``counts`` says how many each filter would show
+    with the same search, so the buttons carry their numbers.
 
     Every claim with its lines and every approval are read once for all the
     payers, so the page costs the same with four companies or forty."""
@@ -219,11 +234,18 @@ def board(months=DEFAULT_MONTHS, today=None, only_attention=False):
             rows.append(row)
     rows.sort(key=lambda r: ([w not in r["attention"] for w in ATTENTION],
                              -r["overdue_amount"], r["payer"].name))
-    shown = [r for r in rows if r["attention"]] if only_attention else rows
-    return {"rows": shown, "count": len(rows),
-            "attention": sum(1 for r in rows if r["attention"]),
-            "since": since, "today": today, "months": months,
-            "only_attention": only_attention}
+    total = len(rows)
+    show = show if show in SHOWS else "all"
+    q = " ".join((q or "").split())[:80]
+    if q:
+        needle = q.casefold()
+        rows = [r for r in rows
+                if needle in (r["payer"].name or "").casefold()
+                or needle in (r["payer"].name_en or "").casefold()]
+    counts = {key: sum(1 for r in rows if _matches(r, key)) for key in SHOWS}
+    return {"rows": [r for r in rows if _matches(r, show)], "counts": counts,
+            "total": total, "show": show, "q": q, "since": since, "today": today,
+            "months": months}
 
 
 def facts(data, lang="ar"):

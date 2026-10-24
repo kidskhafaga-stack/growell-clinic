@@ -15362,8 +15362,6 @@
     "ai_read": "Read the record",
     "ai_ask_ph": "Ask about the payers… e.g. which one holds our money longest?",
     "ai_privacy": "Only the claims' and approvals' figures and the names of payers and services are sent — no child. The reply is not kept.",
-    "show_all": "All payers ({n})",
-    "show_attention": "Need attention ({n})",
     "search": "Search by payer name…",
     "none_attention": "No payer needs attention in this period.",
     "verdict": "Verdict",
@@ -15376,6 +15374,16 @@
     "n_waiting": "{n} waiting",
     "details": "Details",
     "col_terms": "Contract (days)",
-    "col_overdue": "Past due"
+    "col_overdue": "Past due",
+    "search_go": "Search",
+    "search_clear": "Clear search",
+    "no_match": "No payer matches this search or filter.",
+    "f_all": "All",
+    "f_attention": "Need attention",
+    "f_late": "Pay late",
+    "f_refuses": "Refuse a lot",
+    "f_slow_approvals": "Slow to approve",
+    "f_on_time": "Pay on time",
+    "f_few": "Too few"
   }
 }
