@@ -89,6 +89,10 @@ SYSTEM_TEMPLATE_TYPES = [
     # The link a family opens to write it themselves, when they would
     # rather not say it to the person at the desk.
     "complaint_invite",
+    # The family's insurance card running out (CONTRACTS_PLAN.md ع-١): sent
+    # from the list of expiring cards, so the card is renewed before anybody
+    # stands at the desk with it. See app/utils/coverage_card.py.
+    "card_expiring",
 ]
 # Notification types the clinic manages centrally (each has one canonical
 # template with its own body/image/auto-or-manual toggle). Birthday is an
@@ -128,6 +132,7 @@ TEMPLATE_VARIABLES = {
     "vaccine_seasonal": ["patient", "first_name", "vaccine", "year", "clinic"],
     "vaccine_changed": ["patient", "first_name", "old_vaccine", "new_vaccine", "clinic"],
     "vaccine_back": ["patient", "first_name", "vaccine", "clinic"],
+    "card_expiring": ["patient", "first_name", "payer", "expiry_date", "clinic"],
     "rx_copy": ["patient", "first_name", "doctor", "clinic", "link"],
     "birthday": ["patient", "first_name", "clinic"],
     "feedback": ["patient", "first_name", "clinic", "doctor", "link"],
@@ -218,6 +223,11 @@ TEMPLATE_DEFAULTS = {
     "vaccine_changed": (
         "إشعار من {clinic}: تطعيم {old_vaccine} لم يعد متاحاً، "
         "وتم استبداله بـ{new_vaccine} لـ{patient}.\nبرجاء التواصل لمتابعة الجدول."
+    ),
+    "card_expiring": (
+        "تذكير من {clinic}: كارت {payer} الخاص بـ{patient} تاريخ انتهائه {expiry_date}.\n"
+        "ياريت تجددوه وتبعتولنا صورة الكارت الجديد — علشان الزيارة الجاية "
+        "تتحسب على الشركة من غير ما تدفعوا كاش."
     ),
     "vaccine_back": (
         "خبر كويس من {clinic}: تطعيم {vaccine} بقى متوفر.\n"

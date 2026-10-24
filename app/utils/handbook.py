@@ -2513,7 +2513,10 @@ SECTIONS = [
              "من الخدمة اللي الشركة بتغطيها، والخدمة اللي محتاجة موافقة بتستنى الموافقة، والفاتورة "
              "مش بتتحول لو هتعمل على الأهل فلوس. و«كاش نهائي» للي مش هيجددوا. الإقامة بتتحسب "
              "بيوم الدخول. وقايمة «كروت "
-             "التأمين اللي هتنتهي» (من التقارير أو ملف الطفل) عشان تكلّم الأهل قبل الزيارة.",
+             "التأمين اللي هتنتهي» (من التقارير أو ملف الطفل) عشان تكلّم الأهل قبل الزيارة — "
+             "ومنها «ذكّر الأهل» لأسرة واحدة، أو «ذكّر كل اللي في القايمة» (ما عدا اللي اتبعتلهم "
+             "الأسبوع ده واللي ملهمش رقم): رسالة «تذكير بتجديد كارت التأمين» اللي بتتكتب في "
+             "قوالب الرسايل، بالواتساب أو الـSMS زي باقي الرسايل، والصف بيكتب إمتى اتبعتت.",
              "<b>The insurance card and reception:</b> in the child's file (Family → "
              "Insurance) the card holds the membership number, the plan, the subscription "
              "holder and relation, the issue and expiry dates and its photo front and back. "
@@ -2528,7 +2531,11 @@ SECTIONS = [
              "approval waits for it, and a bill is never converted into a debt for the "
              "family. «Cash for good» is for a family that will not renew. A stay is judged "
              "on its first day. «Insurance cards running "
-             "out» (from Reports or the child's file) is the list to call families from."),
+             "out» (from Reports or the child's file) is the list to call families from — "
+             "and to message them: «Remind the family» for one, or «Remind everyone on the "
+             "list» (except those reminded this week and those with no number), with the "
+             "«Insurance card renewal reminder» template written under message templates, "
+             "by WhatsApp or SMS like every other message; the row says when it went."),
             ("<b>الجهات</b> (تأمين/نادي/نقابة) وجدول التغطية لكل خدمة.",
              "<b>Payers</b> (insurer / club / syndicate) and the per-service "
              "benefits table."),

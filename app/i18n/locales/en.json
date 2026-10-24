@@ -3360,7 +3360,8 @@
     "occ_followup_due": "Follow-up date reminder",
     "occ_visit_checkin": "Check-in after the visit",
     "occ_post_op": "After-surgery instructions",
-    "occ_vaccine_suggested": "Optional vaccine suggestion"
+    "occ_vaccine_suggested": "Optional vaccine suggestion",
+    "occ_card_expiring": "Insurance card renewal reminder"
   },
   "feedback": {
     "title": "Rate your visit",
@@ -15304,7 +15305,14 @@
     "waits_until": "Waits until",
     "waiting_none": "No bills are waiting for a card.",
     "wait_setting": "Wait for the new card (days)",
-    "wait_setting_hint": "A bill paid in cash while the card was out waits this long for the new card, then it is cash for good. Blank = 30 days, 0 = no waiting."
+    "wait_setting_hint": "A bill paid in cash while the card was out waits this long for the new card, then it is cash for good. Blank = 30 days, 0 = no waiting.",
+    "remind": "Remind the family",
+    "remind_all": "Remind everyone on the list",
+    "remind_all_hint": "Except families reminded in the last 7 days, and those with no number.",
+    "remind_all_confirm": "A reminder goes to every family on the list not reminded this week. Go ahead?",
+    "reminded_on": "Reminded",
+    "remind_none": "No family to remind — all were reminded this week or have no number.",
+    "remind_sent": "{n} reminders prepared — follow them on the messages page."
   },
   "ask": {
     "title": "Ask the reports",
