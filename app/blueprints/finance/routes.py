@@ -1649,6 +1649,14 @@ def _sees_all_tills():
     return current_user.can_access("finance")
 
 
+def _safe_next(raw):
+    """A «back to» address from a form, kept only when it is a page of this
+    program — a path, never another site (``//host`` or ``https://…``)."""
+    raw = (raw or "").strip()
+    return raw if raw.startswith("/") and not raw.startswith("//") \
+        and "\\" not in raw else None
+
+
 def _my_till_or_403(account_id):
     """A till this user is allowed to act on, or 403.
 
@@ -2129,6 +2137,11 @@ def vaccine_settle(settlement_id):
     from app.models import RefundRequest, VaccineSettlement
 
     s = db.get_or_404(VaccineSettlement, settlement_id)
+    # Two cashiers settling one vaccine at once take turns; the second finds
+    # it done (`utils/holds`, MONEY_SAFETY_PLAN.md ف-٢).
+    from app.utils import holds
+
+    holds.this(s)
     if s.status != "pending":
         flash(t("vaccine_settle.already_done"), "warning")
         return redirect(url_for("finance.cashier"))
@@ -7450,7 +7463,7 @@ def doctor_pay():
                        ip_address=client_ip())
     db.session.commit()
     flash(t("payouts.paid_ok"), "success")
-    return redirect(request.form.get("next")
+    return redirect(_safe_next(request.form.get("next"))
                     or url_for("finance.doctor_payouts"))
 
 
@@ -7616,7 +7629,7 @@ def document_schedule(doc_id):
         doc.payment_terms = "installments"
     ap.generate_schedule(doc, count, start, every_days=every)
     flash(t("installments.saved"), "success")
-    return redirect(request.form.get("next")
+    return redirect(_safe_next(request.form.get("next"))
                     or url_for("finance.supplier_statement",
                                supplier_id=doc.supplier_id))
 
@@ -7636,5 +7649,5 @@ def installment_pay(inst_id):
                        detail=f"{inst.amount:.2f}", ip_address=client_ip())
     db.session.commit()
     flash(t("installments.paid"), "success")
-    return redirect(request.form.get("next")
+    return redirect(_safe_next(request.form.get("next"))
                     or url_for("finance.supplier_statement", supplier_id=supplier_id))

@@ -183,16 +183,22 @@ def pay_installment(inst, method="cash", paid_at=None, user_id=None,
                     account_id=None, shift_id=None):
     """Settle one instalment: record a supplier payment for its amount and mark
     it paid (linked to that payment)."""
-    from datetime import date
+    from app.utils import holds
 
+    # Held and read again, then marked paid **before** the payment is written
+    # — `record_payment` commits, and that commit has to carry the «paid» with
+    # it, or a second click lands in the gap and pays the instalment twice
+    # (`utils/holds`, MONEY_SAFETY_PLAN.md ف-٢).
+    holds.this(inst)
     if inst.is_paid:
+        db.session.rollback()
         return None
+    inst.status = "paid"
+    inst.paid_at = paid_at or local_today()
     payment = record_payment(
         inst.document.supplier_id, inst.amount, method=method,
         paid_at=paid_at or local_today(), document_id=inst.document_id,
         notes=f"قسط #{inst.seq}", user_id=user_id, account_id=account_id)
-    inst.status = "paid"
-    inst.paid_at = paid_at or local_today()
     inst.payment_id = payment.id
     db.session.commit()
     return payment

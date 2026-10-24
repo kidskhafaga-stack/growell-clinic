@@ -286,7 +286,13 @@ def record_movement(kind, account, amount, to_account=None, fee=None,
     if kind == "settle" and account.kind != "clearing":
         raise MovementError("not_clearing")
     # Money cannot leave a till that does not have it. A deposit is the one
-    # kind that adds, so it is exempt.
+    # kind that adds, so it is exempt. The till is held before it is asked,
+    # so two withdrawals at once are measured one after the other
+    # (`utils/holds`, MONEY_SAFETY_PLAN.md ف-٢).
+    if kind != "deposit":
+        from app.utils import holds
+
+        holds.this(account)
     if kind != "deposit" and amount > account_balance(account):
         raise MovementError("insufficient")
 

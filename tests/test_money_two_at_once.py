@@ -309,3 +309,221 @@ def test_one_refund_request_approved_twice_at_once_is_one_refund(till, slow_refu
     with till["app"].app_context():
         row = till["db"].session.get(Invoice, bill)
         assert round(row.refunded, 2) == 60
+
+
+# ------------------------------------------- ف-٢: the rest of «ask, then write» --
+def test_one_supplier_instalment_paid_twice_at_once_is_paid_once(till, monkeypatch):
+    from app.models import (StoreDocument, Supplier, SupplierInstallment,
+                            SupplierPayment)
+    from app.utils import payables
+
+    with till["app"].app_context():
+        db = till["db"]
+        supplier = Supplier(name="مورد")
+        db.session.add(supplier)
+        db.session.flush()
+        doc = StoreDocument(doc_number="GRN-1", kind="grn", supplier_id=supplier.id,
+                            payment_terms="installments")
+        db.session.add(doc)
+        db.session.flush()
+        inst = SupplierInstallment(document_id=doc.id, seq=1, due_date=date.today(),
+                                   amount=500)
+        db.session.add(inst)
+        db.session.commit()
+        inst_id = inst.id
+
+    real = payables.record_payment
+
+    def slow(*args, **kwargs):
+        _time.sleep(PAUSE)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(payables, "record_payment", slow)
+
+    def work(_i):
+        with till["app"].app_context():
+            row = till["db"].session.get(SupplierInstallment, inst_id)
+            return payables.pay_installment(row) is not None
+
+    replies, errors = _together(2, work)
+    assert errors == []
+    with till["app"].app_context():
+        assert SupplierPayment.query.count() == 1
+        assert sorted(replies) == [False, True]
+
+
+def test_a_bills_surplus_moved_to_the_account_twice_at_once_is_moved_once(till, monkeypatch):
+    from app.models import Invoice, Payment
+    from app.utils import approvals
+
+    bill = till["ids"]["bills"][0]
+    with till["app"].app_context():
+        db = till["db"]
+        row = db.session.get(Invoice, bill)
+        row.payments.append(Payment(amount=160, method="instapay", kind="payment"))
+        db.session.commit()
+
+    from app.models import invoice as invoice_model
+
+    original = invoice_model.Invoice.paid
+
+    def slow_paid(self):
+        answer = original.fget(self)
+        _time.sleep(PAUSE)
+        return answer
+
+    monkeypatch.setattr(invoice_model.Invoice, "paid", property(slow_paid))
+
+    def work(_i):
+        with till["app"].app_context():
+            db = till["db"]
+            amount = approvals.credit_surplus(db.session.get(Invoice, bill), None, "اختبار")
+            db.session.commit()
+            return amount
+
+    replies, errors = _together(2, work)
+    assert errors == []
+    assert sorted(replies) == [0, 60]
+    assert _held(till) == 160
+
+
+def test_one_vaccine_settlement_settled_twice_at_once_is_settled_once(till, monkeypatch):
+    from app.blueprints.finance import routes
+    from app.models import Invoice, Vaccine, VaccineBrand, VaccineSettlement
+
+    bill = till["ids"]["bills"][0]
+    with till["app"].app_context():
+        db = till["db"]
+        vac = Vaccine(code="X", name_ar="لقاح", is_mandatory=False)
+        db.session.add(vac)
+        db.session.flush()
+        brand = VaccineBrand(vaccine_id=vac.id, name="ماركة", price=100)
+        db.session.add(brand)
+        db.session.flush()
+        row = VaccineSettlement(patient_id=till["ids"]["child"], invoice_id=bill,
+                                item_id=db.session.get(Invoice, bill).items[0].id,
+                                billed_brand_id=brand.id, amount=100)
+        db.session.add(row)
+        db.session.commit()
+        sid = row.id
+
+    applied = []
+
+    def apply_settlement(s, lang="ar", user_id=None):
+        applied.append(s.id)
+        _time.sleep(PAUSE)
+        s.status = "done"
+        return till["db"].session.get(Invoice, s.invoice_id)
+
+    monkeypatch.setattr(routes, "apply_settlement", apply_settlement)
+    desks = [till["sign_in"](f"cash{i}") for i in range(2)]
+
+    def settle(i):
+        return desks[i].post(f"/finance/vaccine-settlement/{sid}")
+
+    replies, errors = _together(2, settle)
+    assert errors == []
+    assert applied == [sid]
+
+
+# ------------------------------------------------ «back to» stays at home --
+def test_a_back_address_from_a_form_never_leaves_the_program(till):
+    from app.models import StoreDocument, Supplier, SupplierInstallment
+
+    with till["app"].app_context():
+        db = till["db"]
+        supplier = Supplier(name="مورد")
+        db.session.add(supplier)
+        db.session.flush()
+        doc = StoreDocument(doc_number="GRN-2", kind="grn", supplier_id=supplier.id)
+        db.session.add(doc)
+        db.session.flush()
+        ids = []
+        for n in range(3):
+            inst = SupplierInstallment(document_id=doc.id, seq=n + 1,
+                                       due_date=date.today(), amount=10)
+            db.session.add(inst)
+            db.session.flush()
+            ids.append(inst.id)
+        db.session.commit()
+    desk = till["sign_in"]("cash0")
+    for inst_id, where in zip(ids, ("https://elsewhere.example/x", "//elsewhere.example",
+                                    "/\\elsewhere.example")):
+        got = desk.post(f"/finance/installments/{inst_id}/pay", data={"next": where})
+        assert "elsewhere" not in got.headers["Location"]
+    got = desk.post(f"/finance/installments/{ids[0]}/pay", data={"next": "/finance/"})
+    assert got.headers["Location"].endswith("/finance/")
+
+
+def test_two_withdrawals_that_do_not_both_fit_never_overdraw_a_till(till, monkeypatch):
+    from app.models import CashAccount, CashMovement
+    from app.utils import treasury
+
+    with till["app"].app_context():
+        db = till["db"]
+        drawer = CashAccount(name="خزنة تجربة", code="1099", kind="cash", opening_balance=100)
+        db.session.add(drawer)
+        db.session.commit()
+        drawer_id = drawer.id
+    real = treasury.account_balance
+
+    def slow(account, upto=None):
+        answer = real(account, upto)
+        _time.sleep(PAUSE)
+        return answer
+
+    monkeypatch.setattr(treasury, "account_balance", slow)
+
+    def work(_i):
+        with till["app"].app_context():
+            db = till["db"]
+            try:
+                treasury.record_movement("withdraw", db.session.get(CashAccount, drawer_id), 70)
+                return "ok"
+            except treasury.MovementError as exc:
+                db.session.rollback()
+                return str(exc)
+
+    replies, errors = _together(2, work)
+    assert errors == []
+    assert sorted(replies) == ["insufficient", "ok"]
+    with till["app"].app_context():
+        assert CashMovement.query.count() == 1
+        assert real(till["db"].session.get(CashAccount, drawer_id)) == 30
+
+
+def test_two_dental_deposits_on_one_plan_at_once_never_overpay_it(till, monkeypatch):
+    from types import SimpleNamespace
+
+    from app.models import Invoice
+    from app.utils import dental_money
+
+    bill = till["ids"]["bills"][0]
+    monkeypatch.setattr(dental_money, "_require_module", lambda: None)
+    from app.models import invoice as invoice_model
+
+    original = invoice_model.Invoice.balance
+
+    def slow_balance(self):
+        answer = original.fget(self)
+        _time.sleep(PAUSE)
+        return answer
+
+    monkeypatch.setattr(invoice_model.Invoice, "balance", property(slow_balance))
+
+    def work(_i):
+        with till["app"].app_context():
+            db = till["db"]
+            plan = SimpleNamespace(invoice_id=bill, invoice=db.session.get(Invoice, bill))
+            try:
+                dental_money.take_deposit(plan, 100, method="instapay")
+                db.session.commit()
+                return "ok"
+            except dental_money.DentalMoneyError as exc:
+                db.session.rollback()
+                return str(exc)
+
+    replies, errors = _together(2, work)
+    assert errors == []
+    assert sorted(replies) == ["ok", "over_balance"]
+    assert _paid(till, bill) == (100, 0)

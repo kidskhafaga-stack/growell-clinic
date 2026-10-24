@@ -34,7 +34,10 @@ from app.extensions import db
 
 # The tables a hold may name — written into the statement, so never taken
 # from a caller as free text.
-_TABLES = {"patients": "patients", "invoices": "invoices"}
+_TABLES = {"patients": "patients", "invoices": "invoices",
+           "supplier_installments": "supplier_installments",
+           "vaccine_settlements": "vaccine_settlements",
+           "cash_accounts": "cash_accounts"}
 
 
 def _row(table, row_id):
@@ -57,6 +60,16 @@ def bill(invoice):
         return
     _row("invoices", invoice.id)
     db.session.expire(invoice, ["payments"])
+
+
+def this(row):
+    """Hold one row that carries its own state — an instalment, a settlement
+    — and read it again from the file, so «is it still pending?» is asked of
+    what is there now and not of what this request loaded a moment ago."""
+    if row is None or row.id is None:
+        return
+    _row(row.__table__.name, row.id)
+    db.session.refresh(row)
 
 
 def document(kind, number, row_hint=None):
