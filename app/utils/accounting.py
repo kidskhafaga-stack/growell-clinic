@@ -203,6 +203,12 @@ def post_entry(source_type, source_id, memo, lines, entry_date=None, user_id=Non
     # existing entry is refreshed (delete-orphan swaps the lines) so the
     # ledger always mirrors the document's current state.
     if source_type and source_id:
+        # Held before it is asked, so the same document posted twice at once
+        # — the till and the «post again» button — is one entry
+        # (`utils/holds`).
+        from app.utils import holds
+
+        holds.document(source_type, source_id, built[0].account_id)
         existing = JournalEntry.query.filter_by(
             source_type=source_type, source_id=source_id).first()
         if existing is not None:

@@ -100,6 +100,12 @@ def refund_request_decide(req_id):
     if not current_user.is_admin:
         abort(403)
     req = db.get_or_404(RefundRequest, req_id)
+    # Two managers deciding one request at once take turns, and the second
+    # finds it decided (`utils/holds`) — not a second refund.
+    from app.utils import holds
+
+    holds.bill(req.invoice)
+    db.session.refresh(req)
     if req.status != "pending":
         flash(t("refunds.already_decided"), "warning")
         return redirect(url_for("finance.refund_requests"))
@@ -145,6 +151,11 @@ def _post_refund(invoice, amount, method, reason, *, user_id):
     """
     from app.utils import refunds
 
+    # Held, then measured: what is left to give back is what is left after
+    # any refund saved in the same instant (`utils/holds`).
+    from app.utils import holds
+
+    holds.bill(invoice)
     amount = round(min(amount, invoice.paid), 2)
     scope = refunds.scope_of(invoice, amount)
     refund_pay = Payment(
@@ -4530,7 +4541,12 @@ def invoice_payment(invoice_id):
     new_payments = []
     shift_id = _current_shift_id()
     # Never accept more than the open balance: a double click or a stale form
-    # can otherwise pay the same invoice twice (negative balance).
+    # can otherwise pay the same invoice twice (negative balance). The bill is
+    # held first, so two cashiers at once take turns and the second reads
+    # what the first collected (`utils/holds`).
+    from app.utils import holds
+
+    holds.bill(invoice)
     remaining = invoice.balance
     if remaining <= 0:
         flash(t("invoices.already_settled"), "warning")
@@ -4636,8 +4652,17 @@ def invoice_refund(invoice_id):
         db.session.commit()
         flash(t("refunds.request_sent"), "info")
         return redirect(_after_refund(invoice))
+    # Held first, so a second refund at the same moment is measured against
+    # what the first gave back (`utils/holds`).
+    from app.utils import holds
+
+    holds.bill(invoice)
     if amount > invoice.paid:  # can't refund more than was actually collected
         amount = invoice.paid
+    if amount <= 0:
+        db.session.rollback()
+        flash(t("refunds.nothing_left"), "warning")
+        return redirect(_after_refund(invoice))
     method = (request.form.get("method") or "cash").strip()
     refund_pay, _scope, closed = _post_refund(
         invoice, amount, method,

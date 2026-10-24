@@ -4316,7 +4316,8 @@
     "approved": "Approved — refund paid out",
     "rejected": "Request rejected",
     "requests_title": "Refund requests",
-    "requests_subtitle": "Refunds waiting for a manager's approval, and recent decisions."
+    "requests_subtitle": "Refunds waiting for a manager's approval, and recent decisions.",
+    "nothing_left": "Everything paid on this bill has already been given back — there is nothing left to refund."
   },
   "storedocs": {
     "title": "Warehouse documents",
