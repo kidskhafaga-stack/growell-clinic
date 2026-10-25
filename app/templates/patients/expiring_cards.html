@@ -21,6 +21,18 @@
 
 <div class="card gc-scale-in">
   {% if rows %}
+  {# The reminder to the family: the clinic's own template, by WhatsApp or SMS
+     as it set them. «Remind them all» skips a family reminded in the last
+     week and one with no number — a button, never sent by itself. #}
+  <form method="post" action="{{ url_for('patients.remind_all_cards') }}"
+        style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px;" data-remind-all>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="days" value="{{ within }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit"
+            onclick="return confirm({{ t('card.remind_all_confirm')|tojson|forceescape }});">
+      <i class="bi bi-whatsapp"></i> {{ t('card.remind_all') }}</button>
+    <span class="hint">{{ t('card.remind_all_hint') }}</span>
+  </form>
   <div style="overflow-x:auto;"><table class="table" data-expiring>
     <thead><tr><th>{{ t('card.child') }}</th><th>{{ t('coverage.entity') }}</th><th>{{ t('coverage.card') }}</th><th>{{ t('coverage.expiry') }}</th><th>{{ t('card.phone') }}</th><th></th></tr></thead>
     <tbody>
@@ -34,7 +46,20 @@
           {% if r.days_left < 0 %}<span class="badge badge--danger">{{ t('card.st_expired') }}</span>
           {% else %}<span class="badge badge--warn">{{ t('card.st_soon', n=r.days_left) }}</span>{% endif %}</td>
         <td>{% set ph = r.patient.contact_phone %}{% if ph %}<a href="tel:{{ ph }}" dir="ltr">{{ ph }}</a>{% else %}—{% endif %}</td>
-        <td><a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=r.patient.id, renew=r.card.id) }}#coverage"><i class="bi bi-arrow-repeat"></i> {{ t('card.renew') }}</a></td>
+        <td style="white-space:nowrap;">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=r.patient.id, renew=r.card.id) }}#coverage"><i class="bi bi-arrow-repeat"></i> {{ t('card.renew') }}</a>
+          {% if r.patient.contact_phone %}
+          <form method="post" action="{{ url_for('patients.remind_card', coverage_id=r.card.id) }}" style="margin:0;" data-remind="{{ r.card.id }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="days" value="{{ within }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-whatsapp"></i> {{ t('card.remind') }}</button>
+          </form>
+          {% endif %}
+          </div>
+          {% set when = reminded.get(r.patient.id) %}
+          {% if when %}<div class="hint" style="margin-top:4px;" data-reminded>{{ t('card.reminded_on') }} <bdi dir="ltr">{{ when|clinic_stamp('%Y-%m-%d') }}</bdi></div>{% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody></table></div>

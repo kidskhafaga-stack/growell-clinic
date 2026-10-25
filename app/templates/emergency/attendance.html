@@ -57,11 +57,20 @@
       {% if row.treatment_only %} · <span class="badge badge--muted" data-walk-in>{{ t('er_orders.walk_in') }}</span>{% endif %}
       {% if row.level %} · <span class="badge {{ 'badge--danger' if row.urgent else 'badge--muted' }}">{{ row.level }}</span>
       {% else %} · <span class="hint" style="margin:0;">{{ t('emergency.not_triaged') }}</span>{% endif %}
+      {% if row.seen_at %} · <span data-seen>{{ t('er_seen.seen', when=row.seen_at|clinic_time, n=row.wait_to_doctor) }}</span>{% endif %}
       {% if not row.is_open %} · <span class="badge badge--muted" data-left>{{ t('emergency.disp_' ~ row.disposition) if row.disposition else t('er_orders.left') }}</span>{% endif %}
     </p>
   </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+  {% if row.is_open and not row.seen_at %}
+  <form method="post" action="{{ url_for('emergency.seen', attendance_id=row.id) }}" style="margin:0;" data-seen-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-person-check"></i> {{ t('er_seen.press') }}</button>
+  </form>
+  {% endif %}
   <a class="btn btn-outline gc-press" href="{{ url_for('emergency.register') }}">
     <i class="bi bi-list-ul"></i> {{ t('emergency.register_title') }}</a>
+  </div>
 </div>
 {# Sent down from a clinic visit in this hospital: who sent them and why. #}
 {% if row.from_visit %}

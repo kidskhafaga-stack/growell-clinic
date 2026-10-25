@@ -750,6 +750,7 @@ _CRM_TPL_NAMES = {
     "doctor_schedule": "جدول الطبيب اليومي",
     "vaccine_given": "إشعار تطعيم",
     "vaccine_back": "التطعيم بقى متوفر",
+    "card_expiring": "تذكير بتجديد كارت التأمين",
     "birthday": "تهنئة عيد ميلاد",
 }
 

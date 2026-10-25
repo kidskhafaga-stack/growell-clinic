@@ -1735,7 +1735,52 @@ def expiring_cards():
     waiting = coverage_card.all_waiting()
     db.session.commit()             # bills whose wait ran out are now cash
     return render_template("patients/expiring_cards.html", rows=rows, within=within,
-                           waiting=waiting, wait_days=coverage_card.wait_days())
+                           waiting=waiting, wait_days=coverage_card.wait_days(),
+                           reminded=coverage_card.last_reminded(
+                               [r["patient"].id for r in rows]))
+
+
+@patients_bp.route("/coverage/<int:coverage_id>/remind", methods=["POST"])
+@module_required(MODULE)
+def remind_card(coverage_id):
+    """Send this family the card reminder — the template the clinic wrote,
+    by WhatsApp or SMS as it set them (CONTRACTS_PLAN.md ع-١)."""
+    from app.models import PatientCoverage
+    from app.utils import coverage_card
+
+    card = db.get_or_404(PatientCoverage, coverage_id)
+    back = url_for("patients.expiring_cards",
+                   days=request.form.get("days", type=int) or None)
+    if not card.patient or not card.patient.contact_phone:
+        flash(t("occasions.no_phone"), "warning")
+        return redirect(back)
+    log = coverage_card.remind(card, user=current_user, lang=getattr(g, "lang", "ar"))
+    ActivityLog.record("card.remind", user_id=current_user.id, entity="patient",
+                       entity_id=card.patient_id, detail=log.status,
+                       ip_address=client_ip())
+    db.session.commit()
+    return render_template("messages/sent.html", log=log, appt=None, back_url=back)
+
+
+@patients_bp.route("/coverage/expiring/remind-all", methods=["POST"])
+@module_required(MODULE)
+def remind_all_cards():
+    """Remind every family on the list with a number that was not reminded in
+    the last week. A button a person presses — never sent by itself."""
+    from app.utils import coverage_card
+
+    within = request.form.get("days", type=int) or coverage_card.SOON_DAYS
+    within = within if within in (7, 14, 30, 60) else coverage_card.SOON_DAYS
+    logs = coverage_card.remind_all(coverage_card.expiring(within), user=current_user,
+                                    lang=getattr(g, "lang", "ar"))
+    if not logs:
+        flash(t("card.remind_none"), "info")
+        return redirect(url_for("patients.expiring_cards", days=within))
+    ActivityLog.record("card.remind_all", user_id=current_user.id,
+                       detail=str(len(logs)), ip_address=client_ip())
+    db.session.commit()
+    flash(t("card.remind_sent", n=len(logs)), "success")
+    return redirect(url_for("messages.index"))
 
 
 @patients_bp.route("/coverage/<int:coverage_id>/delete", methods=["POST"])

@@ -2,6 +2,7 @@
 {% set board_tabs = [('medical', 'reports.medical_board', current_user.can_open('reports')),
                      ('management', 'reports.management_board', current_user.can_open('reports') and current_user.can('finance_manage')),
                      ('consumption', 'reports.consumption_board', current_user.can_open('reports') and (current_user.can_open('inventory') or current_user.can_open('labs') or current_user.can_open('ai') or current_user.can('finance_manage'))),
+                     ('hospital', 'reports.hospital_board', current_user.can_open('reports') and (module_enabled('emergency') or module_enabled('theatres') or module_enabled('icu') or module_enabled('nicu') or module_enabled('beds'))),
                      ('mine', 'visits.mine', current_user.can_open('visits') and current_user.can('patient_medical'))] %}
 {% if board_tabs|selectattr(2)|list|length > 1 %}
 <div class="mb-tabs" role="tablist" data-board-tabs>

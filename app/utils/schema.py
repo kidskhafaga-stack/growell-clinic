@@ -1077,6 +1077,9 @@ ADDITIONS = [
     ("invoice_items", "contract_group_id", "INTEGER"),
     ("invoice_items", "group_discount", "FLOAT"),
     ("payer_contracts", "share_before_discount", "BOOLEAN"),
+    # The doctor first saw the child (HOSPITAL_PLAN.md ٥‑د).
+    ("emergency_visits", "seen_at", "DATETIME"),
+    ("emergency_visits", "seen_by_id", "INTEGER"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

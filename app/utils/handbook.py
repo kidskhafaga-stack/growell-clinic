@@ -2513,7 +2513,10 @@ SECTIONS = [
              "من الخدمة اللي الشركة بتغطيها، والخدمة اللي محتاجة موافقة بتستنى الموافقة، والفاتورة "
              "مش بتتحول لو هتعمل على الأهل فلوس. و«كاش نهائي» للي مش هيجددوا. الإقامة بتتحسب "
              "بيوم الدخول. وقايمة «كروت "
-             "التأمين اللي هتنتهي» (من التقارير أو ملف الطفل) عشان تكلّم الأهل قبل الزيارة.",
+             "التأمين اللي هتنتهي» (من التقارير أو ملف الطفل) عشان تكلّم الأهل قبل الزيارة — "
+             "ومنها «ذكّر الأهل» لأسرة واحدة، أو «ذكّر كل اللي في القايمة» (ما عدا اللي اتبعتلهم "
+             "الأسبوع ده واللي ملهمش رقم): رسالة «تذكير بتجديد كارت التأمين» اللي بتتكتب في "
+             "قوالب الرسايل، بالواتساب أو الـSMS زي باقي الرسايل، والصف بيكتب إمتى اتبعتت.",
              "<b>The insurance card and reception:</b> in the child's file (Family → "
              "Insurance) the card holds the membership number, the plan, the subscription "
              "holder and relation, the issue and expiry dates and its photo front and back. "
@@ -2528,7 +2531,11 @@ SECTIONS = [
              "approval waits for it, and a bill is never converted into a debt for the "
              "family. «Cash for good» is for a family that will not renew. A stay is judged "
              "on its first day. «Insurance cards running "
-             "out» (from Reports or the child's file) is the list to call families from."),
+             "out» (from Reports or the child's file) is the list to call families from — "
+             "and to message them: «Remind the family» for one, or «Remind everyone on the "
+             "list» (except those reminded this week and those with no number), with the "
+             "«Insurance card renewal reminder» template written under message templates, "
+             "by WhatsApp or SMS like every other message; the row says when it went."),
             ("<b>الجهات</b> (تأمين/نادي/نقابة) وجدول التغطية لكل خدمة.",
              "<b>Payers</b> (insurer / club / syndicate) and the per-service "
              "benefits table."),
@@ -2770,6 +2777,26 @@ SECTIONS = [
              "words go to the assistant; doctors and payers named in the question are "
              "matched inside the program. «Explain the result» sends the table's "
              "figures, doctors as codes."),
+            ("<b>مؤشرات المستشفى</b> (التقارير ← مؤشرات المستشفى) — بتظهر بس لو عندك قسم "
+             "من الأقسام دي شغال، وكل جزء مع قسمه: <b>الطوارئ</b> — من الوصول للفرز، ومن الوصول "
+             "للطبيب، ومدة البقاء (الوسيط)، واللي مشي قبل ما يتشاف، واللي رجع خلال ٧٢ ساعة؛ و«الطبيب "
+             "شافه» بيتسجّل بزرار «الطبيب شاف الطفل» في صفحة الحضور، أو لوحده من أول أمر يكتبه "
+             "الطبيب. <b>العمليات</b> — الوقت المستخدم من المحجوز، وأول عملية في اليوم في ميعادها، "
+             "والوقت بين عملية والتانية، والإلغاء والتأجيل وأسبابهم. <b>العناية والحضانة</b> — "
+             "اللي رجعوا خلال ٤٨ ساعة من الخروج. <b>السلامة</b> — السقوط وقرح الفراش وأخطاء "
+             "الأدوية اللي وصلت للطفل لكل ١٠٠٠ يوم إقامة، من البلاغات زي ما اتكتبت. أرقام مش "
+             "أحكام، وجنب كل رقم نفس المدة اللي قبلها.",
+             "<b>Hospital indicators</b> (Reports → Hospital indicators) — shown only "
+             "with one of these departments running, each part with its own: "
+             "<b>Emergency</b> — arrival to triage, arrival to doctor and length of stay "
+             "(medians), left unseen, back within 72 hours; «seen by a doctor» is "
+             "recorded by «Doctor has seen the child» on the attendance, or by itself "
+             "from the doctor's first order. <b>Theatres</b> — time used of time booked, "
+             "the first case of the day on time, changeover between cases, and "
+             "cancellations and postponements with their reasons. <b>ICU and NICU</b> — "
+             "back within 48 hours of leaving. <b>Safety</b> — falls, pressure injuries "
+             "and medication errors reaching the child per 1000 bed days, from the "
+             "reports as filed. Numbers, not judgements, each beside the stretch before."),
             ("<b>لوحة الاستهلاك</b> (التقارير ← الاستهلاك): استهلكنا أد إيه "
              "وبكام في أي فترة، جنب نفس المدة اللي قبلها — المخزن كله (حسب "
              "القسم والمخزن ونوع الصنف)، والأدوية، ومستهلكات المعمل (وتكلفة كل "

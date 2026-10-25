@@ -378,3 +378,66 @@ def history(patient):
     """Every card the child has had, newest first — renewals included."""
     cards = list(getattr(patient, "coverages", []) or [])
     return sorted(cards, key=lambda c: (c.created_at or datetime.min, c.id), reverse=True)
+
+
+# ------------------------------------------- the reminder to the family -----
+#: The message the family gets (`models.message`), its own type so a clinic can
+#: word it, switch it off, or send it by SMS without touching the others.
+REMINDER = "card_expiring"
+#: A family reminded this recently is not offered again by «remind them all».
+REMIND_AGAIN_DAYS = 7
+
+
+def last_reminded(patient_ids):
+    """``{patient_id: datetime}`` — the last card reminder each family got
+    (sent, linked or queued; a skipped or failed one does not count)."""
+    from app.extensions import db
+    from app.models import MessageLog
+
+    ids = [i for i in patient_ids if i]
+    if not ids:
+        return {}
+    found = (db.session.query(MessageLog.patient_id, db.func.max(MessageLog.created_at))
+             .filter(MessageLog.patient_id.in_(ids),
+                     MessageLog.template_type == REMINDER,
+                     MessageLog.status.notin_(("failed", "skipped")))
+             .group_by(MessageLog.patient_id).all())
+    return dict(found)
+
+
+def remind(card, user=None, lang="ar"):
+    """Send the family the card reminder. Returns the message log — whatever
+    it says (sent, a link to press, skipped because the family opted out,
+    failed for want of a number); the caller commits."""
+    from app.models import Setting
+    from app.utils import whatsapp as wa
+
+    patient = card.patient
+    payer = card.payer
+    body = wa.render(wa.template_body(REMINDER, getattr(patient, "gender", None)), {
+        "patient": patient.display_name(lang),
+        "payer": payer.display_name(lang) if payer else "",
+        "expiry_date": card.expiry_date.isoformat() if card.expiry_date else "—",
+        "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
+    })
+    return wa.send(body, patient.contact_phone, patient_id=patient.id,
+                   user_id=getattr(user, "id", None), template_type=REMINDER,
+                   image_url=wa.template_image(REMINDER))
+
+
+def remind_all(rows, user=None, lang="ar", today=None):
+    """Remind every family on the list that has a number and was not reminded
+    in the last :data:`REMIND_AGAIN_DAYS` days. Returns the logs."""
+    from datetime import datetime as _dt
+
+    last = last_reminded([r["patient"].id for r in rows])
+    since = _dt.utcnow() - timedelta(days=REMIND_AGAIN_DAYS)
+    logs = []
+    for r in rows:
+        when = last.get(r["patient"].id)
+        if when is not None and when >= since:
+            continue
+        if not r["patient"].contact_phone:
+            continue
+        logs.append(remind(r["card"], user=user, lang=lang))
+    return logs
