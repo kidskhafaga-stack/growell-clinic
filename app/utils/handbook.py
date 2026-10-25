@@ -3199,6 +3199,24 @@ SECTIONS = [
              "the latest backup has a problem, the bell tells the "
              "administrator, and a restore refuses a backup with a problem "
              "before touching the data."),
+            ("<b>فحص الفلوس بالقرش</b> (أدوات البيانات ← «فحص الفلوس بالقرش»): "
+             "كل حساب فلوس في البرنامج بقى بالقرش، والتقريب نص لفوق (١٥٪ من "
+             "٠٫٥٠ = ٠٫٠٨)، والمبلغ اللي فيه أكتر من رقمين بعد العلامة بيترفض بدل ما "
+             "يتقرّب من غير ما حد يعرف. الشاشة بتدوّر على أي مبلغ متخزن بكسور زيادة "
+             "من قبل، وبتتأكد إن القيود مقفولة ومفيش فاتورة متدفع فيها أكتر من "
+             "قيمتها؛ و«قرّب للقرش» بياخد نسخة احتياطية قبل وبعد ويسجّل كل رقم اتغير. "
+             "والحسابات اللي بالسالب (موظف أو أسرة هيتحاسبوا بعدين) بتتعرض بس وما "
+             "بتتغيرش.",
+             "<b>Money check to the piastre</b> (Data tools → «Money check to "
+             "the piastre»): every money calculation is now done in piastres, "
+             "rounded half up (15% of 0.50 = 0.08), and an amount typed with "
+             "more than two places after the point is refused instead of being "
+             "rounded unseen. The screen looks for any amount stored earlier with "
+             "extra decimals, checks that journal entries balance and that no "
+             "invoice took more than it came to; «Round to the piastre» takes a "
+             "backup before and after and records every figure it changes. "
+             "Accounts below zero (staff or a family who will settle later) are "
+             "shown only, never changed."),
             ("<b>أنواع الزيارات</b> و<b>الأجهزة</b> وأدوات البيانات — "
              "و<b>منطقة الخطر</b> لمسح كل البيانات (بتتطلب كتابة DELETE).",
              "<b>Visit types</b>, <b>devices</b> and data tools — plus a "

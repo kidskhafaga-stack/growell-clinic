@@ -9,6 +9,7 @@ fee sold together).
 from datetime import datetime
 
 from app.extensions import db
+from app.utils import money
 
 SERVICE_CATEGORIES = [
     "consultation", "procedure", "vaccination_fee", "booking",
@@ -395,7 +396,7 @@ class Service(db.Model):
         """Doctor's cut of ``amount`` for this service (never exceeds amount)."""
         ctype, cval = self.commission_for(doctor)
         if ctype == "percent":
-            return round(max(amount, 0) * (cval or 0) / 100.0, 2)
+            return money.percent(max(amount, 0), cval or 0)
         if ctype == "fixed":
             return round(min(cval or 0, max(amount, 0)), 2)
         return 0.0

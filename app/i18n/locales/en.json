@@ -15525,5 +15525,36 @@
     "unit_recovery": "Recovery",
     "unit_None": "No unit",
     "not_here": "Stays, occupancy, deaths, readmissions and emergency triage are on the medical board. Deaths against severity are still to come — the scoring scale's licence must be confirmed first."
+  },
+  "money": {
+    "too_precise": "The amount has more than two places after the point — write it to the piastre (for example 12.35). Nothing was recorded."
+  },
+  "money_check": {
+    "title": "Money check to the piastre",
+    "intro": "Every stored amount should be to the piastre (two places after the point at most), and the books should balance. This check only reads; nothing changes until you press «Round to the piastre».",
+    "door_hint": "Looks for any stored amount with more than two places after the point, checks that every journal entry balances, and that no invoice took more than it came to.",
+    "open": "Open the check",
+    "stored_title": "Stored amounts",
+    "stored_hint": "{n} money columns were checked.",
+    "where": "Where",
+    "stored": "Stored",
+    "becomes": "Becomes",
+    "more": "and {n} more not shown here — they are fixed with the rest.",
+    "fix_btn": "Round to the piastre ({n})",
+    "fix_confirm": "A backup is taken before and after, and every figure is recorded with what it was and what it became. Continue?",
+    "clean": "Every stored amount is to the piastre — nothing to fix.",
+    "fixed": "{n} amounts rounded to the piastre, each recorded in the activity log.",
+    "nothing_to_fix": "No amount needs rounding.",
+    "backups": "Backup before: {before} — backup after: {after}",
+    "totals_match": "Totals before and after are equal to the piastre",
+    "totals_differ": "Totals before and after differ — review the two backups",
+    "books_title": "The books",
+    "unbalanced": "{n} journal entries whose debits and credits differ:",
+    "balanced": "Every journal entry balances to the piastre.",
+    "overpaid": "{n} invoices took more than they came to:",
+    "not_overpaid": "No invoice took more than it came to.",
+    "owing_title": "Accounts below zero, waiting to be settled",
+    "owing_hint": "Not an error: staff or a family who took a service before paying and will settle later. Shown only; the check never changes them.",
+    "owing_none": "No account is below zero."
   }
 }

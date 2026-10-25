@@ -26,6 +26,7 @@ Asked as *«بيانات الكارت الى بتبقى موجوده فى الت
 from datetime import datetime, timedelta
 
 from app.extensions import db
+from app.utils import money
 
 #: Reception is told this many days before a card runs out.
 SOON_DAYS = 14
@@ -284,7 +285,7 @@ def _named_share(item, disc):
     amount = disc.amount_for(item.gross)
     service = item.service
     if service is not None and service.max_discount:
-        amount = min(amount, round(item.gross * service.max_discount / 100.0, 2))
+        amount = min(amount, money.percent(item.gross, service.max_discount))
     return max(round(amount, 2), 0)
 
 

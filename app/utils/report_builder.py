@@ -31,6 +31,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 from app.extensions import db
+from app.utils import money
 
 #: Rows shown before the rest are folded into «the rest».
 MAX_ROWS = 60
@@ -240,9 +241,11 @@ def _lines(d_from, d_to, ctx):
     for (price, qty, dv, pct, payer_amount, line_doc, sid, desc, sdate, idate, inv_doc,
          payer_id, pid, sname, sname_en, cat) in q.all():
         # The line's own arithmetic, exactly as InvoiceItem works it out.
-        gross = round((price or 0) * (qty or 1), 2)
-        disc = round(gross * (dv or 0) / 100.0, 2) if pct else round(min(dv or 0, gross), 2)
-        net = round(gross - disc, 2)
+        gross_p = money.times_piastres(money.piastres(price), qty or 1)
+        disc_p = (money.percent_piastres(gross_p, dv or 0) if pct
+                  else min(money.piastres(dv), gross_p))
+        gross, disc = money.pounds(gross_p), money.pounds(disc_p)
+        net = money.pounds(gross_p - disc_p)
         if not payer_id:
             cover = 0.0
         elif payer_amount is None:

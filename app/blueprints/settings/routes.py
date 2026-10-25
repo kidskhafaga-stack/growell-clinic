@@ -1254,6 +1254,39 @@ def data_tools():
                            ex_to=request.args.get("to", ""))
 
 
+@settings_bp.route("/data/money-check", methods=["GET", "POST"])
+@admin_required
+def money_check():
+    """Every stored amount to the piastre, and the books balanced
+    (MONEY_SAFETY_PLAN.md ف-٤, `utils/money_check`).
+
+    Read on GET. «Round to the piastre» (POST) takes a backup, writes each
+    change with an activity line naming the row and the figures before and
+    after, compares the totals, and takes a second backup.
+
+    A family or a member of staff whose account is below zero is **listed,
+    never changed**: «فى ناس زي العاملين ممكن ياخدو خدمة وتفضل بالسالب لغاية
+    ما يتسوى الحساب» — that is a debt waiting to be settled, not an error.
+    """
+    from app.utils import money_check as check
+
+    result = None
+    if request.method == "POST":
+        result = check.fix(user=current_user, ip_address=client_ip())
+        if result["changed"]:
+            flash(t("money_check.fixed", n=len(result["changed"])),
+                  "success" if result["totals_match"] else "danger")
+        else:
+            flash(t("money_check.nothing_to_fix"), "info")
+    report = check.scan()
+    from app.models import Patient
+
+    owing = {p.id: p for p in Patient.query.filter(
+        Patient.id.in_(report["negative"] or [0])).all()}
+    return render_template("settings/money_check.html", report=report,
+                           result=result, owing=owing)
+
+
 @settings_bp.route("/data/export/<kind>")
 @admin_required
 def data_export(kind):

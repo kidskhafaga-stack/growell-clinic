@@ -28,6 +28,7 @@ from app.extensions import db
 from app.i18n import t
 from app.utils.decorators import admin_required, capability_required, module_required
 from app.utils.clock import local_today
+from app.utils import money
 
 MODULE = "reports"
 
@@ -555,7 +556,7 @@ def vat_summary():
     for inv in invoices:
         base = inv.total
         if inv.is_tax:
-            vat = round(base * rate / 100.0, 2)
+            vat = money.percent(base, rate)
             taxable_base += base
             output_vat += vat
             tax_count += 1
