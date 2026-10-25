@@ -61,6 +61,14 @@ HOSPITAL_PARTS = ("beds", "emergency", "nicu", "icu", "ward", "theatres",
                   "ambulance")
 
 
+def find_on() -> bool:
+    """Whether the search at the top of the menu is drawn. On until the
+    administration switches it off, for the whole clinic (Settings → logo)."""
+    from app.models import Setting
+
+    return Setting.get("nav_find", "1") != "0"
+
+
 def in_sections() -> bool:
     """Whether the menu is drawn in sections: only with a hospital part on."""
     from app.utils.facility import module_enabled

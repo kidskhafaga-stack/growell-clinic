@@ -882,10 +882,11 @@ def nav_find():
     so a child found on the list is found here.
     """
     from app.models import Patient
+    from app.utils.nav_menu import find_on
     from app.utils.patients import apply_patient_search
 
     q = (request.args.get("q") or "").strip()
-    if len(q) < 2 or not current_user.can_open("patients"):
+    if len(q) < 2 or not find_on() or not current_user.can_open("patients"):
         return jsonify([])
     lang = getattr(g, "lang", "ar")
     rows = (apply_patient_search(

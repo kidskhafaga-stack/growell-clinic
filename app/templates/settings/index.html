@@ -387,6 +387,17 @@
       </div>
     </div>
 
+    {# The side menu's search (DOCTOR_EASE_PLAN.md ب-٩): on for every clinic
+       until the administration switches it off for everybody. #}
+    <hr style="border:none;border-top:1px solid var(--line);margin:18px 0;">
+    <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-search"></i> {{ t('settings.nav_title') }}</h3>
+    <div class="form-row checkbox" data-nav-find-setting>
+      <input type="checkbox" id="nav_find" name="nav_find" value="1"
+             {{ 'checked' if values.get('nav_find','1') != '0' else '' }}>
+      <label for="nav_find" style="margin:0;font-weight:400;">{{ t('settings.nav_find') }}</label>
+    </div>
+    <p class="hint" style="margin:-4px 0 0;">{{ t('settings.nav_find_hint') }}</p>
+
     <hr style="border:none;border-top:1px solid var(--line);margin:18px 0;">
     <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-receipt"></i> {{ t('settings.thermal_title') }}</h3>
     <div class="form-row">

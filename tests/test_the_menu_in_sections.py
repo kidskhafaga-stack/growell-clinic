@@ -146,3 +146,43 @@ def test_the_phone_menu_opens_in_arabic_too():
     with open(os.path.join(ROOT, "app", "static", "css", "theme.css"), encoding="utf-8") as fh:
         css = fh.read()
     assert 'body[dir="rtl"] .sidebar.is-open { transform: none; }' in css
+
+
+def test_the_search_reads_a_phone_and_a_parents_name_like_the_list(clinic):
+    """The same search as the patients' list (`apply_patient_search`): a
+    phone in any digits, and the name of a parent, find the child."""
+    from app.models import Family, Parent, Patient
+
+    with clinic["app"].app_context():
+        db = clinic["db"]
+        fam = Family(family_name="سامح")
+        db.session.add(fam)
+        db.session.flush()
+        db.session.add(Parent(family_id=fam.id, full_name="منى سامح", relation="mother",
+                              phone="01001234567"))
+        kid = db.session.get(Patient, clinic["ids"]["child"])
+        kid.family_id = fam.id
+        db.session.commit()
+    boss = clinic["sign_in"]("boss")
+    for q in ("01001234567", "٠١٠٠١٢٣٤٥٦٧", "منى سامح"):
+        rows = boss.get(f"/nav/find?q={q}").get_json()
+        assert [r["number"] for r in rows] == ["P1"], q
+
+
+def test_the_administration_can_switch_the_search_off_for_everybody(clinic):
+    """Asked: «هل اقدر افعل او اوقف البحث؟» — and who decides: the
+    administration, for the whole clinic. On until then."""
+    from app.models import Setting
+
+    boss = clinic["sign_in"]("boss")
+    settings = boss.get("/settings/").get_data(as_text=True)
+    assert "data-nav-find-setting" in settings
+    box = settings[settings.index('id="nav_find"'):][:200]
+    assert "checked" in box, "the search is on until somebody switches it off"
+    with clinic["app"].app_context():
+        Setting.set("nav_find", "0")
+        clinic["db"].session.commit()
+    for who in ("boss", "doc", "desk"):
+        page = clinic["sign_in"](who).get("/dashboard").get_data(as_text=True)
+        assert 'class="navfind"' not in page and "data-nav-find>" not in page, who
+    assert boss.get("/nav/find?q=طفل").get_json() == []

@@ -166,6 +166,7 @@
 
     {# The search: pages among the doors above, children from `main.nav_find`.
        Ctrl+K from anywhere; on the rail the box opens the menu first. #}
+    {% if nav_find_on() %}
     <div class="navfind" x-data='navFind({{ url_for('main.nav_find') | tojson }})'
          x-on:keydown.window="hotkey($event)" x-on:click.outside="open = false" data-nav-find>
       <i class="bi bi-search" x-on:click="wake()"></i>
@@ -190,6 +191,7 @@
           <div class="navfind__none">{{ t('nav.find_none') }}</div></template>
       </div>
     </div>
+    {% endif %}
 
     {% set sections = nav_arrange(doors) if nav_in_sections() else [] %}
     {% set here = namespace(section='') %}
@@ -553,7 +555,7 @@
         if (visible(el)) rows.push([letter(el.getAttribute('data-key')), el.getAttribute('data-key-label') || el.textContent.trim()]);
       });
       rows.push(['[', document.getElementById('keysBox').getAttribute('data-sidebar')]);
-      rows.push(['Ctrl + K', document.getElementById('keysBox').getAttribute('data-find')]);
+      if (document.querySelector('[data-nav-find]')) rows.push(['Ctrl + K', document.getElementById('keysBox').getAttribute('data-find')]);
       rows.push(['?', document.getElementById('keysBox').getAttribute('data-this')]);
       return rows;
     }
