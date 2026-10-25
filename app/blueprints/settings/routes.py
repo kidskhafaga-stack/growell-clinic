@@ -1404,8 +1404,49 @@ def backup_create():
     ActivityLog.record("backup.create", user_id=current_user.id,
                        entity="system", detail=name, ip_address=client_ip())
     db.session.commit()
-    flash(t("backups.created"), "success")
-    return redirect(url_for("settings.data_tools"))
+    # Every copy is opened and checked as it is made (`verify_backup`). One
+    # that fails is said to fail here, in the moment somebody is looking.
+    from app.utils.backups import read_check
+    check = read_check(name) or {}
+    if check.get("ok"):
+        flash(t("backups.created_checked"), "success")
+    else:
+        flash(t("backups.created_check_failed",
+                why=t("backups.why_" + (check.get("reason") or "unreadable"))),
+              "danger")
+    return redirect(url_for("settings.data_tools", _anchor="backup"))
+
+
+@settings_bp.route("/data/backup/<name>/verify", methods=["POST"])
+@admin_required
+def backup_verify(name):
+    """Open a copy the way a restore would and say whether it is whole —
+    the same check every copy gets as it is made, on demand: before it goes
+    onto a flash drive, after it comes back from one, or just to be sure."""
+    from flask import abort
+
+    from app.utils.backups import backup_path, verify_backup
+
+    if not backup_path(name):
+        abort(404)
+    password = (request.form.get("password") or "").strip() or None
+    check = verify_backup(name, password=password)
+    ActivityLog.record("backup.verify", user_id=current_user.id,
+                       entity="system",
+                       detail=f"{name} {'ok' if check['ok'] else check['reason']}",
+                       ip_address=client_ip())
+    db.session.commit()
+    if check["ok"]:
+        counts = check.get("counts") or {}
+        flash(t("backups.check_ok", patients=counts.get("patients", 0),
+                visits=counts.get("visits", 0),
+                invoices=counts.get("invoices", 0),
+                files=check.get("files", 0)), "success")
+    else:
+        flash(t("backups.check_failed",
+                why=t("backups.why_" + (check["reason"] or "unreadable"))),
+              "danger")
+    return redirect(url_for("settings.data_tools", _anchor="backup"))
 
 
 @settings_bp.route("/data/backup/upload", methods=["POST"])
@@ -1471,7 +1512,14 @@ def backup_restore(name):
         # by a newer version of the program.
         keys = {"bad_password": "backups.bad_password",
                 "backup_newer": "backups.newer_refused"}
-        flash(t(keys.get(str(exc), "backups.restore_failed")), "danger")
+        if str(exc) == "backup_broken":
+            # Refused before anything was touched — say that, and why.
+            from app.utils.backups import read_check
+            why = (read_check(name) or {}).get("reason") or "unreadable"
+            flash(t("backups.broken_refused", why=t("backups.why_" + why)),
+                  "danger")
+        else:
+            flash(t(keys.get(str(exc), "backups.restore_failed")), "danger")
         return redirect(url_for("settings.data_tools"))
     except Exception:  # noqa: BLE001 - surfaced to the admin as a flash
         flash(t("backups.restore_failed"), "danger")

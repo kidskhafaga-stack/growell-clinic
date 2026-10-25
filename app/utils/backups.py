@@ -43,6 +43,8 @@ import shutil
 import sqlite3
 import tempfile
 import zipfile
+import zlib
+from contextlib import closing
 from datetime import datetime
 
 import pyzipper
@@ -61,6 +63,14 @@ FILES_PREFIX = "uploads/"
 # say where it came from is a backup you restore by guessing — which is the
 # gap behind "I restored a backup and got a load of problems".
 MANIFEST_ENTRY = "manifest.json"
+# What the last check of an archive found, kept beside it rather than in the
+# database: a restore replaces the database, and the record of which copies
+# are sound must not be replaced with it.
+CHECK_SUFFIX = ".check.json"
+# Counted in a checked copy and shown beside it, so a person can see the copy
+# holds the clinic they expect — a sound file holding last year's clinic, or
+# an empty one, is not the copy they think it is.
+COUNTED_TABLES = ("patients", "visits", "invoices")
 
 
 def db_path():
@@ -176,19 +186,25 @@ def create_backup(reason="manual", kind=None):
     tmp_db = os.path.join(tempfile.mkdtemp(prefix="gc-backup-"), DB_ENTRY)
     try:
         _snapshot_db(tmp_db)
+        uploads = list(_upload_files()) if with_files else []
+        manifest = _manifest_for("full" if with_files else "db")
+        # How many files went in, so a check can tell an archive that holds
+        # them all from one that lost some on the way.
+        manifest["files"] = len(uploads)
         with _zip_writer(dest, backup_password()) as zf:
             zf.write(tmp_db, DB_ENTRY)
-            zf.writestr(MANIFEST_ENTRY, json.dumps(
-                _manifest_for("full" if with_files else "db"), indent=2))
-            if with_files:
-                for rel, path in _upload_files():
-                    zf.write(path, FILES_PREFIX + rel)
+            zf.writestr(MANIFEST_ENTRY, json.dumps(manifest, indent=2))
+            for rel, path in uploads:
+                zf.write(path, FILES_PREFIX + rel)
     except Exception:
         if os.path.isfile(dest):
             os.remove(dest)
         raise
     finally:
         shutil.rmtree(os.path.dirname(tmp_db), ignore_errors=True)
+    # Read back at once. A copy is only a backup once it has been opened and
+    # found whole; until this, a clinic learned that on the day it restored.
+    verify_backup(name)
     return name
 
 
@@ -230,7 +246,8 @@ def list_backups():
                     "kind": _kind_from(info, files),
                     "encrypted": is_encrypted(path),
                     "app_version": info.get("app_version"),
-                    "generation": info.get("schema_generation")})
+                    "generation": info.get("schema_generation"),
+                    "check": read_check(fn)})
     out.sort(key=lambda b: b["name"], reverse=True)
     return out
 
@@ -279,18 +296,154 @@ def backup_path(name):
     return path if os.path.isfile(path) else None
 
 
-def _check_sqlite(path):
-    """Raise unless ``path`` is a healthy database of *this* application."""
+def _check_sqlite(path, full=False):
+    """Raise unless ``path`` is a healthy database of *this* application.
+
+    ``full`` runs SQLite's whole ``integrity_check`` — every page and every
+    index — instead of the quick one. Slower, and what a check that is going
+    to say «this copy is sound» owes the person reading it.
+    """
     with open(path, "rb") as fh:
         if fh.read(16) != b"SQLite format 3\x00":
             raise ValueError("not_sqlite")
-    with sqlite3.connect(path) as conn:
-        ok = conn.execute("PRAGMA quick_check").fetchone()
-        if not ok or ok[0] != "ok":
-            raise ValueError("corrupt")
-        if not conn.execute("SELECT 1 FROM sqlite_master "
-                            "WHERE type='table' AND name='users'").fetchone():
-            raise ValueError("wrong_app")
+    try:
+        with closing(sqlite3.connect(path)) as conn:
+            pragma = "integrity_check" if full else "quick_check"
+            ok = conn.execute(f"PRAGMA {pragma}").fetchone()
+            if not ok or ok[0] != "ok":
+                raise ValueError("corrupt")
+            if not conn.execute("SELECT 1 FROM sqlite_master "
+                                "WHERE type='table' AND name='users'").fetchone():
+                raise ValueError("wrong_app")
+    except sqlite3.DatabaseError as exc:
+        raise ValueError("corrupt") from exc
+
+
+def _table_counts(path):
+    """Rows in the tables a person recognises their clinic by."""
+    out = {}
+    with closing(sqlite3.connect(path)) as conn:
+        have = {r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}
+        for table in COUNTED_TABLES:
+            if table in have:
+                out[table] = conn.execute(
+                    f"SELECT count(*) FROM {table}").fetchone()[0]
+    return out
+
+
+# Why a copy failed its check, in the words the screen uses.
+CHECK_REASONS = ("not_found", "bad_password", "broken_zip", "files_missing",
+                 "not_sqlite", "corrupt", "wrong_app", "unreadable")
+
+
+def verify_backup(name, password=None, record=True):
+    """Open a copy the way a restore would, and say whether it is whole.
+
+    ``{"ok", "reason", "at", "counts", "files", "bad_entry"}``. Never raises:
+    a check that crashes tells nobody anything.
+
+    What is checked, in the order a restore would trip over it:
+
+    * **the archive** — every entry is read and its checksum compared
+      (``testzip``): the database, the manifest and every photograph. A copy
+      cut short on a full disk, or damaged on the flash drive, fails here.
+    * **the passphrase** — an encrypted copy has to open with the one given
+      or configured. A copy written under an older passphrase is reported as
+      that, not as damaged: it is not, and the fix is the old words.
+    * **the files it says it holds** — the manifest's count against what is
+      in the archive, for copies written since the count existed.
+    * **the database** — SQLite's full integrity check, and that it is this
+      program's database at all.
+
+    And then what is in it — patients, visits, invoices, files — so a person
+    can see it is the clinic they expect.
+
+    With ``record`` the result is kept beside the copy (``CHECK_SUFFIX``)
+    for the backup screen and the bell.
+    """
+    result = {"ok": False, "reason": None,
+              "at": datetime.now().isoformat(timespec="seconds"),
+              "counts": {}, "files": 0, "bad_entry": None}
+    path = backup_path(name)
+    if not path:
+        result["reason"] = "not_found"
+        return result
+    tmp = None
+    try:
+        db_file = path
+        if path.endswith(".zip"):
+            with _zip_reader(path, password or backup_password()) as zf:
+                names = zf.namelist()
+                bad = zf.testzip()
+            if bad:
+                result["bad_entry"] = bad
+                raise ValueError("broken_zip")
+            result["files"] = sum(1 for n in names if n.startswith(FILES_PREFIX))
+            expected = read_manifest(name, password).get("files")
+            if isinstance(expected, int) and expected != result["files"]:
+                raise ValueError("files_missing")
+            tmp = _extract_db(path, password)
+            db_file = tmp
+        _check_sqlite(db_file, full=True)
+        result["counts"] = _table_counts(db_file)
+        result["ok"] = True
+    except RuntimeError:
+        # pyzipper's word for a passphrase that does not open the entry.
+        result["reason"] = "bad_password"
+    except (zipfile.BadZipFile, pyzipper.BadZipFile, EOFError, zlib.error):
+        result["reason"] = "broken_zip"
+    except ValueError as exc:
+        reason = str(exc)
+        result["reason"] = reason if reason in CHECK_REASONS else "corrupt"
+    except Exception:  # noqa: BLE001 - a check that crashes says nothing
+        result["reason"] = "unreadable"
+    finally:
+        if tmp:
+            shutil.rmtree(os.path.dirname(tmp), ignore_errors=True)
+    if record:
+        _write_check(name, result)
+    return result
+
+
+def _check_path(name):
+    return os.path.join(backup_dir(), name + CHECK_SUFFIX)
+
+
+def _write_check(name, result):
+    try:
+        with open(_check_path(name), "w", encoding="utf-8") as fh:
+            json.dump(result, fh, ensure_ascii=False)
+    except OSError:
+        pass        # the copy is still there; only its label could not be
+
+
+def read_check(name):
+    """What the last check of this copy found, or ``None`` if never checked."""
+    if not _NAME_RE.match(name or ""):
+        return None
+    try:
+        with open(_check_path(name), encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def newest_check():
+    """``(name, check)`` for the newest copy, without opening any archive.
+
+    For the bell, which asks every minute and a half: one directory listing
+    and one small file, never a zip.
+    """
+    try:
+        names = [fn for fn in os.listdir(backup_dir()) if _NAME_RE.match(fn)]
+    except OSError:
+        return None, None
+    if not names:
+        return None, None
+    newest = max(names)
+    return newest, read_check(newest)
 
 
 def save_uploaded_backup(file_storage, max_bytes=500 * 1024 * 1024,
@@ -333,6 +486,14 @@ def save_uploaded_backup(file_storage, max_bytes=500 * 1024 * 1024,
     finally:
         if tmp:
             shutil.rmtree(os.path.dirname(tmp), ignore_errors=True)
+    # And then whole, the way every other copy is: every entry's checksum,
+    # not only the database inside it.
+    check = verify_backup(name, password)
+    if not check["ok"]:
+        delete_backup(name)
+        raise ValueError({"bad_password": "bad_password",
+                          "wrong_app": "wrong_app",
+                          "not_sqlite": "not_sqlite"}.get(check["reason"], "corrupt"))
     return name
 
 
@@ -425,6 +586,10 @@ def delete_backup(name):
     path = backup_path(name)
     if path:
         os.remove(path)
+        try:
+            os.remove(_check_path(name))
+        except OSError:
+            pass
         return True
     return False
 
@@ -742,6 +907,14 @@ def restore_backup(name, password=None):
     live = db_path()
     if not live or not os.path.isfile(live):
         raise RuntimeError("database file not found")
+
+    # Checked whole before anything is replaced — every entry's checksum and
+    # the database's integrity. A copy that is damaged is refused here, with
+    # the clinic's data untouched, instead of being written over it.
+    check = verify_backup(name, password)
+    if not check["ok"]:
+        raise ValueError("bad_password" if check["reason"] == "bad_password"
+                         else "backup_broken")
 
     # Opened before anything is replaced. A wrong passphrase discovered after
     # the live database had been overwritten would be the worst possible

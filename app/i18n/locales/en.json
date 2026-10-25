@@ -3656,7 +3656,8 @@
     "adr_unreported": "Adverse drug reactions not yet reported",
     "drug_recalls": "Open drug recalls",
     "carts_late": "Emergency carts not restocked in time",
-    "drug_shortages": "Drug shortages"
+    "drug_shortages": "Drug shortages",
+    "backup_broken": "The latest backup failed its check — take a new one"
   },
   "analytics": {
     "title": "Patient analytics",
@@ -4132,7 +4133,26 @@
     "unlock_do": "Unlock future backups",
     "unlock_confirm": "Backups from now on will be taken unencrypted. Continue?",
     "unlock_denied": "Not unlocked: the password you typed does not match.",
-    "unlock_scope": "This affects future backups only. Archives already on disk keep the passphrase they were written with."
+    "unlock_scope": "This affects future backups only. Archives already on disk keep the passphrase they were written with.",
+    "created_checked": "Backup created and checked: it was opened, everything in it was read, and it is sound.",
+    "created_check_failed": "The backup was created but failed its check: {why}. Take another one, and make sure the disk has space.",
+    "check_ok": "The backup is sound — opened and read through: {patients} patients, {visits} visits, {invoices} invoices, {files} files.",
+    "check_failed": "This backup has a problem: {why}.",
+    "broken_refused": "This backup has a problem and will not be restored; the clinic's data was not touched: {why}.",
+    "verify_btn": "Verify",
+    "verify_hint": "Every backup is checked on its own as soon as it is made: it is opened, every file in it is read, photos included, and the database is checked to be sound and to belong to this program. «Verify» checks it again at any time — for example after bringing it back from a flash drive. A restore refuses any backup with a problem before touching the data.",
+    "check_ok_badge": "Sound",
+    "check_bad_badge": "Has a problem",
+    "check_none_badge": "Not checked yet",
+    "check_title": "Checked {at}: {patients} patients · {visits} visits · {invoices} invoices · {files} files",
+    "why_not_found": "the file is not there",
+    "why_bad_password": "the passphrase does not open it — it was probably made under an older passphrase; verify with that one",
+    "why_broken_zip": "the file is damaged and part of it cannot be read — it may have been cut short while being written, or damaged on the flash drive",
+    "why_files_missing": "it holds fewer photos and files than it says it does",
+    "why_not_sqlite": "what is inside is not a database",
+    "why_corrupt": "the database inside is damaged",
+    "why_wrong_app": "the database inside does not belong to this program",
+    "why_unreadable": "the backup could not be read"
   },
   "reception_guide": {
     "title": "Reception guide — visit & collection cycle",
