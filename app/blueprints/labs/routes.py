@@ -94,14 +94,27 @@ def index():
     state = (request.args.get("state") or "").strip() or None
     if state not in bench.OPEN_STATES:
         state = None
-    from app.utils import lab_reception
+    from app.utils import lab_reception, lab_sections
 
-    rows = bench.worklist(kind=bench.LAB, state=state)
+    # **Each bench its own list** (LAB_GLAB360_PLAN.md م-٥). Choosing a
+    # section is remembered for this person, so the haematology technician
+    # opens on haematology tomorrow too; «all» forgets it.
+    if "section" in request.args:
+        section = bench.choose_section(current_user, request.args.get("section"))
+    else:
+        section = bench.my_section(current_user)
+
+    rows = bench.worklist(kind=bench.LAB, state=state, section=section)
     return render_template("labs/index.html",
                            rows=rows, state=state,
                            refused=lab_reception.last_rejections(rows),
                            reason_label=lab_reception.reason_label,
-                           urgent_open=bench.urgent_count(bench.LAB),
+                           urgent_open=bench.urgent_count(bench.LAB, section=section),
+                           section=section,
+                           section_tabs=_section_tabs(section),
+                           section_name=(t("lab.section_unsorted")
+                                         if section == bench.UNSORTED
+                                         else lab_sections.name(section, getattr(g, "lang", "ar"))),
                            to_release=_release().waiting_count(),
                            sent_labs=bool(_sendout().laboratories()),
                            expired_lots=_reagents().expired_on_shelf(),
@@ -112,11 +125,30 @@ def index():
                            # Where the child is, when they are in a bed: the
                            # sample is drawn at the bed, not at the desk.
                            beds=bench.beds_of(rows),
-                           counts=bench.counts(bench.LAB), bench=bench,
+                           counts=bench.counts(bench.LAB, section=section), bench=bench,
                            now=datetime.utcnow(),
                            late=lab_results.late,
                            critical_open=len(lab_results.all_waiting()),
                            may_build=current_user.is_admin)
+
+
+def _section_tabs(chosen):
+    """``[(key, name, open, urgent)]`` — a tab for each section with work
+    waiting, the chosen one even when it has none, and «not sorted yet» when
+    a test in no section is waiting."""
+    from app.utils import lab_sections
+
+    lang = getattr(g, "lang", "ar")
+    found = bench.section_counts()
+    tabs = []
+    for key, name in lab_sections.choices(lang):
+        n, urgent = found.get(key, (0, 0))
+        if n or key == chosen:
+            tabs.append((key, name, n, urgent))
+    n, urgent = found.get(bench.UNSORTED, (0, 0))
+    if n or chosen == bench.UNSORTED:
+        tabs.append((bench.UNSORTED, t("lab.section_unsorted"), n, urgent))
+    return tabs
 
 
 @labs_bp.route("/order/<int:order_id>")

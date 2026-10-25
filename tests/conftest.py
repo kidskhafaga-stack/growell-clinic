@@ -173,6 +173,16 @@ def bell_held_warm(clinic, monkeypatch):
 
     monkeypatch.setattr(notifications, "_TTL", 10 ** 6)
     notifications.invalidate()
+    # والنسخة الاحتياطية التلقائية نفس الحكاية: كل خمس دقايق أول طلب بيسأل
+    # «جه ميعادها؟» وبيقرا ٤ إعدادات. لو الخمس دقايق خلصت جوّه القياس،
+    # الصفحة بتدفع ٤ استعلامات زيادة (اتقاس على CI: ٦٤ ← ٦٨) — والفرق
+    # الساعة مش الكود. فالسؤال بيتأجل طول الاختبار.
+    import time
+
+    from app.utils import backups
+
+    monkeypatch.setattr(backups, "_AUTO_CHECK_EVERY", 10 ** 9)
+    monkeypatch.setitem(backups._AUTO, "checked_at", time.time())
     with clinic["app"].app_context():
         notifications._all()
     try:

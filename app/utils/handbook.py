@@ -1257,6 +1257,17 @@ SECTIONS = [
         "icon": "eyedropper",
         "title": ("المعمل", "The lab"),
         "lines": [
+            ("<b>قايمة كل قسم</b>: فوق قايمة المعمل تبويب لكل قسم فيه شغل "
+             "مستني (أمراض الدم، الكيمياء، الهرمونات…) بعدده، وعلامة البرق لو فيه "
+             "مستعجل. اختار قسمك والقايمة تبقى بتاعته بس — المستعجل الأول وبعده "
+             "الأقدم — وبتفتح عليه المرة الجاية لحد ما تختار «كل الأقسام». "
+             "والتحليل اللي لسه ما اتحطش في قسم بيظهر تحت «من غير قسم».",
+             "<b>Each section's list</b>: above the lab's list, a tab for each "
+             "section with work waiting (haematology, chemistry, hormones…) with "
+             "its count, and the lightning mark when something is urgent. Pick "
+             "your section and the list is its own — urgent first, then the "
+             "oldest — and opens on it next time until you choose «All "
+             "sections». A test not yet in a section shows under «No section»."),
             ("<b>مكونات التحليل وأقسامه ومراجعه</b> (المعمل ← التحاليل): "
              "التحليل المعروف (بول، براز، صورة دم، صفراء، وظائف كبد وكلى، "
              "فيتامينات…) بيتعرض عليه مكوناته بأساميها ووحداتها من غير ولا "

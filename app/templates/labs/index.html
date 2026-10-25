@@ -20,6 +20,16 @@
   .lb-critical { border-color:var(--danger); color:var(--danger); }
   /* Urgent (GAHAR DAS.22): first on the list, and said on the row. */
   .lb-row.is-urgent { border-color:var(--danger); }
+  /* One tab per section with work waiting (LAB_GLAB360_PLAN.md م-٥). */
+  .lb-sections { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 10px; }
+  .lb-sec { display:inline-flex; align-items:center; gap:6px; padding:6px 12px;
+            border:1px solid var(--line); border-radius:999px; color:var(--ink);
+            background:var(--card); font-size:.88rem; text-decoration:none; }
+  .lb-sec .num { font-variant-numeric:tabular-nums; color:var(--muted); }
+  .lb-sec.on { background:var(--green-700); border-color:var(--green-700); color:#fff; }
+  .lb-sec.on .num { color:#fff; }
+  .lb-sec .bi-lightning-charge { color:var(--danger); }
+  .lb-sec.on .bi-lightning-charge { color:#fff; }
 </style>
 
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
@@ -55,6 +65,29 @@
 {% from "labs/_nav.html" import lab_nav with context %}
 {{ lab_nav('rack') }}
 
+{# **Each bench its own list** (LAB_GLAB360_PLAN.md م-٥): a tab per section
+   with work waiting, urgent marked. The choice is remembered for this person
+   — the haematology technician opens on haematology tomorrow too. #}
+{% if section_tabs %}
+<nav class="lb-sections" data-lab-sections aria-label="{{ t('lab.sections_label') }}">
+  <a class="lb-sec{{ ' on' if not section else '' }}" data-lab-section="all"
+     href="{{ url_for('labs.index', section='all', state=state) }}">{{ t('lab.section_all') }}</a>
+  {% for key, name, n, urgent in section_tabs %}
+  <a class="lb-sec{{ ' on' if section == key else '' }}" data-lab-section="{{ key }}"
+     href="{{ url_for('labs.index', section=key, state=state) }}">
+    {{ name }} <span class="num">{{ n }}</span>
+    {% if urgent %}<i class="bi bi-lightning-charge" title="{{ t('lab_reception.urgent_n', n=urgent) }}"></i>{% endif %}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+{% if section %}
+<p class="hint" style="margin:0 0 12px;" data-lab-section-note>
+  <i class="bi bi-funnel"></i> {{ t('lab.section_kept', name=section_name) }}
+  {% if section == 'none' and may_build %}
+  · <a href="{{ url_for('labs.sort_sections') }}">{{ t('lab.section_sort') }}</a>{% endif %}
+</p>
+{% endif %}
+
 {# **Scan to open.** A barcode reader types the tube's code and presses
    Enter; this box is focused on arrival so the bench scans without touching
    the mouse. #}
@@ -74,7 +107,7 @@
 {# "Nothing is waiting" is a real and good answer, and has to read as one
    rather than as a module that failed to load. #}
 <div class="card gc-scale-in">
-  <p class="hint" style="margin:0;">{{ t('lab.nothing_waiting') }}</p>
+  <p class="hint" style="margin:0;">{{ t('lab.nothing_in_section', name=section_name) if section else t('lab.nothing_waiting') }}</p>
 </div>
 {% else %}
 <div class="card gc-scale-in">
