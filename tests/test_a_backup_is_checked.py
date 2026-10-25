@@ -25,8 +25,12 @@ import pytest  # noqa: E402
 
 
 @pytest.fixture()
-def clinic(tmp_path):
-    """A real on-disk database (backups need a file) with an uploads folder."""
+def clinic(tmp_path, monkeypatch):
+    """A real on-disk database (backups need a file) with an uploads folder.
+
+    No passphrase, whatever the process environment holds: these tests open
+    archives with the plain `zipfile` module to damage them on purpose, and a
+    passphrase left behind by an earlier test would lock them shut."""
     import config as app_config
     from app import create_app
     from app.extensions import db
@@ -35,7 +39,8 @@ def clinic(tmp_path):
     original = app_config.DevelopmentConfig.SQLALCHEMY_DATABASE_URI
     app_config.DevelopmentConfig.SQLALCHEMY_DATABASE_URI = "sqlite:///" + str(db_file)
     app = create_app("development")
-    app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
+    monkeypatch.setenv("BACKUP_PASSWORD", "")
+    app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, BACKUP_PASSWORD="")
     static = tmp_path / "static"
     (static / "uploads" / "users").mkdir(parents=True)
     app.static_folder = str(static)
