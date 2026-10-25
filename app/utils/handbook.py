@@ -1451,6 +1451,23 @@ SECTIONS = [
         "icon": "mortarboard",
         "title": ("التعليم والأبحاث", "Teaching and research"),
         "lines": [
+            ("<b>تصدير بيانات البحث</b> (صفحة البروتوكول ← «تصدير بيانات البحث»): "
+             "بيطلع بس لبروتوكول موافق عليه من اللجنة وموافقته سارية، وللباحث بتاعه "
+             "أو المدير. الملف سطر لكل زيارة: كود ثابت بدل اسم الطفل، والسن بالشهور "
+             "بدل تاريخ الميلاد، والتشخيص والقياسات والأدوية، ومعاه ملف بيشرح كل "
+             "عمود. «المشتركين بموافقة الأهل» دايماً؛ و«مراجعة الملفات بأثر رجعي» "
+             "بس لو اللجنة علّمت عليها في قرارها. مفيش اسم ولا رقم ملف ولا تليفون "
+             "ولا تاريخ ولا كلام مكتوب بإيد. وكل تصدير بيتسجّل: مين وإمتى وكام طفل.",
+             "<b>Research data export</b> (the protocol's page → «Research data "
+             "export»): only for a protocol the committee approved, while the "
+             "approval holds, and for its investigator or the administration. One "
+             "row per visit: a stable code instead of the child's name, age in "
+             "months instead of the date of birth, the diagnoses, measurements and "
+             "medicines, with a file explaining each column. «Enrolled with "
+             "consent» always; «review of past records» only when the committee "
+             "ticked it in its decision. No name, file number, phone, date or "
+             "handwritten text. Every export is recorded: who, when, how many "
+             "children."),
             ("<b>كل متدرّب بمشرفه</b>: الطالب أو طبيب الامتياز أو النائب ما بيتسجّلش من "
              "غير المشرف اللي مسؤول عنه وحدود شغله. والتوجيه بند بند، وكل دورة بتقييمها، "
              "والتقييم بأداة واسم المقيّم — ومحدّش بيقيّم نفسه.",

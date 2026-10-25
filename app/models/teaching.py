@@ -132,6 +132,10 @@ class ResearchProtocol(db.Model):
     valid_until = db.Column(db.Date)
     decision_note = db.Column(db.Text)
     involves_children = db.Column(db.Boolean, default=True, nullable=False)
+    #: The committee allowed a review of past records (retrospective) — the
+    #: research export may then read every child the cohort's filters find,
+    #: not only the enrolled and consented ones (HOSPITAL_PLAN.md ٥‑د ت-٧).
+    record_review = db.Column(db.Boolean, default=False, nullable=False)
     #: ATH.09 (a) — who may be enrolled.
     eligibility = db.Column(db.Text, nullable=False)
     file = db.Column(db.String(255))
@@ -178,3 +182,23 @@ class ResearchSafetyEvent(db.Model):
     recorded_by = db.Column(db.Integer, db.ForeignKey("users.id"))
 
     participant = db.relationship("ResearchParticipant", back_populates="events")
+
+
+class ResearchExport(db.Model):
+    """One research export: who, when, for which protocol, how many children
+    and rows, and with which filters (HOSPITAL_PLAN.md ٥‑د ت-٧). No name and
+    no code goes in here — only the count."""
+    __tablename__ = "research_exports"
+
+    id = db.Column(db.Integer, primary_key=True)
+    protocol_id = db.Column(db.Integer, db.ForeignKey("research_protocols.id"),
+                            nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    mode = db.Column(db.String(12), nullable=False)      # participants | records
+    filters = db.Column(db.JSON, nullable=False, default=dict)
+    children = db.Column(db.Integer, nullable=False, default=0)
+    rows = db.Column(db.Integer, nullable=False, default=0)
+
+    protocol = db.relationship("ResearchProtocol")
+    user = db.relationship("User")

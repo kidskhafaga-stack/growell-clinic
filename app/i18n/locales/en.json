@@ -15556,5 +15556,30 @@
     "owing_title": "Accounts below zero, waiting to be settled",
     "owing_hint": "Not an error: staff or a family who took a service before paying and will settle later. Shown only; the check never changes them.",
     "owing_none": "No account is below zero."
+  },
+  "research_export": {
+    "title": "Research data export",
+    "intro": "A file for analysis (opens in Excel, SPSS or R) with one row per visit: a code instead of the name, age in months on the day instead of the date of birth, the diagnoses, measurements and medicines — with a file explaining every column. Every export is recorded.",
+    "mode": "Who is included",
+    "mode_participants": "Only the children enrolled with their guardian's consent",
+    "mode_records": "Review of past records (every child the filters find)",
+    "records_not_allowed": "the committee did not allow a record review",
+    "record_review_label": "The committee allowed a review of past records (the export reads every child the filters find, not only the enrolled ones)",
+    "age_from": "Age from (months)",
+    "age_to": "Age to (months)",
+    "dx": "Diagnosis (ICD code or a word)",
+    "year_from": "From year",
+    "year_to": "To year",
+    "download": "Download the file",
+    "never": "Never included: name, file number, national number, phone, address, date of birth, visit date, or anything typed by hand.",
+    "when": "When",
+    "who": "Who",
+    "children": "Children",
+    "rows": "Rows",
+    "refused_not_approved": "The protocol is not approved by the ethics committee yet — no export.",
+    "refused_lapsed": "The committee's approval has lapsed — no export until it is renewed.",
+    "refused_no_record_review": "The committee did not allow a review of past records — participants only.",
+    "refused_bad_mode": "Choice not understood.",
+    "refused_nobody": "No visit matches these filters."
   }
 }

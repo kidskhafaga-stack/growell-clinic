@@ -33,10 +33,58 @@
     <div class="form-row" style="margin:0;"><label for="pd_r">{{ t('teach.rec_reference') }}</label><input class="input" id="pd_r" name="rec_reference" maxlength="60" dir="ltr"></div>
     <div class="form-row" style="margin:0;"><label for="pd_a">{{ t('teach.approved_on') }}</label><input class="input" type="date" id="pd_a" name="approved_on" max="{{ today.isoformat() }}"></div>
     <div class="form-row" style="margin:0;"><label for="pd_v">{{ t('teach.valid_until') }}</label><input class="input" type="date" id="pd_v" name="valid_until"></div>
+    <label style="display:flex;gap:6px;align-items:center;grid-column:1/-1;margin:0;" data-record-review-box>
+      <input type="checkbox" name="record_review" value="1" {{ 'checked' if p.record_review else '' }}> {{ t('research_export.record_review_label') }}</label>
     <div class="form-row" style="margin:0;grid-column:1/-1;"><label for="pd_n">{{ t('teach.decision_note') }}</label><textarea class="input" id="pd_n" name="decision_note" rows="2" dir="auto"></textarea></div>
     <div><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
   </form></details>{% endif %}
 </div>
+
+{# HOSPITAL_PLAN.md ٥‑د ت-٧ — the study's data with no child named in it.
+   Only an approved protocol in its validity; the investigator or whoever runs
+   the clinic; every export recorded below. #}
+{% if may_export %}
+<div class="card gc-scale-in" id="export" style="margin-bottom:14px;" data-research-export>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-file-earmark-spreadsheet"></i> {{ t('research_export.title') }}</h2>
+  <p class="hint" style="margin:0 0 8px;max-width:80ch;">{{ t('research_export.intro') }}</p>
+  {% if export_refused %}
+  <p style="margin:0;color:var(--danger);" data-export-refused="{{ export_refused }}">{{ t('research_export.refused_' ~ export_refused) }}</p>
+  {% else %}
+  <form method="post" action="{{ url_for('teaching.protocol_export', protocol_id=p.id) }}"
+        style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));" data-export-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;grid-column:1/-1;">
+      <label>{{ t('research_export.mode') }}</label>
+      <label style="display:flex;gap:6px;align-items:center;margin:0;"><input type="radio" name="mode" value="participants" checked> {{ t('research_export.mode_participants') }}</label>
+      <label style="display:flex;gap:6px;align-items:center;margin:0;{{ '' if p.record_review else 'opacity:.55;' }}" data-mode-records>
+        <input type="radio" name="mode" value="records" {{ '' if p.record_review else 'disabled' }}> {{ t('research_export.mode_records') }}
+        {% if not p.record_review %}<span class="hint">({{ t('research_export.records_not_allowed') }})</span>{% endif %}</label>
+    </div>
+    <div class="form-row" style="margin:0;"><label for="rx_af">{{ t('research_export.age_from') }}</label><input class="input" id="rx_af" name="age_from" type="number" min="0" max="240" dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label for="rx_at">{{ t('research_export.age_to') }}</label><input class="input" id="rx_at" name="age_to" type="number" min="0" max="240" dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label for="rx_dx">{{ t('research_export.dx') }}</label><input class="input" id="rx_dx" name="dx" maxlength="60" dir="auto" placeholder="J21"></div>
+    <div class="form-row" style="margin:0;"><label for="rx_yf">{{ t('research_export.year_from') }}</label><input class="input" id="rx_yf" name="year_from" type="number" min="2000" max="2100" dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label for="rx_yt">{{ t('research_export.year_to') }}</label><input class="input" id="rx_yt" name="year_to" type="number" min="2000" max="2100" dir="ltr"></div>
+    <div style="grid-column:1/-1;"><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-download"></i> {{ t('research_export.download') }}</button></div>
+  </form>
+  <p class="hint" style="margin:8px 0 0;">{{ t('research_export.never') }}</p>
+  {% endif %}
+  {% if exports %}
+  <div style="overflow-x:auto;margin-top:10px;">
+    <table class="table" style="min-width:520px;" data-export-log>
+      <thead><tr><th>{{ t('research_export.when') }}</th><th>{{ t('research_export.who') }}</th>
+        <th>{{ t('research_export.mode') }}</th><th class="num">{{ t('research_export.children') }}</th><th class="num">{{ t('research_export.rows') }}</th></tr></thead>
+      <tbody>
+      {% for e in exports %}
+      <tr><td>{{ e.at|clinic_stamp }}</td><td>{{ e.user.display_name(current_lang) }}</td>
+        <td>{{ t('research_export.mode_' ~ e.mode) }}</td><td class="num">{{ e.children }}</td><td class="num">{{ e.rows }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
 
 <div class="card gc-scale-in" id="participants" data-participants>
   <h2 class="section-title" style="margin-top:0;"><i class="bi bi-people"></i> {{ t('teach.participants') }}</h2>

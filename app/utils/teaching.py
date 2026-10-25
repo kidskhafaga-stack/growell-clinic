@@ -245,6 +245,9 @@ def decide(protocol, form):
         protocol.rec_reference = ref
         protocol.approved_on = _when(form.get("approved_on"))
         protocol.valid_until = _when(form.get("valid_until"), need=False, future_ok=True)
+        # Whether the committee allowed a review of past records — what the
+        # research export may read beyond the consented participants (ت-٧).
+        protocol.record_review = form.get("record_review") == "1"
     protocol.state = state
     protocol.decision_note = _text(form.get("decision_note")) or protocol.decision_note
     db.session.flush()
