@@ -205,7 +205,7 @@
     "ambulance": "Ambulance",
     "telemedicine": "Telemedicine",
     "teaching": "Teaching and research",
-    "find_placeholder": "Find a page or a child…",
+    "find_placeholder": "Find a page or a name…",
     "find_pages": "Pages",
     "find_children": "Children",
     "find_none": "Nothing by that name",
@@ -15030,7 +15030,7 @@
     "this_list": "This list",
     "hint": "Letters work when the cursor is not in a box, with the keyboard on Arabic or English. Ctrl+S saves at any time.",
     "unsaved": "Something you typed is not saved. Leave the page without saving?",
-    "find": "Find a page or a child from the side menu"
+    "find": "Find a page, a name or a file number from the side menu"
   },
   "sms": {
     "title": "SMS messages",
