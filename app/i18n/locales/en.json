@@ -204,7 +204,17 @@
     "programs": "Care programmes",
     "ambulance": "Ambulance",
     "telemedicine": "Telemedicine",
-    "teaching": "Teaching and research"
+    "teaching": "Teaching and research",
+    "find_placeholder": "Find a page or a child…",
+    "find_pages": "Pages",
+    "find_children": "Children",
+    "find_none": "Nothing by that name",
+    "sec_clinic": "Clinic",
+    "sec_hospital": "Hospital",
+    "sec_money": "Money and stock",
+    "sec_quality": "Quality",
+    "sec_reports": "Reports and messages",
+    "sec_admin": "Administration"
   },
   "auth": {
     "login": "Login",
@@ -15016,7 +15026,8 @@
     "sidebar": "Show or hide the side menu",
     "this_list": "This list",
     "hint": "Letters work when the cursor is not in a box, with the keyboard on Arabic or English. Ctrl+S saves at any time.",
-    "unsaved": "Something you typed is not saved. Leave the page without saving?"
+    "unsaved": "Something you typed is not saved. Leave the page without saving?",
+    "find": "Find a page or a child from the side menu"
   },
   "sms": {
     "title": "SMS messages",

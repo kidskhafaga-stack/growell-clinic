@@ -917,6 +917,72 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
   box-shadow: 0 6px 18px rgb(0 0 0 / 22%);
 }
 
+/* --- the search at the top, and the sections that fold ------------------
+   `utils/nav_menu`. The sections exist only where a hospital department is
+   on; a clinic gets the search and its list as it was. */
+.navfind {
+  position: relative;
+  margin: 12px 12px 0;
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  padding: 0 10px;
+}
+.navfind > .bi { opacity: 0.75; }
+.navfind input {
+  flex: 1; min-width: 0;
+  background: transparent; border: 0; outline: 0;
+  color: #fff; padding: 9px 0; font: inherit; font-size: 0.9rem;
+}
+.navfind input::placeholder { color: rgba(255, 255, 255, 0.65); }
+.navfind input::-webkit-search-cancel-button { display: none; }
+.navfind kbd {
+  font: inherit; font-size: 0.66rem; white-space: nowrap; direction: ltr;
+  background: rgba(255, 255, 255, 0.16); color: rgba(255, 255, 255, 0.85);
+  border-radius: 5px; padding: 2px 5px;
+}
+.navfind:focus-within { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.45); }
+.navfind__panel {
+  position: absolute; inset-inline: 0; top: calc(100% + 6px);
+  background: var(--card, #fff); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 22%);
+  padding: 6px; z-index: 40; max-height: 60vh; overflow: auto;
+}
+.navfind__head { font-size: 0.7rem; letter-spacing: 0.3px; color: var(--muted); padding: 6px 8px 2px; }
+.navfind__row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 9px; border-radius: 8px; color: inherit; font-size: 0.9rem;
+}
+.navfind__row small { margin-inline-start: auto; color: var(--muted); }
+.navfind__row.on, .navfind__row:hover { background: var(--green-050); color: inherit; }
+.navfind__none { padding: 10px; color: var(--muted); font-size: 0.88rem; }
+
+.navsec { margin-bottom: 4px; }
+.navsec__head {
+  width: 100%;
+  display: flex; align-items: center; gap: 8px;
+  background: none; border: 0; cursor: pointer;
+  color: rgba(255, 255, 255, 0.66);
+  font: inherit; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.4px;
+  padding: 10px 10px 6px; border-radius: 8px;
+}
+.navsec__head small { background: rgba(255, 255, 255, 0.14); border-radius: 999px; padding: 0 7px; font-size: 0.68rem; }
+.navsec__head .bi { margin-inline-start: auto; transition: transform 0.15s; }
+.navsec:not(.is-open) .navsec__head .bi { transform: rotate(90deg); }
+body[dir="rtl"] .navsec:not(.is-open) .navsec__head .bi { transform: rotate(-90deg); }
+.navsec__head:hover, .navsec__head:focus-visible { color: #fff; }
+
+/* On the rail: the box is one icon that opens the menu, and a section is a
+   thin line between its icons rather than a word nobody can read. */
+.layout[data-sidebar="rail"] .navfind input,
+.layout[data-sidebar="rail"] .navfind kbd,
+.layout[data-sidebar="rail"] .navsec__head span,
+.layout[data-sidebar="rail"] .navsec__head small { display: none; }
+.layout[data-sidebar="rail"] .navfind { justify-content: center; padding: 9px 0; margin: 12px 8px 0; cursor: pointer; }
+.layout[data-sidebar="rail"] .navsec__head { justify-content: center; padding: 6px 0 2px; }
+
 /* --- the phone ---------------------------------------------------------- */
 .topbar__menu {
   display: none;
@@ -985,7 +1051,17 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
   .layout[data-sidebar="rail"] .nav-item > span:not(.nav-tip),
   .layout[data-sidebar="rail"] .sidebar__footer-line { display: flex; }
   .layout[data-sidebar="rail"] .nav-item { justify-content: flex-start; padding: 11px 14px; }
-  .sidebar.is-open { transform: none; }
+  .layout[data-sidebar="rail"] .navfind input,
+  .layout[data-sidebar="rail"] .navsec__head span,
+  .layout[data-sidebar="rail"] .navsec__head small { display: inline; }
+  .layout[data-sidebar="rail"] .navfind { justify-content: flex-start; padding: 0 10px; margin: 12px 12px 0; }
+  .layout[data-sidebar="rail"] .navsec__head { justify-content: flex-start; padding: 10px 10px 6px; }
+  .navfind kbd { display: none; }
+  /* `body[dir="rtl"] .sidebar` above outweighs `.sidebar.is-open`, so in
+     Arabic the drawer darkened the screen and stayed off its right edge:
+     the phone had a menu button that opened nothing. Both directions open. */
+  .sidebar.is-open,
+  body[dir="rtl"] .sidebar.is-open { transform: none; }
   .sidebar__scrim {
     display: block;
     position: fixed; inset: 0;

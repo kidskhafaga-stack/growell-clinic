@@ -22,50 +22,53 @@
     <h1 class="page-title">{{ t('patients.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('patients.list') }}</p>
   </div>
-  <div style="display:flex;gap:10px;">
-    <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.analytics') }}">
+  {# Ten doors in one row that never wrapped: at 1366 «إضافة مريض» sat half
+     off the screen, and on a phone seven of the ten could not be reached at
+     all. They wrap now, and the row takes the width the title leaves. #}
+  <div class="pl-tools" data-patient-tools>
+    <a class="btn btn-outline btn-sm gc-press gc-ripple" href="{{ url_for('patients.analytics') }}">
       <i class="bi bi-graph-up-arrow"></i> {{ t('analytics.title') }}
     </a>
-    <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.phones') }}">
+    <a class="btn btn-outline btn-sm gc-press gc-ripple" href="{{ url_for('patients.phones') }}">
       <i class="bi bi-telephone-plus"></i> {{ t('phones.title') }}
     </a>
-    <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.holds') }}" data-holds-link>
+    <a class="btn btn-outline btn-sm gc-press gc-ripple" href="{{ url_for('patients.holds') }}" data-holds-link>
       <i class="bi bi-exclamation-octagon"></i> {{ t('flags.holds_title') }}
     </a>
-    <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.archive') }}">
+    <a class="btn btn-outline btn-sm gc-press gc-ripple" href="{{ url_for('patients.archive') }}">
       <i class="bi bi-archive"></i> {{ t('archive.title') }}
     </a>
     {% if current_user.is_admin %}
-    <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.merge_page') }}" data-merge-link>
+    <a class="btn btn-outline btn-sm gc-press gc-ripple" href="{{ url_for('patients.merge_page') }}" data-merge-link>
       <i class="bi bi-intersect"></i> {{ t('pmerge.nav') }}
     </a>
     {% endif %}
     {# ICD.15 (هـ) بيطلب مُدد، و(ز) بيطلب متابعة. مدة محدّش بيبصّ عليها مش
        مدة — ودي الشاشة اللي بتخلّي الاتنين يعملوا حاجة. #}
     {% if current_user.can('patient_medical') %}
-    <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.care_plan_goals') }}">
+    <a class="btn btn-outline btn-sm gc-press gc-ripple" href="{{ url_for('patients.care_plan_goals') }}">
       <i class="bi bi-list-check"></i> {{ t('watch.plans_title') }}
     </a>
     {# PCC.07 (د): «ما فهموش» مَهمّة على حد إنه يرجع، و«اتقال إنه اتبلّغ» علامة
        من غير سند. الاتنين مش شغل الطفل اللي قدّامك دلوقتي — فمحتاجين شاشة. #}
-    <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.education_board') }}">
+    <a class="btn btn-outline btn-sm gc-press gc-ripple" href="{{ url_for('patients.education_board') }}">
       <i class="bi bi-mortarboard"></i> {{ t('education.board_title') }}
     </a>
     {% endif %}
-    <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.bulk_import') }}">
+    <a class="btn btn-outline btn-sm gc-press gc-ripple" href="{{ url_for('patients.bulk_import') }}">
       <i class="bi bi-upload"></i> {{ t('patients.import_patients') }}
     </a>
     {# Next to the patient import, because that is the order they are done in
        and the history screen refuses to be useful before it. It had no link
        anywhere at all — reachable only by typing the URL, which is the same
        way the contracts screen was lost. #}
-    <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.history_import') }}">
+    <a class="btn btn-outline btn-sm gc-press gc-ripple" href="{{ url_for('patients.history_import') }}">
       <i class="bi bi-database-down"></i> {{ t('history_import.title') }}
     </a>
-    <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('patients.create') }}">
-      <i class="bi bi-person-plus"></i> {{ t('patients.add_patient') }}
-    </a>
   </div>
+  <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('patients.create') }}" data-add-patient>
+    <i class="bi bi-person-plus"></i> {{ t('patients.add_patient') }}
+  </a>
 </div>
 
 <!-- Stat cards with animated counters -->
@@ -164,4 +167,9 @@
   {% endif %}
   {{ render_pagination(pagination) }}
 </div>
+<style>
+  .pl-tools { display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; flex:1 1 360px; min-width:0; }
+  .pl-tools .btn { white-space:nowrap; }
+  @media (max-width: 880px) { .pl-tools { justify-content:flex-start; } }
+</style>
 {% endblock %}

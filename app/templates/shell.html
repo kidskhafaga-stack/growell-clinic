@@ -91,112 +91,126 @@
       </div>
     </div>
 
-    <nav class="sidebar__nav gc-stagger">
-      {% for module in ALL_MODULES %}
-        {% if current_user.can_access(module) and module_enabled(module) %}
-          {% set endpoint = MODULE_ENDPOINTS.get(module) %}
-          <a class="nav-item gc-press {{ 'active' if active_module == module else '' }}"
-             href="{{ url_for(endpoint) if endpoint else '#' }}"
-             {% if not endpoint %}title="{{ t('common.coming_soon') }}"{% endif %}>
-            <i class="bi bi-{{ MODULE_ICONS.get(module, 'dot') }}"></i>
-            <span>{{ t('nav.' ~ module) }}</span>
-            <span class="nav-tip">{{ t('nav.' ~ module) }}</span>
-          </a>
-          {# **The device studies** — the echo, the sonar, the spirometer, the
-             ECG and the EEG — sit with the visit, because any clinic may do
-             them and any bedside may need one. The door shows only where the
-             clinic said it does one of them, or one is waiting: a clinic that
-             does none sees exactly the menu it had. #}
-          {% if module == 'visits' and device_board_shown() %}
-          <a class="nav-item gc-press {{ 'active' if active_module == 'device_board' else '' }}"
-             href="{{ url_for('visits.device_board') }}" data-nav-devices>
-            <i class="bi bi-activity"></i>
-            <span>{{ t('nav.diagnostics') }}</span>
-            <span class="nav-tip">{{ t('nav.diagnostics') }}</span>
-          </a>
-          {% endif %}
-        {% endif %}
-      {% endfor %}
-      {# A doctor's own screen. Not a module — it is one person's view of work
-         they already have access to, so it needs no permission of its own and
-         gets none. Whoever runs the clinic reaches the same screen and can ask
-         it about any doctor; the route decides that, not this link. #}
-      {% if current_user.is_admin or current_user.role == 'doctor'
-            or current_user.is_practitioner %}
-      <a class="nav-item gc-press {{ 'active' if active_module == 'my_clinic' else '' }}"
-         href="{{ url_for('main.my_clinic') }}">
-        <i class="bi bi-person-badge"></i>
-        <span>{{ t('mine.nav') }}</span>
-        <span class="nav-tip">{{ t('mine.nav') }}</span>
-      </a>
+    {# The doors of the menu, gathered first and drawn after (`utils/nav_menu`).
+
+       A clinic sees them as it always did: one list, in this order. Where a
+       hospital department is on, the same doors are drawn in six sections
+       that fold — 38 doors in one column was the reason. Who sees which door
+       is decided here and nowhere else, so the two drawings cannot differ in
+       anything but the order. #}
+    {% set doors = [] %}
+    {% for module in ALL_MODULES if current_user.can_access(module) and module_enabled(module) %}
+      {% set endpoint = MODULE_ENDPOINTS.get(module) %}
+      {% set _ = doors.append({'key': module, 'href': url_for(endpoint) if endpoint else '#',
+                               'soon': not endpoint, 'icon': MODULE_ICONS.get(module, 'dot'),
+                               'label': t('nav.' ~ module), 'mark': ''}) %}
+      {# **The device studies** — the echo, the sonar, the spirometer, the ECG
+         and the EEG — sit with the visit, because any clinic may do them and
+         any bedside may need one. The door shows only where the clinic said
+         it does one of them, or one is waiting. #}
+      {% if module == 'visits' and device_board_shown() %}
+      {% set _ = doors.append({'key': 'device_board', 'href': url_for('visits.device_board'),
+                               'icon': 'activity', 'label': t('nav.diagnostics'), 'mark': 'data-nav-devices'}) %}
       {% endif %}
-      {# «مرضايا» — the doctor's own work list (`visits.mine`). It had a
-         button on the visits list and a tab on the boards, and was asked
-         after as «مش ظاهرة اوصلها منين». The route decides who sees whom;
-         this asks only what the tab on the boards asks. #}
-      {% if current_user.can_open('visits') and current_user.can('patient_medical') %}
-      <a class="nav-item gc-press {{ 'active' if active_module == 'my_patients' else '' }}"
-         href="{{ url_for('visits.mine') }}" data-nav-mine>
-        <i class="bi bi-person-lines-fill"></i>
-        <span>{{ t('board_med.tab_mine') }}</span>
-        <span class="nav-tip">{{ t('board_med.tab_mine') }}</span>
+    {% endfor %}
+    {# A doctor's own screen. Not a module — one person's view of work they
+       already have access to; the route decides whom they may ask about. #}
+    {% if current_user.is_admin or current_user.role == 'doctor' or current_user.is_practitioner %}
+    {% set _ = doors.append({'key': 'my_clinic', 'href': url_for('main.my_clinic'),
+                             'icon': 'person-badge', 'label': t('mine.nav'), 'mark': ''}) %}
+    {% endif %}
+    {# «مرضايا» — the doctor's own work list (`visits.mine`), asked after as
+       «مش ظاهرة اوصلها منين». #}
+    {% if current_user.can_open('visits') and current_user.can('patient_medical') %}
+    {% set _ = doors.append({'key': 'my_patients', 'href': url_for('visits.mine'),
+                             'icon': 'person-lines-fill', 'label': t('board_med.tab_mine'), 'mark': 'data-nav-mine'}) %}
+    {% endif %}
+    {# Till operator (reception) without full finance access: a direct link to
+       the cashier, so collecting money never needs the whole finance module. #}
+    {% if current_user.can('cashier') and not current_user.can_access('finance') and module_enabled('finance') %}
+    {% set _ = doors.append({'key': 'cashier', 'href': url_for('finance.cashier'),
+                             'icon': 'cash-coin', 'label': t('nav.cashier'), 'mark': ''}) %}
+    {% endif %}
+    {# The complaints book, for whoever handles complaints. Not a module: GAHAR
+       (PCC.16) does not let a clinic opt out of handling them. #}
+    {% if current_user.can('complaints_manage') %}
+    {% set _ = doors.append({'key': 'complaints', 'href': url_for('complaints.index'),
+                             'icon': 'megaphone', 'label': t('cmp.nav'), 'mark': 'data-nav-complaints'}) %}
+    {% endif %}
+    {# GAHAR QPI.10 — anybody who works here reports an incident, from any
+       screen; the board is for whoever reviews them. A flag, not the warning
+       triangle: that one means «look at this» on the screens it is on. #}
+    {% set _ = doors.append({'key': 'incident_report', 'href': url_for('incidents.report'),
+                             'icon': 'flag', 'label': t('incident.nav_report'), 'mark': 'data-nav-incident-report'}) %}
+    {% if current_user.can('incident_manage') %}
+    {% set _ = doors.append({'key': 'incidents', 'href': url_for('incidents.index'),
+                             'icon': 'clipboard2-pulse', 'label': t('incident.nav_board'), 'mark': 'data-nav-incidents'}) %}
+    {% endif %}
+    {# An alert organism grew — infection control's answer (`utils/ipc`). #}
+    {% if current_user.can('infection_control') %}
+    {% set _ = doors.append({'key': 'ipc', 'href': url_for('ipc.index'),
+                             'icon': 'shield-exclamation', 'label': t('ipc.nav'), 'mark': 'data-nav-ipc'}) %}
+    {% endif %}
+    {% set _ = doors.append({'key': 'guide', 'href': url_for('main.guide'),
+                             'icon': 'life-preserver', 'label': t('guide.nav'), 'mark': ''}) %}
+
+    {% macro door(d) -%}
+      <a class="nav-item gc-press {{ 'active' if active_module == d.key else '' }}"
+         href="{{ d.href }}" {{ d.mark }} data-nav-door="{{ d.label }}" data-nav-icon="{{ d.icon }}"
+         {% if d.soon %}title="{{ t('common.coming_soon') }}"{% endif %}>
+        <i class="bi bi-{{ d.icon }}"></i>
+        <span>{{ d.label }}</span>
+        <span class="nav-tip">{{ d.label }}</span>
       </a>
+    {%- endmacro %}
+
+    {# The search: pages among the doors above, children from `main.nav_find`.
+       Ctrl+K from anywhere; on the rail the box opens the menu first. #}
+    <div class="navfind" x-data='navFind({{ url_for('main.nav_find') | tojson }})'
+         x-on:keydown.window="hotkey($event)" x-on:click.outside="open = false" data-nav-find>
+      <i class="bi bi-search" x-on:click="wake()"></i>
+      <input type="search" x-ref="box" x-model="q" x-on:input.debounce.200ms="find()"
+             x-on:focus="open = q.trim().length > 0"
+             x-on:keydown.arrow-down.prevent="move(1)" x-on:keydown.arrow-up.prevent="move(-1)"
+             x-on:keydown.enter.prevent="go()" x-on:keydown.escape="open = false; $refs.box.blur()"
+             placeholder="{{ t('nav.find_placeholder') }}" aria-label="{{ t('nav.find_placeholder') }}" autocomplete="off">
+      <kbd>Ctrl K</kbd>
+      <div class="navfind__panel" x-ref="panel" x-show="open" x-cloak role="listbox">
+        <template x-if="pages.length"><div class="navfind__head">{{ t('nav.find_pages') }}</div></template>
+        <template x-for="(p, i) in pages" :key="'p' + i">
+          <a class="navfind__row" :href="p.href" :class="i === active ? 'on' : ''">
+            <i :class="'bi bi-' + p.icon"></i><span x-text="p.label"></span></a>
+        </template>
+        <template x-if="kids.length"><div class="navfind__head">{{ t('nav.find_children') }}</div></template>
+        <template x-for="(k, i) in kids" :key="'k' + i">
+          <a class="navfind__row" :href="k.url" :class="(i + pages.length) === active ? 'on' : ''">
+            <i class="bi bi-person"></i><span x-text="k.name"></span><small class="num" x-text="k.number"></small></a>
+        </template>
+        <template x-if="!pages.length && !kids.length && !busy">
+          <div class="navfind__none">{{ t('nav.find_none') }}</div></template>
+      </div>
+    </div>
+
+    {% set sections = nav_arrange(doors) if nav_in_sections() else [] %}
+    {% set here = namespace(section='') %}
+    {% for section, rows in sections if rows | selectattr('key', 'equalto', active_module) | list %}{% set here.section = section %}{% endfor %}
+    <nav class="sidebar__nav gc-stagger"{% if sections %} x-data='navSections({{ here.section | tojson }})' data-nav-sections{% endif %}>
+      {% if sections %}
+        {% for section, rows in sections %}
+        <div class="navsec" :class="isOpen('{{ section }}') ? 'is-open' : ''" data-nav-section="{{ section }}">
+          <button type="button" class="navsec__head" x-on:click="flip('{{ section }}')"
+                  :aria-expanded="isOpen('{{ section }}') ? 'true' : 'false'">
+            <span>{{ t('nav.sec_' ~ section) }}</span><small class="num">{{ rows | length }}</small>
+            <i class="bi bi-chevron-down"></i>
+          </button>
+          <div class="navsec__body" x-show="isOpen('{{ section }}')">
+            {% for d in rows %}{{ door(d) }}{% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        {% for d in doors %}{{ door(d) }}{% endfor %}
       {% endif %}
-      {# Till operator (reception) without full finance access: a direct link to
-         the cashier, so collecting money never needs the whole finance module. #}
-      {% if current_user.can('cashier') and not current_user.can_access('finance') and module_enabled('finance') %}
-      <a class="nav-item gc-press {{ 'active' if active_module == 'cashier' else '' }}"
-         href="{{ url_for('finance.cashier') }}">
-        <i class="bi bi-cash-coin"></i>
-        <span>{{ t('nav.cashier') }}</span>
-        <span class="nav-tip">{{ t('nav.cashier') }}</span>
-      </a>
-      {% endif %}
-      {# The complaints book, for whoever handles complaints. Not a module:
-         every clinic has complaints, and GAHAR (PCC.16) does not let one
-         opt out of handling them. #}
-      {% if current_user.can('complaints_manage') %}
-      <a class="nav-item gc-press {{ 'active' if active_module == 'complaints' else '' }}"
-         href="{{ url_for('complaints.index') }}" data-nav-complaints>
-        <i class="bi bi-megaphone"></i>
-        <span>{{ t('cmp.nav') }}</span>
-        <span class="nav-tip">{{ t('cmp.nav') }}</span>
-      </a>
-      {% endif %}
-      {# GAHAR QPI.10 — anybody who works here reports an incident, from any
-         screen; the board is for whoever reviews them. #}
-      <a class="nav-item gc-press {{ 'active' if active_module == 'incident_report' else '' }}"
-         href="{{ url_for('incidents.report') }}" data-nav-incident-report>
-        {# A flag, not the warning triangle: that one means «look at this»
-           on the screens it is on, and a triangle on every page's menu
-           would be one more on every one of them. #}
-        <i class="bi bi-flag"></i>
-        <span>{{ t('incident.nav_report') }}</span>
-        <span class="nav-tip">{{ t('incident.nav_report') }}</span>
-      </a>
-      {% if current_user.can('incident_manage') %}
-      <a class="nav-item gc-press {{ 'active' if active_module == 'incidents' else '' }}"
-         href="{{ url_for('incidents.index') }}" data-nav-incidents>
-        <i class="bi bi-clipboard2-pulse"></i>
-        <span>{{ t('incident.nav_board') }}</span>
-        <span class="nav-tip">{{ t('incident.nav_board') }}</span>
-      </a>
-      {% endif %}
-      {# An alert organism grew — infection control's answer (`utils/ipc`). #}
-      {% if current_user.can('infection_control') %}
-      <a class="nav-item gc-press {{ 'active' if active_module == 'ipc' else '' }}"
-         href="{{ url_for('ipc.index') }}" data-nav-ipc>
-        <i class="bi bi-shield-exclamation"></i>
-        <span>{{ t('ipc.nav') }}</span>
-        <span class="nav-tip">{{ t('ipc.nav') }}</span>
-      </a>
-      {% endif %}
-      <a class="nav-item gc-press {{ 'active' if active_module == 'guide' else '' }}"
-         href="{{ url_for('main.guide') }}">
-        <i class="bi bi-life-preserver"></i>
-        <span>{{ t('guide.nav') }}</span>
-        <span class="nav-tip">{{ t('guide.nav') }}</span>
-      </a>
     </nav>
 
     {# One line, and the rest on the About page. It was four lines of small
@@ -384,6 +398,69 @@
   }
   _markThemeActive(document.documentElement.getAttribute('data-theme-mode') || 'light');
 
+  // The menu's sections fold, for this person on this browser only; the one
+  // holding the page they are on never does (`utils/nav_menu`).
+  function navSections(here) {
+    var shut = {};
+    try { shut = JSON.parse(localStorage.getItem('gc-nav-shut') || '{}') || {}; } catch (e) {}
+    return {
+      shut: shut,
+      isOpen: function (k) { return k === here || !this.shut[k]; },
+      flip: function (k) {
+        if (k === here) return;
+        this.shut[k] = !this.shut[k];
+        try { localStorage.setItem('gc-nav-shut', JSON.stringify(this.shut)); } catch (e) {}
+      }
+    };
+  }
+  // The search at the top of the menu. Pages are the doors this person's menu
+  // already shows, so nothing they cannot open is offered; children come from
+  // the server, newest answer only, so a slow reply never paints over a
+  // newer search.
+  function navFind(url) {
+    return {
+      q: '', open: false, busy: false, pages: [], kids: [], active: 0, asked: 0,
+      wake: function () {
+        var layout = document.querySelector('.layout');
+        if (layout && layout.getAttribute('data-sidebar') === 'rail' && window.innerWidth > 880) toggleSidebar();
+        this.$refs.box.focus();
+        this.$refs.box.select();
+      },
+      hotkey: function (e) {
+        if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.code === 'KeyK') {
+          e.preventDefault();
+          var drawer = window.innerWidth <= 880;
+          if (drawer) { var menu = document.querySelector('.topbar__menu'); if (menu) menu.click(); }
+          this.wake();
+        }
+      },
+      find: function () {
+        var self = this, q = this.q.trim(), low = q.toLowerCase(), n = ++this.asked;
+        this.pages = !q ? [] : Array.prototype.slice.call(document.querySelectorAll('[data-nav-door]'))
+          .filter(function (a) { return a.getAttribute('data-nav-door').toLowerCase().indexOf(low) !== -1; })
+          .slice(0, 6).map(function (a) {
+            return { href: a.getAttribute('href'), label: a.getAttribute('data-nav-door'), icon: a.getAttribute('data-nav-icon') };
+          });
+        this.active = 0;
+        this.open = q.length > 0;
+        if (q.length < 2) { this.kids = []; this.busy = false; return; }
+        this.busy = true;
+        fetch(url + '?q=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' } })
+          .then(function (r) { return r.ok ? r.json() : []; })
+          .catch(function () { return []; })
+          .then(function (rows) { if (n === self.asked) { self.kids = rows || []; self.busy = false; } });
+      },
+      move: function (d) {
+        var all = this.pages.length + this.kids.length;
+        if (all) this.active = (this.active + d + all) % all;
+      },
+      go: function () {
+        var rows = this.$refs.panel.querySelectorAll('.navfind__row');
+        if (rows[this.active]) rows[this.active].click();
+      }
+    };
+  }
+
   // Full width or an icon rail. Applied to the DOM first and saved after, so
   // the click feels instant and a failed save costs nothing but the memory.
   function toggleSidebar() {
@@ -476,6 +553,7 @@
         if (visible(el)) rows.push([letter(el.getAttribute('data-key')), el.getAttribute('data-key-label') || el.textContent.trim()]);
       });
       rows.push(['[', document.getElementById('keysBox').getAttribute('data-sidebar')]);
+      rows.push(['Ctrl + K', document.getElementById('keysBox').getAttribute('data-find')]);
       rows.push(['?', document.getElementById('keysBox').getAttribute('data-this')]);
       return rows;
     }
@@ -508,7 +586,7 @@
   })();
 </script>
 <div id="keysBox" class="keys-box no-print" role="dialog" aria-modal="true" aria-labelledby="keysTitle" hidden
-     data-sidebar="{{ t('keys.sidebar') }}" data-this="{{ t('keys.this_list') }}" data-unsaved="{{ t('keys.unsaved') }}">
+     data-sidebar="{{ t('keys.sidebar') }}" data-find="{{ t('keys.find') }}" data-this="{{ t('keys.this_list') }}" data-unsaved="{{ t('keys.unsaved') }}">
   <div class="keys-card">
     <div class="keys-head"><strong id="keysTitle"><i class="bi bi-keyboard"></i> {{ t('keys.title') }}</strong>
       <button type="button" class="btn btn-sm btn-outline" data-keys-close onclick="document.getElementById('keysBox').hidden = true" aria-label="{{ t('common.close') }}"><i class="bi bi-x-lg"></i></button></div>
