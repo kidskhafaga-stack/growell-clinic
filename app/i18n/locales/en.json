@@ -7080,7 +7080,13 @@
     "no_tests_diagnostic": "No diagnostic studies on the list yet",
     "stopped_short": "Stopped",
     "sent_out_short": "Sent out",
-    "request_note": "The doctor's note on the order"
+    "request_note": "The doctor's note on the order",
+    "sections_label": "Laboratory sections",
+    "section_all": "All sections",
+    "section_unsorted": "No section",
+    "section_kept": "Showing «{name}» only — the list will open on it next time until you choose «All sections».",
+    "nothing_in_section": "Nothing is waiting in «{name}» right now.",
+    "section_sort": "Sort the tests into their sections"
   },
   "pharm": {
     "sub": "The queue: who is waiting, and what for",

@@ -65,7 +65,24 @@ LAB, IMAGING, DIAGNOSTIC = "lab", "imaging", "diagnostic"
 ROOMS = (IMAGING, DIAGNOSTIC)
 
 
-def worklist(kind=LAB, state=None, limit=200):
+#: The bench a test belongs to (`utils/lab_sections`), plus «not sorted yet»
+#: for a test nobody has put in a section — never hidden by a section filter
+#: that cannot see it.
+UNSORTED = "none"
+
+
+def _in_section(query, section):
+    """Narrow an order query to one of the laboratory's sections."""
+    if not section:
+        return query
+    query = query.outerjoin(Investigation,
+                            VisitInvestigation.investigation_id == Investigation.id)
+    if section == UNSORTED:
+        return query.filter(Investigation.section.is_(None))
+    return query.filter(Investigation.section == section)
+
+
+def worklist(kind=LAB, state=None, limit=200, section=None):
     """Everything ordered **here** and not yet answered, longest-waiting first.
 
     Oldest first and not newest: a rack works from the bottom, and a list that
@@ -101,6 +118,9 @@ def worklist(kind=LAB, state=None, limit=200):
         query = query.filter(VisitInvestigation.kind == kind)
     if state:
         query = query.filter(VisitInvestigation.status == state)
+    # One section's bench (LAB_GLAB360_PLAN.md م-٥): the haematology
+    # technician reads the haematology list, not the whole laboratory's.
+    query = _in_section(query, section)
     # **Urgent first** (GAHAR DAS.22), then oldest first within each.
     urgent_first = db.case((VisitInvestigation.urgent.is_(True), 0), else_=1)
     return (query.order_by(urgent_first, VisitInvestigation.created_at,
@@ -198,7 +218,7 @@ def goes_outside(investigation, asked=None):
     return investigation.in_house is False
 
 
-def counts(kind=LAB):
+def counts(kind=LAB, section=None):
     """How many are waiting to be drawn and how many to be run.
 
     Two numbers rather than one total, because they are two different jobs
@@ -213,13 +233,14 @@ def counts(kind=LAB):
              .filter(VisitInvestigation.status.in_(OPEN_STATES), _ours()))
     if kind:
         query = query.filter(VisitInvestigation.kind == kind)
+    query = _in_section(query, section)
     rows = (query.group_by(VisitInvestigation.status).all())
     found = dict(rows)
     return {"to_collect": found.get(REQUESTED, 0),
             "to_run": found.get(COLLECTED, 0)}
 
 
-def urgent_count(kind=LAB):
+def urgent_count(kind=LAB, section=None):
     """How many open orders say urgent — a number of its own, not a third
     key on :func:`counts`, whose two numbers callers add up."""
     query = (db.session.query(db.func.count(VisitInvestigation.id))
@@ -227,7 +248,65 @@ def urgent_count(kind=LAB):
                      VisitInvestigation.urgent.is_(True)))
     if kind:
         query = query.filter(VisitInvestigation.kind == kind)
+    query = _in_section(query, section)
     return query.scalar() or 0
+
+
+def section_counts():
+    """``{section: (open, urgent)}`` for the laboratory's open orders, one
+    query — the numbers on each section's tab. A test in no section is
+    counted under :data:`UNSORTED`."""
+    rows = (db.session.query(Investigation.section,
+                             db.func.count(VisitInvestigation.id),
+                             db.func.sum(db.case(
+                                 (VisitInvestigation.urgent.is_(True), 1), else_=0)))
+            .select_from(VisitInvestigation)
+            .outerjoin(Investigation,
+                       VisitInvestigation.investigation_id == Investigation.id)
+            .filter(VisitInvestigation.status.in_(OPEN_STATES), _ours(),
+                    VisitInvestigation.kind == LAB)
+            .group_by(Investigation.section).all())
+    out = {}
+    for section, n, urgent in rows:
+        key = section or UNSORTED
+        open_n, urgent_n = out.get(key, (0, 0))
+        out[key] = (open_n + n, urgent_n + int(urgent or 0))
+    return out
+
+
+#: Each technician's own section, remembered between visits — one small
+#: setting per person, like the bell's dismissals.
+_MY_SECTION = "lab_section:{}"
+
+
+def my_section(user):
+    """The section this person last chose, or ``None`` for the whole lab."""
+    from app.models import Setting
+    from app.utils import lab_sections
+
+    if user is None or not getattr(user, "id", None):
+        return None
+    value = Setting.get(_MY_SECTION.format(user.id)) or ""
+    return value if (value == UNSORTED or lab_sections.clean(value)) else None
+
+
+def choose_section(user, value):
+    """Remember the section this person picked; anything else is «all».
+    Returns what is now remembered."""
+    from app.models import Setting
+    from app.utils import lab_sections
+
+    value = (value or "").strip()
+    chosen = value if (value == UNSORTED or lab_sections.clean(value)) else None
+    if user is not None and getattr(user, "id", None):
+        # A preference, never worth a refused page: where it cannot be kept
+        # (a copy in read-only mode), the list still filters for this visit.
+        try:
+            Setting.set(_MY_SECTION.format(user.id), chosen or "")
+            db.session.commit()
+        except Exception:  # noqa: BLE001
+            db.session.rollback()
+    return chosen
 
 
 def waiting_minutes(row, now=None):
