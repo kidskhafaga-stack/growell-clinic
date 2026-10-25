@@ -943,7 +943,9 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
   border-radius: 5px; padding: 2px 5px;
 }
 .navfind:focus-within { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.45); }
-.navfind__panel {
+/* Inside the sidebar, which is its own stacking context: the 40 below is
+   «above the menu's links», never «above the page». */
+.sidebar .navfind__panel {
   position: absolute; inset-inline: 0; top: calc(100% + 6px);
   background: var(--card, #fff); color: var(--ink);
   border: 1px solid var(--line); border-radius: 12px;
