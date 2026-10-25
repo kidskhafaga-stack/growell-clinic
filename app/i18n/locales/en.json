@@ -204,7 +204,17 @@
     "programs": "Care programmes",
     "ambulance": "Ambulance",
     "telemedicine": "Telemedicine",
-    "teaching": "Teaching and research"
+    "teaching": "Teaching and research",
+    "find_placeholder": "Find a page or a name…",
+    "find_pages": "Pages",
+    "find_children": "Children",
+    "find_none": "Nothing by that name",
+    "sec_clinic": "Clinic",
+    "sec_hospital": "Hospital",
+    "sec_money": "Money and stock",
+    "sec_quality": "Quality",
+    "sec_reports": "Reports and messages",
+    "sec_admin": "Administration"
   },
   "auth": {
     "login": "Login",
@@ -1717,7 +1727,10 @@
     "ai_lab_review_hint": "It says only what needs checking: the sample (haemolysis, contamination, wrong tube), an impossible value, an inconsistent result, or a large change from last time. It does not diagnose, set ranges or release. Only the test's lines, the age and the sex are sent.",
     "ai_lab_insert_section": "Laboratory: reading inserts (controls and kits)",
     "ai_lab_insert": "The assistant reads a control's or a reagent kit's insert into the form",
-    "ai_lab_insert_hint": "An insert carries no child's data. The assistant copies only what is printed — the mean and SD on a control's insert, the reference table on a kit's — nothing is saved unless you tick it, and ranges stay drafts until the laboratory director approves."
+    "ai_lab_insert_hint": "An insert carries no child's data. The assistant copies only what is printed — the mean and SD on a control's insert, the reference table on a kit's — nothing is saved unless you tick it, and ranges stay drafts until the laboratory director approves.",
+    "nav_title": "Side menu",
+    "nav_find": "Search box at the top of the side menu (Ctrl+K)",
+    "nav_find_hint": "Finds pages, and children by name, file number or a parent's phone. Switched off, it disappears for every member of staff."
   },
   "errors": {
     "403_title": "Forbidden",
@@ -15016,7 +15029,8 @@
     "sidebar": "Show or hide the side menu",
     "this_list": "This list",
     "hint": "Letters work when the cursor is not in a box, with the keyboard on Arabic or English. Ctrl+S saves at any time.",
-    "unsaved": "Something you typed is not saved. Leave the page without saving?"
+    "unsaved": "Something you typed is not saved. Leave the page without saving?",
+    "find": "Find a page, a name or a file number from the side menu"
   },
   "sms": {
     "title": "SMS messages",

@@ -41,6 +41,24 @@ SECTIONS = [
              "Sign in with your username and password. Each user has a "
              "<b>role</b> that decides which sections they see and what they "
              "may do."),
+            ("<b>القايمة الجانبية:</b> فوقها خانة «دوّر على صفحة أو طفل» — اكتب "
+             "اسم الصفحة أو اسم الطفل أو رقم ملفه أو تليفون الأهل، واختار بالأسهم "
+             "وEnter، أو اضغط Ctrl+K من أي مكان. الصفحات اللي بتطلع هي اللي "
+             "مسموحلك تفتحها بس، والمدير يقدر يقفل الخانة للعيادة كلها من "
+             "الإعدادات ← «شعار العيادة». في المستشفى القايمة متقسمة أقسام (العيادة، "
+             "المستشفى، الفلوس والمخزن، الجودة، التقارير والرسايل، الإدارة)، وكل "
+             "قسم بيتقفل ويتفتح من عنوانه والاختيار بيفضل محفوظ على الجهاز ده؛ "
+             "القسم اللي فيه الصفحة اللي انت فيها بيفضل مفتوح. وزرار [ بيصغّر "
+             "القايمة لأيقونات.",
+             "<b>The side menu:</b> at its top, «Find a page or a child» — type a "
+             "page's name, a child's name, file number or a parent's phone, pick "
+             "with the arrows and Enter, or press Ctrl+K from anywhere. Only pages "
+             "you may open are offered; the administration can switch the box "
+             "off for the whole clinic in Settings → «Clinic logo». In a hospital the menu is in sections "
+             "(Clinic, Hospital, Money and stock, Quality, Reports and messages, "
+             "Administration); each folds from its title and stays as you left it "
+             "on this computer, and the section holding the page you are on stays "
+             "open. The [ key shrinks the menu to icons."),
             ("من الشريط العلوي: تبديل اللغة (عربي/إنجليزي) والوضع الليلي/النهاري "
              "— الاختيار بيتحفظ لحسابك.",
              "From the top bar: switch language (Arabic/English) and "

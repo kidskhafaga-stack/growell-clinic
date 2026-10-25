@@ -108,6 +108,10 @@ TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled"
                # voice to its own speech service, so it is off until a person
                # who may decide that switches it on.
                "voice_dictation",
+               # The search at the top of the side menu (DOCTOR_EASE_PLAN.md
+               # ب-٩). On unless the administration switches it off, for the
+               # whole clinic — the owner's choice of who decides.
+               "nav_find",
                # The clinician has read the jaundice table and accepted it.
                # Until then the calculator answers nothing.
                "jaundice_table_confirmed",

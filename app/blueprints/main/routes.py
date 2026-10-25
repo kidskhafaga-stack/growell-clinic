@@ -863,3 +863,36 @@ def profile_image_delete(field):
         db.session.commit()
         flash(t("profile.image_removed"), "info")
     return redirect(url_for("main.profile"))
+
+
+# Enough to pick from while typing; more than this and the next letter is the
+# better answer.
+NAV_FIND_LIMIT = 8
+
+
+@main_bp.route("/nav/find")
+@login_required
+def nav_find():
+    """The search at the top of the side menu: the children it finds.
+
+    The pages are found in the browser, among the doors this person's menu
+    already has, so a page they may not open is never offered. The children
+    come from here, and only to whoever can open the patients' files — the
+    same search every patient list uses (`utils/patients.apply_patient_search`),
+    so a child found on the list is found here.
+    """
+    from app.models import Patient
+    from app.utils.nav_menu import find_on
+    from app.utils.patients import apply_patient_search
+
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 2 or not find_on() or not current_user.can_open("patients"):
+        return jsonify([])
+    lang = getattr(g, "lang", "ar")
+    rows = (apply_patient_search(
+        Patient.query.filter(Patient.is_active.is_(True)), q)
+        .order_by(Patient.full_name).limit(NAV_FIND_LIMIT).all())
+    return jsonify([
+        {"name": p.display_name(lang), "number": p.patient_number or "",
+         "url": url_for("patients.view", patient_id=p.id)}
+        for p in rows])

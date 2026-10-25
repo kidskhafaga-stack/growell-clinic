@@ -12,6 +12,14 @@ from app.extensions import db
 # has to drop that group's cached read as well as its own.
 GROUPED_PREFIXES = ("mod_enabled:", "risk:")
 
+# Keys every page reads — the menu, the clock, the update notice — fetched in
+# one query instead of one each. The side menu's search switch (`nav_find`)
+# was the fourth single read on every screen; folded in with the other three
+# the page costs fewer reads than before it existed.
+EVERY_PAGE = ("facility_configured", "clinic_timezone", "update_check",
+              "nav_find")
+_EVERY_PAGE = "settings:every_page"
+
 
 class Setting(db.Model):
     __tablename__ = "settings"
@@ -33,8 +41,16 @@ class Setting(db.Model):
         """
         from app.utils.request_cache import remember
 
-        value = remember(f"setting:{key}", lambda: cls._read(key))
+        if key in EVERY_PAGE:
+            value = remember(_EVERY_PAGE, cls._read_every_page).get(key)
+        else:
+            value = remember(f"setting:{key}", lambda: cls._read(key))
         return default if value is None else value
+
+    @classmethod
+    def _read_every_page(cls):
+        rows = cls.query.filter(cls.key.in_(EVERY_PAGE)).all()
+        return {r.key: r.value for r in rows}
 
     @classmethod
     def group(cls, prefix):
@@ -69,6 +85,8 @@ class Setting(db.Model):
             row.value = str(value)
         # A settings screen has to show what it just saved.
         forget(f"setting:{key}")
+        if key in EVERY_PAGE:
+            forget(_EVERY_PAGE)
         # And any grouped read that would still be holding the old value —
         # `module_enabled` reads every `mod_enabled:` row in one query and
         # caches the lot, so forgetting the single key alone would leave the
@@ -93,6 +111,8 @@ class Setting(db.Model):
         from app.utils.request_cache import forget
 
         forget(f"setting:{key}")
+        if key in EVERY_PAGE:
+            forget(_EVERY_PAGE)
         if expected is None:
             try:
                 with db.session.begin_nested():

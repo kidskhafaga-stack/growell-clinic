@@ -295,6 +295,18 @@ def create_app(config_name="default"):
         from app.utils.device_board import shown
         return shown()
 
+    def _nav_in_sections():
+        from app.utils.nav_menu import in_sections
+        return in_sections()
+
+    def _nav_find_on():
+        from app.utils.nav_menu import find_on
+        return find_on()
+
+    def _nav_arrange(items):
+        from app.utils.nav_menu import arrange
+        return arrange(items)
+
     def _patient_hold(patient_id):
         """The open hold on a file — for the banner on the stay, the
         emergency and the till (`templates/_hold_banner.html`)."""
@@ -318,6 +330,11 @@ def create_app(config_name="default"):
             "MODULE_ENDPOINTS": module_endpoints,
             "module_enabled": module_enabled,
             "device_board_shown": _device_board_shown,
+            # The side menu in sections, only where a hospital part is on
+            # (`utils/nav_menu`).
+            "nav_in_sections": _nav_in_sections,
+            "nav_arrange": _nav_arrange,
+            "nav_find_on": _nav_find_on,
             "patient_hold": _patient_hold,
             "patient_precautions": _patient_precautions,
             "clinic_name": app.config.get("CLINIC_NAME", "PediaPro"),
