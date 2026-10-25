@@ -284,6 +284,8 @@
   </div>
 
   {% if backups %}
+  <p class="hint" style="margin:12px 0 0;max-width:80ch;" data-backup-verify-hint>
+    <i class="bi bi-patch-check"></i> {{ t('backups.verify_hint') }}</p>
   <div style="overflow-x:auto;margin-top:12px;">
     <table class="table" style="min-width:480px;">
       <thead><tr>
@@ -307,10 +309,36 @@
             <span class="badge badge--role" dir="auto"><i class="bi bi-tag"></i> {{ t('backups.from_version') }} {{ b.app_version }}</span>
             {% else %}
             <span class="badge badge--muted" dir="auto">{{ t('backups.unlabelled') }}</span>
+            {% endif %}
+            {# What the last check found (`backups.verify_backup`): every copy
+               is opened and read through as it is made, and again on «تحقق». #}
+            {% set ck = b.check %}
+            {% if ck and ck.ok %}
+            <span class="badge badge--green" dir="auto" data-backup-check="ok"
+                  title="{{ t('backups.check_title', at=(ck.at or '')|replace('T', ' '), patients=ck.counts.patients or 0, visits=ck.counts.visits or 0, invoices=ck.counts.invoices or 0, files=ck.files or 0) }}">
+              <i class="bi bi-patch-check-fill"></i> {{ t('backups.check_ok_badge') }}</span>
+            {% elif ck %}
+            <span class="badge badge--danger" dir="auto" data-backup-check="bad"
+                  title="{{ t('backups.why_' ~ (ck.reason or 'unreadable')) }}">
+              <i class="bi bi-x-octagon-fill"></i> {{ t('backups.check_bad_badge') }}</span>
+            {% else %}
+            <span class="badge badge--muted" dir="auto" data-backup-check="none">
+              <i class="bi bi-question-circle"></i> {{ t('backups.check_none_badge') }}</span>
+            {% endif %}
+            {% if ck and not ck.ok %}
+            <div class="hint" dir="auto" style="margin:4px 0 0;color:var(--danger);font-family:&quot;Segoe UI&quot;, &quot;Cairo&quot;, Tahoma, system-ui, sans-serif;font-size:.85rem;" data-backup-why>
+              {{ t('backups.why_' ~ (ck.reason or 'unreadable')) }}</div>
             {% endif %}</td>
           <td>{{ b.created.strftime('%Y-%m-%d %H:%M') }}</td>
           <td style="text-align:end;">{{ '%.1f'|format(b.size / 1048576) }} MB</td>
           <td style="text-align:end;white-space:nowrap;">
+            <form method="post" action="{{ url_for('settings.backup_verify', name=b.name) }}" style="display:inline;"
+                  {% if b.encrypted %}onsubmit="this.password.value = prompt('{{ t('backups.pwd_ask') }}') || ''; return true;"{% endif %}>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              {% if b.encrypted %}<input type="hidden" name="password" value="">{% endif %}
+              <button class="btn btn-outline btn-sm gc-press" type="submit" data-backup-verify>
+                <i class="bi bi-patch-check"></i> {{ t('backups.verify_btn') }}</button>
+            </form>
             <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('settings.backup_download', name=b.name) }}">
               <i class="bi bi-download"></i> {{ t('backups.download') }}</a>
             <form method="post" action="{{ url_for('settings.backup_restore', name=b.name) }}" style="display:inline;"

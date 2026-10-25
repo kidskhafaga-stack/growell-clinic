@@ -369,6 +369,20 @@ def _compute():
     except Exception:  # noqa: BLE001
         pass
 
+    # The newest backup failed its check (`backups.verify_backup`): read from
+    # the label kept beside it, never by opening the archive here. Under
+    # `settings`, which is admin-only — it is theirs to take another copy.
+    try:
+        from app.utils.backups import newest_check
+        _name, check = newest_check()
+        if check and not check.get("ok"):
+            items.append({"key": "backup_broken", "module": "settings",
+                          "icon": "safe", "severity": "danger", "count": 1,
+                          "endpoint": "settings.data_tools",
+                          "kwargs": {"_anchor": "backup"}})
+    except Exception:  # noqa: BLE001
+        pass
+
     # A newer version of the program, as the last launch found it. Read from
     # what was stored rather than asked here: see `updates.remembered`. Under
     # `settings`, which is admin-only — updating is not a receptionist's

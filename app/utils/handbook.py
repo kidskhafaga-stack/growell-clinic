@@ -3171,6 +3171,23 @@ SECTIONS = [
              "<b>Backups</b>: manual copies, a schedule, download, and "
              "<b>restore from inside the program</b> — with a safety copy "
              "taken before any restore."),
+            ("<b>التحقق من النسخة</b>: كل نسخة بتتفحص لوحدها أول ما تتعمل — "
+             "بتتفتح ويتقرا كل ملف جواها والصور كمان، ويتأكد إن قاعدة البيانات "
+             "سليمة وبتاعة البرنامج ده — وجنبها «سليمة» أو «فيها مشكلة» "
+             "والسبب، ولما تقف عليها بتقول فيها كام مريض وزيارة وفاتورة وملف. "
+             "زرار «تحقق» بيفحص أي نسخة تاني في أي وقت (مثلاً بعد ما ترجّعها "
+             "من فلاشة). لو آخر نسخة فيها مشكلة الجرس بيقول للمدير، "
+             "والاسترجاع بيرفض النسخة اللي فيها مشكلة قبل ما يلمس الداتا.",
+             "<b>Checking a backup</b>: every backup is checked on its own as "
+             "soon as it is made — opened, every file in it read, photos "
+             "included, and the database checked to be sound and to belong to "
+             "this program — and shows «Sound» or «Has a problem» with the "
+             "reason; hovering says how many patients, visits, invoices and "
+             "files it holds. «Verify» checks any backup again at any time "
+             "(for example after bringing it back from a flash drive). If "
+             "the latest backup has a problem, the bell tells the "
+             "administrator, and a restore refuses a backup with a problem "
+             "before touching the data."),
             ("<b>أنواع الزيارات</b> و<b>الأجهزة</b> وأدوات البيانات — "
              "و<b>منطقة الخطر</b> لمسح كل البيانات (بتتطلب كتابة DELETE).",
              "<b>Visit types</b>, <b>devices</b> and data tools — plus a "
