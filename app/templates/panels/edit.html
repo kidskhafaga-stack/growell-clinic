@@ -56,7 +56,7 @@
       {% if f.unit %}<span class="hint" dir="ltr">({{ f.unit }})</span>{% endif %}
       <span class="pe-tag">{{ t('panel_edit.type_' ~ kind) }}</span>
       {% if f.own %}<span class="pe-tag pe-tag--own">{{ t('panel_edit.own') }}</span>{% endif %}
-      {% if f.get('min') is not none or f.get('max') is not none %}<span class="pe-tag" dir="ltr">{{ '%g'|format(f.min) if f.get('min') is not none else '…' }} – {{ '%g'|format(f.max) if f.get('max') is not none else '…' }}</span>{% endif %}
+      {% if f.get('min') is not none or f.get('max') is not none %}<span class="pe-tag"><bdi dir="ltr">{{ '%g'|format(f.min) if f.get('min') is not none else '…' }} – {{ '%g'|format(f.max) if f.get('max') is not none else '…' }}</bdi></span>{% endif %}
       {% if n %}<span class="hint">{{ t('panel_edit.readings', n=n) }}</span>{% endif %}
     </div>
     <div class="pe-tools">
@@ -77,7 +77,7 @@
       {% endif %}
     </div>
   </div>
-  {% if f['how_' ~ L] or f.how_ar %}<p class="pe-how"><i class="bi bi-rulers"></i> {{ f['how_' ~ L] or f.how_ar }}</p>{% endif %}
+  {% if f['how_' ~ L] or f.how_ar %}<p class="pe-how"><i class="bi bi-info-circle"></i> {{ f['how_' ~ L] or f.how_ar }}</p>{% endif %}
   {% if not hidden %}
   <details class="pe-more">
     <summary><i class="bi bi-pencil"></i> {{ t('panel_edit.change') }}</summary>

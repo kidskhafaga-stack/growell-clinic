@@ -59,7 +59,7 @@
    units are the units' own (`utils/radiation.MEASURES`). #}
 {% if current_user.is_admin %}
 <details class="card gc-scale-in" style="margin-top:14px;" data-dose-units>
-  <summary class="section-title" style="cursor:pointer;margin:0;"><i class="bi bi-rulers"></i> {{ t('radiation.units_title') }}</summary>
+  <summary class="section-title" style="cursor:pointer;margin:0;"><i class="bi bi-info-circle"></i> {{ t('radiation.units_title') }}</summary>
   <p class="hint">{{ t('radiation.units_hint') }}</p>
   <form method="post" action="{{ url_for('imaging.dose_units') }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

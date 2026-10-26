@@ -210,7 +210,7 @@
     </span>
     {% if row.kind == 'lab' %}
     <a class="tc-ref" data-ref-line="{{ row.id }}" href="{{ url_for('labs.test_ranges', test_id=row.id) }}">
-      <i class="bi bi-rulers"></i>
+      <i class="bi bi-info-circle"></i>
       {% if ref and ref.analytes %}{{ t('lab_import.ref_line', analytes=ref.analytes, ranges=ref.ranges) }}{% if ref.drafts %} · <span class="badge badge--warn">{{ t('lab_import.drafts_n', n=ref.drafts) }}</span>{% endif %}
       {% else %}{{ t('lab_import.ref_none') }}{% if row.id in parts_known %} · <span class="badge badge--warn" data-parts-known>{{ t('lab_parts.suggested') }}</span>{% endif %}{% endif %}</a>
     {% endif %}

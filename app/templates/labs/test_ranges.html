@@ -47,7 +47,7 @@
 {% for link in links %}{% for r in link.analyte.ranges if not r.approved %}{% set _ = drafts.append(r) %}{% endfor %}{% endfor %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
-    <h1 class="page-title"><i class="bi bi-rulers"></i> {{ test.display_name(current_lang) }}</h1>
+    <h1 class="page-title"><i class="bi bi-info-circle"></i> {{ test.display_name(current_lang) }}</h1>
     <p class="page-sub" style="margin:0;">
       {% if test.name_en and test.name_en != test.name_ar %}<span dir="ltr">{{ test.name_en }}</span>{% endif %}
       {% if test.aliases %} · <span dir="ltr">{{ test.aliases }}</span>{% endif %}</p>

@@ -701,7 +701,7 @@
                    number outside it. #}
                 {% set how = f['how_' ~ current_lang] or f.how_ar %}
                 {% if how or f.get('min') is not none or f.get('max') is not none %}
-                <p class="hint" style="margin:0 0 4px;" data-how="{{ f.code }}">{% if how %}<i class="bi bi-rulers"></i> {{ how }}{% endif %}{% if f.get('min') is not none or f.get('max') is not none %}{% if how %} · {% endif %}{{ t('panels.range_hint') }} <span dir="ltr">{{ '%g'|format(f.min) if f.get('min') is not none else '…' }} – {{ '%g'|format(f.max) if f.get('max') is not none else '…' }}</span>{% endif %}</p>
+                <p class="hint" style="margin:0 0 4px;" data-how="{{ f.code }}">{% if how %}<i class="bi bi-info-circle"></i> {{ how }}{% endif %}{% if f.get('min') is not none or f.get('max') is not none %}{% if how %} · {% endif %}{{ t('panels.range_hint') }} <bdi dir="ltr">{{ '%g'|format(f.min) if f.get('min') is not none else '…' }} – {{ '%g'|format(f.max) if f.get('max') is not none else '…' }}</bdi>{% endif %}</p>
                 {% endif %}
                 {% if f.type == 'choice' and f.options|length <= 6 %}
                 {# One tap, not a menu: most answers here are three to five
