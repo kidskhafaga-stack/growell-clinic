@@ -1,0 +1,83 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('severity.title') }}{% endblock %}
+{% block page_heading %}{{ t('severity.title') }}{% endblock %}
+
+{% block content %}
+{# ت-٦ب — the scores the hospital entered from their papers, which one each
+   unit uses from which day, and a new one. utils/severity.py. #}
+{% include "severity/_style.html" %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-activity"></i> {{ t('severity.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('severity.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('severity.board') }}" data-to-severity-board><i class="bi bi-graph-up"></i> {{ t('severity.board') }}</a>
+</div>
+
+<div class="sv-stack">
+  <p class="sv-note">{{ t('severity.rule') }}</p>
+
+  {% for u in units %}
+  <section class="card gc-scale-in sv-card" data-unit="{{ u.kind }}">
+    <h2><i class="bi bi-hospital"></i> {{ t('severity.unit_' ~ u.kind) }}
+      {% if u.now %}<span class="sv-chip active" data-unit-score>{{ u.now.display_name(current_lang) }}</span>
+      {% else %}<span class="sv-chip" data-unit-locked><i class="bi bi-lock"></i> {{ t('severity.locked') }}</span>{% endif %}</h2>
+    <form method="post" action="{{ url_for('severity.unit', kind=u.kind) }}" class="sv-grid" style="align-items:end;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row"><label for="s_{{ u.kind }}">{{ t('severity.choose') }}</label>
+        <select class="select" id="s_{{ u.kind }}" name="score_id">
+          <option value="">{{ t('severity.none') }}</option>
+          {% for s in active %}<option value="{{ s.id }}"{{ ' selected' if u.now and u.now.id == s.id else '' }}>{{ s.display_name(current_lang) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label for="d_{{ u.kind }}">{{ t('severity.since') }}</label><input class="input" type="date" id="d_{{ u.kind }}" name="since" required dir="ltr"></div>
+      <div class="form-row"><label for="n_{{ u.kind }}">{{ t('severity.why') }}</label><input class="input" id="n_{{ u.kind }}" name="note" maxlength="255"></div>
+      <div><button class="btn btn-primary gc-press" type="submit"{{ '' if active else ' disabled' }}>{{ t('common.save') }}</button></div>
+    </form>
+    {% if not active %}<p class="hint" style="margin:8px 0 0;">{{ t('severity.no_active') }}</p>{% endif %}
+    {% if u.history %}
+    <details style="margin-top:10px;"><summary class="hint">{{ t('severity.history') }}</summary>
+      <ul style="margin:6px 0 0;padding-inline-start:18px;">
+        {% for h in u.history %}<li><span dir="ltr">{{ h.since.isoformat() }}</span> — {{ h.score.display_name(current_lang) if h.score else t('severity.none') }} · {{ h.setter.display_name(current_lang) if h.setter else '' }}{% if h.note %} · <span dir="auto">{{ h.note }}</span>{% endif %}</li>{% endfor %}
+      </ul></details>
+    {% endif %}
+  </section>
+  {% endfor %}
+
+  <section class="card gc-scale-in sv-card" data-scores>
+    <h2><i class="bi bi-journal-medical"></i> {{ t('severity.scores') }}</h2>
+    {% if scores %}
+    <div style="overflow-x:auto;">
+    <table class="table" style="min-width:560px;">
+      <thead><tr><th>{{ t('severity.name') }}</th><th>{{ t('severity.kind') }}</th><th>{{ t('severity.status') }}</th><th>{{ t('severity.examples') }}</th><th>{{ t('severity.approved') }}</th></tr></thead>
+      <tbody>
+      {% for s in scores %}
+      <tr data-score="{{ s.key }}-{{ s.version }}">
+        <td><a href="{{ url_for('severity.score', score_id=s.id) }}">{{ s.display_name(current_lang) }}</a></td>
+        <td>{{ t('severity.kind_' ~ s.kind) }}</td>
+        <td><span class="sv-chip {{ s.status }}">{{ t('severity.status_' ~ s.status) }}</span></td>
+        <td><span class="sv-chip {{ 'ok' if s.test_ok else 'no' }}">{{ t('severity.test_ok') if s.test_ok else t('severity.test_no') }}</span></td>
+        <td>{% if s.approved_at %}{{ s.approver.display_name(current_lang) if s.approver else '' }} · {{ s.approved_at|clinic_stamp }}{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="sv-lock"><i class="bi bi-lock"></i><p style="margin:0;">{{ t('severity.empty') }}</p></div>
+    {% endif %}
+    <details style="margin-top:12px;" data-new-score>
+      <summary class="btn btn-outline btn-sm" style="display:inline-flex;"><i class="bi bi-plus-lg"></i> {{ t('severity.new') }}</summary>
+      <form method="post" action="{{ url_for('severity.new') }}" class="sv-grid" style="margin-top:10px;align-items:end;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row"><label for="nk">{{ t('severity.key') }}</label><input class="input" id="nk" name="key" required maxlength="40" dir="ltr" placeholder="pim3"></div>
+        <div class="form-row"><label for="na">{{ t('severity.name_ar') }}</label><input class="input" id="na" name="name_ar" required maxlength="120"></div>
+        <div class="form-row"><label for="ne">{{ t('severity.name_en') }}</label><input class="input" id="ne" name="name_en" maxlength="120" dir="ltr"></div>
+        <div class="form-row"><label for="nkind">{{ t('severity.kind') }}</label>
+          <select class="select" id="nkind" name="kind">{% for k in kinds %}<option value="{{ k }}">{{ t('severity.kind_' ~ k) }}</option>{% endfor %}</select></div>
+        <div><button class="btn btn-primary gc-press" type="submit">{{ t('severity.create') }}</button></div>
+      </form>
+    </details>
+  </section>
+</div>
+{% endblock %}

@@ -369,6 +369,7 @@ from app.models.unit_staff import BreakGlass, UnitStaff
 from app.models.sample_transfer import SampleBatch, SampleBatchItem
 from app.models.result_share import ResultShare
 from app.models.assessment import Assessment, AssessmentForm
+from app.models.severity import SeverityRecord, SeverityScore, SeverityUnitChoice
 from app.models.equipment import (Equipment, EquipmentEvent,
                                   EquipmentTraining)
 from app.models.radiation_safety import (ApronCheck, AreaMeasurement,
@@ -883,6 +884,9 @@ __all__ = [
     "SampleBatchItem",
     "ResultShare",
     "Assessment",
+    "SeverityRecord",
+    "SeverityScore",
+    "SeverityUnitChoice",
     "AssessmentForm",
     "SpecimenStore",
     "ReferralLabPrice",

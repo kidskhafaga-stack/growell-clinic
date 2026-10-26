@@ -1,0 +1,85 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('severity.board') }}{% endblock %}
+{% block page_heading %}{{ t('severity.board') }}{% endblock %}
+
+{% block content %}
+{# Deaths against the deaths the score expected — the unit over twelve
+   months, with the interval and the number of children; the VLAD line; the
+   groups when there are enough. Not a judgement on a doctor; not a
+   prediction for a child. utils/severity.board. #}
+{% include "severity/_style.html" %}
+<style>
+  .sv-kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; }
+  .sv-kpi { border:1px solid var(--line); border-radius:14px; padding:12px 14px; display:grid; gap:4px; background:var(--card, var(--surface)); }
+  .sv-kpi .l { font-size:.8rem; color:var(--muted); } .sv-kpi .v { font-size:1.45rem; font-weight:700; font-variant-numeric:tabular-nums; }
+  .sv-vlad { width:100%; height:200px; display:block; }
+  .sv-vlad .zero { stroke:var(--line); stroke-width:1; }
+  .sv-vlad .line { fill:none; stroke:var(--green-600); stroke-width:2; }
+  .sv-vlad text { fill:var(--muted); font-size:10px; }
+  .sv-tabs { display:flex; gap:6px; flex-wrap:wrap; }
+  .sv-tabs a { border:1px solid var(--line); border-radius:999px; padding:5px 14px; text-decoration:none; color:inherit; }
+  .sv-tabs a[aria-current="page"] { background:var(--green-600); border-color:var(--green-600); color:#fff; font-weight:600; }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-graph-up"></i> {{ t('severity.board') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('severity.board_sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    {% if units|length > 1 %}<nav class="sv-tabs">{% for u in units %}<a href="{{ url_for('severity.board', unit=u) }}"{% if u == kind %} aria-current="page"{% endif %}>{{ t('severity.unit_' ~ u) }}</a>{% endfor %}</nav>{% endif %}
+    {% if may_manage %}<a class="btn btn-outline gc-press" href="{{ url_for('severity.index') }}" data-to-severity-settings><i class="bi bi-gear"></i> {{ t('severity.title') }}</a>{% endif %}
+  </div>
+</div>
+
+<div class="sv-stack">
+  <p class="sv-note" data-disclaimer>{{ t('severity.disclaimer') }}</p>
+  {% if not now and not data.n %}
+  <div class="sv-lock" data-board-locked><i class="bi bi-lock"></i><p style="margin:0;">{{ t('severity.board_locked') }}</p></div>
+  {% endif %}
+
+  <section class="card gc-scale-in sv-card" data-board-figures>
+    <h2>{{ t('severity.unit_' ~ kind) }} — {{ t('severity.last_12') }} <span class="hint" dir="ltr" style="font-weight:400;">{{ data.since.isoformat() }} – {{ data.to.isoformat() }}</span></h2>
+    <div class="sv-kpis">
+      <div class="sv-kpi" data-kpi="n"><span class="l">{{ t('severity.children') }}</span><span class="v">{{ data.n }}</span></div>
+      <div class="sv-kpi" data-kpi="observed"><span class="l">{{ t('severity.observed') }}</span><span class="v">{{ data.observed }}</span></div>
+      <div class="sv-kpi" data-kpi="expected"><span class="l">{{ t('severity.expected_deaths') }}</span><span class="v">{{ '%g'|format(data.expected) }}</span></div>
+      <div class="sv-kpi" data-kpi="smr"><span class="l">SMR</span><span class="v">{{ '%g'|format(data.smr) if data.smr is not none else '—' }}</span>
+        {% if data.low is not none %}<small class="hint" style="margin:0;">{{ t('severity.ci') }} <bdi dir="ltr">{{ '%g'|format(data.low) }} – {{ '%g'|format(data.high) }}</bdi></small>{% endif %}</div>
+    </div>
+    {% if data.few %}<p class="hint" style="margin:10px 0 0;" data-few>{{ t('severity.few', n=data.n) }}</p>{% endif %}
+    {% if data.unscored %}<p class="hint" style="margin:6px 0 0;">{{ t('severity.unscored', n=data.unscored) }}</p>{% endif %}
+    {% if data.versions %}<p class="hint" style="margin:6px 0 0;">{{ t('severity.versions') }}: {{ data.versions|join(' · ') }}</p>{% endif %}
+    <p class="hint" style="margin:6px 0 0;">{{ t('severity.smr_read') }}</p>
+  </section>
+
+  <section class="card gc-scale-in sv-card" data-vlad>
+    <h2><i class="bi bi-graph-up-arrow"></i> {{ t('severity.vlad') }}</h2>
+    {% if data.vlad|length >= 2 %}
+    {% set ys = data.vlad | map(attribute=1) | list %}
+    {% set hi = [ys|max, 1]|max %}{% set lo = [ys|min, -1]|min %}{% set span = hi - lo %}
+    {% set n = data.vlad|length %}
+    <svg class="sv-vlad" viewBox="0 0 640 200" preserveAspectRatio="none" role="img" aria-label="{{ t('severity.vlad') }}">
+      {% set zy = 10 + (hi - 0) / span * 170 %}
+      <line class="zero" x1="4" x2="636" y1="{{ '%.1f'|format(zy) }}" y2="{{ '%.1f'|format(zy) }}"></line>
+      <polyline class="line" points="{% for d, y in data.vlad %}{{ '%.1f'|format(6 + loop.index0 * 628 / (n - 1)) }},{{ '%.1f'|format(10 + (hi - y) / span * 170) }} {% endfor %}"></polyline>
+    </svg>
+    <div class="hint" dir="ltr" style="display:flex;justify-content:space-between;margin:4px 0 0;"><span>{{ data.vlad[0][0].strftime('%Y-%m-%d') }}</span><span>{{ t('severity.vlad_range', hi='%g'|format(ys|max), lo='%g'|format(ys|min)) }}</span><span>{{ data.vlad[-1][0].strftime('%Y-%m-%d') }}</span></div>
+    <p class="hint" style="margin:6px 0 0;">{{ t('severity.vlad_read') }}</p>
+    {% else %}<p class="hint" style="margin:0;">{{ t('severity.vlad_none') }}</p>{% endif %}
+  </section>
+
+  {% if data.groups %}
+  <section class="card gc-scale-in sv-card" data-groups>
+    <h2><i class="bi bi-bar-chart-steps"></i> {{ t('severity.groups') }}</h2>
+    <div style="overflow-x:auto;">
+    <table class="table" style="min-width:420px;">
+      <thead><tr><th>{{ t('severity.group_up_to') }}</th><th class="num">{{ t('severity.children') }}</th><th class="num">{{ t('severity.expected_deaths') }}</th><th class="num">{{ t('severity.observed') }}</th></tr></thead>
+      <tbody>{% for g in data.groups %}<tr><td dir="ltr">≤ {{ g.top }}%</td><td class="num">{{ g.n }}</td><td class="num">{{ g.expected }}</td><td class="num">{{ g.observed }}</td></tr>{% endfor %}</tbody>
+    </table>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

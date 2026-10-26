@@ -1,5 +1,6 @@
 {# The boards, as tabs — each shown only to whoever may open it. #}
 {% set board_tabs = [('medical', 'reports.medical_board', current_user.can_open('reports')),
+                     ('performance', 'reports.performance_board', current_user.can_open('reports')),
                      ('management', 'reports.management_board', current_user.can_open('reports') and current_user.can('finance_manage')),
                      ('consumption', 'reports.consumption_board', current_user.can_open('reports') and (current_user.can_open('inventory') or current_user.can_open('labs') or current_user.can_open('ai') or current_user.can('finance_manage'))),
                      ('hospital', 'reports.hospital_board', current_user.can_open('reports') and (module_enabled('emergency') or module_enabled('theatres') or module_enabled('icu') or module_enabled('nicu') or module_enabled('beds'))),
