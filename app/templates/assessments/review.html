@@ -1,0 +1,24 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('assessment.review_title') }}{% endblock %}
+{% block page_heading %}{{ t('assessment.review_title') }}{% endblock %}
+
+{% block content %}
+{# What the specialists sent for a doctor's approval (ت-١). #}
+{% include "assessments/_style.html" %}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title"><i class="bi bi-patch-check"></i> {{ t('assessment.review_title') }}</h1>
+  <p class="page-sub" style="margin:0;">{{ t('assessment.review_sub') }}</p>
+</div>
+<div class="card gc-scale-in" data-review-list>
+  {% if not rows %}<p class="hint" style="margin:0;" data-nothing-to-review>{{ t('assessment.nothing_to_review') }}</p>{% endif %}
+  {% for r in rows %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);padding:10px 0;" data-review-row="{{ r.id }}">
+    <a href="{{ url_for('assessments.view', assessment_id=r.id) }}" style="font-weight:600;flex:1;min-width:200px;">{{ r.form['name_' ~ current_lang] or r.form.name_ar }}</a>
+    <span>{{ r.patient.display_name(current_lang) }}</span>
+    <span class="hint" dir="ltr">{{ r.assessed_on.isoformat() }}</span>
+    <span class="hint">{{ r.assessor.display_name(current_lang) if r.assessor else '' }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

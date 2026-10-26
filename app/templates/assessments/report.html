@@ -1,0 +1,64 @@
+{% extends "shell.html" %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'patients' %}
+{% set L = 'en' if current_lang == 'en' else 'ar' %}
+{% block title %}{{ form['name_' ~ L] or form.name_ar }}{% endblock %}
+{% block page_heading %}{{ form['name_' ~ L] or form.name_ar }}{% endblock %}
+
+{% block content %}
+{# The assessment as it prints (ت-١) — the child, what was used, the scores
+   with each tool's own criterion where it sets one, the specialist's
+   impression, and the doctor's approval. Nothing on it is the program's own
+   reading of a score. #}
+{% include "assessments/_style.html" %}
+{% set tools = answers.get('tools') or {} %}
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('assessments.view', assessment_id=row.id) }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  <button class="btn btn-primary gc-press" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+</div>
+<div class="card print-area" data-assessment-report style="display:grid;gap:12px;">
+  {{ print_header(form['name_' ~ L] or form.name_ar, t('lab_release.printed_at') ~ ': <strong dir="ltr">' ~ printed_at.strftime('%Y-%m-%d %H:%M') ~ '</strong>') }}
+  <div class="info-grid">
+    <div class="info-item"><div class="k">{{ t('appointments.patient') }}</div><div class="v">{{ patient.display_name(current_lang) }}</div></div>
+    <div class="info-item"><div class="k">{{ t('patients.file_number') }}</div><div class="v">{{ patient.patient_number }}</div></div>
+    <div class="info-item"><div class="k">{{ t('assessment.age_on_day') }}</div><div class="v">{% if age %}{{ t('assessment.age', y=age[0], m=age[1]) }}{% endif %}</div></div>
+    <div class="info-item"><div class="k">{{ t('assessment.date') }}</div><div class="v" dir="ltr">{{ row.assessed_on.isoformat() }}</div></div>
+  </div>
+  {% if row.status != 'approved' %}<p class="as-status {{ row.status }}" style="justify-self:start;" data-report-unapproved>{{ t('assessment.not_approved_yet') }}</p>{% endif %}
+  {% for s in form.sections %}
+  {% set label = s['label_' ~ L] or s.label_ar %}
+  {% if s.type == 'tools' %}
+    {% for tkey, values in tools.items() if tkey in form.tool_defs %}
+    {% set tool = form.tool_defs[tkey] %}
+    <section style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;break-inside:avoid;" data-report-tool="{{ tkey }}">
+      <h3 style="margin:0 0 6px;font-size:1rem;">{{ tool['name_' ~ L] or tool.name_ar }} <span class="as-src">{{ tool['source_' ~ L] or tool.source }}</span></h3>
+      <table class="table" style="font-variant-numeric:tabular-nums;">
+        <tbody>
+        {% for f in tool.fields %}{% set v = values.get(f.key) %}
+        <tr><td>{{ f[L] or f.ar }}</td><td dir="ltr"><strong>{{ '—' if v is none else v }}</strong>{% if f.max %} / {{ f.max }}{% endif %}</td>
+          <td>{% if asm.meets(f, v) %}<span class="as-meets">{{ t('assessment.meets') }}</span>{% endif %}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% if tool['rule_' ~ L] or tool.rule_ar %}<p class="as-rule">{{ tool['rule_' ~ L] or tool.rule_ar }}</p>{% endif %}
+    </section>
+    {% endfor %}
+  {% elif s.type in ('multi', 'checks') %}
+    {% set picked = answers.get(s.key) or [] %}
+    {% if picked %}<div><b>{{ label }}:</b> {% for o in s.options if o.key in picked %}{{ o[L] or o.ar }}{{ '، ' if not loop.last else '' }}{% endfor %}</div>{% endif %}
+  {% elif s.type == 'single' %}
+    {% for o in s.options if answers.get(s.key) == o.key %}<div><b>{{ label }}:</b> {{ o[L] or o.ar }}</div>{% endfor %}
+  {% elif s.type == 'text' and answers.get(s.key) %}
+    <div><b>{{ label }}:</b><p style="margin:4px 0 0;white-space:pre-line;" dir="auto">{{ answers.get(s.key) }}</p></div>
+  {% elif s.type == 'date' and answers.get(s.key) %}
+    <div><b>{{ label }}:</b> <span dir="ltr">{{ answers.get(s.key) }}</span></div>
+  {% endif %}
+  {% endfor %}
+  <div style="display:flex;gap:30px;flex-wrap:wrap;margin-top:14px;">
+    <div style="flex:1;min-width:200px;">{{ t('assessment.written_by', who=row.assessor.display_name(current_lang) if row.assessor else '—') }}</div>
+    <div style="flex:1;min-width:200px;">{% if row.status == 'approved' %}{{ t('assessment.approved_by', who=row.approver.display_name(current_lang) if row.approver else '—', when=row.approved_at|clinic_stamp) }}
+      {% if row.doctor_note %}<p style="margin:4px 0 0;white-space:pre-line;" dir="auto">{{ row.doctor_note }}</p>{% endif %}{% endif %}</div>
+  </div>
+  <p class="as-rule">{{ t('assessment.report_note') }}</p>
+</div>
+{% endblock %}

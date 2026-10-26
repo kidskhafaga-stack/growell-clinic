@@ -351,6 +351,11 @@ CAPABILITIES = [
     # reviewing one once the culture is back (GAHAR MMS.02,
     # ``models/stewardship``). The hospital names its stewardship team.
     "antimicrobial_stewardship",
+    # «الأخصائيين» — writing an assessment (ASSESSMENTS_PLAN.md ت-١): the
+    # psychologist, the speech or occupational therapist. Granted to the
+    # person, not a role; a doctor writes them too, and only a doctor
+    # approves one.
+    "assessments",
 ]
 
 ROLE_CAPABILITIES = {

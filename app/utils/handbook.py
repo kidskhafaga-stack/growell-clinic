@@ -485,6 +485,31 @@ SECTIONS = [
         "icon": "clipboard-data",
         "title": ("قوالب التخصصات", "Specialty panels"),
         "lines": [
+            ("<b>التقييمات</b> (من ملف الطفل ← «التقييمات»): تقييم جديد بنوعه — "
+             "فرط الحركة وتشتت الانتباه الأول — بيفتح بشكل جاهز من الجايدلاين "
+             "والمرجع جنب كل جزء: نوع التقييم، مصادر المعلومات، المعايير، الأدوات "
+             "(Vanderbilt للأهل والمدرس، وConners وWISC وغيرهم من تقريرهم الرسمي، "
+             "وCPT من الجهاز)، الحاجات المصاحبة، الانطباع والتوصيات وميعاد المتابعة. "
+             "البرنامج بيجمع بس، و«وصل لمعيار المقياس» بيظهر لما تعليمات تصحيح "
+             "الأداة نفسها محددّة الرقم — معيار فرز مش تشخيص. الأخصائي (بصلاحية "
+             "«كتابة التقييمات») يحفظ مسودة ويبعتها، والدكتور يكتب كلمته ويعتمد، "
+             "والتقرير بيتطبع، وجنبه القيم اللي فاتت لنفس الأداة. و«عدّل الشكل» "
+             "بيخلي العيادة تضيف أو تشيل بند، وتحدد الأدوات اللي بتظهر، وتضيف أداة "
+             "بتستخدمها، وترجع للأصلي بدوسة — والتقييم القديم بيفضل على شكله.",
+             "<b>Assessments</b> (the child's file → «Assessments»): a new one "
+             "by its kind — ADHD first — opens on a form from the guideline with "
+             "the source beside each part: kind, sources of information, "
+             "criteria, tools (Vanderbilt parent and teacher; Conners, WISC and "
+             "others from their official report; CPT from the device), coexisting "
+             "conditions, impression, recommendations and follow-up. The program "
+             "adds up only, and «meets the scale's criterion» shows where the "
+             "tool's own scoring instructions set the figure — screening, not a "
+             "diagnosis. A specialist (holding «writing assessments») saves a "
+             "draft and sends it; the doctor writes a note and approves; the "
+             "report prints with the same tool's earlier values. «Edit the form» "
+             "lets the clinic add or remove lines, choose which tools show, add "
+             "a tool of its own, and go back to the default — an old assessment "
+             "keeps its form."),
             ("<b>أسرع في الإدخال:</b> الاختيارات أزرار بضغطة واحدة (وضغطة "
              "تانية تلغي)، والأرقام ١، ٢، ٣ بتختار، وEnter بينقلك للخانة اللي "
              "بعدها. جنب كل خانة إجابة الزيارة اللي فاتت بتاريخها، و«زي آخر "

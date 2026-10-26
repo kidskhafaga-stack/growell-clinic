@@ -1,0 +1,178 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% set L = 'en' if current_lang == 'en' else 'ar' %}
+{% block title %}{{ form['name_' ~ L] or form.name_ar }}{% endblock %}
+{% block page_heading %}{{ form['name_' ~ L] or form.name_ar }}{% endblock %}
+
+{% block content %}
+{# ASSESSMENTS_PLAN.md ت-١ — one assessment on the form it was started on.
+   The specialist ticks and writes the scores; the program adds up and shows
+   a tool's own criterion only where its scoring instructions set one. A
+   draft, sent to a doctor, approved by the doctor; then it is read only. #}
+{% include "assessments/_style.html" %}
+{% set tools = answers.get('tools') or {} %}
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <i class="bi bi-{{ form.icon or 'clipboard2-pulse' }}"></i> {{ form['name_' ~ L] or form.name_ar }}
+      <span class="as-status {{ row.status }}" data-status="{{ row.status }}">{{ t('assessment.status_' ~ row.status) }}</span></h1>
+    <p class="page-sub" style="margin:0;">
+      <a href="{{ url_for('assessments.patient_list', patient_id=patient.id) }}">{{ patient.display_name(current_lang) }}</a>
+      · {% if age %}{{ t('assessment.age', y=age[0], m=age[1]) }}{% endif %}
+      · {{ t('patients.file_number') }} <span dir="ltr">{{ patient.patient_number }}</span>
+      · <span dir="ltr">{{ row.assessed_on.isoformat() }}</span></p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" data-to-assessment-report target="_blank" href="{{ url_for('assessments.report', assessment_id=row.id) }}"><i class="bi bi-printer"></i> {{ t('assessment.print') }}</a>
+    {% if may_edit_form %}<a class="btn btn-outline gc-press" data-to-form-edit href="{{ url_for('assessments.form_edit', kind=row.kind) }}"><i class="bi bi-pencil-square"></i> {{ t('assessment.edit_form') }}</a>{% endif %}
+  </div>
+</div>
+
+<div class="as-page">
+<form method="post" action="{{ url_for('assessments.save', assessment_id=row.id) }}" class="as-stack" data-assessment-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if form.source %}<p class="as-rule" data-form-source>{{ t('assessment.default_from', src=form['source_' ~ L] or form.source) }}</p>{% endif %}
+
+  {% for s in form.sections %}
+  {% set label = s['label_' ~ L] or s.label_ar %}
+  <section class="card gc-scale-in as-card" data-section="{{ s.key }}">
+    <h2>{{ label }}{% if s.source %} <span class="as-src">{{ s['source_' ~ L] or s.source }}</span>{% endif %}</h2>
+
+    {% if s.type == 'single' %}
+      {% if editing %}
+      <div class="as-seg" role="radiogroup" aria-label="{{ label }}">
+        {% for o in s.options %}<label><input type="radio" name="{{ s.key }}" value="{{ o.key }}"{{ ' checked' if answers.get(s.key) == o.key else '' }}>{{ o[L] or o.ar }}</label>{% endfor %}
+      </div>
+      {% else %}<p style="margin:0;">{% for o in s.options if answers.get(s.key) == o.key %}{{ o[L] or o.ar }}{% else %}—{% endfor %}</p>{% endif %}
+
+    {% elif s.type in ('multi', 'checks') %}
+      {% set picked = answers.get(s.key) or [] %}
+      {% if editing %}
+      <div class="{{ 'as-checks' if s.type == 'checks' else 'as-chips' }}">
+        {% for o in s.options %}<label class="{{ 'as-check' if s.type == 'checks' else 'as-chip' }}"><input type="checkbox" name="{{ s.key }}" value="{{ o.key }}"{{ ' checked' if o.key in picked else '' }}> {{ o[L] or o.ar }}</label>{% endfor %}
+      </div>
+      {% else %}
+      <ul class="as-read">{% for o in s.options if o.key in picked %}<li>{{ o[L] or o.ar }}</li>{% else %}<li class="hint">—</li>{% endfor %}</ul>
+      {% endif %}
+
+    {% elif s.type == 'text' %}
+      {% if editing %}<textarea class="input" name="{{ s.key }}" rows="4" maxlength="4000" aria-label="{{ label }}">{{ answers.get(s.key) or '' }}</textarea>
+      {% else %}<p style="margin:0;white-space:pre-line;" dir="auto">{{ answers.get(s.key) or '—' }}</p>{% endif %}
+
+    {% elif s.type == 'date' %}
+      {% if editing %}<input class="input" type="date" name="{{ s.key }}" value="{{ answers.get(s.key) or '' }}" style="max-width:220px;" aria-label="{{ label }}">
+      {% else %}<p style="margin:0;" dir="ltr">{{ answers.get(s.key) or '—' }}</p>{% endif %}
+
+    {% elif s.type == 'tools' %}
+      {% for tkey, tool in form.tool_defs.items() %}
+      {% set used = tkey in tools %}
+      {% set visible = used or (editing and not tools and tkey in (s.shown or [])) %}
+      <div class="as-tool" data-tool="{{ tkey }}"{{ '' if visible else ' hidden' }}>
+        {% if editing %}<input type="hidden" name="use_{{ tkey }}" value="{{ '1' if visible else '0' }}" data-use>{% endif %}
+        <div class="as-tool__head">
+          <span class="as-tool__name">{{ tool['name_' ~ L] or tool.name_ar }}</span>
+          <span class="as-src">{{ tool['source_' ~ L] or tool.source }}{% if editing %} <button class="btn btn-sm btn-outline" type="button" data-tool-off="{{ tkey }}" aria-label="{{ t('assessment.tool_remove') }}">×</button>{% endif %}</span>
+        </div>
+        <div class="as-grid">
+          {% for f in tool.fields %}
+          {% set v = (tools.get(tkey) or {}).get(f.key) %}
+          <div class="as-field">
+            <label for="t_{{ tkey }}_{{ f.key }}">{{ f[L] or f.ar }}</label>
+            <div class="as-num">
+              {% if editing %}<input class="input" id="t_{{ tkey }}_{{ f.key }}" name="t_{{ tkey }}_{{ f.key }}" inputmode="decimal" dir="ltr" value="{{ '' if v is none else v }}"{% if f.get('meets') is not none %} data-meets="{{ f.meets }}"{% endif %}>
+              {% else %}<strong dir="ltr" data-value="{{ tkey }}.{{ f.key }}">{{ '—' if v is none else v }}</strong>{% endif %}
+              {% if f.max %}<span class="as-of">{{ t('assessment.of', n=f.max) }}</span>{% endif %}
+              {% if f.get('meets') is not none %}<span class="as-meets" data-meets-mark{{ '' if asm.meets(f, v) else ' hidden' }}>{{ t('assessment.meets') }}</span>{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% if tool['rule_' ~ L] or tool.rule_ar %}<p class="as-rule">{{ tool['rule_' ~ L] or tool.rule_ar }}</p>{% endif %}
+      </div>
+      {% endfor %}
+      {% if editing %}
+      <select class="select" data-add-tool aria-label="{{ t('assessment.add_tool') }}" style="max-width:340px;">
+        <option value="">+ {{ t('assessment.add_tool') }}</option>
+        {% for tkey, tool in form.tool_defs.items() %}<option value="{{ tkey }}">{{ tool['name_' ~ L] or tool.name_ar }}</option>{% endfor %}
+      </select>
+      {% endif %}
+    {% endif %}
+  </section>
+  {% endfor %}
+
+  {% if editing %}
+  <div class="as-bar">
+    <button class="btn btn-outline gc-press" type="submit" name="then" value="save"><i class="bi bi-save"></i> {{ t('assessment.save_draft') }}</button>
+    <button class="btn btn-primary gc-press" type="submit" name="then" value="review" data-send-review><i class="bi bi-send"></i> {{ t('assessment.send_review') }}</button>
+  </div>
+  {% endif %}
+</form>
+
+<aside class="as-side">
+  <div class="card as-card">
+    <h2>{{ t('assessment.people') }}</h2>
+    <p style="margin:0;" class="hint">{{ t('assessment.written_by', who=row.assessor.display_name(current_lang) if row.assessor else '—') }}</p>
+    {% if row.status == 'approved' %}
+    <p style="margin:0;" data-approved-by>{{ t('assessment.approved_by', who=row.approver.display_name(current_lang) if row.approver else '—', when=row.approved_at|clinic_stamp) }}</p>
+    {% if row.doctor_note %}<p style="margin:0;white-space:pre-line;" dir="auto"><b>{{ t('assessment.doctor_note') }}:</b> {{ row.doctor_note }}</p>{% endif %}
+    {% elif may_approve %}
+    <form method="post" action="{{ url_for('assessments.approve', assessment_id=row.id) }}" style="display:grid;gap:8px;" data-approve-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="doctor_note" class="hint" style="margin:0;">{{ t('assessment.doctor_note') }}</label>
+      <textarea class="input" id="doctor_note" name="doctor_note" rows="3" maxlength="4000"></textarea>
+      <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-patch-check"></i> {{ t('assessment.approve') }}</button>
+    </form>
+    {% else %}
+    <p style="margin:0;" class="hint">{{ t('assessment.waits_doctor') }}</p>
+    {% endif %}
+  </div>
+  {% if history %}
+  <div class="card as-card" data-history>
+    <h2>{{ t('assessment.history') }}</h2>
+    {% for (tkey, fkey), points in history.items() %}
+    {% set tool = form.tool_defs.get(tkey) %}{% set field = (tool.fields|selectattr('key', 'equalto', fkey)|first) if tool else none %}
+    {% if tool and field %}
+    <div data-history-line="{{ tkey }}.{{ fkey }}">
+      <div class="hint" style="margin:0;">{{ tool['name_' ~ L] or tool.name_ar }} — {{ field[L] or field.ar }}</div>
+      {% set vals = points|map(attribute=1)|list %}{% set lo = vals|min %}{% set hi = vals|max %}{% set rng = (hi - lo) or 1 %}
+      <svg class="as-spark" viewBox="-3 -3 106 34" preserveAspectRatio="none" aria-hidden="true">
+        <polyline points="{% for d, v in points %}{{ (loop.index0 * 100 / (points|length - 1))|round(1) }},{{ (26 - (v - lo) / rng * 24)|round(1) }} {% endfor %}"></polyline>
+      </svg>
+      <div class="as-chips" style="font-size:.82rem;">{% for d, v in points %}<span class="as-chip" dir="ltr">{{ d.isoformat() }} · {{ v }}</span>{% endfor %}</div>
+    </div>
+    {% endif %}
+    {% endfor %}
+    <p class="as-rule">{{ t('assessment.same_tool_only') }}</p>
+  </div>
+  {% endif %}
+</aside>
+</div>
+
+{% if editing %}
+<script>
+  (function () {
+    function mark(input) {
+      var need = input.getAttribute('data-meets'), box = input.parentNode.querySelector('[data-meets-mark]');
+      if (!need || !box) return;
+      var v = parseFloat((input.value || '').replace('٫', '.'));
+      box.hidden = !(input.value !== '' && !isNaN(v) && v >= parseFloat(need));
+    }
+    document.querySelectorAll('[data-meets]').forEach(function (i) {
+      i.addEventListener('input', function () { mark(i); });
+    });
+    var adder = document.querySelector('[data-add-tool]');
+    if (adder) adder.addEventListener('change', function () {
+      var t = document.querySelector('[data-tool="' + adder.value + '"]');
+      if (t) { t.hidden = false; t.querySelector('[data-use]').value = '1'; t.scrollIntoView({block: 'nearest'}); }
+      adder.value = '';
+    });
+    document.querySelectorAll('[data-tool-off]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var t = b.closest('[data-tool]'); t.hidden = true; t.querySelector('[data-use]').value = '0';
+      });
+    });
+  })();
+</script>
+{% endif %}
+{% endblock %}
