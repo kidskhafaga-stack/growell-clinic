@@ -43,9 +43,117 @@ def catalogue():
     return remember("panels:catalogue", _load)
 
 
-def all_panels():
-    """``{key: panel}`` — every panel a clinic could choose."""
+def catalogue_panels():
+    """``{key: panel}`` as the catalogue ships them — before this clinic's
+    own changes (ASSESSMENTS_PLAN.md ق-١)."""
     return catalogue().get("panels", {})
+
+
+#: Where a clinic's changes to one panel are kept: ``panel_edit:<key>``.
+EDIT_PREFIX = "panel_edit"
+
+
+def edits():
+    """``{panel key: changes}`` — what this clinic changed, one read.
+    Nothing outside the app (a script reading the catalogue itself)."""
+    from flask import has_app_context
+
+    from app.models import Setting
+
+    if not has_app_context():
+        return {}
+    out = {}
+    for skey, raw in Setting.group(EDIT_PREFIX).items():
+        try:
+            data = json.loads(raw or "{}")
+        except (TypeError, ValueError):
+            continue
+        if isinstance(data, dict):
+            out[skey.split(":", 1)[1]] = data
+    return out
+
+
+def _alerts_for_own_numbers(meta, fields):
+    """«Above / below the number you write» for a number the clinic said may
+    carry an alert — the same two shapes the catalogue's own alerts use, so
+    «أرقام تنبيهات التخصصات» offers the box and nothing fires until a figure
+    is written there."""
+    have = {((a.get("watches") or {}).get("of"), (a.get("watches") or {}).get("when"))
+            for a in meta.get("alerts") or []}
+    out = []
+    for f in fields:
+        if f.get("type") != "number" or not f.get("alert"):
+            continue
+        for when, ar, en in (("above", "أعلى من الرقم اللي كتبته", "above the number you set"),
+                             ("below", "أقل من الرقم اللي كتبته", "below the number you set")):
+            if (f["code"], when) in have:
+                continue
+            out.append({"code": f"{f['code']}_{when}", "own": True,
+                        "label_ar": f"{f.get('label_ar') or f['code']} {ar}",
+                        "label_en": f"{f.get('label_en') or f.get('label_ar') or f['code']} {en}",
+                        "needs": "number",
+                        "watches": {"source": "panel", "of": f["code"], "when": when}})
+    return out
+
+
+def merged(meta, change):
+    """One panel with this clinic's changes laid over it.
+
+    The catalogue is never written to. A field the clinic hid is moved to
+    ``hidden_fields`` — not asked, not saved, and its readings keep their
+    name on the file and on the curves. A field the clinic added carries
+    ``own: True`` and a code that never changes.
+    """
+    if not change:
+        return meta
+    out = dict(meta)
+    over = change.get("fields") or {}
+    hidden = set(change.get("hidden") or [])
+    rows = [dict(f, **(over.get(f["code"]) or {})) for f in meta.get("fields", [])]
+    rows += [dict(f, own=True) for f in change.get("added") or []]
+    order = {code: i for i, code in enumerate(change.get("order") or [])}
+    rows = [f for _, f in sorted(enumerate(rows), key=lambda p: (
+        order.get(p[1]["code"], len(order) + p[0]), p[0]))]
+    out["fields"] = [f for f in rows if f["code"] not in hidden]
+    out["hidden_fields"] = [f for f in rows if f["code"] in hidden]
+    out["alerts"] = list(meta.get("alerts") or []) + _alerts_for_own_numbers(meta, out["fields"])
+    out["edited"] = True
+    return out
+
+
+def all_panels():
+    """``{key: panel}`` — every panel a clinic could choose, with this
+    clinic's own changes in (ق-١)."""
+    def build():
+        mine = edits()
+        return {key: merged(meta, mine.get(key)) for key, meta in catalogue_panels().items()}
+
+    return remember("panels:merged", build)
+
+
+def field_labels():
+    """``{code: field}`` across every panel, the hidden fields too — for
+    naming a reading already on the file."""
+    out = {}
+    for meta in all_panels().values():
+        for f in list(meta.get("fields", [])) + list(meta.get("hidden_fields", [])):
+            out.setdefault(f["code"], f)
+    return out
+
+
+def check_number(field, value):
+    """``(value, problem)`` for a number typed into a panel box: rounded to
+    the places the clinic set, or refused when it is outside the range the
+    clinic called sensible. ``problem`` is ``None`` or ``(low, high)``."""
+    if value is None:
+        return None, None
+    low, high = field.get("min"), field.get("max")
+    if (low is not None and value < low) or (high is not None and value > high):
+        return None, (low, high)
+    places = field.get("decimals")
+    if isinstance(places, int) and 0 <= places <= 6:
+        value = round(value, places)
+    return value, None
 
 
 def panel(key):

@@ -923,6 +923,17 @@ def _save_panel(visit):
             if row is not None:
                 db.session.delete(row)
             continue
+        if field.get("type") == "number":
+            num, outside = panels.check_number(field, _number(raw))
+            if outside:
+                # Outside the range the clinic called sensible (ق-١): a typo,
+                # most likely. Not written; the box keeps what it had.
+                lo, hi = outside
+                flash(t("panels.out_of_range",
+                        field=field.get(f"label_{getattr(g, 'lang', 'ar')}") or field.get("label_ar") or code,
+                        low="%g" % lo if lo is not None else "—",
+                        high="%g" % hi if hi is not None else "—"), "warning")
+                continue
         if row is None:
             row = Measurement(patient_id=visit.patient_id, visit_id=visit.id,
                               code=code, panel=key,
@@ -934,7 +945,7 @@ def _save_panel(visit):
         # `_number` returns None for prose rather than zero — the same rule the
         # lab results follow, and for the same reason: zero is a reading.
         if field.get("type") == "number":
-            row.value_num = _number(raw)
+            row.value_num = num
             row.value_text = None if row.value_num is not None else raw[:80]
         else:
             row.value_num = None
@@ -1464,6 +1475,9 @@ def plan_dose(visit_id):
     return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
 
 
+_ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩٫", "0123456789.")
+
+
 def _number(raw):
     """A form field as a float, or ``None``.
 
@@ -1471,9 +1485,9 @@ def _number(raw):
     A doctor who types "7.2 %" into the value box has said something true and
     the program does not have to guess which half is the number: the text box
     beside it holds exactly that sentence, and a value parsed out of prose is
-    a point on a chart nobody checked.
+    a point on a chart nobody checked. Arabic digits are digits («١٢٫٣»).
     """
-    raw = (raw or "").strip()
+    raw = (raw or "").strip().translate(_ARABIC_DIGITS)
     if not raw:
         return None
     try:
@@ -2586,8 +2600,8 @@ def panel_templates_screen():
         "visits/panel_templates.html", rows=rows,
         panel_name=lambda k: (panels.panel(k) or {}).get("name_en" if lang == "en" else "name_ar") or k,
         values=panel_templates.values, dropped=panel_templates.dropped,
-        field_label=lambda k, c: ((panels.field_map(k).get(c) or {}).get("label_" + lang)
-                                  or (panels.field_map(k).get(c) or {}).get("label_ar") or c))
+        field_label=lambda k, c: ((panels.field_labels().get(c) or {}).get("label_" + lang)
+                                  or (panels.field_labels().get(c) or {}).get("label_ar") or c))
 
 
 # ----------------------------------------------------- my quick phrases -----

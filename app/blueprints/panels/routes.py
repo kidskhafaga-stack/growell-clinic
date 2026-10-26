@@ -165,3 +165,61 @@ def set_alert():
     flash(t("panel_alerts.saved") if row.is_armed
           else t("panel_alerts.disarmed"), "success")
     return redirect(url_for("panels.alerts"))
+
+
+# ------------------------------------------------ the clinic's own panel ---
+@panels_bp.route("/<key>/edit", methods=["GET", "POST"])
+@login_required
+@module_required(MODULE)
+@admin_required
+def edit(key):
+    """«عدّل التخصص» (ASSESSMENTS_PLAN.md ق-١): add a field, hide one, rename
+    it, move it, say what is measured and how — the clinic's own copy laid
+    over the catalogue (see ``utils/panel_edit.py``)."""
+    from flask import abort, flash, redirect, request, url_for
+    from flask_login import current_user
+
+    from app.i18n import t
+    from app.utils import panel_edit, panels as catalogue
+
+    meta = catalogue.panel(key)
+    if meta is None:
+        abort(404)
+    if request.method == "POST":
+        do = (request.form.get("do") or "").strip()
+        code = (request.form.get("code") or "").strip()[:40]
+        anchor = ""
+        if do == "add":
+            code, problem = panel_edit.add_field(key, request.form, current_user)
+        elif do == "field":
+            problem = panel_edit.set_field(key, code, request.form, current_user)
+        elif do == "hide":
+            problem = panel_edit.hide(key, code, current_user)
+        elif do == "show":
+            problem = panel_edit.show(key, code, current_user)
+        elif do == "remove":
+            problem = panel_edit.remove(key, code, current_user)
+        elif do in ("up", "down"):
+            problem = panel_edit.move(key, code, -1 if do == "up" else 1, current_user)
+        elif do == "reset":
+            problem = panel_edit.reset(key, current_user)
+        else:
+            problem = "unknown"
+        if problem and problem != "kept_hidden":
+            db.session.rollback()
+            flash(t(f"panel_edit.err_{problem}"), "warning")
+        else:
+            db.session.commit()
+            flash(t("panel_edit.kept_hidden" if problem else f"panel_edit.done_{do}"), "success")
+            if code and do not in ("remove", "reset"):
+                anchor = f"#f-{code}"
+        return redirect(url_for("panels.edit", key=key) + anchor)
+
+    from app.models import Measurement
+
+    codes = [f["code"] for f in meta.get("fields", []) + meta.get("hidden_fields", [])]
+    counts = dict(db.session.query(Measurement.code, db.func.count())
+                  .filter(Measurement.code.in_(codes))
+                  .group_by(Measurement.code).all())
+    return render_template("panels/edit.html", key=key, meta=meta, counts=counts,
+                           edited=panel_edit.is_edited(key), types=panel_edit.TYPES)

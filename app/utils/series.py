@@ -102,10 +102,9 @@ def _panel_points(patient_id, lang="ar"):
             .order_by(Measurement.recorded_at, Measurement.id)
             .all())
 
-    labels = {}
-    for meta in panels.all_panels().values():
-        for field in meta.get("fields", []):
-            labels.setdefault(field["code"], field)
+    # Every field's name, the ones this clinic hid too: a reading already on
+    # the file keeps its name (ق-١).
+    labels = dict(panels.field_labels())
     # The assessment tools' scores (ب-٤) are readings too, named by the tool.
     from app.utils import visit_scores
 
@@ -115,6 +114,8 @@ def _panel_points(patient_id, lang="ar"):
     out = []
     for row in rows:
         field = labels.get(row.code) or {}
+        if field.get("chart") is False:
+            continue                    # the clinic said this one is not drawn
         name = field.get(f"label_{lang}") or field.get("label_ar") or row.code
         out.append((f"panel:{row.code}", name, (row.unit or "").strip(), {
             "date": _moment(row.recorded_at),

@@ -10,7 +10,7 @@ from app.extensions import db
 
 # Prefixes read as a group by `Setting.group`. Writing any key under one
 # has to drop that group's cached read as well as its own.
-GROUPED_PREFIXES = ("mod_enabled:", "risk:")
+GROUPED_PREFIXES = ("mod_enabled:", "risk:", "panel_edit:")
 
 # Keys every page reads — the menu, the clock, the update notice — fetched in
 # one query instead of one each. The side menu's search switch (`nav_find`)
