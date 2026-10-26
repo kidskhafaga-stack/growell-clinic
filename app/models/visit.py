@@ -335,6 +335,14 @@ class VisitInvestigation(db.Model):
     collected_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     # Where it was drawn (`lab_transfer.PLACES`) — empty reads as the lab.
     collected_where = db.Column(db.String(16))
+    # **The result to the family** (LAB_GLAB360_PLAN.md م-٤): the doctor saw
+    # it — it goes to the family only after that; and, for a critical result
+    # or a sensitive test, the doctor spoke to the family first.
+    doctor_seen_at = db.Column(db.DateTime, index=True)
+    doctor_seen_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    family_called_at = db.Column(db.DateTime)
+    family_called_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    family_called_note = db.Column(db.String(200))
 
     # **The imaging half of the same middle state.** An echo has no tube, so
     # `sample_code` and `collected_at` can never be true of one — and until
@@ -512,6 +520,8 @@ class VisitInvestigation(db.Model):
     exposure_writer = db.relationship("User", foreign_keys=[exposure_by])
     receiver = db.relationship("User", foreign_keys=[received_by])
     verifier = db.relationship("User", foreign_keys=[verified_by])
+    doctor_seer = db.relationship("User", foreign_keys=[doctor_seen_by])
+    family_caller = db.relationship("User", foreign_keys=[family_called_by])
     sent_lab = db.relationship("ReferralLab", foreign_keys=[sent_lab_id])
     sender = db.relationship("User", foreign_keys=[sent_by])
     delay_teller = db.relationship("User", foreign_keys=[delay_told_by])

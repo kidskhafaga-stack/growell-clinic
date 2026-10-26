@@ -1624,7 +1624,11 @@ def results():
         doctor_id = None
         mine = False
     rows = arrived_unread(doctor_id=doctor_id)
+    from app.utils import lab_share
+
     return render_template("visits/results.html", rows=rows, mine=mine,
+                           lab_share_count=(lab_share.to_see_count(doctor_id)
+                                            if lab_share.on() else 0),
                            can_scope=bool(doctor_locked_id() is None
                                           and current_user.is_practitioner))
 

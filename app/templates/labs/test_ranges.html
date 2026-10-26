@@ -133,6 +133,10 @@
         <input class="input" type="number" min="1" id="retest_hours" name="retest_hours" value="{{ test.retest_hours or '' }}" placeholder="{{ t('lab_retest.hours_ph') }}" data-retest-hours></div>
       <div class="form-row"><label for="keep_days">{{ t('lab_storage.keep_days') }}</label>
         <input class="input" type="number" min="1" max="3650" id="keep_days" name="keep_days" value="{{ test.keep_days or '' }}" placeholder="{{ t('lab_storage.keep_days_ph') }}" data-keep-days></div>
+      {# م-٤ — the family hears this one from the doctor before it is sent. #}
+      <div class="form-row rng-wide" data-sensitive-box><input type="hidden" name="sensitive" value="0">
+        <label style="display:flex;gap:8px;align-items:center;"><input type="checkbox" name="sensitive" value="1" {{ 'checked' if test.sensitive else '' }}>
+          <span>{{ t('lab_share.sensitive') }} <span class="hint">— {{ t('lab_share.sensitive_hint') }}</span></span></label></div>
     </div>
     <p class="hint" style="margin:6px 0;">{{ t('lab_steps.tat_hint') }}</p>
     <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>

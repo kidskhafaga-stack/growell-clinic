@@ -207,7 +207,21 @@ def _render_order(row, **extra):
                            ai_review_ready=lab_review.ready(),
                            # Where it was drawn, and every step since (م-٣).
                            **_transfer_for(row),
+                           # Who it was sent to, and whether they opened it (م-٤).
+                           **_shares_for(row),
                            **_storage_for(row), **extra)
+
+
+def _shares_for(row):
+    from app.utils import lab_share
+
+    if row.kind != "lab" or not lab_share.on():
+        return {"shares": [], "share_doctors": [], "share_released": False}
+    return {"shares": lab_share.for_order(row),
+            "share_doctors": (lab_share.referring_doctors()
+                              if lab_results.reads_results(current_user) else []),
+            "share_released": lab_share.released(row) and not lab_share.held(row),
+            "share_hold": lab_share.hold_reason(row)}
 
 
 def _transfer_for(row):
@@ -485,7 +499,16 @@ def settings():
     return render_template("labs/settings.html",
                            warehouses=_warehouses(), lab_store=_lab_store(),
                            release_required=_release().required(),
-                           reject_reasons=_reception().reasons())
+                           reject_reasons=_reception().reasons(),
+                           **_share_settings())
+
+
+def _share_settings():
+    from app.utils import lab_share
+    from app.models import Setting
+
+    return {"share_on": Setting.get(lab_share.SETTING) == "1",
+            "share_days": lab_share.days()}
 
 
 @labs_bp.route("/verify-setting", methods=["POST"])
@@ -657,6 +680,229 @@ def referral_lab_save(lab_id=None):
     db.session.commit()
     flash(t("lab_sendout.lab_saved"), "success")
     return redirect(url_for("labs.referral_labs"))
+
+
+# ------------------------------------------- the result to the family (م-٤) --
+def _share_door(view):
+    """The results a doctor sees before they go to the family: open while
+    the clinic has switched sending on, to whoever works in the lab and to
+    any doctor — the same door as the critical values."""
+    from functools import wraps
+
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        from flask import current_app
+
+        from app.utils import lab_share
+
+        if not current_user.is_authenticated:
+            return current_app.login_manager.unauthorized()
+        # Who may, before whether it is on: a role with no business here is
+        # refused, never told whether the clinic sends results.
+        if not (current_user.can_access(MODULE)
+                or lab_results.reads_results(current_user)):
+            abort(403, description=t("auth.no_permission"))
+        if not lab_share.on():
+            abort(404)
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def _share_scope():
+    """Whose results: a doctor's own by default, everybody's when asked."""
+    from app.utils.privacy import doctor_locked_id
+
+    locked = doctor_locked_id()
+    if locked:
+        return locked, True
+    if current_user.is_practitioner and request.args.get("scope") != "all":
+        return current_user.id, True
+    return None, False
+
+
+def _orders_from_form():
+    ids = [int(i) for i in request.form.getlist("order") if str(i).isdigit()][:40]
+    return (VisitInvestigation.query.filter(VisitInvestigation.id.in_(ids)).all()
+            if ids else [])
+
+
+def _after_send(log, back, share=None):
+    """A message that needs a press (WhatsApp from this computer) opens the
+    page with the button — and, when the report goes as a file, the file to
+    download and drop in; one the provider sent comes straight back."""
+    if log is not None and getattr(log, "link", None):
+        db.session.commit()
+        return render_template("labs/share_sent.html", log=log, share=share,
+                               back_url=back)
+    return None
+
+
+@labs_bp.route("/results/to-see")
+@_share_door
+def results_to_see():
+    """Released results this doctor has not seen — pressing «seen» sends
+    them to the family; a critical result or a sensitive test waits for the
+    doctor's call first."""
+    from app.utils import lab_share
+
+    doctor_id, mine = _share_scope()
+    return render_template("labs/results_to_see.html",
+                           to_see=lab_share.by_child(lab_share.to_see(doctor_id)),
+                           to_call=lab_share.to_call(doctor_id), mine=mine,
+                           can_scope=bool(current_user.is_practitioner),
+                           hold_reason=lab_share.hold_reason, held=lab_share.held,
+                           doctors=lab_share.referring_doctors(),
+                           may_act=lab_results.reads_results(current_user),
+                           online=lab_share.online(), days=lab_share.days())
+
+
+@labs_bp.route("/results/seen", methods=["POST"])
+@_share_door
+def results_seen():
+    from app.utils import lab_share
+
+    back = url_for("labs.results_to_see")
+    try:
+        share, log, waiting = lab_share.see(_orders_from_form(), current_user,
+                                            lang=getattr(g, "lang", "ar"))
+    except lab_share.ShareError as err:
+        db.session.rollback()
+        flash(t(f"lab_share.err_{err}"), "warning")
+        return redirect(back)
+    if waiting:
+        flash(t("lab_share.held_n", n=len(waiting)), "warning")
+    if share is None and not waiting:
+        flash(t("lab_share.seen_not_sent"), "warning")
+    page = _after_send(log, back, share)
+    if page is not None:
+        return page
+    db.session.commit()
+    if share is not None:
+        flash(t("lab_share.sent"), "success")
+    return redirect(back)
+
+
+@labs_bp.route("/results/<int:order_id>/called", methods=["POST"])
+@_share_door
+def result_called(order_id):
+    from app.utils import lab_share
+
+    back = url_for("labs.results_to_see")
+    row = db.get_or_404(VisitInvestigation, order_id)
+    try:
+        share, log = lab_share.called(row, current_user, note=request.form.get("note"),
+                                      lang=getattr(g, "lang", "ar"))
+    except lab_share.ShareError as err:
+        db.session.rollback()
+        flash(t(f"lab_share.err_{err}"), "warning")
+        return redirect(back)
+    page = _after_send(log, back, share)
+    if page is not None:
+        return page
+    db.session.commit()
+    flash(t("lab_share.sent" if share is not None else "lab_share.seen_not_sent"),
+          "success" if share is not None else "warning")
+    return redirect(back)
+
+
+@labs_bp.route("/results/to-doctor", methods=["POST"])
+@_share_door
+def result_to_doctor():
+    """The same link to the doctor who referred the child."""
+    from app.models import ExternalDoctor
+    from app.models.result_share import DOCTOR
+    from app.utils import lab_share
+
+    back = request.form.get("back") == "order"
+    orders = _orders_from_form()
+    target = (url_for("labs.order", order_id=orders[0].id) if back and orders
+              else url_for("labs.results_to_see"))
+    if not lab_results.reads_results(current_user):
+        abort(403, description=t("auth.no_permission"))
+    doctor = db.session.get(ExternalDoctor, request.form.get("external_doctor_id", type=int) or 0)
+    try:
+        share, log = lab_share.send(orders, current_user, audience=DOCTOR,
+                                    doctor=doctor, lang=getattr(g, "lang", "ar"))
+    except lab_share.ShareError as err:
+        db.session.rollback()
+        flash(t(f"lab_share.err_{err}"), "warning")
+        return redirect(target)
+    page = _after_send(log, target, share)
+    if page is not None:
+        return page
+    db.session.commit()
+    flash(t("lab_share.sent_doctor"), "success")
+    return redirect(target)
+
+
+@labs_bp.route("/r/<token>", methods=["GET", "POST"])
+def result_link(token):
+    """What the family — or the referring doctor — opens from the message.
+
+    No login: the person holding the link is a parent on a phone. The report
+    shows only after the child's date of birth is typed; the link ends after
+    its days, and five wrong answers lock it. Nothing on the page changes
+    anything, and nothing on it is the program's own words about the result.
+    """
+    from app.utils import lab_share
+
+    share = lab_share.by_token(token)
+    status = lab_share.state(share)
+    if status != "ok":
+        return render_template("labs/result_link.html", status=status,
+                               share=None, rows=[]), 404 if status == "gone" else 410
+    wrong = False
+    if request.method == "POST":
+        if lab_share.check(share, request.form.get("born")):
+            page = lab_share.sheet(lab_share.orders_of(share), share.patient,
+                                   getattr(g, "lang", "ar"),
+                                   lab_share.opens_in(share.audience))
+            db.session.commit()
+            return page
+        db.session.commit()
+        wrong = True
+        if lab_share.state(share) == "locked":
+            return render_template("labs/result_link.html", status="locked",
+                                   share=None, rows=[]), 410
+    return render_template("labs/result_link.html", status="ask", share=share,
+                           rows=[], wrong=wrong,
+                           left=max(0, 5 - (share.failures or 0)))
+
+
+@labs_bp.route("/results/file/<int:share_id>")
+@_share_door
+def result_file(share_id):
+    """The report a share carried, as the file to drop into WhatsApp — made
+    again from the results as they stand, for whoever sends it by hand."""
+    from flask import Response
+
+    from app.models import ResultShare
+    from app.utils import lab_share
+
+    share = db.get_or_404(ResultShare, share_id)
+    html = lab_share.sheet(lab_share.orders_of(share), share.patient,
+                           getattr(g, "lang", "ar"), lab_share.opens_in(share.audience))
+    return Response(html, mimetype="text/html", headers={
+        "Content-Disposition": f'attachment; filename="{lab_share.file_name(share)}"'})
+
+
+@labs_bp.route("/share-setting", methods=["POST"])
+@module_required(MODULE)
+def share_setting():
+    """The clinic's choice: send results to families after the doctor saw
+    them, and for how many days a link works."""
+    from app.models import ActivityLog
+    from app.utils import lab_share
+
+    _admin_only()
+    on = request.form.get("on") == "1"
+    lab_share.switch(on, keep_days=request.form.get("days"))
+    ActivityLog.record("lab.share_setting", user_id=current_user.id,
+                       detail=f"{'on' if on else 'off'} days={lab_share.days()}")
+    db.session.commit()
+    flash(t("lab_share.setting_saved"), "success")
+    return redirect(url_for("labs.settings") + "#share-setting")
 
 
 # ------------------------------------------------------- tubes on the way --
@@ -2200,6 +2446,10 @@ def test_details(test_id):
         raw = (request.form.get("keep_days") or "").strip()
         row.keep_days = (int(raw) if raw.isdigit() and 0 < int(raw) <= 3650
                          else None)
+    # A result the family hears from the doctor first (م-٤). The hidden «0»
+    # beside the box makes an unticked box say no.
+    if "sensitive" in request.form:
+        row.sensitive = "1" in request.form.getlist("sensitive")
     db.session.commit()
     flash(t("lab.test_saved"), "success")
     return redirect(url_for("labs.test_ranges", test_id=row.id) + "#details")

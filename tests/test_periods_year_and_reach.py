@@ -255,6 +255,9 @@ def test_no_page_is_left_without_a_link(boss, clinic):
             # There is deliberately no way in from the program: it is the
             # parent's copy, reached by a token and nothing else.
             "public_copy",
+            # The lab result a family opens from its link (م-٤) — the same
+            # kind of door: a token and nothing else.
+            "result_link",
             # A family's complaint: their verdict on the answer, and one they
             # write themselves — both reached by a link sent to them.
             "feedback.case_verdict", "feedback.case_new",

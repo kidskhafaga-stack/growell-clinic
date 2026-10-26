@@ -20,6 +20,16 @@
   {% endif %}
 </div>
 
+{# The lab's released results wait for the doctor before they go to the
+   family (م-٤) — their own list, one press away. #}
+{% if lab_share_count %}
+<a class="card gc-scale-in" style="display:flex;gap:10px;align-items:center;margin-bottom:14px;text-decoration:none;color:inherit;border-inline-start:4px solid var(--warning, #d97706);"
+   href="{{ url_for('labs.results_to_see') }}" data-to-results-to-see>
+  <i class="bi bi-send-check" style="font-size:1.3rem;"></i>
+  <span style="flex:1;">{{ t('lab_share.door', n=lab_share_count) }}</span>
+  <i class="bi bi-chevron-{{ 'left' if direction == 'rtl' else 'right' }}"></i></a>
+{% endif %}
+
 {% if rows %}
 <div style="display:flex;flex-direction:column;gap:12px;">
   {% for row in rows %}
