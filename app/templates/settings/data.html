@@ -92,6 +92,16 @@
 <!-- Backups (Phase 0 — the safety net) -->
 {# Anchored: the setup checklist links straight here, and a link that lands at
    the top of a long data screen is a link that has not arrived. #}
+{# MONEY_SAFETY_PLAN.md ف-٤: every stored amount to the piastre. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;" data-money-check-door>
+  <div>
+    <h2 class="section-title" style="margin:0;"><i class="bi bi-cash-coin"></i> {{ t('money_check.title') }}</h2>
+    <p class="hint" style="margin:6px 0 0;max-width:80ch;">{{ t('money_check.door_hint') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('settings.money_check') }}">
+    <i class="bi bi-search"></i> {{ t('money_check.open') }}</a>
+</div>
+
 <div class="card gc-scale-in" id="backup" style="margin-bottom:16px;scroll-margin-top:80px;">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
     <div>

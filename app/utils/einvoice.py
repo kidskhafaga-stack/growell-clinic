@@ -17,6 +17,7 @@ from datetime import datetime
 
 from app.extensions import db
 from app.models import EInvoiceDocument, Setting
+from app.utils import money
 
 # ETA endpoints (production); preprod hosts are the ``*.preprod`` equivalents.
 ID_HOST = {"production": "https://id.eta.gov.eg",
@@ -55,7 +56,7 @@ def build_document(invoice, cfg=None):
     lines = []
     for it in invoice.items:
         net = it.net
-        tax = round(net * rate / 100.0, 2) if taxable else 0
+        tax = money.percent(net, rate) if taxable else 0
         svc = it.service
         item_type = (svc.eta_item_type if svc and svc.eta_item_type else default_item_type)
         fallback_code = "EG-0000" if item_type == "EGS" else "0000000000000"

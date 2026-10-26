@@ -1080,6 +1080,10 @@ ADDITIONS = [
     # The doctor first saw the child (HOSPITAL_PLAN.md ٥‑د).
     ("emergency_visits", "seen_at", "DATETIME"),
     ("emergency_visits", "seen_by_id", "INTEGER"),
+    # The research ethics committee allowed a review of past records — the
+    # research export reads the whole cohort then (ت-٧). Off on every existing
+    # protocol: none was ever approved for it.
+    ("research_protocols", "record_review", "BOOLEAN DEFAULT 0"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

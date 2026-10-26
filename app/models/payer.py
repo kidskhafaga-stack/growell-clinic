@@ -14,6 +14,7 @@ from datetime import date, datetime
 
 from app.extensions import db
 from app.utils.clock import local_today
+from app.utils import money
 
 PAYER_TYPES = ["club", "syndicate", "insurance", "company", "cash", "other"]
 COVERAGE_TYPES = ["percent", "fixed"]
@@ -134,7 +135,7 @@ class PayerEntity(db.Model):
         if rate is None:
             return 0.0
         if rate.coverage_type == "percent":
-            return round(max(amount, 0) * (rate.coverage_value or 0) / 100.0, 2)
+            return money.percent(max(amount, 0), rate.coverage_value or 0)
         return round(min(rate.coverage_value or 0, max(amount, 0)), 2)
 
     def tariff(self, service, on_date=None):
@@ -495,7 +496,7 @@ class PayerContractRule(db.Model):
         pct = self.family_discount or 0
         if pct <= 0 or self.excluded:
             return 0.0
-        return round(max(family_share or 0, 0) * min(pct, 100) / 100.0, 2)
+        return money.percent(max(family_share or 0, 0), min(pct, 100))
 
     def cover(self, amount):
         """What the payer pays of a line of ``amount`` under this rule."""
@@ -503,7 +504,7 @@ class PayerContractRule(db.Model):
         if self.excluded:
             return 0.0
         if self.coverage_type == "percent":
-            return round(amount * (self.coverage_value or 0) / 100.0, 2)
+            return money.percent(amount, self.coverage_value or 0)
         return round(min(self.coverage_value or 0, amount), 2)
 
     def __repr__(self):

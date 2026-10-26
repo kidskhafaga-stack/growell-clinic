@@ -15,6 +15,7 @@ from datetime import date, datetime
 
 from app.extensions import db
 from app.utils.clock import local_today
+from app.utils import money
 
 DISCOUNT_TYPES = ["campaign", "doctor", "category", "payer", "sibling",
                   "special"]
@@ -284,7 +285,7 @@ class NamedDiscount(db.Model):
         """Discount amount this rule yields for a given line gross."""
         gross = max(gross or 0, 0)
         if self.is_percent:
-            return round(gross * (self.value or 0) / 100.0, 2)
+            return money.percent(gross, self.value or 0)
         return round(min(self.value or 0, gross), 2)
 
     def __repr__(self):

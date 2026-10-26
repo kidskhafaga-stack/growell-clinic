@@ -23,6 +23,7 @@ interrupted write and there are two answers to "how much is in this till" with
 no way to tell which one is lying.
 """
 from app.extensions import db
+from app.utils import money
 
 # Who may work a till. Deliberately *not* a capability: "may move money" is a
 # job, "may open the second-floor drawer" is an assignment, and squeezing the
@@ -154,7 +155,7 @@ class CashAccount(db.Model):
         """
         if not self.fee_percent or not amount:
             return 0.0
-        return round(float(amount) * float(self.fee_percent) / 100.0, 2)
+        return money.percent(amount, self.fee_percent)
 
     @property
     def counts_by_hand(self):

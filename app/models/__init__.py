@@ -385,7 +385,7 @@ from app.models.governance import (CommitteeCharter, CommitteeReview,
                                    EthicsIssue, GovernanceReport,
                                    SupplierEvaluation)
 from app.models.staff_health import OccupationalRisk, StaffHealthEntry
-from app.models.teaching import (ResearchParticipant, ResearchProtocol,
+from app.models.teaching import (ResearchExport, ResearchParticipant, ResearchProtocol,
                                  ResearchSafetyEvent, TeachingConcern, Trainee,
                                  TraineeAssessment, TrainingRotation)
 from app.models.community import (Advertisement, CommunityActivity,
@@ -924,6 +924,7 @@ __all__ = [
     "TraineeAssessment",
     "TeachingConcern",
     "ResearchProtocol",
+    "ResearchExport",
     "ResearchParticipant",
     "ResearchSafetyEvent",
     "CommunityPartner",

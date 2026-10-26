@@ -154,7 +154,14 @@ def protocol(protocol_id):
     pid = request.args.get("patient_id", type=int)
     if pid:
         child = db.session.get(Patient, pid)
+    from app.models import ResearchExport
+    from app.utils import research_export as rx
+
+    exports = (ResearchExport.query.filter_by(protocol_id=row.id)
+               .order_by(ResearchExport.at.desc()).limit(20).all())
     return render_template("teaching/protocol.html", p=row, open=teach.open_for_enrolment(row),
+                           export_refused=rx.may_export(row, local_today()),
+                           may_export=rx.may_use(row, current_user), exports=exports,
                            child=child, consents=teach.research_consents(child, row) if child else [],
                            today=local_today())
 
@@ -166,6 +173,32 @@ def protocol_decide(protocol_id):
         abort(403, description=t("auth.no_permission"))
     row = db.get_or_404(ResearchProtocol, protocol_id)
     return _go(lambda: teach.decide(row, request.form), url_for("teaching.protocol", protocol_id=row.id))
+
+
+@teaching_bp.route("/protocol/<int:protocol_id>/export", methods=["POST"])
+@module_required(MODULE)
+def protocol_export(protocol_id):
+    """A study's data with no child named in it (HOSPITAL_PLAN.md ٥‑د ت-٧):
+    a zip of the data, the codebook and what was asked for — only for an
+    approved protocol in its validity, by its investigator or whoever runs
+    the clinic, and recorded every time (`utils/research_export`)."""
+    from flask import send_file
+
+    from app.utils import research_export as rx
+
+    row = db.get_or_404(ResearchProtocol, protocol_id)
+    if not rx.may_use(row, current_user):
+        abort(403, description=t("auth.no_permission"))
+    try:
+        blob, record = rx.build(row, current_user, request.form.get("mode") or rx.PARTICIPANTS,
+                                request.form, today=local_today())
+    except rx.ExportRefused as exc:
+        flash(t(f"research_export.refused_{exc}"), "warning")
+        return redirect(url_for("teaching.protocol", protocol_id=row.id) + "#export")
+    import io
+
+    return send_file(io.BytesIO(blob), mimetype="application/zip", as_attachment=True,
+                     download_name=f"study-{row.id}-{record.id}.zip")
 
 
 @teaching_bp.route("/protocol/<int:protocol_id>/enroll", methods=["POST"])

@@ -29,6 +29,7 @@ operation booked before the kind existed has ``case_type`` NULL, which is not
 the answer is the doctor's ordinary rate.
 """
 from app.models import DoctorCaseRate
+from app.utils import money
 
 
 def _case_rate(service, doctor, case_type):
@@ -83,7 +84,7 @@ def share_for(service, amount, doctor=None, case_type=None):
     """
     ctype, cval = commission_for(service, doctor, case_type)
     if ctype == "percent":
-        return round(max(amount, 0) * (cval or 0) / 100.0, 2)
+        return money.percent(max(amount, 0), cval or 0)
     if ctype == "fixed":
         return round(min(cval or 0, max(amount, 0)), 2)
     return 0.0

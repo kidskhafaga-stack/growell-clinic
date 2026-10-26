@@ -64,6 +64,7 @@ from app.utils import case_rates
 from app.utils import cost_centres
 from app.utils import einvoice as eta
 from app.utils.sequences import retry_on_number_clash
+from app.utils import money
 
 MODULE = "finance"
 
@@ -1725,14 +1726,18 @@ def _take_payment(invoice, amt_raw, method, remaining, shift_id, notes=None,
 
     Returns ``(payment_or_None, new_remaining, change)``.
     """
+    from app.utils import money
+
     try:
-        given = round(float(amt_raw), 2)
-    except (TypeError, ValueError):
+        # Read to the piastre; a third decimal is refused upstream
+        # (`_too_precise`), never rounded here behind the cashier's back.
+        given = money.parse_amount(amt_raw)
+    except money.MoneyError:
         return None, remaining, 0.0
     if given <= 0 or remaining <= 0:
         return None, remaining, 0.0
-    applied = round(min(given, remaining), 2)
-    change = round(given - applied, 2)
+    applied = money.pounds(min(money.piastres(given), money.piastres(remaining)))
+    change = money.pounds(money.piastres(given) - money.piastres(applied))
     method = method if method in PAYMENT_METHODS else "cash"
     till = _till_for(method, account_id)
     pay = Payment(
@@ -1741,7 +1746,26 @@ def _take_payment(invoice, amt_raw, method, remaining, shift_id, notes=None,
         received_by=current_user.id, shift_id=shift_id,
         account_id=till.id if till else None)
     invoice.payments.append(pay)
-    return pay, round(remaining - applied, 2), change
+    return pay, money.pounds(money.piastres(remaining) - money.piastres(applied)), change
+
+
+def _too_precise(amounts):
+    """Whether any typed amount has more than two places after the point.
+
+    Refused as a whole, before anything is taken: a split payment of three
+    lines with one mistyped must not go in as two (MONEY_SAFETY_PLAN.md ف-٤ —
+    «من غير تقريب بصمت»)."""
+    from app.utils import money
+
+    for raw in amounts:
+        if (raw or "").strip() in ("", "0", "0.0"):
+            continue
+        try:
+            money.parse_amount(raw)
+        except money.MoneyError as exc:
+            if str(exc) == "too_precise":
+                return True
+    return False
 
 
 def _arrived_on_payment(appt):
@@ -2580,7 +2604,7 @@ def _line_discount_amount(item, disc):
     amount = disc.amount_for(item.gross)
     service = item.service
     if service is not None and service.max_discount:
-        amount = min(amount, round(item.gross * service.max_discount / 100.0, 2))
+        amount = min(amount, money.percent(item.gross, service.max_discount))
     return max(amount, 0)
 
 
@@ -3777,6 +3801,10 @@ def _checkout_screen(appt, patient):
         # later" doesn't, and neither does money that never touches it).
         paying = [m for a, m in zip(amounts, methods)
                   if (a or "").strip() not in ("", "0", "0.0")]
+        if _too_precise(amounts):
+            db.session.rollback()
+            flash(t("money.too_precise"), "danger")
+            return redirect(_checkout_url(appt, patient_id))
         if paying and _shift_gate_blocked(paying):
             db.session.rollback()
             flash(t("shifts.gate_blocked"), "warning")
@@ -4546,6 +4574,9 @@ def invoice_payment(invoice_id):
     amounts = request.form.getlist("amount")
     methods = request.form.getlist("method")
     tills = request.form.getlist("account_id")
+    if _too_precise(amounts):
+        flash(t("money.too_precise"), "danger")
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
     # Shift gate: cash only enters the drawer inside an open shift. Other
     # methods never touch it, so refusing them here would be refusing money
     # for no reason.
@@ -4643,7 +4674,15 @@ def invoice_refund(invoice_id):
     from app.models import RefundRequest, Setting
 
     invoice = db.get_or_404(Invoice, invoice_id)
-    amount = request.form.get("amount", type=float)
+    from app.utils import money
+
+    try:
+        amount = money.parse_amount(request.form.get("amount"))
+    except money.MoneyError as exc:
+        if str(exc) == "too_precise":
+            flash(t("money.too_precise"), "danger")
+            return redirect(_after_refund(invoice))
+        amount = None
     # The refusals go back the same way as the success. A cashier told "bad
     # amount" and then dumped on a screen they did not open has lost the family
     # they were serving as well as the typo.

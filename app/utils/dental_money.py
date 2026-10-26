@@ -57,7 +57,9 @@ def minimum_deposit(total):
     except (TypeError, ValueError):
         percent = 0.0
     percent = min(max(percent, 0.0), 100.0)
-    return round(round(total or 0, 2) * percent / 100.0, 2)
+    from app.utils import money
+
+    return money.percent(total or 0, percent)
 
 
 def accept(plan, user_id=None):

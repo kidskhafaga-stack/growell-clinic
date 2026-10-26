@@ -9,6 +9,7 @@ collections; the invoice status is derived from paid-vs-total.
 from datetime import datetime
 
 from app.extensions import db
+from app.utils import money
 from app.utils.clock import local_today
 
 # "refunded" is terminal: every collection path refuses it, and it drops
@@ -165,13 +166,15 @@ class Invoice(db.Model):
         return "inpatient" if self.admission_id else "outpatient"
 
     # --- money ---------------------------------------------------------
+    # Every figure below is added up in whole piastres (`utils/money`,
+    # MONEY_SAFETY_PLAN.md ف-٤) and handed back as an exact two-place float.
     @property
     def subtotal(self):
-        return round(sum(i.gross for i in self.items), 2)
+        return money.pounds(sum(i.gross_piastres for i in self.items))
 
     @property
     def discount_total(self):
-        return round(sum(i.discount_amount for i in self.items), 2)
+        return money.pounds(sum(i.discount_piastres for i in self.items))
 
     @property
     def waiting_approval(self):
@@ -191,12 +194,17 @@ class Invoice(db.Model):
             return 0.0
         kept = [i for i in self.items if i.payer_amount is not None]
         if not kept:
-            return round(self.discount_total or 0, 2)
-        return round(sum(min(i.payer_amount or 0, i.gross) for i in kept), 2)
+            return self.discount_total or 0.0
+        return money.pounds(sum(min(money.piastres(i.payer_amount), i.gross_piastres)
+                                for i in kept))
+
+    @property
+    def total_piastres(self):
+        return sum(i.net_piastres for i in self.items)
 
     @property
     def total(self):
-        return round(sum(i.net for i in self.items), 2)
+        return money.pounds(self.total_piastres)
 
     # When the whole of this invoice's money went back. Set once, by the
     # refund that empties it; it is what makes `recalc_status` say "refunded"
@@ -218,30 +226,39 @@ class Invoice(db.Model):
         gone back. Read off the payments rather than the flag, so it is still
         true of an invoice refunded before the flag existed.
         """
-        total = round(self.total or 0, 2)
-        return total > 0 and round(self.refunded, 2) >= total
+        total = self.total_piastres
+        return total > 0 and self.refunded_piastres >= total
+
+    @property
+    def paid_piastres(self):
+        """Net collected = payments − refunds, in whole piastres."""
+        return sum(p.signed_piastres for p in self.payments)
 
     @property
     def paid(self):
         """Net collected = payments − refunds."""
-        return round(sum(p.signed_amount for p in self.payments), 2)
+        return money.pounds(self.paid_piastres)
+
+    @property
+    def refunded_piastres(self):
+        return sum(money.piastres(p.amount) for p in self.payments if p.kind == "refund")
 
     @property
     def refunded(self):
-        return round(sum(p.amount or 0 for p in self.payments if p.kind == "refund"), 2)
+        return money.pounds(self.refunded_piastres)
 
     @property
     def tendered(self):
         """Cash actually handed over by the patient (≥ ``paid`` when they paid
         with a bigger note). Used on the receipt so the review can see that the
         patient gave 200 for a 127.50 bill."""
-        return round(sum(p.handed_over for p in self.payments
-                         if p.kind != "refund"), 2)
+        return money.total(p.handed_over for p in self.payments
+                           if p.kind != "refund")
 
     @property
     def change_given(self):
         """Change the cashier had to give back (tendered − applied)."""
-        return round(sum(p.change_due for p in self.payments), 2)
+        return money.total(p.change_due for p in self.payments)
 
     @property
     def balance(self):
@@ -262,11 +279,11 @@ class Invoice(db.Model):
         """
         if self.refunded_at is not None:
             return 0.0
-        return round(self.total - self.paid, 2)
+        return money.pounds(self.total_piastres - self.paid_piastres)
 
     @property
     def doctor_share_total(self):
-        return round(sum(i.commission_amount or 0 for i in self.items), 2)
+        return money.total(i.commission_amount for i in self.items)
 
     @property
     def clinic_share_total(self):
@@ -549,19 +566,38 @@ class InvoiceItem(db.Model):
             return self.service_date
         return self.invoice.invoice_date if self.invoice is not None else None
 
+    # In whole piastres, then as the program's float (`utils/money`, ف-٤):
+    # a percentage discount is rounded half up, never by the float's whim.
+    @property
+    def gross_piastres(self):
+        return money.times_piastres(money.piastres(self.unit_price),
+                                    self.quantity or 1)
+
+    @property
+    def discount_piastres(self):
+        gross = self.gross_piastres
+        # As before the piastre rule: a fixed discount stops at the line's
+        # price; a percentage is taken as written, so a 150% discount still
+        # nets a line below zero (posted as one line, as it always was).
+        if self.discount_is_percent:
+            return money.percent_piastres(gross, self.discount_value or 0)
+        return min(money.piastres(self.discount_value), gross)
+
+    @property
+    def net_piastres(self):
+        return self.gross_piastres - self.discount_piastres
+
     @property
     def gross(self):
-        return round((self.unit_price or 0) * (self.quantity or 1), 2)
+        return money.pounds(self.gross_piastres)
 
     @property
     def discount_amount(self):
-        if self.discount_is_percent:
-            return round(self.gross * (self.discount_value or 0) / 100.0, 2)
-        return round(min(self.discount_value or 0, self.gross), 2)
+        return money.pounds(self.discount_piastres)
 
     @property
     def net(self):
-        return round(self.gross - self.discount_amount, 2)
+        return money.pounds(self.net_piastres)
 
     @property
     def earner_id(self):
@@ -624,20 +660,27 @@ class Payment(db.Model):
     @property
     def handed_over(self):
         """Cash put on the counter for this payment (= amount when exact)."""
-        return round(self.tendered if self.tendered is not None
-                     else (self.amount or 0), 2)
+        return money.pounds(money.piastres(
+            self.tendered if self.tendered is not None else self.amount))
 
     @property
     def change_due(self):
         """Change the cashier owes the patient for this payment."""
         if self.kind == "refund" or self.tendered is None:
             return 0.0
-        return round(max(0.0, self.tendered - (self.amount or 0)), 2)
+        return money.pounds(max(0, money.piastres(self.tendered)
+                                - money.piastres(self.amount)))
+
+    @property
+    def signed_piastres(self):
+        """+ for a payment, − for a refund, in whole piastres."""
+        whole = money.piastres(self.amount)
+        return -whole if self.kind == "refund" else whole
 
     @property
     def signed_amount(self):
         """+ for a payment, − for a refund (drawer/paid maths)."""
-        return -(self.amount or 0) if self.kind == "refund" else (self.amount or 0)
+        return money.pounds(self.signed_piastres)
 
     invoice = db.relationship("Invoice", back_populates="payments")
     receiver = db.relationship("User")
