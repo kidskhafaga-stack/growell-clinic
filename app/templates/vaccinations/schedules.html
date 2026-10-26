@@ -82,7 +82,7 @@
       {% if tpl.age_group %}<span class="badge badge--role">{{ tpl.age_group }}</span>{% endif %}
       {% if tpl.start_age_min_months is not none or tpl.start_age_max_months is not none %}
         <span class="badge badge--role" title="{{ t('vaccinations.tpl_band') }}">
-          <i class="bi bi-rulers"></i>
+          <i class="bi bi-info-circle"></i>
           {{ tpl.start_age_min_months if tpl.start_age_min_months is not none else '—' }}
           – {{ tpl.start_age_max_months if tpl.start_age_max_months is not none else '∞' }}</span>
       {% endif %}

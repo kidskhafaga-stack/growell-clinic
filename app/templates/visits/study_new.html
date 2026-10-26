@@ -40,7 +40,7 @@
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="card gc-scale-in" style="margin-bottom:16px;">
     <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:end;">
-      <h2 class="section-title" style="margin:0;"><i class="bi bi-rulers"></i> {{ device.display_name(current_lang) }}</h2>
+      <h2 class="section-title" style="margin:0;"><i class="bi bi-info-circle"></i> {{ device.display_name(current_lang) }}</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
         {# «دول بيتموا بطبيب» — the doctor who did it, which is not always
            whoever types it in. #}
@@ -83,7 +83,7 @@
 </form>
 {% else %}
 <div class="card gc-scale-in">
-  <div class="empty-state"><i class="bi bi-rulers"></i>{{ t('study.no_template') }}</div>
+  <div class="empty-state"><i class="bi bi-info-circle"></i>{{ t('study.no_template') }}</div>
   <div style="text-align:center;">
     <a class="btn btn-outline gc-press" href="{{ url_for('settings.device_measurements', device_id=device.id) }}">
       <i class="bi bi-sliders"></i> {{ t('measure.title') }}</a>

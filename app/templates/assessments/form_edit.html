@@ -1,0 +1,101 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% set L = 'en' if current_lang == 'en' else 'ar' %}
+{% block title %}{{ t('assessment.form_title', name=form['name_' ~ L] or form.name_ar) }}{% endblock %}
+{% block page_heading %}{{ t('assessment.form_title', name=form['name_' ~ L] or form.name_ar) }}{% endblock %}
+
+{% block content %}
+{# «عدّل الشكل» (ASSESSMENTS_PLAN.md ت-١): the clinic's own copy of a kind's
+   form. Lines added or removed, which tools are on the form from the start
+   and which one press away, a tool's words and the figure its scoring
+   instructions set, a tool the clinic uses; and back to the default. An
+   assessment already started keeps the form it was started on. #}
+{% include "assessments/_style.html" %}
+<style>
+  .fe-line { display:flex; gap:8px; align-items:center; justify-content:space-between; border:1px solid var(--line); border-radius:10px; padding:6px 10px; }
+  .fe-line form { margin:0; }
+  .fe-add { display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-top:4px; }
+  .fe-field { display:grid; grid-template-columns:minmax(0,1fr) 110px auto; gap:8px; align-items:end; }
+  @media (max-width: 640px) { .fe-field { grid-template-columns:1fr; } }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-pencil-square"></i> {{ t('assessment.form_title', name=form['name_' ~ L] or form.name_ar) }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('assessment.form_sub') }}</p>
+  </div>
+  {% if edited %}
+  <form method="post" action="{{ url_for('assessments.form_reset', kind=kind) }}" data-form-reset>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-arrow-counterclockwise"></i> {{ t('assessment.reset') }}</button>
+  </form>
+  {% else %}<span class="as-status approved" data-form-default>{{ t('assessment.is_default') }}</span>{% endif %}
+</div>
+
+<div class="as-stack">
+{% for s in form.sections %}
+{% set label = s['label_' ~ L] or s.label_ar %}
+{% if s.type in ('single', 'multi', 'checks') %}
+<section class="card gc-scale-in as-card" data-edit-section="{{ s.key }}">
+  <h2>{{ label }}{% if s.source %} <span class="as-src">{{ s['source_' ~ L] or s.source }}</span>{% endif %}</h2>
+  {% for o in s.options %}
+  <div class="fe-line" data-edit-option="{{ o.key }}">
+    <span>{{ o[L] or o.ar }}</span>
+    <form method="post" action="{{ url_for('assessments.option_remove', kind=kind) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="section" value="{{ s.key }}"><input type="hidden" name="option" value="{{ o.key }}">
+      <button class="btn btn-sm btn-outline" type="submit" aria-label="{{ t('assessment.remove_line') }}">×</button>
+    </form>
+  </div>
+  {% endfor %}
+  <form method="post" action="{{ url_for('assessments.option_add', kind=kind) }}" class="fe-add">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="section" value="{{ s.key }}">
+    <input class="input" name="label" maxlength="160" required placeholder="{{ t('assessment.new_line') }}" aria-label="{{ t('assessment.new_line') }}" style="flex:1;min-width:220px;">
+    <button class="btn btn-outline gc-press" type="submit">+ {{ t('assessment.add_line') }}</button>
+  </form>
+</section>
+{% elif s.type == 'tools' %}
+<section class="card gc-scale-in as-card" data-edit-tools>
+  <h2>{{ label }}</h2>
+  <p class="as-rule">{{ t('assessment.tools_hint') }}</p>
+  {% set every = asm.every_tool(form) %}
+  {% for tkey, tool in every.items() %}
+  {% set where = 'shown' if tkey in (s.shown or []) else ('more' if tkey in (s.more or []) else 'off') %}
+  <div class="as-tool" data-edit-tool="{{ tkey }}">
+    <div class="as-tool__head">
+      <span class="as-tool__name">{{ tool['name_' ~ L] or tool.name_ar }}</span>
+      <form method="post" action="{{ url_for('assessments.tool_place', kind=kind) }}" style="display:flex;gap:6px;align-items:center;margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="tool" value="{{ tkey }}">
+        <select class="select" name="where" aria-label="{{ t('assessment.tool_where') }}" data-tool-where="{{ where }}">
+          {% for w in ('shown', 'more', 'off') %}<option value="{{ w }}"{{ ' selected' if w == where else '' }}>{{ t('assessment.where_' ~ w) }}</option>{% endfor %}
+        </select>
+        <button class="btn btn-sm btn-outline" type="submit">{{ t('common.save') }}</button>
+      </form>
+    </div>
+    {% if where != 'off' and tkey in form.tool_defs %}
+    {% for f in tool.fields %}
+    <form method="post" action="{{ url_for('assessments.field_set', kind=kind) }}" class="fe-field" data-edit-field="{{ tkey }}.{{ f.key }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="tool" value="{{ tkey }}"><input type="hidden" name="field" value="{{ f.key }}">
+      <div class="as-field"><label>{{ t('assessment.field_words') }}</label><input class="input" name="label" maxlength="160" value="{{ f.ar }}"></div>
+      <div class="as-field"><label>{{ t('assessment.field_meets') }}</label><input class="input" name="meets" inputmode="numeric" dir="ltr" value="{{ f.meets if f.get('meets') is not none else '' }}"></div>
+      <button class="btn btn-sm btn-outline" type="submit">{{ t('common.save') }}</button>
+    </form>
+    {% endfor %}
+    {% endif %}
+  </div>
+  {% endfor %}
+  <form method="post" action="{{ url_for('assessments.tool_add', kind=kind) }}" class="as-tool" data-add-own-tool>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <span class="as-tool__name">+ {{ t('assessment.own_tool') }}</span>
+    <div class="as-field"><label for="own_name">{{ t('assessment.own_tool_name') }}</label><input class="input" id="own_name" name="name" maxlength="120" required></div>
+    <div class="as-field"><label for="own_fields">{{ t('assessment.own_tool_fields') }}</label><textarea class="input" id="own_fields" name="fields" rows="4" required></textarea></div>
+    <button class="btn btn-outline gc-press" type="submit" style="justify-self:start;">{{ t('assessment.add_tool_btn') }}</button>
+  </form>
+</section>
+{% endif %}
+{% endfor %}
+</div>
+{% endblock %}

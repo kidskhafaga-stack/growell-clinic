@@ -236,3 +236,26 @@ def test_that_check_is_actually_looking_at_something():
         assert leaves(), f"nothing enumerated for: {what}"
     assert "panels" in _module_keys(), \
         "the module this check was written for is no longer in the list"
+
+
+def test_no_phrase_carries_markdown_stars():
+    """«الاستبيان سأل … البرنامج بيقول **بيبص على إيه**» — the specialty
+    alerts screen showed the stars as they were typed. The phrases are text,
+    not Markdown: nothing turns ``**`` into bold, so none may carry it."""
+    import json
+
+    root = os.path.join(os.path.dirname(__file__), "..", "app", "i18n", "locales")
+    found = []
+    for lang in ("ar", "en"):
+        with open(os.path.join(root, f"{lang}.json"), encoding="utf-8") as fh:
+            data = json.load(fh)
+
+        def walk(node, path):
+            for key, value in node.items():
+                if isinstance(value, dict):
+                    walk(value, f"{path}{key}.")
+                elif isinstance(value, str) and "**" in value:
+                    found.append(f"{lang}:{path}{key}")
+
+        walk(data, "")
+    assert not found, found

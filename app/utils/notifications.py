@@ -530,6 +530,20 @@ def get_notifications(user):
                         "kwargs": {}})
     except Exception:  # noqa: BLE001 — the bell never breaks a page
         pass
+    # Assessments the specialists sent for a doctor's approval
+    # (ASSESSMENTS_PLAN.md ت-١) — per person, because only a doctor approves.
+    try:
+        from app.utils import assessments as asm
+
+        if asm.may_approve(user) and asm.on():
+            n = len(asm.waiting_for(user))
+            if n:
+                out.append({"key": "assessments_review", "module": "patients",
+                            "icon": "patch-check", "severity": "warning",
+                            "count": n, "endpoint": "assessments.review",
+                            "kwargs": {}})
+    except Exception:  # noqa: BLE001 — the bell never breaks a page
+        pass
     # **A critical lab value nobody has read**, for the doctors it is for —
     # whoever ordered it, the child's doctor, the stay's responsible doctor
     # and whoever the rota has on now. Per person for the same reason as the

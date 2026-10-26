@@ -696,6 +696,13 @@
                    {% if last and panel_carries(f) %}data-last="{{ last.value }}"{% endif %}>
                 <label>{{ f['label_' ~ current_lang] or f.label_ar }}{% if f.unit %}
                   <span class="hint" dir="ltr">({{ f.unit }})</span>{% endif %}</label>
+                {# What is measured and how, and the range the clinic called
+                   sensible (ق-١) — said beside the box; the save refuses a
+                   number outside it. #}
+                {% set how = f['how_' ~ current_lang] or f.how_ar %}
+                {% if how or f.get('min') is not none or f.get('max') is not none %}
+                <p class="hint" style="margin:0 0 4px;" data-how="{{ f.code }}">{% if how %}<i class="bi bi-info-circle"></i> {{ how }}{% endif %}{% if f.get('min') is not none or f.get('max') is not none %}{% if how %} · {% endif %}{{ t('panels.range_hint') }} <bdi dir="ltr">{{ '%g'|format(f.min) if f.get('min') is not none else '…' }} – {{ '%g'|format(f.max) if f.get('max') is not none else '…' }}</bdi>{% endif %}</p>
+                {% endif %}
                 {% if f.type == 'choice' and f.options|length <= 6 %}
                 {# One tap, not a menu: most answers here are three to five
                    words long, and a menu costs two presses and a scroll for
@@ -721,6 +728,9 @@
                 </select>
                 {% elif f.type == 'date' %}
                 <input class="input" type="date" name="m_{{ f.code }}" dir="ltr"
+                       value="{{ row.value_text if row else '' }}">
+                {% elif f.type == 'text' %}
+                <input class="input" type="text" maxlength="80" dir="auto" name="m_{{ f.code }}"
                        value="{{ row.value_text if row else '' }}">
                 {% else %}
                 <input class="input" type="number" step="any" dir="ltr" inputmode="decimal" name="m_{{ f.code }}"

@@ -1,0 +1,162 @@
+{% extends "shell.html" %}
+{% set active_module = 'panels' %}
+{% set L = 'en' if current_lang == 'en' else 'ar' %}
+{% set pname = meta['name_' ~ L] or meta.name_ar %}
+{% block title %}{{ t('panel_edit.title', name=pname) }}{% endblock %}
+{% block page_heading %}{{ t('panel_edit.title', name=pname) }}{% endblock %}
+
+{% block content %}
+{# «عدّل التخصص» (ASSESSMENTS_PLAN.md ق-١). The clinic's own copy of one
+   panel, laid over the catalogue: add, hide, rename, move, and say what is
+   measured and how. See utils/panel_edit.py for what may and may not change. #}
+<style>
+  .pe-list { display:grid; gap:8px; }
+  .pe-row { border:1px solid var(--line); border-radius:12px; padding:10px 12px; background:var(--surface, #fff); }
+  .pe-row:target { outline:2px solid var(--green-600, #2f8f6b); outline-offset:2px; }
+  .pe-head { display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+  .pe-name { display:flex; gap:8px; align-items:center; flex-wrap:wrap; min-width:0; }
+  .pe-name strong { overflow-wrap:anywhere; }
+  .pe-tag { font-size:.74rem; border-radius:999px; padding:2px 8px; background:var(--soft, #eef3f1); color:var(--muted); white-space:nowrap; }
+  .pe-tag--own { background:#e6f1ff; color:#1f4f8a; }
+  .pe-tools { display:flex; gap:4px; align-items:center; }
+  .pe-tools form { margin:0; }
+  .pe-how { margin:4px 0 0; color:var(--muted); font-size:.84rem; }
+  .pe-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-top:10px; }
+  .pe-grid .wide { grid-column:1 / -1; }
+  .pe-checks { display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+  .pe-section { margin:18px 0 8px; font-size:1rem; }
+  details.pe-more > summary { cursor:pointer; color:var(--green-700, #23704f); font-size:.86rem; margin-top:6px; list-style:none; }
+  details.pe-more > summary::-webkit-details-marker { display:none; }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-{{ meta.icon or 'clipboard-data' }}"></i> {{ t('panel_edit.title', name=pname) }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('panel_edit.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('panels.index') }}"><i class="bi bi-arrow-right"></i> {{ t('panel_edit.back') }}</a>
+    {% if edited %}
+    <form method="post" data-panel-reset onsubmit="return confirm({{ t('panel_edit.reset_ask')|tojson|forceescape }});" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="do" value="reset">
+      <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-arrow-counterclockwise"></i> {{ t('panel_edit.reset') }}</button>
+    </form>
+    {% else %}<span class="pe-tag" data-panel-default>{{ t('panel_edit.is_default') }}</span>{% endif %}
+  </div>
+</div>
+
+{% macro field_row(f, hidden=false) %}
+{% set n = counts.get(f.code, 0) %}
+{% set kind = 'yesno' if f.type == 'choice' and f.options == ['نعم', 'لأ'] else f.type %}
+<div class="pe-row" id="f-{{ f.code }}" data-edit-field="{{ f.code }}"{% if hidden %} data-hidden-field{% endif %}>
+  <div class="pe-head">
+    <div class="pe-name">
+      <strong>{{ f['label_' ~ L] or f.label_ar }}</strong>
+      {% if f.unit %}<span class="hint" dir="ltr">({{ f.unit }})</span>{% endif %}
+      <span class="pe-tag">{{ t('panel_edit.type_' ~ kind) }}</span>
+      {% if f.own %}<span class="pe-tag pe-tag--own">{{ t('panel_edit.own') }}</span>{% endif %}
+      {% if f.get('min') is not none or f.get('max') is not none %}<span class="pe-tag"><bdi dir="ltr">{{ '%g'|format(f.min) if f.get('min') is not none else '…' }} – {{ '%g'|format(f.max) if f.get('max') is not none else '…' }}</bdi></span>{% endif %}
+      {% if n %}<span class="hint">{{ t('panel_edit.readings', n=n) }}</span>{% endif %}
+    </div>
+    <div class="pe-tools">
+      {% if not hidden %}
+      {% for d, icon, label in (('up', 'arrow-up', t('panel_edit.up')), ('down', 'arrow-down', t('panel_edit.down'))) %}
+      <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="do" value="{{ d }}"><input type="hidden" name="code" value="{{ f.code }}">
+        <button class="btn btn-sm btn-outline" type="submit" aria-label="{{ label }}" title="{{ label }}"><i class="bi bi-{{ icon }}"></i></button></form>
+      {% endfor %}
+      <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="do" value="{{ 'remove' if f.own and not n else 'hide' }}"><input type="hidden" name="code" value="{{ f.code }}">
+        <button class="btn btn-sm btn-outline" type="submit" data-hide="{{ f.code }}">
+          <i class="bi bi-{{ 'trash' if f.own and not n else 'eye-slash' }}"></i> {{ t('panel_edit.remove') if f.own and not n else t('panel_edit.hide') }}</button></form>
+      {% else %}
+      <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="do" value="show"><input type="hidden" name="code" value="{{ f.code }}">
+        <button class="btn btn-sm btn-outline" type="submit" data-show="{{ f.code }}"><i class="bi bi-eye"></i> {{ t('panel_edit.show') }}</button></form>
+      {% endif %}
+    </div>
+  </div>
+  {% if f['how_' ~ L] or f.how_ar %}<p class="pe-how"><i class="bi bi-info-circle"></i> {{ f['how_' ~ L] or f.how_ar }}</p>{% endif %}
+  {% if not hidden %}
+  <details class="pe-more">
+    <summary><i class="bi bi-pencil"></i> {{ t('panel_edit.change') }}</summary>
+    <form method="post" class="pe-grid" data-field-form="{{ f.code }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="do" value="field"><input type="hidden" name="code" value="{{ f.code }}">
+      <div class="form-row"><label>{{ t('panel_edit.label_ar') }}</label><input class="input" name="label_ar" maxlength="120" value="{{ f.label_ar }}" dir="rtl"></div>
+      <div class="form-row"><label>{{ t('panel_edit.label_en') }}</label><input class="input" name="label_en" maxlength="120" value="{{ f.label_en or '' }}" dir="ltr"></div>
+      {% if f.type == 'number' %}
+      <div class="form-row"><label>{{ t('panel_edit.unit') }}</label><input class="input" name="unit" maxlength="20" value="{{ f.unit or '' }}" dir="ltr"></div>
+      <div class="form-row"><label>{{ t('panel_edit.min') }}</label><input class="input" name="min" inputmode="decimal" dir="ltr" value="{{ '%g'|format(f.min) if f.get('min') is not none else '' }}"></div>
+      <div class="form-row"><label>{{ t('panel_edit.max') }}</label><input class="input" name="max" inputmode="decimal" dir="ltr" value="{{ '%g'|format(f.max) if f.get('max') is not none else '' }}"></div>
+      <div class="form-row"><label>{{ t('panel_edit.decimals') }}</label><input class="input" name="decimals" inputmode="numeric" dir="ltr" value="{{ f.decimals if f.get('decimals') is not none else '' }}"></div>
+      <div class="pe-checks wide">
+        <label><input type="checkbox" name="chart" value="1"{{ ' checked' if f.get('chart') is not false else '' }}> {{ t('panel_edit.chart') }}</label>
+        <label><input type="checkbox" name="alert" value="1"{{ ' checked' if f.alert else '' }}> {{ t('panel_edit.alert') }}</label>
+      </div>
+      {% elif f.type == 'choice' and kind != 'yesno' %}
+      <div class="form-row wide"><label>{{ t('panel_edit.options') }}</label>
+        <textarea class="input" name="options" rows="{{ [f.options|length + 1, 8]|min }}" dir="auto">{{ f.options|join('\n') }}</textarea>
+        <span class="hint">{{ t('panel_edit.options_hint') }}</span></div>
+      {% endif %}
+      <div class="form-row wide"><label>{{ t('panel_edit.how_ar') }}</label><input class="input" name="how_ar" maxlength="200" value="{{ f.how_ar or '' }}" placeholder="{{ t('panel_edit.how_ph') }}"></div>
+      <div class="form-row wide"><label>{{ t('panel_edit.how_en') }}</label><input class="input" name="how_en" maxlength="200" value="{{ f.how_en or '' }}" dir="ltr"></div>
+      <div class="wide"><button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check2"></i> {{ t('common.save') }}</button></div>
+    </form>
+  </details>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% set flags = meta.fields | selectattr('type', 'equalto', 'flag') | list %}
+{% set others = meta.fields | rejectattr('type', 'equalto', 'flag') | list %}
+
+<div class="card gc-scale-in">
+  {% if flags %}
+  <h2 class="pe-section">{{ t('panel_edit.flags') }}</h2>
+  <div class="pe-list" data-flag-list>{% for f in flags %}{{ field_row(f) }}{% endfor %}</div>
+  {% endif %}
+  <h2 class="pe-section">{{ t('panel_edit.fields') }}</h2>
+  <div class="pe-list" data-field-list>
+    {% for f in others %}{{ field_row(f) }}{% else %}<p class="hint">{{ t('panel_edit.no_fields') }}</p>{% endfor %}
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="margin-top:14px;" id="add">
+  <h2 class="pe-section" style="margin-top:0;"><i class="bi bi-plus-circle"></i> {{ t('panel_edit.add') }}</h2>
+  <form method="post" class="pe-grid" data-add-field x-data="{ kind: 'number' }">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="do" value="add">
+    <div class="form-row"><label for="nf_ar">{{ t('panel_edit.label_ar') }}</label><input class="input" id="nf_ar" name="label_ar" maxlength="120" required></div>
+    <div class="form-row"><label for="nf_en">{{ t('panel_edit.label_en') }}</label><input class="input" id="nf_en" name="label_en" maxlength="120" dir="ltr"></div>
+    <div class="form-row"><label for="nf_type">{{ t('panel_edit.type') }}</label>
+      <select class="select" id="nf_type" name="type" x-model="kind">
+        {% for k in types %}<option value="{{ k }}">{{ t('panel_edit.type_' ~ k) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row" x-show="kind === 'number'"><label for="nf_unit">{{ t('panel_edit.unit') }}</label><input class="input" id="nf_unit" name="unit" maxlength="20" dir="ltr"></div>
+    <div class="form-row" x-show="kind === 'number'"><label for="nf_min">{{ t('panel_edit.min') }}</label><input class="input" id="nf_min" name="min" inputmode="decimal" dir="ltr"></div>
+    <div class="form-row" x-show="kind === 'number'"><label for="nf_max">{{ t('panel_edit.max') }}</label><input class="input" id="nf_max" name="max" inputmode="decimal" dir="ltr"></div>
+    <div class="form-row" x-show="kind === 'number'"><label for="nf_dec">{{ t('panel_edit.decimals') }}</label><input class="input" id="nf_dec" name="decimals" inputmode="numeric" dir="ltr"></div>
+    <div class="pe-checks wide" x-show="kind === 'number'">
+      <label><input type="checkbox" name="chart" value="1" checked> {{ t('panel_edit.chart') }}</label>
+      <label><input type="checkbox" name="alert" value="1"> {{ t('panel_edit.alert') }}</label>
+    </div>
+    <div class="form-row wide" x-show="kind === 'choice'" x-cloak><label for="nf_opts">{{ t('panel_edit.options') }}</label>
+      <textarea class="input" id="nf_opts" name="options" rows="4" dir="auto"></textarea>
+      <span class="hint">{{ t('panel_edit.options_hint') }}</span></div>
+    <div class="form-row wide"><label for="nf_how">{{ t('panel_edit.how_ar') }}</label><input class="input" id="nf_how" name="how_ar" maxlength="200" placeholder="{{ t('panel_edit.how_ph') }}"></div>
+    <div class="form-row wide"><label for="nf_how_en">{{ t('panel_edit.how_en') }}</label><input class="input" id="nf_how_en" name="how_en" maxlength="200" dir="ltr"></div>
+    <p class="hint wide" style="margin:0;">{{ t('panel_edit.add_rule') }}</p>
+    <div class="wide"><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('panel_edit.add_btn') }}</button></div>
+  </form>
+</div>
+
+{% if meta.hidden_fields %}
+<div class="card gc-scale-in" style="margin-top:14px;" data-hidden-list>
+  <h2 class="pe-section" style="margin-top:0;"><i class="bi bi-eye-slash"></i> {{ t('panel_edit.hidden') }}</h2>
+  <p class="hint">{{ t('panel_edit.hidden_hint') }}</p>
+  <div class="pe-list">{% for f in meta.hidden_fields %}{{ field_row(f, true) }}{% endfor %}</div>
+</div>
+{% endif %}
+{% endblock %}

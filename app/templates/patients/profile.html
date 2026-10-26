@@ -275,6 +275,13 @@
          href="{{ url_for('observations.chart', patient_id=patient.id) }}">
         <i class="bi bi-activity"></i> {{ t('nav.observations') }}</a>
       {% endif %}
+      {# Assessments — the neurology and development specialties (ت-١). With
+         the specialties module only; a clinic without it has no such door. #}
+      {% if module_enabled('panels') and (current_user.can('patient_medical') or current_user.can('assessments')) %}
+      <a class="btn btn-outline btn-sm gc-press" data-to-assessments
+         href="{{ url_for('assessments.patient_list', patient_id=patient.id) }}">
+        <i class="bi bi-clipboard2-pulse"></i> {{ t('assessment.door') }}</a>
+      {% endif %}
       {% if current_user.can_access('messages') and patient.contact_phone %}
       <a class="btn btn-outline btn-sm gc-press" title="{{ t('inbox.start_hint') }}"
          href="{{ url_for('messages.inbox_start', patient_id=patient.id) }}">

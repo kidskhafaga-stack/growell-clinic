@@ -352,7 +352,7 @@
         {% set g = current_summary.growth %}
         <div class="meta-row" style="gap:14px;flex-wrap:wrap;">
           {% if g.weight_kg %}<span><i class="bi bi-speedometer2"></i> {{ g.weight_kg }} kg</span>{% endif %}
-          {% if g.height_cm %}<span><i class="bi bi-rulers"></i> {{ g.height_cm }} cm</span>{% endif %}
+          {% if g.height_cm %}<span><i class="bi bi-info-circle"></i> {{ g.height_cm }} cm</span>{% endif %}
           {% if g.head_circ_cm %}<span><i class="bi bi-circle"></i> {{ g.head_circ_cm }} cm</span>{% endif %}
         </div>
         <div style="font-size:0.78rem;color:var(--muted);margin-top:2px;" dir="ltr">{{ g.record_date }}</div>

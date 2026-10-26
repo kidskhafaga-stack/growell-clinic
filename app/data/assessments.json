@@ -1,0 +1,536 @@
+{
+  "_note_ar": "التقييمات (ASSESSMENTS_PLAN.md). كل نوع تقييم: أجزاؤه بالترتيب، والمرجع جنب كل جزء. ده الشكل الافتراضي — العيادة بتعدّل عليه من شاشة «عدّل الشكل»، والتقييم بيتحفظ ومعاه نسخة من الشكل اللي اتملى بيه. البرنامج بيسجّل ويجمع بس: الحد اللي جنب الرقم («وصل لمعيار المقياس») بيتكتب بس لما تعليمات تصحيح الأداة نفسها محددّاه، وهو معيار فرز مش تشخيص. الأدوات التجارية ما فيهاش أسئلة ولا تصحيح — خاناتها بتتملى من التقرير الرسمي.",
+  "_note_en": "Assessments (ASSESSMENTS_PLAN.md). Each kind lists its sections in order with the source beside each. This is the default form; a clinic edits it, and an assessment is saved with a copy of the form it was filled on. The program records and adds up only: the mark beside a number is shown only where the tool's own scoring instructions set it, and it is a screening criterion, not a diagnosis. Commercial tools carry no items and no scoring — their boxes are filled from the official report.",
+  "kinds": {
+    "adhd": {
+      "name_ar": "تقييم فرط الحركة وتشتت الانتباه",
+      "name_en": "ADHD assessment",
+      "icon": "lightning",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "AAP Clinical Practice Guideline for ADHD, Pediatrics 2019;144(4):e20192528",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "source": "AAP 2019 — information from parents, teachers and other school personnel",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ],
+          "source_ar": "AAP 2019 — معلومات من الأهل والمدرسين والعاملين في المدرسة"
+        },
+        {
+          "key": "criteria",
+          "type": "checks",
+          "label_ar": "المعايير",
+          "label_en": "Criteria",
+          "source": "AAP 2019 · DSM-5 — the program records them; the judgement is the clinician's",
+          "options": [
+            {
+              "key": "two_settings",
+              "ar": "الأعراض موجودة في بيئتين أو أكتر (البيت والمدرسة)",
+              "en": "Symptoms present in two or more settings (home and school)"
+            },
+            {
+              "key": "before_12",
+              "ar": "بدأت قبل سن ١٢ سنة",
+              "en": "Began before age 12"
+            },
+            {
+              "key": "six_months",
+              "ar": "مستمرة ٦ شهور على الأقل",
+              "en": "Present for at least 6 months"
+            },
+            {
+              "key": "impairment",
+              "ar": "بتأثر على الدراسة أو العلاقات أو الحياة اليومية",
+              "en": "Impairs school, relationships or daily life"
+            },
+            {
+              "key": "other_causes",
+              "ar": "اتراجعت أسباب تانية ممكن تفسّر الأعراض",
+              "en": "Other explanations were considered"
+            }
+          ],
+          "source_ar": "AAP 2019 · DSM-5 — البرنامج بيسجّل، والحكم للمختص"
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "vanderbilt_parent",
+            "vanderbilt_teacher"
+          ],
+          "more": [
+            "conners3",
+            "cpt",
+            "snap_iv",
+            "brief2",
+            "wisc5"
+          ]
+        },
+        {
+          "key": "comorbid",
+          "type": "multi",
+          "label_ar": "حاجات مصاحبة اتفحصت",
+          "label_en": "Coexisting conditions screened",
+          "source": "AAP 2019 — screen for coexisting conditions",
+          "options": [
+            {
+              "key": "anxiety",
+              "ar": "قلق",
+              "en": "Anxiety"
+            },
+            {
+              "key": "depression",
+              "ar": "اكتئاب",
+              "en": "Depression"
+            },
+            {
+              "key": "odd_cd",
+              "ar": "عناد / سلوك",
+              "en": "Oppositional / conduct"
+            },
+            {
+              "key": "learning",
+              "ar": "صعوبات تعلم",
+              "en": "Learning difficulties"
+            },
+            {
+              "key": "language",
+              "ar": "لغة وكلام",
+              "en": "Language"
+            },
+            {
+              "key": "autism",
+              "ar": "توحد",
+              "en": "Autism"
+            },
+            {
+              "key": "tics",
+              "ar": "لزمات (Tics)",
+              "en": "Tics"
+            },
+            {
+              "key": "sleep",
+              "ar": "نوم وشخير",
+              "en": "Sleep and snoring"
+            }
+          ],
+          "source_ar": "AAP 2019 — البحث عن الحالات المصاحبة"
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "parent_training",
+              "ar": "تدريب الأهل على إدارة السلوك",
+              "en": "Parent training in behaviour management"
+            },
+            {
+              "key": "school_support",
+              "ar": "دعم وتسهيلات في المدرسة",
+              "en": "School support and accommodations"
+            },
+            {
+              "key": "learning_eval",
+              "ar": "تقييم صعوبات التعلم",
+              "en": "Learning difficulties evaluation"
+            },
+            {
+              "key": "sleep_eval",
+              "ar": "تقييم النوم",
+              "en": "Sleep evaluation"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ],
+      "source_ar": "جايدلاين الأكاديمية الأمريكية لطب الأطفال لفرط الحركة (AAP 2019)"
+    }
+  },
+  "tools": {
+    "vanderbilt_parent": {
+      "name_ar": "Vanderbilt — نسخة الأهل",
+      "name_en": "Vanderbilt — parent",
+      "kind": "published",
+      "source": "NICHQ Vanderbilt Assessment Scale — Parent Informant, scoring instructions",
+      "rule_ar": "البند بيتحسب لو اتعلّم «غالبًا» أو «غالبًا جدًا». الحد اللي جنب كل جزء من تعليمات التصحيح — معيار فرز، مش تشخيص.",
+      "rule_en": "An item counts when marked «often» or «very often». The mark beside each part is from the scoring instructions — a screening criterion, not a diagnosis.",
+      "fields": [
+        {
+          "key": "inattentive",
+          "ar": "أعراض قلة الانتباه (١–٩)",
+          "en": "Inattentive symptoms (1–9)",
+          "type": "count",
+          "max": 9,
+          "meets": 6
+        },
+        {
+          "key": "hyperactive",
+          "ar": "أعراض فرط الحركة والاندفاع (١٠–١٨)",
+          "en": "Hyperactive/impulsive symptoms (10–18)",
+          "type": "count",
+          "max": 9,
+          "meets": 6
+        },
+        {
+          "key": "odd",
+          "ar": "العناد (١٩–٢٦)",
+          "en": "Oppositional (19–26)",
+          "type": "count",
+          "max": 8,
+          "meets": 4
+        },
+        {
+          "key": "conduct",
+          "ar": "اضطراب السلوك (٢٧–٤٠)",
+          "en": "Conduct (27–40)",
+          "type": "count",
+          "max": 14,
+          "meets": 3
+        },
+        {
+          "key": "anxiety",
+          "ar": "القلق والاكتئاب (٤١–٤٧)",
+          "en": "Anxiety/depression (41–47)",
+          "type": "count",
+          "max": 7,
+          "meets": 3
+        },
+        {
+          "key": "perf_4",
+          "ar": "بنود الأداء بدرجة ٤ (٤٨–٥٥)",
+          "en": "Performance items rated 4 (48–55)",
+          "type": "count",
+          "max": 8
+        },
+        {
+          "key": "perf_5",
+          "ar": "بنود الأداء بدرجة ٥ (٤٨–٥٥)",
+          "en": "Performance items rated 5 (48–55)",
+          "type": "count",
+          "max": 8
+        }
+      ],
+      "source_ar": "مقياس Vanderbilt (NICHQ) — نسخة الأهل، تعليمات التصحيح"
+    },
+    "vanderbilt_teacher": {
+      "name_ar": "Vanderbilt — نسخة المدرس",
+      "name_en": "Vanderbilt — teacher",
+      "kind": "published",
+      "source": "NICHQ Vanderbilt Assessment Scale — Teacher Informant, scoring instructions",
+      "rule_ar": "البند بيتحسب لو اتعلّم «غالبًا» أو «غالبًا جدًا». الحد من تعليمات التصحيح — معيار فرز، مش تشخيص.",
+      "rule_en": "An item counts when marked «often» or «very often». The mark is from the scoring instructions — a screening criterion, not a diagnosis.",
+      "fields": [
+        {
+          "key": "inattentive",
+          "ar": "أعراض قلة الانتباه (١–٩)",
+          "en": "Inattentive symptoms (1–9)",
+          "type": "count",
+          "max": 9,
+          "meets": 6
+        },
+        {
+          "key": "hyperactive",
+          "ar": "أعراض فرط الحركة والاندفاع (١٠–١٨)",
+          "en": "Hyperactive/impulsive symptoms (10–18)",
+          "type": "count",
+          "max": 9,
+          "meets": 6
+        },
+        {
+          "key": "odd_conduct",
+          "ar": "العناد والسلوك (١٩–٢٨)",
+          "en": "Oppositional/conduct (19–28)",
+          "type": "count",
+          "max": 10,
+          "meets": 3
+        },
+        {
+          "key": "anxiety",
+          "ar": "القلق والاكتئاب (٢٩–٣٥)",
+          "en": "Anxiety/depression (29–35)",
+          "type": "count",
+          "max": 7,
+          "meets": 3
+        },
+        {
+          "key": "perf_4",
+          "ar": "بنود الأداء بدرجة ٤",
+          "en": "Performance items rated 4",
+          "type": "count",
+          "max": 8
+        },
+        {
+          "key": "perf_5",
+          "ar": "بنود الأداء بدرجة ٥",
+          "en": "Performance items rated 5",
+          "type": "count",
+          "max": 8
+        }
+      ],
+      "source_ar": "مقياس Vanderbilt (NICHQ) — نسخة المدرس، تعليمات التصحيح"
+    },
+    "conners3": {
+      "name_ar": "Conners 3 — من التقرير الرسمي",
+      "name_en": "Conners 3 — from the official report",
+      "kind": "commercial",
+      "source": "Conners 3 (MHS) — scores from the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات بتتنقل من تقرير الأداة، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores are copied from its report and read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "inattention",
+          "ar": "قلة الانتباه (T)",
+          "en": "Inattention (T)",
+          "type": "score"
+        },
+        {
+          "key": "hyperactivity",
+          "ar": "فرط الحركة / الاندفاع (T)",
+          "en": "Hyperactivity/Impulsivity (T)",
+          "type": "score"
+        },
+        {
+          "key": "learning",
+          "ar": "مشاكل التعلم (T)",
+          "en": "Learning problems (T)",
+          "type": "score"
+        },
+        {
+          "key": "executive",
+          "ar": "الوظائف التنفيذية (T)",
+          "en": "Executive functioning (T)",
+          "type": "score"
+        },
+        {
+          "key": "aggression",
+          "ar": "العناد والعدوانية (T)",
+          "en": "Defiance/Aggression (T)",
+          "type": "score"
+        },
+        {
+          "key": "peers",
+          "ar": "علاقات الأقران (T)",
+          "en": "Peer relations (T)",
+          "type": "score"
+        }
+      ],
+      "source_ar": "Conners 3 (MHS) — الدرجات من تقرير الناشر"
+    },
+    "cpt": {
+      "name_ar": "اختبار الأداء المستمر (CPT / MOXO)",
+      "name_en": "Continuous performance test (CPT / MOXO)",
+      "kind": "device",
+      "source": "The device's own report",
+      "rule_ar": "النتيجة من تقرير الجهاز. اختبار أداء مش تشخيص لوحده.",
+      "rule_en": "From the device's report. A performance test, not a diagnosis on its own.",
+      "fields": [
+        {
+          "key": "omissions",
+          "ar": "الاستجابات الفايتة (Omissions)",
+          "en": "Omissions",
+          "type": "score"
+        },
+        {
+          "key": "commissions",
+          "ar": "أخطاء التسرع (Commissions)",
+          "en": "Commissions",
+          "type": "score"
+        },
+        {
+          "key": "rt",
+          "ar": "زمن الاستجابة (ms)",
+          "en": "Reaction time (ms)",
+          "type": "score"
+        },
+        {
+          "key": "rt_var",
+          "ar": "تذبذب زمن الاستجابة",
+          "en": "Reaction-time variability",
+          "type": "score"
+        }
+      ],
+      "source_ar": "تقرير الجهاز نفسه"
+    },
+    "snap_iv": {
+      "name_ar": "SNAP-IV",
+      "name_en": "SNAP-IV",
+      "kind": "published",
+      "source": "SNAP-IV (Swanson, Nolan and Pelham) — average item score per part",
+      "rule_ar": "متوسط درجة البنود في كل جزء (٠–٣). حد التصحيح بيتكتب من دليل الأداة اللي العيادة بتستخدمه.",
+      "rule_en": "The average item score of each part (0–3). The cut-off is written from the manual the clinic uses.",
+      "fields": [
+        {
+          "key": "inattention",
+          "ar": "قلة الانتباه — المتوسط",
+          "en": "Inattention — average",
+          "type": "score"
+        },
+        {
+          "key": "hyperactivity",
+          "ar": "فرط الحركة والاندفاع — المتوسط",
+          "en": "Hyperactivity/impulsivity — average",
+          "type": "score"
+        },
+        {
+          "key": "odd",
+          "ar": "العناد — المتوسط",
+          "en": "Oppositional — average",
+          "type": "score"
+        }
+      ],
+      "source_ar": "SNAP-IV (Swanson وNolan وPelham) — متوسط درجة البنود في كل جزء"
+    },
+    "brief2": {
+      "name_ar": "BRIEF-2 الوظائف التنفيذية — من التقرير الرسمي",
+      "name_en": "BRIEF-2 executive function — from the official report",
+      "kind": "commercial",
+      "source": "BRIEF-2 (PAR) — scores from the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its report. Attach the report.",
+      "fields": [
+        {
+          "key": "bri",
+          "ar": "مؤشر تنظيم السلوك BRI (T)",
+          "en": "Behavior Regulation Index (T)",
+          "type": "score"
+        },
+        {
+          "key": "eri",
+          "ar": "مؤشر تنظيم الانفعال ERI (T)",
+          "en": "Emotion Regulation Index (T)",
+          "type": "score"
+        },
+        {
+          "key": "cri",
+          "ar": "مؤشر التنظيم المعرفي CRI (T)",
+          "en": "Cognitive Regulation Index (T)",
+          "type": "score"
+        },
+        {
+          "key": "gec",
+          "ar": "المؤشر التنفيذي العام GEC (T)",
+          "en": "Global Executive Composite (T)",
+          "type": "score"
+        }
+      ],
+      "source_ar": "BRIEF-2 (PAR) — الدرجات من تقرير الناشر"
+    },
+    "wisc5": {
+      "name_ar": "WISC-V الذكاء — من التقرير الرسمي",
+      "name_en": "WISC-V — from the official report",
+      "kind": "commercial",
+      "source": "WISC-V (Pearson) — scores from the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات المعيارية من تقرير الأداة. ارفق التقرير.",
+      "rule_en": "A commercial test: standard scores from its report. Attach the report.",
+      "fields": [
+        {
+          "key": "fsiq",
+          "ar": "الذكاء الكلي FSIQ",
+          "en": "Full Scale IQ",
+          "type": "score"
+        },
+        {
+          "key": "vci",
+          "ar": "الفهم اللفظي VCI",
+          "en": "Verbal Comprehension",
+          "type": "score"
+        },
+        {
+          "key": "vsi",
+          "ar": "البصري المكاني VSI",
+          "en": "Visual Spatial",
+          "type": "score"
+        },
+        {
+          "key": "fri",
+          "ar": "الاستدلال السائل FRI",
+          "en": "Fluid Reasoning",
+          "type": "score"
+        },
+        {
+          "key": "wmi",
+          "ar": "الذاكرة العاملة WMI",
+          "en": "Working Memory",
+          "type": "score"
+        },
+        {
+          "key": "psi",
+          "ar": "سرعة المعالجة PSI",
+          "en": "Processing Speed",
+          "type": "score"
+        }
+      ],
+      "source_ar": "WISC-V (Pearson) — الدرجات من تقرير الناشر"
+    }
+  }
+}

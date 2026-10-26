@@ -33,6 +33,9 @@
     <tr>
       <td>
         <strong>{{ row.meta['name_' ~ current_lang] or row.meta.name_ar }}</strong>
+        <a class="md-chip" style="padding:2px 9px;font-size:.78rem;" data-to-panel-edit="{{ row.key }}"
+           href="{{ url_for('panels.edit', key=row.key) }}"><i class="bi bi-pencil-square"></i> {{ t('panel_edit.door') }}</a>
+        {% if row.meta.edited %}<span class="hint">· {{ t('panel_edit.is_edited') }}</span>{% endif %}
         {% if row.reads %}
         <div class="hint" style="margin:2px 0 0;">
           <i class="bi bi-eye"></i> {{ t('panels.p_reads') }}:

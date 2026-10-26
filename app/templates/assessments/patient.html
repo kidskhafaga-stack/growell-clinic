@@ -1,0 +1,37 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('assessment.title') }}{% endblock %}
+{% block page_heading %}{{ t('assessment.title') }}{% endblock %}
+
+{% block content %}
+{# A child's assessments (ASSESSMENTS_PLAN.md ت-١), newest first, and a new
+   one from the form the clinic fills for its kind. #}
+{% include "assessments/_style.html" %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-clipboard2-pulse"></i> {{ t('assessment.title') }}</h1>
+    <p class="page-sub" style="margin:0;"><a href="{{ url_for('patients.view', patient_id=patient.id) }}">{{ patient.display_name(current_lang) }}</a> · <span dir="ltr">{{ patient.patient_number }}</span></p>
+  </div>
+</div>
+
+{% if may_write %}
+<form method="post" action="{{ url_for('assessments.start', patient_id=patient.id) }}" class="card gc-scale-in" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;" data-new-assessment>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="form-row" style="margin:0;min-width:260px;flex:1;"><label for="kind">{{ t('assessment.new_kind') }}</label>
+    <select class="select" id="kind" name="kind">{% for key, name, icon in kinds %}<option value="{{ key }}">{{ name }}</option>{% endfor %}</select></div>
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('assessment.new') }}</button>
+</form>
+{% endif %}
+
+<div class="card gc-scale-in" data-assessments>
+  {% if not rows %}<p class="hint" style="margin:0;" data-no-assessments>{{ t('assessment.none') }}</p>{% endif %}
+  {% for r in rows %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);padding:10px 0;" data-assessment-row="{{ r.id }}">
+    <a href="{{ url_for('assessments.view', assessment_id=r.id) }}" style="font-weight:600;flex:1;min-width:200px;">{{ r.form['name_' ~ current_lang] or r.form.name_ar }}</a>
+    <span class="hint" dir="ltr">{{ r.assessed_on.isoformat() }}</span>
+    <span class="as-status {{ r.status }}">{{ t('assessment.status_' ~ r.status) }}</span>
+    <span class="hint">{{ r.assessor.display_name(current_lang) if r.assessor else '' }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
