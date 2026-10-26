@@ -1,0 +1,267 @@
+{% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('perf.title') }}{% endblock %}
+{% block page_heading %}{{ t('perf.title') }}{% endblock %}
+
+{# «الأداء» — utils/perf_board (REPORTS_PLAN.md ت-٨). The clinic for every
+   copy; a tab per department this copy runs, each read from the screen that
+   already answers it. «—» = nothing to read, never zero. Not a ranking of
+   doctors by speed. #}
+
+{% macro tile(key, label, value, unit=None, sub=None, before_v=None) %}
+<div class="mb-kpi" data-kpi="{{ key }}">
+  <span class="l">{{ label }}</span>
+  <span class="v num">{% if value is none %}—{% else %}{{ value }}{% if unit %}<small> {{ unit }}</small>{% endif %}{% endif %}</span>
+  <span class="row">
+    {% if sub %}<small class="hint" style="margin:0;">{{ sub }}</small>{% endif %}
+    {% if before_v is not none %}<small class="hint num" style="margin:0;">{{ t('board_med.before_n', n=before_v) }}</small>{% endif %}
+  </span>
+</div>
+{% endmacro %}
+
+{% block content %}
+<style>
+  .pf-parts { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .pf-parts a { display:inline-flex; gap:6px; align-items:center; border:1px solid var(--line); border-radius:999px; padding:6px 14px; text-decoration:none; color:inherit; font-size:.9rem; background:var(--card, var(--surface)); }
+  .pf-parts a[aria-current="page"] { border-color:var(--green-600); background:var(--green-600); color:#fff; font-weight:600; }
+  .pf-grid { display:grid; grid-template-columns:minmax(0, 1.4fr) minmax(0, 1fr); gap:14px; margin-bottom:14px; }
+  @media (max-width: 900px) { .pf-grid { grid-template-columns:1fr; } }
+  .pf-chart { width:100%; height:150px; display:block; }
+  .pf-chart .bar { fill:var(--green-600); }
+  .pf-chart .bar.zero { fill:var(--line); }
+  .pf-chart text { fill:var(--muted); font-size:9px; }
+  .pf-axis { display:flex; justify-content:space-between; color:var(--muted); font-size:.78rem; }
+  .pf-dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--muted); margin-inline-end:6px; vertical-align:middle; }
+  .pf-dot.blue{background:#3b82f6}.pf-dot.green{background:#16a34a}.pf-dot.teal{background:#0d9488}.pf-dot.purple{background:#8b5cf6}.pf-dot.orange{background:#ea580c}.pf-dot.red{background:#dc2626}
+  .pf-vs { position:relative; height:10px; border-radius:6px; background:var(--line); min-width:120px; }
+  .pf-vs .took { position:absolute; inset-block:0; inset-inline-start:0; border-radius:6px; background:var(--green-600); }
+  .pf-vs .took.over { background:#d97706; }
+  .pf-vs .slot { position:absolute; inset-block:-3px; width:2px; background:var(--text, #1f2937); }
+  .pf-stack { display:flex; height:16px; border-radius:8px; overflow:hidden; background:var(--line); }
+  .pf-stack .busy { background:var(--green-600); }
+  .pf-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:.82rem; color:var(--muted); margin-top:6px; }
+  .pf-legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-inline-end:5px; vertical-align:middle; }
+  .pf-finish td, .pf-types td { vertical-align:middle; }
+  .pf-top { margin:0; padding-inline-start:18px; }
+</style>
+
+<div class="gc-animate mb-top">
+  <div>
+    <h1 class="page-title"><i class="bi bi-speedometer2"></i> {{ t('perf.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('perf.sub') }}</p>
+  </div>
+  {% set board_tab = 'performance' %}{% include "reports/_board_tabs.html" %}
+</div>
+
+{% set board_endpoint = 'reports.performance_board' %}
+{% include "reports/_board_bar.html" %}
+
+{% set keep = {'preset': w.preset} if w.preset else {'from': w['from'].isoformat(), 'to': w['to'].isoformat()} %}
+{% if tabs %}
+<nav class="pf-parts" aria-label="{{ t('perf.parts') }}" data-perf-parts>
+  <a href="{{ url_for('reports.performance_board', **keep) }}"{% if tab == 'clinic' %} aria-current="page"{% endif %} data-part="clinic"><i class="bi bi-person-badge"></i> {{ t('perf.part_clinic') }}</a>
+  {% for key, icon in tabs %}
+  <a href="{{ url_for('reports.performance_board', tab=key, **keep) }}"{% if tab == key %} aria-current="page"{% endif %} data-part="{{ key }}"><i class="bi bi-{{ icon }}"></i> {{ t('perf.part_' ~ key) }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+
+{% set m = t('perf.min') %}
+{% if tab == 'clinic' %}
+{% set a = data.all %}
+<form method="get" class="card gc-scale-in" style="margin-bottom:14px;padding:10px 14px;" data-perf-doctor>
+  {% for k, v in keep.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+  {{ pickers.doctor_picker('doctor', doctor_id, t('perf.doctor'), doctors, allow_all=True) }}
+</form>
+
+<div class="mb-kpis" data-perf-headline>
+  {{ tile('visits', t('perf.visits'), a.n, None, t('perf.done_n', n=a.done), before.n) }}
+  {{ tile('median', t('perf.median'), a.median, m, t('perf.of_n', n=a.counted), before.median) }}
+  {{ tile('range', t('perf.range'), (('%g'|format(a.shortest)) ~ ' – ' ~ ('%g'|format(a.longest))) if a.shortest is not none else none, m) }}
+  {{ tile('over', t('perf.over'), a.over_pct, '%', t('perf.over_n', n=a.over), before.over_pct) }}
+  {% if data.work %}{{ tile('busy', t('perf.busy'), data.work.busy_pct, '%', t('perf.busy_sub', busy=data.work.busy, span=data.work.span)) }}{% endif %}
+  {% if money %}{{ tile('revenue', t('perf.revenue'), a.revenue|money if a.revenue is not none else none) }}{% endif %}
+</div>
+
+{% if finish %}
+<section class="card gc-scale-in" style="margin-bottom:14px;" data-perf-finish>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-hourglass-split"></i> {{ t('perf.finish_title') }}</h2>
+  <div style="overflow-x:auto;">
+  <table class="table pf-finish" style="min-width:480px;">
+    <thead><tr><th>{{ t('perf.doctor') }}</th><th class="num">{{ t('perf.waiting') }}</th><th class="num">{{ t('perf.inside') }}</th><th class="num">{{ t('perf.left_min') }}</th><th class="num">{{ t('perf.done_at') }}</th></tr></thead>
+    <tbody>
+    {% for r in finish %}
+    <tr data-finish-row>
+      <td>{{ r.doctor.display_name(current_lang) if r.doctor else '—' }}</td>
+      <td class="num">{{ r.waiting }}</td><td class="num">{{ r.inside }}</td>
+      <td class="num">{{ r.minutes }}</td>
+      <td class="num"><strong dir="ltr">{{ r.done_at.strftime('%H:%M') }}</strong></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="hint" style="margin:6px 0 0;">{{ t('perf.finish_note', d=30) }}</p>
+</section>
+{% endif %}
+
+<div class="pf-grid">
+  <section class="card gc-scale-in" data-perf-days>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-bar-chart"></i> {{ t('perf.days_title') }}</h2>
+    {% set days = data.days %}
+    {% set top = (days | map(attribute=1) | max) or 1 %}
+    {% set n = days|length %}
+    {% set bw = 600 / n %}
+    <svg class="pf-chart" viewBox="0 0 600 150" preserveAspectRatio="none" role="img" aria-label="{{ t('perf.days_title') }}">
+      {% for d, v in days %}
+      {% set h = (v / top * 128) if v else 2 %}
+      <rect class="bar{{ '' if v else ' zero' }}" x="{{ '%.2f'|format(loop.index0 * bw + bw * 0.15) }}" y="{{ '%.2f'|format(140 - h) }}" width="{{ '%.2f'|format(bw * 0.7) }}" height="{{ '%.2f'|format(h) }}" rx="2"><title>{{ d.isoformat() }}: {{ v }}</title></rect>
+      {% endfor %}
+    </svg>
+    <div class="pf-axis" dir="ltr"><span>{{ days[0][0].isoformat() }}</span><span dir="auto">{{ t('perf.days_top', n=top) }}</span><span>{{ days[-1][0].isoformat() }}</span></div>
+  </section>
+
+  <section class="card gc-scale-in" data-perf-work>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-clock-history"></i> {{ t('perf.work_title') }}</h2>
+    {% if data.work %}
+    {% set wk = data.work %}
+    <p style="margin:0 0 8px;">{{ t('perf.work_line', span=wk.span, busy=wk.busy, idle=wk.idle) }}</p>
+    <div class="pf-stack" role="img" aria-label="{{ t('perf.busy') }} {{ wk.busy_pct }}%"><span class="busy" style="width:{{ wk.busy_pct or 0 }}%"></span></div>
+    <div class="pf-legend"><span><i style="background:var(--green-600)"></i>{{ t('perf.with_child') }}</span><span><i style="background:var(--line)"></i>{{ t('perf.between') }}</span></div>
+    <p class="hint" style="margin:8px 0 0;">{{ t('perf.work_note', n=wk.days) }}</p>
+    {% else %}
+    <p class="hint" style="margin:0;" data-perf-no-work>{{ t('perf.no_timings') }}</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="card gc-scale-in" style="margin-bottom:14px;" data-perf-types>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-ui-checks"></i> {{ t('perf.types_title') }}</h2>
+  {% if data.types %}
+  {% set longest_bar = (data.types | map(attribute='median') | select('number') | list + data.types | map(attribute='booked') | select('number') | list) | max or 1 %}
+  <div style="overflow-x:auto;">
+  <table class="table pf-types" style="min-width:{{ 760 if money else 640 }}px;">
+    <thead><tr>
+      <th>{{ t('perf.type') }}</th><th class="num">{{ t('perf.visits') }}</th>
+      <th>{{ t('perf.took_vs_slot') }}</th><th class="num">{{ t('perf.range') }}</th>
+      <th class="num">{{ t('perf.over') }}</th>{% if money %}<th class="num">{{ t('perf.revenue') }}</th>{% endif %}
+    </tr></thead>
+    <tbody>
+    {% for r in data.types %}
+    <tr data-type-row="{{ r.key }}">
+      <td><span class="pf-dot {{ r.color or '' }}"></span>{{ r.label }}</td>
+      <td class="num">{{ r.n }}</td>
+      <td>
+        {% if r.median is not none %}
+        <div class="pf-vs" title="{{ t('perf.took_n', n=r.median) }} · {{ t('perf.slot_n', n=r.booked) }}">
+          <span class="took{{ ' over' if r.booked and r.median > r.booked else '' }}" style="width:{{ (r.median / longest_bar * 100)|round(1) }}%"></span>
+          {% if r.booked %}<span class="slot" style="inset-inline-start:{{ (r.booked / longest_bar * 100)|round(1) }}%"></span>{% endif %}
+        </div>
+        <small class="hint">{{ t('perf.took_n', n=r.median) }}{% if r.booked %} · {{ t('perf.slot_n', n=r.booked) }}{% endif %}</small>
+        {% else %}<span class="hint">—</span>{% endif %}
+      </td>
+      <td class="num">{% if r.shortest is not none %}<bdi dir="ltr">{{ '%g'|format(r.shortest) }} – {{ '%g'|format(r.longest) }}</bdi>{% else %}—{% endif %}</td>
+      <td class="num">{{ (r.over_pct ~ '%') if r.over_pct is not none else '—' }}</td>
+      {% if money %}<td class="num">{{ r.revenue|money }}</td>{% endif %}
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('perf.no_visits') }}</p>
+  {% endif %}
+</section>
+<p class="hint" style="max-width:72ch;" data-perf-rule>{{ t('perf.rule') }}</p>
+
+{# ------------------------------------------------------ departments #}
+{% elif tab == 'emergency' %}
+{% set e = part %}
+<section class="card gc-scale-in" data-part-body="emergency">
+  <div class="mb-kpis">
+    {{ tile('er_total', t('hosp_kpi.er_total'), e.total) }}
+    {{ tile('er_doctor', t('hosp_kpi.er_doctor'), e.doctor_median, m, t('hosp_kpi.of_n', n=e.seen)) }}
+    {{ tile('er_stay', t('hosp_kpi.er_stay'), e.stay_median, m, t('hosp_kpi.of_n', n=e.left)) }}
+    {{ tile('er_unseen', t('hosp_kpi.er_unseen'), e.unseen, None, (e.unseen_pct ~ '%') if e.unseen_pct is not none else None) }}
+    {{ tile('er_back', t('hosp_kpi.er_back', h=e.back_hours), e.back, None, (e.back_pct ~ '%') if e.back_pct is not none else None) }}
+  </div>
+  <a class="hint" href="{{ url_for('reports.hospital_board', **keep) }}" data-more>{{ t('perf.more_hospital') }}</a>
+</section>
+{% elif tab == 'units' %}
+<section class="card gc-scale-in" data-part-body="units">
+  {% if part.rows %}
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:560px;">
+    <thead><tr><th>{{ t('perf.unit') }}</th><th class="num">{{ t('perf.admissions') }}</th><th class="num">{{ t('perf.alos') }}</th><th class="num">{{ t('perf.occupancy') }}</th><th class="num">{{ t('perf.deaths') }}</th></tr></thead>
+    <tbody>
+    {% for r in part.rows %}
+    <tr data-unit-row>
+      <td>{{ r.unit.display_name(current_lang) if r.unit else '—' }}</td>
+      <td class="num">{{ r.admissions }}</td>
+      <td class="num">{{ r.alos if r.alos is not none else '—' }}</td>
+      <td class="num">{{ (r.occupancy ~ '%') if r.occupancy is not none else '—' }}</td>
+      <td class="num">{{ r.deaths }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('perf.nothing') }}</p>{% endif %}
+  <p class="hint" style="margin:8px 0 0;">{{ t('perf.units_note') }}</p>
+</section>
+{% elif tab == 'theatres' %}
+{% set o = part %}
+<section class="card gc-scale-in" data-part-body="theatres">
+  <div class="mb-kpis">
+    {{ tile('ot_total', t('hosp_kpi.ot_total'), o.total, None, t('hosp_kpi.ot_done', n=o.done)) }}
+    {{ tile('ot_used', t('hosp_kpi.ot_used'), o.used_pct, '%', t('hosp_kpi.ot_hours', used=o.used_hours, booked=o.booked_hours)) }}
+    {{ tile('ot_turnover', t('hosp_kpi.ot_turnover'), o.turnover_median, m) }}
+    {{ tile('ot_cancelled', t('hosp_kpi.ot_cancelled'), o.cancelled, None, (o.cancelled_pct ~ '%') if o.cancelled_pct is not none else None) }}
+  </div>
+  <a class="hint" href="{{ url_for('reports.hospital_board', **keep) }}" data-more>{{ t('perf.more_hospital') }}</a>
+</section>
+{% elif tab in ('labs', 'imaging') %}
+<section class="card gc-scale-in" data-part-body="{{ tab }}">
+  <div class="mb-kpis">
+    {{ tile('orders', t('perf.orders'), part.n, None, t('perf.resulted_n', n=part.resulted)) }}
+    {{ tile('tat', t('perf.tat'), part.tat, m) }}
+  </div>
+  {% if part.top %}
+  <div class="hint" style="margin:0 0 4px;">{{ t('perf.top') }}</div>
+  <ul class="pf-top">{% for name, n in part.top %}<li><span dir="auto">{{ name }}</span> — <span class="num">{{ n }}</span></li>{% endfor %}</ul>
+  {% endif %}
+</section>
+{% elif tab == 'pharmacy' %}
+<section class="card gc-scale-in" data-part-body="pharmacy">
+  <div class="mb-kpis">
+    {{ tile('rx', t('perf.rx_dispensed'), part.prescriptions) }}
+    {{ tile('lines', t('perf.lines_dispensed'), part.lines) }}
+  </div>
+</section>
+{% elif tab == 'store' %}
+<section class="card gc-scale-in" data-part-body="store">
+  <div class="mb-kpis">
+    {{ tile('stock_value', t('perf.stock_value'), part.value|money, None, t('perf.items_n', n=part.items)) }}
+    {{ tile('low', t('perf.low'), part.low) }}
+  </div>
+  <p class="hint" style="margin:0;">{{ t('perf.store_note') }}</p>
+</section>
+{% elif tab == 'programs' %}
+<section class="card gc-scale-in" data-part-body="programs">
+  <div class="mb-kpis">
+    {{ tile('sessions', t('perf.sessions'), part.sessions, None, t('perf.children_n', n=part.children)) }}
+    {{ tile('enrolled', t('perf.enrolled'), part.enrolled) }}
+  </div>
+</section>
+{% elif tab == 'ambulance' %}
+<section class="card gc-scale-in" data-part-body="ambulance">
+  <div class="mb-kpis">
+    {{ tile('calls', t('perf.calls'), part.calls) }}
+    {{ tile('reach', t('perf.reach'), part.reach, m) }}
+  </div>
+</section>
+{% endif %}
+
+{% include "reports/_board_style.html" %}
+{% endblock %}

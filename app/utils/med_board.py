@@ -25,7 +25,7 @@ from datetime import datetime, timedelta
 
 from app.extensions import db
 
-PRESETS = ("7", "30", "month", "90", "year")
+PRESETS = ("today", "yesterday", "7", "30", "month", "90", "year")
 DEFAULT_PRESET = "30"
 #: The clinic's own age groups — the ones the patient analytics page always
 #: used and the clinic built («الفئات العمرية الى كنت عاملها بمفتاحها»):
@@ -75,7 +75,12 @@ def window(raw_from=None, raw_to=None, preset=None, today=None):
     else:
         preset = preset if preset in PRESETS else DEFAULT_PRESET
         d_to = today
-        if preset == "month":
+        if preset == "yesterday":
+            d_to = today - timedelta(days=1)
+            d_from = d_to
+        elif preset == "today":
+            d_from = today
+        elif preset == "month":
             d_from = today.replace(day=1)
         elif preset == "year":
             d_from = today.replace(month=1, day=1)

@@ -64,6 +64,9 @@ CATALOG = [
     # person may use — money only with the finance rights.
     ("reports.builder", MEDICAL, "sliders", "allrep.builder", "allrep.builder_d", _builder),
     ("reports.medical_board", MEDICAL, "heart-pulse", "board_med.title", "board_med.desc", _reports_and()),
+    # ت-٨: visits by type against the time booked, the day's work and gaps,
+    # and a tab for each department this copy runs.
+    ("reports.performance_board", OPERATIONS, "speedometer2", "perf.title", "perf.desc", _reports_and()),
     # The hospital's indicators (ت-٦) — only with a hospital department on.
     ("reports.hospital_board", MEDICAL, "hospital", "hosp_kpi.title", "hosp_kpi.desc",
      _reports_and(lambda u: _hospital())),

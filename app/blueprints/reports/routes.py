@@ -1341,6 +1341,37 @@ def hospital_board():
         presets=med_board.PRESETS, place=None)
 
 
+@reports_bp.route("/performance")
+@module_required(MODULE)
+def performance_board():
+    """«الأداء» (REPORTS_PLAN.md ت-٨): the clinic's visits by their type, the
+    time they took against the time booked, the day's work and its gaps,
+    today's finish time — and a tab for each department this copy runs
+    (``utils/perf_board``). Money only with the finance rights."""
+    from app.utils import med_board, perf_board
+
+    w = _board_window()
+    tabs = perf_board.parts()
+    tab = request.args.get("tab") or "clinic"
+    if tab != "clinic" and tab not in {k for k, _ in tabs}:
+        tab = "clinic"
+    doctor_id = request.args.get("doctor", type=int) or None
+    money = current_user.can("finance_manage")
+    data = before = part = None
+    if tab == "clinic":
+        data = perf_board.clinic(w["from"], w["to"], doctor_id, money)
+        before = perf_board.clinic(w["prev_from"], w["prev_to"], doctor_id, False)["all"]
+    else:
+        part = perf_board.part(tab, w["from"], w["to"])
+    return render_template(
+        "reports/performance_board.html", w=w, presets=med_board.PRESETS, place=None,
+        tab=tab, tabs=tabs, data=data, before=before, part=part, money=money,
+        doctor_id=doctor_id, doctors=perf_board.doctors_in(w["from"], w["to"]),
+        finish=perf_board.finish_today(doctor_id) if tab == "clinic" else [],
+        board_extra={k: v for k, v in (("tab", tab if tab != "clinic" else None),
+                                       ("doctor", doctor_id)) if v})
+
+
 @reports_bp.route("/medical/diagnoses.csv")
 @module_required(MODULE)
 def medical_board_diagnoses():
