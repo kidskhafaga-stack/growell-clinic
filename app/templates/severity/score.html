@@ -1,0 +1,97 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ row.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ row.display_name(current_lang) }}{% endblock %}
+
+{% block content %}
+{# One version of one score, as the hospital entered it from the paper. A
+   draft is tested on every save; an approved version is read only. #}
+{% include "severity/_style.html" %}
+{% set draft = row.status == 'draft' %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><i class="bi bi-journal-medical"></i> {{ row.display_name(current_lang) }}
+      <span class="sv-chip {{ row.status }}" data-status="{{ row.status }}">{{ t('severity.status_' ~ row.status) }}</span></h1>
+    <p class="page-sub" style="margin:0;">{{ t('severity.kind_' ~ row.kind) }} · <span dir="ltr">{{ row.key }}</span></p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('severity.index') }}"><i class="bi bi-arrow-right"></i> {{ t('severity.title') }}</a>
+    {% if not draft %}
+    <form method="post" action="{{ url_for('severity.version', score_id=row.id) }}" style="margin:0;" data-new-version>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-files"></i> {{ t('severity.make_version') }}</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="sv-stack">
+  {% if draft %}
+  <section class="card gc-scale-in sv-card" data-blockers>
+    <h2><i class="bi bi-shield-lock"></i> {{ t('severity.before_running') }}</h2>
+    <ul class="sv-checks">
+      {% for need in ('inputs', 'intercept', 'window', 'source', 'licence', 'examples', 'test') if not (need == 'intercept' and row.kind == 'points') %}
+      {% set met = (row.test_ok and not 'examples' in blockers) if need == 'test' else need not in blockers %}
+      <li data-need="{{ need }}"{% if met %} data-met{% endif %}><i class="bi bi-{{ 'check-circle-fill' if met else 'x-circle' }}"></i> {{ t('severity.need_' ~ need, n=min_examples) }}</li>
+      {% endfor %}
+    </ul>
+    {% if not blockers %}
+    <form method="post" action="{{ url_for('severity.activate', score_id=row.id) }}" class="sv-grid" style="margin-top:12px;align-items:end;" data-activate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row wide"><label for="note">{{ t('severity.approve_note') }}</label><input class="input" id="note" name="note" maxlength="255" required></div>
+      <div><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-patch-check"></i> {{ t('severity.approve') }}</button></div>
+    </form>
+    {% endif %}
+  </section>
+  {% else %}
+  <p class="sv-note" data-frozen>{{ t('severity.frozen', who=row.approver.display_name(current_lang) if row.approver else '—', when=row.approved_at|clinic_stamp) }}{% if row.approval_note %} — <span dir="auto">{{ row.approval_note }}</span>{% endif %}</p>
+  {% endif %}
+
+  {% if row.test_detail %}
+  <section class="card gc-scale-in sv-card" data-test>
+    <h2><i class="bi bi-check2-square"></i> {{ t('severity.test_title') }}
+      <span class="sv-chip {{ 'ok' if row.test_ok else 'no' }}">{{ t('severity.test_ok') if row.test_ok else t('severity.test_no') }}</span></h2>
+    <div style="overflow-x:auto;">
+    <table class="table" style="min-width:420px;">
+      <thead><tr><th>#</th><th class="num">{{ t('severity.expected') }}</th><th class="num">{{ t('severity.got') }}</th><th></th></tr></thead>
+      <tbody>{% for d in row.test_detail %}
+      <tr data-example="{{ d.n }}"><td>{{ d.n }}</td><td class="num" dir="ltr">{{ '%g'|format(d.expected) }}</td>
+        <td class="num" dir="ltr">{{ '%g'|format(d.got) if d.got is not none else (t('severity.err_' ~ d.error) if d.error else '—') }}</td>
+        <td><i class="bi bi-{{ 'check-circle-fill' if d.ok else 'x-circle' }}" style="color:{{ '#16a34a' if d.ok else '#b91c1c' }};"></i></td></tr>
+      {% endfor %}</tbody>
+    </table>
+    </div>
+    <p class="hint" style="margin:6px 0 0;">{{ t('severity.tolerance_is', n='%g'|format(row.tolerance)) }}</p>
+  </section>
+  {% endif %}
+
+  <form method="post" class="card gc-scale-in sv-card" data-score-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2><i class="bi bi-pencil-square"></i> {{ t('severity.definition') }}</h2>
+    <fieldset {{ '' if draft else 'disabled' }} style="border:0;padding:0;margin:0;display:grid;gap:12px;">
+    <div class="sv-grid">
+      <div class="form-row"><label for="f_name_ar">{{ t('severity.name_ar') }}</label><input class="input" id="f_name_ar" name="name_ar" value="{{ row.name_ar }}" maxlength="120"></div>
+      <div class="form-row"><label for="f_name_en">{{ t('severity.name_en') }}</label><input class="input" id="f_name_en" name="name_en" value="{{ row.name_en or '' }}" maxlength="120" dir="ltr"></div>
+      <div class="form-row wide"><label for="f_source">{{ t('severity.source') }}</label><textarea class="input" id="f_source" name="source" rows="2" dir="auto" placeholder="{{ t('severity.source_ph') }}">{{ row.source or '' }}</textarea></div>
+      <div class="form-row"><label for="f_lh">{{ t('severity.licence_holder') }}</label><input class="input" id="f_lh" name="licence_holder" value="{{ row.licence_holder or '' }}" maxlength="200" dir="auto"></div>
+      <div class="form-row"><label for="f_lr">{{ t('severity.licence_ref') }}</label><input class="input" id="f_lr" name="licence_ref" value="{{ row.licence_ref or '' }}" maxlength="200" dir="auto"></div>
+      <div class="form-row"><label for="f_wb">{{ t('severity.window_before') }}</label><input class="input" id="f_wb" name="window_before_h" inputmode="decimal" dir="ltr" value="{{ '%g'|format(row.window_before_h) if row.window_before_h is not none else '' }}"></div>
+      <div class="form-row"><label for="f_wa">{{ t('severity.window_after') }}</label><input class="input" id="f_wa" name="window_after_h" inputmode="decimal" dir="ltr" value="{{ '%g'|format(row.window_after_h) if row.window_after_h is not none else '' }}"></div>
+      <div class="form-row"><label for="f_ic">{{ t('severity.intercept') }}</label><input class="input" id="f_ic" name="intercept" inputmode="decimal" dir="ltr" value="{{ '%g'|format(row.intercept) if row.intercept is not none else '' }}"></div>
+      {% if row.kind == 'points' %}<div class="form-row"><label for="f_sl">{{ t('severity.slope') }}</label><input class="input" id="f_sl" name="slope" inputmode="decimal" dir="ltr" value="{{ '%g'|format(row.slope) if row.slope is not none else '' }}"></div>{% endif %}
+      <div class="form-row"><label for="f_tol">{{ t('severity.tolerance') }}</label><input class="input" id="f_tol" name="tolerance" inputmode="decimal" dir="ltr" value="{{ '%g'|format(row.tolerance) }}"></div>
+    </div>
+    <p class="hint" style="margin:0;">{{ t('severity.numbers_from_paper') }}</p>
+    <div class="form-row"><label for="f_inputs">{{ t('severity.inputs') }}</label>
+      <textarea class="input sv-mono" id="f_inputs" name="inputs" rows="8" spellcheck="false">{{ inputs_raw }}</textarea>
+      <span class="hint">{{ t('severity.inputs_help_' ~ row.kind) }} <span dir="ltr">{{ transforms|join(', ') }}</span></span>
+      {% if problems.inputs %}<span class="hint" style="color:var(--danger);" data-bad-inputs>{% for n, why in problems.inputs %}{{ t('severity.bad_line', n=n, why=t('severity.why_' ~ why)) }}{% if not loop.last %} · {% endif %}{% endfor %}</span>{% endif %}</div>
+    <div class="form-row"><label for="f_examples">{{ t('severity.examples') }}</label>
+      <textarea class="input sv-mono" id="f_examples" name="examples" rows="5" spellcheck="false">{{ examples_raw }}</textarea>
+      <span class="hint">{{ t('severity.examples_help', n=min_examples) }}</span>
+      {% if problems.examples %}<span class="hint" style="color:var(--danger);" data-bad-examples>{% for n, why in problems.examples %}{{ t('severity.bad_line', n=n, why=t('severity.why_' ~ why)) }}{% if not loop.last %} · {% endif %}{% endfor %}</span>{% endif %}</div>
+    {% if draft %}<div><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-save"></i> {{ t('severity.save_test') }}</button></div>{% endif %}
+    </fieldset>
+  </form>
+</div>
+{% endblock %}

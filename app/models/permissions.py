@@ -356,6 +356,10 @@ CAPABILITIES = [
     # person, not a role; a doctor writes them too, and only a doctor
     # approves one.
     "assessments",
+    # «مقاييس الخطورة» — entering a severity score from its paper, approving
+    # it, and choosing which one a unit uses (HOSPITAL_PLAN.md ت-٦ب). Every
+    # change is in the activity log. The hospital names who holds it.
+    "severity_scores",
 ]
 
 ROLE_CAPABILITIES = {

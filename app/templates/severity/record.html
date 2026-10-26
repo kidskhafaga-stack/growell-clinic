@@ -1,0 +1,60 @@
+{% extends "shell.html" %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('severity.record_title', unit=t('severity.unit_' ~ kind)) }}{% endblock %}
+{% block page_heading %}{{ t('severity.record_title', unit=t('severity.unit_' ~ kind)) }}{% endblock %}
+
+{% block content %}
+{# One child's score on entering the unit — within the score's window, with
+   the paper's own rule for a reading not measured, never a guess. #}
+{% include "severity/_style.html" %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-activity"></i> {{ t('severity.record_title', unit=t('severity.unit_' ~ kind)) }}</h1>
+    <p class="page-sub" style="margin:0;">
+      <a href="{{ url_for('beds.admission', admission_id=stay.id) }}">{{ stay.patient.display_name(current_lang) if stay.patient else '' }}</a>
+      · {{ t('severity.entered') }} <span dir="ltr">{{ came.strftime('%Y-%m-%d %H:%M') if came else '—' }}</span></p>
+  </div>
+</div>
+
+<div class="sv-stack">
+{% if done %}
+  <section class="card gc-scale-in sv-card" data-severity-done>
+    <h2><i class="bi bi-check2-circle"></i> {{ done.score.display_name(current_lang) }}</h2>
+    <div class="sv-grid">
+      {% if done.probability is not none %}<div><div class="hint">{{ t('severity.expected_risk') }}</div><strong class="num" dir="ltr" style="font-size:1.4rem;">{{ '%.1f'|format(done.probability * 100) }}%</strong></div>{% endif %}
+      {% if done.points is not none %}<div><div class="hint">{{ t('severity.points') }}</div><strong class="num" dir="ltr" style="font-size:1.4rem;">{{ '%g'|format(done.points) }}</strong></div>{% endif %}
+      <div><div class="hint">{{ t('severity.measured_at') }}</div><span dir="ltr">{{ done.measured_at|clinic_stamp }}</span></div>
+      <div><div class="hint">{{ t('severity.by') }}</div>{{ done.recorder.display_name(current_lang) if done.recorder else '—' }}</div>
+    </div>
+    {% if done.missing %}<p class="hint" style="margin:10px 0 0;" data-missing>{{ t('severity.missing_used', n=done.missing|length) }}: <span dir="ltr">{{ done.missing|join(', ') }}</span></p>{% endif %}
+  </section>
+  <p class="sv-note">{{ t('severity.not_a_prediction') }}</p>
+{% elif not score %}
+  <div class="sv-lock" data-severity-locked><i class="bi bi-lock"></i><p style="margin:0;">{{ t('severity.unit_locked') }}</p></div>
+{% else %}
+  <form method="post" class="card gc-scale-in sv-card" data-severity-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2><i class="bi bi-clipboard2-pulse"></i> {{ score.display_name(current_lang) }}</h2>
+    <p class="hint" style="margin:0 0 10px;">{{ t('severity.window_is') }} <span dir="ltr">{{ start.strftime('%Y-%m-%d %H:%M') }} – {{ end.strftime('%Y-%m-%d %H:%M') }}</span></p>
+    <div class="sv-grid">
+      <div class="form-row"><label for="m_at">{{ t('severity.measured_at') }}</label>
+        <input class="input" type="datetime-local" id="m_at" name="measured_at" required dir="ltr" value="{{ now.strftime('%Y-%m-%dT%H:%M') if now else '' }}"></div>
+      {% for r in score.inputs %}
+      <div class="form-row" data-input="{{ r.code }}">
+        <label>{{ r[current_lang] or r.ar }}{% if r.unit %} <span class="hint" dir="ltr">({{ r.unit }})</span>{% endif %}</label>
+        {% if r.type == 'yesno' %}
+        <select class="select" name="v_{{ r.code }}"><option value="">—</option><option value="1">{{ t('severity.yes') }}</option><option value="0">{{ t('severity.no') }}</option></select>
+        {% elif r.type == 'ratio' %}
+        <div style="display:flex;gap:6px;align-items:center;" dir="ltr"><input class="input" name="v_{{ r.code }}_top" inputmode="decimal"> / <input class="input" name="v_{{ r.code }}_bottom" inputmode="decimal"></div>
+        {% else %}
+        <input class="input" name="v_{{ r.code }}" inputmode="decimal" dir="ltr">
+        {% endif %}
+        <span class="hint">{{ t('severity.if_missing_rule') if r.missing is not none else t('severity.required') }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div style="margin-top:12px;"><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-save"></i> {{ t('severity.calculate') }}</button></div>
+  </form>
+{% endif %}
+</div>
+{% endblock %}

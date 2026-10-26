@@ -176,6 +176,15 @@
        href="{{ url_for('observations.chart', patient_id=admission.patient_id) }}">
       <i class="bi bi-activity"></i> {{ t('nav.observations') }}</a>
     {% endif %}
+    {# ت-٦ب — the severity score on entering intensive care, for a stay that
+       entered a unit whose module is on. #}
+    {% if current_user.can('patient_medical') %}
+    {% for kind in severity_units or [] %}
+    <a class="btn btn-outline gc-press" data-to-severity="{{ kind }}"
+       href="{{ url_for('severity.admission', admission_id=admission.id, kind=kind) }}">
+      <i class="bi bi-activity"></i> {{ t('severity.door_admission') }} · {{ t('severity.unit_' ~ kind) }}</a>
+    {% endfor %}
+    {% endif %}
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.index') }}">
       <i class="bi bi-grid-3x3"></i> {{ t('beds.board') }}</a>
   </div>

@@ -88,6 +88,13 @@
 </section>
 {% endif %}
 
+{# ت-٦ب — deaths against those the severity score expected: its own page,
+   with the unit's chosen score, and locked until one is approved. #}
+{% if module_enabled('icu') or module_enabled('nicu') %}
+<p style="margin:0 0 14px;"><a class="btn btn-outline gc-press" data-to-severity-board href="{{ url_for('severity.board') }}">
+  <i class="bi bi-graph-up"></i> {{ t('severity.door_board') }}</a></p>
+{% endif %}
+
 {# --------------------------------------------- safety per 1000 bed days #}
 {% if now.safety %}
 {% set sf = now.safety %}

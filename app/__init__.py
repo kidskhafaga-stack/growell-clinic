@@ -180,6 +180,7 @@ def create_app(config_name="default"):
     from app.blueprints.duty import duty_bp
     from app.blueprints.programs import programs_bp
     from app.blueprints.assessments import assessments_bp
+    from app.blueprints.severity import severity_bp
     from app.blueprints.ambulance import ambulance_bp
     from app.blueprints.telemedicine import telemedicine_bp
     from app.blueprints.teaching import teaching_bp
@@ -218,6 +219,7 @@ def create_app(config_name="default"):
     app.register_blueprint(duty_bp)
     app.register_blueprint(programs_bp)
     app.register_blueprint(assessments_bp)
+    app.register_blueprint(severity_bp)
     app.register_blueprint(ambulance_bp)
     app.register_blueprint(telemedicine_bp)
     app.register_blueprint(teaching_bp)

@@ -760,8 +760,10 @@ def admission(admission_id):
     end = row.discharged_at or datetime.utcnow()
     span_hours = max(int((end - row.admitted_at).total_seconds() // 3600), 0) \
         if row.admitted_at else None
+    from app.utils import severity as _sev
     return render_template(
         "beds/admission.html", admission=row,
+        severity_units=[k for k in _sev.units_on() if _sev.entered(row, k)],
         admission_consent=signed_admission_consent(row.id),
         stay_days=(span_hours // 24) if span_hours is not None else None,
         stay_hours=(span_hours % 24) if span_hours is not None else None,
