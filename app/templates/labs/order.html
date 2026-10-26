@@ -87,7 +87,7 @@
           {% if step.batch %}<a class="hint" href="{{ url_for('labs.transfer_batch', code=step.batch) }}">{{ t('lab_transfer.open_batch') }}</a>{% endif %}</span>
         <span class="hint lt-step__when">
           {% if step.at %}{{ step.at|clinic_stamp }}{% if step.who %} · {{ step.who }}{% endif %}{% endif %}
-          {% if step.minutes is not none %}<span class="badge badge--muted" dir="ltr">+{{ t('lab_transfer.minutes', n=step.minutes) }}</span>{% endif %}</span>
+          {% if step.minutes is not none %}<span class="badge badge--muted" data-step-minutes="{{ step.minutes }}">{{ t('lab_transfer.minutes', n=step.minutes) }}</span>{% endif %}</span>
       </li>
       {% endfor %}
     </ol>

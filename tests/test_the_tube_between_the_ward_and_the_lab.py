@@ -185,7 +185,7 @@ def test_the_journey_says_each_step_who_and_how_long(lab):
     drawn = page[page.index('data-step="drawn"'):]
     assert "الداخلي" in drawn[:drawn.index("</li>")]
     sent = page[page.index('data-step="sent"'):]
-    assert "+10" in sent[:sent.index("</li>")]      # drawn → sent: ten minutes
+    assert 'data-step-minutes="10"' in sent[:sent.index("</li>")]   # drawn → sent
 
 
 def test_sending_refuses_a_place_that_is_off_and_an_empty_tick(lab):

@@ -15602,7 +15602,7 @@
     "step_sent_out": "اتبعتت لمعمل برّه",
     "step_answered": "النتيجة اتكتبت",
     "step_released": "اتصدّق عليها",
-    "minutes": "{n} دقيقة",
+    "minutes": "بعد {n} دقيقة",
     "open_batch": "افتح الكشف",
     "on_the_way": "في الطريق",
     "nothing_on_the_way": "مفيش عينات في الطريق — كل اللي اتبعت وصل.",

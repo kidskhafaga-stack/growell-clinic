@@ -15602,7 +15602,7 @@
     "step_sent_out": "Sent to an outside lab",
     "step_answered": "Result written",
     "step_released": "Released",
-    "minutes": "{n} min",
+    "minutes": "+{n} min",
     "open_batch": "Open the list",
     "on_the_way": "On the way",
     "nothing_on_the_way": "No samples on the way — everything sent has arrived.",
