@@ -1,7 +1,11 @@
 """Where a tube was drawn, how it reached the lab, and its whole journey.
 
 LAB_GLAB360_PLAN.md م-٣ — *«أماكن السحب: في المعمل، أو الحضانة، أو العناية
-المركزة، أو في الطوارئ غرفة الإجراءات، أو في الداخلي»* — the owner's list.
+المركزة، أو في الطوارئ غرفة الإجراءات، أو في الداخلي»* — the owner's list,
+and then the operating theatre and recovery, both with the theatres module:
+a haemoglobin during the operation, electrolytes in recovery. (A test run on
+a device inside the theatre is a bedside test — `lab_poct` — and travels
+nowhere; tissue taken at the operation is `Specimen`, the theatre's own.)
 
 * **The places are fixed**, each tied to its department's module: a clinic
   that runs the program at clinic level only has the lab and nothing else,
@@ -34,11 +38,19 @@ PLACES = (
     ("icu", "icu"),
     ("emergency", "emergency"),
     ("ward", "ward"),
+    ("theatres", "theatres"),
+    ("recovery", "theatres"),
 )
 
 #: A unit's kind (`models.place.UNIT_KINDS`) → the place its tubes are drawn.
 _UNIT_PLACE = {"nicu": "nicu", "icu": "icu", "ward": "ward",
-               "emergency": "emergency"}
+               "emergency": "emergency", "recovery": "recovery"}
+#: Where an operation under way says the child is (`Operation.where`).
+_CASE_PLACE = {"theatre": "theatres", "recovery": "recovery"}
+#: A case started longer ago than this and never closed is not where the
+#: child is now — a theatre list nobody finished must not draw every tube
+#: in the building into the operating room.
+_CASE_HOURS = 24
 
 #: A tube on the way longer than this is shown as late. Most hospitals carry
 #: a batch in minutes; half an hour is a tube somebody should look for.
@@ -81,12 +93,31 @@ def _unit_kind(admission_id):
     return unit.kind if unit is not None else None
 
 
+def _in_theatre(patient_id):
+    """``theatres`` / ``recovery`` while this child's operation is under way."""
+    from datetime import timedelta
+
+    from app.models import Operation
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("theatres"):
+        return None
+    case = (Operation.query
+            .filter(Operation.patient_id == patient_id,
+                    Operation.started_at.isnot(None),
+                    Operation.started_at >= datetime.utcnow() - timedelta(hours=_CASE_HOURS),
+                    Operation.discharged_at.is_(None))
+            .order_by(Operation.started_at.desc()).first())
+    return _CASE_PLACE.get(case.where) if case is not None else None
+
+
 def default_for(order):
-    """Where this tube is most likely drawn: the bed's unit, the emergency
-    procedure room, or the lab."""
+    """Where this tube is most likely drawn: the operating theatre or
+    recovery while the child's operation is under way, the bed's unit, the
+    emergency procedure room, or the lab."""
     here = available()
-    guess = None
-    if order.admission_id:
+    guess = _in_theatre(order.patient_id)
+    if guess is None and order.admission_id:
         guess = _UNIT_PLACE.get(_unit_kind(order.admission_id))
     if guess is None and order.visit is not None and order.visit.channel == "emergency":
         guess = "emergency"

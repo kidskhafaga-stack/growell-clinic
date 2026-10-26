@@ -1269,7 +1269,7 @@ SECTIONS = [
              "oldest — and opens on it next time until you choose «All "
              "sections». A test not yet in a section shows under «No section»."),
             ("<b>العينات في الطريق</b> (في المستشفى بس، لما الحضانة أو العناية أو "
-             "الطوارئ أو الداخلي شغالين): وإنت بتعلّم «اتسحبت» اختار اتسحبت فين — "
+             "الطوارئ أو الداخلي أو العمليات شغالين — والعمليات معاها الإفاقة): وإنت بتعلّم «اتسحبت» اختار اتسحبت فين — "
              "البرنامج بيختار مكان الطفل لوحده. العينات اللي اتسحبت برّه المعمل "
              "بتستنى في «العينات في الطريق»: علّم على اللي رايحة وابعتها دفعة "
              "بكشف يتطبع ويمشي معاها. المعمل بيستلم بالمسح على الباب، واللي "
@@ -1277,7 +1277,8 @@ SECTIONS = [
              "العينة»: كل خطوة بوقتها والشخص وأخدت قد إيه، وفي «زمن النتيجة» "
              "الوقت راح فين حسب مكان السحب.",
              "<b>Samples on the way</b> (in a hospital only, when the neonatal "
-             "unit, intensive care, emergency or the ward is on): when marking "
+             "unit, intensive care, emergency, the ward or theatres — with "
+             "recovery — is on): when marking "
              "«drawn», choose where — the program picks the child's place for "
              "you. Samples drawn outside the lab wait in «Samples on the way»: "
              "tick the ones leaving and send them as a batch with a list to "

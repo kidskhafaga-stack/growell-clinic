@@ -220,3 +220,51 @@ def test_turnaround_says_where_the_time_went_by_place(lab):
     assert report["lab"]["to_lab"] == 5
     page = c.get("/labs/turnaround").get_data(as_text=True)
     assert 'data-place-row="ward"' in page and 'data-place-row="lab"' in page
+
+
+def test_in_theatre_and_in_recovery_while_the_operation_is_under_way(lab):
+    """«وممكن في العمليات لو في تحاليل … داخل العمليات أو الإفاقة؟» — the
+    owner's addition: both places come with the theatres module, and the
+    guess follows the child's operation."""
+    from app.models import Operation, Setting
+    from app.models.theatre import Theatre
+    from app.utils import lab_transfer
+
+    oid = _in_bed(lab)
+    c = lab["sign_in"]("boss")
+    page = c.get(f"/labs/order/{oid}").get_data(as_text=True)
+    assert 'value="theatres"' not in page            # no theatres module, no theatre
+    with lab["app"].app_context():
+        Setting.set("mod_enabled:theatres", "1")
+        room = Theatre(name="عمليات ١")
+        lab["db"].session.add(room)
+        lab["db"].session.flush()
+        case = Operation(patient_id=lab["ids"]["child"], theatre_id=room.id,
+                         on_date=datetime.utcnow().date(), procedure="فتق",
+                         status="in_theatre", started_at=datetime.utcnow())
+        lab["db"].session.add(case)
+        lab["db"].session.commit()
+        assert lab_transfer.available()[-2:] == ["theatres", "recovery"]
+        case_id = case.id
+    page = c.get(f"/labs/order/{oid}").get_data(as_text=True)
+    assert re.search(r'value="theatres" selected', page)
+    with lab["app"].app_context():
+        lab["db"].session.get(Operation, case_id).recovery_at = datetime.utcnow()
+        lab["db"].session.commit()
+    _draw(c, oid)
+    assert _row(lab, oid)["where"] == "recovery"
+    page = c.get("/labs/transfer").get_data(as_text=True)
+    assert 'data-send-from="recovery"' in page and "الإفاقة" in page
+    # A case started yesterday and never closed is not where the child is.
+    with lab["app"].app_context():
+        row = lab["db"].session.get(Operation, case_id)
+        row.started_at = datetime.utcnow() - timedelta(hours=30)
+        lab["db"].session.commit()
+    other = _order(lab)
+    with lab["app"].app_context():
+        from app.models import VisitInvestigation
+        lab["db"].session.get(VisitInvestigation, other).admission_id = \
+            lab["db"].session.get(VisitInvestigation, oid).admission_id
+        lab["db"].session.commit()
+    _draw(c, other)
+    assert _row(lab, other)["where"] == "ward"

@@ -15630,6 +15630,8 @@
     "tat_title": "Where the time went — by place drawn",
     "tat_hint": "Median: from drawing to the lab's door, and from the door to the result.",
     "to_lab": "To the lab",
-    "at_lab": "In the lab"
+    "at_lab": "In the lab",
+    "place_theatres": "Operating theatre",
+    "place_recovery": "Recovery"
   }
 }
