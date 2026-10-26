@@ -751,6 +751,8 @@ _CRM_TPL_NAMES = {
     "vaccine_given": "إشعار تطعيم",
     "vaccine_back": "التطعيم بقى متوفر",
     "card_expiring": "تذكير بتجديد كارت التأمين",
+    "lab_result": "نتيجة التحاليل للأهل",
+    "lab_result_doctor": "نتيجة التحاليل للدكتور المحوِّل",
     "birthday": "تهنئة عيد ميلاد",
 }
 

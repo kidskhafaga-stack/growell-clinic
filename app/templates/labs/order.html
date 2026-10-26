@@ -490,4 +490,38 @@
   <p class="hint" style="margin-top:12px;">{{ t('lab.reading_is_the_doctors') }}</p>
 </div>
 {% endif %}
+
+{# ---- the result to the family and the referring doctor (م-٤) ---------
+   Who it was sent to, when, and whether they opened it; and the same link
+   to the doctor who referred the child. Only while the clinic sends. #}
+{% if shares or (share_released and share_doctors) or share_hold %}
+<div class="card gc-scale-in" style="margin-top:14px;" data-share-box>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-send-check"></i> {{ t('lab_share.on_order') }}</h2>
+  {% if share_hold and not order.family_called_at %}
+  <p class="hint" data-share-held><i class="bi bi-telephone"></i> {{ t('lab_share.held_on_order', why=t('lab_share.hold_' ~ share_hold)) }}</p>
+  {% elif order.family_called_at %}
+  <p class="hint" data-family-called><i class="bi bi-telephone-outbound"></i> {{ t('lab_share.called_line', who=order.family_caller.display_name(current_lang) if order.family_caller else '—', when=order.family_called_at|clinic_stamp) }}{% if order.family_called_note %} · <span dir="auto">{{ order.family_called_note }}</span>{% endif %}</p>
+  {% endif %}
+  {% for s in shares %}
+  <p style="margin:0 0 6px;" data-share-log="{{ s.audience }}">
+    <i class="bi bi-{{ 'people' if s.audience == 'family' else 'person-badge' }}"></i>
+    {{ t('lab_share.log_' ~ s.audience, who=(s.external_doctor.name if s.external_doctor else ''), when=s.created_at|clinic_stamp) }}
+    · {% if s.opened_at %}<span class="badge badge--green" data-share-opened>{{ t('lab_share.opened', when=s.opened_at|clinic_stamp) }}</span>
+      {% elif s.locked %}<span class="badge badge--danger">{{ t('lab_share.locked') }}</span>
+      {% elif s.expired %}<span class="badge badge--muted">{{ t('lab_share.expired') }}</span>
+      {% else %}<span class="badge badge--muted">{{ t('lab_share.not_opened') }}</span>{% endif %}
+  </p>
+  {% endfor %}
+  {% if share_released and share_doctors %}
+  <form method="post" action="{{ url_for('labs.result_to_doctor') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;" data-to-doctor-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="order" value="{{ order.id }}">
+    <input type="hidden" name="back" value="order">
+    <div class="form-row" style="margin:0;min-width:220px;"><label for="doctor_id">{{ t('lab_share.to_doctor') }}</label>
+      <select class="select" id="doctor_id" name="doctor_id">{% for d in share_doctors %}<option value="{{ d.id }}">{{ d.name }}{% if d.place %} — {{ d.place }}{% endif %}</option>{% endfor %}</select></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-whatsapp"></i> {{ t('lab_share.send_doctor') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
 {% endblock %}

@@ -1088,6 +1088,14 @@ ADDITIONS = [
     # emergency procedure room or the ward (LAB_GLAB360_PLAN.md م-٣). Empty on
     # every tube drawn before: it reads as the lab, which is where they were.
     ("visit_investigations", "collected_where", "VARCHAR(16)"),
+    # The result to the family after the doctor saw it, and — for a critical
+    # result or a sensitive test — after the doctor spoke to them (م-٤).
+    ("visit_investigations", "doctor_seen_at", "DATETIME"),
+    ("visit_investigations", "doctor_seen_by", "INTEGER"),
+    ("visit_investigations", "family_called_at", "DATETIME"),
+    ("visit_investigations", "family_called_by", "INTEGER"),
+    ("visit_investigations", "family_called_note", "VARCHAR(200)"),
+    ("investigations", "sensitive", "BOOLEAN DEFAULT 0"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

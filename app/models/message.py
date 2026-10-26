@@ -93,6 +93,10 @@ SYSTEM_TEMPLATE_TYPES = [
     # from the list of expiring cards, so the card is renewed before anybody
     # stands at the desk with it. See app/utils/coverage_card.py.
     "card_expiring",
+    # The lab result, as a link (LAB_GLAB360_PLAN.md م-٤): to the family once
+    # the doctor has seen it, and to the doctor who referred the child. Sent
+    # by a person's press on the results screen — see app/utils/lab_share.py.
+    "lab_result", "lab_result_doctor",
 ]
 # Notification types the clinic manages centrally (each has one canonical
 # template with its own body/image/auto-or-manual toggle). Birthday is an
@@ -134,6 +138,9 @@ TEMPLATE_VARIABLES = {
     "vaccine_back": ["patient", "first_name", "vaccine", "clinic"],
     "card_expiring": ["patient", "first_name", "payer", "expiry_date", "clinic"],
     "rx_copy": ["patient", "first_name", "doctor", "clinic", "link"],
+    # No result in it, ever — only the link, and how long it works.
+    "lab_result": ["patient", "first_name", "clinic", "link", "days"],
+    "lab_result_doctor": ["patient", "doctor", "clinic", "link", "days"],
     "birthday": ["patient", "first_name", "clinic"],
     "feedback": ["patient", "first_name", "clinic", "doctor", "link"],
     "complaint_received": ["patient", "first_name", "clinic", "number", "hours"],
@@ -233,6 +240,16 @@ TEMPLATE_DEFAULTS = {
         "خبر كويس من {clinic}: تطعيم {vaccine} بقى متوفر.\n"
         "تقدروا تجيبوا {patient} في أي وقت خلال مواعيد العيادة — "
         "ومعلش على التأخير."
+    ),
+    "lab_result": (
+        "نتيجة تحاليل {patient} من {clinic} جاهزة.\n"
+        "تقدروا تفتحوها من هنا: {link}\n"
+        "هيطلب منكم تاريخ ميلاد الطفل، واللينك شغال {days} يوم."
+    ),
+    "lab_result_doctor": (
+        "{doctor}، نتيجة تحاليل {patient} من {clinic} جاهزة.\n"
+        "اللينك: {link}\n"
+        "هيطلب تاريخ ميلاد الطفل، وشغال {days} يوم."
     ),
     "rx_copy": (
         # No "د." in front of {doctor}: the name already arrives with its

@@ -1,0 +1,83 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_share.title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_share.title') }}{% endblock %}
+
+{% block content %}
+{# LAB_GLAB360_PLAN.md م-٤ — released results the doctor has not seen. «Seen»
+   sends the family a link to the lab's report; a critical result or a
+   sensitive test waits until the doctor has called them. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-send-check"></i> {{ t('lab_share.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lab_share.sub', n=days) }}</p>
+  </div>
+  {% if can_scope %}
+  <div style="display:flex;gap:6px;">
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if mine else 'btn-outline' }}" href="{{ url_for('labs.results_to_see') }}">{{ t('results.mine') }}</a>
+    <a class="btn btn-sm gc-press {{ 'btn-outline' if mine else 'btn-primary' }}" href="{{ url_for('labs.results_to_see', scope='all') }}">{{ t('results.all') }}</a>
+  </div>
+  {% endif %}
+</div>
+
+{# ---- waiting for the doctor's call ------------------------------------ #}
+{% if to_call %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--danger);" data-to-call>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-telephone"></i> {{ t('lab_share.to_call') }}</h2>
+  <p class="hint">{{ t('lab_share.to_call_hint') }}</p>
+  {% for row in to_call %}
+  <div class="ls-row" data-call-row="{{ row.id }}">
+    <div style="flex:1;min-width:200px;">
+      <a href="{{ url_for('labs.order', order_id=row.id) }}" style="font-weight:600;">{{ row.display_name(current_lang) }}</a>
+      <span class="badge badge--danger" data-hold="{{ hold_reason(row) }}">{{ t('lab_share.hold_' ~ hold_reason(row)) }}</span>
+      <div class="hint">{{ row.patient.display_name(current_lang) }}{% if row.patient.contact_phone %} · <span dir="ltr">{{ row.patient.contact_phone }}</span>{% endif %}</div>
+    </div>
+    {% if may_act %}
+    <form method="post" action="{{ url_for('labs.result_called', order_id=row.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin:0;" data-called-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="note" maxlength="200" placeholder="{{ t('lab_share.call_note_ph') }}" aria-label="{{ t('lab_share.call_note_ph') }}" style="min-width:200px;">
+      <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-telephone-outbound"></i> {{ t('lab_share.called') }}</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ---- to see, one card per child --------------------------------------- #}
+{% if not to_see and not to_call %}
+<div class="card gc-scale-in"><p class="hint" style="margin:0;" data-nothing-to-see>{{ t('lab_share.nothing') }}</p></div>
+{% endif %}
+{% for patient, rows in to_see %}
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-child="{{ patient.id }}">
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline;">
+    <h2 class="section-title" style="margin:0;"><a href="{{ url_for('patients.view', patient_id=patient.id) }}">{{ patient.display_name(current_lang) }}</a></h2>
+    <span class="hint">{% if patient.contact_phone %}<i class="bi bi-whatsapp"></i> <span dir="ltr">{{ patient.contact_phone }}</span>{% else %}<span data-no-phone>{{ t('lab_share.no_phone') }}</span>{% endif %}</span>
+  </div>
+  <form method="post" action="{{ url_for('labs.results_seen') }}" data-seen-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <ul class="ls-list">
+      {% for row in rows %}
+      <li data-see-row="{{ row.id }}">
+        <input type="hidden" name="order" value="{{ row.id }}">
+        <a href="{{ url_for('labs.order', order_id=row.id) }}">{{ row.display_name(current_lang) }}</a>
+        {% if row.out_of_range %}<span class="badge badge--warn">{{ t('lab_share.out_of_range') }}</span>{% endif %}
+        {% if hold_reason(row) %}<span class="badge badge--danger" data-hold="{{ hold_reason(row) }}">{{ t('lab_share.hold_' ~ hold_reason(row)) }}</span>{% endif %}
+        <span class="hint">· {{ row.resulted_at|clinic_stamp }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <a class="btn btn-outline gc-press" target="_blank" rel="noopener" href="{{ url_for('labs.report', ids=rows|map(attribute='id')|join(',')) }}"><i class="bi bi-file-earmark-text"></i> {{ t('lab_share.open_report') }}</a>
+      {% if may_act %}
+      <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('lab_share.seen_send') }}</button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endfor %}
+<style>
+  .ls-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; border-top:1px solid var(--line); padding:10px 0; }
+  .ls-list { margin:10px 0; padding-inline-start:18px; display:grid; gap:6px; }
+</style>
+{% endblock %}

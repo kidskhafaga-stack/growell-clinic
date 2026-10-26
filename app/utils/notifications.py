@@ -88,6 +88,18 @@ def _compute():
     except Exception:  # noqa: BLE001
         pass
 
+    # The lab's released results waiting for a doctor before they go to the
+    # family (LAB_GLAB360_PLAN.md م-٤) — only while the clinic sends them.
+    try:
+        from app.utils import lab_share
+        n = lab_share.to_see_count() if lab_share.on() else 0
+        if n:
+            items.append({"key": "lab_results_to_see", "module": "visits",
+                          "icon": "send-check", "severity": "warning",
+                          "count": n, "endpoint": "labs.results_to_see", "kwargs": {}})
+    except Exception:  # noqa: BLE001
+        pass
+
     # The free-reply window shuts 24 hours after the family last wrote. Nobody
     # is watching the inbox at eleven at night, which is when it closes.
     try:

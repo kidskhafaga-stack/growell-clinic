@@ -45,6 +45,21 @@
   <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
 </form>
 
+{# **The result to the family** (م-٤): off until the clinic turns it on. On,
+   a released result waits on the doctor's list; «seen» sends the family a
+   link; a critical result or a sensitive test waits for the doctor's call. #}
+<form method="post" action="{{ url_for('labs.share_setting') }}" class="card gc-scale-in" id="share-setting" data-share-setting
+      style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label style="display:flex;gap:8px;align-items:center;margin:0;flex:1;min-width:240px;">
+    <input type="checkbox" name="on" value="1" {{ 'checked' if share_on else '' }}>
+    <span><strong>{{ t('lab_share.setting') }}</strong><br><span class="hint" style="margin:0;">{{ t('lab_share.setting_hint') }}</span></span></label>
+  <div class="form-row" style="margin:0;width:140px;"><label for="share_days">{{ t('lab_share.days') }}</label>
+    <input class="input" type="number" min="1" max="60" id="share_days" name="days" value="{{ share_days }}"></div>
+  <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+  {% if share_on %}<a class="btn btn-outline gc-press" data-to-results-to-see href="{{ url_for('labs.results_to_see') }}"><i class="bi bi-send-check"></i> {{ t('lab_share.title') }}</a>{% endif %}
+</form>
+
 <p style="margin:0 0 14px;"><a class="btn btn-outline gc-press" data-to-referral-labs href="{{ url_for('labs.referral_labs') }}"><i class="bi bi-building"></i> {{ t('lab_sendout.labs_title') }}</a></p>
 
 {# **Why a tube is turned away** — the laboratory's acceptance criteria are
