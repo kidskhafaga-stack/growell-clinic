@@ -9,7 +9,7 @@
   open, CI is green, and it was tried (tests, plus a screenshot when there is
   a screen). Mark it «✅ اتعمل (PR #n)» in `MASTER_PLAN.md` **and** in its own
   plan.
-* While the PR number is not known yet, write «PR #527», and put the number
+* While the PR number is not known yet, write «PR الجاي», and put the number
   in as soon as the PR is opened — `tests/test_the_master_plan_is_kept.py`
   fails CI while any plan still says it, while a «✅ اتعمل» in the master plan
   has no PR number, and while a `*_PLAN.md` file is missing from the master
