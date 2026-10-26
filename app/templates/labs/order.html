@@ -59,10 +59,46 @@
       <input class="input" id="code" name="code" maxlength="24" dir="ltr"
              placeholder="{{ t('lab.tube_auto') }}">
     </div>
+    {# Where it was drawn (م-٣) — only in a hospital that draws outside the
+       lab, filled in from where the child is. #}
+    {% if draw_places %}
+    <div class="form-row" style="margin-bottom:0;min-width:180px;" data-draw-place>
+      <label for="where">{{ t('lab_transfer.drawn_where') }}</label>
+      <select class="select" id="where" name="where">
+        {% for p in draw_places %}<option value="{{ p }}"{{ ' selected' if p == (order.collected_where or draw_guess) else '' }}>{{ place_name(p) }}</option>{% endfor %}
+      </select>
+    </div>
+    {% endif %}
     <button class="btn btn-primary gc-press" type="submit">
       <i class="bi bi-droplet-fill"></i>
       {{ t('lab.recollect') if order.collected_at else t('lab.collect') }}</button>
   </form>
+  {% endif %}
+
+  {# ---- the tube's journey (م-٣): every step, who, and how long ------- #}
+  {% if journey and journey|length > 1 %}
+  <details style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px;" data-journey{{ ' open' if order.collected_at else '' }}>
+    <summary style="cursor:pointer;font-weight:600;"><i class="bi bi-signpost-split"></i> {{ t('lab_transfer.journey') }}</summary>
+    <ol class="lt-journey">
+      {% for step in journey %}
+      <li class="lt-step{{ ' is-waiting' if not step.at else '' }}" data-step="{{ step.key }}">
+        <span class="lt-step__what">{{ t('lab_transfer.step_' ~ step.key) }}
+          {% if step.detail %}<span class="hint" dir="auto">· {{ step.detail }}</span>{% endif %}
+          {% if step.batch %}<a class="hint" href="{{ url_for('labs.transfer_batch', code=step.batch) }}">{{ t('lab_transfer.open_batch') }}</a>{% endif %}</span>
+        <span class="hint lt-step__when">
+          {% if step.at %}{{ step.at|clinic_stamp }}{% if step.who %} · {{ step.who }}{% endif %}{% endif %}
+          {% if step.minutes is not none %}<span class="badge badge--muted" dir="ltr">+{{ t('lab_transfer.minutes', n=step.minutes) }}</span>{% endif %}</span>
+      </li>
+      {% endfor %}
+    </ol>
+  </details>
+  <style>
+    .lt-journey { list-style:none; margin:10px 0 0; padding:0; display:grid; gap:6px; }
+    .lt-step { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;
+               padding:6px 10px; border-inline-start:3px solid var(--green-600); background:var(--green-050); border-radius:6px; }
+    .lt-step.is-waiting { border-inline-start-color:var(--warning, #d97706); background:transparent; }
+    .lt-step__when { display:flex; gap:6px; align-items:center; }
+  </style>
   {% endif %}
 
   {# ---- the lab's door (GAHAR DAS.15 ب) --------------------------------

@@ -366,6 +366,7 @@ from app.models.lab_reference import (RANGE_KINDS, RANGE_SEXES, LabAnalyte,
                                        SampleRejection, SpecimenStore,
                                        LabReflexRule, LabReflexHit)
 from app.models.unit_staff import BreakGlass, UnitStaff
+from app.models.sample_transfer import SampleBatch, SampleBatchItem
 from app.models.equipment import (Equipment, EquipmentEvent,
                                   EquipmentTraining)
 from app.models.radiation_safety import (ApronCheck, AreaMeasurement,
@@ -876,6 +877,8 @@ __all__ = [
     "LabRange",
     "LabResultValue",
     "SampleRejection",
+    "SampleBatch",
+    "SampleBatchItem",
     "SpecimenStore",
     "ReferralLabPrice",
     "ReferralInvoice",

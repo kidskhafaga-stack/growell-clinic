@@ -333,6 +333,8 @@ class VisitInvestigation(db.Model):
     sample_code = db.Column(db.String(24), index=True)
     collected_at = db.Column(db.DateTime)
     collected_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    # Where it was drawn (`lab_transfer.PLACES`) — empty reads as the lab.
+    collected_where = db.Column(db.String(16))
 
     # **The imaging half of the same middle state.** An echo has no tube, so
     # `sample_code` and `collected_at` can never be true of one — and until

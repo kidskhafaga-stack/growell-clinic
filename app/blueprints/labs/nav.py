@@ -16,9 +16,15 @@ from app.blueprints.labs import labs_bp
 @labs_bp.app_template_global("lab_nav_state")
 def lab_nav_state():
     from app.utils import (lab_competency, lab_poct, lab_quality, lab_reagents,
-                           lab_release, lab_results, lab_sendout)
+                           lab_release, lab_results, lab_sendout, lab_transfer)
 
+    # Tubes drawn in the wards: waiting to leave, or on the way (م-٣). Only
+    # where tubes are drawn outside the lab — a clinic asks nothing here.
+    transfer_on = lab_transfer.spread()
     return {
+        "transfer_on": transfer_on,
+        "in_transit": ((lab_transfer.on_the_way_count()
+                        + len(lab_transfer.waiting_to_send())) if transfer_on else 0),
         "to_release": lab_release.waiting_count() if lab_release.required() else 0,
         "release_on": lab_release.required(),
         "sent_labs": bool(lab_sendout.laboratories()),

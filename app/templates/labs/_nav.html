@@ -15,6 +15,7 @@
     <span class="lab-group__name">{{ t('lab_nav.work') }}</span>
     <span class="lab-group__doors">
     {{ door('rack', 'labs.index', 'list-ul', t('lab.the_rack'), 'data-to-rack') }}
+    {% if s.transfer_on %}{{ door('transfer', 'labs.transfer', 'arrow-left-right', t('lab_transfer.title'), 'data-to-transfer', s.in_transit, 'data-in-transit', 'warn') }}{% endif %}
     {% if s.release_on %}{{ door('verify', 'labs.to_verify', 'patch-check', t('lab_release.to_verify'), 'data-to-verify', s.to_release, '', 'warn') }}{% endif %}
     {% if s.sent_labs %}{{ door('send_out', 'labs.send_out', 'truck', t('lab_sendout.title'), 'data-to-send-out') }}{% endif %}
     {{ door('critical', 'labs.critical', 'exclamation-octagon', t('lab_result.critical_title'), 'data-to-critical', s.critical_open) }}

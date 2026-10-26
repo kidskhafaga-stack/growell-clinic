@@ -1,0 +1,109 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_transfer.title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_transfer.title') }}{% endblock %}
+
+{% block content %}
+{# LAB_GLAB360_PLAN.md م-٣ — tubes drawn in the incubators, intensive care,
+   the emergency procedure room or the ward: tick the ones leaving now, one
+   batch per place; and the ones sent that the lab has not received yet. #}
+<div class="gc-animate" style="margin-bottom:16px;">
+  <h1 class="page-title"><i class="bi bi-arrow-left-right"></i> {{ t('lab_transfer.title') }}</h1>
+  <p class="page-sub" style="margin:0;">{{ t('lab_transfer.sub') }}</p>
+</div>
+{% from "labs/_nav.html" import lab_nav with context %}
+{{ lab_nav('transfer') }}
+
+{# ---- on the way: sent, and not yet at the lab's door ------------------ #}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-on-the-way>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-truck"></i> {{ t('lab_transfer.on_the_way') }}</h2>
+  {% if not open_batches %}
+  <p class="hint" style="margin:0;" data-nothing-on-the-way>{{ t('lab_transfer.nothing_on_the_way') }}</p>
+  {% endif %}
+  {% for batch, items in open_batches %}
+  {% set is_late = lt.is_late(batch, now) %}
+  <div class="lt-batch{{ ' is-late' if is_late else '' }}" data-open-batch="{{ batch.code }}">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <a href="{{ url_for('labs.transfer_batch', code=batch.code) }}" dir="ltr" style="font-weight:700;">{{ batch.code }}</a>
+      <span class="badge badge--muted">{{ lt.name(batch.from_place) }}</span>
+      <span class="hint">{{ batch.sent_at|clinic_stamp }}{% if batch.sender %} · {{ batch.sender.display_name(current_lang) }}{% endif %}</span>
+      <span class="badge {{ 'badge--danger' if is_late else 'badge--warn' }}" data-missing="{{ items|length }}">
+        {{ t('lab_transfer.not_arrived_n', n=items|length, total=batch.items|length) }}</span>
+      {% if is_late %}<span class="hint" style="color:var(--danger);" data-batch-late><i class="bi bi-exclamation-triangle"></i> {{ t('lab_transfer.late_hint', n=lt.LATE_MINUTES) }}</span>{% endif %}
+    </div>
+    <ul class="lt-missing">
+      {% for item in items %}
+      <li data-missing-tube="{{ item.order_id }}"><span dir="ltr">{{ item.sample_code or '—' }}</span> ·
+        <a href="{{ url_for('labs.order', order_id=item.order_id) }}">{{ item.order.display_name(current_lang) }}</a>
+        · {{ item.order.patient.display_name(current_lang) }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+  {% if open_batches %}
+  <p class="hint" style="margin:8px 0 0;"><i class="bi bi-upc-scan"></i> {{ t('lab_transfer.receive_hint') }}
+    <a href="{{ url_for('labs.index', receive=1) }}">{{ t('lab_transfer.to_the_door') }}</a></p>
+  {% endif %}
+</div>
+
+{# ---- waiting to leave, per place --------------------------------------- #}
+{% if not waiting %}
+<div class="card gc-scale-in" style="margin-bottom:14px;"><p class="hint" style="margin:0;" data-nothing-to-send>{{ t('lab_transfer.nothing_to_send') }}</p></div>
+{% endif %}
+{% for place, rows in waiting %}
+<form method="post" action="{{ url_for('labs.transfer_send') }}" class="card gc-scale-in" style="margin-bottom:14px;" data-send-from="{{ place }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="place" value="{{ place }}">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-box-arrow-up"></i> {{ t('lab_transfer.waiting_from', place=lt.name(place)) }} <span class="badge badge--muted">{{ rows|length }}</span></h2>
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:520px;">
+      <thead><tr><th></th><th>{{ t('lab_reception.col_tube') }}</th><th>{{ t('lab_reception.col_test') }}</th><th>{{ t('lab_reception.col_patient') }}</th><th>{{ t('lab_release.collected') }}</th></tr></thead>
+      <tbody>
+      {% for row in rows %}
+      <tr data-waiting-tube="{{ row.id }}">
+        <td><input type="checkbox" name="order" value="{{ row.id }}" checked aria-label="{{ row.display_name(current_lang) }}"></td>
+        <td dir="ltr">{{ row.sample_code or '—' }}</td>
+        <td><a href="{{ url_for('labs.order', order_id=row.id) }}">{{ row.display_name(current_lang) }}</a>{% if row.urgent %} <span class="badge badge--danger">{{ t('lab_reception.urgent') }}</span>{% endif %}</td>
+        <td>{{ row.patient.display_name(current_lang) }}</td>
+        <td>{{ row.collected_at|clinic_stamp }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+    <div class="form-row" style="margin:0;flex:1;min-width:200px;"><label for="note-{{ place }}">{{ t('lab_transfer.note') }}</label>
+      <input class="input" id="note-{{ place }}" name="note" maxlength="200" placeholder="{{ t('lab_transfer.note_ph') }}"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-send"></i> {{ t('lab_transfer.send') }}</button>
+  </div>
+</form>
+{% endfor %}
+
+{# ---- the last batches ------------------------------------------------- #}
+{% if recent %}
+<div class="card gc-scale-in" data-recent-batches>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-clock-history"></i> {{ t('lab_transfer.recent') }}</h2>
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:480px;">
+      <thead><tr><th>{{ t('lab_transfer.batch') }}</th><th>{{ t('lab_transfer.from') }}</th><th>{{ t('lab_transfer.sent_at') }}</th><th>{{ t('lab_transfer.arrived') }}</th></tr></thead>
+      <tbody>
+      {% for batch in recent %}
+      {% set came = batch.items|selectattr('arrived_at')|list|length %}
+      <tr>
+        <td><a href="{{ url_for('labs.transfer_batch', code=batch.code) }}" dir="ltr">{{ batch.code }}</a></td>
+        <td>{{ lt.name(batch.from_place) }}</td>
+        <td>{{ batch.sent_at|clinic_stamp }}</td>
+        <td><span class="badge {{ 'badge--green' if came == batch.items|length else 'badge--warn' }}">{{ came }} / {{ batch.items|length }}</span></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+<style>
+  .lt-batch { border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+  .lt-batch.is-late { border-color:var(--danger); }
+  .lt-missing { margin:8px 0 0; padding-inline-start:18px; }
+</style>
+{% endblock %}
