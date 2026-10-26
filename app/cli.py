@@ -755,6 +755,8 @@ _CRM_TPL_NAMES = {
     "lab_result_doctor": "نتيجة التحاليل للدكتور المحوِّل",
     "lab_result_file": "نتيجة التحاليل للأهل (ملف)",
     "lab_result_doctor_file": "نتيجة التحاليل للدكتور المحوِّل (أرقام وملف)",
+    "assessment_report": "تقرير التقييم للأهل",
+    "assessment_report_file": "تقرير التقييم للأهل (ملف)",
     "birthday": "تهنئة عيد ميلاد",
 }
 

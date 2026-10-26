@@ -516,6 +516,19 @@ SECTIONS = [
              "lets the clinic add or remove lines, choose which tools show, add "
              "a tool of its own, and go back to the default — an old assessment "
              "keeps its form."),
+            ("<b>التقرير للأهل</b> (التقييم بعد اعتماد الدكتور ← «ابعت للأهل على الواتساب»): "
+             "لو العيادة أون لاين بيروح لينك بيطلب تاريخ ميلاد الطفل، وبيخلص بعد أيام لينكات "
+             "المعمل، وبيتقفل بعد ٥ محاولات غلط؛ ولو مش أون لاين بيروح ملف التقرير نفسه. "
+             "التقرير عربي وإنجليزي بزرار، وبيتطبع، وفيه الدرجات زي ما المختص كتبها وكلمة "
+             "الدكتور — مفيش تفسير من البرنامج. و«نزّل ملف التقرير» لو عايز تبعته بإيدك. "
+             "المسودة عمرها ما بتتبعت.",
+             "<b>Report to the family</b> (the assessment once the doctor approved it → "
+             "«Send to the family on WhatsApp»): when the clinic is online a link goes that asks "
+             "the child's date of birth, ends after the lab links' days and locks after 5 wrong "
+             "tries; when it is not, the report itself goes as a file. The report is in Arabic "
+             "and English with a switch, prints, and holds the scores as the specialist wrote "
+             "them and the doctor's word — no reading by the program. «Download the report "
+             "file» to send it by hand. A draft never goes."),
             ("<b>عدّل التخصص</b> (قوالب التخصصات ← «عدّل» جنب كل تخصص): ضيف خانة "
              "بنوعها (رقم، اختيار من قايمة، نعم/لأ، تاريخ، نص قصير)، خبّي خانة، غيّر "
              "اسمها بالعربي والإنجليزي، ورتّبها لفوق ولتحت. لكل رقم: الوحدة، وأقل "

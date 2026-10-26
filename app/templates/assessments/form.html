@@ -127,6 +127,25 @@
     <p style="margin:0;" class="hint">{{ t('assessment.waits_doctor') }}</p>
     {% endif %}
   </div>
+  {% if row.status == 'approved' %}
+  {# ت-٣ — the approved report to the family: a link that asks the child's
+     date of birth, or the file itself when the clinic is not online. #}
+  <div class="card as-card" data-family-share>
+    <h2>{{ t('asm_share.title') }}</h2>
+    {% if may_send %}
+    <form method="post" action="{{ url_for('assessments.send', assessment_id=row.id) }}" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-primary gc-press" type="submit" data-send-family style="width:100%;"><i class="bi bi-whatsapp"></i> {{ t('asm_share.send') }}</button>
+    </form>
+    {% endif %}
+    <a class="btn btn-outline gc-press" data-sheet-file href="{{ url_for('assessments.sheet', assessment_id=row.id) }}"><i class="bi bi-download"></i> {{ t('asm_share.download') }}</a>
+    <p class="hint" style="margin:0;">{{ t('asm_share.how') }}</p>
+    {% for sh in shares %}
+    <p class="hint" style="margin:0;" data-share-row="{{ sh.id }}"><i class="bi bi-{{ 'link-45deg' if sh.mode == 'link' else 'file-earmark' }}"></i>
+      {{ t('asm_share.sent_on', when=sh.created_at|clinic_stamp, who=sh.sender.display_name(current_lang) if sh.sender else '—') }}{% if sh.mode == 'link' %} · {{ t('asm_share.opened_n', n=sh.opens or 0) }}{% endif %}</p>
+    {% endfor %}
+  </div>
+  {% endif %}
   {% if history %}
   <div class="card as-card" data-history>
     <h2>{{ t('assessment.history') }}</h2>

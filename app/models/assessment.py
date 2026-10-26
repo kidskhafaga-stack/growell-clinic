@@ -68,3 +68,43 @@ class Assessment(db.Model):
 
     def __repr__(self):
         return f"<Assessment {self.kind} {self.patient_id} {self.status}>"
+
+
+class AssessmentShare(db.Model):
+    """An approved assessment sent to the family (ASSESSMENTS_PLAN.md ت-٣) —
+    the same way a lab result goes (``models/result_share``): a link that
+    asks the child's date of birth, ends after its days and locks after five
+    wrong answers when the clinic can be reached from outside; the report
+    itself as a file when it cannot."""
+
+    __tablename__ = "assessment_shares"
+
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(48), unique=True, nullable=False, index=True)
+    assessment_id = db.Column(db.Integer, db.ForeignKey("assessments.id"),
+                              nullable=False, index=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"),
+                           nullable=False, index=True)
+    mode = db.Column(db.String(6), nullable=False, default="link")
+    to_phone = db.Column(db.String(40))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    expires_at = db.Column(db.DateTime, nullable=False)
+    opened_at = db.Column(db.DateTime)
+    opens = db.Column(db.Integer, default=0, nullable=False)
+    failures = db.Column(db.Integer, default=0, nullable=False)
+    message_id = db.Column(db.Integer, db.ForeignKey("message_logs.id"))
+
+    assessment = db.relationship("Assessment")
+    patient = db.relationship("Patient")
+    sender = db.relationship("User", foreign_keys=[created_by])
+
+    @property
+    def locked(self):
+        from app.models.result_share import MAX_FAILURES
+
+        return (self.failures or 0) >= MAX_FAILURES
+
+    @property
+    def expired(self):
+        return datetime.utcnow() > self.expires_at

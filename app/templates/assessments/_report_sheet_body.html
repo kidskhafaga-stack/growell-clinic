@@ -1,0 +1,58 @@
+{# One language of the assessment the family receives (ت-٣) —
+   `report_sheet.html` holds both. The approved report as it stands: the
+   scores the specialist wrote, a tool's own criterion only where its
+   instructions set one, the impression and the doctor's word. #}
+{% set tools = answers.get('tools') or {} %}
+<header class="head">
+  <div class="head__top">
+    <span class="clinic">{{ clinic_name }}</span>
+    <span class="meta">{{ t('asm_share.printed', when=printed_at.strftime('%Y-%m-%d %H:%M')) }}</span>
+  </div>
+  <h1 class="title">{{ form['name_' ~ L] or form.name_ar }}</h1>
+  <div class="kid">
+    <span><b>{{ patient.display_name(L) }}</b></span>
+    <span>{{ t('patients.file_number') }}: <b dir="ltr">{{ patient.patient_number }}</b></span>
+    {% if age %}<span>{{ t('assessment.age_on_day') }}: <b>{{ t('assessment.age', y=age[0], m=age[1]) }}</b></span>{% endif %}
+    <span>{{ t('assessment.date') }}: <b dir="ltr">{{ row.assessed_on.isoformat() }}</b></span>
+  </div>
+  <div class="tools"><button class="btn print" type="button" data-print onclick="window.print()">🖨 {{ t('asm_share.print') }}</button></div>
+</header>
+
+{% for s in form.sections %}
+{% set label = s['label_' ~ L] or s.label_ar %}
+{% if s.type == 'tools' %}
+  {% for tkey, values in tools.items() if tkey in form.tool_defs %}
+  {% set tool = form.tool_defs[tkey] %}
+  <section class="card" data-sheet-tool="{{ tkey }}">
+    <div class="card__head"><h2 class="card__name">{{ tool['name_' ~ L] or tool.name_ar }}</h2></div>
+    <div class="meta">{{ tool['source_' ~ L] or tool.source }}</div>
+    {% for f in tool.fields %}{% set v = values.get(f.key) %}
+    <div class="line">
+      <div class="line__top"><span class="line__name">{{ f[L] or f.ar }}</span>
+        <span class="value" dir="ltr">{{ '—' if v is none else v }}{% if f.max %}<small>/ {{ f.max }}</small>{% endif %}</span></div>
+      {% if f.max and v is not none %}<div class="bar" aria-hidden="true"><span class="bar__fill" style="width:{{ [[(v / f.max * 100), 0]|max, 100]|min }}%"></span></div>{% endif %}
+      {% if asm.meets(f, v) %}<span class="pill is-out">{{ t('assessment.meets') }}</span>{% endif %}
+    </div>
+    {% endfor %}
+    {% if tool['rule_' ~ L] or tool.rule_ar %}<p class="meta">{{ tool['rule_' ~ L] or tool.rule_ar }}</p>{% endif %}
+  </section>
+  {% endfor %}
+{% elif s.type in ('multi', 'checks') %}
+  {% set picked = answers.get(s.key) or [] %}
+  {% if picked %}<section class="card"><h2 class="card__name">{{ label }}</h2>
+    <div class="chips">{% for o in s.options if o.key in picked %}<span class="chip">{{ o[L] or o.ar }}</span>{% endfor %}</div></section>{% endif %}
+{% elif s.type == 'single' %}
+  {% for o in s.options if answers.get(s.key) == o.key %}<section class="card"><h2 class="card__name">{{ label }}</h2><p style="margin:0;">{{ o[L] or o.ar }}</p></section>{% endfor %}
+{% elif s.type == 'text' and answers.get(s.key) %}
+  <section class="card"><h2 class="card__name">{{ label }}</h2><p class="words" dir="auto">{{ answers.get(s.key) }}</p></section>
+{% elif s.type == 'date' and answers.get(s.key) %}
+  <section class="card"><h2 class="card__name">{{ label }}</h2><p style="margin:0;" dir="ltr">{{ answers.get(s.key) }}</p></section>
+{% endif %}
+{% endfor %}
+
+<section class="card" data-sheet-people>
+  <div>{{ t('assessment.written_by', who=row.assessor.display_name(L) if row.assessor else '—') }}</div>
+  <div>{{ t('assessment.approved_by', who=row.approver.display_name(L) if row.approver else '—', when=row.approved_at|clinic_stamp) }}</div>
+  {% if row.doctor_note %}<p class="words" dir="auto">{{ row.doctor_note }}</p>{% endif %}
+</section>
+<p class="note">{{ t('asm_share.note') }}</p>

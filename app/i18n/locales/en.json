@@ -3378,7 +3378,9 @@
     "occ_lab_result": "Lab result to the family",
     "occ_lab_result_doctor": "Lab result to the referring doctor",
     "occ_lab_result_file": "Lab result to the family (file)",
-    "occ_lab_result_doctor_file": "Lab result to the referring doctor (numbers and file)"
+    "occ_lab_result_doctor_file": "Lab result to the referring doctor (numbers and file)",
+    "occ_assessment_report": "Assessment report to the family",
+    "occ_assessment_report_file": "Assessment report to the family (file)"
   },
   "feedback": {
     "title": "Rate your visit",
@@ -16060,5 +16062,29 @@
     "door_board": "Deaths against expected (severity scores)",
     "door_admission": "Severity score on admission",
     "vlad_range": "highest {hi} · lowest {lo}"
+  },
+  "asm_share": {
+    "title": "Report to the family",
+    "send": "Send to the family on WhatsApp",
+    "download": "Download the report file",
+    "how": "Sent after the doctor's approval: a link that asks the child's date of birth when the clinic is online, or the report itself as a file when it is not. Arabic and English, and it prints.",
+    "sent_on": "Sent {when} — {who}",
+    "opened_n": "opened {n} times",
+    "sent_link": "The report link was sent to the family.",
+    "sent_file": "The report file was sent to the family.",
+    "err_not_approved": "The doctor has not approved the report yet.",
+    "err_no_phone": "The child's file has no family phone number.",
+    "err_already_sent": "A working link for this assessment was already sent to the family.",
+    "printed": "Printed {when}",
+    "print": "Print",
+    "note": "This is the report as the doctor approved it — the specialist's scores, and a tool's criterion only where its own instructions set one. For any question, contact the clinic.",
+    "public_title": "Assessment report",
+    "public_ask": "Type the child's date of birth to open the report.",
+    "public_born": "Date of birth",
+    "public_open": "Open the report",
+    "public_wrong": "That date is not right — {n} tries left.",
+    "public_gone": "This link does not exist.",
+    "public_expired": "This link has ended — ask the clinic for a new report.",
+    "public_locked": "The link was locked after too many wrong tries — contact the clinic."
   }
 }
