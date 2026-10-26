@@ -486,7 +486,10 @@ SECTIONS = [
         "title": ("قوالب التخصصات", "Specialty panels"),
         "lines": [
             ("<b>التقييمات</b> (من ملف الطفل ← «التقييمات»): تقييم جديد بنوعه — "
-             "فرط الحركة وتشتت الانتباه الأول — بيفتح بشكل جاهز من الجايدلاين "
+             "فرط الحركة، والتوحد، والنمو والتطور، والذكاء، والذاكرة، واللغة، وصعوبات "
+             "التعلم، والسلوك، والوظائف التنفيذية، والانتباه، والمهارات التكيفية، "
+             "والتناسق الحركي، والقلق والمزاج، واللزمات، والنوم، والصداع، والصرع — "
+             "بيفتح بشكل جاهز من الجايدلاين "
              "والمرجع جنب كل جزء: نوع التقييم، مصادر المعلومات، المعايير، الأدوات "
              "(Vanderbilt للأهل والمدرس، وConners وWISC وغيرهم من تقريرهم الرسمي، "
              "وCPT من الجهاز)، الحاجات المصاحبة، الانطباع والتوصيات وميعاد المتابعة. "
@@ -497,7 +500,10 @@ SECTIONS = [
              "بيخلي العيادة تضيف أو تشيل بند، وتحدد الأدوات اللي بتظهر، وتضيف أداة "
              "بتستخدمها، وترجع للأصلي بدوسة — والتقييم القديم بيفضل على شكله.",
              "<b>Assessments</b> (the child's file → «Assessments»): a new one "
-             "by its kind — ADHD first — opens on a form from the guideline with "
+             "by its kind — ADHD, autism, development, IQ, memory, language, learning "
+             "difficulties, behaviour, executive functions, attention, adaptive skills, "
+             "motor coordination, anxiety and mood, tics, sleep, headache, seizures — "
+             "opens on a form from the guideline with "
              "the source beside each part: kind, sources of information, "
              "criteria, tools (Vanderbilt parent and teacher; Conners, WISC and "
              "others from their official report; CPT from the device), coexisting "
