@@ -1318,7 +1318,7 @@ SECTIONS = [
              "referring doctor gets the numbers in the message too. The report "
              "is cards: each value on a bar against its reference, an arrow when "
              "outside it, earlier values on a tap, and «Print» on the link and "
-             "the file. It carries Arabic and English behind «عربي | English»: "
+             "the file. It carries Arabic and English behind a language switch: "
              "it opens in Arabic for the family, in English for the referring "
              "doctor."),
             ("<b>مكونات التحليل وأقسامه ومراجعه</b> (المعمل ← التحاليل): "
