@@ -205,7 +205,20 @@ def _render_order(row, **extra):
                            papers=_papers(row), ai_reads_papers=_ai_reads(),
                            # The assistant's second look before release.
                            ai_review_ready=lab_review.ready(),
+                           # Where it was drawn, and every step since (م-٣).
+                           **_transfer_for(row),
                            **_storage_for(row), **extra)
+
+
+def _transfer_for(row):
+    from app.utils import lab_transfer
+
+    spread = lab_transfer.spread()
+    return {"journey": (lab_transfer.journey(row, getattr(g, "lang", "ar"))
+                        if row.kind == "lab" else []),
+            "draw_places": lab_transfer.available() if spread else [],
+            "draw_guess": lab_transfer.default_for(row) if spread else None,
+            "place_name": lab_transfer.name}
 
 
 @labs_bp.route("/order/<int:order_id>/ai-review", methods=["POST"])
@@ -272,9 +285,15 @@ def _doctor_names():
 @module_required(MODULE)
 def collect(order_id):
     """The sample was taken."""
+    from app.utils import lab_transfer
+
     row = db.get_or_404(VisitInvestigation, order_id)
+    # Where it was drawn — asked only where tubes are drawn outside the lab.
+    where = (lab_transfer.clean(request.form.get("where"), row)
+             if lab_transfer.spread() else None)
     try:
-        bench.collect(row, user=current_user, code=request.form.get("code"))
+        bench.collect(row, user=current_user, code=request.form.get("code"),
+                      where=where)
     except ValueError:
         db.session.rollback()
         # Which refusal it was: an order that already has an answer is a
@@ -640,6 +659,58 @@ def referral_lab_save(lab_id=None):
     return redirect(url_for("labs.referral_labs"))
 
 
+# ------------------------------------------------------- tubes on the way --
+def _transfer_on():
+    """The sending screens exist only where tubes are drawn outside the lab."""
+    from app.utils import lab_transfer
+
+    if not lab_transfer.spread():
+        abort(404)
+    return lab_transfer
+
+
+@labs_bp.route("/transfer")
+@module_required(MODULE)
+def transfer():
+    """Tubes drawn in the incubators, intensive care, emergency or the ward:
+    the ones waiting to leave, per place, and the ones on the way
+    (LAB_GLAB360_PLAN.md م-٣)."""
+    lt = _transfer_on()
+    return render_template("labs/transfer.html", waiting=lt.waiting_by_place(),
+                           open_batches=lt.open_batches(),
+                           recent=lt.recent_batches(), lt=lt,
+                           now=datetime.utcnow())
+
+
+@labs_bp.route("/transfer/send", methods=["POST"])
+@module_required(MODULE)
+def transfer_send():
+    """The ticked tubes leave together: one batch, with its list to print."""
+    lt = _transfer_on()
+    try:
+        batch = lt.send(request.form.get("place"), request.form.getlist("order"),
+                        user=current_user, note=request.form.get("note"))
+    except lt.TransferError as err:
+        db.session.rollback()
+        flash(t(f"lab_transfer.err_{err}"), "warning")
+        return redirect(url_for("labs.transfer"))
+    db.session.commit()
+    flash(t("lab_transfer.sent", code=batch.code, n=len(batch.items)), "success")
+    return redirect(url_for("labs.transfer_batch", code=batch.code))
+
+
+@labs_bp.route("/transfer/<code>")
+@module_required(MODULE)
+def transfer_batch(code):
+    """One batch: the list that travels with the tubes, and which arrived."""
+    lt = _transfer_on()
+    batch = lt.by_code(code)
+    if batch is None:
+        abort(404)
+    return render_template("labs/transfer_batch.html", batch=batch, lt=lt,
+                           late=lt.is_late(batch))
+
+
 # ------------------------------------------------------------ turnaround --
 @labs_bp.route("/turnaround")
 @module_required(MODULE)
@@ -656,7 +727,14 @@ def turnaround():
     if start > end:
         start, end = end, start
     per_test, late_rows = lab_tat.report(start, end)
+    from app.utils import lab_transfer
+
+    # Where the time went, per place the tubes were drawn (م-٣) — only in a
+    # hospital that draws outside the lab.
+    by_place = (lab_transfer.place_report(start, end)
+                if lab_transfer.spread() else [])
     return render_template("labs/turnaround.html", per_test=per_test,
+                           by_place=by_place, place_name=lab_transfer.name,
                            late_rows=late_rows, start=start, end=end,
                            stat=lab_tat.stat_list(), minutes=lab_tat.minutes)
 

@@ -1084,6 +1084,10 @@ ADDITIONS = [
     # research export reads the whole cohort then (ت-٧). Off on every existing
     # protocol: none was ever approved for it.
     ("research_protocols", "record_review", "BOOLEAN DEFAULT 0"),
+    # Where a tube was drawn — the lab, the incubators, intensive care, the
+    # emergency procedure room or the ward (LAB_GLAB360_PLAN.md م-٣). Empty on
+    # every tube drawn before: it reads as the lab, which is where they were.
+    ("visit_investigations", "collected_where", "VARCHAR(16)"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

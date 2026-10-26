@@ -318,7 +318,7 @@ def waiting_minutes(row, now=None):
                       .total_seconds() // 60))
 
 
-def collect(row, user=None, code=None, at=None):
+def collect(row, user=None, code=None, at=None, where=None):
     """The sample was taken. Stamps the tube and moves the order along.
 
     Re-collecting is allowed and overwrites: a haemolysed sample is redrawn,
@@ -343,6 +343,10 @@ def collect(row, user=None, code=None, at=None):
     row.sample_code = ((code or "").strip()[:24] or row.sample_code
                        or sample_code(row))
     row.status = COLLECTED
+    # Where it was drawn (`lab_transfer`) — only asked in a hospital that
+    # draws outside the lab; a clinic's tube is the lab's, as it always was.
+    if where is not None:
+        row.collected_where = where
     return row
 
 

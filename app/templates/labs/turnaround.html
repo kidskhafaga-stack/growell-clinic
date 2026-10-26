@@ -42,6 +42,29 @@
 {% from "labs/_nav.html" import lab_nav with context %}
 {{ lab_nav('turnaround') }}
 
+{# Where the time went, per place the tubes were drawn (م-٣): from drawing
+   to the lab's door, and from the door to the answer. Only in a hospital
+   that draws outside the lab. #}
+{% if by_place %}
+<div class="card gc-scale-in" style="margin-bottom:14px;overflow-x:auto;" data-tat-by-place>
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_transfer.tat_title') }}</h2>
+  <p class="hint">{{ t('lab_transfer.tat_hint') }}</p>
+  <table class="table" style="min-width:460px;font-variant-numeric:tabular-nums;">
+    <thead><tr><th>{{ t('lab_transfer.from') }}</th><th>{{ t('lab_tat.n') }}</th><th>{{ t('lab_transfer.to_lab') }}</th><th>{{ t('lab_transfer.at_lab') }}</th></tr></thead>
+    <tbody>
+    {% for e in by_place %}
+    <tr data-place-row="{{ e.place }}">
+      <td>{{ place_name(e.place) }}</td>
+      <td>{{ e.count }}</td>
+      <td>{{ t('lab_tat.min', n=e.to_lab|int) if e.to_lab is not none else '—' }}</td>
+      <td>{{ t('lab_tat.min', n=e.at_lab|int) if e.at_lab is not none else '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
 <div class="card gc-scale-in" style="margin-bottom:14px;overflow-x:auto;" data-late-list>
   <h2 class="section-title" style="margin-top:0;">{{ t('lab_tat.late_list') }}</h2>
   {% if not late_rows %}<p class="hint" style="margin:0;">{{ t('lab_tat.none_late') }}</p>{% else %}

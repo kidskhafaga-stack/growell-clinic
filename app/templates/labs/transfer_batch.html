@@ -1,0 +1,50 @@
+{% extends "shell.html" %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_transfer.manifest') }} {{ batch.code }}{% endblock %}
+{% block page_heading %}{{ t('lab_transfer.manifest') }}{% endblock %}
+
+{% block content %}
+{# The list that travels with the tubes from the ward to the lab (م-٣):
+   each tube, the child, the test — and whether the lab has received it. #}
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.transfer') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('lab_transfer.title') }}</a>
+  <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+</div>
+{% set missing = batch.items|rejectattr('arrived_at')|list %}
+{% if missing %}
+<p class="no-print alert-pill {{ 'danger' if late else 'warn' }}" data-batch-missing="{{ missing|length }}">
+  <i class="bi bi-hourglass-split"></i> {{ t('lab_transfer.not_arrived_n', n=missing|length, total=batch.items|length) }}
+  {% if late %} · {{ t('lab_transfer.late_hint', n=lt.LATE_MINUTES) }}{% endif %}</p>
+{% else %}
+<p class="no-print alert-pill ok" data-batch-complete><i class="bi bi-check2-all"></i> {{ t('lab_transfer.all_arrived') }}</p>
+{% endif %}
+<div class="card gc-scale-in print-area" data-transfer-manifest="{{ batch.code }}">
+  {{ print_header(t('lab_transfer.manifest') ~ ' — ' ~ lt.name(batch.from_place), '<span dir="ltr"><strong>' ~ batch.code ~ '</strong></span><br>' ~ (batch.sent_at|clinic_stamp)) }}
+  {% if batch.note %}<p class="hint" dir="auto">{{ batch.note }}</p>{% endif %}
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:560px;">
+      <thead><tr><th>#</th><th>{{ t('lab_reception.col_tube') }}</th><th>{{ t('lab_reception.col_patient') }}</th><th>{{ t('patients.file_number') }}</th><th>{{ t('lab_reception.col_test') }}</th><th>{{ t('lab_release.collected') }}</th><th>{{ t('lab_transfer.arrived') }}</th></tr></thead>
+      <tbody>
+      {% for item in batch.items %}
+      {% set row = item.order %}
+      <tr data-manifest-tube="{{ item.order_id }}" data-arrived="{{ item.outcome or 'no' }}">
+        <td>{{ loop.index }}</td>
+        <td dir="ltr">{{ item.sample_code or '—' }}</td>
+        <td>{{ row.patient.display_name(current_lang) }}</td>
+        <td>{{ row.patient.patient_number }}</td>
+        <td><a href="{{ url_for('labs.order', order_id=row.id) }}">{{ row.display_name(current_lang) }}</a>{% if row.urgent %} <strong>({{ t('lab_reception.urgent') }})</strong>{% endif %}</td>
+        <td>{{ row.collected_at|clinic_stamp if row.collected_at else '—' }}</td>
+        <td>{% if item.arrived_at %}{{ t('lab_transfer.outcome_' ~ item.outcome) }} · {{ item.arrived_at|clinic_stamp }}{% if item.arriver %} · {{ item.arriver.display_name(current_lang) }}{% endif %}
+          {% else %}<span class="badge badge--warn">{{ t('lab_transfer.step_on_the_way') }}</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div style="display:flex;gap:30px;flex-wrap:wrap;margin-top:28px;">
+    <div style="flex:1;min-width:200px;">{{ t('lab_sendout.handed_by') }}: {{ batch.sender.display_name(current_lang) if batch.sender else '' }}<br><br>{{ t('lab_sendout.signature') }}: ____________</div>
+    <div style="flex:1;min-width:200px;">{{ t('lab_sendout.received_by') }}: ____________<br><br>{{ t('lab_sendout.time') }}: ____________</div>
+  </div>
+</div>
+{% endblock %}

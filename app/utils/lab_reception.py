@@ -101,6 +101,11 @@ def receive(order, user=None, note=None, at=None):
     if order.received_at is None:
         order.received_at = at or datetime.utcnow()
         order.received_by = getattr(user, "id", None)
+        # The tube came on a batch from the ward or the incubators: it has
+        # arrived (LAB_GLAB360_PLAN.md م-٣).
+        from app.utils import lab_transfer
+
+        lab_transfer.arrived(order, "received", user=user, at=order.received_at)
     if note:
         order.received_note = note
     db.session.flush()
@@ -135,7 +140,11 @@ def reject(order, reason_key=None, reason_text=None, told_to=None,
         rejected_at=at or datetime.utcnow(),
         rejected_by=getattr(user, "id", None))
     db.session.add(row)
-    order.collected_at = order.collected_by = None
+    # A refused tube still arrived — the batch that carried it says so.
+    from app.utils import lab_transfer
+
+    lab_transfer.arrived(order, "rejected", user=user, at=row.rejected_at)
+    order.collected_at = order.collected_by = order.collected_where = None
     order.received_at = order.received_by = order.received_note = None
     order.sample_code = None
     order.status = "requested"
