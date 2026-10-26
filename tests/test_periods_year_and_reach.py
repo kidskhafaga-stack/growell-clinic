@@ -258,6 +258,9 @@ def test_no_page_is_left_without_a_link(boss, clinic):
             # The lab result a family opens from its link (م-٤) — the same
             # kind of door: a token and nothing else.
             "result_link",
+            # An approved assessment a family opens from its link (ت-٣) —
+            # the same kind of door.
+            "assessments.shared",
             # A family's complaint: their verdict on the answer, and one they
             # write themselves — both reached by a link sent to them.
             "feedback.case_verdict", "feedback.case_new",
