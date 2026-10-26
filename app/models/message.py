@@ -143,10 +143,10 @@ TEMPLATE_VARIABLES = {
     "rx_copy": ["patient", "first_name", "doctor", "clinic", "link"],
     # No result in it, ever — only the link, and how long it works.
     "lab_result": ["patient", "first_name", "clinic", "link", "days"],
-    "lab_result_doctor": ["patient", "doctor", "clinic", "link", "days"],
+    "lab_result_doctor": ["patient", "first_name", "doctor", "clinic", "link", "days"],
     "lab_result_file": ["patient", "first_name", "clinic"],
     # `numbers` is the laboratory's values as written, ↑/↓ by its own flag.
-    "lab_result_doctor_file": ["patient", "doctor", "clinic", "numbers"],
+    "lab_result_doctor_file": ["patient", "first_name", "doctor", "clinic", "numbers"],
     "birthday": ["patient", "first_name", "clinic"],
     "feedback": ["patient", "first_name", "clinic", "doctor", "link"],
     "complaint_received": ["patient", "first_name", "clinic", "number", "hours"],

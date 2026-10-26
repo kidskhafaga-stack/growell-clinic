@@ -211,7 +211,7 @@ def test_the_referring_doctor_gets_the_same_link(sending):
     page = doc.get(f"/labs/order/{oid}").get_data(as_text=True)
     assert "data-to-doctor-form" in page
     reply = doc.post("/labs/results/to-doctor",
-                     data={"order": [oid], "doctor_id": sending["ext"], "back": "order"})
+                     data={"order": [oid], "external_doctor_id": sending["ext"], "back": "order"})
     assert reply.status_code == 200 and "01112223334"[-7:] in reply.get_data(as_text=True)
     shares = _shares(sending)
     assert [(a, ids) for a, ids, _t in shares] == [("doctor", [oid])]
@@ -219,7 +219,7 @@ def test_the_referring_doctor_gets_the_same_link(sending):
     assert "data-public-ask" in anon.get(f"/labs/r/{shares[0][2]}").get_data(as_text=True)
     # Not to a doctor without a phone, and never a held result.
     crit = _answered(sending, critical=True)
-    doc.post("/labs/results/to-doctor", data={"order": [crit], "doctor_id": sending["ext"]})
+    doc.post("/labs/results/to-doctor", data={"order": [crit], "external_doctor_id": sending["ext"]})
     assert len(_shares(sending)) == 1
 
 
@@ -310,7 +310,7 @@ def test_offline_the_referring_doctor_gets_the_numbers_and_the_file(sending):
     _offline(sending)
     oid = _answered(sending)
     reply = sending["sign_in"]("doc").post(
-        "/labs/results/to-doctor", data={"order": [oid], "doctor_id": sending["ext"]})
+        "/labs/results/to-doctor", data={"order": [oid], "external_doctor_id": sending["ext"]})
     assert "data-download-file" in reply.get_data(as_text=True)
     with sending["app"].app_context():
         log = MessageLog.query.one()
@@ -380,7 +380,7 @@ def test_both_languages_are_inside_one_opens_and_the_other_is_a_press_away(sendi
     oid = _answered(sending)
     doc = sending["sign_in"]("doc")
     doc.post("/labs/results/seen", data={"order": [oid]})
-    doc.post("/labs/results/to-doctor", data={"order": [oid], "doctor_id": sending["ext"]})
+    doc.post("/labs/results/to-doctor", data={"order": [oid], "external_doctor_id": sending["ext"]})
     with sending["app"].app_context():
         family, doctor = [s.id for s in ResultShare.query.order_by(ResultShare.id)]
     for sid, opens, other in ((family, "ar", "en"), (doctor, "en", "ar")):

@@ -820,7 +820,7 @@ def result_to_doctor():
               else url_for("labs.results_to_see"))
     if not lab_results.reads_results(current_user):
         abort(403, description=t("auth.no_permission"))
-    doctor = db.session.get(ExternalDoctor, request.form.get("doctor_id", type=int) or 0)
+    doctor = db.session.get(ExternalDoctor, request.form.get("external_doctor_id", type=int) or 0)
     try:
         share, log = lab_share.send(orders, current_user, audience=DOCTOR,
                                     doctor=doctor, lang=getattr(g, "lang", "ar"))

@@ -520,8 +520,8 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="order" value="{{ order.id }}">
     <input type="hidden" name="back" value="order">
-    <div class="form-row" style="margin:0;min-width:220px;"><label for="doctor_id">{{ t('lab_share.to_doctor') }}</label>
-      <select class="select" id="doctor_id" name="doctor_id">{% for d in share_doctors %}<option value="{{ d.id }}">{{ d.name }}{% if d.place %} — {{ d.place }}{% endif %}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;min-width:220px;"><label for="external_doctor_id">{{ t('lab_share.to_doctor') }}</label>
+      <select class="select" id="external_doctor_id" name="external_doctor_id">{% for d in share_doctors %}<option value="{{ d.id }}">{{ d.name }}{% if d.place %} — {{ d.place }}{% endif %}</option>{% endfor %}</select></div>
     <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-whatsapp"></i> {{ t('lab_share.send_doctor') }}</button>
   </form>
   {% endif %}
