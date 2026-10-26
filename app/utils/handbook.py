@@ -1293,7 +1293,14 @@ SECTIONS = [
              "بتاريخ ميلاد الطفل، وبيخلص بعد الأيام اللي تحددها، وبيتقفل بعد ٥ "
              "محاولات غلط. القيمة الحرجة والتحليل اللي المعمل علّمه «حساس» "
              "بيستنوا لحد ما الدكتور يكلّم الأهل ويدوس «كلّمتهم». ومن صفحة التحليل "
-             "تبعت نفس اللينك للدكتور المحوِّل، وتشوف اتبعت لمين واتفتح إمتى.",
+             "تبعت نفس اللينك للدكتور المحوِّل، وتشوف اتبعت لمين واتفتح إمتى. "
+             "<b>ولو العيادة مالهاش عنوان عام</b> (البرنامج شغال على شبكة العيادة "
+             "بس): التقرير بيتبعت <b>ملف</b> بيتفتح على أي موبايل — لوحده لو "
+             "الواتساب الرسمي أوتوماتيك، أو تنزّله وتسحبه في الشات — والدكتور "
+             "المحوِّل بياخد الأرقام في الرسالة ومعاها الملف. التقرير كروت: كل "
+             "قيمة على شريط قصاد المعدل، وسهم لو برّه المعدل، والقيم اللي فاتت "
+             "بدوسة، وزرار «اطبع» في اللينك والملف. وفيه بالعربي والإنجليزي "
+             "بزرار «عربي | English»: بيفتح عربي للأهل وإنجليزي للدكتور المحوِّل.",
              "<b>The result to the family and the referring doctor</b> (Lab → "
              "Settings, off until you turn it on): a released result waits for "
              "the doctor in «Results waiting for you» (reached from «Results» "
@@ -1304,7 +1311,16 @@ SECTIONS = [
              "marked «sensitive», waits until the doctor has called the family "
              "and pressed «Called». From the order page the same link goes to "
              "the referring doctor, and it shows who it went to and when it was "
-             "opened."),
+             "opened. <b>When the clinic has no public address</b> (the program "
+             "runs on the clinic's network only), the report goes as a "
+             "<b>file</b> that opens on any phone — by itself on the official "
+             "WhatsApp API, or downloaded and dropped into the chat — and the "
+             "referring doctor gets the numbers in the message too. The report "
+             "is cards: each value on a bar against its reference, an arrow when "
+             "outside it, earlier values on a tap, and «Print» on the link and "
+             "the file. It carries Arabic and English behind «عربي | English»: "
+             "it opens in Arabic for the family, in English for the referring "
+             "doctor."),
             ("<b>مكونات التحليل وأقسامه ومراجعه</b> (المعمل ← التحاليل): "
              "التحليل المعروف (بول، براز، صورة دم، صفراء، وظائف كبد وكلى، "
              "فيتامينات…) بيتعرض عليه مكوناته بأساميها ووحداتها من غير ولا "

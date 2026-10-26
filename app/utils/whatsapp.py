@@ -574,11 +574,18 @@ def _local_image_path(image_url):
 
 def _post_multipart(url, fields, file_field, file_path, headers, timeout=20):
     """POST a multipart/form-data request with one file upload (stdlib only)."""
-    boundary = "----pediapro" + uuid.uuid4().hex
     with open(file_path, "rb") as fh:
         file_data = fh.read()
     fname = os.path.basename(file_path)
     ctype = mimetypes.guess_type(fname)[0] or "application/octet-stream"
+    return _post_multipart_bytes(url, fields, file_field, file_data, fname, ctype,
+                                 headers, timeout=timeout)
+
+
+def _post_multipart_bytes(url, fields, file_field, file_data, fname, ctype,
+                          headers, timeout=20):
+    """The same, for a file made in memory rather than read from disk."""
+    boundary = "----pediapro" + uuid.uuid4().hex
     parts = []
     for name, value in fields.items():
         parts.append(f"--{boundary}\r\nContent-Disposition: form-data; "
@@ -617,6 +624,75 @@ def _send_cloud(cfg, phone, body, image_url=None):
         return ok, (None if ok else f"http_{status}"), (_cloud_msg_id(raw) if ok else None)
     except Exception as exc:  # noqa: BLE001 - network/credential failure
         return False, str(exc)[:180], None
+
+
+def _send_cloud_document(cfg, phone, data, filename, mime, caption):
+    """A document through the Cloud API, uploaded rather than linked.
+
+    A link would need the clinic to be reachable from Meta, which is exactly
+    what a clinic running on its own network is not. So the file goes up to
+    Meta first (``/media``) and the message carries the id it hands back.
+    """
+    token, phone_id = cfg.get("cloud_token"), cfg.get("cloud_phone_id")
+    if not token or not phone_id:
+        return False, "cloud_not_configured", None
+    auth = {"Authorization": f"Bearer {token}"}
+    try:
+        status, raw = _post_multipart_bytes(
+            f"https://graph.facebook.com/{GRAPH_VERSION}/{phone_id}/media",
+            {"messaging_product": "whatsapp", "type": mime}, "file", data,
+            filename, mime, auth)
+        if not 200 <= status < 300:
+            return False, f"upload_http_{status}", None
+        media_id = (json.loads(raw or "{}") or {}).get("id")
+        if not media_id:
+            return False, "upload_no_id", None
+        payload = {"messaging_product": "whatsapp", "to": phone, "type": "document",
+                   "document": {"id": media_id, "filename": filename,
+                                "caption": caption}}
+        status, raw = _post_json(
+            f"https://graph.facebook.com/{GRAPH_VERSION}/{phone_id}/messages",
+            payload, dict(auth, **{"Content-Type": "application/json"}))
+        ok = 200 <= status < 300
+        return ok, (None if ok else f"http_{status}"), (_cloud_msg_id(raw) if ok else None)
+    except Exception as exc:  # noqa: BLE001 - network/credential failure
+        return False, str(exc)[:180], None
+
+
+def send_document(body, to_phone, data, filename, mime="text/html",
+                  patient_id=None, user_id=None, template_type=None):
+    """A message with a file. Returns the MessageLog.
+
+    Sent by the program only through the Cloud API, which takes an uploaded
+    file. Anything else — the click-to-send link, or a provider whose way of
+    sending files this program does not know — gets the message as a link
+    and the file is attached by the person sending it (the screen offers it
+    to download). A failed upload ends the same way, never in silence.
+    """
+    cfg = get_config()
+    phone = normalize_phone(to_phone, cfg["country_code"])
+    provider = resolve_provider(cfg, template_type)
+    log = MessageLog(patient_id=patient_id, to_phone=phone, body=body,
+                     provider=provider, template_type=template_type,
+                     created_by=user_id, status="queued")
+    db.session.add(log)
+    if _opted_out(patient_id):
+        log.status, log.error = "skipped", "opted_out"
+        return log
+    if not phone:
+        log.status, log.error = "failed", "missing_phone"
+        return log
+    if provider == "cloud_api":
+        ok, err, msg_id = _send_cloud_document(cfg, phone, data, filename, mime, body)
+        log.status, log.error, log.provider_msg_id = (
+            ("sent", None, msg_id) if ok else ("failed", err, None))
+        if not ok:
+            log.link = wa_link(phone, body)
+    else:
+        log.status = "link"
+        log.link = wa_link(phone, body)
+    log.sent_at = datetime.utcnow()
+    return log
 
 
 def _cloud_msg_id(raw):

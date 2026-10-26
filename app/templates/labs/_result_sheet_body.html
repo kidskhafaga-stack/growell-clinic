@@ -1,0 +1,78 @@
+{# One language of the result sheet (`result_sheet.html`): rendered once in
+   Arabic and once in English, so the family and the referring doctor switch
+   with one press — «اللغة اللي هتتبعت بيها … ممكن الأهل عربي أو إنجليزي».
+   The tests' names, numbers and units are the laboratory's in both. #}
+<header class="head">
+    <div class="head__top">
+      <span class="clinic">{{ clinic_name }}</span>
+      <span class="meta">{{ t('lab_share.printed', when=printed_at.strftime('%Y-%m-%d %H:%M')) }}</span>
+    </div>
+    <h1 class="title">{{ t('lab_share.sheet_title') }}</h1>
+    <div class="kid">
+      <span><b>{{ patient.display_name(current_lang) }}</b></span>
+      <span>{{ t('patients.file_number') }}: <b dir="ltr">{{ patient.patient_number }}</b></span>
+      <span>{{ t('lab_share.born') }}: <b dir="ltr">{{ patient.date_of_birth.isoformat() if patient.date_of_birth else '—' }}</b></span>
+    </div>
+    <div class="summary" data-summary>
+      <span class="pill">{{ t('lab_share.sum_tests', n=summary.tests) }}</span>
+      {% if summary.flagged %}<span class="pill is-out" data-sum-flagged="{{ summary.flagged }}">{{ t('lab_share.sum_flagged', n=summary.flagged, total=summary.readings) }}</span>
+      {% elif summary.readings %}<span class="pill" data-sum-flagged="0">{{ t('lab_share.sum_all_in') }}</span>{% endif %}
+      {% if cards|selectattr('critical')|list %}<span class="pill is-crit">{{ t('lab_share.sum_critical') }}</span>{% endif %}
+    </div>
+    <div class="tools">
+      {% if summary.flagged %}
+      <button class="btn is-on" type="button" data-show="all" aria-pressed="true">{{ t('lab_share.show_all') }}</button>
+      <button class="btn" type="button" data-show="out" aria-pressed="false">{{ t('lab_share.show_out') }}</button>
+      {% endif %}
+      <button class="btn print" type="button" data-print onclick="window.print()">🖨 {{ t('lab_share.print') }}</button>
+    </div>
+  </header>
+
+  {% for c in cards %}
+  <section class="card{{ ' is-crit' if c.critical else '' }}" data-card="{{ c.id }}" data-out="{{ c.out_of }}">
+    <div class="card__head">
+      <h2 class="card__name">{{ c.name }}</h2>
+      {% if c.out_of %}<span class="pill is-out">{{ t('lab_share.card_out', n=c.out_of) }}</span>{% endif %}
+    </div>
+    <div class="meta">
+      {% if c.specimen %}<span>{{ t('lab_release.specimen') }}: {{ c.specimen }}</span>{% endif %}
+      {% if c.collected_at %}<span>{{ t('lab_release.collected') }}: <span dir="ltr">{{ c.collected_at|clinic_stamp }}</span></span>{% endif %}
+      {% if c.resulted_at %}<span>{{ t('lab_release.reported') }}: <span dir="ltr">{{ c.resulted_at|clinic_stamp }}</span></span>{% endif %}
+      {% if c.ordered_by %}<span>{{ t('lab_release.ordered_by') }}: {{ c.ordered_by }}</span>{% endif %}
+      {% if c.verifier %}<span>{{ t('lab_share.released_by', who=c.verifier) }}</span>{% endif %}
+    </div>
+    {% for ln in c.lines %}
+    <div class="line" data-flag="{{ ln.flag or '' }}" data-line>
+      <div class="line__top">
+        <span class="line__name" dir="auto">{{ ln.name }}</span>
+        <span><span class="value" dir="ltr">{{ ln.value }}<small>{{ ln.unit }}</small></span>
+          {% if ln.flag %}<span class="flag {{ ln.flag }}" data-line-flag="{{ ln.flag }}">{{ {'low': '↓ ', 'high': '↑ ', 'critical_low': '↓↓ ', 'critical_high': '↑↑ '}.get(ln.flag, '') }}{{ t('lab_result.flag_' ~ ln.flag) }}</span>{% endif %}</span>
+      </div>
+      {% if ln.bar %}
+      <div class="bar" role="img" aria-label="{{ t('lab_share.bar_label', value=ln.value, ref=ln.ref) }}">
+        <span class="bar__band" style="left:{{ ln.bar.band[0] }}%;right:{{ 100 - ln.bar.band[1] }}%;"></span>
+        <span class="bar__dot {{ ln.flag or '' }}" style="left:{{ ln.bar.at }}%;"></span>
+      </div>
+      {% endif %}
+      {% if ln.ref %}<span class="ref">{{ t('lab_share.reference') }}: <span dir="ltr">{{ ln.ref }}</span></span>{% endif %}
+      {% if ln.history %}
+      <details class="hist" data-history>
+        <summary>{{ t('lab_share.history', n=ln.history|length) }}</summary>
+        {% if ln.spark %}
+        <svg class="spark" viewBox="-3 -3 106 34" preserveAspectRatio="none" aria-hidden="true">
+          <polyline points="{{ ln.spark }}"></polyline>
+        </svg>
+        {% endif %}
+        <div class="chips">
+          {% for at, v in ln.history %}<span class="chip{{ ' is-now' if loop.last else '' }}" dir="ltr">{{ at|clinic_stamp if at else '—' }} · {{ '%g'|format(v) }}</span>{% endfor %}
+        </div>
+      </details>
+      {% endif %}
+    </div>
+    {% endfor %}
+    {% if c.text %}<div class="words" dir="auto">{{ c.text }}</div>{% endif %}
+    {% if c.comment %}<div class="words" dir="auto"><b>{{ t('lab_release.comment') }}:</b> {{ c.comment }}</div>{% endif %}
+  </section>
+  {% endfor %}
+
+  <p class="note">{{ t('lab_share.public_note') }}</p>

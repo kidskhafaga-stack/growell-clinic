@@ -1,9 +1,7 @@
-{# What the family — or the doctor who referred the child — opens from the
-   message (م-٤). Not the staff screen: no sidebar, nothing that changes
-   anything, no login. The report shows after the child's date of birth, and
-   it is the laboratory's own report, row for row (`_report_rows.html`). #}
-{% from "patients/_macros.html" import age_label with context %}
-{% from "_print_header.html" import print_header with context %}
+{# The door of the link the family — or the referring doctor — opens (م-٤):
+   the child's date of birth first, or why the link no longer opens. Once
+   it is right, the report itself is `result_sheet.html`, the same page the
+   file carries and the paper prints. No sidebar, no login. #}
 <!doctype html>
 <html lang="{{ current_lang }}" dir="{{ direction }}">
 <head>
@@ -25,25 +23,7 @@
 </head>
 <body>
 <div class="rl-wrap">
-{% if status == 'open' %}
-  <div class="no-print" style="display:flex;justify-content:flex-end;margin-bottom:10px;">
-    <button class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
-  </div>
-  <div class="card print-area" data-public-report>
-    {{ print_header(t('lab_release.report_title')) }}
-    <div class="info-grid" style="margin-bottom:16px;">
-      <div class="info-item"><div class="k">{{ t('appointments.patient') }}</div><div class="v">{{ patient.display_name(current_lang) }}</div></div>
-      <div class="info-item"><div class="k">{{ t('patients.file_number') }}</div><div class="v">{{ patient.patient_number }}</div></div>
-      <div class="info-item"><div class="k">{{ t('patients.age') }}</div><div class="v">{{ age_label(patient) }}</div></div>
-    </div>
-    {% if rows %}
-    {% include "labs/_report_rows.html" %}
-    {% else %}
-    <p class="hint" data-public-nothing>{{ t('lab_share.public_nothing') }}</p>
-    {% endif %}
-  </div>
-  <p class="rl-note no-print">{{ t('lab_share.public_note') }}</p>
-{% elif status == 'ask' %}
+{% if status == 'ask' %}
   <form method="post" class="card rl-box" data-public-ask>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <i class="bi bi-shield-lock" style="font-size:2rem;color:var(--green-700);"></i>

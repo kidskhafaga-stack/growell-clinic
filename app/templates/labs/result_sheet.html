@@ -1,0 +1,151 @@
+{# The lab result as the family and the referring doctor read it (م-٤) — on
+   the link, as a file sent on WhatsApp when the clinic is not online, and on
+   paper. **One page, everything inside it**: no stylesheet, font or script
+   from anywhere, so the file opens on a phone with no connection to the
+   clinic, and the three can never differ. Every number and flag is the
+   laboratory's own (`utils/lab_cards`); no word here says what one means.
+   Both languages are inside, one shown (`_result_sheet_body.html`). #}
+<!doctype html>
+<html lang="{{ open_lang }}" dir="{{ 'rtl' if open_lang == 'ar' else 'ltr' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{{ title }}</title>
+<style>
+  :root {
+    --ink:#17302b; --muted:#5d716c; --line:#dbe6e2; --ground:#f2f6f4; --paper:#ffffff;
+    --brand:#127a5c; --brand-soft:#e3f2ec; --band:#cdebdf;
+    --low:#b45309; --low-soft:#fdf0dc; --high:#b45309; --high-soft:#fdf0dc;
+    --crit:#b42318; --crit-soft:#fde4e1;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--ground); color:var(--ink);
+         font:15px/1.55 "Segoe UI", Tahoma, "Noto Sans Arabic", "Noto Sans", Arial, sans-serif; }
+  .sheet { max-width:760px; margin:0 auto; padding:16px; }
+  .sheet__lang { display:grid; gap:14px; }
+  .sheet__lang[hidden] { display:none; }
+  .langs { display:flex; justify-content:flex-end; gap:6px; margin-bottom:10px; }
+  .head { background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:16px 18px; display:grid; gap:10px; }
+  .head__top { display:flex; justify-content:space-between; gap:10px; align-items:baseline; flex-wrap:wrap; }
+  .clinic { font-weight:700; color:var(--brand); font-size:1.05rem; }
+  .title { margin:0; font-size:1.35rem; text-wrap:balance; }
+  .kid { display:flex; gap:8px 18px; flex-wrap:wrap; color:var(--muted); font-size:.92rem; }
+  .kid b { color:var(--ink); font-weight:600; }
+  .summary { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .pill { display:inline-flex; gap:6px; align-items:center; padding:4px 10px; border-radius:999px;
+          background:var(--brand-soft); color:var(--brand); font-weight:600; font-size:.85rem; }
+  .pill.is-out { background:var(--high-soft); color:var(--high); }
+  .pill.is-crit { background:var(--crit-soft); color:var(--crit); }
+  .tools { display:flex; gap:8px; flex-wrap:wrap; }
+  .btn { appearance:none; border:1px solid var(--line); background:var(--paper); color:var(--ink);
+         border-radius:10px; padding:8px 14px; font:inherit; font-weight:600; cursor:pointer; }
+  .btn:focus-visible { outline:2px solid var(--brand); outline-offset:2px; }
+  .btn.is-on { background:var(--brand); border-color:var(--brand); color:#fff; }
+  .btn.print { background:var(--brand); border-color:var(--brand); color:#fff; }
+  .card { background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:14px 16px;
+          display:grid; gap:10px; break-inside:avoid; }
+  .card.is-crit { border-color:var(--crit); box-shadow:inset 4px 0 0 var(--crit); }
+  [dir="rtl"] .card.is-crit { box-shadow:inset -4px 0 0 var(--crit); }
+  .card__head { display:flex; justify-content:space-between; gap:8px; align-items:baseline; flex-wrap:wrap; }
+  .card__name { margin:0; font-size:1.08rem; }
+  .meta { color:var(--muted); font-size:.82rem; display:flex; gap:4px 14px; flex-wrap:wrap; }
+  .line { display:grid; gap:6px; padding:10px 0 2px; border-top:1px solid var(--line); }
+  .line:first-of-type { border-top:0; padding-top:0; }
+  .line__top { display:flex; justify-content:space-between; gap:10px; align-items:baseline; flex-wrap:wrap; }
+  .line__name { font-weight:600; }
+  .value { font-size:1.35rem; font-weight:700; font-variant-numeric:tabular-nums; }
+  .value small { font-size:.8rem; font-weight:500; color:var(--muted); margin-inline-start:4px; }
+  .flag { font-size:.78rem; font-weight:700; padding:2px 8px; border-radius:999px; margin-inline-start:6px; vertical-align:middle; }
+  .flag.low, .flag.high { background:var(--high-soft); color:var(--high); }
+  .flag.critical_low, .flag.critical_high { background:var(--crit-soft); color:var(--crit); }
+  .flag.normal { background:var(--brand-soft); color:var(--brand); }
+  .bar { position:relative; height:10px; border-radius:999px; background:#eef2f1; direction:ltr;
+         -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .bar__band { position:absolute; top:0; bottom:0; background:var(--band); border-radius:999px; }
+  .bar__dot { position:absolute; top:50%; width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%;
+              background:var(--brand); border:3px solid #fff; box-shadow:0 0 0 1px var(--brand); }
+  .bar__dot.low, .bar__dot.high { background:var(--high); box-shadow:0 0 0 1px var(--high); }
+  .bar__dot.critical_low, .bar__dot.critical_high { background:var(--crit); box-shadow:0 0 0 1px var(--crit); }
+  .ref { color:var(--muted); font-size:.82rem; font-variant-numeric:tabular-nums; }
+  details.hist { font-size:.85rem; }
+  details.hist summary { cursor:pointer; color:var(--brand); font-weight:600; list-style:none; }
+  details.hist summary::-webkit-details-marker { display:none; }
+  details.hist summary::before { content:"▸ "; }
+  [dir="rtl"] details.hist summary::before { content:"◂ "; }
+  details.hist[open] summary::before { content:"▾ "; }
+  .spark { width:100%; height:56px; display:block; margin:8px 0 4px; }
+  .spark polyline { fill:none; stroke:var(--brand); stroke-width:1.6; vector-effect:non-scaling-stroke; }
+  .spark circle { fill:var(--brand); }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .chip { background:var(--ground); border:1px solid var(--line); border-radius:8px; padding:2px 8px; font-variant-numeric:tabular-nums; }
+  .chip.is-now { border-color:var(--brand); color:var(--brand); font-weight:700; }
+  .words { white-space:pre-line; background:var(--ground); border-radius:10px; padding:10px 12px; }
+  .note { color:var(--muted); font-size:.82rem; text-align:center; margin:4px 0 0; }
+  body.only-out .card[data-out="0"] { display:none; }
+  body.only-out .line[data-flag="normal"], body.only-out .line[data-flag=""] { display:none; }
+  @media (prefers-reduced-motion: no-preference) { .bar__dot { transition:left .4s ease; } }
+  @media print {
+    body { background:#fff; font-size:13px; }
+    .sheet { padding:0; max-width:none; }
+    .tools, .langs, details.hist { display:none !important; }
+    body.only-out .card, body.only-out .line { display:grid !important; }
+    .head, .card { border-color:#999; }
+  }
+</style>
+</head>
+<body>
+<main class="sheet" data-result-sheet data-open-lang="{{ open_lang }}">
+  {% if bodies|length > 1 %}
+  <nav class="langs" aria-label="Language / اللغة">
+    {% for code, _dir, _html in bodies %}<button class="btn{{ ' is-on' if code == open_lang else '' }}" type="button" data-lang-to="{{ code }}" lang="{{ code }}" aria-pressed="{{ 'true' if code == open_lang else 'false' }}">{{ 'عربي' if code == 'ar' else 'English' }}</button>{% endfor %}
+  </nav>
+  {% endif %}
+  {% for code, dir_, html in bodies %}
+  <div class="sheet__lang" data-lang="{{ code }}" lang="{{ code }}" dir="{{ dir_ }}"{{ ' hidden' if code != open_lang else '' }}>
+    {{ html|safe }}
+  </div>
+  {% endfor %}
+</main>
+<script>
+  (function () {
+    // «Outside the reference only», in whichever language is showing.
+    document.querySelectorAll('[data-show]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var out = b.getAttribute('data-show') === 'out';
+        document.body.classList.toggle('only-out', out);
+        document.querySelectorAll('[data-show]').forEach(function (o) {
+          var on = (o.getAttribute('data-show') === 'out') === out;
+          o.classList.toggle('is-on', on);
+          o.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+      });
+    });
+    // عربي | English — remembered on this phone when it can be.
+    function show(code) {
+      var root = document.documentElement;
+      document.querySelectorAll('[data-lang]').forEach(function (d) {
+        d.hidden = d.getAttribute('data-lang') !== code;
+      });
+      document.querySelectorAll('[data-lang-to]').forEach(function (b) {
+        var on = b.getAttribute('data-lang-to') === code;
+        b.classList.toggle('is-on', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      root.lang = code; root.dir = code === 'ar' ? 'rtl' : 'ltr';
+    }
+    document.querySelectorAll('[data-lang-to]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var code = b.getAttribute('data-lang-to');
+        show(code);
+        try { localStorage.setItem('labSheetLang', code); } catch (e) {}
+      });
+    });
+    try {
+      var kept = localStorage.getItem('labSheetLang');
+      if (kept && document.querySelector('[data-lang="' + kept + '"]')) show(kept);
+    } catch (e) {}
+  })();
+</script>
+</body>
+</html>

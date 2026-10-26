@@ -506,10 +506,13 @@
   <p style="margin:0 0 6px;" data-share-log="{{ s.audience }}">
     <i class="bi bi-{{ 'people' if s.audience == 'family' else 'person-badge' }}"></i>
     {{ t('lab_share.log_' ~ s.audience, who=(s.external_doctor.name if s.external_doctor else ''), when=s.created_at|clinic_stamp) }}
-    · {% if s.opened_at %}<span class="badge badge--green" data-share-opened>{{ t('lab_share.opened', when=s.opened_at|clinic_stamp) }}</span>
+    <span class="badge badge--muted" data-share-mode="{{ s.mode }}">{{ t('lab_share.mode_' ~ s.mode) }}</span>
+    {% if s.mode == 'file' %}· <a href="{{ url_for('labs.result_file', share_id=s.id) }}" data-share-file>{{ t('lab_share.download') }}</a>
+    {% else %}· {% if s.opened_at %}<span class="badge badge--green" data-share-opened>{{ t('lab_share.opened', when=s.opened_at|clinic_stamp) }}</span>
       {% elif s.locked %}<span class="badge badge--danger">{{ t('lab_share.locked') }}</span>
       {% elif s.expired %}<span class="badge badge--muted">{{ t('lab_share.expired') }}</span>
       {% else %}<span class="badge badge--muted">{{ t('lab_share.not_opened') }}</span>{% endif %}
+    {% endif %}
   </p>
   {% endfor %}
   {% if share_released and share_doctors %}

@@ -1,0 +1,27 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_share.sent_title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_share.sent_title') }}{% endblock %}
+
+{% block content %}
+{# The result is ready to go and needs a person's press (م-٤): the message,
+   the WhatsApp button — and, when the clinic is not online, the report as a
+   file to download and drop into the chat. #}
+<div class="card gc-scale-in" style="max-width:600px;margin:0 auto;display:grid;gap:12px;" data-share-sent>
+  <h2 class="section-title" style="margin:0;"><i class="bi bi-whatsapp"></i> {{ t('lab_share.sent_title') }}</h2>
+  {% if share and share.mode == 'file' %}
+  <p class="hint" style="margin:0;" data-file-hint><i class="bi bi-wifi-off"></i> {{ t('lab_share.sent_file_hint') }}</p>
+  {% endif %}
+  <div style="background:var(--green-050);border:1px solid var(--green-100);border-radius:12px;padding:14px;white-space:pre-wrap;font-size:.92rem;" dir="auto">{{ log.body }}</div>
+  <div class="hint" style="margin:0;">{{ t('messages_mod.to') }}: <span dir="ltr">{{ log.to_phone }}</span></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    {% if share and share.mode == 'file' %}
+    <a class="btn btn-primary gc-press" href="{{ url_for('labs.result_file', share_id=share.id) }}" data-download-file><i class="bi bi-download"></i> {{ t('lab_share.download') }}</a>
+    {% endif %}
+    {% if log.link %}
+    <a class="btn btn-primary gc-press" href="{{ log.link }}" target="_blank" rel="noopener" style="background:#25D366;border-color:#25D366;" data-open-whatsapp><i class="bi bi-whatsapp"></i> {{ t('messages_mod.open_whatsapp') }}</a>
+    {% endif %}
+    <a class="btn btn-outline gc-press" href="{{ back_url }}">{{ t('messages_mod.back') }}</a>
+  </div>
+</div>
+{% endblock %}

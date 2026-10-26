@@ -3376,7 +3376,9 @@
     "occ_vaccine_suggested": "Optional vaccine suggestion",
     "occ_card_expiring": "Insurance card renewal reminder",
     "occ_lab_result": "Lab result to the family",
-    "occ_lab_result_doctor": "Lab result to the referring doctor"
+    "occ_lab_result_doctor": "Lab result to the referring doctor",
+    "occ_lab_result_file": "Lab result to the family (file)",
+    "occ_lab_result_doctor_file": "Lab result to the referring doctor (numbers and file)"
   },
   "feedback": {
     "title": "Rate your visit",
@@ -15691,6 +15693,28 @@
     "public_expired": "This link has expired. Contact the clinic for a new one.",
     "public_locked": "This link is locked after too many wrong tries. Contact the clinic.",
     "public_nothing": "No result on this link now.",
-    "public_note": "This is the laboratory's result as written. For what it means, ask the doctor."
+    "public_note": "This is the laboratory's result as written. For what it means, ask the doctor.",
+    "sheet_title": "Lab results",
+    "printed": "Printed {when}",
+    "born": "Date of birth",
+    "sum_tests": "{n} test(s)",
+    "sum_flagged": "{n} of {total} outside the reference",
+    "sum_all_in": "Every value within the reference",
+    "sum_critical": "A critical value",
+    "show_all": "All",
+    "show_out": "Outside the reference only",
+    "print": "Print",
+    "card_out": "{n} outside the reference",
+    "released_by": "Released by {who}",
+    "bar_label": "Value {value}, reference {ref}",
+    "reference": "Reference",
+    "history": "Earlier values ({n})",
+    "mode_link": "Link",
+    "mode_file": "File",
+    "download": "Download the file",
+    "sent_title": "Send the result",
+    "sent_file_hint": "The program is not online, so the report goes as a file: download it, open WhatsApp, and drop the file into the chat.",
+    "sent_auto": "Sent on WhatsApp with the file.",
+    "offline_hint": "The clinic has no public address, so the result goes as a file, not a link."
   }
 }

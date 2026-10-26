@@ -97,6 +97,9 @@ SYSTEM_TEMPLATE_TYPES = [
     # the doctor has seen it, and to the doctor who referred the child. Sent
     # by a person's press on the results screen — see app/utils/lab_share.py.
     "lab_result", "lab_result_doctor",
+    # The same when the clinic cannot be reached from outside: the report
+    # itself as a file, and to the doctor the numbers in the message too.
+    "lab_result_file", "lab_result_doctor_file",
 ]
 # Notification types the clinic manages centrally (each has one canonical
 # template with its own body/image/auto-or-manual toggle). Birthday is an
@@ -141,6 +144,9 @@ TEMPLATE_VARIABLES = {
     # No result in it, ever — only the link, and how long it works.
     "lab_result": ["patient", "first_name", "clinic", "link", "days"],
     "lab_result_doctor": ["patient", "doctor", "clinic", "link", "days"],
+    "lab_result_file": ["patient", "first_name", "clinic"],
+    # `numbers` is the laboratory's values as written, ↑/↓ by its own flag.
+    "lab_result_doctor_file": ["patient", "doctor", "clinic", "numbers"],
     "birthday": ["patient", "first_name", "clinic"],
     "feedback": ["patient", "first_name", "clinic", "doctor", "link"],
     "complaint_received": ["patient", "first_name", "clinic", "number", "hours"],
@@ -245,6 +251,15 @@ TEMPLATE_DEFAULTS = {
         "نتيجة تحاليل {patient} من {clinic} جاهزة.\n"
         "تقدروا تفتحوها من هنا: {link}\n"
         "هيطلب منكم تاريخ ميلاد الطفل، واللينك شغال {days} يوم."
+    ),
+    "lab_result_file": (
+        "نتيجة تحاليل {patient} من {clinic} جاهزة.\n"
+        "التقرير في الملف المرفق — بيتفتح على الموبايل وتقدروا تطبعوه."
+    ),
+    "lab_result_doctor_file": (
+        "{doctor}، نتيجة تحاليل {patient} من {clinic}:\n"
+        "{numbers}\n"
+        "والتقرير كامل في الملف المرفق."
     ),
     "lab_result_doctor": (
         "{doctor}، نتيجة تحاليل {patient} من {clinic} جاهزة.\n"

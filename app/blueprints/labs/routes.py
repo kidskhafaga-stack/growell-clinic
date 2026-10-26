@@ -727,12 +727,13 @@ def _orders_from_form():
             if ids else [])
 
 
-def _after_send(log, back):
+def _after_send(log, back, share=None):
     """A message that needs a press (WhatsApp from this computer) opens the
-    page with the button; one the provider sent comes straight back."""
+    page with the button — and, when the report goes as a file, the file to
+    download and drop in; one the provider sent comes straight back."""
     if log is not None and getattr(log, "link", None):
         db.session.commit()
-        return render_template("messages/sent.html", log=log, appt=None,
+        return render_template("labs/share_sent.html", log=log, share=share,
                                back_url=back)
     return None
 
@@ -753,7 +754,7 @@ def results_to_see():
                            hold_reason=lab_share.hold_reason, held=lab_share.held,
                            doctors=lab_share.referring_doctors(),
                            may_act=lab_results.reads_results(current_user),
-                           days=lab_share.days())
+                           online=lab_share.online(), days=lab_share.days())
 
 
 @labs_bp.route("/results/seen", methods=["POST"])
@@ -773,7 +774,7 @@ def results_seen():
         flash(t("lab_share.held_n", n=len(waiting)), "warning")
     if share is None and not waiting:
         flash(t("lab_share.seen_not_sent"), "warning")
-    page = _after_send(log, back)
+    page = _after_send(log, back, share)
     if page is not None:
         return page
     db.session.commit()
@@ -796,7 +797,7 @@ def result_called(order_id):
         db.session.rollback()
         flash(t(f"lab_share.err_{err}"), "warning")
         return redirect(back)
-    page = _after_send(log, back)
+    page = _after_send(log, back, share)
     if page is not None:
         return page
     db.session.commit()
@@ -821,13 +822,13 @@ def result_to_doctor():
         abort(403, description=t("auth.no_permission"))
     doctor = db.session.get(ExternalDoctor, request.form.get("doctor_id", type=int) or 0)
     try:
-        _share, log = lab_share.send(orders, current_user, audience=DOCTOR,
-                                     doctor=doctor, lang=getattr(g, "lang", "ar"))
+        share, log = lab_share.send(orders, current_user, audience=DOCTOR,
+                                    doctor=doctor, lang=getattr(g, "lang", "ar"))
     except lab_share.ShareError as err:
         db.session.rollback()
         flash(t(f"lab_share.err_{err}"), "warning")
         return redirect(target)
-    page = _after_send(log, target)
+    page = _after_send(log, target, share)
     if page is not None:
         return page
     db.session.commit()
@@ -854,11 +855,11 @@ def result_link(token):
     wrong = False
     if request.method == "POST":
         if lab_share.check(share, request.form.get("born")):
-            rows = lab_share.orders_of(share)
+            page = lab_share.sheet(lab_share.orders_of(share), share.patient,
+                                   getattr(g, "lang", "ar"),
+                                   lab_share.opens_in(share.audience))
             db.session.commit()
-            return render_template("labs/result_link.html", status="open",
-                                   share=share, patient=share.patient, rows=rows,
-                                   required=_release().required())
+            return page
         db.session.commit()
         wrong = True
         if lab_share.state(share) == "locked":
@@ -867,6 +868,23 @@ def result_link(token):
     return render_template("labs/result_link.html", status="ask", share=share,
                            rows=[], wrong=wrong,
                            left=max(0, 5 - (share.failures or 0)))
+
+
+@labs_bp.route("/results/file/<int:share_id>")
+@_share_door
+def result_file(share_id):
+    """The report a share carried, as the file to drop into WhatsApp — made
+    again from the results as they stand, for whoever sends it by hand."""
+    from flask import Response
+
+    from app.models import ResultShare
+    from app.utils import lab_share
+
+    share = db.get_or_404(ResultShare, share_id)
+    html = lab_share.sheet(lab_share.orders_of(share), share.patient,
+                           getattr(g, "lang", "ar"), lab_share.opens_in(share.audience))
+    return Response(html, mimetype="text/html", headers={
+        "Content-Disposition": f'attachment; filename="{lab_share.file_name(share)}"'})
 
 
 @labs_bp.route("/share-setting", methods=["POST"])

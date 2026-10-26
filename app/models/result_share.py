@@ -5,16 +5,24 @@ LAB_GLAB360_PLAN.md م-٤, with the owner's three decisions: the result goes
 **waits until the doctor has spoken to the family**; and the referring
 doctor gets the same link, with the same protection.
 
-What leaves is a **link**, never the result: it opens the laboratory's own
-report — nothing added, no interpretation — after the child's date of birth
-is typed; it ends after a number of days; and five wrong tries lock it.
-Every send and every opening is kept here.
+What leaves is a **link** when the clinic can be reached from outside (its
+public address is set): it opens the laboratory's own report — nothing
+added, no interpretation — after the child's date of birth is typed; it ends
+after a number of days; and five wrong tries lock it. **When it cannot** —
+the program running on the clinic's own network — a link would open nothing
+on the family's phone, so the report itself goes as a file
+(«ملف التقرير على الواتساب»), and the referring doctor gets the numbers in the
+message as well («الاتنين»). Every send, and every opening of a link, is
+kept here.
 """
 from datetime import datetime
 
 from app.extensions import db
 
 FAMILY, DOCTOR = "family", "doctor"
+#: How it went: a link to the clinic's page (the clinic has a public
+#: address), or the report itself as a file (it does not).
+LINK, FILE = "link", "file"
 #: Wrong answers before the link stops answering.
 MAX_FAILURES = 5
 
@@ -29,6 +37,7 @@ class ResultShare(db.Model):
     #: The lab orders on this report (one child's), as a list of ids.
     order_ids = db.Column(db.JSON, nullable=False)
     audience = db.Column(db.String(10), nullable=False, default=FAMILY)
+    mode = db.Column(db.String(6), nullable=False, default=LINK)
     external_doctor_id = db.Column(db.Integer, db.ForeignKey("external_doctors.id"))
     to_phone = db.Column(db.String(40))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False,

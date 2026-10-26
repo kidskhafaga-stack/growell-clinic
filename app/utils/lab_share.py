@@ -10,10 +10,13 @@ LAB_GLAB360_PLAN.md م-٤, as the clinic's owner decided it:
 * **the referring doctor** can be sent the same link, with the same
   protection.
 
-**What leaves is a link, never the result** — and the link opens the
-laboratory's report exactly as printed, with nothing added: no reading of
-it, no advice. It asks for the child's date of birth, ends after
-:func:`days` days, and five wrong answers lock it (`ResultShare`).
+**What leaves**: where the clinic can be reached from outside (its public
+address is set — :func:`online`), a link to the laboratory's report with
+nothing added: no reading of it, no advice. It asks for the child's date of
+birth, ends after :func:`days` days, and five wrong answers lock it
+(`ResultShare`). Where it cannot, the same report as a file — the family's
+choice of the owner — and, to the referring doctor, the numbers in the
+message as well. Either way the report can be printed: «ده حق المريض».
 
 **Off until the clinic turns it on** (the lab's settings), and from that day
 only: switching it on does not put a year of old results on a doctor's list.
@@ -177,10 +180,78 @@ def _already_with_family(orders):
     return {o.id for o in orders if o.id in sent}
 
 
+def online():
+    """Can a phone outside the clinic reach this program? Only when the
+    clinic gave its public address (a domain or a tunnel — WhatsApp
+    settings). Without it a link points into the clinic's own network."""
+    from app.utils import whatsapp as wa
+
+    return bool(wa.get_config().get("public_base"))
+
+
 def _link(token):
     from flask import url_for
 
-    return url_for("labs.result_link", token=token, _external=True)
+    from app.utils import whatsapp as wa
+
+    base = wa.get_config().get("public_base")
+    path = url_for("labs.result_link", token=token)
+    return f"{base}{path}" if base else url_for("labs.result_link", token=token,
+                                                  _external=True)
+
+
+def _clinic_name():
+    from app.models import Setting
+
+    return Setting.get("clinic_name_ar") or Setting.get("clinic_name") or ""
+
+
+def sheet(orders, patient, lang="ar", open_lang=None):
+    """The report as one self-contained page — the link's page, the file,
+    and what prints — **in Arabic and in English**, one shown and a button
+    for the other («ممكن الأهل عربي أو إنجليزي»). ``open_lang`` is the one
+    it opens in; the phone remembers a switch."""
+    from flask import g, render_template
+
+    from app.i18n import available_languages, get_direction
+    from app.utils import lab_cards
+    from app.utils.clock import local_now
+
+    langs = [code for code in ("ar", "en") if code in available_languages()] or [lang]
+    open_lang = open_lang if open_lang in langs else (lang if lang in langs else langs[0])
+    printed = local_now()
+    saved = (getattr(g, "lang", None), getattr(g, "direction", None))
+    bodies = []
+    try:
+        for code in langs:
+            g.lang, g.direction = code, get_direction(code)
+            cards, summary = lab_cards.cards(orders, code)
+            bodies.append((code, g.direction, render_template(
+                "labs/_result_sheet_body.html", patient=patient, cards=cards,
+                summary=summary, clinic_name=_clinic_name(), printed_at=printed)))
+    finally:
+        g.lang, g.direction = saved
+    from app.i18n import translate
+
+    # The doctype first, so a phone opening the file renders it as a page.
+    return render_template("labs/result_sheet.html", bodies=bodies,
+                           open_lang=open_lang,
+                           title=f"{translate('lab_share.sheet_title')} — "
+                                 f"{patient.display_name(open_lang)}").lstrip()
+
+
+def opens_in(audience):
+    """The family reads it first in Arabic, the referring doctor in English —
+    the language reports between doctors are written in."""
+    from app.models.result_share import DOCTOR
+
+    return "en" if audience == DOCTOR else "ar"
+
+
+def file_name(share):
+    stamp = (share.created_at or datetime.utcnow()).strftime("%Y%m%d")
+    number = "".join(ch for ch in (share.patient.patient_number or "") if ch.isalnum())
+    return f"lab-result-{number or share.patient_id}-{stamp}.html"
 
 
 def send(orders, user, audience="family", doctor=None, lang="ar"):
@@ -217,9 +288,15 @@ def send(orders, user, audience="family", doctor=None, lang="ar"):
     if not phone:
         raise ShareError("no_phone")
 
+    from app.models.result_share import FILE, LINK
+    from app.utils import lab_cards
+
+    mode = LINK if online() else FILE
+    if mode == FILE:
+        template += "_file"
     share = ResultShare(token=secrets.token_urlsafe(24), patient_id=patient.id,
                         order_ids=[o.id for o in orders], audience=audience,
-                        external_doctor_id=getattr(doctor, "id", None),
+                        mode=mode, external_doctor_id=getattr(doctor, "id", None),
                         to_phone=phone, created_by=getattr(user, "id", None),
                         expires_at=datetime.utcnow() + timedelta(days=days()))
     db.session.add(share)
@@ -228,18 +305,26 @@ def send(orders, user, audience="family", doctor=None, lang="ar"):
         "patient": patient.display_name(lang),
         "first_name": (patient.display_name(lang) or "").split(" ")[0],
         "doctor": getattr(doctor, "name", "") or "",
-        "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
-        "link": _link(share.token),
+        "clinic": _clinic_name(),
+        "link": _link(share.token) if mode == LINK else "",
         "days": days(),
+        "numbers": lab_cards.numbers_text(orders, lang) if audience == DOCTOR else "",
     })
-    log = wa.send(body, phone, patient_id=patient.id if audience == FAMILY else None,
-                  user_id=getattr(user, "id", None), template_type=template,
-                  ignore_window=True)
+    family_id = patient.id if audience == FAMILY else None
+    if mode == LINK:
+        log = wa.send(body, phone, patient_id=family_id,
+                      user_id=getattr(user, "id", None), template_type=template,
+                      ignore_window=True)
+    else:
+        log = wa.send_document(body, phone,
+                               sheet(orders, patient, lang, opens_in(audience)).encode("utf-8"),
+                               file_name(share), patient_id=family_id,
+                               user_id=getattr(user, "id", None), template_type=template)
     db.session.flush()
     share.message_id = log.id
     ActivityLog.record("lab.result_sent", user_id=getattr(user, "id", None),
                        entity="lab_result_share", entity_id=share.id,
-                       detail=f"{audience} orders={share.order_ids}")
+                       detail=f"{audience} {mode} orders={share.order_ids}")
     return share, log
 
 
