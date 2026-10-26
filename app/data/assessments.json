@@ -526,6 +526,51 @@
           ]
         },
         {
+          "key": "ages",
+          "type": "ages",
+          "label_ar": "العمر النمائي لكل مجال (بالشهور)",
+          "label_en": "Developmental age per domain (months)",
+          "source": "Age-equivalents from the tool used, or the specialist's own estimate",
+          "source_ar": "العمر المكافئ من الأداة اللي اتعملت، أو تقدير المختص",
+          "options": [
+            {
+              "key": "gross_motor",
+              "ar": "الحركة الكبيرة",
+              "en": "Gross motor"
+            },
+            {
+              "key": "fine_motor",
+              "ar": "الحركة الدقيقة",
+              "en": "Fine motor"
+            },
+            {
+              "key": "receptive",
+              "ar": "اللغة الاستقبالية",
+              "en": "Receptive language"
+            },
+            {
+              "key": "expressive",
+              "ar": "اللغة التعبيرية",
+              "en": "Expressive language"
+            },
+            {
+              "key": "cognitive",
+              "ar": "المعرفي وحل المشكلات",
+              "en": "Cognitive / problem solving"
+            },
+            {
+              "key": "social",
+              "ar": "الاجتماعي والانفعالي",
+              "en": "Social-emotional"
+            },
+            {
+              "key": "self_help",
+              "ar": "الاعتماد على النفس",
+              "en": "Self-help"
+            }
+          ]
+        },
+        {
           "key": "tools",
           "type": "tools",
           "label_ar": "الأدوات اللي اتعملت",
@@ -992,6 +1037,31 @@
               "key": "pragmatics",
               "ar": "استخدام اللغة في التواصل",
               "en": "Social use of language"
+            }
+          ]
+        },
+        {
+          "key": "ages",
+          "type": "ages",
+          "label_ar": "العمر النمائي لكل مجال (بالشهور)",
+          "label_en": "Developmental age per domain (months)",
+          "source": "Age-equivalents from the tool used, or the specialist's own estimate",
+          "source_ar": "العمر المكافئ من الأداة اللي اتعملت، أو تقدير المختص",
+          "options": [
+            {
+              "key": "receptive",
+              "ar": "اللغة الاستقبالية",
+              "en": "Receptive language"
+            },
+            {
+              "key": "expressive",
+              "ar": "اللغة التعبيرية",
+              "en": "Expressive language"
+            },
+            {
+              "key": "articulation",
+              "ar": "النطق",
+              "en": "Articulation"
             }
           ]
         },
@@ -1784,6 +1854,31 @@
           ]
         },
         {
+          "key": "ages",
+          "type": "ages",
+          "label_ar": "العمر النمائي لكل مجال (بالشهور)",
+          "label_en": "Developmental age per domain (months)",
+          "source": "Age-equivalents from the tool used, or the specialist's own estimate",
+          "source_ar": "العمر المكافئ من الأداة اللي اتعملت، أو تقدير المختص",
+          "options": [
+            {
+              "key": "communication",
+              "ar": "التواصل",
+              "en": "Communication"
+            },
+            {
+              "key": "daily_living",
+              "ar": "مهارات الحياة اليومية",
+              "en": "Daily living"
+            },
+            {
+              "key": "socialization",
+              "ar": "التنشئة الاجتماعية",
+              "en": "Socialization"
+            }
+          ]
+        },
+        {
           "key": "tools",
           "type": "tools",
           "label_ar": "الأدوات اللي اتعملت",
@@ -1929,6 +2024,31 @@
               "key": "planning",
               "ar": "التخطيط الحركي",
               "en": "Motor planning"
+            }
+          ]
+        },
+        {
+          "key": "ages",
+          "type": "ages",
+          "label_ar": "العمر النمائي لكل مجال (بالشهور)",
+          "label_en": "Developmental age per domain (months)",
+          "source": "Age-equivalents from the tool used, or the specialist's own estimate",
+          "source_ar": "العمر المكافئ من الأداة اللي اتعملت، أو تقدير المختص",
+          "options": [
+            {
+              "key": "gross_motor",
+              "ar": "الحركة الكبيرة",
+              "en": "Gross motor"
+            },
+            {
+              "key": "fine_motor",
+              "ar": "الحركة الدقيقة",
+              "en": "Fine motor"
+            },
+            {
+              "key": "visuomotor",
+              "ar": "البصري الحركي",
+              "en": "Visual-motor"
             }
           ]
         },
@@ -2826,7 +2946,8 @@
           "en": "Inattentive symptoms (1–9)",
           "type": "count",
           "max": 9,
-          "meets": 6
+          "meets": 6,
+          "better": "lower"
         },
         {
           "key": "hyperactive",
@@ -2834,7 +2955,8 @@
           "en": "Hyperactive/impulsive symptoms (10–18)",
           "type": "count",
           "max": 9,
-          "meets": 6
+          "meets": 6,
+          "better": "lower"
         },
         {
           "key": "odd",
@@ -2842,7 +2964,8 @@
           "en": "Oppositional (19–26)",
           "type": "count",
           "max": 8,
-          "meets": 4
+          "meets": 4,
+          "better": "lower"
         },
         {
           "key": "conduct",
@@ -2850,7 +2973,8 @@
           "en": "Conduct (27–40)",
           "type": "count",
           "max": 14,
-          "meets": 3
+          "meets": 3,
+          "better": "lower"
         },
         {
           "key": "anxiety",
@@ -2858,21 +2982,24 @@
           "en": "Anxiety/depression (41–47)",
           "type": "count",
           "max": 7,
-          "meets": 3
+          "meets": 3,
+          "better": "lower"
         },
         {
           "key": "perf_4",
           "ar": "بنود الأداء بدرجة ٤ (٤٨–٥٥)",
           "en": "Performance items rated 4 (48–55)",
           "type": "count",
-          "max": 8
+          "max": 8,
+          "better": "lower"
         },
         {
           "key": "perf_5",
           "ar": "بنود الأداء بدرجة ٥ (٤٨–٥٥)",
           "en": "Performance items rated 5 (48–55)",
           "type": "count",
-          "max": 8
+          "max": 8,
+          "better": "lower"
         }
       ],
       "source_ar": "مقياس Vanderbilt (NICHQ) — نسخة الأهل، تعليمات التصحيح"
@@ -2891,7 +3018,8 @@
           "en": "Inattentive symptoms (1–9)",
           "type": "count",
           "max": 9,
-          "meets": 6
+          "meets": 6,
+          "better": "lower"
         },
         {
           "key": "hyperactive",
@@ -2899,7 +3027,8 @@
           "en": "Hyperactive/impulsive symptoms (10–18)",
           "type": "count",
           "max": 9,
-          "meets": 6
+          "meets": 6,
+          "better": "lower"
         },
         {
           "key": "odd_conduct",
@@ -2907,7 +3036,8 @@
           "en": "Oppositional/conduct (19–28)",
           "type": "count",
           "max": 10,
-          "meets": 3
+          "meets": 3,
+          "better": "lower"
         },
         {
           "key": "anxiety",
@@ -2915,21 +3045,24 @@
           "en": "Anxiety/depression (29–35)",
           "type": "count",
           "max": 7,
-          "meets": 3
+          "meets": 3,
+          "better": "lower"
         },
         {
           "key": "perf_4",
           "ar": "بنود الأداء بدرجة ٤",
           "en": "Performance items rated 4",
           "type": "count",
-          "max": 8
+          "max": 8,
+          "better": "lower"
         },
         {
           "key": "perf_5",
           "ar": "بنود الأداء بدرجة ٥",
           "en": "Performance items rated 5",
           "type": "count",
-          "max": 8
+          "max": 8,
+          "better": "lower"
         }
       ],
       "source_ar": "مقياس Vanderbilt (NICHQ) — نسخة المدرس، تعليمات التصحيح"
@@ -2946,37 +3079,43 @@
           "key": "inattention",
           "ar": "قلة الانتباه (T)",
           "en": "Inattention (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "hyperactivity",
           "ar": "فرط الحركة / الاندفاع (T)",
           "en": "Hyperactivity/Impulsivity (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "learning",
           "ar": "مشاكل التعلم (T)",
           "en": "Learning problems (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "executive",
           "ar": "الوظائف التنفيذية (T)",
           "en": "Executive functioning (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "aggression",
           "ar": "العناد والعدوانية (T)",
           "en": "Defiance/Aggression (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "peers",
           "ar": "علاقات الأقران (T)",
           "en": "Peer relations (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ],
       "source_ar": "Conners 3 (MHS) — الدرجات من تقرير الناشر"
@@ -2993,13 +3132,15 @@
           "key": "omissions",
           "ar": "الاستجابات الفايتة (Omissions)",
           "en": "Omissions",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "commissions",
           "ar": "أخطاء التسرع (Commissions)",
           "en": "Commissions",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "rt",
@@ -3011,7 +3152,8 @@
           "key": "rt_var",
           "ar": "تذبذب زمن الاستجابة",
           "en": "Reaction-time variability",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ],
       "source_ar": "تقرير الجهاز نفسه"
@@ -3028,19 +3170,22 @@
           "key": "inattention",
           "ar": "قلة الانتباه — المتوسط",
           "en": "Inattention — average",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "hyperactivity",
           "ar": "فرط الحركة والاندفاع — المتوسط",
           "en": "Hyperactivity/impulsivity — average",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "odd",
           "ar": "العناد — المتوسط",
           "en": "Oppositional — average",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ],
       "source_ar": "SNAP-IV (Swanson وNolan وPelham) — متوسط درجة البنود في كل جزء"
@@ -3057,25 +3202,29 @@
           "key": "bri",
           "ar": "مؤشر تنظيم السلوك BRI (T)",
           "en": "Behavior Regulation Index (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "eri",
           "ar": "مؤشر تنظيم الانفعال ERI (T)",
           "en": "Emotion Regulation Index (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "cri",
           "ar": "مؤشر التنظيم المعرفي CRI (T)",
           "en": "Cognitive Regulation Index (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "gec",
           "ar": "المؤشر التنفيذي العام GEC (T)",
           "en": "Global Executive Composite (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ],
       "source_ar": "BRIEF-2 (PAR) — الدرجات من تقرير الناشر"
@@ -3092,37 +3241,43 @@
           "key": "fsiq",
           "ar": "الذكاء الكلي FSIQ",
           "en": "Full Scale IQ",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "vci",
           "ar": "الفهم اللفظي VCI",
           "en": "Verbal Comprehension",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "vsi",
           "ar": "البصري المكاني VSI",
           "en": "Visual Spatial",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "fri",
           "ar": "الاستدلال السائل FRI",
           "en": "Fluid Reasoning",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "wmi",
           "ar": "الذاكرة العاملة WMI",
           "en": "Working Memory",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "psi",
           "ar": "سرعة المعالجة PSI",
           "en": "Processing Speed",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ],
       "source_ar": "WISC-V (Pearson) — الدرجات من تقرير الناشر"
@@ -3141,14 +3296,16 @@
           "ar": "عدد البنود اللي بتشير لخطر (من ٢٠)",
           "en": "At-risk items (of 20)",
           "type": "count",
-          "max": 20
+          "max": 20,
+          "better": "lower"
         },
         {
           "key": "followup",
           "ar": "بعد مقابلة المتابعة (Follow-Up)",
           "en": "After the Follow-Up interview",
           "type": "count",
-          "max": 20
+          "max": 20,
+          "better": "lower"
         }
       ]
     },
@@ -3165,19 +3322,22 @@
           "key": "raw",
           "ar": "الدرجة الخام الكلية",
           "en": "Total raw score",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "t",
           "ar": "الدرجة التائية (T)",
           "en": "T-score",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "percentile",
           "ar": "المئين",
           "en": "Percentile",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ]
     },
@@ -3194,25 +3354,29 @@
           "key": "sa",
           "ar": "التأثير الاجتماعي (SA)",
           "en": "Social affect (SA)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "rrb",
           "ar": "السلوك المقيّد والمتكرر (RRB)",
           "en": "Restricted & repetitive (RRB)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "total",
           "ar": "المجموع",
           "en": "Overall total",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "css",
           "ar": "درجة المقارنة (CSS)",
           "en": "Comparison score (CSS)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ]
     },
@@ -3229,19 +3393,22 @@
           "key": "total",
           "ar": "المجموع (T)",
           "en": "Total (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "sci",
           "ar": "التواصل والتفاعل الاجتماعي (T)",
           "en": "Social communication & interaction (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "rrb",
           "ar": "السلوك المقيّد والمتكرر (T)",
           "en": "Restricted interests & repetitive behaviour (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ]
     },
@@ -3259,35 +3426,40 @@
           "ar": "التواصل (من ٦٠)",
           "en": "Communication (of 60)",
           "type": "count",
-          "max": 60
+          "max": 60,
+          "better": "higher"
         },
         {
           "key": "gross_motor",
           "ar": "الحركة الكبيرة (من ٦٠)",
           "en": "Gross motor (of 60)",
           "type": "count",
-          "max": 60
+          "max": 60,
+          "better": "higher"
         },
         {
           "key": "fine_motor",
           "ar": "الحركة الدقيقة (من ٦٠)",
           "en": "Fine motor (of 60)",
           "type": "count",
-          "max": 60
+          "max": 60,
+          "better": "higher"
         },
         {
           "key": "problem_solving",
           "ar": "حل المشكلات (من ٦٠)",
           "en": "Problem solving (of 60)",
           "type": "count",
-          "max": 60
+          "max": 60,
+          "better": "higher"
         },
         {
           "key": "personal_social",
           "ar": "الشخصي والاجتماعي (من ٦٠)",
           "en": "Personal-social (of 60)",
           "type": "count",
-          "max": 60
+          "max": 60,
+          "better": "higher"
         }
       ]
     },
@@ -3304,31 +3476,36 @@
           "key": "cognitive",
           "ar": "المعرفي",
           "en": "Cognitive",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "language",
           "ar": "اللغة",
           "en": "Language",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "motor",
           "ar": "الحركة",
           "en": "Motor",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "social_emotional",
           "ar": "الاجتماعي الانفعالي",
           "en": "Social-emotional",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "adaptive",
           "ar": "التكيفي",
           "en": "Adaptive behaviour",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -3345,31 +3522,36 @@
           "key": "abc",
           "ar": "مركب السلوك التكيفي (ABC)",
           "en": "Adaptive Behaviour Composite",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "communication",
           "ar": "التواصل",
           "en": "Communication",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "daily_living",
           "ar": "مهارات الحياة اليومية",
           "en": "Daily living skills",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "socialization",
           "ar": "التنشئة الاجتماعية",
           "en": "Socialization",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "motor",
           "ar": "الحركة",
           "en": "Motor skills",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -3386,25 +3568,29 @@
           "key": "gac",
           "ar": "المركب العام (GAC)",
           "en": "General Adaptive Composite",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "conceptual",
           "ar": "المفاهيمي",
           "en": "Conceptual",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "social",
           "ar": "الاجتماعي",
           "en": "Social",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "practical",
           "ar": "العملي",
           "en": "Practical",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -3421,37 +3607,43 @@
           "key": "fsiq",
           "ar": "الذكاء الكلي FSIQ",
           "en": "Full Scale IQ",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "vci",
           "ar": "الفهم اللفظي VCI",
           "en": "Verbal Comprehension",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "vsi",
           "ar": "البصري المكاني VSI",
           "en": "Visual Spatial",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "fri",
           "ar": "الاستدلال السائل FRI",
           "en": "Fluid Reasoning",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "wmi",
           "ar": "الذاكرة العاملة WMI",
           "en": "Working Memory",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "psi",
           "ar": "سرعة المعالجة PSI",
           "en": "Processing Speed",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -3468,19 +3660,22 @@
           "key": "fsiq",
           "ar": "الذكاء الكلي FSIQ",
           "en": "Full Scale IQ",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "nviq",
           "ar": "غير اللفظي NVIQ",
           "en": "Nonverbal IQ",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "viq",
           "ar": "اللفظي VIQ",
           "en": "Verbal IQ",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -3497,37 +3692,43 @@
           "key": "general",
           "ar": "الذاكرة العامة",
           "en": "General memory",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "attention",
           "ar": "الانتباه والتركيز",
           "en": "Attention/concentration",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "verbal_immediate",
           "ar": "اللفظية الفورية",
           "en": "Verbal immediate",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "verbal_delayed",
           "ar": "اللفظية المؤجلة",
           "en": "Verbal delayed",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "visual_immediate",
           "ar": "البصرية الفورية",
           "en": "Visual immediate",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "visual_delayed",
           "ar": "البصرية المؤجلة",
           "en": "Visual delayed",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -3544,25 +3745,29 @@
           "key": "general",
           "ar": "مؤشر الذاكرة العامة",
           "en": "General Memory Index",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "verbal",
           "ar": "الذاكرة اللفظية",
           "en": "Verbal memory",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "visual",
           "ar": "الذاكرة البصرية",
           "en": "Visual memory",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "attention",
           "ar": "الانتباه والتركيز",
           "en": "Attention/concentration",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -3579,19 +3784,22 @@
           "key": "core",
           "ar": "اللغة الأساسية",
           "en": "Core language",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "receptive",
           "ar": "الاستقبالية",
           "en": "Receptive language",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "expressive",
           "ar": "التعبيرية",
           "en": "Expressive language",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -3608,13 +3816,15 @@
           "key": "standard",
           "ar": "الدرجة المعيارية",
           "en": "Standard score",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "percentile",
           "ar": "المئين",
           "en": "Percentile",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -3631,13 +3841,15 @@
           "key": "standard",
           "ar": "الدرجة المعيارية",
           "en": "Standard score",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "percentile",
           "ar": "المئين",
           "en": "Percentile",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -3654,25 +3866,29 @@
           "key": "total",
           "ar": "التحصيل الكلي",
           "en": "Total achievement",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "reading",
           "ar": "القراءة",
           "en": "Reading",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "writing",
           "ar": "التعبير الكتابي",
           "en": "Written expression",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "math",
           "ar": "الرياضيات",
           "en": "Mathematics",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -3689,19 +3905,22 @@
           "key": "reading",
           "ar": "القراءة الواسعة",
           "en": "Broad reading",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "math",
           "ar": "الرياضيات الواسعة",
           "en": "Broad mathematics",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "writing",
           "ar": "اللغة المكتوبة الواسعة",
           "en": "Broad written language",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -3718,19 +3937,22 @@
           "key": "awareness",
           "ar": "الوعي الصوتي",
           "en": "Phonological awareness",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "memory",
           "ar": "الذاكرة الصوتية",
           "en": "Phonological memory",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "naming",
           "ar": "التسمية السريعة",
           "en": "Rapid symbolic naming",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -3747,19 +3969,22 @@
           "key": "total",
           "ar": "مجموع المشاكل (T)",
           "en": "Total problems (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "internalizing",
           "ar": "الداخلية (T)",
           "en": "Internalizing (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "externalizing",
           "ar": "الخارجية (T)",
           "en": "Externalizing (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ]
     },
@@ -3777,42 +4002,48 @@
           "ar": "مجموع الصعوبات (من ٤٠)",
           "en": "Total difficulties (of 40)",
           "type": "count",
-          "max": 40
+          "max": 40,
+          "better": "lower"
         },
         {
           "key": "emotional",
           "ar": "الأعراض الانفعالية (من ١٠)",
           "en": "Emotional symptoms (of 10)",
           "type": "count",
-          "max": 10
+          "max": 10,
+          "better": "lower"
         },
         {
           "key": "conduct",
           "ar": "مشاكل السلوك (من ١٠)",
           "en": "Conduct problems (of 10)",
           "type": "count",
-          "max": 10
+          "max": 10,
+          "better": "lower"
         },
         {
           "key": "hyperactivity",
           "ar": "فرط الحركة وقلة الانتباه (من ١٠)",
           "en": "Hyperactivity/inattention (of 10)",
           "type": "count",
-          "max": 10
+          "max": 10,
+          "better": "lower"
         },
         {
           "key": "peer",
           "ar": "مشاكل مع الأقران (من ١٠)",
           "en": "Peer problems (of 10)",
           "type": "count",
-          "max": 10
+          "max": 10,
+          "better": "lower"
         },
         {
           "key": "prosocial",
           "ar": "السلوك الاجتماعي الإيجابي (من ١٠)",
           "en": "Prosocial (of 10)",
           "type": "count",
-          "max": 10
+          "max": 10,
+          "better": "higher"
         }
       ]
     },
@@ -3829,25 +4060,29 @@
           "key": "bsi",
           "ar": "مؤشر الأعراض السلوكية (T)",
           "en": "Behavioural Symptoms Index (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "externalizing",
           "ar": "المشاكل الخارجية (T)",
           "en": "Externalizing (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "internalizing",
           "ar": "المشاكل الداخلية (T)",
           "en": "Internalizing (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "adaptive",
           "ar": "المهارات التكيفية (T)",
           "en": "Adaptive skills (T)",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -3864,13 +4099,15 @@
           "key": "omissions",
           "ar": "الاستجابات الفايتة",
           "en": "Omissions",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "commissions",
           "ar": "أخطاء التسرع",
           "en": "Commissions",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "rt",
@@ -3882,7 +4119,8 @@
           "key": "rt_var",
           "ar": "تذبذب زمن الاستجابة",
           "en": "Response-time variability",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ]
     },
@@ -3905,7 +4143,8 @@
           "key": "errors",
           "ar": "الأخطاء",
           "en": "Errors",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "interference",
@@ -3928,25 +4167,29 @@
           "key": "total",
           "ar": "الدرجة الكلية المعيارية",
           "en": "Total standard score",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "dexterity",
           "ar": "المهارة اليدوية",
           "en": "Manual dexterity",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "aiming",
           "ar": "التصويب والالتقاط",
           "en": "Aiming & catching",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "balance",
           "ar": "التوازن",
           "en": "Balance",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -3963,31 +4206,36 @@
           "key": "total",
           "ar": "المركب الحركي الكلي",
           "en": "Total motor composite",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "fine",
           "ar": "التحكم اليدوي الدقيق",
           "en": "Fine manual control",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "coordination",
           "ar": "التآزر اليدوي",
           "en": "Manual coordination",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "body",
           "ar": "التآزر الجسمي",
           "en": "Body coordination",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "strength",
           "ar": "القوة والرشاقة",
           "en": "Strength & agility",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -4004,19 +4252,22 @@
           "key": "vmi",
           "ar": "التكامل البصري الحركي",
           "en": "Visual-motor integration",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "visual",
           "ar": "الإدراك البصري",
           "en": "Visual perception",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "motor",
           "ar": "التآزر الحركي",
           "en": "Motor coordination",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ]
     },
@@ -4034,42 +4285,48 @@
           "ar": "المجموع (من ٨٢)",
           "en": "Total (of 82)",
           "type": "count",
-          "max": 82
+          "max": 82,
+          "better": "lower"
         },
         {
           "key": "panic",
           "ar": "الهلع / الأعراض الجسدية (من ٢٦)",
           "en": "Panic / somatic (of 26)",
           "type": "count",
-          "max": 26
+          "max": 26,
+          "better": "lower"
         },
         {
           "key": "gad",
           "ar": "القلق العام (من ١٨)",
           "en": "Generalized anxiety (of 18)",
           "type": "count",
-          "max": 18
+          "max": 18,
+          "better": "lower"
         },
         {
           "key": "separation",
           "ar": "قلق الانفصال (من ١٦)",
           "en": "Separation anxiety (of 16)",
           "type": "count",
-          "max": 16
+          "max": 16,
+          "better": "lower"
         },
         {
           "key": "social",
           "ar": "القلق الاجتماعي (من ١٤)",
           "en": "Social anxiety (of 14)",
           "type": "count",
-          "max": 14
+          "max": 14,
+          "better": "lower"
         },
         {
           "key": "school",
           "ar": "تجنّب المدرسة (من ٨)",
           "en": "School avoidance (of 8)",
           "type": "count",
-          "max": 8
+          "max": 8,
+          "better": "lower"
         }
       ]
     },
@@ -4086,19 +4343,22 @@
           "key": "total",
           "ar": "المجموع (T)",
           "en": "Total (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "anxiety",
           "ar": "القلق الكلي (T)",
           "en": "Total anxiety (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "depression",
           "ar": "الاكتئاب (T)",
           "en": "Depression (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ]
     },
@@ -4116,35 +4376,40 @@
           "ar": "شدة اللزمات الحركية (من ٢٥)",
           "en": "Motor tic severity (of 25)",
           "type": "count",
-          "max": 25
+          "max": 25,
+          "better": "lower"
         },
         {
           "key": "phonic",
           "ar": "شدة اللزمات الصوتية (من ٢٥)",
           "en": "Phonic tic severity (of 25)",
           "type": "count",
-          "max": 25
+          "max": 25,
+          "better": "lower"
         },
         {
           "key": "total",
           "ar": "مجموع شدة اللزمات (من ٥٠)",
           "en": "Total tic severity (of 50)",
           "type": "count",
-          "max": 50
+          "max": 50,
+          "better": "lower"
         },
         {
           "key": "impairment",
           "ar": "التأثير على الحياة (من ٥٠)",
           "en": "Impairment (of 50)",
           "type": "count",
-          "max": 50
+          "max": 50,
+          "better": "lower"
         },
         {
           "key": "global",
           "ar": "الدرجة الكلية (من ١٠٠)",
           "en": "Global severity (of 100)",
           "type": "count",
-          "max": 100
+          "max": 100,
+          "better": "lower"
         }
       ]
     },
@@ -4161,7 +4426,8 @@
           "key": "total",
           "ar": "المجموع",
           "en": "Total score",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ]
     },
@@ -4178,7 +4444,8 @@
           "key": "score",
           "ar": "الدرجة (أيام متأثرة في ٣ شهور)",
           "en": "Score (days affected in 3 months)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ]
     },
@@ -4195,25 +4462,29 @@
           "key": "days",
           "ar": "أيام الصداع في الشهر",
           "en": "Headache days per month",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "longest",
           "ar": "أطول نوبة (ساعة)",
           "en": "Longest attack (hours)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "severity",
           "ar": "أشد ألم (حسب المقياس المناسب للسن)",
           "en": "Worst pain (age-appropriate scale)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "school_days",
           "ar": "أيام غياب عن المدرسة",
           "en": "School days missed",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ]
     },
@@ -4230,25 +4501,29 @@
           "key": "per_month",
           "ar": "عدد النوبات في الشهر",
           "en": "Seizures per month",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "longest",
           "ar": "أطول نوبة (دقيقة)",
           "en": "Longest seizure (minutes)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "clusters",
           "ar": "مرات النوبات المتتالية",
           "en": "Clusters",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "rescue",
           "ar": "مرات دوا الطوارئ",
           "en": "Rescue medication doses",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ]
     }

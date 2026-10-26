@@ -2,6 +2,7 @@
    `report_sheet.html` holds both. The approved report as it stands: the
    scores the specialist wrote, a tool's own criterion only where its
    instructions set one, the impression and the doctor's word. #}
+{% import "assessments/_progress.html" as prog with context %}
 {% set tools = answers.get('tools') or {} %}
 <header class="head">
   <div class="head__top">
@@ -41,6 +42,8 @@
   {% set picked = answers.get(s.key) or [] %}
   {% if picked %}<section class="card"><h2 class="card__name">{{ label }}</h2>
     <div class="chips">{% for o in s.options if o.key in picked %}<span class="chip">{{ o[L] or o.ar }}</span>{% endfor %}</div></section>{% endif %}
+{% elif s.type == 'ages' %}
+  {% if development %}<section class="card" data-sheet-ages><h2 class="card__name">{{ label }}</h2>{{ prog.dev_bars(development, progress, L) }}</section>{% endif %}
 {% elif s.type == 'single' %}
   {% for o in s.options if answers.get(s.key) == o.key %}<section class="card"><h2 class="card__name">{{ label }}</h2><p style="margin:0;">{{ o[L] or o.ar }}</p></section>{% endfor %}
 {% elif s.type == 'text' and answers.get(s.key) %}
@@ -50,6 +53,10 @@
 {% endif %}
 {% endfor %}
 
+{% set moving = trends|selectattr('prev', 'ne', none)|list %}
+{% if moving %}
+<section class="card" data-sheet-trends><h2 class="card__name">{{ t('progress.title') }}</h2>{{ prog.trend_rows(moving, L) }}</section>
+{% endif %}
 <section class="card" data-sheet-people>
   <div>{{ t('assessment.written_by', who=row.assessor.display_name(L) if row.assessor else '—') }}</div>
   <div>{{ t('assessment.approved_by', who=row.approver.display_name(L) if row.approver else '—', when=row.approved_at|clinic_stamp) }}</div>

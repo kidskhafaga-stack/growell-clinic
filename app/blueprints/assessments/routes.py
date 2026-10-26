@@ -48,11 +48,14 @@ def _refuse(err, back):
 @_door
 def patient_list(patient_id):
     from app.models import Patient
+    from app.utils.clock import local_today
 
     patient = db.get_or_404(Patient, patient_id)
     return render_template("assessments/patient.html", patient=patient,
                            rows=asm.for_patient(patient.id), kinds=asm.kinds(_lang()),
-                           may_write=asm.may_write(current_user), asm=asm)
+                           may_write=asm.may_write(current_user), asm=asm,
+                           overview=asm.overview(patient),
+                           age_months=asm.months_on(patient, local_today()))
 
 
 @assessments_bp.route("/patient/<int:patient_id>/new", methods=["POST"])
@@ -89,7 +92,14 @@ def view(assessment_id):
                            may_approve=asm.may_approve(current_user) and row.status != "approved",
                            may_edit_form=asm.may_edit_form(current_user), asm=asm,
                            may_send=_may_send(current_user) and row.status == "approved",
-                           shares=_shares(row))
+                           shares=_shares(row), **_progress(row))
+
+
+def _progress(row):
+    """How far along and which way (ت-٥), for every page that shows it."""
+    return {"chrono": asm.months_on(row.patient, row.assessed_on),
+            "development": asm.development(row), "progress": asm.progress(row),
+            "trends": asm.trends(row)}
 
 
 def _shares(row):
@@ -137,7 +147,7 @@ def report(assessment_id):
     return render_template("assessments/report.html", row=row, patient=row.patient,
                            form=row.form, answers=row.answers or {},
                            history=asm.history(row), age=asm.age_on(row.patient, row.assessed_on),
-                           printed_at=local_now(), asm=asm)
+                           printed_at=local_now(), asm=asm, **_progress(row))
 
 
 # ------------------------------------------------ to the family (ت-٣) ---

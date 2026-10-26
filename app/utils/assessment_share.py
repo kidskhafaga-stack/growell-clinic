@@ -60,7 +60,8 @@ def sheet(row, open_lang="ar"):
                 form=row.form, answers=row.answers or {}, history=asm.history(row),
                 age=asm.age_on(row.patient, row.assessed_on), asm=asm,
                 clinic_name=lab_share._clinic_name(), printed_at=printed,
-                L=code)))
+                development=asm.development(row), progress=asm.progress(row),
+                trends=asm.trends(row), L=code)))
     finally:
         g.lang, g.direction = saved
     name = row.form.get("name_" + open_lang) or row.form.get("name_ar") or ""

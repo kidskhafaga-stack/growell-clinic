@@ -26,7 +26,11 @@ from app.extensions import db
 _PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "assessments.json")
 MODULE = "panels"
 CAPABILITY = "assessments"
-OPTION_TYPES = ("single", "multi", "checks")
+OPTION_TYPES = ("single", "multi", "checks", "ages")
+
+#: The highest developmental age a box takes, in months — a typing guard,
+#: not a clinical figure.
+AGE_MONTHS_MAX = 240
 
 
 class AssessmentError(ValueError):
@@ -187,6 +191,11 @@ def read_answers(row, data):
             out[key] = value if value in allowed else None
         elif kind in ("multi", "checks"):
             out[key] = [v for v in _getlist(data, key) if v in allowed]
+        elif kind == "ages":
+            # The developmental (age-equivalent) age per domain, in months —
+            # from the tool's report or the specialist's estimate.
+            out[key] = {k: v for k, v in ((k, _number(data.get(f"age_{key}_{k}"), 0, AGE_MONTHS_MAX))
+                                           for k in allowed) if v is not None}
         elif kind == "text":
             out[key] = (data.get(key) or "").strip()[:4000]
         elif kind == "date":
@@ -282,6 +291,134 @@ def history(row):
                 if value is not None:
                     out.setdefault((tkey, fkey), []).append((item.assessed_on, value))
     return {k: v for k, v in out.items() if len(v) > 1}
+
+
+# ------------------------------------------------- progress and delay ---
+def months_on(patient, on):
+    """Whole months of age on that day, or ``None``."""
+    parts = age_on(patient, on)
+    return parts[0] * 12 + parts[1] if parts else None
+
+
+def _ages_section(form):
+    return next((s for s in (form or {}).get("sections") or [] if s.get("type") == "ages"), None)
+
+
+def development(row):
+    """The developmental age per domain against the child's age that day:
+    ``{"chrono", "rows": [{key, ar, en, dev, gap, ratio}]}`` — ``gap`` in
+    months (below zero: behind), ``ratio`` the developmental age over the
+    real age, in percent. Arithmetic on what was written; no cut-off and no
+    word about what a figure means."""
+    section = _ages_section(row.form)
+    chrono = months_on(row.patient, row.assessed_on)
+    given = ((row.answers or {}).get(section["key"]) or {}) if section else {}
+    if not section or not given or not chrono:
+        return None
+    rows = []
+    for o in section.get("options") or []:
+        dev = given.get(o["key"])
+        if dev is None:
+            continue
+        rows.append({"key": o["key"], "ar": o["ar"], "en": o.get("en") or o["ar"], "dev": dev,
+                     "gap": round(dev - chrono, 1), "ratio": round(dev * 100.0 / chrono)})
+    return {"chrono": chrono, "rows": rows} if rows else None
+
+
+def _before(row, kind=None):
+    """This child's approved assessments before this one, oldest first."""
+    from app.models import Assessment
+
+    q = Assessment.query.filter(Assessment.patient_id == row.patient_id,
+                                Assessment.status == "approved", Assessment.id != row.id,
+                                Assessment.assessed_on <= row.assessed_on)
+    if kind:
+        q = q.filter(Assessment.kind == kind)
+    return q.order_by(Assessment.assessed_on, Assessment.id).all()
+
+
+def progress(row):
+    """Since the last approved assessment of the same kind with ages: the
+    developmental months gained per domain against the months that passed —
+    ``rate`` is the percent of a month gained per month lived."""
+    now = development(row)
+    if not now:
+        return None
+    for prev in reversed(_before(row, row.kind)):
+        then = development(prev)
+        if not then:
+            continue
+        elapsed = now["chrono"] - then["chrono"]
+        if elapsed <= 0:
+            continue
+        old = {r["key"]: r["dev"] for r in then["rows"]}
+        rows = []
+        for r in now["rows"]:
+            if r["key"] in old:
+                gained = round(r["dev"] - old[r["key"]], 1)
+                rows.append({**r, "before": old[r["key"]], "gained": gained,
+                             "rate": round(gained * 100.0 / elapsed)})
+        if rows:
+            return {"since": prev.assessed_on, "elapsed": elapsed, "rows": rows}
+    return None
+
+
+def _direction(field, delta):
+    if delta is None:
+        return None
+    if abs(delta) < 1e-9:
+        return "same"
+    better = field.get("better")
+    if better not in ("higher", "lower"):
+        return "moved"
+    return "better" if (delta > 0) == (better == "higher") else "worse"
+
+
+def trends(row):
+    """Each score on this assessment beside the same tool's earlier ones for
+    this child (any kind of assessment that used the tool): the points, the
+    change since the last one, and which way that is **as the scale is
+    built** (``better`` per field). The same tool only — never two tools on
+    one line."""
+    tools = (row.answers or {}).get("tools") or {}
+    defs = row.form.get("tool_defs") or {}
+    earlier = _before(row)
+    out = []
+    for tkey, values in tools.items():
+        tool = defs.get(tkey)
+        if not tool:
+            continue
+        for field in tool.get("fields") or []:
+            value = (values or {}).get(field["key"])
+            if value is None:
+                continue
+            points = [(item.assessed_on, ((item.answers or {}).get("tools") or {}).get(tkey, {}).get(field["key"]))
+                      for item in earlier]
+            points = [(d, v) for d, v in points if v is not None] + [(row.assessed_on, value)]
+            prev = points[-2][1] if len(points) > 1 else None
+            delta = round(value - prev, 2) if prev is not None else None
+            out.append({"tool": tkey, "tool_ar": tool.get("name_ar"), "tool_en": tool.get("name_en"),
+                        "field": field, "points": points, "value": value, "prev": prev,
+                        "delta": delta, "direction": _direction(field, delta)})
+    return out
+
+
+def overview(patient):
+    """The child's assessments at a glance: the latest of each kind, its
+    development rows and progress, and every score's line over time."""
+    from app.models import Assessment
+
+    rows = (Assessment.query.filter_by(patient_id=patient.id, status="approved")
+            .order_by(Assessment.assessed_on, Assessment.id).all())
+    latest = {}
+    for r in rows:
+        latest[r.kind] = r
+    kinds = []
+    for kind, r in sorted(latest.items(), key=lambda kv: kv[1].assessed_on, reverse=True):
+        kinds.append({"row": r, "development": development(r), "progress": progress(r),
+                      "trends": [t for t in trends(r) if len(t["points"]) > 1],
+                      "count": sum(1 for x in rows if x.kind == kind)})
+    return kinds
 
 
 def for_patient(patient_id):
