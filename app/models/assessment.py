@@ -108,3 +108,107 @@ class AssessmentShare(db.Model):
     @property
     def expired(self):
         return datetime.utcnow() > self.expires_at
+
+
+class QuestionnaireText(db.Model):
+    """The clinic's wording of one questionnaire (ASSESSMENTS_PLAN.md ت-٤).
+
+    The program carries each questionnaire's **shape** only
+    (``data/questionnaires.json``): how many items, each choice's points,
+    which items are reversed, and how each part is counted. The questions
+    and the choices are words somebody owns, so the clinic types them from
+    its own licensed copy, writes whose permission it uses, and a doctor
+    opens it. Until then the questionnaire does not appear anywhere.
+
+    Changing the wording of an open questionnaire closes it again until a
+    doctor reopens it; a questionnaire already sent keeps the words it was
+    sent with (``QuestionnaireRequest.form``).
+    """
+
+    __tablename__ = "questionnaire_texts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(40), unique=True, nullable=False, index=True)
+    #: ``draft`` until a doctor opens it, ``active`` while it may be sent,
+    #: ``off`` when the clinic stopped it.
+    status = db.Column(db.String(10), nullable=False, default="draft")
+    holder = db.Column(db.String(200))
+    ref = db.Column(db.String(300))
+    notice = db.Column(db.Text)
+    intro_ar = db.Column(db.Text)
+    intro_en = db.Column(db.Text)
+    #: ``[{"ar": ..., "en": ...}]`` in item order.
+    items = db.Column(db.JSON, nullable=False, default=list)
+    #: ``{scale: [{"ar": ..., "en": ...}]}`` in the order of the scale's points.
+    options = db.Column(db.JSON, nullable=False, default=dict)
+    approved_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    approved_at = db.Column(db.DateTime)
+    approval_note = db.Column(db.String(255))
+    updated_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow,
+                           onupdate=datetime.utcnow, nullable=False)
+
+    approver = db.relationship("User", foreign_keys=[approved_by])
+    editor = db.relationship("User", foreign_keys=[updated_by])
+
+
+class QuestionnaireRequest(db.Model):
+    """One questionnaire handed to a parent, a teacher or the child for one
+    assessment (ت-٤): on the clinic's tablet, as a link, or on paper the
+    specialist types in afterwards.
+
+    It carries the questionnaire as it was sent (``form``), the answers, and
+    the scores those answers make. The scores reach the assessment only when
+    the specialist presses «put the scores in» — nothing writes itself into
+    a child's record.
+    """
+
+    __tablename__ = "questionnaire_requests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(48), unique=True, nullable=False, index=True)
+    key = db.Column(db.String(40), nullable=False, index=True)
+    assessment_id = db.Column(db.Integer, db.ForeignKey("assessments.id"),
+                              nullable=False, index=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"),
+                           nullable=False, index=True)
+    #: ``parent``, ``teacher`` or ``self``.
+    informant = db.Column(db.String(10), nullable=False, default="parent")
+    #: ``tablet``, ``link`` or ``paper``.
+    mode = db.Column(db.String(6), nullable=False, default="tablet")
+    #: The teacher's or parent's name, when the specialist wrote one.
+    respondent = db.Column(db.String(120))
+    to_phone = db.Column(db.String(40))
+    lang = db.Column(db.String(2), nullable=False, default="ar")
+    form = db.Column(db.JSON, nullable=False)
+    #: ``{"<item number>": points}`` as answered.
+    answers = db.Column(db.JSON)
+    #: ``{part: value or None}`` — ``None`` where too few items were answered.
+    scores = db.Column(db.JSON)
+    #: ``open`` → ``done`` (answered) → ``used`` (in the assessment), or
+    #: ``cancelled``.
+    status = db.Column(db.String(10), nullable=False, default="open", index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    opened_at = db.Column(db.DateTime)
+    answered_at = db.Column(db.DateTime)
+    #: Set when the answers were typed in from paper by a member of staff.
+    entered_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    used_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    used_at = db.Column(db.DateTime)
+    message_id = db.Column(db.Integer, db.ForeignKey("message_logs.id"))
+
+    assessment = db.relationship("Assessment")
+    patient = db.relationship("Patient")
+    sender = db.relationship("User", foreign_keys=[created_by])
+    enterer = db.relationship("User", foreign_keys=[entered_by])
+    user = db.relationship("User", foreign_keys=[used_by])
+
+    @property
+    def expired(self):
+        return datetime.utcnow() > self.expires_at
+
+    @property
+    def answerable(self):
+        return self.status == "open" and not self.expired

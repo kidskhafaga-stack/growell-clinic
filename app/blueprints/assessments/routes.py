@@ -92,7 +92,20 @@ def view(assessment_id):
                            may_approve=asm.may_approve(current_user) and row.status != "approved",
                            may_edit_form=asm.may_edit_form(current_user), asm=asm,
                            may_send=_may_send(current_user) and row.status == "approved",
-                           shares=_shares(row), **_progress(row))
+                           shares=_shares(row), **_progress(row), **_questionnaires(row))
+
+
+def _questionnaires(row):
+    """The questionnaires this assessment can hand over, and those it did (ت-٤)."""
+    from app.utils import lab_share
+    from app.utils import questionnaires as qn
+
+    offered = qn.offered(row) if row.status != "approved" else []
+    return {"q_offered": [{"key": k, "shape": sh, "langs": qn.build_form(k)["langs"],
+                           "age_outside": qn.age_outside(sh, row.patient, row.assessed_on)}
+                          for k, sh in offered],
+            "q_requests": qn.for_assessment(row), "q_online": lab_share.online(),
+            "q_phone": row.patient.contact_phone if row.patient else ""}
 
 
 def _progress(row):
@@ -298,3 +311,238 @@ def tool_add(kind):
 @_door
 def form_reset(kind):
     return _form_action(kind, lambda: asm.reset(kind, current_user))
+
+
+# ---------------------------------- questionnaires the family fills (ت-٤) --
+def _q_refuse(err, back):
+    db.session.rollback()
+    flash(t(f"asm_q.err_{err}"), "warning")
+    return redirect(back)
+
+
+@assessments_bp.route("/questionnaires")
+@_door
+def questionnaires():
+    """Every questionnaire the program has the shape of, and where each
+    stands: no words yet, waiting for a doctor, open, or stopped."""
+    from app.utils import questionnaires as qn
+
+    rows = []
+    for key, sh in qn.shapes().items():
+        text = qn.text_for(key)
+        rows.append({"key": key, "shape": sh, "text": text, "blockers": qn.blockers(key, text),
+                     "langs": qn.ready_langs(sh, text), "items": len(qn.items_of(sh))})
+    return render_template("assessments/questionnaires.html", rows=rows,
+                           may_edit=asm.may_edit_form(current_user),
+                           may_open=asm.may_approve(current_user))
+
+
+@assessments_bp.route("/questionnaires/<key>", methods=["GET", "POST"])
+@_door
+def questionnaire_words(key):
+    """The clinic types the questions and the choices from its licensed copy."""
+    from app.utils import questionnaires as qn
+
+    sh = qn.shape(key)
+    if sh is None:
+        abort(404)
+    may_edit = asm.may_edit_form(current_user)
+    problems = []
+    if request.method == "POST":
+        if not may_edit:
+            abort(403, description=t("auth.no_permission"))
+        problems = qn.save_text(key, request.form, current_user)
+        if not problems:
+            db.session.commit()
+            flash(t("asm_q.saved"), "success")
+            return redirect(url_for("assessments.questionnaire_words", key=key))
+        db.session.rollback()
+        flash(t("asm_q.err_lines"), "warning")
+    text = qn.text_for(key)
+    items = qn.items_of(sh)
+    given = text.items if text and text.items else [{"ar": "", "en": ""}] * len(items)
+    return render_template("assessments/questionnaire_words.html", key=key, sh=sh, text=text,
+                           items=items, given=given, problems=problems,
+                           posted=request.form if request.method == "POST" else None,
+                           blockers=qn.blockers(key, text), langs=qn.ready_langs(sh, text),
+                           may_edit=may_edit, may_open=asm.may_approve(current_user), qn=qn,
+                           fields={f["key"]: f for f in asm.default_tools()[sh["tool"]]["fields"]})
+
+
+@assessments_bp.route("/questionnaires/<key>/open", methods=["POST"])
+@_door
+def questionnaire_open(key):
+    from app.utils import questionnaires as qn
+
+    back = url_for("assessments.questionnaire_words", key=key)
+    if qn.shape(key) is None:
+        abort(404)
+    try:
+        qn.activate(key, current_user, request.form.get("note"))
+    except qn.QuestionnaireError as err:
+        return _q_refuse(err, back)
+    db.session.commit()
+    flash(t("asm_q.opened"), "success")
+    return redirect(back)
+
+
+@assessments_bp.route("/questionnaires/<key>/off", methods=["POST"])
+@_door
+def questionnaire_off(key):
+    from app.utils import questionnaires as qn
+
+    back = url_for("assessments.questionnaire_words", key=key)
+    if qn.shape(key) is None:
+        abort(404)
+    if not (asm.may_edit_form(current_user) or asm.may_approve(current_user)):
+        abort(403, description=t("auth.no_permission"))
+    try:
+        qn.switch_off(key, current_user)
+    except qn.QuestionnaireError as err:
+        return _q_refuse(err, back)
+    db.session.commit()
+    flash(t("asm_q.stopped"), "success")
+    return redirect(back)
+
+
+@assessments_bp.route("/<int:assessment_id>/questionnaire", methods=["POST"])
+@_door
+def questionnaire_new(assessment_id):
+    """Hand a questionnaire over: the tablet page, a WhatsApp link, or paper."""
+    from app.utils import questionnaires as qn
+
+    row = _row(assessment_id)
+    back = url_for("assessments.view", assessment_id=row.id) + "#questionnaires"
+    try:
+        req = qn.create(row, request.form.get("key"), current_user,
+                        informant=request.form.get("informant") or "parent",
+                        mode=request.form.get("mode") or "tablet",
+                        respondent=request.form.get("respondent"),
+                        phone=request.form.get("phone"), lang=request.form.get("lang") or _lang())
+    except qn.QuestionnaireError as err:
+        return _q_refuse(err, back)
+    db.session.commit()
+    if req.mode == "tablet":
+        return redirect(url_for("assessments.questionnaire_fill", token=req.token))
+    if req.mode == "paper":
+        return redirect(url_for("assessments.questionnaire_paper", request_id=req.id))
+    flash(t("asm_q.sent_link"), "success")
+    return redirect(back)
+
+
+def _request(request_id):
+    from app.models import QuestionnaireRequest
+
+    return db.get_or_404(QuestionnaireRequest, request_id)
+
+
+@assessments_bp.route("/questionnaire/<int:request_id>/paper")
+@_door
+def questionnaire_paper(request_id):
+    """The questionnaire on paper, to fill by hand and type in afterwards."""
+    req = _request(request_id)
+    L = request.args.get("lang") or req.lang
+    L = L if L in req.form["langs"] else req.lang
+    # The paper's own words (the labels around the questions) in the paper's
+    # language, whatever the screen is set to.
+    from app.i18n import get_direction
+
+    g.lang, g.direction = L, get_direction(L)
+    return render_template("assessments/questionnaire_paper.html", req=req, form=req.form, L=L)
+
+
+@assessments_bp.route("/questionnaire/<int:request_id>/enter", methods=["GET", "POST"])
+@_door
+def questionnaire_enter(request_id):
+    """A paper questionnaire, typed in by the specialist."""
+    from app.utils import questionnaires as qn
+
+    req = _request(request_id)
+    back = url_for("assessments.view", assessment_id=req.assessment_id) + "#questionnaires"
+    if not asm.may_write(current_user):
+        abort(403, description=t("auth.no_permission"))
+    if request.method == "POST":
+        try:
+            qn.answer(req, request.form, current_user)
+        except qn.QuestionnaireError as err:
+            return _q_refuse(err, back)
+        db.session.commit()
+        flash(t("asm_q.entered"), "success")
+        return redirect(back)
+    if not req.answerable:
+        return _q_refuse("closed", back)
+    return render_template("assessments/questionnaire_enter.html", req=req, form=req.form,
+                           L=req.lang)
+
+
+@assessments_bp.route("/questionnaire/<int:request_id>/use", methods=["POST"])
+@_door
+def questionnaire_use(request_id):
+    """The specialist puts the scores into the assessment."""
+    from app.utils import questionnaires as qn
+
+    req = _request(request_id)
+    back = url_for("assessments.view", assessment_id=req.assessment_id)
+    try:
+        qn.use(req, current_user)
+    except qn.QuestionnaireError as err:
+        return _q_refuse(err, back + "#questionnaires")
+    db.session.commit()
+    flash(t("asm_q.used"), "success")
+    return redirect(back)
+
+
+@assessments_bp.route("/questionnaire/<int:request_id>/cancel", methods=["POST"])
+@_door
+def questionnaire_cancel(request_id):
+    from app.utils import questionnaires as qn
+
+    req = _request(request_id)
+    back = url_for("assessments.view", assessment_id=req.assessment_id) + "#questionnaires"
+    try:
+        qn.cancel(req, current_user)
+    except qn.QuestionnaireError as err:
+        return _q_refuse(err, back)
+    db.session.commit()
+    flash(t("asm_q.cancelled"), "success")
+    return redirect(back)
+
+
+@assessments_bp.route("/q/<token>", methods=["GET", "POST"])
+def questionnaire_fill(token):
+    """What the parent, the teacher or the child opens — on the clinic's
+    tablet or from the message. The questions only: no score, no record.
+    Answered once; then it says thank you and closes."""
+    from datetime import datetime
+
+    from app.utils import questionnaires as qn
+
+    if not asm.on():
+        abort(404)
+    req = qn.by_token(token)
+    if req is None or req.mode == "paper":
+        return render_template("assessments/questionnaire_fill.html", status="gone"), 404
+    L = request.args.get("lang") or req.lang
+    L = L if L in req.form["langs"] else req.lang
+    from app.i18n import get_direction
+
+    g.lang, g.direction = L, get_direction(L)
+    if req.status in ("done", "used"):
+        return render_template("assessments/questionnaire_fill.html", status="thanks", req=req,
+                               form=req.form, L=L)
+    if not req.answerable:
+        return render_template("assessments/questionnaire_fill.html", status="closed"), 410
+    if request.method == "POST":
+        try:
+            qn.answer(req, request.form)
+        except qn.QuestionnaireError:
+            db.session.rollback()
+            return render_template("assessments/questionnaire_fill.html", status="closed"), 410
+        db.session.commit()
+        return render_template("assessments/questionnaire_fill.html", status="thanks", req=req,
+                               form=req.form, L=L)
+    if req.opened_at is None:
+        req.opened_at = datetime.utcnow()
+        db.session.commit()
+    return render_template("assessments/questionnaire_fill.html", status="ask", req=req,
+                           form=req.form, L=L)

@@ -1,0 +1,67 @@
+{# The questionnaire on paper (ت-٤): for a teacher with no phone to hand, or
+   a clinic that is not online. Printed with the clinic's words, the child's
+   name, a line for whoever fills it, and the owner's copyright line; the
+   specialist types it in afterwards («enter from paper»). #}
+<!doctype html>
+<html lang="{{ L }}" dir="{{ 'ltr' if L == 'en' else 'rtl' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ form['name_' ~ L] or form.name_ar }} — {{ req.patient.display_name(L) }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/cairo/cairo.css') }}">
+  <style>
+    :root { --ink:#1d2b3a; --muted:#5b6b7b; --line:#cfd8e1; --paper:#fff; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#eef2f5; color:var(--ink); font-family:"Cairo Local","Cairo","Segoe UI",Tahoma,sans-serif; font-size:13px; }
+    .sheet { max-width:820px; margin:18px auto; background:var(--paper); padding:18mm 14mm; box-shadow:0 4px 18px rgba(0,0,0,.08); }
+    h1 { font-size:17px; margin:0 0 4px; }
+    .who { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:6px 18px; margin:10px 0 12px; }
+    .who span { border-bottom:1px solid var(--line); padding:4px 0; }
+    .intro { white-space:pre-line; line-height:1.7; margin:0 0 10px; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { border-bottom:1px solid var(--line); padding:6px 4px; vertical-align:top; text-align:start; }
+    th { font-size:11px; color:var(--muted); font-weight:600; }
+    td.n { width:2.2em; color:var(--muted); font-variant-numeric:tabular-nums; }
+    td.box { text-align:center; white-space:nowrap; width:1%; }
+    .tick { display:inline-block; width:14px; height:14px; border:1.4px solid var(--ink); border-radius:3px; vertical-align:middle; }
+    tr { break-inside:avoid; }
+    .notice { margin-top:14px; color:var(--muted); font-size:11px; white-space:pre-line; text-align:center; }
+    .bar { max-width:820px; margin:12px auto 0; display:flex; gap:8px; justify-content:flex-end; }
+    .bar button, .bar a { font:inherit; padding:7px 14px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--ink); text-decoration:none; cursor:pointer; }
+    @media print { body { background:#fff; } .sheet { box-shadow:none; margin:0; max-width:none; padding:0; } .bar { display:none; } @page { margin:14mm; } }
+  </style>
+</head>
+<body>
+<div class="bar">
+  {% for code in form.langs if code != L %}<a href="?lang={{ code }}">{{ 'English' if code == 'en' else 'العربية' }}</a>{% endfor %}
+  <a href="{{ url_for('assessments.questionnaire_enter', request_id=req.id) }}" data-qn-enter>{{ t('asm_q.enter_from_paper') }}</a>
+  <button type="button" onclick="window.print()" data-print>{{ t('asm_q.print') }}</button>
+</div>
+<div class="sheet" data-qn-paper>
+  <h1>{{ form['name_' ~ L] or form.name_ar }}</h1>
+  <div class="who">
+    <span>{{ t('asm_q.paper_child') }}: <b>{{ req.patient.display_name(L) }}</b></span>
+    <span>{{ t('asm_q.paper_filled_by') }}: {{ req.respondent or '' }}</span>
+    <span>{{ t('asm_q.by_' ~ req.informant) }}</span>
+    <span>{{ t('asm_q.paper_date') }}:</span>
+  </div>
+  {% set intro = form['intro_' ~ L] or form.intro_ar %}
+  {% if intro %}<p class="intro">{{ intro }}</p>{% endif %}
+  {% set ns = namespace(scale=None) %}
+  <table>
+    {% for it in form['items'] %}
+    {% set opts = form.scales[it.scale] %}
+    {% if it.scale != ns.scale %}{% set ns.scale = it.scale %}
+    <tr><th></th><th></th>{% for o in opts %}<th style="text-align:center;">{{ o[L] or o.ar or o.en }}</th>{% endfor %}</tr>
+    {% endif %}
+    <tr data-paper-item="{{ it.n }}">
+      <td class="n">{{ it.n }}</td>
+      <td>{{ it[L] or it.ar or it.en }}</td>
+      {% for o in opts %}<td class="box"><span class="tick" aria-label="{{ o[L] or o.ar }}"></span></td>{% endfor %}
+    </tr>
+    {% endfor %}
+  </table>
+  {% if form.notice %}<p class="notice">{{ form.notice }}</p>{% endif %}
+</div>
+</body>
+</html>

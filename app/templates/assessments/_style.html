@@ -47,4 +47,27 @@
   .as-gap { font-size:.78rem; font-weight:700; padding:2px 8px; border-radius:999px; background:#eef2f6; color:#475569; white-space:nowrap; }
   .as-gap.is-behind { background:#fdf0dc; color:#9a4a07; }
   .as-gap.is-ahead { background:#e3f4ea; color:#166534; }
+  /* ت-٤ — handing a questionnaire over, and what came back. */
+  .qa-give { border:1px solid var(--line); border-radius:12px; padding:8px 12px; }
+  .qa-give summary { cursor:pointer; }
+  .qa-form { display:grid; gap:8px; margin-top:8px; }
+  .qa-modes { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .qa-link { display:flex; gap:6px; }
+  .qa-link .input { flex:1 1 auto; min-width:0; }
+  .qa-warn { margin:6px 0 0; font-size:.82rem; color:#92400e; background:#fef3c7; border-radius:8px; padding:6px 10px; }
+  .qa-req { display:grid; gap:4px; border-top:1px solid var(--line); padding-top:10px; }
+  .qa-meta { font-size:.78rem; color:var(--muted); }
+  .qa-req__top { display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; align-items:baseline; }
+  .qa-chip { font-size:.75rem; font-weight:700; padding:2px 9px; border-radius:999px; background:#eef2f6; color:#475569; white-space:nowrap; }
+  .qa-chip.is-done { background:#e8f0fb; color:#1e4e8c; }
+  .qa-chip.is-used { background:#e3f4ea; color:#166534; }
+  .qa-chip.is-late, .qa-chip.is-cancelled { background:#f3e8e8; color:#8a2b2b; }
+  .qa-scores { display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:4px 10px; margin:2px 0; }
+  .qa-scores div { display:flex; justify-content:space-between; gap:6px; border-bottom:1px dotted var(--line); padding:2px 0; font-size:.84rem; }
+  .qa-scores dt { color:var(--muted); font-weight:400; }
+  .qa-scores dd { margin:0; font-weight:700; font-variant-numeric:tabular-nums; }
+  html[data-theme="dark"] .qa-warn { background:rgba(245,158,11,.16); color:#fcd34d; }
+  html[data-theme="dark"] .qa-chip { background:rgba(148,163,184,.16); color:#cbd5e1; }
+  html[data-theme="dark"] .qa-chip.is-used { background:rgba(34,197,94,.16); color:#86efac; }
+  html[data-theme="dark"] .qa-chip.is-done { background:rgba(59,130,246,.16); color:#bfdbfe; }
 </style>

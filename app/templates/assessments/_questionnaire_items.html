@@ -1,0 +1,80 @@
+{# The questions of one questionnaire as a form (ت-٤) — the same on the
+   clinic's tablet, on the link, and when the specialist types a paper in.
+   One item per row, its choices as large buttons a thumb can hit; the
+   choices' words are printed above each run of items that shares them. No
+   score is shown here: whoever fills it sees the questions only. #}
+{% macro items(form, L, given=None) %}
+{% set given = given or {} %}
+<ol class="qn-items" data-qn-items>
+  {% for it in form['items'] %}
+  {% set opts = form.scales[it.scale] %}
+  <li class="qn-item" data-qn-item="{{ it.n }}">
+    <fieldset>
+      <legend><span class="qn-n">{{ it.n }}</span> <span dir="auto">{{ it[L] or it.ar or it.en }}</span></legend>
+      <div class="qn-opts" role="radiogroup">
+        {% for o in opts %}
+        <label class="qn-opt">
+          <input type="radio" name="i_{{ it.n }}" value="{{ o.v }}"{{ ' checked' if given.get(it.n|string) == o.v else '' }}>
+          <span>{{ o[L] or o.ar or o.en }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+  </li>
+  {% endfor %}
+</ol>
+{% endmacro %}
+
+{% macro style() %}
+<style>
+  .qn-items { list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+  .qn-item fieldset { border:1px solid var(--line,#dfe5ec); border-radius:14px; padding:12px 14px; margin:0;
+    background:var(--card,#fff); display:grid; gap:10px; min-width:0; }
+  .qn-item.is-done fieldset { border-color:var(--green-200,#b7dccb); }
+  .qn-item legend { padding:0; font-weight:600; line-height:1.6; display:flex; gap:10px; align-items:baseline; float:left; width:100%; }
+  .qn-item legend + * { clear:both; }
+  .qn-n { flex:0 0 auto; min-width:1.9em; text-align:center; font-variant-numeric:tabular-nums; color:var(--muted,#5b6b7b);
+    background:var(--bg,#f1f5f4); border-radius:999px; font-size:.82rem; padding:1px 6px; }
+  .qn-opts { display:flex; flex-wrap:wrap; gap:8px; }
+  .qn-opt { position:relative; flex:1 1 120px; }
+  .qn-opt input { position:absolute; opacity:0; inset:0; margin:0; cursor:pointer; }
+  .qn-opt span { display:block; text-align:center; padding:10px 8px; border:1.5px solid var(--line,#dfe5ec); border-radius:10px;
+    font-size:.92rem; line-height:1.35; background:var(--bg,#f7f9f8); transition:background .12s, border-color .12s; }
+  .qn-opt input:checked + span { background:var(--green-700,#1f6f54); border-color:var(--green-700,#1f6f54); color:#fff; font-weight:600; }
+  .qn-opt input:focus-visible + span { outline:3px solid var(--green-300,#8fcbb2); outline-offset:2px; }
+  @media (prefers-reduced-motion: reduce) { .qn-opt span { transition:none; } }
+</style>
+{% endmacro %}
+
+{% macro script(words) %}
+<script>
+  (function () {
+    var form = document.querySelector('[data-qn-form]');
+    if (!form) return;
+    var items = Array.prototype.slice.call(form.querySelectorAll('[data-qn-item]'));
+    var bar = document.querySelector('[data-qn-bar]'), count = document.querySelector('[data-qn-count]');
+    var w = {{ words|tojson }};
+    function done() { return items.filter(function (li) { return li.querySelector('input:checked'); }).length; }
+    function paint() {
+      var d = done();
+      items.forEach(function (li) { li.classList.toggle('is-done', !!li.querySelector('input:checked')); });
+      if (bar) bar.style.width = Math.round(d * 100 / items.length) + '%';
+      if (count) count.textContent = w.count.replace('{n}', d).replace('{of}', items.length);
+    }
+    form.addEventListener('change', function (e) {
+      paint();
+      var li = e.target.closest('[data-qn-item]'), i = items.indexOf(li);
+      if (i > -1 && i + 1 < items.length && !items[i + 1].querySelector('input:checked')) {
+        var next = items[i + 1];
+        var r = next.getBoundingClientRect();
+        if (r.top > window.innerHeight * 0.7) next.scrollIntoView({block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+      }
+    });
+    form.addEventListener('submit', function (e) {
+      var left = items.length - done();
+      if (left > 0 && !window.confirm(w.left.replace('{n}', left))) e.preventDefault();
+    });
+    paint();
+  })();
+</script>
+{% endmacro %}

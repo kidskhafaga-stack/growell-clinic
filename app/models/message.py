@@ -104,6 +104,9 @@ SYSTEM_TEMPLATE_TYPES = [
     # or the report as a file when the clinic is not online. Sent by a
     # person's press on the assessment — see app/utils/assessment_share.py.
     "assessment_report", "assessment_report_file",
+    # A questionnaire for the parent or the teacher to fill (ت-٤): only the
+    # link, sent by the specialist's press — see app/utils/questionnaires.py.
+    "questionnaire_link",
 ]
 # Notification types the clinic manages centrally (each has one canonical
 # template with its own body/image/auto-or-manual toggle). Birthday is an
@@ -154,6 +157,7 @@ TEMPLATE_VARIABLES = {
     # No score in it — only which assessment, the link, and how long it works.
     "assessment_report": ["patient", "first_name", "assessment", "clinic", "link", "days"],
     "assessment_report_file": ["patient", "first_name", "assessment", "clinic"],
+    "questionnaire_link": ["patient", "first_name", "questionnaire", "clinic", "link", "days"],
     "birthday": ["patient", "first_name", "clinic"],
     "feedback": ["patient", "first_name", "clinic", "doctor", "link"],
     "complaint_received": ["patient", "first_name", "clinic", "number", "hours"],
@@ -276,6 +280,11 @@ TEMPLATE_DEFAULTS = {
     "assessment_report_file": (
         "تقرير {assessment} لـ{patient} من {clinic} جاهز بعد ما الدكتور اعتمده.\n"
         "التقرير في الملف المرفق — بيتفتح على الموبايل وتقدروا تطبعوه."
+    ),
+    "questionnaire_link": (
+        "{clinic} بتطلب منكم تملوا استبيان «{questionnaire}» عن {first_name}.\n"
+        "اللينك: {link}\n"
+        "بيتملى مرة واحدة، وشغال {days} يوم. شكراً لوقتكم."
     ),
     "lab_result_doctor": (
         "{doctor}، نتيجة تحاليل {patient} من {clinic} جاهزة.\n"

@@ -79,6 +79,12 @@ PUBLIC = {
     # ``utils/assessment_share``): the same protection as the lab result.
     ("GET", "/assessments/r/<token>"),
     ("POST", "/assessments/r/<token>"),
+    # A questionnaire the parent, the teacher or the child fills (ت-٤,
+    # ``utils/questionnaires``): a random token, the questions only — no
+    # score and nothing from the file but the first name — answered once,
+    # and closed after its days. A paper's token opens nothing.
+    ("GET", "/assessments/q/<token>"),
+    ("POST", "/assessments/q/<token>"),
     # A payment gateway telling us what became of a payment: from outside, so
     # no session — proved by the gateway's own signature before anything is
     # read (``Gateway.prove``), and not there at all for a gateway the clinic

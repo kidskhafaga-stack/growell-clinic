@@ -1,0 +1,25 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% import "assessments/_questionnaire_items.html" as qi with context %}
+{% block title %}{{ t('asm_q.enter_title') }}{% endblock %}
+{% block page_heading %}{{ t('asm_q.enter_title') }}{% endblock %}
+{% block head %}{{ qi.style() }}{% endblock %}
+{% block content %}
+{# A paper questionnaire typed in by the specialist (ت-٤): the same
+   questions as the paper, in the same order, and the same arithmetic. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title">{{ form['name_' ~ L] or form.name_ar }}</h1>
+    <p class="page-sub" style="margin:0;">{{ req.patient.display_name(current_lang) }} · {{ t('asm_q.by_' ~ req.informant) }}{% if req.respondent %} · {{ req.respondent }}{% endif %} · <span data-qn-count></span></p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('assessments.view', assessment_id=req.assessment_id) }}#questionnaires"><i class="bi bi-arrow-{{ 'right' if direction == 'rtl' else 'left' }}"></i> {{ t('asm_q.back') }}</a>
+</div>
+<form method="post" data-qn-form style="max-width:820px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {{ qi.items(form, L) }}
+  <div style="display:flex;gap:8px;margin-top:14px;position:sticky;bottom:12px;">
+    <button class="btn btn-primary gc-press" type="submit" data-qn-submit><i class="bi bi-check2"></i> {{ t('asm_q.enter_save') }}</button>
+  </div>
+</form>
+{{ qi.script({'count': t('asm_q.count', n='{n}', of='{of}'), 'left': t('asm_q.left_confirm', n='{n}')}) }}
+{% endblock %}

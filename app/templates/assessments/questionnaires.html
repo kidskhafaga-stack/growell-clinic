@@ -1,0 +1,48 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% set L = 'en' if current_lang == 'en' else 'ar' %}
+{% block title %}{{ t('asm_q.title') }}{% endblock %}
+{% block page_heading %}{{ t('asm_q.title') }}{% endblock %}
+{% block content %}
+{# ASSESSMENTS_PLAN.md ت-٤ — the questionnaires the program knows the shape
+   of, and where each stands. The words are the clinic's to type from its
+   licensed copy; a doctor opens each one. #}
+{% include "assessments/_style.html" %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-ui-checks"></i> {{ t('asm_q.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('asm_q.lead') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('assessments.review') }}"><i class="bi bi-inboxes"></i> {{ t('assessment.review_title') }}</a>
+</div>
+
+<div class="qn-list">
+  {% for r in rows %}
+  {% set st = r.text.status if r.text else 'none' %}
+  {% set state = 'open' if st == 'active' and not r.blockers else ('off' if st == 'off' else ('ready' if not r.blockers else 'words')) %}
+  <a class="card qn-row gc-scale-in" href="{{ url_for('assessments.questionnaire_words', key=r.key) }}" data-qn-row="{{ r.key }}" data-state="{{ state }}">
+    <div class="qn-row__main">
+      <strong>{{ r.shape['name_' ~ L] or r.shape.name_ar }}</strong>
+      <span class="hint">{{ t('asm_q.items_n', n=r.items) }} · {% for who in r.shape.informants %}{{ t('asm_q.by_' ~ who) }}{% if not loop.last %} · {% endif %}{% endfor %}</span>
+      <span class="hint">{% if r.shape.permission == 'written' %}<i class="bi bi-shield-lock"></i> {{ t('asm_q.needs_written', owner=r.shape.owner) }}{% else %}<i class="bi bi-journal-text"></i> {{ t('asm_q.published_by', owner=r.shape.owner) }}{% endif %}</span>
+    </div>
+    <span class="qn-state is-{{ state }}">{{ t('asm_q.state_' ~ state) }}</span>
+  </a>
+  {% endfor %}
+</div>
+
+<style>
+  .qn-list { display:grid; gap:10px; max-width:920px; }
+  .qn-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; color:inherit; text-decoration:none; flex-wrap:wrap; }
+  .qn-row:hover { border-color:var(--green-300,#8fcbb2); }
+  .qn-row__main { display:grid; gap:3px; min-width:0; flex:1 1 300px; }
+  .qn-state { font-size:.8rem; font-weight:700; padding:4px 12px; border-radius:999px; white-space:nowrap; background:#eef2f6; color:#475569; }
+  .qn-state.is-open { background:#e3f4ea; color:#166534; }
+  .qn-state.is-ready { background:#e8f0fb; color:#1e4e8c; }
+  .qn-state.is-off { background:#f3e8e8; color:#8a2b2b; }
+  html[data-theme="dark"] .qn-state { background:rgba(148,163,184,.16); color:#cbd5e1; }
+  html[data-theme="dark"] .qn-state.is-open { background:rgba(34,197,94,.16); color:#86efac; }
+  html[data-theme="dark"] .qn-state.is-ready { background:rgba(59,130,246,.16); color:#bfdbfe; }
+  html[data-theme="dark"] .qn-state.is-off { background:rgba(239,68,68,.14); color:#fca5a5; }
+</style>
+{% endblock %}
