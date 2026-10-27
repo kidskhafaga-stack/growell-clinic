@@ -144,8 +144,10 @@ def test_the_same_tools_earlier_values_sit_beside_it(neuro):
     neuro["sign_in"]("psy").post(f"/assessments/{second}/save", data=dict(
         FILLED, t_vanderbilt_parent_inattentive="5"))
     page = neuro["sign_in"]("psy").get(f"/assessments/{second}").get_data(as_text=True)
-    assert 'data-history-line="vanderbilt_parent.inattentive"' in page
-    assert "2026-03-01 · 7" in page
+    # The earlier value and today's on one line, with which way it went
+    # (ت-٥: fewer symptoms on this scale is better).
+    assert 'data-trend="vanderbilt_parent.inattentive"' in page
+    assert "<title>2026-03-01: 7</title>" in page and 'data-trend-chip="better"' in page
 
 
 def test_the_clinic_edits_the_form_and_an_old_assessment_keeps_its_own(neuro):

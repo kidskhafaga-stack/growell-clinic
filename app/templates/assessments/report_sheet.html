@@ -1,0 +1,86 @@
+{# The approved assessment as the family reads it (ت-٣) — on the link, as a
+   file on WhatsApp when the clinic is not online, and on paper. One page,
+   everything inside it, so the file opens on a phone with no connection to
+   the clinic. Both languages inside, one shown. #}
+<!doctype html>
+<html lang="{{ open_lang }}" dir="{{ 'rtl' if open_lang == 'ar' else 'ltr' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{{ title }}</title>
+<style>
+  :root { --ink:#1d2b3a; --muted:#5b6b7b; --line:#dfe5ec; --ground:#f3f6f9; --paper:#ffffff;
+          --brand:#2f5f8f; --brand-soft:#e6eef7; --mark:#b45309; --mark-soft:#fdf0dc; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--ground); color:var(--ink);
+         font:15px/1.6 "Segoe UI", Tahoma, "Noto Sans Arabic", "Noto Sans", Arial, sans-serif; }
+  .sheet { max-width:760px; margin:0 auto; padding:16px; }
+  .sheet__lang { display:grid; gap:12px; }
+  .sheet__lang[hidden] { display:none; }
+  .langs { display:flex; justify-content:flex-end; gap:6px; margin-bottom:10px; }
+  .head, .card { background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:14px 16px;
+                 display:grid; gap:8px; break-inside:avoid; }
+  .head__top, .card__head, .line__top { display:flex; justify-content:space-between; gap:10px; align-items:baseline; flex-wrap:wrap; }
+  .clinic { font-weight:700; color:var(--brand); }
+  .title { margin:0; font-size:1.35rem; text-wrap:balance; }
+  .kid { display:flex; gap:6px 18px; flex-wrap:wrap; color:var(--muted); font-size:.92rem; }
+  .kid b { color:var(--ink); font-weight:600; }
+  .card__name { margin:0; font-size:1.05rem; }
+  .meta { color:var(--muted); font-size:.82rem; margin:0; }
+  .line { display:grid; gap:4px; padding-top:8px; border-top:1px solid var(--line); }
+  .line__name { font-weight:600; }
+  .value { font-size:1.25rem; font-weight:700; font-variant-numeric:tabular-nums; }
+  .value small { font-size:.8rem; font-weight:500; color:var(--muted); margin-inline-start:4px; }
+  .bar { height:8px; border-radius:999px; background:#e9eef3; overflow:hidden; direction:ltr;
+         -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .bar__fill { display:block; height:100%; background:var(--brand); }
+  .pill { justify-self:start; padding:3px 10px; border-radius:999px; font-size:.8rem; font-weight:700;
+          background:var(--mark-soft); color:var(--mark); }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .chip { background:var(--brand-soft); color:var(--brand); border-radius:8px; padding:3px 10px; font-size:.9rem; }
+  .words { white-space:pre-line; background:var(--ground); border-radius:10px; padding:10px 12px; margin:0; }
+  .tools { display:flex; gap:8px; flex-wrap:wrap; }
+  .btn { appearance:none; border:1px solid var(--line); background:var(--paper); color:var(--ink);
+         border-radius:10px; padding:8px 14px; font:inherit; font-weight:600; cursor:pointer; }
+  .btn:focus-visible { outline:2px solid var(--brand); outline-offset:2px; }
+  .btn.is-on, .btn.print { background:var(--brand); border-color:var(--brand); color:#fff; }
+  .note { color:var(--muted); font-size:.82rem; text-align:center; margin:4px 0 0; }
+  @media print { body { background:#fff; font-size:13px; } .sheet { padding:0; max-width:none; }
+                 .tools, .langs { display:none !important; } .head, .card { border-color:#999; } }
+</style>
+</head>
+<body>
+<main class="sheet" data-assessment-sheet data-open-lang="{{ open_lang }}">
+  {% if bodies|length > 1 %}
+  <nav class="langs" aria-label="Language / اللغة">
+    {% for code, _dir, _html in bodies %}<button class="btn{{ ' is-on' if code == open_lang else '' }}" type="button" data-lang-to="{{ code }}" lang="{{ code }}" aria-pressed="{{ 'true' if code == open_lang else 'false' }}">{{ 'عربي' if code == 'ar' else 'English' }}</button>{% endfor %}
+  </nav>
+  {% endif %}
+  {% for code, dir_, html in bodies %}
+  <div class="sheet__lang" data-lang="{{ code }}" lang="{{ code }}" dir="{{ dir_ }}"{{ ' hidden' if code != open_lang else '' }}>
+    {{ html|safe }}
+  </div>
+  {% endfor %}
+</main>
+<script>
+  (function () {
+    function show(code) {
+      document.querySelectorAll('[data-lang]').forEach(function (d) { d.hidden = d.getAttribute('data-lang') !== code; });
+      document.querySelectorAll('[data-lang-to]').forEach(function (b) {
+        var on = b.getAttribute('data-lang-to') === code;
+        b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      document.documentElement.lang = code; document.documentElement.dir = code === 'ar' ? 'rtl' : 'ltr';
+    }
+    document.querySelectorAll('[data-lang-to]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var code = b.getAttribute('data-lang-to'); show(code);
+        try { localStorage.setItem('asmSheetLang', code); } catch (e) {}
+      });
+    });
+    try { var kept = localStorage.getItem('asmSheetLang'); if (kept && document.querySelector('[data-lang="' + kept + '"]')) show(kept); } catch (e) {}
+  })();
+</script>
+</body>
+</html>

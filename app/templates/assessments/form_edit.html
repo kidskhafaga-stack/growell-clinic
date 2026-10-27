@@ -35,7 +35,7 @@
 <div class="as-stack">
 {% for s in form.sections %}
 {% set label = s['label_' ~ L] or s.label_ar %}
-{% if s.type in ('single', 'multi', 'checks') %}
+{% if s.type in ('single', 'multi', 'checks', 'ages') %}
 <section class="card gc-scale-in as-card" data-edit-section="{{ s.key }}">
   <h2>{{ label }}{% if s.source %} <span class="as-src">{{ s['source_' ~ L] or s.source }}</span>{% endif %}</h2>
   {% for o in s.options %}

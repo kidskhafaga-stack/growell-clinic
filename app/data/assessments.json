@@ -214,6 +214,2721 @@
         }
       ],
       "source_ar": "جايدلاين الأكاديمية الأمريكية لطب الأطفال لفرط الحركة (AAP 2019)"
+    },
+    "autism": {
+      "name_ar": "تقييم اضطراب طيف التوحد",
+      "name_en": "Autism assessment",
+      "icon": "puzzle",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "AAP Clinical Report — Identification, Evaluation, and Management of Children With Autism Spectrum Disorder, Pediatrics 2020;145(1):e20193447",
+      "source_ar": "تقرير الأكاديمية الأمريكية لطب الأطفال عن التوحد (AAP 2020)",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ]
+        },
+        {
+          "key": "domains",
+          "type": "checks",
+          "label_ar": "اللي اتقيّم",
+          "label_en": "What was assessed",
+          "options": [
+            {
+              "key": "social",
+              "ar": "التواصل والتفاعل الاجتماعي",
+              "en": "Social communication and interaction"
+            },
+            {
+              "key": "nonverbal",
+              "ar": "التواصل غير اللفظي",
+              "en": "Nonverbal communication"
+            },
+            {
+              "key": "play",
+              "ar": "اللعب التخيلي والتبادلي",
+              "en": "Pretend and reciprocal play"
+            },
+            {
+              "key": "repetitive",
+              "ar": "السلوكيات المتكررة والاهتمامات المحدودة",
+              "en": "Repetitive behaviours and restricted interests"
+            },
+            {
+              "key": "sensory",
+              "ar": "الحساسية الحسية",
+              "en": "Sensory sensitivities"
+            },
+            {
+              "key": "history",
+              "ar": "تاريخ التطور اللغوي والاجتماعي",
+              "en": "History of language and social development"
+            }
+          ]
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "mchat_rf"
+          ],
+          "more": [
+            "cars2",
+            "ados2",
+            "srs2",
+            "vineland3"
+          ]
+        },
+        {
+          "key": "related",
+          "type": "multi",
+          "label_ar": "حاجات مصاحبة اتفحصت",
+          "label_en": "Coexisting conditions screened",
+          "options": [
+            {
+              "key": "language",
+              "ar": "تأخر لغوي",
+              "en": "Language delay"
+            },
+            {
+              "key": "adhd",
+              "ar": "فرط حركة وتشتت",
+              "en": "ADHD"
+            },
+            {
+              "key": "intellectual",
+              "ar": "إعاقة ذهنية",
+              "en": "Intellectual disability"
+            },
+            {
+              "key": "sleep",
+              "ar": "مشاكل نوم",
+              "en": "Sleep problems"
+            },
+            {
+              "key": "seizures",
+              "ar": "نوبات",
+              "en": "Seizures"
+            },
+            {
+              "key": "feeding",
+              "ar": "مشاكل أكل",
+              "en": "Feeding problems"
+            }
+          ]
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "speech_therapy",
+              "ar": "جلسات تخاطب",
+              "en": "Speech and language therapy"
+            },
+            {
+              "key": "aba",
+              "ar": "تدخل سلوكي مبكر",
+              "en": "Early behavioural intervention"
+            },
+            {
+              "key": "ot",
+              "ar": "علاج وظيفي",
+              "en": "Occupational therapy"
+            },
+            {
+              "key": "hearing",
+              "ar": "فحص السمع",
+              "en": "Hearing test"
+            },
+            {
+              "key": "parent_training",
+              "ar": "تدريب الأهل",
+              "en": "Parent training"
+            },
+            {
+              "key": "review",
+              "ar": "متابعة وإعادة التقييم",
+              "en": "Follow-up and reassessment"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ]
+    },
+    "development": {
+      "name_ar": "تقييم النمو والتطور",
+      "name_en": "Developmental assessment",
+      "icon": "graph-up-arrow",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "AAP Clinical Report — Promoting Optimal Development: Developmental Surveillance and Screening, Pediatrics 2020;145(1):e20193449",
+      "source_ar": "تقرير الأكاديمية الأمريكية لطب الأطفال عن متابعة وفرز النمو (AAP 2020)",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ]
+        },
+        {
+          "key": "domains",
+          "type": "checks",
+          "label_ar": "اللي اتقيّم",
+          "label_en": "What was assessed",
+          "options": [
+            {
+              "key": "gross_motor",
+              "ar": "الحركة الكبيرة",
+              "en": "Gross motor"
+            },
+            {
+              "key": "fine_motor",
+              "ar": "الحركة الدقيقة",
+              "en": "Fine motor"
+            },
+            {
+              "key": "language",
+              "ar": "اللغة والفهم",
+              "en": "Language and understanding"
+            },
+            {
+              "key": "cognitive",
+              "ar": "حل المشكلات والمهارات المعرفية",
+              "en": "Problem solving and cognition"
+            },
+            {
+              "key": "social",
+              "ar": "المهارات الاجتماعية والتكيفية",
+              "en": "Social and adaptive skills"
+            }
+          ]
+        },
+        {
+          "key": "ages",
+          "type": "ages",
+          "label_ar": "العمر النمائي لكل مجال (بالشهور)",
+          "label_en": "Developmental age per domain (months)",
+          "source": "Age-equivalents from the tool used, or the specialist's own estimate",
+          "source_ar": "العمر المكافئ من الأداة اللي اتعملت، أو تقدير المختص",
+          "options": [
+            {
+              "key": "gross_motor",
+              "ar": "الحركة الكبيرة",
+              "en": "Gross motor"
+            },
+            {
+              "key": "fine_motor",
+              "ar": "الحركة الدقيقة",
+              "en": "Fine motor"
+            },
+            {
+              "key": "receptive",
+              "ar": "اللغة الاستقبالية",
+              "en": "Receptive language"
+            },
+            {
+              "key": "expressive",
+              "ar": "اللغة التعبيرية",
+              "en": "Expressive language"
+            },
+            {
+              "key": "cognitive",
+              "ar": "المعرفي وحل المشكلات",
+              "en": "Cognitive / problem solving"
+            },
+            {
+              "key": "social",
+              "ar": "الاجتماعي والانفعالي",
+              "en": "Social-emotional"
+            },
+            {
+              "key": "self_help",
+              "ar": "الاعتماد على النفس",
+              "en": "Self-help"
+            }
+          ]
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "asq3"
+          ],
+          "more": [
+            "bayley4",
+            "vineland3",
+            "mchat_rf"
+          ]
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "early_intervention",
+              "ar": "تدخل مبكر",
+              "en": "Early intervention"
+            },
+            {
+              "key": "speech_therapy",
+              "ar": "جلسات تخاطب",
+              "en": "Speech and language therapy"
+            },
+            {
+              "key": "ot",
+              "ar": "علاج وظيفي",
+              "en": "Occupational therapy"
+            },
+            {
+              "key": "physio",
+              "ar": "علاج طبيعي",
+              "en": "Physiotherapy"
+            },
+            {
+              "key": "hearing",
+              "ar": "فحص السمع",
+              "en": "Hearing test"
+            },
+            {
+              "key": "vision",
+              "ar": "فحص النظر",
+              "en": "Vision test"
+            },
+            {
+              "key": "review",
+              "ar": "متابعة وإعادة التقييم",
+              "en": "Follow-up and reassessment"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ]
+    },
+    "iq": {
+      "name_ar": "تقييم الذكاء والقدرات المعرفية",
+      "name_en": "IQ and cognitive assessment",
+      "icon": "lightbulb",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "The tool's own manual — scores and confidence intervals as its official report gives them",
+      "source_ar": "دليل كل أداة — الدرجات وفواصل الثقة زي ما تقريرها الرسمي بيقول",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ]
+        },
+        {
+          "key": "domains",
+          "type": "checks",
+          "label_ar": "اللي اتقيّم",
+          "label_en": "What was assessed",
+          "options": [
+            {
+              "key": "verbal",
+              "ar": "القدرة اللفظية",
+              "en": "Verbal ability"
+            },
+            {
+              "key": "visual",
+              "ar": "الاستدلال البصري والمكاني",
+              "en": "Visual-spatial reasoning"
+            },
+            {
+              "key": "working_memory",
+              "ar": "الذاكرة العاملة",
+              "en": "Working memory"
+            },
+            {
+              "key": "speed",
+              "ar": "سرعة معالجة المعلومات",
+              "en": "Processing speed"
+            },
+            {
+              "key": "reasoning",
+              "ar": "الاستدلال وحل المشكلات",
+              "en": "Reasoning and problem solving"
+            }
+          ]
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "wisc5"
+          ],
+          "more": [
+            "wppsi4",
+            "sb5"
+          ]
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "school_support",
+              "ar": "دعم وتسهيلات في المدرسة",
+              "en": "School support and accommodations"
+            },
+            {
+              "key": "learning_eval",
+              "ar": "تقييم صعوبات التعلم",
+              "en": "Learning difficulties evaluation"
+            },
+            {
+              "key": "review",
+              "ar": "متابعة وإعادة التقييم",
+              "en": "Follow-up and reassessment"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ]
+    },
+    "memory": {
+      "name_ar": "تقييم الذاكرة والتعلم",
+      "name_en": "Memory assessment",
+      "icon": "card-checklist",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "The tool's own manual — scores as its official report gives them",
+      "source_ar": "دليل كل أداة — الدرجات زي ما تقريرها الرسمي بيقول",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ]
+        },
+        {
+          "key": "domains",
+          "type": "checks",
+          "label_ar": "اللي اتقيّم",
+          "label_en": "What was assessed",
+          "options": [
+            {
+              "key": "auditory",
+              "ar": "الذاكرة السمعية",
+              "en": "Auditory memory"
+            },
+            {
+              "key": "visual",
+              "ar": "الذاكرة البصرية",
+              "en": "Visual memory"
+            },
+            {
+              "key": "learning",
+              "ar": "التعلم بالمحاولات المتكررة",
+              "en": "Learning across trials"
+            },
+            {
+              "key": "recall",
+              "ar": "الاستدعاء الفوري والمؤجل",
+              "en": "Immediate and delayed recall"
+            },
+            {
+              "key": "recognition",
+              "ar": "التعرّف",
+              "en": "Recognition"
+            },
+            {
+              "key": "working",
+              "ar": "الذاكرة العاملة",
+              "en": "Working memory"
+            }
+          ]
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "cms"
+          ],
+          "more": [
+            "wraml3"
+          ]
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "school_support",
+              "ar": "دعم وتسهيلات في المدرسة",
+              "en": "School support and accommodations"
+            },
+            {
+              "key": "review",
+              "ar": "متابعة وإعادة التقييم",
+              "en": "Follow-up and reassessment"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ]
+    },
+    "language": {
+      "name_ar": "تقييم اللغة والتواصل",
+      "name_en": "Speech and language assessment",
+      "icon": "chat-dots",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "ASHA Practice Portal — Spoken Language Disorders; the tool's own manual",
+      "source_ar": "بوابة الممارسة لجمعية ASHA — اضطرابات اللغة المنطوقة، ودليل كل أداة",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ]
+        },
+        {
+          "key": "domains",
+          "type": "checks",
+          "label_ar": "اللي اتقيّم",
+          "label_en": "What was assessed",
+          "options": [
+            {
+              "key": "receptive",
+              "ar": "فهم الكلام وتنفيذ التعليمات",
+              "en": "Understanding and following instructions"
+            },
+            {
+              "key": "expressive",
+              "ar": "التعبير والمفردات",
+              "en": "Expression and vocabulary"
+            },
+            {
+              "key": "naming",
+              "ar": "التسمية والطلاقة",
+              "en": "Naming and fluency"
+            },
+            {
+              "key": "articulation",
+              "ar": "النطق",
+              "en": "Articulation"
+            },
+            {
+              "key": "pragmatics",
+              "ar": "استخدام اللغة في التواصل",
+              "en": "Social use of language"
+            }
+          ]
+        },
+        {
+          "key": "ages",
+          "type": "ages",
+          "label_ar": "العمر النمائي لكل مجال (بالشهور)",
+          "label_en": "Developmental age per domain (months)",
+          "source": "Age-equivalents from the tool used, or the specialist's own estimate",
+          "source_ar": "العمر المكافئ من الأداة اللي اتعملت، أو تقدير المختص",
+          "options": [
+            {
+              "key": "receptive",
+              "ar": "اللغة الاستقبالية",
+              "en": "Receptive language"
+            },
+            {
+              "key": "expressive",
+              "ar": "اللغة التعبيرية",
+              "en": "Expressive language"
+            },
+            {
+              "key": "articulation",
+              "ar": "النطق",
+              "en": "Articulation"
+            }
+          ]
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "celf5"
+          ],
+          "more": [
+            "ppvt5",
+            "evt3"
+          ]
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "speech_therapy",
+              "ar": "جلسات تخاطب",
+              "en": "Speech and language therapy"
+            },
+            {
+              "key": "hearing",
+              "ar": "فحص السمع",
+              "en": "Hearing test"
+            },
+            {
+              "key": "school_support",
+              "ar": "دعم وتسهيلات في المدرسة",
+              "en": "School support and accommodations"
+            },
+            {
+              "key": "review",
+              "ar": "متابعة وإعادة التقييم",
+              "en": "Follow-up and reassessment"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ]
+    },
+    "learning": {
+      "name_ar": "تقييم صعوبات التعلم",
+      "name_en": "Learning difficulties assessment",
+      "icon": "book",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "DSM-5 Specific Learning Disorder; the tool's own manual",
+      "source_ar": "اضطراب التعلم المحدد في DSM-5، ودليل كل أداة",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ]
+        },
+        {
+          "key": "domains",
+          "type": "checks",
+          "label_ar": "اللي اتقيّم",
+          "label_en": "What was assessed",
+          "options": [
+            {
+              "key": "reading",
+              "ar": "القراءة",
+              "en": "Reading"
+            },
+            {
+              "key": "comprehension",
+              "ar": "الفهم القرائي",
+              "en": "Reading comprehension"
+            },
+            {
+              "key": "writing",
+              "ar": "الكتابة والإملاء",
+              "en": "Writing and spelling"
+            },
+            {
+              "key": "math",
+              "ar": "الحساب",
+              "en": "Mathematics"
+            },
+            {
+              "key": "phonological",
+              "ar": "الوعي الصوتي",
+              "en": "Phonological awareness"
+            }
+          ]
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "wiat4"
+          ],
+          "more": [
+            "wj4_ach",
+            "ctopp2",
+            "wisc5"
+          ]
+        },
+        {
+          "key": "related",
+          "type": "multi",
+          "label_ar": "حاجات مصاحبة اتفحصت",
+          "label_en": "Coexisting conditions screened",
+          "options": [
+            {
+              "key": "adhd",
+              "ar": "فرط حركة وتشتت",
+              "en": "ADHD"
+            },
+            {
+              "key": "language",
+              "ar": "لغة",
+              "en": "Language"
+            },
+            {
+              "key": "vision",
+              "ar": "نظر",
+              "en": "Vision"
+            },
+            {
+              "key": "hearing",
+              "ar": "سمع",
+              "en": "Hearing"
+            }
+          ]
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "school_support",
+              "ar": "دعم وتسهيلات في المدرسة",
+              "en": "School support and accommodations"
+            },
+            {
+              "key": "remedial",
+              "ar": "علاج تعليمي متخصص",
+              "en": "Specialist remedial teaching"
+            },
+            {
+              "key": "review",
+              "ar": "متابعة وإعادة التقييم",
+              "en": "Follow-up and reassessment"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ]
+    },
+    "behaviour": {
+      "name_ar": "تقييم السلوك والانفعالات",
+      "name_en": "Behavioural and emotional assessment",
+      "icon": "emoji-neutral",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "The tool's own manual — scores as its official report gives them",
+      "source_ar": "دليل كل أداة",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ]
+        },
+        {
+          "key": "domains",
+          "type": "checks",
+          "label_ar": "اللي اتقيّم",
+          "label_en": "What was assessed",
+          "options": [
+            {
+              "key": "anxiety",
+              "ar": "القلق",
+              "en": "Anxiety"
+            },
+            {
+              "key": "mood",
+              "ar": "المزاج",
+              "en": "Mood"
+            },
+            {
+              "key": "oppositional",
+              "ar": "السلوك المعارض",
+              "en": "Oppositional behaviour"
+            },
+            {
+              "key": "internal",
+              "ar": "المشاكل الداخلية",
+              "en": "Internalizing problems"
+            },
+            {
+              "key": "external",
+              "ar": "المشاكل الخارجية",
+              "en": "Externalizing problems"
+            },
+            {
+              "key": "impact",
+              "ar": "الأثر في البيت والمدرسة",
+              "en": "Impact at home and school"
+            }
+          ]
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "sdq"
+          ],
+          "more": [
+            "cbcl",
+            "basc3"
+          ]
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "psychology",
+              "ar": "متابعة نفسية",
+              "en": "Psychology follow-up"
+            },
+            {
+              "key": "parent_training",
+              "ar": "تدريب الأهل",
+              "en": "Parent training"
+            },
+            {
+              "key": "school_support",
+              "ar": "دعم وتسهيلات في المدرسة",
+              "en": "School support and accommodations"
+            },
+            {
+              "key": "review",
+              "ar": "متابعة وإعادة التقييم",
+              "en": "Follow-up and reassessment"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ]
+    },
+    "executive": {
+      "name_ar": "تقييم الوظائف التنفيذية",
+      "name_en": "Executive function assessment",
+      "icon": "diagram-3",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "The tool's own manual",
+      "source_ar": "دليل كل أداة",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ]
+        },
+        {
+          "key": "domains",
+          "type": "checks",
+          "label_ar": "اللي اتقيّم",
+          "label_en": "What was assessed",
+          "options": [
+            {
+              "key": "planning",
+              "ar": "التخطيط وتنظيم المهام",
+              "en": "Planning and organisation"
+            },
+            {
+              "key": "working_memory",
+              "ar": "الذاكرة العاملة",
+              "en": "Working memory"
+            },
+            {
+              "key": "inhibition",
+              "ar": "التحكم في الاستجابة",
+              "en": "Response inhibition"
+            },
+            {
+              "key": "flexibility",
+              "ar": "المرونة الذهنية",
+              "en": "Cognitive flexibility"
+            },
+            {
+              "key": "monitoring",
+              "ar": "مراقبة السلوك وتصحيح الأخطاء",
+              "en": "Self-monitoring"
+            }
+          ]
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "brief2"
+          ],
+          "more": [
+            "stroop",
+            "wisc5"
+          ]
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "school_support",
+              "ar": "دعم وتسهيلات في المدرسة",
+              "en": "School support and accommodations"
+            },
+            {
+              "key": "psychology",
+              "ar": "متابعة نفسية",
+              "en": "Psychology follow-up"
+            },
+            {
+              "key": "review",
+              "ar": "متابعة وإعادة التقييم",
+              "en": "Follow-up and reassessment"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ]
+    },
+    "attention": {
+      "name_ar": "تقييم الانتباه والتركيز",
+      "name_en": "Attention and concentration assessment",
+      "icon": "bullseye",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "The device's own report — a performance test, not a diagnosis of ADHD on its own",
+      "source_ar": "تقرير الجهاز — اختبار أداء، مش تشخيص فرط حركة لوحده",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ]
+        },
+        {
+          "key": "domains",
+          "type": "checks",
+          "label_ar": "اللي اتقيّم",
+          "label_en": "What was assessed",
+          "options": [
+            {
+              "key": "sustained",
+              "ar": "الانتباه المستمر",
+              "en": "Sustained attention"
+            },
+            {
+              "key": "selective",
+              "ar": "الانتباه الانتقائي",
+              "en": "Selective attention"
+            },
+            {
+              "key": "speed",
+              "ar": "سرعة الاستجابة",
+              "en": "Response speed"
+            },
+            {
+              "key": "commissions",
+              "ar": "أخطاء التسرع",
+              "en": "Impulsive errors"
+            },
+            {
+              "key": "omissions",
+              "ar": "الاستجابات الفايتة",
+              "en": "Missed responses"
+            },
+            {
+              "key": "change",
+              "ar": "التغير أثناء الاختبار",
+              "en": "Change across the test"
+            }
+          ]
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "cpt"
+          ],
+          "more": [
+            "tova"
+          ]
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "adhd_eval",
+              "ar": "تقييم فرط الحركة الكامل",
+              "en": "Full ADHD assessment"
+            },
+            {
+              "key": "review",
+              "ar": "متابعة وإعادة التقييم",
+              "en": "Follow-up and reassessment"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ]
+    },
+    "adaptive": {
+      "name_ar": "تقييم المهارات التكيفية والاستقلالية",
+      "name_en": "Adaptive functioning assessment",
+      "icon": "person-check",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "The tool's own manual",
+      "source_ar": "دليل كل أداة",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ]
+        },
+        {
+          "key": "domains",
+          "type": "checks",
+          "label_ar": "اللي اتقيّم",
+          "label_en": "What was assessed",
+          "options": [
+            {
+              "key": "communication",
+              "ar": "التواصل اليومي",
+              "en": "Everyday communication"
+            },
+            {
+              "key": "self_care",
+              "ar": "العناية الذاتية",
+              "en": "Self-care"
+            },
+            {
+              "key": "social",
+              "ar": "المشاركة الاجتماعية",
+              "en": "Social participation"
+            },
+            {
+              "key": "independence",
+              "ar": "الاستقلالية",
+              "en": "Independence"
+            }
+          ]
+        },
+        {
+          "key": "ages",
+          "type": "ages",
+          "label_ar": "العمر النمائي لكل مجال (بالشهور)",
+          "label_en": "Developmental age per domain (months)",
+          "source": "Age-equivalents from the tool used, or the specialist's own estimate",
+          "source_ar": "العمر المكافئ من الأداة اللي اتعملت، أو تقدير المختص",
+          "options": [
+            {
+              "key": "communication",
+              "ar": "التواصل",
+              "en": "Communication"
+            },
+            {
+              "key": "daily_living",
+              "ar": "مهارات الحياة اليومية",
+              "en": "Daily living"
+            },
+            {
+              "key": "socialization",
+              "ar": "التنشئة الاجتماعية",
+              "en": "Socialization"
+            }
+          ]
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "vineland3"
+          ],
+          "more": [
+            "abas3"
+          ]
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "ot",
+              "ar": "علاج وظيفي",
+              "en": "Occupational therapy"
+            },
+            {
+              "key": "parent_training",
+              "ar": "تدريب الأهل",
+              "en": "Parent training"
+            },
+            {
+              "key": "school_support",
+              "ar": "دعم وتسهيلات في المدرسة",
+              "en": "School support and accommodations"
+            },
+            {
+              "key": "review",
+              "ar": "متابعة وإعادة التقييم",
+              "en": "Follow-up and reassessment"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ]
+    },
+    "motor": {
+      "name_ar": "تقييم التناسق والمهارات الحركية",
+      "name_en": "Motor coordination assessment",
+      "icon": "person-walking",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "International clinical practice recommendations on Developmental Coordination Disorder (Blank et al., Dev Med Child Neurol 2019)",
+      "source_ar": "التوصيات الدولية لاضطراب التناسق الحركي (Blank وزملاؤه 2019)",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ]
+        },
+        {
+          "key": "domains",
+          "type": "checks",
+          "label_ar": "اللي اتقيّم",
+          "label_en": "What was assessed",
+          "options": [
+            {
+              "key": "balance",
+              "ar": "التوازن",
+              "en": "Balance"
+            },
+            {
+              "key": "fine",
+              "ar": "المهارات الدقيقة",
+              "en": "Fine motor skills"
+            },
+            {
+              "key": "visuomotor",
+              "ar": "التآزر البصري الحركي",
+              "en": "Visual-motor integration"
+            },
+            {
+              "key": "planning",
+              "ar": "التخطيط الحركي",
+              "en": "Motor planning"
+            }
+          ]
+        },
+        {
+          "key": "ages",
+          "type": "ages",
+          "label_ar": "العمر النمائي لكل مجال (بالشهور)",
+          "label_en": "Developmental age per domain (months)",
+          "source": "Age-equivalents from the tool used, or the specialist's own estimate",
+          "source_ar": "العمر المكافئ من الأداة اللي اتعملت، أو تقدير المختص",
+          "options": [
+            {
+              "key": "gross_motor",
+              "ar": "الحركة الكبيرة",
+              "en": "Gross motor"
+            },
+            {
+              "key": "fine_motor",
+              "ar": "الحركة الدقيقة",
+              "en": "Fine motor"
+            },
+            {
+              "key": "visuomotor",
+              "ar": "البصري الحركي",
+              "en": "Visual-motor"
+            }
+          ]
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "mabc2"
+          ],
+          "more": [
+            "bot2",
+            "beery_vmi"
+          ]
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "ot",
+              "ar": "علاج وظيفي",
+              "en": "Occupational therapy"
+            },
+            {
+              "key": "physio",
+              "ar": "علاج طبيعي",
+              "en": "Physiotherapy"
+            },
+            {
+              "key": "school_support",
+              "ar": "دعم وتسهيلات في المدرسة",
+              "en": "School support and accommodations"
+            },
+            {
+              "key": "review",
+              "ar": "متابعة وإعادة التقييم",
+              "en": "Follow-up and reassessment"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ]
+    },
+    "anxiety_mood": {
+      "name_ar": "تقييم القلق والمزاج",
+      "name_en": "Anxiety and mood assessment",
+      "icon": "cloud-drizzle",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "AACAP Clinical Practice Guideline for the Assessment and Treatment of Children and Adolescents With Anxiety Disorders (2020)",
+      "source_ar": "جايدلاين الأكاديمية الأمريكية للطب النفسي للأطفال للقلق (AACAP 2020)",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ]
+        },
+        {
+          "key": "domains",
+          "type": "checks",
+          "label_ar": "اللي اتقيّم",
+          "label_en": "What was assessed",
+          "options": [
+            {
+              "key": "generalized",
+              "ar": "قلق عام",
+              "en": "Generalized anxiety"
+            },
+            {
+              "key": "separation",
+              "ar": "قلق الانفصال",
+              "en": "Separation anxiety"
+            },
+            {
+              "key": "social",
+              "ar": "قلق اجتماعي",
+              "en": "Social anxiety"
+            },
+            {
+              "key": "panic",
+              "ar": "هلع وأعراض جسدية",
+              "en": "Panic and somatic"
+            },
+            {
+              "key": "mood",
+              "ar": "المزاج والاكتئاب",
+              "en": "Mood and depression"
+            },
+            {
+              "key": "school",
+              "ar": "تجنّب المدرسة",
+              "en": "School avoidance"
+            }
+          ]
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "scared"
+          ],
+          "more": [
+            "rcads",
+            "sdq"
+          ]
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "psychology",
+              "ar": "متابعة نفسية",
+              "en": "Psychology follow-up"
+            },
+            {
+              "key": "parent_training",
+              "ar": "تدريب الأهل",
+              "en": "Parent training"
+            },
+            {
+              "key": "school_support",
+              "ar": "دعم وتسهيلات في المدرسة",
+              "en": "School support and accommodations"
+            },
+            {
+              "key": "review",
+              "ar": "متابعة وإعادة التقييم",
+              "en": "Follow-up and reassessment"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ]
+    },
+    "tics": {
+      "name_ar": "تقييم اللزمات (التشنجات اللاإرادية)",
+      "name_en": "Tic assessment",
+      "icon": "activity",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "Yale Global Tic Severity Scale (Leckman et al., J Am Acad Child Adolesc Psychiatry 1989)",
+      "source_ar": "مقياس ييل لشدة اللزمات (Leckman 1989)",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ]
+        },
+        {
+          "key": "domains",
+          "type": "checks",
+          "label_ar": "اللي اتقيّم",
+          "label_en": "What was assessed",
+          "options": [
+            {
+              "key": "motor",
+              "ar": "لزمات حركية",
+              "en": "Motor tics"
+            },
+            {
+              "key": "phonic",
+              "ar": "لزمات صوتية",
+              "en": "Phonic tics"
+            },
+            {
+              "key": "frequency",
+              "ar": "التكرار",
+              "en": "Frequency"
+            },
+            {
+              "key": "intensity",
+              "ar": "الشدة",
+              "en": "Intensity"
+            },
+            {
+              "key": "impact",
+              "ar": "الأثر على الحياة",
+              "en": "Impact on daily life"
+            }
+          ]
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "ygtss"
+          ],
+          "more": []
+        },
+        {
+          "key": "related",
+          "type": "multi",
+          "label_ar": "حاجات مصاحبة اتفحصت",
+          "label_en": "Coexisting conditions screened",
+          "options": [
+            {
+              "key": "adhd",
+              "ar": "فرط حركة وتشتت",
+              "en": "ADHD"
+            },
+            {
+              "key": "ocd",
+              "ar": "وسواس قهري",
+              "en": "Obsessive-compulsive symptoms"
+            },
+            {
+              "key": "anxiety",
+              "ar": "قلق",
+              "en": "Anxiety"
+            }
+          ]
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "behavioural",
+              "ar": "علاج سلوكي للزمات",
+              "en": "Behavioural therapy for tics"
+            },
+            {
+              "key": "psychology",
+              "ar": "متابعة نفسية",
+              "en": "Psychology follow-up"
+            },
+            {
+              "key": "school_support",
+              "ar": "دعم وتسهيلات في المدرسة",
+              "en": "School support and accommodations"
+            },
+            {
+              "key": "review",
+              "ar": "متابعة وإعادة التقييم",
+              "en": "Follow-up and reassessment"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ]
+    },
+    "sleep": {
+      "name_ar": "تقييم النوم",
+      "name_en": "Sleep assessment",
+      "icon": "moon-stars",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "BEARS (Owens & Dalzell, Sleep Med 2005); CSHQ (Owens, Spirito & McGuinn, Sleep 2000)",
+      "source_ar": "أسئلة BEARS (Owens وDalzell 2005) واستبيان CSHQ (Owens وزملاؤه 2000)",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ]
+        },
+        {
+          "key": "domains",
+          "type": "checks",
+          "label_ar": "اللي اتقيّم",
+          "label_en": "What was assessed",
+          "options": [
+            {
+              "key": "bedtime",
+              "ar": "مشاكل وقت النوم",
+              "en": "Bedtime problems"
+            },
+            {
+              "key": "sleepiness",
+              "ar": "النعاس بالنهار",
+              "en": "Excessive daytime sleepiness"
+            },
+            {
+              "key": "awakenings",
+              "ar": "الصحيان بالليل",
+              "en": "Night awakenings"
+            },
+            {
+              "key": "regularity",
+              "ar": "انتظام ومدة النوم",
+              "en": "Regularity and duration"
+            },
+            {
+              "key": "snoring",
+              "ar": "الشخير",
+              "en": "Snoring"
+            }
+          ]
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "cshq"
+          ],
+          "more": []
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "sleep_hygiene",
+              "ar": "عادات نوم صحية",
+              "en": "Sleep hygiene"
+            },
+            {
+              "key": "sleep_study",
+              "ar": "دراسة نوم",
+              "en": "Sleep study"
+            },
+            {
+              "key": "ent",
+              "ar": "تحويل أنف وأذن",
+              "en": "ENT referral"
+            },
+            {
+              "key": "review",
+              "ar": "متابعة وإعادة التقييم",
+              "en": "Follow-up and reassessment"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ]
+    },
+    "headache": {
+      "name_ar": "تقييم الصداع",
+      "name_en": "Headache assessment",
+      "icon": "emoji-dizzy",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "International Classification of Headache Disorders, 3rd edition (ICHD-3, 2018)",
+      "source_ar": "التصنيف الدولي لاضطرابات الصداع — الطبعة التالتة (ICHD-3)",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ]
+        },
+        {
+          "key": "domains",
+          "type": "checks",
+          "label_ar": "اللي اتقيّم",
+          "label_en": "What was assessed",
+          "options": [
+            {
+              "key": "frequency",
+              "ar": "التكرار",
+              "en": "Frequency"
+            },
+            {
+              "key": "duration",
+              "ar": "المدة",
+              "en": "Duration"
+            },
+            {
+              "key": "severity",
+              "ar": "الشدة",
+              "en": "Severity"
+            },
+            {
+              "key": "associated",
+              "ar": "الأعراض المصاحبة",
+              "en": "Associated symptoms"
+            },
+            {
+              "key": "triggers",
+              "ar": "المحفزات",
+              "en": "Triggers"
+            },
+            {
+              "key": "impact",
+              "ar": "التأثير على المدرسة والنشاط",
+              "en": "Impact on school and activity"
+            },
+            {
+              "key": "red_flags",
+              "ar": "علامات الخطر",
+              "en": "Red flags"
+            }
+          ]
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "headache_diary"
+          ],
+          "more": [
+            "pedmidas"
+          ]
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "diary",
+              "ar": "مفكرة صداع",
+              "en": "Headache diary"
+            },
+            {
+              "key": "lifestyle",
+              "ar": "نوم وأكل وشرب مية بانتظام",
+              "en": "Regular sleep, meals and fluids"
+            },
+            {
+              "key": "vision",
+              "ar": "فحص النظر",
+              "en": "Vision test"
+            },
+            {
+              "key": "review",
+              "ar": "متابعة وإعادة التقييم",
+              "en": "Follow-up and reassessment"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ]
+    },
+    "seizures": {
+      "name_ar": "تقييم الصرع والنوبات",
+      "name_en": "Seizure assessment",
+      "icon": "lightning-charge",
+      "panels": [
+        "neurology",
+        "developmental"
+      ],
+      "source": "NICE guideline NG217 — Epilepsies in children, young people and adults (2022)",
+      "source_ar": "جايدلاين NICE للصرع NG217 (2022)",
+      "sections": [
+        {
+          "key": "stage",
+          "type": "single",
+          "label_ar": "نوع التقييم",
+          "label_en": "Kind of assessment",
+          "options": [
+            {
+              "key": "initial",
+              "ar": "أولي",
+              "en": "Initial"
+            },
+            {
+              "key": "detailed",
+              "ar": "تفصيلي",
+              "en": "Detailed"
+            },
+            {
+              "key": "followup",
+              "ar": "متابعة",
+              "en": "Follow-up"
+            }
+          ]
+        },
+        {
+          "key": "sources",
+          "type": "multi",
+          "label_ar": "مصادر المعلومات",
+          "label_en": "Sources of information",
+          "options": [
+            {
+              "key": "parent",
+              "ar": "ولي الأمر",
+              "en": "Parent"
+            },
+            {
+              "key": "teacher",
+              "ar": "المدرس",
+              "en": "Teacher"
+            },
+            {
+              "key": "child",
+              "ar": "الطفل نفسه",
+              "en": "The child"
+            },
+            {
+              "key": "observation",
+              "ar": "ملاحظة المختص",
+              "en": "Clinician's observation"
+            },
+            {
+              "key": "direct_test",
+              "ar": "اختبار مباشر",
+              "en": "Direct testing"
+            }
+          ]
+        },
+        {
+          "key": "domains",
+          "type": "checks",
+          "label_ar": "اللي اتقيّم",
+          "label_en": "What was assessed",
+          "options": [
+            {
+              "key": "description",
+              "ar": "وصف النوبة بالترتيب",
+              "en": "Description of the event in order"
+            },
+            {
+              "key": "duration",
+              "ar": "المدة",
+              "en": "Duration"
+            },
+            {
+              "key": "awareness",
+              "ar": "الوعي أثناءها",
+              "en": "Awareness during it"
+            },
+            {
+              "key": "movements",
+              "ar": "الحركات المصاحبة",
+              "en": "Accompanying movements"
+            },
+            {
+              "key": "after",
+              "ar": "بعد النوبة",
+              "en": "After the event"
+            },
+            {
+              "key": "frequency",
+              "ar": "التكرار",
+              "en": "Frequency"
+            },
+            {
+              "key": "video",
+              "ar": "فيديو من الأهل",
+              "en": "Video from the family"
+            },
+            {
+              "key": "medicines",
+              "ar": "الأدوية ومستواها",
+              "en": "Medicines and adherence"
+            }
+          ]
+        },
+        {
+          "key": "tools",
+          "type": "tools",
+          "label_ar": "الأدوات اللي اتعملت",
+          "label_en": "Tools used",
+          "shown": [
+            "seizure_diary"
+          ],
+          "more": []
+        },
+        {
+          "key": "impression",
+          "type": "text",
+          "label_ar": "انطباع المختص",
+          "label_en": "Clinician's impression"
+        },
+        {
+          "key": "recommendations",
+          "type": "multi",
+          "label_ar": "التوصيات",
+          "label_en": "Recommendations",
+          "options": [
+            {
+              "key": "eeg",
+              "ar": "رسم مخ EEG",
+              "en": "EEG"
+            },
+            {
+              "key": "mri",
+              "ar": "رنين على المخ",
+              "en": "Brain MRI"
+            },
+            {
+              "key": "rescue_plan",
+              "ar": "خطة الطوارئ للنوبة",
+              "en": "Seizure rescue plan"
+            },
+            {
+              "key": "school_plan",
+              "ar": "خطة للمدرسة",
+              "en": "School plan"
+            },
+            {
+              "key": "review",
+              "ar": "متابعة وإعادة التقييم",
+              "en": "Follow-up and reassessment"
+            }
+          ]
+        },
+        {
+          "key": "followup",
+          "type": "date",
+          "label_ar": "ميعاد المتابعة",
+          "label_en": "Follow-up date"
+        }
+      ]
     }
   },
   "tools": {
@@ -231,7 +2946,8 @@
           "en": "Inattentive symptoms (1–9)",
           "type": "count",
           "max": 9,
-          "meets": 6
+          "meets": 6,
+          "better": "lower"
         },
         {
           "key": "hyperactive",
@@ -239,7 +2955,8 @@
           "en": "Hyperactive/impulsive symptoms (10–18)",
           "type": "count",
           "max": 9,
-          "meets": 6
+          "meets": 6,
+          "better": "lower"
         },
         {
           "key": "odd",
@@ -247,7 +2964,8 @@
           "en": "Oppositional (19–26)",
           "type": "count",
           "max": 8,
-          "meets": 4
+          "meets": 4,
+          "better": "lower"
         },
         {
           "key": "conduct",
@@ -255,7 +2973,8 @@
           "en": "Conduct (27–40)",
           "type": "count",
           "max": 14,
-          "meets": 3
+          "meets": 3,
+          "better": "lower"
         },
         {
           "key": "anxiety",
@@ -263,21 +2982,24 @@
           "en": "Anxiety/depression (41–47)",
           "type": "count",
           "max": 7,
-          "meets": 3
+          "meets": 3,
+          "better": "lower"
         },
         {
           "key": "perf_4",
           "ar": "بنود الأداء بدرجة ٤ (٤٨–٥٥)",
           "en": "Performance items rated 4 (48–55)",
           "type": "count",
-          "max": 8
+          "max": 8,
+          "better": "lower"
         },
         {
           "key": "perf_5",
           "ar": "بنود الأداء بدرجة ٥ (٤٨–٥٥)",
           "en": "Performance items rated 5 (48–55)",
           "type": "count",
-          "max": 8
+          "max": 8,
+          "better": "lower"
         }
       ],
       "source_ar": "مقياس Vanderbilt (NICHQ) — نسخة الأهل، تعليمات التصحيح"
@@ -296,7 +3018,8 @@
           "en": "Inattentive symptoms (1–9)",
           "type": "count",
           "max": 9,
-          "meets": 6
+          "meets": 6,
+          "better": "lower"
         },
         {
           "key": "hyperactive",
@@ -304,7 +3027,8 @@
           "en": "Hyperactive/impulsive symptoms (10–18)",
           "type": "count",
           "max": 9,
-          "meets": 6
+          "meets": 6,
+          "better": "lower"
         },
         {
           "key": "odd_conduct",
@@ -312,7 +3036,8 @@
           "en": "Oppositional/conduct (19–28)",
           "type": "count",
           "max": 10,
-          "meets": 3
+          "meets": 3,
+          "better": "lower"
         },
         {
           "key": "anxiety",
@@ -320,21 +3045,24 @@
           "en": "Anxiety/depression (29–35)",
           "type": "count",
           "max": 7,
-          "meets": 3
+          "meets": 3,
+          "better": "lower"
         },
         {
           "key": "perf_4",
           "ar": "بنود الأداء بدرجة ٤",
           "en": "Performance items rated 4",
           "type": "count",
-          "max": 8
+          "max": 8,
+          "better": "lower"
         },
         {
           "key": "perf_5",
           "ar": "بنود الأداء بدرجة ٥",
           "en": "Performance items rated 5",
           "type": "count",
-          "max": 8
+          "max": 8,
+          "better": "lower"
         }
       ],
       "source_ar": "مقياس Vanderbilt (NICHQ) — نسخة المدرس، تعليمات التصحيح"
@@ -351,37 +3079,43 @@
           "key": "inattention",
           "ar": "قلة الانتباه (T)",
           "en": "Inattention (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "hyperactivity",
           "ar": "فرط الحركة / الاندفاع (T)",
           "en": "Hyperactivity/Impulsivity (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "learning",
           "ar": "مشاكل التعلم (T)",
           "en": "Learning problems (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "executive",
           "ar": "الوظائف التنفيذية (T)",
           "en": "Executive functioning (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "aggression",
           "ar": "العناد والعدوانية (T)",
           "en": "Defiance/Aggression (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "peers",
           "ar": "علاقات الأقران (T)",
           "en": "Peer relations (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ],
       "source_ar": "Conners 3 (MHS) — الدرجات من تقرير الناشر"
@@ -398,13 +3132,15 @@
           "key": "omissions",
           "ar": "الاستجابات الفايتة (Omissions)",
           "en": "Omissions",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "commissions",
           "ar": "أخطاء التسرع (Commissions)",
           "en": "Commissions",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "rt",
@@ -416,7 +3152,8 @@
           "key": "rt_var",
           "ar": "تذبذب زمن الاستجابة",
           "en": "Reaction-time variability",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ],
       "source_ar": "تقرير الجهاز نفسه"
@@ -433,19 +3170,22 @@
           "key": "inattention",
           "ar": "قلة الانتباه — المتوسط",
           "en": "Inattention — average",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "hyperactivity",
           "ar": "فرط الحركة والاندفاع — المتوسط",
           "en": "Hyperactivity/impulsivity — average",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "odd",
           "ar": "العناد — المتوسط",
           "en": "Oppositional — average",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ],
       "source_ar": "SNAP-IV (Swanson وNolan وPelham) — متوسط درجة البنود في كل جزء"
@@ -462,25 +3202,29 @@
           "key": "bri",
           "ar": "مؤشر تنظيم السلوك BRI (T)",
           "en": "Behavior Regulation Index (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "eri",
           "ar": "مؤشر تنظيم الانفعال ERI (T)",
           "en": "Emotion Regulation Index (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "cri",
           "ar": "مؤشر التنظيم المعرفي CRI (T)",
           "en": "Cognitive Regulation Index (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         },
         {
           "key": "gec",
           "ar": "المؤشر التنفيذي العام GEC (T)",
           "en": "Global Executive Composite (T)",
-          "type": "score"
+          "type": "score",
+          "better": "lower"
         }
       ],
       "source_ar": "BRIEF-2 (PAR) — الدرجات من تقرير الناشر"
@@ -497,40 +3241,1291 @@
           "key": "fsiq",
           "ar": "الذكاء الكلي FSIQ",
           "en": "Full Scale IQ",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "vci",
           "ar": "الفهم اللفظي VCI",
           "en": "Verbal Comprehension",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "vsi",
           "ar": "البصري المكاني VSI",
           "en": "Visual Spatial",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "fri",
           "ar": "الاستدلال السائل FRI",
           "en": "Fluid Reasoning",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "wmi",
           "ar": "الذاكرة العاملة WMI",
           "en": "Working Memory",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         },
         {
           "key": "psi",
           "ar": "سرعة المعالجة PSI",
           "en": "Processing Speed",
-          "type": "score"
+          "type": "score",
+          "better": "higher"
         }
       ],
       "source_ar": "WISC-V (Pearson) — الدرجات من تقرير الناشر"
+    },
+    "mchat_rf": {
+      "name_ar": "M-CHAT-R/F — فرز التوحد",
+      "name_en": "M-CHAT-R/F — autism screening",
+      "kind": "published",
+      "source": "M-CHAT-R/F (Robins, Fein & Barton) — scoring instructions",
+      "source_ar": "M-CHAT-R/F (Robins, Fein & Barton) — scoring instructions",
+      "rule_ar": "الدرجة الكلية من نموذج الأداة بتعليمات تصحيحها. أداة فرز — مش تشخيص لوحدها، والتفسير من تعليماتها.",
+      "rule_en": "The total from the tool's own form and scoring instructions. A screening tool — not a diagnosis on its own; read by its instructions.",
+      "fields": [
+        {
+          "key": "total",
+          "ar": "عدد البنود اللي بتشير لخطر (من ٢٠)",
+          "en": "At-risk items (of 20)",
+          "type": "count",
+          "max": 20,
+          "better": "lower"
+        },
+        {
+          "key": "followup",
+          "ar": "بعد مقابلة المتابعة (Follow-Up)",
+          "en": "After the Follow-Up interview",
+          "type": "count",
+          "max": 20,
+          "better": "lower"
+        }
+      ]
+    },
+    "cars2": {
+      "name_ar": "CARS-2 — من التقرير",
+      "name_en": "CARS-2 — from the report",
+      "kind": "commercial",
+      "source": "CARS-2 (WPS) — the publisher's form",
+      "source_ar": "CARS-2 (WPS) — the publisher's form",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "raw",
+          "ar": "الدرجة الخام الكلية",
+          "en": "Total raw score",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "t",
+          "ar": "الدرجة التائية (T)",
+          "en": "T-score",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "percentile",
+          "ar": "المئين",
+          "en": "Percentile",
+          "type": "score",
+          "better": "lower"
+        }
+      ]
+    },
+    "ados2": {
+      "name_ar": "ADOS-2 — من التقرير",
+      "name_en": "ADOS-2 — from the report",
+      "kind": "commercial",
+      "source": "ADOS-2 (WPS) — the publisher's protocol",
+      "source_ar": "ADOS-2 (WPS) — the publisher's protocol",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "sa",
+          "ar": "التأثير الاجتماعي (SA)",
+          "en": "Social affect (SA)",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "rrb",
+          "ar": "السلوك المقيّد والمتكرر (RRB)",
+          "en": "Restricted & repetitive (RRB)",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "total",
+          "ar": "المجموع",
+          "en": "Overall total",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "css",
+          "ar": "درجة المقارنة (CSS)",
+          "en": "Comparison score (CSS)",
+          "type": "score",
+          "better": "lower"
+        }
+      ]
+    },
+    "srs2": {
+      "name_ar": "SRS-2 — من التقرير",
+      "name_en": "SRS-2 — from the report",
+      "kind": "commercial",
+      "source": "SRS-2 (WPS) — the publisher's report",
+      "source_ar": "SRS-2 (WPS) — the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "total",
+          "ar": "المجموع (T)",
+          "en": "Total (T)",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "sci",
+          "ar": "التواصل والتفاعل الاجتماعي (T)",
+          "en": "Social communication & interaction (T)",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "rrb",
+          "ar": "السلوك المقيّد والمتكرر (T)",
+          "en": "Restricted interests & repetitive behaviour (T)",
+          "type": "score",
+          "better": "lower"
+        }
+      ]
+    },
+    "asq3": {
+      "name_ar": "ASQ-3 — من النموذج",
+      "name_en": "ASQ-3 — from the questionnaire",
+      "kind": "commercial",
+      "source": "ASQ-3 (Brookes) — the questionnaire for the child's age",
+      "source_ar": "ASQ-3 (Brookes) — the questionnaire for the child's age",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "communication",
+          "ar": "التواصل (من ٦٠)",
+          "en": "Communication (of 60)",
+          "type": "count",
+          "max": 60,
+          "better": "higher"
+        },
+        {
+          "key": "gross_motor",
+          "ar": "الحركة الكبيرة (من ٦٠)",
+          "en": "Gross motor (of 60)",
+          "type": "count",
+          "max": 60,
+          "better": "higher"
+        },
+        {
+          "key": "fine_motor",
+          "ar": "الحركة الدقيقة (من ٦٠)",
+          "en": "Fine motor (of 60)",
+          "type": "count",
+          "max": 60,
+          "better": "higher"
+        },
+        {
+          "key": "problem_solving",
+          "ar": "حل المشكلات (من ٦٠)",
+          "en": "Problem solving (of 60)",
+          "type": "count",
+          "max": 60,
+          "better": "higher"
+        },
+        {
+          "key": "personal_social",
+          "ar": "الشخصي والاجتماعي (من ٦٠)",
+          "en": "Personal-social (of 60)",
+          "type": "count",
+          "max": 60,
+          "better": "higher"
+        }
+      ]
+    },
+    "bayley4": {
+      "name_ar": "Bayley-4 — من التقرير",
+      "name_en": "Bayley-4 — from the report",
+      "kind": "commercial",
+      "source": "Bayley-4 (Pearson) — the publisher's report",
+      "source_ar": "Bayley-4 (Pearson) — the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "cognitive",
+          "ar": "المعرفي",
+          "en": "Cognitive",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "language",
+          "ar": "اللغة",
+          "en": "Language",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "motor",
+          "ar": "الحركة",
+          "en": "Motor",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "social_emotional",
+          "ar": "الاجتماعي الانفعالي",
+          "en": "Social-emotional",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "adaptive",
+          "ar": "التكيفي",
+          "en": "Adaptive behaviour",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "vineland3": {
+      "name_ar": "Vineland-3 — من التقرير",
+      "name_en": "Vineland-3 — from the report",
+      "kind": "commercial",
+      "source": "Vineland-3 (Pearson) — the publisher's report",
+      "source_ar": "Vineland-3 (Pearson) — the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "abc",
+          "ar": "مركب السلوك التكيفي (ABC)",
+          "en": "Adaptive Behaviour Composite",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "communication",
+          "ar": "التواصل",
+          "en": "Communication",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "daily_living",
+          "ar": "مهارات الحياة اليومية",
+          "en": "Daily living skills",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "socialization",
+          "ar": "التنشئة الاجتماعية",
+          "en": "Socialization",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "motor",
+          "ar": "الحركة",
+          "en": "Motor skills",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "abas3": {
+      "name_ar": "ABAS-3 — من التقرير",
+      "name_en": "ABAS-3 — from the report",
+      "kind": "commercial",
+      "source": "ABAS-3 (WPS) — the publisher's report",
+      "source_ar": "ABAS-3 (WPS) — the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "gac",
+          "ar": "المركب العام (GAC)",
+          "en": "General Adaptive Composite",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "conceptual",
+          "ar": "المفاهيمي",
+          "en": "Conceptual",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "social",
+          "ar": "الاجتماعي",
+          "en": "Social",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "practical",
+          "ar": "العملي",
+          "en": "Practical",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "wppsi4": {
+      "name_ar": "WPPSI-IV — من التقرير",
+      "name_en": "WPPSI-IV — from the report",
+      "kind": "commercial",
+      "source": "WPPSI-IV (Pearson) — the publisher's report",
+      "source_ar": "WPPSI-IV (Pearson) — the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "fsiq",
+          "ar": "الذكاء الكلي FSIQ",
+          "en": "Full Scale IQ",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "vci",
+          "ar": "الفهم اللفظي VCI",
+          "en": "Verbal Comprehension",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "vsi",
+          "ar": "البصري المكاني VSI",
+          "en": "Visual Spatial",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "fri",
+          "ar": "الاستدلال السائل FRI",
+          "en": "Fluid Reasoning",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "wmi",
+          "ar": "الذاكرة العاملة WMI",
+          "en": "Working Memory",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "psi",
+          "ar": "سرعة المعالجة PSI",
+          "en": "Processing Speed",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "sb5": {
+      "name_ar": "Stanford-Binet 5 — من التقرير",
+      "name_en": "Stanford-Binet 5 — from the report",
+      "kind": "commercial",
+      "source": "Stanford-Binet 5 (PRO-ED) — the publisher's report",
+      "source_ar": "Stanford-Binet 5 (PRO-ED) — the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "fsiq",
+          "ar": "الذكاء الكلي FSIQ",
+          "en": "Full Scale IQ",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "nviq",
+          "ar": "غير اللفظي NVIQ",
+          "en": "Nonverbal IQ",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "viq",
+          "ar": "اللفظي VIQ",
+          "en": "Verbal IQ",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "cms": {
+      "name_ar": "CMS — من التقرير",
+      "name_en": "CMS — from the report",
+      "kind": "commercial",
+      "source": "Children's Memory Scale (Pearson) — the publisher's report",
+      "source_ar": "Children's Memory Scale (Pearson) — the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "general",
+          "ar": "الذاكرة العامة",
+          "en": "General memory",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "attention",
+          "ar": "الانتباه والتركيز",
+          "en": "Attention/concentration",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "verbal_immediate",
+          "ar": "اللفظية الفورية",
+          "en": "Verbal immediate",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "verbal_delayed",
+          "ar": "اللفظية المؤجلة",
+          "en": "Verbal delayed",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "visual_immediate",
+          "ar": "البصرية الفورية",
+          "en": "Visual immediate",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "visual_delayed",
+          "ar": "البصرية المؤجلة",
+          "en": "Visual delayed",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "wraml3": {
+      "name_ar": "WRAML3 — من التقرير",
+      "name_en": "WRAML3 — from the report",
+      "kind": "commercial",
+      "source": "WRAML3 (Pearson) — the publisher's report",
+      "source_ar": "WRAML3 (Pearson) — the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "general",
+          "ar": "مؤشر الذاكرة العامة",
+          "en": "General Memory Index",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "verbal",
+          "ar": "الذاكرة اللفظية",
+          "en": "Verbal memory",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "visual",
+          "ar": "الذاكرة البصرية",
+          "en": "Visual memory",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "attention",
+          "ar": "الانتباه والتركيز",
+          "en": "Attention/concentration",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "celf5": {
+      "name_ar": "CELF-5 — من التقرير",
+      "name_en": "CELF-5 — from the report",
+      "kind": "commercial",
+      "source": "CELF-5 (Pearson) — the publisher's report",
+      "source_ar": "CELF-5 (Pearson) — the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "core",
+          "ar": "اللغة الأساسية",
+          "en": "Core language",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "receptive",
+          "ar": "الاستقبالية",
+          "en": "Receptive language",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "expressive",
+          "ar": "التعبيرية",
+          "en": "Expressive language",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "ppvt5": {
+      "name_ar": "PPVT-5 — من التقرير",
+      "name_en": "PPVT-5 — from the report",
+      "kind": "commercial",
+      "source": "PPVT-5 (Pearson) — the publisher's report",
+      "source_ar": "PPVT-5 (Pearson) — the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "standard",
+          "ar": "الدرجة المعيارية",
+          "en": "Standard score",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "percentile",
+          "ar": "المئين",
+          "en": "Percentile",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "evt3": {
+      "name_ar": "EVT-3 — من التقرير",
+      "name_en": "EVT-3 — from the report",
+      "kind": "commercial",
+      "source": "EVT-3 (Pearson) — the publisher's report",
+      "source_ar": "EVT-3 (Pearson) — the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "standard",
+          "ar": "الدرجة المعيارية",
+          "en": "Standard score",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "percentile",
+          "ar": "المئين",
+          "en": "Percentile",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "wiat4": {
+      "name_ar": "WIAT-4 — من التقرير",
+      "name_en": "WIAT-4 — from the report",
+      "kind": "commercial",
+      "source": "WIAT-4 (Pearson) — the publisher's report",
+      "source_ar": "WIAT-4 (Pearson) — the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "total",
+          "ar": "التحصيل الكلي",
+          "en": "Total achievement",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "reading",
+          "ar": "القراءة",
+          "en": "Reading",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "writing",
+          "ar": "التعبير الكتابي",
+          "en": "Written expression",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "math",
+          "ar": "الرياضيات",
+          "en": "Mathematics",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "wj4_ach": {
+      "name_ar": "Woodcock-Johnson IV (تحصيل) — من التقرير",
+      "name_en": "Woodcock-Johnson IV ACH — from the report",
+      "kind": "commercial",
+      "source": "WJ IV Tests of Achievement (Riverside) — the publisher's report",
+      "source_ar": "WJ IV Tests of Achievement (Riverside) — the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "reading",
+          "ar": "القراءة الواسعة",
+          "en": "Broad reading",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "math",
+          "ar": "الرياضيات الواسعة",
+          "en": "Broad mathematics",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "writing",
+          "ar": "اللغة المكتوبة الواسعة",
+          "en": "Broad written language",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "ctopp2": {
+      "name_ar": "CTOPP-2 — من التقرير",
+      "name_en": "CTOPP-2 — from the report",
+      "kind": "commercial",
+      "source": "CTOPP-2 (PRO-ED) — the publisher's report",
+      "source_ar": "CTOPP-2 (PRO-ED) — the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "awareness",
+          "ar": "الوعي الصوتي",
+          "en": "Phonological awareness",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "memory",
+          "ar": "الذاكرة الصوتية",
+          "en": "Phonological memory",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "naming",
+          "ar": "التسمية السريعة",
+          "en": "Rapid symbolic naming",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "cbcl": {
+      "name_ar": "CBCL — من التقرير",
+      "name_en": "CBCL — from the report",
+      "kind": "commercial",
+      "source": "CBCL / ASEBA — the publisher's scoring",
+      "source_ar": "CBCL / ASEBA — the publisher's scoring",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "total",
+          "ar": "مجموع المشاكل (T)",
+          "en": "Total problems (T)",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "internalizing",
+          "ar": "الداخلية (T)",
+          "en": "Internalizing (T)",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "externalizing",
+          "ar": "الخارجية (T)",
+          "en": "Externalizing (T)",
+          "type": "score",
+          "better": "lower"
+        }
+      ]
+    },
+    "sdq": {
+      "name_ar": "SDQ — نقاط القوة والصعوبات",
+      "name_en": "SDQ — Strengths and Difficulties",
+      "kind": "published",
+      "source": "SDQ (Goodman) — the scoring instructions",
+      "source_ar": "SDQ (Goodman) — the scoring instructions",
+      "rule_ar": "الدرجات من نموذج الأداة بتعليمات تصحيحها، والتفسير من تعليماتها. استبيان فرز مش تشخيص.",
+      "rule_en": "Scores from the tool's own form by its scoring instructions, read by them. A screening questionnaire, not a diagnosis.",
+      "fields": [
+        {
+          "key": "total",
+          "ar": "مجموع الصعوبات (من ٤٠)",
+          "en": "Total difficulties (of 40)",
+          "type": "count",
+          "max": 40,
+          "better": "lower"
+        },
+        {
+          "key": "emotional",
+          "ar": "الأعراض الانفعالية (من ١٠)",
+          "en": "Emotional symptoms (of 10)",
+          "type": "count",
+          "max": 10,
+          "better": "lower"
+        },
+        {
+          "key": "conduct",
+          "ar": "مشاكل السلوك (من ١٠)",
+          "en": "Conduct problems (of 10)",
+          "type": "count",
+          "max": 10,
+          "better": "lower"
+        },
+        {
+          "key": "hyperactivity",
+          "ar": "فرط الحركة وقلة الانتباه (من ١٠)",
+          "en": "Hyperactivity/inattention (of 10)",
+          "type": "count",
+          "max": 10,
+          "better": "lower"
+        },
+        {
+          "key": "peer",
+          "ar": "مشاكل مع الأقران (من ١٠)",
+          "en": "Peer problems (of 10)",
+          "type": "count",
+          "max": 10,
+          "better": "lower"
+        },
+        {
+          "key": "prosocial",
+          "ar": "السلوك الاجتماعي الإيجابي (من ١٠)",
+          "en": "Prosocial (of 10)",
+          "type": "count",
+          "max": 10,
+          "better": "higher"
+        }
+      ]
+    },
+    "basc3": {
+      "name_ar": "BASC-3 — من التقرير",
+      "name_en": "BASC-3 — from the report",
+      "kind": "commercial",
+      "source": "BASC-3 (Pearson) — the publisher's report",
+      "source_ar": "BASC-3 (Pearson) — the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "bsi",
+          "ar": "مؤشر الأعراض السلوكية (T)",
+          "en": "Behavioural Symptoms Index (T)",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "externalizing",
+          "ar": "المشاكل الخارجية (T)",
+          "en": "Externalizing (T)",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "internalizing",
+          "ar": "المشاكل الداخلية (T)",
+          "en": "Internalizing (T)",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "adaptive",
+          "ar": "المهارات التكيفية (T)",
+          "en": "Adaptive skills (T)",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "tova": {
+      "name_ar": "TOVA",
+      "name_en": "TOVA",
+      "kind": "device",
+      "source": "The device's own report",
+      "source_ar": "تقرير الجهاز نفسه",
+      "rule_ar": "النتيجة من تقرير الجهاز. اختبار أداء مش تشخيص لوحده.",
+      "rule_en": "From the device's report. A performance test, not a diagnosis on its own.",
+      "fields": [
+        {
+          "key": "omissions",
+          "ar": "الاستجابات الفايتة",
+          "en": "Omissions",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "commissions",
+          "ar": "أخطاء التسرع",
+          "en": "Commissions",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "rt",
+          "ar": "زمن الاستجابة",
+          "en": "Response time",
+          "type": "score"
+        },
+        {
+          "key": "rt_var",
+          "ar": "تذبذب زمن الاستجابة",
+          "en": "Response-time variability",
+          "type": "score",
+          "better": "lower"
+        }
+      ]
+    },
+    "stroop": {
+      "name_ar": "Stroop",
+      "name_en": "Stroop",
+      "kind": "published",
+      "source": "Stroop colour-word test — the version's own manual",
+      "source_ar": "Stroop colour-word test — the version's own manual",
+      "rule_ar": "الأرقام من نسخة الاختبار اللي اتعملت، والتفسير من دليلها.",
+      "rule_en": "Figures from the version used, read by its manual.",
+      "fields": [
+        {
+          "key": "time",
+          "ar": "الوقت (ثانية)",
+          "en": "Time (s)",
+          "type": "score"
+        },
+        {
+          "key": "errors",
+          "ar": "الأخطاء",
+          "en": "Errors",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "interference",
+          "ar": "درجة التداخل",
+          "en": "Interference score",
+          "type": "score"
+        }
+      ]
+    },
+    "mabc2": {
+      "name_ar": "MABC-2 — من التقرير",
+      "name_en": "MABC-2 — from the report",
+      "kind": "commercial",
+      "source": "Movement ABC-2 (Pearson) — the publisher's form",
+      "source_ar": "Movement ABC-2 (Pearson) — the publisher's form",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "total",
+          "ar": "الدرجة الكلية المعيارية",
+          "en": "Total standard score",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "dexterity",
+          "ar": "المهارة اليدوية",
+          "en": "Manual dexterity",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "aiming",
+          "ar": "التصويب والالتقاط",
+          "en": "Aiming & catching",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "balance",
+          "ar": "التوازن",
+          "en": "Balance",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "bot2": {
+      "name_ar": "BOT-2 — من التقرير",
+      "name_en": "BOT-2 — from the report",
+      "kind": "commercial",
+      "source": "BOT-2 (Pearson) — the publisher's report",
+      "source_ar": "BOT-2 (Pearson) — the publisher's report",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "total",
+          "ar": "المركب الحركي الكلي",
+          "en": "Total motor composite",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "fine",
+          "ar": "التحكم اليدوي الدقيق",
+          "en": "Fine manual control",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "coordination",
+          "ar": "التآزر اليدوي",
+          "en": "Manual coordination",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "body",
+          "ar": "التآزر الجسمي",
+          "en": "Body coordination",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "strength",
+          "ar": "القوة والرشاقة",
+          "en": "Strength & agility",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "beery_vmi": {
+      "name_ar": "Beery VMI — من التقرير",
+      "name_en": "Beery VMI — from the report",
+      "kind": "commercial",
+      "source": "Beery VMI (Pearson) — the publisher's form",
+      "source_ar": "Beery VMI (Pearson) — the publisher's form",
+      "rule_ar": "اختبار تجاري: الدرجات من تقرير الأداة الرسمي، والتفسير من دليلها. ارفق التقرير.",
+      "rule_en": "A commercial test: scores from its official report, read by its manual. Attach the report.",
+      "fields": [
+        {
+          "key": "vmi",
+          "ar": "التكامل البصري الحركي",
+          "en": "Visual-motor integration",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "visual",
+          "ar": "الإدراك البصري",
+          "en": "Visual perception",
+          "type": "score",
+          "better": "higher"
+        },
+        {
+          "key": "motor",
+          "ar": "التآزر الحركي",
+          "en": "Motor coordination",
+          "type": "score",
+          "better": "higher"
+        }
+      ]
+    },
+    "scared": {
+      "name_ar": "SCARED — القلق",
+      "name_en": "SCARED — anxiety",
+      "kind": "published",
+      "source": "SCARED (Birmaher et al.) — the scoring instructions",
+      "source_ar": "SCARED (Birmaher et al.) — the scoring instructions",
+      "rule_ar": "الدرجة الكلية من نموذج الأداة بتعليمات تصحيحها. أداة فرز — مش تشخيص لوحدها، والتفسير من تعليماتها.",
+      "rule_en": "The total from the tool's own form and scoring instructions. A screening tool — not a diagnosis on its own; read by its instructions.",
+      "fields": [
+        {
+          "key": "total",
+          "ar": "المجموع (من ٨٢)",
+          "en": "Total (of 82)",
+          "type": "count",
+          "max": 82,
+          "better": "lower"
+        },
+        {
+          "key": "panic",
+          "ar": "الهلع / الأعراض الجسدية (من ٢٦)",
+          "en": "Panic / somatic (of 26)",
+          "type": "count",
+          "max": 26,
+          "better": "lower"
+        },
+        {
+          "key": "gad",
+          "ar": "القلق العام (من ١٨)",
+          "en": "Generalized anxiety (of 18)",
+          "type": "count",
+          "max": 18,
+          "better": "lower"
+        },
+        {
+          "key": "separation",
+          "ar": "قلق الانفصال (من ١٦)",
+          "en": "Separation anxiety (of 16)",
+          "type": "count",
+          "max": 16,
+          "better": "lower"
+        },
+        {
+          "key": "social",
+          "ar": "القلق الاجتماعي (من ١٤)",
+          "en": "Social anxiety (of 14)",
+          "type": "count",
+          "max": 14,
+          "better": "lower"
+        },
+        {
+          "key": "school",
+          "ar": "تجنّب المدرسة (من ٨)",
+          "en": "School avoidance (of 8)",
+          "type": "count",
+          "max": 8,
+          "better": "lower"
+        }
+      ]
+    },
+    "rcads": {
+      "name_ar": "RCADS — القلق والاكتئاب",
+      "name_en": "RCADS — anxiety and depression",
+      "kind": "published",
+      "source": "RCADS (Chorpita) — the scoring programme",
+      "source_ar": "RCADS (Chorpita) — the scoring programme",
+      "rule_ar": "الدرجات التائية من برنامج تصحيح الأداة حسب سن الطفل ونوعه، والتفسير من تعليماتها.",
+      "rule_en": "T-scores from the tool's scoring programme by age and sex, read by its instructions.",
+      "fields": [
+        {
+          "key": "total",
+          "ar": "المجموع (T)",
+          "en": "Total (T)",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "anxiety",
+          "ar": "القلق الكلي (T)",
+          "en": "Total anxiety (T)",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "depression",
+          "ar": "الاكتئاب (T)",
+          "en": "Depression (T)",
+          "type": "score",
+          "better": "lower"
+        }
+      ]
+    },
+    "ygtss": {
+      "name_ar": "YGTSS — شدة اللزمات",
+      "name_en": "YGTSS — tic severity",
+      "kind": "published",
+      "source": "Yale Global Tic Severity Scale (Leckman et al., 1989) — the scale's own scoring",
+      "source_ar": "Yale Global Tic Severity Scale (Leckman et al., 1989) — the scale's own scoring",
+      "rule_ar": "مقابلة بيعملها المختص؛ الأرقام بتعليمات المقياس، والتفسير منها.",
+      "rule_en": "A clinician interview; scored by the scale's own instructions and read by them.",
+      "fields": [
+        {
+          "key": "motor",
+          "ar": "شدة اللزمات الحركية (من ٢٥)",
+          "en": "Motor tic severity (of 25)",
+          "type": "count",
+          "max": 25,
+          "better": "lower"
+        },
+        {
+          "key": "phonic",
+          "ar": "شدة اللزمات الصوتية (من ٢٥)",
+          "en": "Phonic tic severity (of 25)",
+          "type": "count",
+          "max": 25,
+          "better": "lower"
+        },
+        {
+          "key": "total",
+          "ar": "مجموع شدة اللزمات (من ٥٠)",
+          "en": "Total tic severity (of 50)",
+          "type": "count",
+          "max": 50,
+          "better": "lower"
+        },
+        {
+          "key": "impairment",
+          "ar": "التأثير على الحياة (من ٥٠)",
+          "en": "Impairment (of 50)",
+          "type": "count",
+          "max": 50,
+          "better": "lower"
+        },
+        {
+          "key": "global",
+          "ar": "الدرجة الكلية (من ١٠٠)",
+          "en": "Global severity (of 100)",
+          "type": "count",
+          "max": 100,
+          "better": "lower"
+        }
+      ]
+    },
+    "cshq": {
+      "name_ar": "CSHQ — عادات النوم",
+      "name_en": "CSHQ — sleep habits",
+      "kind": "published",
+      "source": "Children's Sleep Habits Questionnaire (Owens, Spirito & McGuinn, 2000) — the scoring instructions",
+      "source_ar": "Children's Sleep Habits Questionnaire (Owens, Spirito & McGuinn, 2000) — the scoring instructions",
+      "rule_ar": "المجموع من نموذج الأداة بتعليمات تصحيحها، والتفسير منها. استبيان فرز.",
+      "rule_en": "The total from the tool's form by its scoring instructions, read by them. A screening questionnaire.",
+      "fields": [
+        {
+          "key": "total",
+          "ar": "المجموع",
+          "en": "Total score",
+          "type": "score",
+          "better": "lower"
+        }
+      ]
+    },
+    "pedmidas": {
+      "name_ar": "PedMIDAS — أثر الصداع",
+      "name_en": "PedMIDAS — headache disability",
+      "kind": "published",
+      "source": "PedMIDAS (Hershey et al.) — the scoring instructions",
+      "source_ar": "PedMIDAS (Hershey et al.) — the scoring instructions",
+      "rule_ar": "الدرجة من نموذج الأداة بتعليماته، والتفسير منه.",
+      "rule_en": "The score from the tool's form by its instructions, read by them.",
+      "fields": [
+        {
+          "key": "score",
+          "ar": "الدرجة (أيام متأثرة في ٣ شهور)",
+          "en": "Score (days affected in 3 months)",
+          "type": "score",
+          "better": "lower"
+        }
+      ]
+    },
+    "headache_diary": {
+      "name_ar": "مفكرة الصداع",
+      "name_en": "Headache diary",
+      "kind": "published",
+      "source": "The family's headache diary",
+      "source_ar": "The family's headache diary",
+      "rule_ar": "أرقام من مفكرة الأهل كما اتكتبت.",
+      "rule_en": "Figures from the family's diary as written.",
+      "fields": [
+        {
+          "key": "days",
+          "ar": "أيام الصداع في الشهر",
+          "en": "Headache days per month",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "longest",
+          "ar": "أطول نوبة (ساعة)",
+          "en": "Longest attack (hours)",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "severity",
+          "ar": "أشد ألم (حسب المقياس المناسب للسن)",
+          "en": "Worst pain (age-appropriate scale)",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "school_days",
+          "ar": "أيام غياب عن المدرسة",
+          "en": "School days missed",
+          "type": "score",
+          "better": "lower"
+        }
+      ]
+    },
+    "seizure_diary": {
+      "name_ar": "مفكرة النوبات",
+      "name_en": "Seizure diary",
+      "kind": "published",
+      "source": "The family's seizure diary",
+      "source_ar": "The family's seizure diary",
+      "rule_ar": "أرقام من مفكرة الأهل كما اتكتبت.",
+      "rule_en": "Figures from the family's diary as written.",
+      "fields": [
+        {
+          "key": "per_month",
+          "ar": "عدد النوبات في الشهر",
+          "en": "Seizures per month",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "longest",
+          "ar": "أطول نوبة (دقيقة)",
+          "en": "Longest seizure (minutes)",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "clusters",
+          "ar": "مرات النوبات المتتالية",
+          "en": "Clusters",
+          "type": "score",
+          "better": "lower"
+        },
+        {
+          "key": "rescue",
+          "ar": "مرات دوا الطوارئ",
+          "en": "Rescue medication doses",
+          "type": "score",
+          "better": "lower"
+        }
+      ]
     }
   }
 }

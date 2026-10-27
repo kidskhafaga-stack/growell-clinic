@@ -11,6 +11,7 @@
    impression, and the doctor's approval. Nothing on it is the program's own
    reading of a score. #}
 {% include "assessments/_style.html" %}
+{% import "assessments/_progress.html" as prog with context %}
 {% set tools = answers.get('tools') or {} %}
 <div class="no-print" style="display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;">
   <a class="btn btn-outline gc-press" href="{{ url_for('assessments.view', assessment_id=row.id) }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
@@ -46,6 +47,9 @@
   {% elif s.type in ('multi', 'checks') %}
     {% set picked = answers.get(s.key) or [] %}
     {% if picked %}<div><b>{{ label }}:</b> {% for o in s.options if o.key in picked %}{{ o[L] or o.ar }}{{ '، ' if not loop.last else '' }}{% endfor %}</div>{% endif %}
+  {% elif s.type == 'ages' %}
+    {% if development %}<section style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;break-inside:avoid;" data-report-ages>
+      <h3 style="margin:0 0 8px;font-size:1rem;">{{ label }}</h3>{{ prog.dev_bars(development, progress, L) }}</section>{% endif %}
   {% elif s.type == 'single' %}
     {% for o in s.options if answers.get(s.key) == o.key %}<div><b>{{ label }}:</b> {{ o[L] or o.ar }}</div>{% endfor %}
   {% elif s.type == 'text' and answers.get(s.key) %}
@@ -54,6 +58,13 @@
     <div><b>{{ label }}:</b> <span dir="ltr">{{ answers.get(s.key) }}</span></div>
   {% endif %}
   {% endfor %}
+  {% set moving = trends|selectattr('prev', 'ne', none)|list %}
+  {% if moving %}
+  <section style="break-inside:avoid;" data-report-trends>
+    <h3 style="margin:0 0 8px;font-size:1rem;">{{ t('progress.title') }}</h3>
+    {{ prog.trend_rows(moving, L) }}
+  </section>
+  {% endif %}
   <div style="display:flex;gap:30px;flex-wrap:wrap;margin-top:14px;">
     <div style="flex:1;min-width:200px;">{{ t('assessment.written_by', who=row.assessor.display_name(current_lang) if row.assessor else '—') }}</div>
     <div style="flex:1;min-width:200px;">{% if row.status == 'approved' %}{{ t('assessment.approved_by', who=row.approver.display_name(current_lang) if row.approver else '—', when=row.approved_at|clinic_stamp) }}

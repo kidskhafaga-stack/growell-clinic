@@ -7,6 +7,17 @@
 {# A child's assessments (ASSESSMENTS_PLAN.md ت-١), newest first, and a new
    one from the form the clinic fills for its kind. #}
 {% include "assessments/_style.html" %}
+{% import "assessments/_progress.html" as prog with context %}
+{% set L = 'en' if current_lang == 'en' else 'ar' %}
+<style>
+  .pv-kinds { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .pv-kind { display:inline-flex; gap:6px; align-items:center; border:1px solid var(--line); border-radius:999px; padding:5px 12px; text-decoration:none; color:inherit; background:var(--card, var(--surface)); font-size:.88rem; }
+  .pv-kind b { font-variant-numeric:tabular-nums; }
+  .pv-card { display:grid; gap:12px; margin-bottom:14px; }
+  .pv-card__head { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; }
+  .pv-card__head h2 { margin:0; font-size:1.08rem; display:flex; gap:8px; align-items:center; }
+  .pv-empty { border:1px dashed var(--line); border-radius:14px; padding:18px; text-align:center; color:var(--muted); margin-bottom:14px; }
+</style>
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
   <div>
     <h1 class="page-title"><i class="bi bi-clipboard2-pulse"></i> {{ t('assessment.title') }}</h1>
@@ -23,6 +34,31 @@
 </form>
 {% endif %}
 
+{# ت-٥ — how far along, and which way: the latest approved assessment of
+   each kind, its development against the child's real age, and every score
+   beside its earlier ones. #}
+<h2 class="section-title" style="margin:0 0 10px;"><i class="bi bi-graph-up-arrow"></i> {{ t('progress.child_title') }}
+  {% if age_months %}<span class="hint" style="font-weight:400;font-size:.9rem;">· {{ t('progress.real_age') }}: {{ prog.months(age_months) }}</span>{% endif %}</h2>
+{% if overview %}
+<nav class="pv-kinds" data-progress-kinds>
+  {% for k in overview %}<a class="pv-kind" href="#k-{{ k.row.kind }}"><i class="bi bi-{{ k.row.form.icon or 'clipboard2-pulse' }}"></i> {{ k.row.form['name_' ~ L] or k.row.form.name_ar }} <b>{{ k.count }}</b></a>{% endfor %}
+</nav>
+{% for k in overview %}
+<section class="card gc-scale-in pv-card" id="k-{{ k.row.kind }}" data-progress-kind="{{ k.row.kind }}">
+  <div class="pv-card__head">
+    <h2><i class="bi bi-{{ k.row.form.icon or 'clipboard2-pulse' }}"></i> {{ k.row.form['name_' ~ L] or k.row.form.name_ar }}</h2>
+    <span class="hint" style="margin:0;">{{ t('progress.latest', d=k.row.assessed_on.isoformat(), n=k.count) }} ·
+      <a href="{{ url_for('assessments.view', assessment_id=k.row.id) }}">{{ t('progress.open') }}</a></span>
+  </div>
+  {% if k.development %}{{ prog.dev_bars(k.development, k.progress, L) }}{% endif %}
+  {% if k.trends %}{{ prog.trend_rows(k.trends, L) }}{% elif not k.development %}<p class="hint" style="margin:0;">{{ t('progress.one_only') }}</p>{% endif %}
+</section>
+{% endfor %}
+{% else %}
+<div class="pv-empty" data-progress-empty>{{ t('progress.none_yet') }}</div>
+{% endif %}
+
+<h2 class="section-title" style="margin:6px 0 10px;"><i class="bi bi-list-ul"></i> {{ t('progress.all') }}</h2>
 <div class="card gc-scale-in" data-assessments>
   {% if not rows %}<p class="hint" style="margin:0;" data-no-assessments>{{ t('assessment.none') }}</p>{% endif %}
   {% for r in rows %}

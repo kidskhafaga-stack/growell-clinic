@@ -1,0 +1,105 @@
+{# How far along, and which way (ASSESSMENTS_PLAN.md ت-٥) — drawn the same on
+   the assessment screen, the child's progress page, the printed report and
+   the page the family receives. Inline styles only, so the self-contained
+   family file draws them too. Arithmetic on what the specialist wrote; the
+   direction of a score is the scale's own design (`better`); whether a
+   change matters is the specialist's call, and the page says so. #}
+
+{% macro _count(n, unit) -%}
+{%- if n != n|int %}{{ t('progress.' ~ unit ~ '_many', n=n) }}{% elif n == 1 %}{{ t('progress.' ~ unit ~ '_1') }}{% elif n == 2 %}{{ t('progress.' ~ unit ~ '_2') }}{% elif 3 <= n <= 10 %}{{ t('progress.' ~ unit ~ '_few', n=n|int) }}{% else %}{{ t('progress.' ~ unit ~ '_many', n=n|int) }}{% endif -%}
+{%- endmacro %}
+
+{% macro months(n) -%}
+{%- set n = (n|abs)|round(1) -%}
+{%- set y = (n // 12)|int -%}{%- set m = (n - y * 12)|round(1) -%}
+{%- if y and m %}{{ _count(y, 'years') }} {{ t('progress.and') }}{{ _count(m, 'months') }}{% elif y %}{{ _count(y, 'years') }}{% else %}{{ _count(m, 'months') }}{% endif -%}
+{%- endmacro %}
+
+{% macro dev_bars(dev, prog=None, L='ar') %}
+{% if dev %}
+{% set top = ([dev.chrono] + dev.rows|map(attribute='dev')|list)|max * 1.15 %}
+{% set chrono_pct = (dev.chrono / top * 100)|round(1) %}
+{% set before = {} %}{% if prog %}{% for r in prog.rows %}{% set _ = before.update({r.key: r}) %}{% endfor %}{% endif %}
+<div data-dev-bars style="display:grid;gap:10px;">
+  <div style="display:flex;gap:8px 16px;flex-wrap:wrap;align-items:center;font-size:.85rem;color:var(--muted,#5b6b7b);">
+    <span>{{ t('progress.real_age') }}: <b style="color:inherit;">{{ months(dev.chrono) }}</b></span>
+    <span style="display:inline-flex;align-items:center;gap:6px;"><span style="display:inline-block;width:12px;height:10px;border-radius:3px;background:#2f6f9f;"></span>{{ t('progress.dev_age') }}</span>
+    <span style="display:inline-flex;align-items:center;gap:6px;"><span style="display:inline-block;width:2px;height:14px;background:#1d2b3a;"></span>{{ t('progress.real_age') }}</span>
+  </div>
+  {% for r in dev.rows %}
+  {% set behind = r.gap <= -1 %}{% set ahead = r.gap >= 1 %}
+  {% set p = before.get(r.key) %}
+  <div data-dev-row="{{ r.key }}" style="display:grid;gap:4px;">
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline;">
+      <span style="font-weight:600;">{{ r[L] or r.ar }}</span>
+      <span style="display:flex;gap:6px;flex-wrap:wrap;align-items:baseline;">
+        <span style="font-variant-numeric:tabular-nums;">{{ months(r.dev) }}</span>
+        <span data-gap="{{ r.gap }}" style="font-size:.8rem;font-weight:700;padding:2px 9px;border-radius:999px;{% if behind %}background:#fdf0dc;color:#9a4a07;{% elif ahead %}background:#e3f4ea;color:#166534;{% else %}background:#eef2f6;color:#475569;{% endif %}">
+          {% if behind %}{{ t('progress.behind', n=months(r.gap)) }}{% elif ahead %}{{ t('progress.ahead', n=months(r.gap)) }}{% else %}{{ t('progress.on_age') }}{% endif %} · {{ r.ratio }}%</span>
+      </span>
+    </div>
+    <div style="position:relative;height:14px;border-radius:999px;background:#e9eef3;-webkit-print-color-adjust:exact;print-color-adjust:exact;" aria-hidden="true">
+      <span style="position:absolute;inset-block:0;inset-inline-start:0;width:{{ [(r.dev / top * 100)|round(1), 100]|min }}%;border-radius:999px;background:{{ '#c2772a' if behind else '#2f6f9f' }};"></span>
+      <span style="position:absolute;top:-4px;bottom:-4px;inset-inline-start:{{ chrono_pct }}%;width:2px;background:#1d2b3a;"></span>
+    </div>
+    {% if p %}
+    <div data-dev-progress="{{ r.key }}" style="font-size:.82rem;color:var(--muted,#5b6b7b);">
+      {{ t('progress.gained', n=months(p.gained) if p.gained >= 0 else '−' ~ months(p.gained), m=months(prog.elapsed)) }}
+      <b style="color:{{ '#166534' if p.rate >= 100 else ('#9a4a07' if p.rate < 50 else '#1d2b3a') }};">{{ t('progress.rate', n=p.rate) }}</b>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+  <p style="margin:0;font-size:.8rem;color:var(--muted,#5b6b7b);">{{ t('progress.dev_note') }}{% if prog %} {{ t('progress.since', d=prog.since.isoformat()) }}{% endif %}</p>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro chip(tr) %}
+{% set d = tr.direction %}
+{% if tr.delta is none %}<span data-trend-chip="first" style="font-size:.78rem;padding:2px 9px;border-radius:999px;background:#eef2f6;color:#475569;">{{ t('progress.first') }}</span>
+{% else %}
+<span data-trend-chip="{{ d }}" style="font-size:.78rem;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap;{% if d == 'better' %}background:#e3f4ea;color:#166534;{% elif d == 'worse' %}background:#fdf0dc;color:#9a4a07;{% else %}background:#eef2f6;color:#475569;{% endif %}">
+  {% if tr.delta > 0 %}▲{% elif tr.delta < 0 %}▼{% else %}●{% endif %} <bdi dir="ltr">{{ '%+g'|format(tr.delta) if tr.delta else '0' }}</bdi> · {{ t('progress.dir_' ~ d) }}</span>
+{% endif %}
+{% endmacro %}
+
+{% macro spark(points, better=None, w=220, h=54) %}
+{% if points|length > 1 %}
+{% set vals = points|map(attribute=1)|list %}{% set lo = vals|min %}{% set hi = vals|max %}{% set rng = (hi - lo) or 1 %}
+{% set n = points|length %}
+<svg viewBox="0 0 {{ w }} {{ h + 16 }}" width="100%" height="{{ h + 16 }}" preserveAspectRatio="none" role="img" aria-label="{{ vals|join(' → ') }}" style="display:block;overflow:visible;">
+  <line x1="6" x2="{{ w - 6 }}" y1="{{ h - 4 }}" y2="{{ h - 4 }}" stroke="#dfe5ec" stroke-width="1"></line>
+  <polyline fill="none" stroke="#2f6f9f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"
+    points="{% for d, v in points %}{{ '%.1f'|format(8 + loop.index0 * (w - 16) / (n - 1)) }},{{ '%.1f'|format(h - 6 - (v - lo) / rng * (h - 16)) }} {% endfor %}"></polyline>
+  {% for d, v in points %}
+  {% set x = 8 + loop.index0 * (w - 16) / (n - 1) %}{% set y = h - 6 - (v - lo) / rng * (h - 16) %}
+  <circle cx="{{ '%.1f'|format(x) }}" cy="{{ '%.1f'|format(y) }}" r="{{ 4 if loop.last else 3 }}" fill="{{ '#2f6f9f' if loop.last else '#ffffff' }}" stroke="#2f6f9f" stroke-width="2"><title>{{ d.isoformat() }}: {{ v }}</title></circle>
+  <text x="{{ '%.1f'|format(x) }}" y="{{ '%.1f'|format(y - 8) }}" text-anchor="middle" font-size="10" fill="#1d2b3a" style="font-variant-numeric:tabular-nums;">{{ v }}</text>
+  {% endfor %}
+  <text x="6" y="{{ h + 12 }}" font-size="9" fill="#5b6b7b" direction="ltr">{{ points[0][0].strftime('%Y-%m') }}</text>
+  <text x="{{ w - 6 }}" y="{{ h + 12 }}" font-size="9" fill="#5b6b7b" text-anchor="end" direction="ltr">{{ points[-1][0].strftime('%Y-%m') }}</text>
+</svg>
+{% endif %}
+{% endmacro %}
+
+{% macro trend_rows(trends, L='ar', only_moving=False) %}
+{% set rows = trends|selectattr('points', 'defined')|list %}
+{% if only_moving %}{% set rows = rows|selectattr('prev', 'ne', none)|list %}{% endif %}
+{% if rows %}
+<div data-trends style="display:grid;gap:12px;grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));">
+  {% for tr in rows %}
+  <div data-trend="{{ tr.tool }}.{{ tr.field.key }}" style="border:1px solid var(--line,#dfe5ec);border-radius:12px;padding:10px 12px;display:grid;gap:6px;break-inside:avoid;background:var(--card,#fff);">
+    <div style="font-size:.78rem;color:var(--muted,#5b6b7b);">{{ tr['tool_' ~ L] or tr.tool_ar }}</div>
+    <div style="display:flex;justify-content:space-between;gap:6px;align-items:baseline;flex-wrap:wrap;">
+      <span style="font-weight:600;">{{ tr.field[L] or tr.field.ar }}</span>
+      <span style="font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums;" dir="ltr">{{ tr.value }}{% if tr.field.max %}<small style="font-size:.75rem;color:var(--muted,#5b6b7b);font-weight:400;"> / {{ tr.field.max }}</small>{% endif %}</span>
+    </div>
+    <div>{{ chip(tr) }}{% if tr.field.better %} <span style="font-size:.74rem;color:var(--muted,#5b6b7b);">{{ t('progress.better_' ~ tr.field.better) }}</span>{% endif %}</div>
+    {{ spark(tr.points) }}
+  </div>
+  {% endfor %}
+</div>
+<p style="margin:0;font-size:.8rem;color:var(--muted,#5b6b7b);">{{ t('progress.trend_note') }}</p>
+{% endif %}
+{% endmacro %}

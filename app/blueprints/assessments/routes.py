@@ -48,11 +48,14 @@ def _refuse(err, back):
 @_door
 def patient_list(patient_id):
     from app.models import Patient
+    from app.utils.clock import local_today
 
     patient = db.get_or_404(Patient, patient_id)
     return render_template("assessments/patient.html", patient=patient,
                            rows=asm.for_patient(patient.id), kinds=asm.kinds(_lang()),
-                           may_write=asm.may_write(current_user), asm=asm)
+                           may_write=asm.may_write(current_user), asm=asm,
+                           overview=asm.overview(patient),
+                           age_months=asm.months_on(patient, local_today()))
 
 
 @assessments_bp.route("/patient/<int:patient_id>/new", methods=["POST"])
@@ -87,7 +90,22 @@ def view(assessment_id):
                            form=row.form, answers=row.answers or {}, editing=editing,
                            history=asm.history(row), age=asm.age_on(row.patient, row.assessed_on),
                            may_approve=asm.may_approve(current_user) and row.status != "approved",
-                           may_edit_form=asm.may_edit_form(current_user), asm=asm)
+                           may_edit_form=asm.may_edit_form(current_user), asm=asm,
+                           may_send=_may_send(current_user) and row.status == "approved",
+                           shares=_shares(row), **_progress(row))
+
+
+def _progress(row):
+    """How far along and which way (ت-٥), for every page that shows it."""
+    return {"chrono": asm.months_on(row.patient, row.assessed_on),
+            "development": asm.development(row), "progress": asm.progress(row),
+            "trends": asm.trends(row)}
+
+
+def _shares(row):
+    from app.utils import assessment_share
+
+    return assessment_share.sent(row) if row.status == "approved" else []
 
 
 @assessments_bp.route("/<int:assessment_id>/save", methods=["POST"])
@@ -129,7 +147,78 @@ def report(assessment_id):
     return render_template("assessments/report.html", row=row, patient=row.patient,
                            form=row.form, answers=row.answers or {},
                            history=asm.history(row), age=asm.age_on(row.patient, row.assessed_on),
-                           printed_at=local_now(), asm=asm)
+                           printed_at=local_now(), asm=asm, **_progress(row))
+
+
+# ------------------------------------------------ to the family (ت-٣) ---
+def _may_send(user):
+    return asm.may_write(user) or asm.may_approve(user)
+
+
+@assessments_bp.route("/<int:assessment_id>/send", methods=["POST"])
+@_door
+def send(assessment_id):
+    """The approved report to the family on WhatsApp — a link, or the file
+    when the clinic cannot be reached from outside (``utils/assessment_share``)."""
+    from app.utils import assessment_share
+
+    row = _row(assessment_id)
+    back = url_for("assessments.view", assessment_id=row.id)
+    if not _may_send(current_user):
+        abort(403, description=t("auth.no_permission"))
+    try:
+        share, _log = assessment_share.send(row, current_user, _lang())
+    except assessment_share.ShareError as err:
+        db.session.rollback()
+        flash(t(f"asm_share.err_{err.code}"), "warning")
+        return redirect(back)
+    db.session.commit()
+    flash(t("asm_share.sent_link" if share.mode == "link" else "asm_share.sent_file"), "success")
+    return redirect(back)
+
+
+@assessments_bp.route("/<int:assessment_id>/sheet")
+@_door
+def sheet(assessment_id):
+    """The family's page as a file, to send by hand or keep."""
+    from flask import Response
+
+    from app.utils import assessment_share
+
+    row = _row(assessment_id)
+    if not row.is_approved:
+        abort(404)
+    return Response(assessment_share.sheet(row, request.args.get("lang") or _lang()),
+                    mimetype="text/html; charset=utf-8",
+                    headers={"Content-Disposition":
+                             f"attachment; filename={assessment_share.file_name(row)}"})
+
+
+@assessments_bp.route("/r/<token>", methods=["GET", "POST"])
+def shared(token):
+    """What the family opens from the message: the child's date of birth
+    first; the link ends after its days and five wrong answers lock it."""
+    from app.utils import assessment_share, lab_share
+
+    share = assessment_share.by_token(token)
+    status = lab_share.state(share)
+    if status == "ok" and not share.assessment.is_approved:
+        status = "gone"
+    if status != "ok":
+        return render_template("assessments/shared_link.html", status=status), \
+            404 if status == "gone" else 410
+    wrong = False
+    if request.method == "POST":
+        if lab_share.check(share, request.form.get("born")):
+            page = assessment_share.sheet(share.assessment, _lang())
+            db.session.commit()
+            return page
+        db.session.commit()
+        wrong = True
+        if lab_share.state(share) == "locked":
+            return render_template("assessments/shared_link.html", status="locked"), 410
+    return render_template("assessments/shared_link.html", status="ask", wrong=wrong,
+                           left=max(0, 5 - (share.failures or 0)))
 
 
 @assessments_bp.route("/review")

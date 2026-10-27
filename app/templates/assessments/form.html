@@ -10,6 +10,7 @@
    a tool's own criterion only where its scoring instructions set one. A
    draft, sent to a doctor, approved by the doctor; then it is read only. #}
 {% include "assessments/_style.html" %}
+{% import "assessments/_progress.html" as prog with context %}
 {% set tools = answers.get('tools') or {} %}
 
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
@@ -54,6 +55,28 @@
       </div>
       {% else %}
       <ul class="as-read">{% for o in s.options if o.key in picked %}<li>{{ o[L] or o.ar }}</li>{% else %}<li class="hint">—</li>{% endfor %}</ul>
+      {% endif %}
+
+    {% elif s.type == 'ages' %}
+      {# The developmental age per domain (ت-٥): typed in months; read back as
+         bars against the child's real age that day. #}
+      {% set given = answers.get(s.key) or {} %}
+      {% if editing %}
+      <p class="as-rule" style="margin:0 0 8px;" data-chrono="{{ chrono or '' }}">{{ t('progress.real_age') }}: <b>{{ prog.months(chrono) if chrono else '—' }}</b> · {{ t('progress.type_months') }}</p>
+      <div class="as-grid">
+        {% for o in s.options %}
+        <div class="as-field" data-age-field="{{ o.key }}">
+          <label for="age_{{ s.key }}_{{ o.key }}">{{ o[L] or o.ar }}</label>
+          <div class="as-num">
+            <input class="input" id="age_{{ s.key }}_{{ o.key }}" name="age_{{ s.key }}_{{ o.key }}" inputmode="decimal" dir="ltr" value="{{ given.get(o.key, '') }}" data-age-input>
+            <span class="as-of">{{ t('progress.month_unit') }}</span>
+            <span class="as-gap" data-age-gap hidden></span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+        {% if development %}{{ prog.dev_bars(development, progress, L) }}{% else %}<p style="margin:0;" class="hint">—</p>{% endif %}
       {% endif %}
 
     {% elif s.type == 'text' %}
@@ -127,23 +150,36 @@
     <p style="margin:0;" class="hint">{{ t('assessment.waits_doctor') }}</p>
     {% endif %}
   </div>
-  {% if history %}
-  <div class="card as-card" data-history>
-    <h2>{{ t('assessment.history') }}</h2>
-    {% for (tkey, fkey), points in history.items() %}
-    {% set tool = form.tool_defs.get(tkey) %}{% set field = (tool.fields|selectattr('key', 'equalto', fkey)|first) if tool else none %}
-    {% if tool and field %}
-    <div data-history-line="{{ tkey }}.{{ fkey }}">
-      <div class="hint" style="margin:0;">{{ tool['name_' ~ L] or tool.name_ar }} — {{ field[L] or field.ar }}</div>
-      {% set vals = points|map(attribute=1)|list %}{% set lo = vals|min %}{% set hi = vals|max %}{% set rng = (hi - lo) or 1 %}
-      <svg class="as-spark" viewBox="-3 -3 106 34" preserveAspectRatio="none" aria-hidden="true">
-        <polyline points="{% for d, v in points %}{{ (loop.index0 * 100 / (points|length - 1))|round(1) }},{{ (26 - (v - lo) / rng * 24)|round(1) }} {% endfor %}"></polyline>
-      </svg>
-      <div class="as-chips" style="font-size:.82rem;">{% for d, v in points %}<span class="as-chip" dir="ltr">{{ d.isoformat() }} · {{ v }}</span>{% endfor %}</div>
-    </div>
+  {% if row.status == 'approved' %}
+  {# ت-٣ — the approved report to the family: a link that asks the child's
+     date of birth, or the file itself when the clinic is not online. #}
+  <div class="card as-card" data-family-share>
+    <h2>{{ t('asm_share.title') }}</h2>
+    {% if may_send %}
+    <form method="post" action="{{ url_for('assessments.send', assessment_id=row.id) }}" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-primary gc-press" type="submit" data-send-family style="width:100%;"><i class="bi bi-whatsapp"></i> {{ t('asm_share.send') }}</button>
+    </form>
     {% endif %}
+    <a class="btn btn-outline gc-press" data-sheet-file href="{{ url_for('assessments.sheet', assessment_id=row.id) }}"><i class="bi bi-download"></i> {{ t('asm_share.download') }}</a>
+    <p class="hint" style="margin:0;">{{ t('asm_share.how') }}</p>
+    {% for sh in shares %}
+    <p class="hint" style="margin:0;" data-share-row="{{ sh.id }}"><i class="bi bi-{{ 'link-45deg' if sh.mode == 'link' else 'file-earmark' }}"></i>
+      {{ t('asm_share.sent_on', when=sh.created_at|clinic_stamp, who=sh.sender.display_name(current_lang) if sh.sender else '—') }}{% if sh.mode == 'link' %} · {{ t('asm_share.opened_n', n=sh.opens or 0) }}{% endif %}</p>
     {% endfor %}
-    <p class="as-rule">{{ t('assessment.same_tool_only') }}</p>
+  </div>
+  {% endif %}
+  {% set moving = trends|selectattr('prev', 'ne', none)|list %}
+  {% if moving %}
+  <div class="card as-card" data-history>
+    <h2>{{ t('progress.title') }}</h2>
+    {{ prog.trend_rows(moving, L) }}
+  </div>
+  {% endif %}
+  {% if not editing and development and progress %}
+  <div class="card as-card" data-progress-side>
+    <h2>{{ t('progress.since_title') }}</h2>
+    <p class="hint" style="margin:0;">{{ t('progress.since', d=progress.since.isoformat()) }} · {{ prog.months(progress.elapsed) }}</p>
   </div>
   {% endif %}
 </aside>
@@ -160,6 +196,22 @@
     }
     document.querySelectorAll('[data-meets]').forEach(function (i) {
       i.addEventListener('input', function () { mark(i); });
+    });
+    // The gap from the real age as the specialist types (ت-٥).
+    var chronoBox = document.querySelector('[data-chrono]');
+    var chrono = chronoBox ? parseFloat(chronoBox.getAttribute('data-chrono')) : NaN;
+    var words = {{ {'behind': t('progress.behind', n='{n}'), 'ahead': t('progress.ahead', n='{n}'), 'on': t('progress.on_age'), 'unit': t('progress.month_unit')}|tojson }};
+    document.querySelectorAll('[data-age-input]').forEach(function (inp) {
+      function gap() {
+        var out = inp.parentNode.querySelector('[data-age-gap]');
+        var v = parseFloat((inp.value || '').replace('٫', '.').replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }));
+        if (!out || isNaN(v) || isNaN(chrono) || !chrono) { if (out) out.hidden = true; return; }
+        var g = Math.round((v - chrono) * 10) / 10;
+        out.hidden = false;
+        out.className = 'as-gap ' + (g <= -1 ? 'is-behind' : (g >= 1 ? 'is-ahead' : ''));
+        out.textContent = (g <= -1 ? words.behind : (g >= 1 ? words.ahead : words.on)).replace('{n}', Math.abs(g) + ' ' + words.unit) + ' · ' + Math.round(v * 100 / chrono) + '%';
+      }
+      inp.addEventListener('input', gap); gap();
     });
     var adder = document.querySelector('[data-add-tool]');
     if (adder) adder.addEventListener('change', function () {

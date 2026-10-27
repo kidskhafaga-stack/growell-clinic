@@ -100,6 +100,10 @@ SYSTEM_TEMPLATE_TYPES = [
     # The same when the clinic cannot be reached from outside: the report
     # itself as a file, and to the doctor the numbers in the message too.
     "lab_result_file", "lab_result_doctor_file",
+    # An approved assessment to the family (ASSESSMENTS_PLAN.md ت-٣): a link,
+    # or the report as a file when the clinic is not online. Sent by a
+    # person's press on the assessment — see app/utils/assessment_share.py.
+    "assessment_report", "assessment_report_file",
 ]
 # Notification types the clinic manages centrally (each has one canonical
 # template with its own body/image/auto-or-manual toggle). Birthday is an
@@ -147,6 +151,9 @@ TEMPLATE_VARIABLES = {
     "lab_result_file": ["patient", "first_name", "clinic"],
     # `numbers` is the laboratory's values as written, ↑/↓ by its own flag.
     "lab_result_doctor_file": ["patient", "first_name", "doctor", "clinic", "numbers"],
+    # No score in it — only which assessment, the link, and how long it works.
+    "assessment_report": ["patient", "first_name", "assessment", "clinic", "link", "days"],
+    "assessment_report_file": ["patient", "first_name", "assessment", "clinic"],
     "birthday": ["patient", "first_name", "clinic"],
     "feedback": ["patient", "first_name", "clinic", "doctor", "link"],
     "complaint_received": ["patient", "first_name", "clinic", "number", "hours"],
@@ -260,6 +267,15 @@ TEMPLATE_DEFAULTS = {
         "{doctor}، نتيجة تحاليل {patient} من {clinic}:\n"
         "{numbers}\n"
         "والتقرير كامل في الملف المرفق."
+    ),
+    "assessment_report": (
+        "تقرير {assessment} لـ{patient} من {clinic} جاهز بعد ما الدكتور اعتمده.\n"
+        "تقدروا تفتحوه من هنا: {link}\n"
+        "هيطلب منكم تاريخ ميلاد الطفل، واللينك شغال {days} يوم."
+    ),
+    "assessment_report_file": (
+        "تقرير {assessment} لـ{patient} من {clinic} جاهز بعد ما الدكتور اعتمده.\n"
+        "التقرير في الملف المرفق — بيتفتح على الموبايل وتقدروا تطبعوه."
     ),
     "lab_result_doctor": (
         "{doctor}، نتيجة تحاليل {patient} من {clinic} جاهزة.\n"

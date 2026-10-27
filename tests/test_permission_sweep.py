@@ -46,6 +46,7 @@ BOGUS = 999999
 #   /prescriptions/<id>/verify.svg      the QR a pharmacy scans
 #   /vaccinations/verify/<token>        the certificate check behind a QR
 #   /labs/r/<token>                     the lab result a family opens
+#   /assessments/r/<token>              an approved assessment a family opens
 #
 # The WhatsApp webhooks are **not** here: they take POSTs from outside with no
 # session, and refuse everything that arrives without a valid signature, so
@@ -74,6 +75,10 @@ PUBLIC = {
     # answers. A 404 for a token that is not there.
     ("GET", "/labs/r/<token>"),
     ("POST", "/labs/r/<token>"),
+    # An approved assessment the family opens from the message (ت-٣,
+    # ``utils/assessment_share``): the same protection as the lab result.
+    ("GET", "/assessments/r/<token>"),
+    ("POST", "/assessments/r/<token>"),
     # A payment gateway telling us what became of a payment: from outside, so
     # no session — proved by the gateway's own signature before anything is
     # read (``Gateway.prove``), and not there at all for a gateway the clinic
