@@ -368,7 +368,8 @@ from app.models.lab_reference import (RANGE_KINDS, RANGE_SEXES, LabAnalyte,
 from app.models.unit_staff import BreakGlass, UnitStaff
 from app.models.sample_transfer import SampleBatch, SampleBatchItem
 from app.models.result_share import ResultShare
-from app.models.assessment import Assessment, AssessmentForm, AssessmentShare
+from app.models.assessment import (Assessment, AssessmentForm, AssessmentShare,
+                                   QuestionnaireRequest, QuestionnaireText)
 from app.models.severity import SeverityRecord, SeverityScore, SeverityUnitChoice
 from app.models.equipment import (Equipment, EquipmentEvent,
                                   EquipmentTraining)
@@ -889,6 +890,8 @@ __all__ = [
     "SeverityUnitChoice",
     "AssessmentForm",
     "AssessmentShare",
+    "QuestionnaireRequest",
+    "QuestionnaireText",
     "SpecimenStore",
     "ReferralLabPrice",
     "ReferralInvoice",

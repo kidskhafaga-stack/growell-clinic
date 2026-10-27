@@ -1,0 +1,72 @@
+{# What the parent, the teacher or the child opens (ت-٤) — on the clinic's
+   tablet or from the WhatsApp link. No sidebar, no login, and nothing from
+   the child's file but the first name: the questions, the choices, and
+   «send». Answered once; then a thank-you and nothing else — no score. #}
+{% import "assessments/_questionnaire_items.html" as qi with context %}
+<!doctype html>
+<html lang="{{ L or current_lang }}" dir="{{ 'ltr' if L == 'en' else 'rtl' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{{ (form['name_' ~ L] or form.name_ar) if form else t('asm_q.public_title') }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
+  {{ qi.style() }}
+  <style>
+    body { background:var(--bg,#f4f7f6); margin:0; padding:0 14px 40px; }
+    .qn-wrap { max-width:760px; margin:0 auto; display:grid; gap:14px; }
+    .qn-top { position:sticky; top:0; z-index:2; background:var(--bg,#f4f7f6); padding:12px 0 10px; display:grid; gap:8px; }
+    .qn-top h1 { font-size:1.15rem; margin:0; line-height:1.4; text-wrap:balance; }
+    .qn-meta { display:flex; flex-wrap:wrap; gap:6px 14px; color:var(--muted); font-size:.86rem; align-items:center; }
+    .qn-track { height:6px; border-radius:999px; background:var(--line,#dfe5ec); overflow:hidden; }
+    .qn-track span { display:block; height:100%; width:0; background:var(--green-600,#2a8a68); border-radius:999px; }
+    .qn-intro { white-space:pre-line; line-height:1.7; margin:0; }
+    .qn-send { position:sticky; bottom:12px; display:flex; justify-content:center; }
+    .qn-send .btn { min-width:min(100%, 320px); justify-content:center; font-size:1rem; padding:12px 18px; box-shadow:0 6px 18px rgba(0,0,0,.12); }
+    .qn-notice { color:var(--muted); font-size:.78rem; text-align:center; white-space:pre-line; margin:0; }
+    .qn-box { max-width:440px; margin:60px auto; text-align:center; display:grid; gap:10px; justify-items:center; }
+    .qn-lang a { font-size:.85rem; }
+  </style>
+</head>
+<body>
+<div class="qn-wrap">
+{% if status == 'ask' %}
+  {% set first = (req.patient.display_name(L) or '').split(' ')[0] %}
+  <header class="qn-top">
+    <h1>{{ form['name_' ~ L] or form.name_ar }}</h1>
+    <div class="qn-meta">
+      <span><i class="bi bi-person"></i> {{ t('asm_q.about', name=first) }}</span>
+      <span>{{ t('asm_q.by_' ~ req.informant) }}</span>
+      <span data-qn-count></span>
+      {% if form.langs|length > 1 %}<span class="qn-lang">{% for code in form.langs if code != L %}<a href="?lang={{ code }}" hreflang="{{ code }}">{{ 'English' if code == 'en' else 'العربية' }}</a>{% endfor %}</span>{% endif %}
+    </div>
+    <div class="qn-track" aria-hidden="true"><span data-qn-bar></span></div>
+  </header>
+  {% set intro = form['intro_' ~ L] or form.intro_ar %}
+  <p class="qn-intro card" style="padding:12px 14px;">{{ intro or t('asm_q.default_intro') }}</p>
+  <form method="post" data-qn-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {{ qi.items(form, L) }}
+    <div class="qn-send" style="margin-top:16px;">
+      <button class="btn btn-primary" type="submit" data-qn-submit><i class="bi bi-send"></i> {{ t('asm_q.submit') }}</button>
+    </div>
+  </form>
+  {% if form.notice %}<p class="qn-notice" data-qn-notice>{{ form.notice }}</p>{% endif %}
+  {{ qi.script({'count': t('asm_q.count', n='{n}', of='{of}'), 'left': t('asm_q.left_confirm', n='{n}')}) }}
+{% elif status == 'thanks' %}
+  <div class="card qn-box" data-qn-thanks>
+    <i class="bi bi-check2-circle" style="font-size:2.4rem;color:var(--green-700);"></i>
+    <h1 style="font-size:1.2rem;margin:0;">{{ t('asm_q.thanks') }}</h1>
+    <p class="hint" style="margin:0;">{{ t('asm_q.thanks_' ~ (req.mode if req else 'link')) }}</p>
+  </div>
+{% else %}
+  <div class="card qn-box" data-qn-closed="{{ status }}">
+    <i class="bi bi-hourglass-bottom" style="font-size:2rem;color:var(--muted);"></i>
+    <p style="margin:0;">{{ t('asm_q.public_' ~ status) }}</p>
+  </div>
+{% endif %}
+</div>
+</body>
+</html>

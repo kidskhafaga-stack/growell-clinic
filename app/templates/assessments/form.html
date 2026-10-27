@@ -150,6 +150,85 @@
     <p style="margin:0;" class="hint">{{ t('assessment.waits_doctor') }}</p>
     {% endif %}
   </div>
+  {# ت-٤ — the questionnaires the parent, the teacher or the child fill
+     themselves: on the clinic's tablet, as a link, or on paper. Their scores
+     reach this assessment only when the specialist presses «put them in». #}
+  {% if q_offered or q_requests or (editing and may_edit_form) %}
+  <div class="card as-card" id="questionnaires" data-questionnaires>
+    <h2><i class="bi bi-ui-checks"></i> {{ t('asm_q.card_title') }}</h2>
+    {% for q in q_offered %}
+    <details class="qa-give" data-q-offer="{{ q.key }}"{{ ' open' if loop.first and not q_requests else '' }}>
+      <summary><b>{{ q.shape['name_' ~ L] or q.shape.name_ar }}</b></summary>
+      {% if q.age_outside %}<p class="qa-warn" data-q-age>{{ t('asm_q.age_outside') }}</p>{% endif %}
+      <form method="post" action="{{ url_for('assessments.questionnaire_new', assessment_id=row.id) }}" class="qa-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="key" value="{{ q.key }}">
+        {% if q.shape.informants|length > 1 %}
+        <div class="as-seg" role="radiogroup" aria-label="{{ t('asm_q.who_fills') }}">
+          {% for who in q.shape.informants %}<label><input type="radio" name="informant" value="{{ who }}"{{ ' checked' if loop.first else '' }}>{{ t('asm_q.by_' ~ who) }}</label>{% endfor %}
+        </div>
+        {% else %}<input type="hidden" name="informant" value="{{ q.shape.informants[0] }}">{% endif %}
+        {% if q.langs|length > 1 %}
+        <div class="as-seg" role="radiogroup" aria-label="{{ t('asm_q.language') }}">
+          {% for code in q.langs %}<label><input type="radio" name="lang" value="{{ code }}"{{ ' checked' if code == L or (loop.first and L not in q.langs) else '' }}>{{ 'العربية' if code == 'ar' else 'English' }}</label>{% endfor %}
+        </div>
+        {% endif %}
+        <input class="input" name="respondent" maxlength="120" placeholder="{{ t('asm_q.respondent_ph') }}" aria-label="{{ t('asm_q.respondent_ph') }}">
+        <div class="qa-modes">
+          <button class="btn btn-primary btn-sm gc-press" type="submit" name="mode" value="tablet" formtarget="_blank" data-q-tablet><i class="bi bi-tablet"></i> {{ t('asm_q.mode_tablet') }}</button>
+          <button class="btn btn-outline btn-sm gc-press" type="submit" name="mode" value="paper" formtarget="_blank" data-q-paper><i class="bi bi-printer"></i> {{ t('asm_q.mode_paper') }}</button>
+        </div>
+        {% if q_online %}
+        <div class="qa-link">
+          <input class="input" name="phone" dir="ltr" inputmode="tel" value="{{ q_phone or '' }}" placeholder="{{ t('asm_q.phone_ph') }}" aria-label="{{ t('asm_q.phone_ph') }}">
+          <button class="btn btn-outline btn-sm gc-press" type="submit" name="mode" value="link" data-q-link><i class="bi bi-whatsapp"></i> {{ t('asm_q.mode_link') }}</button>
+        </div>
+        {% else %}<p class="hint" style="margin:0;" data-q-offline>{{ t('asm_q.offline_hint') }}</p>{% endif %}
+      </form>
+    </details>
+    {% endfor %}
+    {% if not q_offered and row.status != 'approved' %}<p class="hint" style="margin:0;" data-q-none>{{ t('asm_q.none_open') }}</p>{% endif %}
+
+    {% for r in q_requests %}
+    {% set tdef = (form.tool_defs or {}).get(r.form.tool) or {} %}
+    <div class="qa-req" data-q-request="{{ r.id }}" data-q-status="{{ r.status }}">
+      <div class="qa-req__top">
+        <span><i class="bi bi-{{ {'tablet': 'tablet', 'link': 'whatsapp', 'paper': 'printer'}[r.mode] }}"></i>
+          <b>{{ r.form['name_' ~ L] or r.form.name_ar }}</b> · {{ t('asm_q.by_' ~ r.informant) }}{% if r.respondent %} · {{ r.respondent }}{% endif %}</span>
+        <span class="qa-chip is-{{ 'late' if r.status == 'open' and r.expired else r.status }}">{{ t('asm_q.req_' ~ ('late' if r.status == 'open' and r.expired else r.status)) }}</span>
+      </div>
+      <span class="qa-meta">{{ (r.answered_at or r.created_at)|clinic_stamp }}{% if r.enterer %} · {{ t('asm_q.typed_by', who=r.enterer.display_name(current_lang)) }}{% endif %}</span>
+      {% if r.scores %}
+      <dl class="qa-scores" data-q-scores>
+        {% for p in r.form.parts %}{% set f = (tdef.fields or [])|selectattr('key', 'equalto', p.field)|first %}
+        <div><dt>{{ (f[L] or f.ar) if f else p.key }}</dt><dd dir="ltr">{{ '—' if r.scores.get(p.key) is none else r.scores.get(p.key) }}</dd></div>
+        {% endfor %}
+      </dl>
+      <span class="qa-meta">{{ t('asm_q.answered_of', n=r.answers|length, of=r.form['items']|length) }}</span>
+      {% endif %}
+      <div class="qa-modes">
+        {% if r.status == 'done' and editing %}
+        <form method="post" action="{{ url_for('assessments.questionnaire_use', request_id=r.id) }}" style="margin:0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-primary btn-sm gc-press" type="submit" data-q-use><i class="bi bi-box-arrow-in-down"></i> {{ t('asm_q.use') }}</button>
+        </form>
+        {% endif %}
+        {% if r.answerable and editing %}
+          {% if r.mode == 'tablet' %}<a class="btn btn-outline btn-sm gc-press" target="_blank" href="{{ url_for('assessments.questionnaire_fill', token=r.token) }}">{{ t('asm_q.open_tablet') }}</a>{% endif %}
+          {% if r.mode == 'paper' %}
+          <a class="btn btn-outline btn-sm gc-press" target="_blank" href="{{ url_for('assessments.questionnaire_paper', request_id=r.id) }}"><i class="bi bi-printer"></i></a>
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('assessments.questionnaire_enter', request_id=r.id) }}" data-q-enter>{{ t('asm_q.enter_from_paper') }}</a>{% endif %}
+          <form method="post" action="{{ url_for('assessments.questionnaire_cancel', request_id=r.id) }}" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit" data-q-cancel aria-label="{{ t('asm_q.cancel') }}" title="{{ t('asm_q.cancel') }}"><i class="bi bi-x-lg"></i></button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% if may_edit_form %}<a class="hint" href="{{ url_for('assessments.questionnaires') }}" data-to-questionnaires>{{ t('asm_q.manage') }}</a>{% endif %}
+  </div>
+  {% endif %}
   {% if row.status == 'approved' %}
   {# ت-٣ — the approved report to the family: a link that asks the child's
      date of birth, or the file itself when the clinic is not online. #}

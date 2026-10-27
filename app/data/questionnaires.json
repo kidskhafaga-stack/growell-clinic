@@ -1,0 +1,736 @@
+{
+ "_note_ar": "شكل كل استبيان بس: عدد البنود، ونقط كل اختيار، والبنود المعكوسة، وأي بند في أي جزء وإزاي الجزء بيتحسب — من تعليمات التصحيح المنشورة لكل أداة. صياغة الأسئلة والاختيارات مش هنا: العيادة بتدخلها بنفسها من نسختها المرخّصة، والاستبيان مقفول لحد ما تدخلها وتكتب صاحب الإذن والدكتور يفتحه.",
+ "_note_en": "Each questionnaire's shape only: how many items, each choice's points, the reversed items, which item belongs to which part and how a part is counted — from each tool's published scoring instructions. The wording of the questions and choices is not here: the clinic enters it from its own licensed copy, and the questionnaire stays locked until it has, has named whose permission it uses, and a doctor has opened it.",
+ "questionnaires": {
+  "vanderbilt_parent": {
+   "tool": "vanderbilt_parent",
+   "name_ar": "فاندربلت — يملاه الأهل",
+   "name_en": "Vanderbilt — parent form",
+   "informants": [
+    "parent"
+   ],
+   "ages_months": [
+    72,
+    155
+   ],
+   "permission": "written",
+   "owner": "American Academy of Pediatrics / NICHQ",
+   "owner_contact": "AAP — Permissions (aap.org)",
+   "source": "NICHQ Vanderbilt Assessment Scale — Parent Informant, and its scoring instructions",
+   "scales": {
+    "freq": [
+     0,
+     1,
+     2,
+     3
+    ],
+    "perf": [
+     1,
+     2,
+     3,
+     4,
+     5
+    ]
+   },
+   "item_scales": [
+    [
+     "freq",
+     1,
+     47
+    ],
+    [
+     "perf",
+     48,
+     55
+    ]
+   ],
+   "reverse": [],
+   "parts": [
+    {
+     "key": "inattentive",
+     "items": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+     ],
+     "rule": "count_at_least",
+     "n": 2,
+     "field": "inattentive"
+    },
+    {
+     "key": "hyperactive",
+     "items": [
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+     ],
+     "rule": "count_at_least",
+     "n": 2,
+     "field": "hyperactive"
+    },
+    {
+     "key": "odd",
+     "items": [
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26
+     ],
+     "rule": "count_at_least",
+     "n": 2,
+     "field": "odd"
+    },
+    {
+     "key": "conduct",
+     "items": [
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40
+     ],
+     "rule": "count_at_least",
+     "n": 2,
+     "field": "conduct"
+    },
+    {
+     "key": "anxiety",
+     "items": [
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47
+     ],
+     "rule": "count_at_least",
+     "n": 2,
+     "field": "anxiety"
+    },
+    {
+     "key": "perf_4",
+     "items": [
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55
+     ],
+     "rule": "count_equal",
+     "n": 4,
+     "field": "perf_4"
+    },
+    {
+     "key": "perf_5",
+     "items": [
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55
+     ],
+     "rule": "count_equal",
+     "n": 5,
+     "field": "perf_5"
+    }
+   ]
+  },
+  "vanderbilt_teacher": {
+   "tool": "vanderbilt_teacher",
+   "name_ar": "فاندربلت — يملاه المدرس",
+   "name_en": "Vanderbilt — teacher form",
+   "informants": [
+    "teacher"
+   ],
+   "ages_months": [
+    72,
+    155
+   ],
+   "permission": "written",
+   "owner": "American Academy of Pediatrics / NICHQ",
+   "owner_contact": "AAP — Permissions (aap.org)",
+   "source": "NICHQ Vanderbilt Assessment Scale — Teacher Informant, and its scoring instructions",
+   "scales": {
+    "freq": [
+     0,
+     1,
+     2,
+     3
+    ],
+    "perf": [
+     1,
+     2,
+     3,
+     4,
+     5
+    ]
+   },
+   "item_scales": [
+    [
+     "freq",
+     1,
+     35
+    ],
+    [
+     "perf",
+     36,
+     43
+    ]
+   ],
+   "reverse": [],
+   "parts": [
+    {
+     "key": "inattentive",
+     "items": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+     ],
+     "rule": "count_at_least",
+     "n": 2,
+     "field": "inattentive"
+    },
+    {
+     "key": "hyperactive",
+     "items": [
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+     ],
+     "rule": "count_at_least",
+     "n": 2,
+     "field": "hyperactive"
+    },
+    {
+     "key": "odd_conduct",
+     "items": [
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28
+     ],
+     "rule": "count_at_least",
+     "n": 2,
+     "field": "odd_conduct"
+    },
+    {
+     "key": "anxiety",
+     "items": [
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35
+     ],
+     "rule": "count_at_least",
+     "n": 2,
+     "field": "anxiety"
+    },
+    {
+     "key": "perf_4",
+     "items": [
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43
+     ],
+     "rule": "count_equal",
+     "n": 4,
+     "field": "perf_4"
+    },
+    {
+     "key": "perf_5",
+     "items": [
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43
+     ],
+     "rule": "count_equal",
+     "n": 5,
+     "field": "perf_5"
+    }
+   ]
+  },
+  "mchat_rf": {
+   "tool": "mchat_rf",
+   "name_ar": "M-CHAT-R — يملاه الأهل",
+   "name_en": "M-CHAT-R — parent form",
+   "informants": [
+    "parent"
+   ],
+   "ages_months": [
+    16,
+    30
+   ],
+   "permission": "written",
+   "notice_required": true,
+   "owner": "Diana L. Robins, Deborah Fein & Marianne Barton",
+   "owner_contact": "mchatscreen.com",
+   "source": "M-CHAT-R (Robins, Fein & Barton) and its scoring instructions; the Follow-Up interview stays with the clinician",
+   "scales": {
+    "yesno": [
+     0,
+     1
+    ]
+   },
+   "item_scales": [
+    [
+     "yesno",
+     1,
+     20
+    ]
+   ],
+   "reverse": [
+    2,
+    5,
+    12
+   ],
+   "parts": [
+    {
+     "key": "total",
+     "items": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+     ],
+     "rule": "sum",
+     "field": "total"
+    }
+   ]
+  },
+  "sdq": {
+   "tool": "sdq",
+   "name_ar": "SDQ — نقاط القوة والصعوبات",
+   "name_en": "SDQ — Strengths and Difficulties",
+   "informants": [
+    "parent",
+    "teacher"
+   ],
+   "ages_months": [
+    48,
+    215
+   ],
+   "permission": "written",
+   "owner": "youthinmind (Robert Goodman)",
+   "owner_contact": "sdqinfo.org — youthinmind",
+   "source": "SDQ 4–17 (Goodman) and its scoring instructions — a part with at least three of its five items answered is scaled up to five",
+   "scales": {
+    "sdq": [
+     0,
+     1,
+     2
+    ]
+   },
+   "item_scales": [
+    [
+     "sdq",
+     1,
+     25
+    ]
+   ],
+   "reverse": [
+    7,
+    11,
+    14,
+    21,
+    25
+   ],
+   "parts": [
+    {
+     "key": "emotional",
+     "items": [
+      3,
+      8,
+      13,
+      16,
+      24
+     ],
+     "rule": "sum",
+     "prorate_min": 3,
+     "field": "emotional"
+    },
+    {
+     "key": "conduct",
+     "items": [
+      5,
+      7,
+      12,
+      18,
+      22
+     ],
+     "rule": "sum",
+     "prorate_min": 3,
+     "field": "conduct"
+    },
+    {
+     "key": "hyperactivity",
+     "items": [
+      2,
+      10,
+      15,
+      21,
+      25
+     ],
+     "rule": "sum",
+     "prorate_min": 3,
+     "field": "hyperactivity"
+    },
+    {
+     "key": "peer",
+     "items": [
+      6,
+      11,
+      14,
+      19,
+      23
+     ],
+     "rule": "sum",
+     "prorate_min": 3,
+     "field": "peer"
+    },
+    {
+     "key": "prosocial",
+     "items": [
+      1,
+      4,
+      9,
+      17,
+      20
+     ],
+     "rule": "sum",
+     "prorate_min": 3,
+     "field": "prosocial"
+    },
+    {
+     "key": "total",
+     "parts": [
+      "emotional",
+      "conduct",
+      "hyperactivity",
+      "peer"
+     ],
+     "rule": "parts",
+     "field": "total"
+    }
+   ]
+  },
+  "snap_iv": {
+   "tool": "snap_iv",
+   "name_ar": "SNAP-IV — الأهل أو المدرس",
+   "name_en": "SNAP-IV — parent or teacher",
+   "informants": [
+    "parent",
+    "teacher"
+   ],
+   "ages_months": [
+    72,
+    227
+   ],
+   "permission": "published",
+   "owner": "James Swanson",
+   "owner_contact": "",
+   "source": "SNAP-IV 26-item (Swanson, Nolan & Pelham) — the average item score of each part",
+   "scales": {
+    "snap": [
+     0,
+     1,
+     2,
+     3
+    ]
+   },
+   "item_scales": [
+    [
+     "snap",
+     1,
+     26
+    ]
+   ],
+   "reverse": [],
+   "parts": [
+    {
+     "key": "inattention",
+     "items": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+     ],
+     "rule": "mean",
+     "field": "inattention"
+    },
+    {
+     "key": "hyperactivity",
+     "items": [
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+     ],
+     "rule": "mean",
+     "field": "hyperactivity"
+    },
+    {
+     "key": "odd",
+     "items": [
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26
+     ],
+     "rule": "mean",
+     "field": "odd"
+    }
+   ]
+  },
+  "scared": {
+   "tool": "scared",
+   "name_ar": "SCARED — الأهل أو الطفل",
+   "name_en": "SCARED — parent or child",
+   "informants": [
+    "parent",
+    "self"
+   ],
+   "ages_months": [
+    96,
+    227
+   ],
+   "permission": "published",
+   "owner": "Boris Birmaher, University of Pittsburgh",
+   "owner_contact": "",
+   "source": "SCARED (Birmaher et al.) and its scoring aide",
+   "scales": {
+    "scared": [
+     0,
+     1,
+     2
+    ]
+   },
+   "item_scales": [
+    [
+     "scared",
+     1,
+     41
+    ]
+   ],
+   "reverse": [],
+   "parts": [
+    {
+     "key": "panic",
+     "items": [
+      1,
+      6,
+      9,
+      12,
+      15,
+      18,
+      19,
+      22,
+      24,
+      27,
+      30,
+      34,
+      38
+     ],
+     "rule": "sum",
+     "field": "panic"
+    },
+    {
+     "key": "gad",
+     "items": [
+      5,
+      7,
+      14,
+      21,
+      23,
+      28,
+      33,
+      35,
+      37
+     ],
+     "rule": "sum",
+     "field": "gad"
+    },
+    {
+     "key": "separation",
+     "items": [
+      4,
+      8,
+      13,
+      16,
+      20,
+      25,
+      29,
+      31
+     ],
+     "rule": "sum",
+     "field": "separation"
+    },
+    {
+     "key": "social",
+     "items": [
+      3,
+      10,
+      26,
+      32,
+      39,
+      40,
+      41
+     ],
+     "rule": "sum",
+     "field": "social"
+    },
+    {
+     "key": "school",
+     "items": [
+      2,
+      11,
+      17,
+      36
+     ],
+     "rule": "sum",
+     "field": "school"
+    },
+    {
+     "key": "total",
+     "items": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41
+     ],
+     "rule": "sum",
+     "field": "total"
+    }
+   ]
+  }
+ }
+}

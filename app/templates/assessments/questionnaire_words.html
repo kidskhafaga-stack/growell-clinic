@@ -1,0 +1,186 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% set L = 'en' if current_lang == 'en' else 'ar' %}
+{% block title %}{{ sh['name_' ~ L] or sh.name_ar }}{% endblock %}
+{% block page_heading %}{{ t('asm_q.title') }}{% endblock %}
+{% block content %}
+{# ت-٤ — one questionnaire: the clinic types its words from its licensed copy
+   and says whose permission it uses; the screen says in words how the
+   program adds up, so it can be checked against the manual; a doctor opens
+   it. Changing the words of an open one closes it until a doctor reopens. #}
+{% include "assessments/_style.html" %}
+{% set st = text.status if text else 'none' %}
+{% set state = 'open' if st == 'active' and not blockers else ('off' if st == 'off' else ('ready' if not blockers else 'words')) %}
+{% set ro = '' if may_edit else 'disabled' %}
+{% macro val(name, saved) %}{{ posted.get(name, '') if posted else (saved or '') }}{% endmacro %}
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><i class="bi bi-ui-checks"></i> {{ sh['name_' ~ L] or sh.name_ar }}
+      <span class="qw-state is-{{ state }}" data-qn-state="{{ state }}">{{ t('asm_q.state_' ~ state) }}</span></h1>
+    <p class="page-sub" style="margin:0;">{{ t('asm_q.items_n', n=items|length) }} · {% for who in sh.informants %}{{ t('asm_q.by_' ~ who) }}{% if not loop.last %} · {% endif %}{% endfor %} · {{ sh.source }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('assessments.questionnaires') }}"><i class="bi bi-arrow-{{ 'right' if direction == 'rtl' else 'left' }}"></i> {{ t('asm_q.title') }}</a>
+</div>
+
+<div class="qw-page">
+<form method="post" class="as-stack" data-qn-words>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <fieldset style="border:0;padding:0;margin:0;min-width:0;display:grid;gap:14px;" {{ ro }}>
+
+  <section class="card as-card" data-qn-permission>
+    <h2><i class="bi bi-shield-lock"></i> {{ t('asm_q.permission') }}</h2>
+    {% if sh.permission == 'written' %}
+    <p class="qw-note qw-note--warn" style="margin:0;">{{ t('asm_q.written_note', owner=sh.owner, contact=sh.owner_contact) }}</p>
+    {% else %}
+    <p class="qw-note" style="margin:0;">{{ t('asm_q.published_note', owner=sh.owner) }}</p>
+    {% endif %}
+    <div class="as-grid">
+      <div class="as-field"><label for="holder">{{ t('asm_q.holder') }} *</label>
+        <input class="input" id="holder" name="holder" maxlength="200" value="{{ val('holder', text.holder if text) }}" placeholder="{{ t('asm_q.holder_ph') }}"></div>
+      <div class="as-field"><label for="ref">{{ t('asm_q.ref') }} *</label>
+        <input class="input" id="ref" name="ref" maxlength="300" value="{{ val('ref', text.ref if text) }}" placeholder="{{ t('asm_q.ref_ph') }}"></div>
+    </div>
+    <div class="as-field"><label for="notice">{{ t('asm_q.notice') }}{% if sh.notice_required %} *{% endif %}</label>
+      <textarea class="input" id="notice" name="notice" rows="2" maxlength="1000" dir="auto">{{ val('notice', text.notice if text) }}</textarea>
+      <span class="hint">{{ t('asm_q.notice_hint_required' if sh.notice_required else 'asm_q.notice_hint') }}</span></div>
+  </section>
+
+  <section class="card as-card">
+    <h2>{{ t('asm_q.intro') }}</h2>
+    <div class="as-grid">
+      <div class="as-field"><label for="intro_ar">{{ t('asm_q.in_ar') }}</label>
+        <textarea class="input" id="intro_ar" name="intro_ar" rows="3" dir="rtl" maxlength="2000">{{ val('intro_ar', text.intro_ar if text) }}</textarea></div>
+      <div class="as-field"><label for="intro_en">{{ t('asm_q.in_en') }}</label>
+        <textarea class="input" id="intro_en" name="intro_en" rows="3" dir="ltr" maxlength="2000">{{ val('intro_en', text.intro_en if text) }}</textarea></div>
+    </div>
+  </section>
+
+  <section class="card as-card" data-qn-options>
+    <h2>{{ t('asm_q.choices') }}</h2>
+    <p class="hint" style="margin:0;">{{ t('asm_q.choices_hint') }}</p>
+    {% for scale, pts in sh.scales.items() %}
+    <div class="qw-scale" data-qn-scale="{{ scale }}">
+      <div class="hint">{{ t('asm_q.for_items', items=qn.ranges(qn.scale_items(sh, scale))|join('، ' if L == 'ar' else ', ')) }}</div>
+      <div class="qw-opts">
+        {% for p in pts %}
+        {% set saved = (text.options or {}).get(scale, [])[loop.index0] if text and (text.options or {}).get(scale) else {} %}
+        <div class="qw-opt">
+          <span class="qw-pt" title="{{ t('asm_q.points') }}" dir="ltr">{{ p }}</span>
+          <input class="input" name="opt_{{ scale }}_{{ loop.index0 }}_ar" dir="rtl" maxlength="120" aria-label="{{ t('asm_q.in_ar') }} — {{ p }}" placeholder="{{ t('asm_q.in_ar') }}" value="{{ val('opt_' ~ scale ~ '_' ~ loop.index0 ~ '_ar', saved.get('ar')) }}">
+          <input class="input" name="opt_{{ scale }}_{{ loop.index0 }}_en" dir="ltr" maxlength="120" aria-label="{{ t('asm_q.in_en') }} — {{ p }}" placeholder="{{ t('asm_q.in_en') }}" value="{{ val('opt_' ~ scale ~ '_' ~ loop.index0 ~ '_en', saved.get('en')) }}">
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="card as-card" data-qn-questions>
+    <h2>{{ t('asm_q.questions') }}</h2>
+    <p class="hint" style="margin:0;">{{ t('asm_q.questions_hint', n=items|length) }}</p>
+    {% if 'count_ar' in problems or 'count_en' in problems %}<p class="qw-note qw-note--warn" style="margin:0;" data-qn-count-wrong>{{ t('asm_q.err_count', n=items|length) }}</p>{% endif %}
+    <div class="as-grid">
+      {% for lang in ('ar', 'en') %}
+      <div class="as-field">
+        <label for="items_{{ lang }}">{{ t('asm_q.in_' ~ lang) }} <span class="hint" data-line-count="{{ lang }}"></span></label>
+        <textarea class="input qw-lines" id="items_{{ lang }}" name="items_{{ lang }}" rows="14" dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}" data-want="{{ items|length }}">{% if posted %}{{ posted.get('items_' ~ lang, '') }}{% else %}{% for g in given %}{{ g[lang] }}{% if not loop.last %}
+{% endif %}{% endfor %}{% endif %}</textarea>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if may_edit %}
+  <div class="as-bar"><button class="btn btn-primary gc-press" type="submit" data-qn-save><i class="bi bi-save"></i> {{ t('asm_q.save_words') }}</button>
+    {% if st == 'active' %}<span class="hint">{{ t('asm_q.save_closes') }}</span>{% endif %}</div>
+  {% endif %}
+  </fieldset>
+</form>
+
+<aside class="as-side">
+  <div class="card as-card" data-qn-how>
+    <h2>{{ t('asm_q.how') }}</h2>
+    <p class="hint" style="margin:0;">{{ t('asm_q.how_hint') }}</p>
+    <ul class="qw-how">
+      {% for p in sh.parts %}
+      {% set f = fields.get(p.field) %}
+      <li data-qn-part="{{ p.key }}"><b>{{ (f[L] or f.ar) if f else p.key }}</b><br>
+        {% if p.rule == 'parts' %}{% set names = [] %}{% for k in p.parts %}{% set pf = fields.get(k) %}{% set _ = names.append((pf[L] or pf.ar) if pf else k) %}{% endfor %}{{ t('asm_q.rule_parts', parts=names|join(' + ')) }}
+        {% else %}{% set where = qn.ranges(p['items'])|join('، ' if L == 'ar' else ', ') %}{{ t('asm_q.rule_' ~ p.rule, items=where, n=p.n) }}{% if p.prorate_min %} {{ t('asm_q.rule_prorate', n=p.prorate_min, of=p['items']|length) }}{% endif %}{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% if sh.reverse %}<p style="margin:0;" data-qn-reverse>{{ t('asm_q.reversed', items=sh.reverse|join('، ' if L == 'ar' else ', ')) }}</p>{% endif %}
+    <p class="hint" style="margin:0;">{{ t('asm_q.missing_rule') }}</p>
+  </div>
+
+  <div class="card as-card" data-qn-open-box>
+    <h2>{{ t('asm_q.open_title') }}</h2>
+    {% if blockers %}
+    <ul class="qw-block" data-qn-blockers>{% for b in blockers %}<li data-blocker="{{ b }}">{{ t('asm_q.block_' ~ b) }}</li>{% endfor %}</ul>
+    {% elif st == 'active' %}
+    <p style="margin:0;" data-qn-opened>{{ t('asm_q.opened_by', who=text.approver.display_name(current_lang) if text.approver else '—', when=text.approved_at|clinic_stamp) }}{% if text.approval_note %} — {{ text.approval_note }}{% endif %}</p>
+    {% else %}
+    <p style="margin:0;">{{ t('asm_q.ready_for_doctor') }}</p>
+    {% endif %}
+    {% if langs %}<p class="hint" style="margin:0;">{{ t('asm_q.langs_ready') }}: {% for l in langs %}{{ 'العربية' if l == 'ar' else 'English' }}{% if not loop.last %} · {% endif %}{% endfor %}</p>{% endif %}
+    {% if st != 'active' and not blockers %}
+      {% if may_open %}
+      <form method="post" action="{{ url_for('assessments.questionnaire_open', key=key) }}" style="display:grid;gap:8px;" data-qn-open>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="hint" for="note" style="margin:0;">{{ t('asm_q.open_note') }}</label>
+        <input class="input" id="note" name="note" maxlength="255">
+        <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-unlock"></i> {{ t('asm_q.open') }}</button>
+      </form>
+      {% else %}<p class="hint" style="margin:0;">{{ t('asm_q.doctor_opens') }}</p>{% endif %}
+    {% endif %}
+    {% if st == 'active' and (may_edit or may_open) %}
+    <form method="post" action="{{ url_for('assessments.questionnaire_off', key=key) }}" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline btn-sm gc-press" type="submit" data-qn-off onclick="return confirm('{{ t('common.confirm') }}?');"><i class="bi bi-pause-circle"></i> {{ t('asm_q.stop') }}</button>
+    </form>
+    {% endif %}
+  </div>
+</aside>
+</div>
+
+<style>
+  .qw-page { display:grid; grid-template-columns:minmax(0, 1fr) 320px; gap:16px; align-items:start; }
+  @media (max-width: 980px) { .qw-page { grid-template-columns:minmax(0, 1fr); } }
+  .qw-state { font-size:.8rem; font-weight:700; padding:3px 11px; border-radius:999px; background:#eef2f6; color:#475569; }
+  .qw-state.is-open { background:#e3f4ea; color:#166534; }
+  .qw-state.is-ready { background:#e8f0fb; color:#1e4e8c; }
+  .qw-state.is-off { background:#f3e8e8; color:#8a2b2b; }
+  .qw-note { font-size:.86rem; line-height:1.65; color:#1e40af; background:#eff6ff; border-radius:10px; padding:9px 12px; }
+  .qw-note--warn { color:#92400e; background:#fef3c7; }
+  html[data-theme="dark"] .qw-note { background:rgba(59,130,246,.14); color:#bfdbfe; }
+  html[data-theme="dark"] .qw-note--warn { background:rgba(245,158,11,.16); color:#fcd34d; }
+  html[data-theme="dark"] .qw-state { background:rgba(148,163,184,.16); color:#cbd5e1; }
+  html[data-theme="dark"] .qw-state.is-open { background:rgba(34,197,94,.16); color:#86efac; }
+  .qw-scale { display:grid; gap:6px; padding-top:8px; border-top:1px dashed var(--line); }
+  .qw-opts { display:grid; gap:6px; }
+  .qw-opt { display:grid; grid-template-columns:2.2em minmax(0, 1fr) minmax(0, 1fr); gap:8px; align-items:center; }
+  .qw-pt { text-align:center; font-weight:700; font-variant-numeric:tabular-nums; background:var(--bg); border-radius:8px; padding:6px 0; }
+  .qw-lines { font-size:.9rem; line-height:1.75; white-space:pre; overflow-x:auto; }
+  .qw-how { margin:0; padding-inline-start:18px; display:grid; gap:8px; font-size:.88rem; line-height:1.6; }
+  .qw-block { margin:0; padding-inline-start:18px; color:#92400e; display:grid; gap:4px; }
+  html[data-theme="dark"] .qw-block { color:#fcd34d; }
+  [data-line-count].is-wrong { color:#b45309; font-weight:700; }
+  [data-line-count].is-right { color:#166534; font-weight:700; }
+</style>
+<script>
+  (function () {
+    var w = {{ {'n': t('asm_q.lines_n', n='{n}', of='{of}')}|tojson }};
+    document.querySelectorAll('.qw-lines').forEach(function (box) {
+      var out = document.querySelector('[data-line-count="' + box.name.slice(-2) + '"]');
+      var want = parseInt(box.getAttribute('data-want'), 10);
+      function count() {
+        var n = box.value.split(/\r?\n/).filter(function (l) { return l.trim(); }).length;
+        out.textContent = n ? w.n.replace('{n}', n).replace('{of}', want) : '';
+        out.className = 'hint ' + (n ? (n === want ? 'is-right' : 'is-wrong') : '');
+      }
+      box.addEventListener('input', count); count();
+    });
+  })();
+</script>
+{% endblock %}
