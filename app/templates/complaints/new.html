@@ -1,11 +1,17 @@
 {% extends "shell.html" %}
 {% set active_module = 'complaints' %}
+{% import "_pickers.html" as pickers with context %}
 {% block title %}{{ t('cmp.new_title') }}{% endblock %}
 {% block page_heading %}{{ t('cmp.new_title') }}{% endblock %}
 
 {# Written down by whoever heard it. Short on purpose: what they said, who
    they are (or nobody), and what it is about. The handling is customer
-   service's, on the case page — not the desk's. #}
+   service's, on the case page — not the desk's.
+
+   COMPLAINTS_PLAN.md ش-١/ش-٢: the child is searched for (name, file number,
+   guardian, phone), and once chosen the file's own numbers are offered — the
+   answer goes to the one ticked, and «another number» says why. Who brought
+   it when it is not the family; which visit; and the staff it is about. #}
 {% block content %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
@@ -15,7 +21,10 @@
   <a class="btn btn-outline gc-press" href="{{ url_for('complaints.blank') }}" target="_blank"><i class="bi bi-printer"></i> {{ t('cmp.print_blank') }}</a>
 </div>
 
-<form method="post" action="{{ url_for('complaints.new') }}" class="card gc-scale-in" x-data="{ anon: false, kind: 'complaint' }" data-complaint-form>
+<form method="post" action="{{ url_for('complaints.new') }}" class="card gc-scale-in cmp-form"
+      x-data='cmpForm({{ {"kind": kind, "patient": patient.id if patient else none,
+                          "facts": url_for("complaints.patient_facts", patient_id=0)}|tojson }})'
+      data-complaint-form>
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   {% if thread %}<input type="hidden" name="thread" value="{{ thread }}">{% endif %}
 
@@ -23,7 +32,7 @@
     <label>{{ t('cmp.kind') }}</label>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       {% for k in kinds %}
-      <label class="chip-radio"><input type="radio" name="kind" value="{{ k }}" x-model="kind" {{ 'checked' if k == 'complaint' }}> {{ t('cmp.kind_' ~ k) }}</label>
+      <label class="chip-radio"><input type="radio" name="kind" value="{{ k }}" x-model="kind" {{ 'checked' if k == kind }}> {{ t('cmp.kind_' ~ k) }}</label>
       {% endfor %}
     </div>
   </div>
@@ -35,15 +44,20 @@
         <option value="{{ c }}" {{ 'selected' if c == channel }}>{{ t('cmp.channel_' ~ c) }}</option>
         {% endfor %}
       </select></div>
-    <div class="form-row"><label>{{ t('cmp.side') }}</label>
-      <select class="input" name="side">
-        <option value="">—</option>
-        {% for s in sides %}<option value="{{ s }}">{{ t('cmp.side_' ~ s) }}</option>{% endfor %}
-      </select></div>
     <div class="form-row"><label>{{ t('cmp.centre') }}</label>
       <select class="input" name="cost_centre_id">
         <option value="">—</option>
         {% for c in centres %}<option value="{{ c.id }}">{{ c.display_name(current_lang) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row" x-show="kind !== 'compliment'"><label>{{ t('cmp.category') }}</label>
+      <select class="input" name="category" data-category>
+        <option value="">—</option>
+        {% for c in categories %}<option value="{{ c }}">{{ t('cmp.cat_' ~ c) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row"><label>{{ t('cmp.side') }}</label>
+      <select class="input" name="side">
+        <option value="">—</option>
+        {% for s in sides %}<option value="{{ s }}">{{ t('cmp.side_' ~ s) }}</option>{% endfor %}
       </select></div>
     <div class="form-row" x-show="kind === 'complaint'"><label>{{ t('cmp.severity') }}</label>
       <select class="input" name="severity">
@@ -51,26 +65,92 @@
       </select></div>
   </div>
 
-  <div class="form-row"><label>{{ t('cmp.description') }}</label>
+  <div class="form-row"><label x-text="kind === 'suggestion' ? {{ t('cmp.suggestion_text')|tojson|forceescape }} : (kind === 'compliment' ? {{ t('cmp.compliment_text')|tojson|forceescape }} : {{ t('cmp.description')|tojson|forceescape }})">{{ t('cmp.description') }}</label>
     <textarea class="input" name="description" rows="4" required maxlength="4000" placeholder="{{ t('cmp.description_ph') }}">{{ said }}</textarea></div>
-  <div class="form-row" x-show="kind !== 'compliment'"><label>{{ t('cmp.wanted') }}</label>
+  <div class="form-row" x-show="kind === 'complaint'"><label>{{ t('cmp.wanted') }}</label>
     <input class="input" name="wanted" maxlength="2000" placeholder="{{ t('cmp.wanted_ph') }}"></div>
+
+  {# ش-٢ — the people it is about. #}
+  <div class="form-row" data-staff-about>
+    <label x-text="kind === 'compliment' ? {{ t('cmp.staff_thanked')|tojson|forceescape }} : (kind === 'suggestion' ? {{ t('cmp.staff_to')|tojson|forceescape }} : {{ t('cmp.staff_about')|tojson|forceescape }})">{{ t('cmp.staff_about') }}</label>
+    <div class="cmp-staff">
+      <template x-for="id in staff" :key="id">
+        <span class="cmp-chip"><input type="hidden" name="staff_ids" :value="id"><span x-text="names[id]"></span>
+          <button type="button" @click="staff = staff.filter(x => x !== id)" aria-label="{{ t('cmp.remove') }}">×</button></span>
+      </template>
+      <select class="input" @change="if ($event.target.value && !staff.includes(+$event.target.value)) staff.push(+$event.target.value); $event.target.value = ''" style="width:auto;min-width:200px;" aria-label="{{ t('cmp.staff_add') }}">
+        <option value="">+ {{ t('cmp.staff_add') }}</option>
+        {% for u in staff %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}
+      </select>
+    </div>
+    <span class="hint">{{ t('cmp.staff_hint') }}</span>
+  </div>
 
   <h2 class="section-title">{{ t('cmp.who') }}</h2>
   <label class="checkbox"><input type="checkbox" name="anonymous" value="1" x-model="anon"> {{ t('cmp.anonymous') }}</label>
-  <div x-show="!anon" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
-    {% if patient %}
-    <input type="hidden" name="patient_id" value="{{ patient.id }}">
-    <div class="form-row"><label>{{ t('cmp.patient') }}</label>
-      <div class="input" style="background:var(--soft,#f4f7f8);" data-patient-chosen>{{ patient.display_name(current_lang) }} · <span class="num">{{ patient.patient_number }}</span></div></div>
-    {% else %}
-    <div class="form-row"><label>{{ t('cmp.file_number') }}</label>
-      <input class="input" name="patient_number" maxlength="40" dir="ltr"></div>
-    {% endif %}
-    <div class="form-row"><label>{{ t('cmp.contact_name') }}</label>
-      <input class="input" name="contact_name" maxlength="120"></div>
-    <div class="form-row"><label>{{ t('cmp.contact_phone') }}</label>
-      <input class="input" name="contact_phone" maxlength="30" dir="ltr" placeholder="{{ patient.contact_phone if patient and patient.contact_phone else '' }}"></div>
+  <div x-show="!anon" style="display:grid;gap:12px;" @patient-chosen="load($event.detail.id)" @patient-cleared="clear()">
+    <div class="form-row" style="margin:0;">
+      <label>{{ t('cmp.by_who') }}</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        {% for w in by_whos %}
+        <label class="chip-radio"><input type="radio" name="by_who" value="{{ w }}" x-model="by"> {{ t('cmp.by_' ~ w) }}</label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div x-show="by === 'staff'" class="form-row" style="margin:0;max-width:420px;">
+      <label>{{ t('cmp.by_staff_who') }}</label>
+      <select class="input" name="by_staff_id">
+        <option value="">—</option>
+        {% for u in staff %}<option value="{{ u.id }}" {{ 'selected' if u.id == current_user.id }}>{{ u.display_name(current_lang) }}</option>{% endfor %}
+      </select>
+    </div>
+
+    <div x-show="by !== 'staff' && by !== 'body'" data-patient-search>
+      {% if patient %}
+      <input type="hidden" name="patient_id" value="{{ patient.id }}">
+      <div class="form-row" style="margin:0;"><label>{{ t('cmp.patient') }}</label>
+        <div class="input" style="background:var(--soft,#f4f7f8);max-width:420px;" data-patient-chosen>{{ patient.display_name(current_lang) }} · <span class="num">{{ patient.patient_number }}</span></div></div>
+      {% else %}
+      {{ pickers.patient_picker('patient_id', label=t('cmp.patient_search'), placeholder=t('cmp.patient_search_ph'), search_url=url_for('complaints.patient_search')) }}
+      <span class="hint">{{ t('cmp.patient_search_hint') }}</span>
+      {% endif %}
+    </div>
+
+    <div x-show="by !== 'family' && by !== 'child' && by !== 'staff'" class="form-row" style="margin:0;max-width:420px;">
+      <label x-text="by === 'body' ? {{ t('cmp.body_name')|tojson|forceescape }} : {{ t('cmp.contact_name')|tojson|forceescape }}">{{ t('cmp.contact_name') }}</label>
+      <input class="input" name="contact_name" maxlength="120">
+    </div>
+
+    {# The numbers on the file, once a child is chosen; the answer goes to
+       the one ticked. Another number says why. #}
+    <div class="form-row" style="margin:0;" x-show="by !== 'staff'" data-phones>
+      <label>{{ t('cmp.contact_phone') }}</label>
+      <div class="cmp-phones" x-show="phones.length">
+        <template x-for="p in phones" :key="p.phone">
+          <label class="chip-radio"><input type="radio" name="phone_pick" :value="p.phone" x-model="pick">
+            <span x-text="p.label + (p.name ? ' — ' + p.name : '')"></span> <span class="num" dir="ltr" x-text="p.phone"></span></label>
+        </template>
+        <label class="chip-radio"><input type="radio" name="phone_pick" value="other" x-model="pick"> {{ t('cmp.phone_other') }}</label>
+      </div>
+      <div x-show="!phones.length || pick === 'other'" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+        <input class="input" name="contact_phone" maxlength="30" dir="ltr" inputmode="tel" style="max-width:220px;" placeholder="01xxxxxxxxx">
+        <select class="input" name="phone_note" x-show="phones.length" :required="phones.length > 0 && pick === 'other'" style="width:auto;" data-phone-note>
+          <option value="">{{ t('cmp.phone_why') }}</option>
+          {% for n in phone_notes %}<option value="{{ n }}">{{ t('cmp.phone_' ~ n) }}</option>{% endfor %}
+        </select>
+      </div>
+      <span class="hint" x-show="phones.length && pick !== 'other'">{{ t('cmp.phone_from_file') }}</span>
+      <span class="hint" x-show="!phones.length && patient">{{ t('cmp.phone_none_on_file') }}</span>
+    </div>
+
+    <div class="form-row" style="margin:0;max-width:420px;" x-show="visits.length && by !== 'staff' && by !== 'body'" data-visit-pick>
+      <label>{{ t('cmp.visit') }}</label>
+      <select class="input" name="visit_id">
+        <option value="">{{ t('cmp.visit_none') }}</option>
+        <template x-for="v in visits" :key="v.id"><option :value="v.id" x-text="v.date + (v.doctor ? ' — ' + v.doctor : '')"></option></template>
+      </select>
+    </div>
   </div>
   <p class="hint" x-show="anon">{{ t('cmp.anonymous_hint') }}</p>
   <label class="checkbox" x-show="!anon && kind !== 'compliment'"><input type="checkbox" name="notify" value="1" checked> {{ t('cmp.notify') }}</label>
@@ -83,5 +163,32 @@
 <style>
   .chip-radio { border:1px solid var(--line); border-radius:999px; padding:6px 14px; display:inline-flex; gap:6px; align-items:center; cursor:pointer; }
   .chip-radio:has(input:checked) { border-color:var(--green-600,#12855f); background:var(--green-50,#e8f6ef); font-weight:600; }
+  html[data-theme="dark"] .chip-radio:has(input:checked) { background:rgba(18,133,95,.2); }
+  .cmp-phones { display:flex; gap:6px; flex-wrap:wrap; }
+  .cmp-staff { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .cmp-chip { display:inline-flex; gap:6px; align-items:center; border:1px solid var(--line); border-radius:999px; padding:4px 6px 4px 12px; background:var(--soft,#f4f7f8); }
+  .cmp-chip button { border:0; background:transparent; cursor:pointer; font-size:1rem; line-height:1; color:var(--muted); padding:0 4px; }
 </style>
+<script>
+  window.CMP_STAFF = {{ staff_names|tojson }};
+  function cmpForm(init) {
+    return {
+      kind: init.kind, anon: false, by: 'family', patient: init.patient,
+      phones: [], pick: 'other', visits: [], staff: [], names: window.CMP_STAFF || {},
+      init() { if (this.patient) this.load(this.patient); },
+      load(id) {
+        var self = this;
+        self.patient = id;
+        fetch(init.facts.replace('/0/', '/' + id + '/'), {credentials: 'same-origin'})
+          .then(function (r) { return r.ok ? r.json() : {phones: [], visits: []}; })
+          .then(function (d) {
+            self.phones = d.phones || [];
+            self.visits = d.visits || [];
+            self.pick = self.phones.length ? self.phones[0].phone : 'other';
+          });
+      },
+      clear() { this.patient = null; this.phones = []; this.visits = []; this.pick = 'other'; }
+    };
+  }
+</script>
 {% endblock %}

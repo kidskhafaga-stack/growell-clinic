@@ -1,7 +1,7 @@
 {% extends "shell.html" %}
 {% set active_module = 'complaints' %}
 {% block title %}{{ case.number }}{% endblock %}
-{% block page_heading %}{{ t('cmp.case') }} {{ case.number }}{% endblock %}
+{% block page_heading %}{{ t('cmp.case' if case.kind == 'complaint' else 'cmp.case_' ~ case.kind) }} {{ case.number }}{% endblock %}
 
 {# One case: what they said, the two clocks, the steps in order, and the
    next thing to do. The steps are the file PCC.16 (b) asks for — every one
@@ -28,22 +28,79 @@
 <div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px;" class="cmp-grid">
   <div style="display:grid;gap:14px;align-content:start;">
     <div class="card gc-scale-in">
-      <h2 class="section-title" style="margin-top:0;">{{ t('cmp.they_said') }}</h2>
+      <h2 class="section-title" style="margin-top:0;">{{ t('cmp.they_said') if case.kind == 'complaint' else t('cmp.' ~ case.kind ~ '_text') }}</h2>
       <div style="white-space:pre-wrap;line-height:1.9;">{{ case.description }}</div>
       {% if case.wanted %}<div class="hint" style="margin-top:8px;"><strong>{{ t('cmp.wanted') }}:</strong> {{ case.wanted }}</div>{% endif %}
       <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:.9rem;">
         <span><i class="bi bi-person"></i>
           {% if case.anonymous %}{{ t('cmp.anonymous_short') }}
           {% elif case.patient %}<a href="{{ url_for('patients.view', patient_id=case.patient.id) }}">{{ case.patient.display_name(current_lang) }}</a>
-          {% else %}{{ case.contact_name or '—' }}{% endif %}</span>
+          {% else %}{{ case.who(current_lang) or '—' }}{% endif %}</span>
+        {% if case.by_who and case.by_who != 'family' %}<span data-by-who="{{ case.by_who }}"><i class="bi bi-person-raised-hand"></i> {{ t('cmp.by_' ~ case.by_who) }}{% if case.by_staff and case.patient %} — {{ case.by_staff.display_name(current_lang) }}{% elif case.contact_name and case.patient %} — {{ case.contact_name }}{% endif %}</span>{% endif %}
         {% set phone = case.contact_phone or (case.patient.contact_phone if case.patient and not case.anonymous else None) %}
         {% if phone %}<span class="num" dir="ltr"><i class="bi bi-telephone"></i> {{ phone }}</span>{% endif %}
+        {% if case.phone_note %}<span class="cmp-flag{{ ' is-warn' if case.phone_note == 'file_wrong' else '' }}" data-phone-note="{{ case.phone_note }}">{{ t('cmp.phone_' ~ case.phone_note) }}{% if case.phone_note == 'file_wrong' and case.patient %} — <a href="{{ url_for('patients.view', patient_id=case.patient.id) }}">{{ t('cmp.fix_file') }}</a>{% endif %}</span>{% endif %}
+        {% if case.visit %}<span data-case-visit><i class="bi bi-clipboard2-pulse"></i> {{ t('cmp.visit') }}: <a href="{{ url_for('visits.view', visit_id=case.visit.id) }}" class="num">{{ case.visit.visit_date.isoformat() }}</a></span>{% endif %}
+        {% if case.category %}<span class="badge badge--role" data-case-category="{{ case.category }}">{{ t('cmp.cat_' ~ case.category) }}</span>{% endif %}
         {% if case.feedback %}<span><i class="bi bi-star-half"></i> {{ t('cmp.from_survey') }}</span>{% endif %}
       </div>
+      {% if case.staff %}
+      <div class="cmp-about-staff" data-case-staff>
+        <span class="hint">{{ t('cmp.staff_thanked' if case.kind == 'compliment' else ('cmp.staff_to' if case.is_suggestion else 'cmp.staff_about')) }}:</span>
+        {% for u in case.staff %}<span class="cmp-chip">{{ u.display_name(current_lang) }}</span>{% endfor %}
+      </div>
+      {% endif %}
     </div>
 
-    {# The next thing to do, depending on where the case is. #}
-    {% if case.status in ('new', 'in_progress') %}
+    {# ش-٤ — has this been before? #}
+    {% if repeats.family or repeats.same %}
+    <div class="card gc-scale-in cmp-repeat" data-repeats>
+      <h2 class="section-title" style="margin-top:0;"><i class="bi bi-arrow-repeat"></i> {{ t('cmp.repeat_title') }}</h2>
+      {% if repeats.family %}<p style="margin:0 0 6px;" data-repeat-family>{{ t('cmp.repeat_family', n=repeats.family|length) }}
+        {% for c in repeats.family %}<a class="num" href="{{ url_for('complaints.view', case_id=c.id) }}">{{ c.number }}</a> <span class="hint">({{ t('cmp.kind_' ~ c.kind) }})</span>{% if not loop.last %} · {% endif %}{% endfor %}</p>{% endif %}
+      {% if repeats.same %}<p style="margin:0;" data-repeat-same><a href="{{ url_for('complaints.index', view='all', category=case.category, centre=case.cost_centre_id) }}">{{ t('cmp.repeat_same', n=repeats.same, days=repeats.days) }}</a></p>{% endif %}
+    </div>
+    {% endif %}
+
+    {# The next thing to do, depending on where the case is. A suggestion
+       has its own road (ش-٣): decided, then done. #}
+    {% if case.is_suggestion and case.status in ('new', 'in_progress') %}
+    <div class="card gc-scale-in" data-step="decide">
+      <h2 class="section-title" style="margin-top:0;"><i class="bi bi-lightbulb"></i> {{ t('cmp.decide_title') }}</h2>
+      <p class="hint" style="margin-top:0;">{{ t('cmp.decide_hint', days=days) }}</p>
+      <form method="post" action="{{ url_for('complaints.act', case_id=case.id) }}" style="display:grid;gap:8px;" x-data="{ d: 'accepted' }">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="do" value="decide">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          {% for d in decisions %}<label class="chip-radio"><input type="radio" name="decision" value="{{ d }}" x-model="d"{{ ' checked' if loop.first else '' }}> {{ t('cmp.dec_' ~ d) }}</label>{% endfor %}
+        </div>
+        <div class="form-row" style="margin:0;"><label x-text="d === 'accepted' ? {{ t('cmp.plan_accepted')|tojson|forceescape }} : {{ t('cmp.plan_rejected')|tojson|forceescape }}">{{ t('cmp.plan_accepted') }}</label>
+          <textarea class="input" name="plan" rows="3" required></textarea></div>
+        <div class="form-row" style="margin:0;max-width:220px;" x-show="d === 'accepted'"><label>{{ t('cmp.target_date') }}</label>
+          <input class="input" type="date" name="target_date"></div>
+        {% if not case.anonymous %}<label class="checkbox"><input type="checkbox" name="notify" value="1" checked> {{ t('cmp.tell_suggester') }}</label>{% endif %}
+        <div><button class="btn btn-primary gc-press" type="submit" data-decide>{{ t('cmp.save_decision') }}</button></div>
+      </form>
+    </div>
+    {% elif case.is_suggestion and case.decision == 'accepted' and not case.done_at %}
+    <div class="card gc-scale-in" data-step="implement">
+      <h2 class="section-title" style="margin-top:0;"><i class="bi bi-hammer"></i> {{ t('cmp.implement_title') }}</h2>
+      <p style="margin:0 0 8px;"><strong>{{ t('cmp.plan_accepted') }}:</strong> {{ case.plan }}{% if case.target_date %} · <span class="hint">{{ t('cmp.target_date') }} <span class="num">{{ case.target_date.isoformat() }}</span></span>{% endif %}</p>
+      <form method="post" action="{{ url_for('complaints.act', case_id=case.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="do" value="done">
+        <input class="input" name="text" required placeholder="{{ t('cmp.done_ph') }}" style="flex:1;min-width:220px;">
+        <button class="btn btn-primary gc-press" type="submit" data-implemented>{{ t('cmp.mark_done') }}</button>
+      </form>
+    </div>
+    {% elif case.is_suggestion %}
+    <div class="card gc-scale-in" data-step="suggestion-closed">
+      <h2 class="section-title" style="margin-top:0;"><i class="bi bi-{{ 'check2-circle' if case.done_at else 'x-circle' }}"></i>
+        {{ t('cmp.sug_done' if case.done_at else 'cmp.sug_rejected') }} <span class="num">{{ (case.done_at or case.decided_at or case.closed_at).strftime('%Y-%m-%d') if (case.done_at or case.decided_at or case.closed_at) }}</span></h2>
+      {% if case.plan %}<p style="margin:0 0 6px;"><strong>{{ t('cmp.plan_accepted' if case.decision == 'accepted' else 'cmp.plan_rejected') }}:</strong> {{ case.plan }}</p>{% endif %}
+      {% if case.done_text %}<p style="margin:0;"><strong>{{ t('cmp.done_what') }}:</strong> {{ case.done_text }}</p>{% endif %}
+    </div>
+    {% elif case.status in ('new', 'in_progress') %}
     <div class="card gc-scale-in" data-step="contact">
       <h2 class="section-title" style="margin-top:0;"><i class="bi bi-telephone-outbound"></i> {{ t('cmp.log_contact') }}</h2>
       <form method="post" action="{{ url_for('complaints.act', case_id=case.id) }}">
@@ -62,6 +119,9 @@
           <textarea class="input" name="finding" rows="2" placeholder="{{ t('cmp.finding_ph') }}"></textarea></div>
         <div class="form-row" style="margin:0;"><label>{{ t('cmp.action') }}</label>
           <textarea class="input" name="action" rows="2" placeholder="{{ t('cmp.action_ph') }}"></textarea></div>
+        <div class="form-row" style="margin:0;max-width:320px;"><label>{{ t('cmp.root_cause') }}</label>
+          <select class="input" name="root_cause"><option value="">—</option>
+            {% for c in root_causes %}<option value="{{ c }}" {{ 'selected' if case.root_cause == c }}>{{ t('cmp.cause_' ~ c) }}</option>{% endfor %}</select></div>
         <div class="form-row" style="margin:0;"><label>{{ t('cmp.answer') }}</label>
           <textarea class="input" name="answer" rows="3" required placeholder="{{ t('cmp.answer_ph') }}"></textarea></div>
         {% if not case.anonymous %}
@@ -98,11 +158,12 @@
     </div>
     {% endif %}
 
-    {% if case.answer %}
+    {% if case.answer and not case.is_suggestion %}
     <div class="card gc-scale-in" data-the-answer>
       <h2 class="section-title" style="margin-top:0;">{{ t('cmp.the_answer') }}</h2>
       {% if case.finding %}<p style="margin:0 0 6px;"><strong>{{ t('cmp.finding') }}:</strong> {{ case.finding }}</p>{% endif %}
       {% if case.action %}<p style="margin:0 0 6px;"><strong>{{ t('cmp.action') }}:</strong> {{ case.action }}</p>{% endif %}
+      {% if case.root_cause %}<p style="margin:0 0 6px;" data-root-cause="{{ case.root_cause }}"><strong>{{ t('cmp.root_cause') }}:</strong> {{ t('cmp.cause_' ~ case.root_cause) }}</p>{% endif %}
       <p style="margin:0;"><strong>{{ t('cmp.answer') }}:</strong> {{ case.answer }}</p>
     </div>
     {% endif %}
@@ -135,13 +196,15 @@
   <div style="display:grid;gap:14px;align-content:start;">
     <div class="card gc-scale-in" data-clocks>
       <h2 class="section-title" style="margin-top:0;"><i class="bi bi-stopwatch"></i> {{ t('cmp.clocks') }}</h2>
+      {% if not case.is_suggestion %}
       <div class="cmp-clock {{ 'late' if late_contact }}">
         <span>{{ t('cmp.first_contact') }}</span>
         {% if case.first_contact_at %}<strong class="num">{{ case.first_contact_at.strftime('%Y-%m-%d %H:%M') }}</strong>
         {% else %}<strong>{{ t('cmp.due_by') }} <span class="num">{{ contact_due.strftime('%Y-%m-%d %H:%M') }}</span></strong>{% endif %}
       </div>
+      {% endif %}
       <div class="cmp-clock {{ 'late' if late_close }}">
-        <span>{{ t('cmp.answer_by') }}</span>
+        <span>{{ t('cmp.decide_by') if case.is_suggestion else t('cmp.answer_by') }}</span>
         {% if case.answered_at %}<strong class="num">{{ case.answered_at.strftime('%Y-%m-%d %H:%M') }}</strong>
         {% else %}<strong>{{ t('cmp.due_by') }} <span class="num">{{ close_due.strftime('%Y-%m-%d') }}</span></strong>{% endif %}
       </div>
@@ -161,6 +224,26 @@
       </form>
     </div>
 
+    <div class="card gc-scale-in" data-staff-card>
+      <h2 class="section-title" style="margin-top:0;"><i class="bi bi-people"></i> {{ t('cmp.staff_thanked' if case.kind == 'compliment' else ('cmp.staff_to' if case.is_suggestion else 'cmp.staff_about')) }}</h2>
+      <form method="post" action="{{ url_for('complaints.act', case_id=case.id) }}" style="display:grid;gap:8px;"
+            x-data='{ staff: {{ case.staff|map(attribute="id")|list|tojson }}, names: {{ staff_names|tojson }} }'>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="do" value="staff">
+        <div class="cmp-staff">
+          <template x-for="id in staff" :key="id">
+            <span class="cmp-chip"><input type="hidden" name="staff_ids" :value="id"><span x-text="names[id]"></span>
+              <button type="button" @click="staff = staff.filter(x => x !== id)" aria-label="{{ t('cmp.remove') }}">×</button></span>
+          </template>
+          <select class="input" @change="if ($event.target.value && !staff.includes(+$event.target.value)) staff.push(+$event.target.value); $event.target.value = ''" style="width:auto;min-width:180px;" aria-label="{{ t('cmp.staff_add') }}">
+            <option value="">+ {{ t('cmp.staff_add') }}</option>
+            {% for u in staff %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}
+          </select>
+        </div>
+        <div><button class="btn btn-outline gc-press" type="submit" data-save-staff>{{ t('common.save') }}</button></div>
+      </form>
+    </div>
+
     <div class="card gc-scale-in">
       <h2 class="section-title" style="margin-top:0;"><i class="bi bi-tags"></i> {{ t('cmp.about') }}</h2>
       <form method="post" action="{{ url_for('complaints.act', case_id=case.id) }}" style="display:grid;gap:8px;">
@@ -175,6 +258,14 @@
         <div class="form-row" style="margin:0;"><label>{{ t('cmp.severity') }}</label>
           <select class="input" name="severity">
             {% for s in severities %}<option value="{{ s }}" {{ 'selected' if case.severity == s }}>{{ t('cmp.sev_' ~ s) }}</option>{% endfor %}</select></div>
+        <div class="form-row" style="margin:0;"><label>{{ t('cmp.category') }}</label>
+          <select class="input" name="category"><option value="">—</option>
+            {% for c in categories %}<option value="{{ c }}" {{ 'selected' if case.category == c }}>{{ t('cmp.cat_' ~ c) }}</option>{% endfor %}</select></div>
+        {% if not case.is_suggestion %}
+        <div class="form-row" style="margin:0;"><label>{{ t('cmp.root_cause') }}</label>
+          <select class="input" name="root_cause"><option value="">—</option>
+            {% for c in root_causes %}<option value="{{ c }}" {{ 'selected' if case.root_cause == c }}>{{ t('cmp.cause_' ~ c) }}</option>{% endfor %}</select></div>
+        {% endif %}
         <div><button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button></div>
       </form>
       {% if case.severity == 'serious' %}<p class="hint" style="margin-bottom:0;color:var(--danger);">{{ t('cmp.serious_hint') }}</p>{% endif %}
@@ -188,5 +279,17 @@
   .cmp-tl li { border-inline-start:2px solid var(--line); padding-inline-start:12px; }
   .cmp-clock { display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
   .cmp-clock.late strong { color:var(--danger); }
+  .chip-radio { border:1px solid var(--line); border-radius:999px; padding:6px 14px; display:inline-flex; gap:6px; align-items:center; cursor:pointer; }
+  .chip-radio:has(input:checked) { border-color:var(--green-600,#12855f); background:var(--green-50,#e8f6ef); font-weight:600; }
+  html[data-theme="dark"] .chip-radio:has(input:checked) { background:rgba(18,133,95,.2); }
+  .cmp-staff, .cmp-about-staff { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .cmp-about-staff { margin-top:10px; }
+  .cmp-chip { display:inline-flex; gap:6px; align-items:center; border:1px solid var(--line); border-radius:999px; padding:3px 10px; background:var(--soft,#f4f7f8); font-size:.88rem; }
+  .cmp-chip button { border:0; background:transparent; cursor:pointer; font-size:1rem; line-height:1; color:var(--muted); padding:0 2px; }
+  .cmp-flag { font-size:.82rem; padding:2px 10px; border-radius:999px; background:#eef2f6; color:#475569; }
+  .cmp-flag.is-warn { background:#fef3c7; color:#92400e; }
+  html[data-theme="dark"] .cmp-flag { background:rgba(148,163,184,.16); color:#cbd5e1; }
+  html[data-theme="dark"] .cmp-flag.is-warn { background:rgba(245,158,11,.16); color:#fcd34d; }
+  .cmp-repeat { border-inline-start:3px solid #f59e0b; }
 </style>
 {% endblock %}

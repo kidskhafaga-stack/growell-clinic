@@ -245,6 +245,9 @@
 {% else %}
 {# ============================== complaints ============================== #}
 {% set s = c.summary %}
+{# The complaints book has its own board, with categories, causes, people
+   and suggestions (COMPLAINTS_PLAN.md ش-٥). #}
+<p style="margin:0 0 10px;"><a class="btn btn-outline btn-sm gc-press" href="{{ url_for('complaints.board', **{'from': start.isoformat(), 'to': last.isoformat()}) }}" data-to-complaint-board><i class="bi bi-clipboard-data"></i> {{ t('cmpb.title') }}</a></p>
 <div class="csb-kpis gc-scale-in" data-complaint-kpis>
   <div class="csb-kpi csb-alert"><span class="l">{{ t('board_cs.c_total') }}</span><span class="v num">{{ s.total }}</span></div>
   <a class="csb-kpi csb-alert" href="{{ url_for('complaints.index', view='open') }}"><span class="l">{{ t('cmp.stat_open') }}</span><span class="v num">{{ s.open }}</span></a>

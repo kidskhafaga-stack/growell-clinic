@@ -1,0 +1,267 @@
+{% extends "shell.html" %}
+{% set active_module = 'complaints' %}
+{% block title %}{{ t('cmpb.title') }}{% endblock %}
+{% block page_heading %}{{ t('cmpb.title') }}{% endblock %}
+
+{# COMPLAINTS_PLAN.md ش-٥ — the complaints and suggestions board. A period
+   against the one before it; every number opens the cases behind it; the
+   survey's satisfaction sits beside the complaints for the same part of the
+   clinic; and a person's line is never coloured on a handful of cases. #}
+
+{% set q = {'from': start.isoformat(), 'to': last.isoformat()} %}
+{% macro list_link(extra={}) -%}{{ url_for('complaints.index', view='all', **dict(q, **extra)) }}{%- endmacro %}
+
+{% macro delta(dv, unit='', good_up=False) -%}
+  {%- if dv is none -%}<span class="cb-d flat">—</span>
+  {%- elif dv == 0 -%}<span class="cb-d flat">{{ t('board_cs.same') }}</span>
+  {%- else -%}
+    {%- set good = (dv > 0) if good_up else (dv < 0) -%}
+    <span class="cb-d {{ 'good' if good else 'bad' }}"><bdi class="num">{{ '▲' if dv > 0 else '▼' }} {{ dv|abs }}{{ unit }}</bdi> {{ t('board_cs.vs_before') }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro bars(rows, key, label_prefix, filter_key, kind='complaint') %}
+{% set top = (rows|map(attribute=1)|max) if rows else 1 %}
+<ul class="cb-bars">
+  {% for value, n in rows %}
+  <li><a href="{{ list_link({filter_key: value, 'kind': kind} if kind else {filter_key: value}) }}" data-bar="{{ key }}.{{ value }}">
+    <span class="cb-bar-l">{{ t(label_prefix ~ value) }}</span>
+    <span class="cb-bar-t"><span style="width:{{ (n / top * 100)|round(1) }}%"></span></span>
+    <bdi class="cb-bar-n num">{{ n }}</bdi></a></li>
+  {% else %}<li class="hint">{{ t('cmpb.nothing') }}</li>{% endfor %}
+</ul>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-clipboard-data"></i> {{ t('cmpb.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('cmpb.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('complaints.index') }}"><i class="bi bi-list-ul"></i> {{ t('cmp.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.satisfaction', **q) }}" data-to-satisfaction><i class="bi bi-emoji-smile"></i> {{ t('board_cs.title') }}</a>
+    <button class="btn btn-outline gc-press" type="button" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+  </div>
+</div>
+
+<form method="get" class="card gc-scale-in cb-period no-print" data-period>
+  <div class="cb-presets">
+    {% for key, f, to in presets %}
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if (f == q['from'] and to == q['to']) else 'btn-outline' }}" href="{{ url_for('complaints.board', **{'from': f, 'to': to}) }}">{{ t('cmpb.p_' ~ key) }}</a>
+    {% endfor %}
+  </div>
+  <label>{{ t('board_cs.from') }} <input class="input" type="date" name="from" value="{{ q['from'] }}"></label>
+  <label>{{ t('board_cs.to') }} <input class="input" type="date" name="to" value="{{ q['to'] }}"></label>
+  <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('board_cs.show') }}</button>
+  <span class="hint" style="margin:0;">{{ t('board_cs.compared') }} <bdi class="num" dir="ltr">{{ prev[0].isoformat() }} – {{ prev[1].isoformat() }}</bdi></span>
+</form>
+
+{# The headline: how many, how fast, and whether it settled it. #}
+<div class="cb-kpis gc-scale-in" data-kpis>
+  <a class="cb-kpi is-c" href="{{ list_link({'kind': 'complaint'}) }}" data-kpi="complaints">
+    <span class="l">{{ t('cmpb.k_complaints') }}</span><span class="v num">{{ d.counts.complaint }}</span>{{ delta(d.delta.complaint) }}</a>
+  <div class="cb-kpi" data-kpi="rate">
+    <span class="l">{{ t('cmpb.k_rate') }}</span><span class="v num">{{ d.rate if d.rate is not none else '—' }}</span>
+    <span class="cb-sub">{{ t('cmpb.k_rate_of', n=d.visits) }}</span>{{ delta(d.rate_delta) }}</div>
+  <a class="cb-kpi is-s" href="{{ list_link({'kind': 'suggestion'}) }}" data-kpi="suggestions">
+    <span class="l">{{ t('cmpb.k_suggestions') }}</span><span class="v num">{{ d.counts.suggestion }}</span>{{ delta(d.delta.suggestion, good_up=True) }}</a>
+  <a class="cb-kpi is-g" href="{{ list_link({'kind': 'compliment'}) }}" data-kpi="compliments">
+    <span class="l">{{ t('cmpb.k_compliments') }}</span><span class="v num">{{ d.counts.compliment }}</span>{{ delta(d.delta.compliment, good_up=True) }}</a>
+  <a class="cb-kpi{{ ' is-alert' if d.now.late }}" href="{{ url_for('complaints.index', view='late') }}" data-kpi="late">
+    <span class="l">{{ t('cmpb.k_open_now') }}</span><span class="v num">{{ d.now.open }}</span>
+    <span class="cb-sub">{{ t('cmpb.k_late_now', n=d.now.late) }}</span></a>
+  <div class="cb-kpi" data-kpi="first-contact">
+    <span class="l">{{ t('cmp.stat_first_contact') }}</span>
+    <span class="v num">{{ d.summary.first_contact_hours if d.summary.first_contact_hours is not none else '—' }}</span>
+    <span class="cb-sub">{{ t('cmpb.k_hours_policy', n=hours) }}</span>{{ delta(d.summary_delta.first_contact_hours, t('cmpb.h')) }}</div>
+  <div class="cb-kpi" data-kpi="in-time">
+    <span class="l">{{ t('cmp.stat_in_time') }}</span>
+    <span class="v num">{{ (d.summary.closed_in_time_pct ~ '%') if d.summary.closed_in_time_pct is not none else '—' }}</span>
+    <span class="cb-sub">{{ t('cmpb.k_days_policy', n=days) }}</span>{{ delta(d.summary_delta.closed_in_time_pct, '%', good_up=True) }}</div>
+  <div class="cb-kpi" data-kpi="verdict">
+    <span class="l">{{ t('cmp.stat_verdict') }}</span>
+    <span class="v num">{{ d.summary.resolution_avg if d.summary.resolution_avg is not none else '—' }}<small>/5</small></span>
+    <span class="cb-sub">{{ t('cmpb.k_rated_n', n=d.summary.resolution_count) }}</span>{{ delta(d.summary_delta.resolution_avg, good_up=True) }}</div>
+</div>
+
+{# Satisfaction for the same period, from the survey — the other half of
+   «how are we doing». #}
+<section class="card gc-scale-in cb-survey" data-survey>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-emoji-smile"></i> {{ t('cmpb.survey_title') }}</h2>
+  {% set o = d.survey %}
+  <div class="cb-survey-row">
+    {% for side in ('medical', 'service', 'finance') %}
+    <div><span class="hint">{{ t('cmp.side_' ~ side) }}</span>
+      <span class="cb-pill cb-{{ colour(o[side], o.answered >= 10) }} num">{{ '%.1f'|format(o[side]) if o[side] is not none else '—' }}</span></div>
+    {% endfor %}
+    <div><span class="hint">NPS</span><strong class="num">{{ o.nps if o.nps is not none else '—' }}</strong></div>
+    <div><span class="hint">{{ t('cmpb.survey_answered') }}</span><strong class="num">{{ o.answered }}</strong></div>
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.satisfaction', **q) }}">{{ t('cmpb.survey_open') }}</a>
+  </div>
+</section>
+
+<div class="cb-grid">
+  <section class="card gc-scale-in cb-wide" data-weeks>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-bar-chart"></i> {{ t('cmpb.weeks') }}</h2>
+    {% set wk = d.weeks %}
+    {% set top = ([1] + wk|map(attribute='total')|list)|max %}
+    {% set n = wk|length %}
+    {% set W = 640 %}{% set H = 170 %}{% set bw = ((W - 40) / n * 0.62) if n else 10 %}
+    <div style="overflow-x:auto;">
+    <svg viewBox="0 0 {{ W }} {{ H + 34 }}" width="100%" style="min-width:420px;display:block;" role="img" aria-label="{{ t('cmpb.weeks') }}">
+      {% for g in [0, 0.5, 1] %}
+      {% set y = H - g * (H - 20) %}
+      <line x1="30" x2="{{ W - 6 }}" y1="{{ y }}" y2="{{ y }}" stroke="currentColor" stroke-opacity=".12"></line>
+      <text x="24" y="{{ y + 4 }}" text-anchor="end" font-size="10" fill="currentColor" fill-opacity=".6">{{ (top * g)|round|int }}</text>
+      {% endfor %}
+      {% for w in wk %}
+      {% set x = 34 + loop.index0 * (W - 40) / n + ((W - 40) / n - bw) / 2 %}
+      {% set hc = w.complaint / top * (H - 20) %}{% set hs = w.suggestion / top * (H - 20) %}{% set hg = w.compliment / top * (H - 20) %}
+      <g data-week="{{ w.start.isoformat() }}"><title>{{ w.start.isoformat() }} — {{ t('cmp.kind_complaint') }} {{ w.complaint }} · {{ t('cmp.kind_suggestion') }} {{ w.suggestion }} · {{ t('cmp.kind_compliment') }} {{ w.compliment }}</title>
+        <rect x="{{ '%.1f'|format(x) }}" y="{{ '%.1f'|format(H - hc) }}" width="{{ '%.1f'|format(bw) }}" height="{{ '%.1f'|format(hc) }}" fill="#d9603b" rx="2"></rect>
+        <rect x="{{ '%.1f'|format(x) }}" y="{{ '%.1f'|format(H - hc - hs) }}" width="{{ '%.1f'|format(bw) }}" height="{{ '%.1f'|format(hs) }}" fill="#3b7dd8" rx="2"></rect>
+        <rect x="{{ '%.1f'|format(x) }}" y="{{ '%.1f'|format(H - hc - hs - hg) }}" width="{{ '%.1f'|format(bw) }}" height="{{ '%.1f'|format(hg) }}" fill="#2f9e6e" rx="2"></rect>
+        {% if w.total %}<text x="{{ '%.1f'|format(x + bw / 2) }}" y="{{ '%.1f'|format(H - hc - hs - hg - 4) }}" text-anchor="middle" font-size="10" fill="currentColor">{{ w.total }}</text>{% endif %}
+        {% if n <= 14 or loop.index0 % ((n // 10) + 1) == 0 %}<text x="{{ '%.1f'|format(x + bw / 2) }}" y="{{ H + 16 }}" text-anchor="middle" font-size="9.5" fill="currentColor" fill-opacity=".65" direction="ltr">{{ w.start.strftime('%m-%d') }}</text>{% endif %}
+      </g>
+      {% endfor %}
+    </svg>
+    </div>
+    <div class="cb-legend"><span><i style="background:#d9603b"></i>{{ t('cmp.kind_complaint') }}</span><span><i style="background:#3b7dd8"></i>{{ t('cmp.kind_suggestion') }}</span><span><i style="background:#2f9e6e"></i>{{ t('cmp.kind_compliment') }}</span></div>
+  </section>
+
+  <section class="card gc-scale-in" data-by-category>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-diagram-3"></i> {{ t('cmpb.by_category') }}</h2>
+    {{ bars(d.category, 'category', 'cmp.cat_', 'category') }}
+    {% if d.uncategorised %}<p class="hint" style="margin:6px 0 0;">{{ t('cmpb.uncategorised', n=d.uncategorised) }}</p>{% endif %}
+  </section>
+
+  <section class="card gc-scale-in" data-by-cause>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-search"></i> {{ t('cmpb.by_cause') }}</h2>
+    {{ bars(d.cause, 'cause', 'cmp.cause_', 'cause') }}
+  </section>
+
+  <section class="card gc-scale-in cb-wide" data-by-centre>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-building"></i> {{ t('cmpb.by_centre') }}</h2>
+    <p class="hint" style="margin-top:0;">{{ t('cmpb.by_centre_hint') }}</p>
+    {% if d.centres %}
+    <div style="overflow-x:auto;">
+    <table class="table">
+      <thead><tr><th>{{ t('cmp.centre') }}</th><th>{{ t('cmpb.k_complaints') }}</th><th>{{ t('cmpb.survey_avg') }}</th><th>{{ t('cmpb.survey_answered') }}</th></tr></thead>
+      <tbody>
+        {% for r in d.centres %}
+        <tr data-centre-row="{{ r.centre.id }}">
+          <td><a href="{{ list_link({'centre': r.centre.id, 'kind': 'complaint'}) }}"><strong>{{ r.centre.display_name(current_lang) }}</strong></a></td>
+          <td class="num">{{ r.complaints }}</td>
+          <td><span class="cb-pill cb-{{ colour(r.survey, r.judged) }} num">{{ '%.1f'|format(r.survey) if r.survey is not none else '—' }}</span></td>
+          <td class="num">{{ r.answered }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}<p class="hint">{{ t('cmpb.nothing') }}</p>{% endif %}
+  </section>
+
+  <section class="card gc-scale-in" data-by-channel>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-signpost-split"></i> {{ t('cmpb.by_channel') }}</h2>
+    {{ bars(d.channel, 'channel', 'cmp.channel_', 'channel', kind=None) }}
+  </section>
+
+  <section class="card gc-scale-in" data-by-severity>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-exclamation-diamond"></i> {{ t('cmpb.by_severity') }}</h2>
+    {{ bars(d.severity, 'severity', 'cmp.sev_', 'severity') }}
+    <h3 class="cb-h3">{{ t('cmp.side') }}</h3>
+    {{ bars(d.side, 'side', 'cmp.side_', 'side') }}
+  </section>
+
+  {# ش-٣ — what became of the suggestions. #}
+  <section class="card gc-scale-in" data-suggestions>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-lightbulb"></i> {{ t('cmpb.sug_title') }}</h2>
+    {% set sg = d.suggestions %}
+    <ol class="cb-funnel">
+      <li><a href="{{ list_link({'kind': 'suggestion'}) }}"><span>{{ t('cmpb.sug_received') }}</span><b class="num">{{ sg.received }}</b></a></li>
+      <li><a href="{{ list_link({'kind': 'suggestion', 'decision': 'accepted'}) }}"><span>{{ t('cmpb.sug_accepted') }}</span><b class="num">{{ sg.accepted }}</b></a></li>
+      <li><a href="{{ list_link({'kind': 'suggestion', 'done': '1'}) }}"><span>{{ t('cmpb.sug_done') }}</span><b class="num">{{ sg.done }}</b></a></li>
+    </ol>
+    <p class="hint" style="margin:8px 0 0;">{{ t('cmpb.sug_rest', rejected=sg.rejected, waiting=sg.waiting) }}{% if sg.days_to_decide is not none %} · {{ t('cmpb.sug_days', n=sg.days_to_decide) }}{% endif %}</p>
+  </section>
+
+  {# ش-٢ — the people. Counts only, by name; never ranked or coloured. #}
+  <section class="card gc-scale-in cb-wide" data-staff>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-people"></i> {{ t('cmpb.staff_title') }}</h2>
+    <p class="hint" style="margin-top:0;">{{ t('cmpb.staff_hint', n=min_staff) }}</p>
+    {% if d.staff %}
+    <div style="overflow-x:auto;">
+    <table class="table">
+      <thead><tr><th>{{ t('cmpb.staff_who') }}</th><th>{{ t('cmp.kind_compliment') }}</th><th>{{ t('cmp.kind_complaint') }}</th><th>{{ t('cmp.kind_suggestion') }}</th></tr></thead>
+      <tbody>
+        {% for r in d.staff %}
+        <tr data-staff-row="{{ r.user.id }}"{{ '' if r.judged else ' class=cb-quiet' }}>
+          <td><a href="{{ list_link({'staff': r.user.id, 'kind': ''}) }}">{{ r.user.display_name(current_lang) }}</a></td>
+          <td class="num">{{ r.compliment or '' }}</td><td class="num">{{ r.complaint or '' }}</td><td class="num">{{ r.suggestion or '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}<p class="hint">{{ t('cmpb.staff_none') }}</p>{% endif %}
+  </section>
+
+  <section class="card gc-scale-in" data-repeat>
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-arrow-repeat"></i> {{ t('cmpb.repeat_title') }}</h2>
+    {% if d.repeat %}
+    <ul class="cb-repeat">
+      {% for p, k in d.repeat %}<li><a href="{{ list_link({'patient': p.id, 'kind': 'complaint'}) }}">{{ p.display_name(current_lang) }}</a> <bdi class="num">{{ k }}</bdi></li>{% endfor %}
+    </ul>
+    {% else %}<p class="hint">{{ t('cmpb.repeat_none') }}</p>{% endif %}
+  </section>
+</div>
+
+<style>
+  .cb-period { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .cb-period label { display:flex; gap:6px; align-items:center; font-size:.88rem; }
+  .cb-period .input { width:auto; }
+  .cb-presets { display:flex; gap:6px; flex-wrap:wrap; }
+  .cb-kpis { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:10px; margin-bottom:14px; }
+  .cb-kpi { display:grid; gap:2px; align-content:start; padding:12px 14px; border-radius:var(--radius,14px); background:var(--card); border:1px solid var(--line); color:inherit; text-decoration:none; }
+  a.cb-kpi:hover { border-color:var(--green-300,#8fcbb2); }
+  .cb-kpi .l { font-size:.8rem; color:var(--muted); }
+  .cb-kpi .v { font-size:1.6rem; font-weight:700; line-height:1.2; }
+  .cb-kpi .v small { font-size:.8rem; font-weight:400; color:var(--muted); }
+  .cb-kpi.is-c { border-top:3px solid #d9603b; } .cb-kpi.is-s { border-top:3px solid #3b7dd8; } .cb-kpi.is-g { border-top:3px solid #2f9e6e; }
+  .cb-kpi.is-alert .v { color:var(--danger,#c1121f); }
+  .cb-sub { font-size:.76rem; color:var(--muted); }
+  .cb-d { font-size:.76rem; font-weight:600; }
+  .cb-d.good { color:#166534; } .cb-d.bad { color:#9a3412; } .cb-d.flat { color:var(--muted); font-weight:400; }
+  html[data-theme="dark"] .cb-d.good { color:#86efac; } html[data-theme="dark"] .cb-d.bad { color:#fdba74; }
+  .cb-survey { margin-bottom:14px; }
+  .cb-survey-row { display:flex; gap:12px 22px; flex-wrap:wrap; align-items:center; }
+  .cb-survey-row > div { display:grid; gap:2px; }
+  .cb-pill { display:inline-block; min-width:2.6em; text-align:center; padding:2px 8px; border-radius:999px; font-weight:700; background:#eef2f6; color:#475569; }
+  .cb-pill.cb-good { background:#e3f4ea; color:#166534; } .cb-pill.cb-fair { background:#fdf3d7; color:#8a5a00; } .cb-pill.cb-poor { background:#fde4dd; color:#9a3412; }
+  html[data-theme="dark"] .cb-pill { background:rgba(148,163,184,.16); color:#cbd5e1; }
+  html[data-theme="dark"] .cb-pill.cb-good { background:rgba(34,197,94,.16); color:#86efac; }
+  html[data-theme="dark"] .cb-pill.cb-fair { background:rgba(245,158,11,.16); color:#fcd34d; }
+  html[data-theme="dark"] .cb-pill.cb-poor { background:rgba(239,68,68,.16); color:#fca5a5; }
+  .cb-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:14px; }
+  .cb-wide { grid-column:1 / -1; }
+  .cb-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:.82rem; color:var(--muted); margin-top:6px; }
+  .cb-legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-inline-end:5px; vertical-align:middle; }
+  .cb-bars { list-style:none; margin:0; padding:0; display:grid; gap:6px; }
+  .cb-bars a { display:grid; grid-template-columns:minmax(90px, 40%) 1fr 2.4em; gap:8px; align-items:center; color:inherit; text-decoration:none; font-size:.88rem; }
+  .cb-bars a:hover .cb-bar-l { text-decoration:underline; }
+  .cb-bar-t { height:10px; border-radius:999px; background:var(--line); overflow:hidden; }
+  .cb-bar-t span { display:block; height:100%; border-radius:999px; background:var(--green-600,#2a8a68); }
+  .cb-bar-n { text-align:end; font-weight:700; }
+  .cb-h3 { font-size:.9rem; margin:14px 0 8px; color:var(--muted); }
+  .cb-funnel { list-style:none; margin:0; padding:0; display:grid; gap:6px; }
+  .cb-funnel a { display:flex; justify-content:space-between; align-items:center; padding:9px 12px; border-radius:10px; background:var(--bg); color:inherit; text-decoration:none; }
+  .cb-funnel li:nth-child(2) a { margin-inline-start:12px; } .cb-funnel li:nth-child(3) a { margin-inline-start:24px; }
+  .cb-funnel b { font-size:1.15rem; }
+  .cb-quiet td { color:var(--muted); }
+  .cb-repeat { margin:0; padding-inline-start:18px; display:grid; gap:4px; }
+  @media print { .cb-grid { grid-template-columns:1fr 1fr; } .cb-kpis { grid-template-columns:repeat(4, 1fr); } }
+</style>
+{% endblock %}

@@ -15,8 +15,9 @@ from app.blueprints.complaints import complaints_bp
 from app.extensions import db
 from app.i18n import t
 from app.models import ActivityLog, Patient, Setting, User
-from app.models.complaint import (CHANNELS, KINDS, OPEN_STATUSES, SEVERITIES,
-                                  SIDES, Complaint)
+from app.models.complaint import (BY_WHO, CATEGORIES, CHANNELS, DECISIONS,
+                                  KINDS, OPEN_STATUSES, PHONE_NOTES,
+                                  ROOT_CAUSES, SEVERITIES, SIDES, Complaint)
 from app.utils import complaint_cases as cases
 from app.utils.decorators import admin_required, capability_required
 from app.utils.paging import paginate
@@ -69,7 +70,73 @@ def _thread_patient(key):
     return None
 
 
+def _staff_list():
+    """Everybody who works here and is active — who a case can be about,
+    and who can bring one."""
+    return User.query.filter_by(is_active=True).order_by(User.full_name).all()
+
+
+def _users(ids):
+    ids = [i for i in ids if i]
+    return User.query.filter(User.id.in_(ids)).all() if ids else []
+
+
+def _phone_from(form, patient):
+    """``(number, note)``: one of the file's numbers as it is, or another
+    number with the reason it is not the file's (ش-١)."""
+    picked = (form.get("phone_pick") or "").strip()
+    on_file = {p["phone"] for p in cases.file_phones(patient)}
+    if picked and picked != "other" and picked in on_file:
+        return picked, None
+    other = (form.get("contact_phone") or "").strip()
+    if not other:
+        return None, None
+    if other in on_file:
+        return other, None
+    return other, form.get("phone_note")
+
+
 # ------------------------------------------------------------ register ---
+@complaints_bp.route("/patient-search")
+@login_required
+def patient_search():
+    """JSON: the children a search matches — for the register form, which
+    everybody who works here may use (the desk, the ward, the nurse). The
+    same search as everywhere: name in either language, file number,
+    guardian, phone, date of birth."""
+    from flask import jsonify
+
+    from app.utils.patients import apply_patient_search
+
+    query = (request.args.get("q") or "").strip()
+    if len(query) < 2:
+        return jsonify([])
+    rows = (apply_patient_search(Patient.query.filter(Patient.is_active.is_(True)), query)
+            .order_by(Patient.full_name).limit(15).all())
+    lang = _lang()
+    return jsonify([{"id": p.id, "name": p.display_name(lang), "number": p.patient_number}
+                    for p in rows])
+
+
+@complaints_bp.route("/patient/<int:patient_id>/facts")
+@login_required
+def patient_facts(patient_id):
+    """JSON: the numbers on the child's file and its last visits — what the
+    register form offers once a child is chosen."""
+    from flask import jsonify
+
+    patient = db.get_or_404(Patient, patient_id)
+    lang = _lang()
+    return jsonify({
+        "phones": [dict(p, label=t("cmp.rel_" + p["who"]) if p["who"] in
+                        ("father", "mother", "guardian", "child") else p["who"])
+                   for p in cases.file_phones(patient, lang)],
+        "visits": [{"id": v.id, "date": v.visit_date.isoformat(),
+                    "doctor": v.doctor.display_name(lang) if getattr(v, "doctor", None) else ""}
+                   for v in cases.recent_visits(patient)],
+    })
+
+
 @complaints_bp.route("/new", methods=["GET", "POST"])
 @login_required
 def new():
@@ -77,18 +144,29 @@ def new():
     if request.method == "POST":
         form = request.form
         patient = _patient_from(form)
+        phone, note = _phone_from(form, patient)
+        by_who = form.get("by_who")
+        by_staff = (db.session.get(User, form.get("by_staff_id", type=int) or 0)
+                    if by_who == "staff" else None)
+        visit = None
+        if form.get("visit_id", type=int):
+            from app.models import Visit
+            visit = db.session.get(Visit, form.get("visit_id", type=int))
         try:
             case = cases.open_case(
                 form.get("description"), kind=form.get("kind"),
                 channel=form.get("channel"), patient=patient,
                 contact_name=form.get("contact_name"),
-                contact_phone=form.get("contact_phone"),
+                contact_phone=phone,
                 anonymous=bool(form.get("anonymous")), side=form.get("side"),
                 severity=form.get("severity"),
                 cost_centre_id=form.get("cost_centre_id", type=int),
                 wanted=form.get("wanted"), user=current_user,
                 thread_key=(form.get("thread") or "").strip()[:40] or None,
-                notify=bool(form.get("notify")), lang=lang)
+                notify=bool(form.get("notify")), lang=lang,
+                by_who=by_who, by_staff=by_staff, phone_note=note, visit=visit,
+                category=form.get("category"),
+                staff=_users(form.getlist("staff_ids", type=int)))
         except ValueError:
             flash(t("cmp.need_description"), "danger")
             return redirect(request.referrer or url_for("complaints.new"))
@@ -101,11 +179,14 @@ def new():
 
     thread = (request.args.get("thread") or "").strip()[:40]
     patient = _patient_from(request.args) or (_thread_patient(thread) if thread else None)
+    kind = request.args.get("kind") if request.args.get("kind") in KINDS else "complaint"
     return render_template(
-        "complaints/new.html", patient=patient, thread=thread,
+        "complaints/new.html", patient=patient, thread=thread, kind=kind,
         said=_thread_text(thread) if thread else "",
         channel=request.args.get("channel") or ("whatsapp" if thread else "desk"),
         kinds=KINDS, channels=CHANNELS, sides=SIDES, severities=SEVERITIES,
+        categories=CATEGORIES, by_whos=BY_WHO, phone_notes=PHONE_NOTES,
+        staff=_staff_list(), staff_names={u.id: u.display_name(lang) for u in _staff_list()},
         centres=_centres(), hours=cases.first_contact_hours(),
         days=cases.close_days())
 
@@ -185,6 +266,38 @@ def index():
         q = q.filter(Complaint.status == "closed")
     if kind:
         q = q.filter(Complaint.kind == kind)
+    # The board's numbers open here (ش-٥): each one narrows the list to the
+    # cases behind it.
+    narrowed = {}
+    for key, column, allowed in (("category", Complaint.category, CATEGORIES),
+                                 ("channel", Complaint.channel, CHANNELS),
+                                 ("severity", Complaint.severity, SEVERITIES),
+                                 ("side", Complaint.side, SIDES),
+                                 ("cause", Complaint.root_cause, ROOT_CAUSES),
+                                 ("decision", Complaint.decision, DECISIONS)):
+        value = request.args.get(key)
+        if value in allowed:
+            q = q.filter(column == value)
+            narrowed[key] = value
+    for key, column in (("centre", Complaint.cost_centre_id), ("patient", Complaint.patient_id)):
+        value = request.args.get(key, type=int)
+        if value:
+            q = q.filter(column == value)
+            narrowed[key] = value
+    staff_id = request.args.get("staff", type=int)
+    if staff_id:
+        from app.models.complaint import complaint_staff
+        q = q.filter(Complaint.id.in_(db.session.query(complaint_staff.c.complaint_id)
+                                      .filter(complaint_staff.c.user_id == staff_id)))
+        narrowed["staff"] = staff_id
+    if request.args.get("done") == "1":
+        q = q.filter(Complaint.done_at.isnot(None))
+        narrowed["done"] = "1"
+    if request.args.get("from") or request.args.get("to"):
+        from app.utils import cs_board
+        start, end = cs_board.period(request.args.get("from"), request.args.get("to"))
+        q = q.filter(Complaint.created_at >= start, Complaint.created_at < end)
+        narrowed["from"], narrowed["to"] = [d.isoformat() for d in cs_board.dates(start, end)]
     if search:
         like = f"%{search}%"
         q = q.outerjoin(Patient, Complaint.patient_id == Patient.id).filter(
@@ -200,10 +313,33 @@ def index():
     hours, days = cases.first_contact_hours(), cases.close_days()
     return render_template(
         "complaints/index.html", page=page, view=view, kind=kind, search=search,
+        narrowed=narrowed,
         counts=cases.open_counts(), kinds=KINDS,
         late={c.id for c in page.items if cases.is_late(c, now, hours, days)},
         month=cases.summary(now - timedelta(days=30), None),
         hours=hours, days=days)
+
+
+@complaints_bp.route("/board")
+@login_required
+@capability_required(MANAGE)
+def board():
+    """The complaints and suggestions board for a period (ش-٥) — see
+    ``utils/complaint_board``. Every number opens the cases behind it."""
+    from app.utils import complaint_board, cs_board
+    from app.utils.clock import local_today
+
+    start, end = cs_board.period(request.args.get("from"), request.args.get("to"))
+    first, last = cs_board.dates(start, end)
+    today = local_today()
+    presets = [(key, (today - timedelta(days=back)).isoformat(), today.isoformat())
+               for key, back in (("today", 0), ("week", 6), ("month", 29),
+                                 ("quarter", 89), ("year", 364))]
+    return render_template(
+        "complaints/board.html", d=complaint_board.board(start, end),
+        start=first, last=last, prev=list(cs_board.dates(*cs_board.previous(start, end))),
+        presets=presets, min_staff=complaint_board.MIN_FOR_STAFF,
+        colour=cs_board.colour, hours=cases.first_contact_hours(), days=cases.close_days())
 
 
 @complaints_bp.route("/<int:case_id>")
@@ -219,10 +355,14 @@ def view(case_id):
         late_contact=cases.late_contact(case, now),
         late_close=cases.late_close(case, now), hours=hours, days=days,
         contact_due=case.contact_due(hours), close_due=case.close_due(days),
-        verdict_link=cases.link(case))
+        verdict_link=cases.link(case), categories=CATEGORIES,
+        root_causes=ROOT_CAUSES, decisions=DECISIONS, staff=_staff_list(),
+        staff_names={u.id: u.display_name(_lang()) for u in _staff_list()},
+        repeats=cases.repeats(case))
 
 
-ACTS = ("assign", "contact", "note", "answer", "close", "reopen", "details")
+ACTS = ("assign", "contact", "note", "answer", "close", "reopen", "details",
+        "decide", "done", "staff")
 
 
 @complaints_bp.route("/<int:case_id>/act", methods=["POST"])
@@ -256,6 +396,30 @@ def act(case_id):
         except ValueError:
             flash(t("cmp.need_answer"), "danger")
             return redirect(url_for("complaints.view", case_id=case.id))
+        cause = request.form.get("root_cause")
+        if cause in ROOT_CAUSES:
+            case.root_cause = cause
+    elif do == "decide":
+        from datetime import date as _date
+        try:
+            target = _date.fromisoformat(request.form.get("target_date") or "")
+        except ValueError:
+            target = None
+        try:
+            cases.decide(case, request.form.get("decision"), request.form.get("plan"),
+                         current_user, target_date=target,
+                         notify=bool(request.form.get("notify")), lang=_lang())
+        except ValueError:
+            flash(t("cmp.need_decision"), "danger")
+            return redirect(url_for("complaints.view", case_id=case.id))
+    elif do == "done":
+        try:
+            cases.implemented(case, text, current_user)
+        except ValueError:
+            flash(t("cmp.need_done"), "danger")
+            return redirect(url_for("complaints.view", case_id=case.id))
+    elif do == "staff":
+        cases.set_staff(case, _users(request.form.getlist("staff_ids", type=int)), current_user)
     elif do == "close":
         if case.status == "closed":
             return redirect(url_for("complaints.view", case_id=case.id))
@@ -266,8 +430,15 @@ def act(case_id):
         cases.reopen(case, text, current_user)
     elif do == "details":
         changed = []
-        for field, allowed in (("side", SIDES), ("severity", SEVERITIES)):
+        for field, allowed in (("side", SIDES), ("severity", SEVERITIES),
+                               ("category", CATEGORIES), ("root_cause", ROOT_CAUSES)):
             value = request.form.get(field)
+            if field in ("category", "root_cause") and value == "":
+                value = None
+                if getattr(case, field) is not None and field in request.form:
+                    setattr(case, field, None)
+                    changed.append(field)
+                continue
             if value in allowed and getattr(case, field) != value:
                 setattr(case, field, value)
                 changed.append(field)

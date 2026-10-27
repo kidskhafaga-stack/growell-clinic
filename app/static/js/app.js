@@ -893,6 +893,7 @@ window.gcPatientPicker = function (url, initialId, initialName, goUrl) {
     ask() {
       // Typing again is choosing somebody else: an old id left attached is a
       // form sent for a child whose name is no longer in the box.
+      if (this.chosenId) this.$dispatch("patient-cleared");
       this.chosenId = "";
       this.picker.q = this.q;
       this.picker.search();
@@ -901,6 +902,8 @@ window.gcPatientPicker = function (url, initialId, initialName, goUrl) {
       this.picker.close();
       this.chosenId = String(p.id);
       this.q = p.name + " — " + p.number;
+      // A form that needs more of the child (its phones, its visits) listens.
+      this.$dispatch("patient-chosen", p);
       if (goUrl) window.location.href = goUrl.replace("__ID__", p.id);
     },
     enter(ev) {

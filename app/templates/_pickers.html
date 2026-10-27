@@ -66,9 +66,9 @@
    name; ``go_url`` (with ``__ID__``) opens the chosen child's page instead
    of filling a field. #}
 {% macro patient_picker(name, chosen=None, label=None, placeholder=None,
-                        required=False, go_url=None) %}
+                        required=False, go_url=None, search_url=None) %}
 <div class="form-row" style="position:relative;max-width:420px;margin:0;"
-     x-data="gcPatientPicker('{{ url_for('main.patient_search') }}',
+     x-data="gcPatientPicker('{{ search_url or url_for('main.patient_search') }}',
                              {{ (chosen.id if chosen else 'null') }},
                              {{ ((chosen.display_name(current_lang) ~ ' — ' ~ chosen.patient_number) if chosen else '')|tojson|forceescape }},
                              {{ (go_url or '')|tojson|forceescape }})">

@@ -23,8 +23,10 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app.extensions import db
 from app.models import Setting
-from app.models.complaint import (CHANNELS, KINDS, OPEN_STATUSES, SEVERITIES,
-                                  SIDES, Complaint, ComplaintEvent)
+from app.models.complaint import (BY_WHO, CATEGORIES, CHANNELS, DECISIONS,
+                                  KINDS, OPEN_STATUSES, PHONE_NOTES,
+                                  ROOT_CAUSES, SEVERITIES, SIDES, Complaint,
+                                  ComplaintEvent)
 
 DEFAULT_CONTACT_HOURS = 24
 DEFAULT_CLOSE_DAYS = 7
@@ -82,7 +84,8 @@ def open_case(description, kind="complaint", channel="desk", patient=None,
               contact_name=None, contact_phone=None, anonymous=False,
               side=None, severity="normal", cost_centre_id=None, wanted=None,
               user=None, feedback=None, thread_key=None, notify=True,
-              lang="ar"):
+              lang="ar", by_who=None, by_staff=None, phone_note=None,
+              visit=None, category=None, staff=()):
     """Write a case down and give it a number. Returns the ``Complaint``.
 
     Anonymous means anonymous: a name or number typed in anyway is not
@@ -112,13 +115,70 @@ def open_case(description, kind="complaint", channel="desk", patient=None,
         token=Complaint.new_token(),
         feedback_id=getattr(feedback, "id", None),
         thread_key=thread_key,
+        by_who=None if anonymous else _pick(by_who, BY_WHO, None),
+        by_staff_id=None if anonymous else getattr(by_staff, "id", None),
+        phone_note=None if anonymous or not (contact_phone or "").strip()
+        else _pick(phone_note, PHONE_NOTES, None),
+        visit_id=None if anonymous else _visit_of(visit, patient),
+        category=_pick(category, CATEGORIES, None),
     )
     db.session.add(case)
     db.session.flush()
+    if staff:
+        case.staff = [u for u in staff if u is not None]
     log(case, "opened", None, user)
     if notify and case.kind != "compliment":
         _tell(case, "complaint_received", user=user, lang=lang)
     return case
+
+
+def _visit_of(visit, patient):
+    """A visit is kept only when it is this child's."""
+    if visit is None or patient is None or visit.patient_id != patient.id:
+        return None
+    return visit.id
+
+
+def file_phones(patient, lang="ar"):
+    """Every number on the child's file, once each, with whose it is —
+    ``[{"who": "mother", "name": …, "phone": …}]``, the primary contact
+    first. The register form offers these before «another number»."""
+    if patient is None:
+        return []
+    out, seen = [], set()
+
+    def add(who, name, phone):
+        phone = (phone or "").strip()
+        if phone and phone not in seen:
+            seen.add(phone)
+            out.append({"who": who, "name": name or "", "phone": phone})
+
+    parents = sorted(patient.family.parents if patient.family else [],
+                     key=lambda p: (0 if p.is_primary_contact else 1, p.id))
+    for p in parents:
+        add(p.relation, p.display_name(lang), p.phone)
+        add(p.relation, p.display_name(lang), p.phone_alt)
+    add("child", patient.display_name(lang), patient.own_phone)
+    return out
+
+
+def recent_visits(patient, limit=8):
+    """The child's last visits, for «which visit was it about»."""
+    from app.models import Visit
+
+    if patient is None:
+        return []
+    return (Visit.query.filter_by(patient_id=patient.id)
+            .order_by(Visit.visit_date.desc(), Visit.id.desc()).limit(limit).all())
+
+
+def set_staff(case, people, user=None):
+    """The people the case is about (ش-٢)."""
+    before = {u.id for u in case.staff}
+    case.staff = [u for u in people if u is not None]
+    after = {u.id for u in case.staff}
+    if before != after:
+        log(case, "edited", "staff", user)
 
 
 def phone_of(case):
@@ -229,6 +289,81 @@ def reopen(case, text=None, user=None):
     log(case, "reopened", text, user)
 
 
+# ------------------------------------------------- a suggestion (ش-٣) ---
+def decide(case, decision, plan, user=None, target_date=None, notify=True,
+           lang="ar"):
+    """The person studying a suggestion decides: it will be done (what and
+    by when) or it will not (and why). Whoever made it is told, when they
+    left a number. A refused one is closed; an accepted one waits to be done."""
+    if not case.is_suggestion:
+        raise ValueError("not_suggestion")
+    if decision not in DECISIONS:
+        raise ValueError("decision")
+    plan = (plan or "").strip()
+    if not plan:
+        raise ValueError("empty")
+    now = datetime.utcnow()
+    case.decision, case.decided_at = decision, now
+    case.plan = plan[:4000]
+    case.target_date = target_date if decision == "accepted" else None
+    case.answer = case.plan
+    case.answered_at = now
+    if case.owner_id is None and user is not None:
+        case.owner_id = user.id
+    log(case, "decided", f"{decision}: {case.plan}", user, at=now)
+    if decision == "rejected":
+        case.status = "closed"
+        case.closed_at = now
+    else:
+        case.status = "answered"
+    if notify:
+        _tell(case, "suggestion_decided", user=user, lang=lang, answer=case.plan)
+    return case
+
+
+def implemented(case, text, user=None):
+    """An accepted suggestion, done."""
+    if not case.is_suggestion or case.decision != "accepted" or case.done_at:
+        raise ValueError("not_accepted")
+    text = (text or "").strip()
+    if not text:
+        raise ValueError("empty")
+    now = datetime.utcnow()
+    case.done_at, case.done_text = now, text[:4000]
+    case.status, case.closed_at = "closed", now
+    log(case, "done", text, user, at=now)
+    return case
+
+
+# ------------------------------------------------ has this been before? ---
+def repeats(case, days=90):
+    """``{"family": [earlier cases of this child or its family],
+    "same": n}`` — the same category in the same part of the clinic in the
+    last ``days`` days, this case left out (ش-٤)."""
+    out = {"family": [], "same": 0, "days": days}
+    if case.patient is not None:
+        from app.models import Patient
+
+        ids = [case.patient_id]
+        if case.patient.family_id:
+            ids = [pid for (pid,) in db.session.query(Patient.id)
+                   .filter(Patient.family_id == case.patient.family_id).all()]
+        out["family"] = (Complaint.query
+                         .filter(Complaint.patient_id.in_(ids), Complaint.id != case.id,
+                                 Complaint.anonymous.is_(False))
+                         .order_by(Complaint.created_at.desc()).limit(10).all())
+    if case.category and case.cost_centre_id:
+        since = case.created_at - timedelta(days=days)
+        out["same"] = (Complaint.query
+                       .filter(Complaint.category == case.category,
+                               Complaint.cost_centre_id == case.cost_centre_id,
+                               Complaint.id != case.id,
+                               Complaint.created_at >= since,
+                               Complaint.created_at <= case.created_at + timedelta(days=days))
+                       .count())
+    return out
+
+
 #: At or below this, the family is telling us the answer did not settle it.
 UNSETTLED_AT = 2
 
@@ -256,7 +391,8 @@ def late_contact(case, now=None, hours=None):
     """Nobody has spoken to the family and the clinic's time has passed."""
     now = now or datetime.utcnow()
     hours = first_contact_hours() if hours is None else hours
-    return (case.is_open and case.first_contact_at is None
+    # A suggestion is decided, not called back: only its decision has a clock.
+    return (case.is_open and not case.is_suggestion and case.first_contact_at is None
             and now > case.contact_due(hours))
 
 
@@ -280,6 +416,7 @@ def _late_filter(now=None):
     close_by = now - timedelta(days=close_days())
     return db.or_(
         db.and_(Complaint.status.in_(OPEN_STATUSES),
+                Complaint.kind != "suggestion",
                 Complaint.first_contact_at.is_(None),
                 Complaint.created_at < contact_by),
         db.and_(Complaint.status.in_(("new", "in_progress")),
