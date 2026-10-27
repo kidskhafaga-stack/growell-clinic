@@ -112,6 +112,44 @@ rxPreview({
         <span style="font-weight:400;">{{ t('rxtpl.' ~ b) }}</span></label>
       {% endfor %}
     </div>
+
+    {# The clinic's standing words: typed once, printed on every prescription
+       this template prints. This child's own notes stay on the prescription. #}
+    <label class="rx-legend">{{ t('rxtpl.general_note') }}</label>
+    <div class="hint" style="margin-bottom:6px;">{{ t('rxtpl.general_note_hint') }}</div>
+    <div class="form-grid" data-rx-general>
+      <div class="form-row"><label>{{ t('rxtpl.general_note_ar') }}</label>
+        <textarea class="input" name="general_note_ar" rows="3" dir="rtl" maxlength="1000"
+                  placeholder="{{ t('rxtpl.general_note_ph') }}">{{ tp.general_note_ar or '' if tp else '' }}</textarea></div>
+      <div class="form-row"><label>{{ t('rxtpl.general_note_en') }}</label>
+        <textarea class="input" name="general_note_en" rows="3" dir="ltr" maxlength="1000">{{ tp.general_note_en or '' if tp else '' }}</textarea></div>
+    </div>
+
+    {# The order the blocks print in. The letterhead stays at the top and the
+       signature at the foot — where a pharmacist looks for them. #}
+    {% set order = tp.block_order_list if tp else rx_blocks %}
+    {% set names = {} %}{% for k in rx_blocks %}{% set _ = names.update({k: t('rxtpl.block_' ~ k)}) %}{% endfor %}
+    <label class="rx-legend">{{ t('rxtpl.order') }}</label>
+    <div class="hint" style="margin-bottom:6px;">{{ t('rxtpl.order_hint') }}</div>
+    <div x-data='rxOrder({{ order|tojson }}, {{ rx_blocks|tojson }})' data-rx-order>
+      <input type="hidden" name="block_order" value="{{ order|join(',') }}" :value="keys.join(',')">
+      <ol class="rx-order">
+        <li class="rx-order__fixed"><i class="bi bi-pin-angle"></i> {{ t('rxtpl.block_letterhead') }}</li>
+        {% for k in order %}
+        <li class="rx-order__row" data-block="{{ k }}" :style="'order:' + keys.indexOf('{{ k }}')">
+          <span class="rx-order__n" x-text="keys.indexOf('{{ k }}') + 1">{{ loop.index }}</span>
+          <span class="rx-order__name">{{ names[k] }}</span>
+          <button type="button" class="btn btn-outline btn-sm" @click="move('{{ k }}', -1)" :disabled="keys.indexOf('{{ k }}') === 0"
+                  title="{{ t('rxtpl.order_up') }}" aria-label="{{ t('rxtpl.order_up') }} — {{ names[k] }}"><i class="bi bi-arrow-up"></i></button>
+          <button type="button" class="btn btn-outline btn-sm" @click="move('{{ k }}', 1)" :disabled="keys.indexOf('{{ k }}') === keys.length - 1"
+                  title="{{ t('rxtpl.order_down') }}" aria-label="{{ t('rxtpl.order_down') }} — {{ names[k] }}"><i class="bi bi-arrow-down"></i></button>
+        </li>
+        {% endfor %}
+        <li class="rx-order__fixed" style="order:99;"><i class="bi bi-pin-angle"></i> {{ t('rxtpl.block_signature') }}</li>
+      </ol>
+      <button type="button" class="btn btn-outline btn-sm gc-press" @click="reset()" x-show="!isDefault" x-cloak data-rx-order-reset>
+        <i class="bi bi-arrow-counterclockwise"></i> {{ t('rxtpl.order_reset') }}</button>
+    </div>
   </div>
 
   <div class="rx-editor__preview">
@@ -258,6 +296,13 @@ rxPreview({
   .rx-foot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:14px;color:#64748b;}
   .rx-stamp{font-size:1.6em;color:#cbd5e1;}
   .rx-sig{border-top:1px solid #334155;padding-top:2px;}
+  .rx-order{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-direction:column;gap:4px;max-width:440px;}
+  .rx-order__row,.rx-order__fixed{display:flex;align-items:center;gap:8px;padding:5px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card,#fff);}
+  .rx-order__fixed{color:var(--muted);background:transparent;border-style:dashed;font-size:.85rem;}
+  .rx-order__fixed:first-child{order:-1;}
+  .rx-order__n{min-width:1.6em;text-align:center;font-variant-numeric:tabular-nums;color:var(--muted);font-size:.85rem;}
+  .rx-order__name{flex:1 1 auto;}
+  .rx-order .btn[disabled]{opacity:.35;}
   @media (max-width:760px){ .rx-editor__preview{position:static;width:100%;} }
 </style>
 <script>
@@ -266,6 +311,24 @@ rxPreview({
   // rectangle with a different label on it.
   const RX_PAPER = { A4: [210, 297], A5: [148, 210] };
   const RX_SHEET_W = 250;   // px the widest sheet (A4) is drawn at
+
+  // The order of the printed blocks. The rows stay where the page drew them
+  // and CSS `order` moves them, so nothing is rebuilt and the labels stay
+  // the server's.
+  function rxOrder(keys, defaults){
+    return {
+      keys: keys.slice(),
+      get isDefault(){ return this.keys.join(',') === defaults.join(','); },
+      move(key, step){
+        const i = this.keys.indexOf(key), j = i + step;
+        if (i < 0 || j < 0 || j >= this.keys.length) return;
+        const k = this.keys.slice();
+        [k[i], k[j]] = [k[j], k[i]];
+        this.keys = k;
+      },
+      reset(){ this.keys = defaults.slice(); }
+    };
+  }
 
   function rxPreview(init){
     return {

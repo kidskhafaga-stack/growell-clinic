@@ -103,7 +103,16 @@
   {% set has_weight = growth and growth.weight_kg %}
   {% set has_conditions = tpl.show_conditions and (rx.patient.chronic_diseases or '')|trim %}
   {% set coverage = rx.patient.active_coverage if tpl.show_coverage else None %}
+  {% set weight_here = has_weight and not tpl.show_patient %}
+  {% set printed_items = rx.items | selectattr('printed') | list %}
+  {% set hidden_items = rx.items | rejectattr('printed') | list %}
 
+  {# The blocks in the template's order (`RxPrintTemplate.block_order`). The
+     letterhead above and the signature below do not move: those are where a
+     pharmacist looks for them. Everything a block needs is set above the
+     loop, because a `set` inside it ends with the turn it was made in. #}
+  {% for block in tpl.block_order_list %}
+  {% if block == 'patient' %}
   {# Who this is for, on one line.
 
      It used to be a three-column grid with each field's label stacked above
@@ -155,7 +164,7 @@
     {% endif %}
   </div>
   {% endif %}
-
+  {% elif block == 'complaint' %}
   {# The complaint and the diagnosis, likewise: two labelled runs on one line
      instead of two headings with a line under each. Four lines become one.
 
@@ -174,7 +183,7 @@
     {% endif %}
   </div>
   {% endif %}
-
+  {% elif block == 'alerts' %}
   {# What is left in the band is what the band was for: the things somebody
      about to hand over a bottle has to read before they read the drugs.
 
@@ -189,7 +198,6 @@
      block off and the weight on would otherwise drop the number a mg/kg dose
      was worked out from, silently — which is the one thing this band exists to
      stop happening. #}
-  {% set weight_here = has_weight and not tpl.show_patient %}
   {% if tpl.show_allergies or has_conditions or weight_here %}
   <div class="rx-block" style="display:flex;flex-wrap:wrap;gap:0.45em 1.4em;align-items:baseline;
               border:1px solid var(--line);border-inline-start:3px solid var(--green-600);
@@ -233,7 +241,7 @@
     {% endif %}
   </div>
   {% endif %}
-
+  {% elif block == 'growth' %}
   {# The growth picture — off unless the clinic asked for it.
 
      This is what a paediatric endocrinologist reads and what a general
@@ -284,8 +292,10 @@
   </div>
   {% endif %}
   {% endif %}
-
-  {% set printed_items = rx.items | selectattr('printed') | list %}
+  {% elif block == 'meds' %}
+  {# A margin under the table only shows when a part that has no top margin
+     of its own is moved under it; the default order collapses it away. #}
+  <div style="margin-bottom:0.7em;" data-paper-meds>
   {% if printed_items %}
   <div style="font-size:1.6em;color:var(--green-700);font-weight:700;margin-bottom:0.3em;">℞</div>
   <table class="table">
@@ -311,14 +321,15 @@
   {# Kept for the record but deliberately off the paper. Shown on screen only,
      so the doctor can see what they excluded without the family carrying it
      out of the room. #}
-  {% set hidden_items = rx.items | rejectattr('printed') | list %}
   {% if hidden_items %}
   <div class="no-print" style="margin-top:10px;color:var(--muted);font-size:.85em;">
     <i class="bi bi-eye-slash"></i> {{ t('rx.not_printed') }}:
     {% for it in hidden_items %}{{ it.drug_name }}{% if not loop.last %} · {% endif %}{% endfor %}
   </div>
   {% endif %}
+  </div>
 
+  {% elif block == 'investigations' %}
   {% if tpl.show_investigations and (rx.labs() or rx.imaging()) %}
   <div style="margin-top:1.15em;">
     {% if rx.labs() %}
@@ -343,7 +354,7 @@
     {% endif %}
   </div>
   {% endif %}
-
+  {% elif block == 'vaccines' %}
   {% if rx_vaccines and tpl.show_vaccines %}
   <!-- Vaccinations given this visit + when the next dose is expected -->
   <div class="rx-block" style="margin-top:1.15em;">
@@ -368,7 +379,7 @@
     </ol>
   </div>
   {% endif %}
-
+  {% elif block == 'next_appointment' %}
   {# The next appointment, when there already is one.
 
      A guardian walks out of the room holding this and nothing else, and the
@@ -391,7 +402,7 @@
     </div>
   </div>
   {% endif %}
-
+  {% elif block == 'referrals' %}
   {# Referred to another doctor (ب-٨) — only when the doctor ticked it. #}
   {% if rx_referrals %}
   <div class="rx-block" style="margin-top:1.15em;" data-paper-referral>
@@ -399,8 +410,18 @@
     {% for line in rx_referrals %}<div>{{ line }}</div>{% endfor %}
   </div>
   {% endif %}
-
+  {% elif block == 'notes' %}
   {% if rx.notes %}<p style="margin-top:0.85em;"><strong>{{ t('rx.notes') }}:</strong> {{ rx.notes }}</p>{% endif %}
+  {% elif block == 'general_note' %}
+  {# The clinic's standing words, typed once on the template and printed on
+     every prescription it prints — after this child's own notes unless the
+     clinic moved them. #}
+  {% set standing = tpl.general_note(current_lang) %}
+  {% if standing %}
+  <div class="rx-block" style="margin-top:0.85em;padding-top:0.5em;border-top:1px dotted var(--line);white-space:pre-line;" data-paper-general>{{ standing }}</div>
+  {% endif %}
+  {% endif %}
+  {% endfor %}
 
   {# On the copy that leaves the building. A signed PDF travelling over
      WhatsApp is a document that can be forwarded and re-used, so it carries

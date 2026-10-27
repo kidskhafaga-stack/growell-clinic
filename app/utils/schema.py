@@ -418,6 +418,12 @@ ADDITIONS = [
     # Whose template it is. NULL — which is what every existing row gets — is
     # the clinic's, so nothing that already worked changes owner on upgrade.
     ("rx_print_templates", "doctor_id", "INTEGER"),
+    # The standing words at the end of every prescription, and the order
+    # the blocks print in. NULL on every existing row: no words, and the
+    # order the page always had.
+    ("rx_print_templates", "general_note_ar", "TEXT"),
+    ("rx_print_templates", "general_note_en", "TEXT"),
+    ("rx_print_templates", "block_order", "VARCHAR(255)"),
     ("drugs", "dose_per_kg", "FLOAT"),
     ("drugs", "max_per_kg", "FLOAT"),
     ("drugs", "conc_mg_per_ml", "FLOAT"),

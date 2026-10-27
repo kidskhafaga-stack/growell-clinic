@@ -2369,6 +2369,18 @@ SECTIONS = [
              "بتتظبط من مكان واحد.",
              "<b>Prescription templates</b> per doctor (plus instructions and "
              "phrases) — all set up in one place."),
+            ("<b>شكل الروشتة المطبوعة</b> (الروشتات ← قوالب الطباعة): الترويسة "
+             "والهوامش والأجزاء الظاهرة، و<b>التعليمات العامة الثابتة</b> اللي "
+             "بتتطبع في آخر كل روشتة بالعربي والإنجليزي، و<b>ترتيب الأجزاء</b> "
+             "بأسهم لفوق ولتحت — الترويسة فوق والتوقيع والختم تحت ثابتين. "
+             "و«طباعة تجريبية» بتوريك الورقة قبل ما تعتمد.",
+             "<b>The printed prescription</b> (Prescriptions → Print templates): "
+             "letterhead, margins and the parts shown, the <b>standing "
+             "instructions</b> printed at the end of every prescription in "
+             "Arabic and English, and the <b>order of the parts</b> with up and "
+             "down arrows — the letterhead stays at the top and the signature "
+             "and stamp at the foot. A test print shows the paper before you "
+             "commit."),
             ("<b>فحص التداخلات والحساسية</b> بيشتغل قبل الحفظ، مش بعده.",
              "<b>Interaction and allergy checks</b> run before saving, not "
              "after."),

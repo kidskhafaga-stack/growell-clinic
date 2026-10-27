@@ -134,8 +134,57 @@ class RxPrintTemplate(db.Model):
     doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"),
                           nullable=True, index=True)
 
+    # The clinic's standing words, printed at the end of **every**
+    # prescription on this template — «لو الحرارة فوق ٣٩ توجّه للطوارئ»,
+    # the hours the phone is answered. ``Prescription.notes`` is this one
+    # child's; this is everybody's, typed once. Arabic and English, because
+    # the paper prints in either; an English page with no English text falls
+    # back to the Arabic rather than printing nothing.
+    general_note_ar = db.Column(db.Text, nullable=True)
+    general_note_en = db.Column(db.Text, nullable=True)
+
+    # The order the blocks print in, as a comma list of ``BLOCKS`` keys.
+    # NULL — every template that predates the column — is ``BLOCKS`` itself,
+    # which is the order the page always had, so nothing moves on upgrade.
+    # The letterhead stays first and the signature last: those are where a
+    # pharmacist looks for them, not a layout preference.
+    block_order = db.Column(db.String(255), nullable=True)
+
     is_default = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    BLOCKS = ["patient", "complaint", "alerts", "growth", "meds",
+              "investigations", "vaccines", "next_appointment", "referrals",
+              "notes", "general_note"]
+    GENERAL_NOTE_MAX = 1000
+
+    @classmethod
+    def clean_order(cls, raw):
+        """``raw`` (a comma list, or a list) as a full order of ``BLOCKS``:
+        unknown keys and repeats dropped, any block left out put back where
+        the default order has it relative to the others — a block is moved,
+        never lost."""
+        if isinstance(raw, str):
+            raw = raw.split(",")
+        seen = []
+        for key in raw or []:
+            key = (key or "").strip()
+            if key in cls.BLOCKS and key not in seen:
+                seen.append(key)
+        for i, key in enumerate(cls.BLOCKS):
+            if key not in seen:
+                after = [k for k in cls.BLOCKS[:i] if k in seen]
+                seen.insert(seen.index(after[-1]) + 1 if after else 0, key)
+        return seen
+
+    @property
+    def block_order_list(self):
+        return self.clean_order(self.block_order)
+
+    def general_note(self, lang):
+        """The standing words in ``lang``, the Arabic when there is no other."""
+        text = (self.general_note_en if lang == "en" else None) or self.general_note_ar
+        return (text or "").strip()
 
     BOOLS = ["show_doctor", "show_specialty", "show_contact", "show_license",
              "show_patient", "show_diagnosis", "show_signature", "show_stamp",

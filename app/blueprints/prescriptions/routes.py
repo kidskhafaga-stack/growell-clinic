@@ -1245,7 +1245,8 @@ def templates():
     if not current_user.is_admin:
         rows = [t_ for t_ in rows
                 if t_.doctor_id in (None, current_user.id)]
-    return render_template("prescriptions/templates.html", templates=rows)
+    return render_template("prescriptions/templates.html", templates=rows,
+                           rx_blocks=RxPrintTemplate.BLOCKS)
 
 
 @prescriptions_bp.route("/templates/<int:tpl_id>/test-print")
@@ -1308,6 +1309,16 @@ def _save_template(tpl):
     tpl.top_offset_mm = request.form.get("top_offset_mm", type=int) or 0
     for b in RxPrintTemplate.BOOLS:
         setattr(tpl, b, bool(request.form.get(b)))
+    # The standing words and the order of the blocks. A form that does not
+    # carry them (an older page still open in a tab) leaves them as they were.
+    if "block_order" in request.form:
+        order = RxPrintTemplate.clean_order(request.form.get("block_order"))
+        tpl.block_order = None if order == RxPrintTemplate.BLOCKS else ",".join(order)
+    for lang in ("ar", "en"):
+        key = f"general_note_{lang}"
+        if key in request.form:
+            text = (request.form.get(key) or "").replace("\r\n", "\n").strip()
+            setattr(tpl, key, text[:RxPrintTemplate.GENERAL_NOTE_MAX] or None)
 
 
 @prescriptions_bp.route("/templates/new", methods=["POST"])
