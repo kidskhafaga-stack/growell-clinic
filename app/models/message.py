@@ -560,11 +560,19 @@ class Conversation(db.Model):
     # What the thread is about, when somebody has said so. "urgent" is the
     # one that changes the order of the list rather than only labelling it.
     topic = db.Column(db.String(16), index=True)
+    # Who takes it (CONNECTHUB_PLAN.md م٥, ``utils/routing``): the person the
+    # clinic's rules name when it only suggests; how the current holder got
+    # it — "auto", "escalated", or nothing when a person handed it over; and
+    # when it was last escalated, so one wait escalates once.
+    suggested_to = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    assigned_by = db.Column(db.String(10))
+    escalated_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow,
                            onupdate=datetime.utcnow, nullable=False)
 
     patient = db.relationship("Patient")
     assignee = db.relationship("User", foreign_keys=[assigned_to])
+    suggested = db.relationship("User", foreign_keys=[suggested_to])
     resolver = db.relationship("User", foreign_keys=[resolved_by])
 
     def is_resolved_for(self, last_inbound_at):

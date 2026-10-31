@@ -117,6 +117,8 @@ def receive(item):
         # Outside working hours, say so — on the channel they wrote from.
         from app.utils.service_desk import maybe_send_social_away
         maybe_send_social_away(log)
+        from app.utils.routing import on_inbound
+        on_inbound(log)
 
     lead = None
     if item.kind == "comment" or item.ad:

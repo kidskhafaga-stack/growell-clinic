@@ -444,6 +444,11 @@ def inbox():
     a work list."""
     from app.utils import inbox as ibx
 
+    from app.utils import routing
+
+    # Stragglers and escalations, at most once a minute (``routing.sweep``).
+    if routing.sweep()["assigned"] or routing.config()["mode"] == "auto":
+        db.session.commit()
     search = (request.args.get("q") or "").strip()
     view = request.args.get("view") or "open"
     mine = view == "mine"
@@ -458,7 +463,9 @@ def inbox():
         "messages/inbox.html", conversations=convs, search=search, view=view,
         total=len(every), open_count=sum(1 for c in every if c["open"]),
         mine_count=mine_count, stats=ibx.response_stats(),
-        staff=_desk_staff(), waiting_label=waiting_label)
+        staff=_desk_staff(), waiting_label=waiting_label,
+        routing=routing.config(), me_away=routing.is_away(current_user),
+        may_route=_may_route(current_user))
 
 
 def waiting_label(hours):
@@ -494,10 +501,70 @@ def inbox_assign(key):
     user = db.session.get(User, user_id) if user_id else None
     record.assigned_to = user.id if user is not None else None
     record.assigned_at = datetime.utcnow() if user is not None else None
+    # A person's hand-over replaces whatever the rules suggested or did.
+    record.assigned_by = None
+    record.suggested_to = None
     db.session.commit()
     flash(t("inbox.assigned", name=user.display_name(getattr(g, "lang", "ar")))
           if user is not None else t("inbox.unassigned"), "success")
     return redirect(url_for("messages.inbox_thread", key=key))
+
+
+@messages_bp.route("/inbox/<key>/take", methods=["POST"])
+@module_required(MODULE)
+def inbox_take_suggestion(key):
+    """Accept the person the clinic's rules suggested (CONNECTHUB_PLAN.md م٥)."""
+    from app.utils.inbox import conversation_for
+
+    record = conversation_for(key)
+    if record.suggested_to:
+        record.assigned_to, record.assigned_at = record.suggested_to, datetime.utcnow()
+        record.assigned_by = "suggested"
+        record.suggested_to = None
+        db.session.commit()
+        flash(t("routing.taken"), "success")
+    return redirect(request.referrer or url_for("messages.inbox_thread", key=key))
+
+
+@messages_bp.route("/inbox/away", methods=["POST"])
+@module_required(MODULE)
+def inbox_away():
+    """«I'm not taking conversations now» — and back again."""
+    from app.utils import routing
+
+    away = routing.set_away(current_user, request.form.get("away") == "1")
+    db.session.commit()
+    flash(t("routing.away_on" if away else "routing.away_off"), "success")
+    return redirect(request.referrer or url_for("messages.inbox"))
+
+
+def _may_route(user):
+    from app.utils import routing
+
+    return user.is_admin or user.id in routing.config()["supervisors"]
+
+
+@messages_bp.route("/inbox/routing", methods=["GET", "POST"])
+@module_required(MODULE)
+def inbox_routing():
+    """Who answers which conversation — off, suggested or automatic, and every
+    rule the clinic's to edit. See ``utils/routing``."""
+    from app.utils import routing
+    from app.utils.triage import TOPICS
+
+    if not _may_route(current_user):
+        abort(403)
+    if request.method == "POST":
+        routing.save_settings(request.form, current_user)
+        routing.forget()
+        db.session.commit()
+        flash(t("routing.saved"), "success")
+        return redirect(url_for("messages.inbox_routing"))
+    staff = routing.desk_staff()
+    cfg = routing.config()
+    return render_template("messages/routing.html", cfg=cfg, staff=staff, topics=TOPICS,
+                           channels=routing.channels(), modes=routing.MODES,
+                           load=routing.open_load([u.id for u in staff]))
 
 
 @messages_bp.route("/inbox/<key>/topic", methods=["POST"])

@@ -181,18 +181,35 @@
     {% endif %}
 
     {% if pending_investigations %}
-    <div style="margin-bottom:10px;">
-      <div style="font-weight:700;color:var(--green-800);margin-bottom:2px;"><i class="bi bi-hourglass-split"></i> {{ t('visits.pending_results') }}</div>
-      <div class="hint" style="margin-bottom:8px;">{{ t('visits.pending_results_hint') }}</div>
+    {# Folded to one line that glows: the doctor sees there is something to
+       ask the family about without four empty result forms pushing the
+       consultation off the screen. A file the family sent on WhatsApp — on
+       an order, or still waiting to be matched — says so on that line. #}
+    {% set _wa_on_orders = pending_investigations|selectattr('files')|map(attribute='files')|sum(start=[])|selectattr('arrived_by_whatsapp')|list %}
+    {% set _wa_loose = linkable_files|selectattr('source', 'equalto', 'whatsapp')|list %}
+    {% set _wa_n = (_wa_on_orders|length) + (_wa_loose|length) %}
+    <details class="pend-fold" data-pending-fold>
+      <summary class="pend-sum">
+        <span class="pend-dot" aria-hidden="true"></span>
+        <span class="pend-title"><i class="bi bi-hourglass-split"></i> {{ t('visits.pending_results') }}</span>
+        <span class="badge badge--warn" data-pending-count>{{ pending_investigations|length }}</span>
+        {% if _wa_n %}<span class="pend-wa" data-pending-whatsapp><i class="bi bi-whatsapp"></i> {{ t('visits.pending_on_whatsapp', n=_wa_n) }}</span>{% endif %}
+        <span class="pend-ask">{{ t('visits.pending_ask') }}</span>
+        <i class="bi bi-chevron-down pend-chev" aria-hidden="true"></i>
+      </summary>
+      <div class="hint" style="margin:8px 0;">{{ t('visits.pending_results_hint') }}</div>
       <div style="display:flex;flex-direction:column;gap:8px;">
         {% for x in pending_investigations %}
-        <div style="border:1px dashed var(--line);border-radius:10px;padding:10px;">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        {% set _x_wa = x.files|selectattr('arrived_by_whatsapp')|list %}
+        <details class="pend-item" data-pending-item="{{ x.id }}"{{ ' open' if _x_wa else '' }}>
+          <summary style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer;list-style:none;">
             <span class="badge {{ 'badge--role' if x.kind=='lab' else 'badge--muted' }}">{{ t('rx.inv_lab') if x.kind=='lab' else t('rx.inv_imaging') }}</span>
             <strong style="flex:1;">{{ x.display_name(current_lang) }}</strong>
+            {% if _x_wa %}<span class="pend-wa"><i class="bi bi-whatsapp"></i> {{ t('visits.inv_sent_on_whatsapp') }}</span>{% endif %}
             {{ inv_files.state_badge(x) }}
             <span style="color:var(--muted);font-size:0.8rem;" dir="ltr">{{ x.created_at.strftime('%Y-%m-%d') }}</span>
-          </div>
+            <span class="btn btn-outline btn-sm" style="pointer-events:none;">{{ t('visits.pending_enter') }}</span>
+          </summary>
           {{ inv_files.files_block(x, linkable_files) }}
           {# The paper on this order, read by the assistant into the form below
              — a page to check and save, never a save of its own. #}
@@ -256,10 +273,10 @@
             </div>
             <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-save"></i> {{ t('visits.inv_save_result') }}</button>
           </form>
-        </div>
+        </details>
         {% endfor %}
       </div>
-    </div>
+    </details>
     {% endif %}
 
     {% if recent_attachments %}
@@ -946,8 +963,9 @@
                   {% if phrase.code %}title="{{ phrase.code }}"{% endif %}>{{ _c }}{% if phrase.code %}
             <span class="chip-code">{{ phrase.code }}</span>{% endif %}</button>
           {% endfor %}
-          <a class="chip chip--link" href="{{ url_for('visits.phrases_screen') }}"
-             title="{{ t('phrases.title') }}"><i class="bi bi-gear"></i></a>
+          {# Said in words: a bare gear read as «nothing to set here». #}
+          <a class="chip chip--link" href="{{ url_for('visits.phrases_screen') }}" data-edit-phrases
+             title="{{ t('phrases.title') }}"><i class="bi bi-pencil-square"></i> {{ t('visits.edit_phrases') }}</a>
         </div>
       </div>
 
@@ -963,8 +981,9 @@
                   {% if phrase.code %}title="{{ phrase.code }}"{% endif %}>{{ _e }}{% if phrase.code %}
             <span class="chip-code">{{ phrase.code }}</span>{% endif %}</button>
           {% endfor %}
-          <a class="chip chip--link" href="{{ url_for('visits.phrases_screen') }}"
-             title="{{ t('phrases.title') }}"><i class="bi bi-gear"></i></a>
+          {# Said in words: a bare gear read as «nothing to set here». #}
+          <a class="chip chip--link" href="{{ url_for('visits.phrases_screen') }}" data-edit-phrases
+             title="{{ t('phrases.title') }}"><i class="bi bi-pencil-square"></i> {{ t('visits.edit_phrases') }}</a>
         </div>
       </div>
 
@@ -1037,7 +1056,44 @@
     {# Two things that leave the room. Deliberately outside the visit form —
        both are their own action with their own record, and neither should
        wait for somebody to remember to press Save. #}
-    <div class="form-grid" style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px;">
+    {# The owner: *«الشاشة طولت قوي … الطبيب ما يتشتتش في الصفحة الأولى … التحويل
+       هو يدوس عليه فيظهر»*. So the five things that leave the room are one row
+       of tiles; each opens its own box, and a tile that already holds
+       something says so on the tile — sent, a date, referred — so nothing is
+       hidden by being folded. A doctor who was referred a child and has not
+       answered sees that tile call, and it opens by itself. #}
+    {% set ac = aftercare_state %}
+    {% set _ac_n = (ac.sent|length) if ac else 0 %}
+    {% set _dr_rows = (docref.rows|length) if docref else 0 %}
+    {% set _dr_call = docref and docref.to_me %}
+    <div class="after-zone no-print" style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px;"
+         x-data="{ open: {{ ('docref' if _dr_call else '')|tojson|forceescape }}, toggle(k) { this.open = this.open === k ? '' : k; } }"
+         x-init="if (['docref', 'aftercare'].includes(location.hash.slice(1))) open = location.hash.slice(1)"
+         x-on:hashchange.window="if (['docref', 'aftercare'].includes(location.hash.slice(1))) open = location.hash.slice(1)"
+         data-after-zone>
+      <div class="after-tiles" role="group" aria-label="{{ t('visits.after_tiles') }}">
+        <button type="button" class="after-tile" x-on:click="toggle('nurse')" :aria-expanded="open === 'nurse'" data-after-tile="nurse">
+          <i class="bi bi-clipboard2-heart"></i> {{ t('visits.nurse_instructions') }}
+          {% if visit.nurse_instructions %}<span class="at-state">{{ t('visits.tile_sent') }}</span>{% endif %}</button>
+        <button type="button" class="after-tile" x-on:click="toggle('followup')" :aria-expanded="open === 'followup'" data-after-tile="followup">
+          <i class="bi bi-arrow-repeat"></i> {{ t('followup.title') }}
+          {% if visit.followup_due %}<span class="at-state" dir="ltr">{{ visit.followup_due }}</span>{% elif visit.followup_instructions %}<span class="at-state">✓</span>{% endif %}</button>
+        {% if ac %}
+        <button type="button" class="after-tile" x-on:click="toggle('aftercare')" :aria-expanded="open === 'aftercare'" data-after-tile="aftercare">
+          <i class="bi bi-chat-heart"></i> {{ t('aftercare.title') }}
+          {% if _ac_n %}<span class="at-state">{{ _ac_n }}</span>{% endif %}</button>
+        {% endif %}
+        <button type="button" class="after-tile" x-on:click="toggle('er')" :aria-expanded="open === 'er'" data-after-tile="er">
+          <i class="bi bi-hospital"></i> {{ t('visits.refer_title') }}
+          {% if visit.is_referred %}<span class="at-state is-red">{{ t('visits.referred_badge') }}</span>{% endif %}</button>
+        {% if docref %}
+        <button type="button" class="after-tile{{ ' is-calling' if _dr_call else '' }}" x-on:click="toggle('docref')" :aria-expanded="open === 'docref'" data-after-tile="docref">
+          <i class="bi bi-person-badge"></i> {{ t('docref.title') }}
+          {% if _dr_call %}<span class="at-state is-red">{{ t('docref.referred_to_you') }}</span>{% elif _dr_rows %}<span class="at-state">{{ _dr_rows }}</span>{% endif %}</button>
+        {% endif %}
+      </div>
+      <div class="after-panels">
+      <div data-after-panel="nurse" x-show="open === 'nurse'" x-cloak>
       <form method="post" action="{{ url_for('visits.nurse_instructions', visit_id=visit.id) }}"
             class="form-row">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -1048,6 +1104,7 @@
         <button class="btn btn-outline btn-sm gc-press" type="submit" style="margin-top:6px;align-self:start;">
           <i class="bi bi-send"></i> {{ t('visits.nurse_send') }}</button>
       </form>
+      </div>
 
       {# What the family is told on the way out — GAHAR ICD.05 evidence 5:
          *"The plans of care and **follow-up instructions** are recorded in the
@@ -1061,6 +1118,7 @@
          And nothing here books anything: the date is what the doctor asked
          for, and whether an appointment exists for it is read back from the
          appointment book rather than written down twice. #}
+      <div data-after-panel="followup" x-show="open === 'followup'" x-cloak>
       <form method="post" action="{{ url_for('visits.followup', visit_id=visit.id) }}"
             class="form-row">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -1075,14 +1133,15 @@
                 style="margin-top:6px;align-self:start;" data-followup-save>
           <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
       </form>
+      </div>
 
       {# After the visit (DOCTOR_EASE_PLAN.md ب-٦): the family hears from the
          clinic — the doctor's instructions now, a reminder of the follow-up
          date while nothing is booked, and «how is he doing?» a few days on.
          Each one a press here; the words are the doctor's and the clinic's
          templates, and a reply lands in the customer-service inbox. #}
-      {% set ac = aftercare_state %}
       {% if ac %}
+      <div data-after-panel="aftercare" x-show="open === 'aftercare'" x-cloak>
       <div class="aftercare" id="aftercare" data-aftercare>
         <div class="aftercare-head"><i class="bi bi-chat-heart"></i> {{ t('aftercare.title') }}</div>
         <form method="post" action="{{ url_for('visits.aftercare', visit_id=visit.id) }}" class="aftercare-row">
@@ -1135,8 +1194,10 @@
         </ul>
         {% endif %}
       </div>
+      </div>
       {% endif %}
 
+      <div data-after-panel="er" x-show="open === 'er'" x-cloak>
       <form method="post" action="{{ url_for('visits.refer', visit_id=visit.id) }}"
             class="form-row">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -1178,6 +1239,7 @@
           <i class="bi bi-hospital"></i> {{ t('visits.refer_now') }}</button>
         {% endif %}
       </form>
+      </div>
 
       {# Referral to a doctor (ب-٨): one inside the clinic, picked from the
          list — it shows on their «Referred to you» list and on the child's
@@ -1185,6 +1247,7 @@
          clinic's book. The letter prints on the prescription layout, and a
          line can go on this visit's prescription. #}
       {% if docref %}
+      <div data-after-panel="docref" x-show="open === 'docref'" x-cloak>
       <div class="docref" id="docref" data-docref>
         <label><i class="bi bi-person-badge"></i> {{ t('docref.title') }}</label>
         {% for r in docref.to_me %}
@@ -1276,13 +1339,18 @@
           </form>
         </details>
       </div>
+      </div>
       {% endif %}
+      </div>
     </div>
 
     <form>
-      <!-- AI visit summary (draft; doctor reviews before keeping) -->
-      <div style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px;"
+      <!-- AI visit summary (draft; doctor reviews before keeping). Its own
+           strip, apart from the referral tiles — asked for as «تبقى ظاهرة
+           متبقاش مع الجزء بتاع التحويل». -->
+      <div class="ai-strip" data-ai-strip
            x-data="aiSummary('{{ url_for('visits.ai_summary', visit_id=visit.id) }}')">
+        <div class="ai-strip-head"><i class="bi bi-stars"></i> {{ t('visits.ai_strip_title') }}</div>
         {% if ai_ready %}
         <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="run()" :disabled="loading">
           <i class="bi bi-stars"></i> <span x-show="!loading">{{ t('visits.ai_summary_btn') }}</span>
@@ -2581,6 +2649,46 @@
     background:var(--surface,#fff); border:1px solid var(--line); border-radius:14px;
     padding:10px 12px; box-shadow:0 8px 24px rgba(0,0,0,.10); }
   @media (max-width:880px){ .vitals-grid { grid-template-columns:repeat(2,1fr); } }
+
+  /* Results still owed from an earlier visit: one line that glows until the
+     doctor opens it, and each order its own fold. */
+  .pend-fold { margin-bottom:10px; border:1px solid #f3d29b; background:#fffaf0; border-radius:12px; padding:0; }
+  .pend-sum { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 12px; cursor:pointer; list-style:none; }
+  .pend-sum::-webkit-details-marker, .pend-item > summary::-webkit-details-marker { display:none; }
+  .pend-title { font-weight:700; color:#8a4b00; }
+  .pend-ask { color:var(--muted); font-size:.85rem; margin-inline-start:auto; }
+  .pend-chev { transition:transform .2s; color:var(--muted); }
+  .pend-fold[open] .pend-chev { transform:rotate(180deg); }
+  .pend-fold[open] { padding:0 12px 12px; }
+  .pend-fold[open] > .pend-sum { padding-inline:0; }
+  .pend-dot { width:10px; height:10px; border-radius:50%; background:#f59e0b; box-shadow:0 0 0 0 rgba(245,158,11,.6); animation:pendPulse 1.6s infinite; flex:0 0 auto; }
+  .pend-fold[open] .pend-dot { animation:none; }
+  .pend-wa { display:inline-flex; gap:5px; align-items:center; font-size:.8rem; font-weight:700; color:#166534; background:#dcfce7; border-radius:999px; padding:2px 10px; animation:pendGlow 1.6s ease-in-out infinite alternate; }
+  .pend-item { border:1px dashed var(--line); border-radius:10px; padding:10px; background:var(--card,#fff); }
+  @keyframes pendPulse { 0% { box-shadow:0 0 0 0 rgba(245,158,11,.55); } 70% { box-shadow:0 0 0 9px rgba(245,158,11,0); } 100% { box-shadow:0 0 0 0 rgba(245,158,11,0); } }
+  @keyframes pendGlow { from { box-shadow:0 0 0 0 rgba(22,101,52,0); } to { box-shadow:0 0 0 4px rgba(22,101,52,.18); } }
+  html[data-theme="dark"] .pend-fold { background:rgba(245,158,11,.08); border-color:rgba(245,158,11,.35); }
+  html[data-theme="dark"] .pend-title { color:#fcd34d; }
+  html[data-theme="dark"] .pend-wa { background:rgba(34,197,94,.16); color:#86efac; }
+
+  /* After the consultation: one row of tiles, each opening its own box —
+     the screen stays short, and a tile that holds something says so. */
+  .after-tiles { display:flex; gap:8px; flex-wrap:wrap; }
+  .after-tile { position:relative; display:inline-flex; align-items:center; gap:8px; padding:9px 14px; border:1px solid var(--line); border-radius:12px; background:var(--card,#fff); color:inherit; font:inherit; cursor:pointer; }
+  .after-tile:hover { border-color:var(--green-300,#8fcbb2); }
+  .after-tile[aria-expanded="true"] { border-color:var(--green-600,#2a8a68); background:var(--green-50,#e8f6ef); font-weight:600; }
+  .after-tile .at-state { font-size:.76rem; font-weight:700; padding:1px 8px; border-radius:999px; background:#e3f4ea; color:#166534; }
+  .after-tile .at-state.is-red { background:#fde4dd; color:#9a3412; }
+  .after-tile.is-calling::after { content:""; position:absolute; top:-4px; inset-inline-end:-4px; width:11px; height:11px; border-radius:50%; background:#f59e0b; animation:pendPulse 1.6s infinite; }
+  .after-panels > [data-after-panel] { margin-top:12px; padding:12px; border:1px solid var(--line); border-radius:12px; }
+  html[data-theme="dark"] .after-tile[aria-expanded="true"] { background:rgba(18,133,95,.18); }
+  html[data-theme="dark"] .after-tile .at-state { background:rgba(34,197,94,.16); color:#86efac; }
+  html[data-theme="dark"] .after-tile .at-state.is-red { background:rgba(239,68,68,.16); color:#fca5a5; }
+  .ai-strip { margin-top:16px; padding:12px 14px; border-radius:12px; border:1px solid #d8d2f5; background:linear-gradient(135deg, #f7f5ff, #fdfcff); }
+  .ai-strip-head { font-weight:700; color:#4c3fa8; display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  html[data-theme="dark"] .ai-strip { background:rgba(124,108,230,.10); border-color:rgba(124,108,230,.35); }
+  html[data-theme="dark"] .ai-strip-head { color:#c4b8ff; }
+  @media (prefers-reduced-motion: reduce) { .pend-dot, .pend-wa, .after-tile.is-calling::after { animation:none; } }
 </style>
 {% endblock %}
 

@@ -593,6 +593,27 @@ def get_notifications(user):
                                    "kwargs": {}})
     except Exception:  # noqa: BLE001 — the bell never breaks a page
         pass
+    # Conversations nobody answered (CONNECTHUB_PLAN.md م٥): the holder's own
+    # past the clinic's alert time, and — for a supervisor — every one past
+    # the escalation time. Per person, so not in the shared list.
+    try:
+        from app.utils import routing
+
+        if user.can_access("messages") and routing.config()["mode"] != "off":
+            mine = routing.mine_late(user)
+            if mine:
+                out.insert(0, {"key": "conversations_mine_late", "module": "messages",
+                               "icon": "chat-left-dots", "severity": "warning",
+                               "count": mine, "endpoint": "messages.inbox",
+                               "kwargs": {"view": "mine"}})
+            over = routing.for_supervisor(user)
+            if over:
+                out.insert(0, {"key": "conversations_escalated", "module": "messages",
+                               "icon": "alarm", "severity": "danger",
+                               "count": over, "endpoint": "messages.inbox",
+                               "kwargs": {"view": "open"}})
+    except Exception:  # noqa: BLE001 — the bell never breaks a page
+        pass
     for it in _all():
         if not user.can_access(it["module"]):
             continue

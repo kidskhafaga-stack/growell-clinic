@@ -24,6 +24,26 @@
   </div>
 </div>
 
+{# Who takes which conversation (CONNECTHUB_PLAN.md م٥): how the clinic set it,
+   and each person's own «I'm not taking any now». #}
+<div class="card gc-scale-in route-bar" data-routing-bar="{{ routing.mode }}">
+  <span><i class="bi bi-diagram-3"></i> {{ t('routing.title') }}:
+    <strong data-routing-mode>{{ t('routing.mode_' ~ routing.mode) }}</strong></span>
+  {% if routing.mode != 'off' and routing.alert_minutes %}<span class="hint" style="margin:0;">{{ t('routing.alert_after', n=routing.alert_minutes) }}</span>{% endif %}
+  <span style="flex:1;"></span>
+  <form method="post" action="{{ url_for('messages.inbox_away') }}" style="margin:0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="away" value="{{ '0' if me_away else '1' }}">
+    <button class="btn btn-sm gc-press {{ 'btn-primary' if me_away else 'btn-outline' }}" type="submit" data-away-toggle="{{ '1' if me_away else '0' }}">
+      <i class="bi bi-{{ 'person-check' if me_away else 'cup-hot' }}"></i> {{ t('routing.im_back') if me_away else t('routing.im_away') }}</button>
+  </form>
+  {% if may_route %}<a class="btn btn-sm btn-outline gc-press" href="{{ url_for('messages.inbox_routing') }}" data-to-routing><i class="bi bi-sliders"></i> {{ t('routing.settings') }}</a>{% endif %}
+</div>
+<style>
+  .route-bar { display:flex; gap:10px 14px; flex-wrap:wrap; align-items:center; padding:10px 14px; margin-bottom:14px; }
+  .route-sug { display:inline-flex; gap:4px; align-items:center; border:1px dashed var(--green-600,#2a8a68); color:var(--green-800,#14532d); border-radius:999px; padding:1px 9px; font-size:.78rem; }
+</style>
+
 <!-- How the clinic is answering: the numbers a service desk is actually judged on -->
 <div class="gc-scale-in" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;">
   <div class="card" style="padding:12px 14px;">
@@ -101,7 +121,8 @@
             {% if c.last.direction == 'out' %}<i class="bi bi-arrow-up-left" style="color:var(--green-700);"></i>{% else %}<i class="bi bi-arrow-down-right" style="color:#2563eb;"></i>{% endif %}
             {{ c.last.body[:120] }}</span>
           <span style="display:flex;gap:6px;align-items:center;">
-            {% if c.assignee %}<span class="badge badge--role"><i class="bi bi-person"></i> {{ c.assignee.display_name(current_lang) }}</span>{% endif %}
+            {% if c.assignee %}<span class="badge badge--role"{% if c.record.assigned_by in ('auto', 'escalated') %} title="{{ t('routing.by_' ~ c.record.assigned_by) }}"{% endif %}><i class="bi bi-{{ 'diagram-3' if c.record.assigned_by in ('auto', 'escalated') else 'person' }}"></i> {{ c.assignee.display_name(current_lang) }}</span>
+            {% elif c.record and c.record.suggested %}<span class="route-sug" data-suggested="{{ c.record.suggested_to }}" title="{{ t('routing.suggested_hint') }}"><i class="bi bi-lightbulb"></i> {{ c.record.suggested.display_name(current_lang) }}؟</span>{% endif %}
             {% if c.open %}<span class="badge badge--danger">{{ waiting_label(c.waiting_hours) }}</span>
             {% elif c.resolved %}<span class="badge badge--green">{{ t('inbox.resolved_badge') }}</span>{% endif %}
             {% if c.unread %}<span class="badge" style="background:var(--primary,#198754);color:#fff;border-radius:999px;">{{ c.unread }}</span>{% endif %}

@@ -16,6 +16,12 @@ def _beat():
     from app.utils import mail_channel, social
 
     mail_channel.maybe_poll()
+    # Conversations nobody holds, and the ones past the escalation time
+    # (``routing.sweep`` — at most once a minute, and only in «auto»).
+    from app.utils import routing
+    if routing.sweep()["assigned"] or routing.config()["mode"] == "auto":
+        from app.extensions import db
+        db.session.commit()
     if social.instagram_mode() == "login" and social.instagram_ready():
         social.instagram_token()
         from app.extensions import db
