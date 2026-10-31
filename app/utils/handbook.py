@@ -3142,6 +3142,40 @@ SECTIONS = [
              "told, and the answer reaches the family with a link to rate it "
              "— a low rating reopens it by itself. A complaint past the "
              "hospital's policy timeframes shows as late (PCC.16)."),
+            ("<b>تسجيل الشكوى صح:</b> دوّر على الطفل بالاسم أو رقم الملف أو التليفون، "
+             "وأرقام الملف بتظهر (الأم، الأب، رقم الطفل) — الرد بيروح على اللي تختاره، و«رقم "
+             "تاني» بيسأل ليه. «مين قدّمها» لو مش الأهل: الطفل، قريب، زائر، موظف، أو جهة — "
+             "والاقتراح ممكن ييجي من موظف أو زائر من غير ملف. وتقدر تختار الزيارة اللي "
+             "الكلام عنها، والموظف اللي الشكوى أو الشكر عنه، والتصنيف (السبعة المعروفين "
+             "عالمياً: السلامة، الجودة، المكان، الإجراءات، الاستماع، التواصل، الاحترام). "
+             "وفي الحالة: السبب الجذري، و«اتكررت قبل كده؟».",
+             "<b>Logging a complaint properly:</b> search for the child by name, file "
+             "number or phone, and the file's numbers appear (mother, father, the child's "
+             "own) — the answer goes to the one you pick, and «Another number» asks why. "
+             "«Brought by» when it is not the family: the child, a relative, a visitor, a "
+             "staff member or an organisation — a suggestion can come from staff or a "
+             "visitor with no file. You can pick the visit it is about, the staff member "
+             "complained of or thanked, and the category (the seven used worldwide: "
+             "safety, quality, place, processes, listening, communication, respect). On "
+             "the case: the root cause, and «Has this happened before?»."),
+            ("<b>الاقتراح ليه طريقه:</b> مسؤول يدرسه ويقرر خلال مواعيد العيادة — «هيتنفذ» "
+             "وإيه اللي هيتعمل ولحد إمتى، أو «مش هيتنفذ» والسبب — وصاحبه بيوصله القرار "
+             "على الواتساب، وبعدين «اتنفذ» بإيه اللي اتعمل فعلاً.",
+             "<b>A suggestion has its own road:</b> someone studies it and decides within "
+             "the clinic's timeframe — «Will be done», what and by when, or «Will not be "
+             "done» and why — whoever made it gets the decision on WhatsApp, and then "
+             "«Done» with what was actually done."),
+            ("<b>لوحة الشكاوى والاقتراحات</b> (الشكاوى ← «لوحة الشكاوى والاقتراحات»): فترة "
+             "تختارها قصاد اللي قبلها — العدد بالنوع، والشكاوى لكل ١٠٠٠ زيارة، أسبوع "
+             "بأسبوع، عن إيه والسبب، وكل قسم جنب رضا الاستبيان بتاعه، ووصلت إزاي والدرجة، "
+             "والاقتراحات (اتقدم، اتقبل، اتنفذ)، والموظفين بالعدد بس، والأسر اللي اشتكت "
+             "أكتر من مرة. كل رقم بيفتح الحالات اللي وراه.",
+             "<b>Complaints and suggestions board</b> (Complaints → «Complaints and "
+             "suggestions board»): a period you choose against the one before — the count "
+             "by kind, complaints per 1,000 visits, week by week, what about and why, each "
+             "department beside its survey satisfaction, how they came and how serious, "
+             "the suggestions (received, accepted, done), staff by count only, and families "
+             "who complained more than once. Every number opens the cases behind it."),
             ("<b>استبيان بيمشي ورا الإجابات:</b> من «محرّر الاستبيان» ← «الأسئلة "
              "والقفزات» تضيف أسئلة المؤسسة وترتّبها، وعلى كل إجابة تقول «روح "
              "لسؤال كذا» أو «اخلص». السؤال الفرعي ما بيظهرش غير لما إجابة تودّي "

@@ -39,7 +39,33 @@ STATUSES = ("new", "in_progress", "answered", "closed")
 OPEN_STATUSES = ("new", "in_progress", "answered")
 #: The timeline's entries.
 EVENT_KINDS = ("opened", "assigned", "contacted", "note", "answered",
-               "closed", "reopened", "rated", "message", "printed", "edited")
+               "closed", "reopened", "rated", "message", "printed", "edited",
+               "decided", "done")
+
+# COMPLAINTS_PLAN.md ش-١ … ش-٤ -------------------------------------------
+#: Who brought it — when it is not the family, the case says so. A
+#: suggestion often comes from somebody with no file at all.
+BY_WHO = ("family", "child", "relative", "visitor", "staff", "body")
+#: Why a number other than the file's: somebody else is speaking for the
+#: family, the file's number is wrong or old, or they asked to be called on it.
+PHONE_NOTES = ("someone_else", "file_wrong", "asked")
+#: What it is about — the seven problem categories of the Healthcare
+#: Complaints Analysis Tool (Reader, Gillespie & Roberts, BMJ Qual Saf 2016),
+#: kept as they are so a clinic's figures compare with anybody's.
+CATEGORIES = ("safety", "quality", "environment", "process", "listening",
+              "communication", "respect")
+#: What lay behind it, written when the case is answered.
+ROOT_CAUSES = ("people", "process", "communication", "equipment",
+               "environment", "policy", "patient", "unclear")
+#: A suggestion's decision.
+DECISIONS = ("accepted", "rejected")
+
+
+complaint_staff = db.Table(
+    "complaint_staff",
+    db.Column("complaint_id", db.Integer, db.ForeignKey("complaints.id"), primary_key=True),
+    db.Column("user_id", db.Integer, db.ForeignKey("users.id"), primary_key=True),
+)
 
 
 class Complaint(db.Model):
@@ -93,6 +119,25 @@ class Complaint(db.Model):
     resolution_comment = db.Column(db.Text)
     rated_at = db.Column(db.DateTime)
 
+    # ش-١ — who brought it, which number and why, and which visit.
+    by_who = db.Column(db.String(10))
+    by_staff_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    #: ``None`` when the number is one of the file's (or there is none).
+    phone_note = db.Column(db.String(14))
+    visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=True,
+                         index=True)
+    # ش-٤ — what it is about and what lay behind it.
+    category = db.Column(db.String(16), index=True)
+    root_cause = db.Column(db.String(16))
+    # ش-٣ — a suggestion's own road: decided (accepted, with what will be
+    # done and by when — or not, and why), then done.
+    decision = db.Column(db.String(10))
+    decided_at = db.Column(db.DateTime)
+    plan = db.Column(db.Text)
+    target_date = db.Column(db.Date)
+    done_at = db.Column(db.DateTime)
+    done_text = db.Column(db.Text)
+
     # The public link for the verdict.
     token = db.Column(db.String(32), unique=True, nullable=False, index=True)
     # Where it came from, when it came from somewhere.
@@ -105,6 +150,11 @@ class Complaint(db.Model):
     creator = db.relationship("User", foreign_keys=[created_by])
     cost_centre = db.relationship("CostCentre")
     feedback = db.relationship("Feedback")
+    by_staff = db.relationship("User", foreign_keys=[by_staff_id])
+    visit = db.relationship("Visit")
+    #: ش-٢ — the people it is about: thanked, complained of, or suggested to.
+    staff = db.relationship("User", secondary=complaint_staff, lazy="selectin",
+                            order_by="User.full_name")
     events = db.relationship("ComplaintEvent", backref="complaint",
                              order_by="ComplaintEvent.at",
                              cascade="all, delete-orphan")
@@ -112,6 +162,10 @@ class Complaint(db.Model):
     @staticmethod
     def new_token():
         return secrets.token_urlsafe(16)[:32]
+
+    @property
+    def is_suggestion(self):
+        return self.kind == "suggestion"
 
     @property
     def is_open(self):
@@ -129,6 +183,8 @@ class Complaint(db.Model):
             return None
         if self.patient is not None:
             return self.patient.display_name(lang)
+        if self.by_staff is not None:
+            return self.by_staff.display_name(lang)
         return self.contact_name
 
     def __repr__(self):

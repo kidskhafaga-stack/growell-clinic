@@ -12,6 +12,7 @@
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <a class="btn btn-primary gc-press" href="{{ url_for('complaints.new') }}"><i class="bi bi-plus-lg"></i> {{ t('cmp.new_title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('complaints.board') }}" data-to-board><i class="bi bi-clipboard-data"></i> {{ t('cmpb.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('complaints.blank') }}" target="_blank"><i class="bi bi-printer"></i> {{ t('cmp.print_blank') }}</a>
   </div>
 </div>
@@ -45,6 +46,27 @@
   <input class="input" name="q" value="{{ search }}" placeholder="{{ t('cmp.search_ph') }}" style="flex:1;min-width:180px;">
   <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-search"></i></button>
 </form>
+
+{# Opened from a number on the board (ش-٥): what the list is narrowed to. #}
+{% if narrowed %}
+<div class="card gc-scale-in" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;" data-narrowed>
+  <span class="hint" style="margin:0;"><i class="bi bi-funnel"></i> {{ t('cmp.narrowed') }}</span>
+  {% for key, value in narrowed.items() %}
+  <span class="badge badge--role" data-narrow="{{ key }}">
+    {%- if key == 'category' %}{{ t('cmp.cat_' ~ value) }}
+    {%- elif key == 'channel' %}{{ t('cmp.channel_' ~ value) }}
+    {%- elif key == 'severity' %}{{ t('cmp.sev_' ~ value) }}
+    {%- elif key == 'side' %}{{ t('cmp.side_' ~ value) }}
+    {%- elif key == 'cause' %}{{ t('cmp.cause_' ~ value) }}
+    {%- elif key == 'decision' %}{{ t('cmp.dec_' ~ value) }}
+    {%- elif key == 'done' %}{{ t('cmpb.sug_done') }}
+    {%- elif key in ('from', 'to') %}{{ t('board_cs.' ~ key) }} <bdi class="num" dir="ltr">{{ value }}</bdi>
+    {%- else %}{{ t('cmp.narrow_' ~ key) }}{% endif -%}
+  </span>
+  {% endfor %}
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('complaints.index', view=view) }}">{{ t('cmp.clear_narrow') }}</a>
+</div>
+{% endif %}
 
 <div class="card gc-scale-in" style="padding:0;overflow-x:auto;">
   {% if page.items %}

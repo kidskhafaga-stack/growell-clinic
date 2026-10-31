@@ -424,6 +424,21 @@ ADDITIONS = [
     ("rx_print_templates", "general_note_ar", "TEXT"),
     ("rx_print_templates", "general_note_en", "TEXT"),
     ("rx_print_templates", "block_order", "VARCHAR(255)"),
+    # The complaints book, made whole (COMPLAINTS_PLAN.md ش-١ … ش-٤). NULL on
+    # every existing case: nobody said who brought it, which visit, what
+    # category or cause — and no suggestion was decided on its own road.
+    ("complaints", "by_who", "VARCHAR(10)"),
+    ("complaints", "by_staff_id", "INTEGER"),
+    ("complaints", "phone_note", "VARCHAR(14)"),
+    ("complaints", "visit_id", "INTEGER"),
+    ("complaints", "category", "VARCHAR(16)"),
+    ("complaints", "root_cause", "VARCHAR(16)"),
+    ("complaints", "decision", "VARCHAR(10)"),
+    ("complaints", "decided_at", "DATETIME"),
+    ("complaints", "plan", "TEXT"),
+    ("complaints", "target_date", "DATE"),
+    ("complaints", "done_at", "DATETIME"),
+    ("complaints", "done_text", "TEXT"),
     ("drugs", "dose_per_kg", "FLOAT"),
     ("drugs", "max_per_kg", "FLOAT"),
     ("drugs", "conc_mg_per_ml", "FLOAT"),

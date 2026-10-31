@@ -86,6 +86,9 @@ SYSTEM_TEMPLATE_TYPES = [
     # whether that answered it. See app/utils/complaint_cases.py.
     "complaint_received",
     "complaint_answered",
+    # A suggestion's decision, to whoever made it (COMPLAINTS_PLAN.md ش-٣):
+    # it will be done and how, or it will not and why.
+    "suggestion_decided",
     # The link a family opens to write it themselves, when they would
     # rather not say it to the person at the desk.
     "complaint_invite",
@@ -164,6 +167,7 @@ TEMPLATE_VARIABLES = {
     "complaint_answered": ["patient", "first_name", "clinic", "number",
                            "answer", "link"],
     "complaint_invite": ["patient", "first_name", "clinic", "link"],
+    "suggestion_decided": ["patient", "first_name", "clinic", "number", "answer"],
     "seasonal": ["patient", "first_name", "clinic"],
     "greeting": ["patient", "first_name", "clinic"],
     "custom": ["patient", "first_name", "clinic"],
@@ -314,6 +318,9 @@ TEMPLATE_DEFAULTS = {
     "complaint_answered": (
         "بخصوص رقم {number} في {clinic}:\n{answer}\n\n"
         "يهمّنا نعرف: الرد ده حلّ اللي كان مضايقكم؟ قولولنا من هنا: {link}"
+    ),
+    "suggestion_decided": (
+        "أهلاً {first_name}،\nشكراً على اقتراحكم لـ{clinic} (رقم {number}).\n{answer}"
     ),
     "complaint_invite": (
         "أهلاً {first_name}،\nلو عندكم شكوى أو اقتراح لـ{clinic}، تقدروا "
