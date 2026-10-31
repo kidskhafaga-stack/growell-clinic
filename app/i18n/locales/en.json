@@ -967,7 +967,14 @@
     "er_inhouse_hint": "Opens an attendance in the hospital's emergency department with this reason; the child appears on their screen at once.",
     "er_sent_ok": "The child was sent to the hospital's emergency department and is on their screen with the reason.",
     "er_started": "The emergency department has already started with this child, so the transfer cannot be undone here. If it was a mistake, speak to the department.",
-    "inv_sent_on": "Sent by the family on {channel}"
+    "inv_sent_on": "Sent by the family on {channel}",
+    "pending_on_whatsapp": "{n} file(s) arrived on WhatsApp",
+    "pending_ask": "Ask the family about them — click to open",
+    "pending_enter": "Enter the result",
+    "after_tiles": "After the consultation",
+    "tile_sent": "Sent",
+    "ai_strip_title": "AI visit summary",
+    "edit_phrases": "Edit phrases"
   },
   "diagnosis_types": {
     "working": "Working",

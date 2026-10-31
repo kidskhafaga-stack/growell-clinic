@@ -322,6 +322,26 @@ SECTIONS = [
              "النتائج».",
              "<b>Lab and imaging requests</b> and their results, under "
              "Visits → Results."),
+            ("<b>شاشة الكشف هادية من أولها:</b> التحاليل اللي اتطلبت في زيارة "
+             "قبل كده ولسه نتيجتها ما جاتش في سطر واحد مطوي بينوّر بعددها — "
+             "اسأل الأهل عليها؛ ولو ملف وصل على الواتساب السطر بيقول كده والطلب "
+             "بتاعه بيتفتح لوحده. وتحت: تعليمات التمريض، المتابعة، الرعاية بعد "
+             "الزيارة، تحويل للطوارئ، وتحويل لطبيب في صف بلاطات — دوس على "
+             "البلاطة يفتح صندوقها، واللي فيها حاجة بتقول على البلاطة (اتبعت، "
+             "تاريخ، اتحوّل)، والطفل المحوّل ليك بتنادي وبتفتح لوحدها. تلخيص "
+             "الزيارة بالـ AI في شريط لوحده تحتهم. و«عدّل العبارات» جنب "
+             "البيانات السريرية بيودّيك لشاشة العبارات.",
+             "<b>The visit screen is calm at first:</b> tests asked for at an "
+             "earlier visit that still have no result sit on one folded line "
+             "that pulses with their count — ask the family about them; when a "
+             "file came on WhatsApp the line says so and that order opens by "
+             "itself. Below: nurse instructions, follow-up, after-visit care, "
+             "ER referral and referral to a doctor are one row of tiles — tap a "
+             "tile to open its box, and a tile that already holds something "
+             "says so (sent, a date, referred); a child referred to you calls "
+             "and opens by itself. The AI visit summary has its own strip "
+             "under them. «Edit phrases» beside the clinical findings takes "
+             "you to the phrases screen."),
             ("<b>عبارات جاهزة</b> قابلة للتعديل بتقلّل الكتابة، وملخص الزيارة "
              "بيتطبع أو بيتحفظ كصورة.",
              "<b>Editable quick phrases</b> cut the typing, and the visit "
