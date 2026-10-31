@@ -194,7 +194,9 @@ def test_the_visit_panel_counts_what_it_counted(month, whose):
     for row in new["rows"]:
         assert row["day"] == old["day"].get(row["key"], 0), row["key"]
         assert row["month"] == old["month"].get(row["key"], 0), row["key"]
-    assert new["total"]["day"] == 3                  # cancelled, no-show out
+    # Cancelled and no-show out. On the 1st the «earlier this month» booking
+    # is today's too, so it counts in the day as well.
+    assert new["total"]["day"] == 3 + (month["today"].day == 1)
     assert new["newold"]["day"]["total"] == 2        # two children
 
 

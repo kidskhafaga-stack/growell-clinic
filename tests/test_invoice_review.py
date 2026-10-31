@@ -50,11 +50,14 @@ def bills(clinic):
         db.session.flush()
 
         made = {}
-        rows = [("INV-A", clinic["ids"]["child"], date.today(), 200,
+        # The clinic's today, not the machine's: the closed-period tests close
+        # the clinic's month, and for two hours at a month's end the two differ.
+        today = local_today()
+        rows = [("INV-A", clinic["ids"]["child"], today, 200,
                  clinic["ids"]["doctor"]),
-                ("INV-B", clinic["ids"]["child"], date.today() - timedelta(days=10),
+                ("INV-B", clinic["ids"]["child"], today - timedelta(days=10),
                  300, None),
-                ("INV-C", other.id, date.today() - timedelta(days=40), 400,
+                ("INV-C", other.id, today - timedelta(days=40), 400,
                  clinic["ids"]["doctor"])]
         for number, pid, when, price, doc in rows:
             inv = Invoice(invoice_number=number, patient_id=pid,
