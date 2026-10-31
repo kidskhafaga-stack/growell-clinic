@@ -578,6 +578,12 @@ ADDITIONS = [
     ("visits", "followup_due", "DATE"),
     ("visits", "followup_instructions", "TEXT"),
     ("conversations", "topic", "VARCHAR(16)"),
+    # Who takes a conversation (CONNECTHUB_PLAN.md م٥). NULL on every
+    # existing thread: nothing suggested, handed over by a person, never
+    # escalated — exactly as before.
+    ("conversations", "suggested_to", "INTEGER"),
+    ("conversations", "assigned_by", "VARCHAR(10)"),
+    ("conversations", "escalated_at", "DATETIME"),
     ("drugs", "trade_name_ar", "VARCHAR(160)"),
     ("drugs", "route", "VARCHAR(20)"),
     # Which granularity a period is. Existing rows are months, and the default

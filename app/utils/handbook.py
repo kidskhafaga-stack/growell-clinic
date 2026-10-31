@@ -3309,6 +3309,23 @@ SECTIONS = [
              "Instagram, Telegram, TikTok and the clinic's e-mail — each "
              "conversation shows its channel, and a reply goes out on the "
              "channel the family last wrote from."),
+            ("<b>توزيع المحادثات</b> (الصندوق ← «إعدادات التوزيع»): يدوي، أو البرنامج "
+             "يقترح مين ياخد المحادثة وحد يوافق بدوسة، أو يوزّع لوحده — بقواعد "
+             "بتعدّلها: مين بياخد محادثات، ولموضوع معيّن (شكوى، نتيجة، سعر…) أو "
+             "لقناة معيّنة مين، والأقل شغل أو بالدور، والمحادثة تفضل مع اللي "
+             "ماسكها. كل واحد يقدر يدوس «أنا مش متاح دلوقتي». ولو محدش رد بعد "
+             "الدقايق اللي تحددها بيظهر تنبيه على الجرس للي ماسكها، وبعد وقت "
+             "أطول للمشرفين — ولو اخترت، بتتنقل لحد تاني ويتكتب في السجل.",
+             "<b>Conversation routing</b> (the inbox → «Routing settings»): by "
+             "hand, or the program suggests who should take a conversation and a "
+             "person accepts with one press, or it hands them out itself — by "
+             "rules you edit: who takes conversations, who takes a topic "
+             "(complaint, result, price…) or a channel, least busy or taking "
+             "turns, and a conversation stays with whoever holds it. Anyone can "
+             "press «I'm away now». If nobody replies within the minutes you set, "
+             "the holder sees it on the bell, and after a longer time the "
+             "supervisors do — and, if you chose so, it moves to someone else and "
+             "the log says so."),
             ("<b>الشخص بيتعرف من رقمه أو حسابه، عمره ما بيتعرف من اسمه.</b> "
              "المحادثة اللي مش مربوطة بملف بتفضل لوحدها لحد ما تربطها بنفسك "
              "بـ«اربط بملف» — وبعدها كل رسايلها بتنقل على ملف الطفل، والجديد "

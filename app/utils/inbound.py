@@ -308,6 +308,10 @@ def handle_inbound(item, provider):
         db.session.flush()
         attachment = capture(item, log)
     captured = _capture_rating(patients, item)
+    # Who takes it, by the clinic's own rules — nothing when routing is off.
+    from app.utils.routing import on_inbound
+    db.session.flush()
+    on_inbound(log)
     # Outside working hours, say so — a parent writing at 1 a.m. shouldn't be
     # left wondering whether the message arrived at all. At most once a day
     # per conversation, and never for a reply that just answered a survey.

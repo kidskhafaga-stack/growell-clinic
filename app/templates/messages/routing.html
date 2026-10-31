@@ -1,0 +1,124 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('routing.title') }}{% endblock %}
+{% block page_heading %}{{ t('routing.title') }}{% endblock %}
+
+{# CONNECTHUB_PLAN.md م٥ — who answers which conversation. The owner: «خليه
+   التحكم فيه ممكن، وخلّي التلقائي أقدر أعدّل عليه». Off, suggested or
+   automatic, and every rule here — see ``utils/routing`` for the order the
+   program follows. #}
+{% macro people(name, chosen) %}
+<div class="rt-people">
+  {% for u in staff %}
+  <label class="rt-person"><input type="checkbox" name="{{ name }}" value="{{ u.id }}"{{ ' checked' if u.id in chosen else '' }}>
+    <span>{{ u.display_name(current_lang) }}</span>{% if u.id in cfg.away %}<i class="bi bi-cup-hot" title="{{ t('routing.is_away') }}"></i>{% endif %}</label>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-diagram-3"></i> {{ t('routing.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('routing.lead') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('messages.inbox') }}"><i class="bi bi-inbox"></i> {{ t('inbox.title') }}</a>
+</div>
+
+<form method="post" class="rt-page" data-routing-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <section class="card gc-scale-in">
+    <h2 class="section-title" style="margin-top:0;">{{ t('routing.mode') }}</h2>
+    <div class="rt-modes">
+      {% for m in modes %}
+      <label class="rt-mode"><input type="radio" name="mode" value="{{ m }}"{{ ' checked' if cfg.mode == m else '' }}>
+        <span class="rt-mode-name"><i class="bi bi-{{ {'off': 'hand-index', 'suggest': 'lightbulb', 'auto': 'lightning-charge'}[m] }}"></i> {{ t('routing.mode_' ~ m) }}</span>
+        <span class="hint" style="margin:0;">{{ t('routing.mode_' ~ m ~ '_hint') }}</span></label>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card gc-scale-in">
+    <h2 class="section-title" style="margin-top:0;">{{ t('routing.who') }}</h2>
+    <p class="hint" style="margin-top:0;">{{ t('routing.who_hint') }}</p>
+    {{ people('pool', cfg.pool) }}
+    <div class="rt-load">
+      {% for u in staff %}<span class="badge badge--muted">{{ u.display_name(current_lang) }}: <b class="num">{{ load.get(u.id, 0) }}</b></span>{% endfor %}
+      <span class="hint" style="margin:0;">{{ t('routing.load_hint') }}</span>
+    </div>
+  </section>
+
+  <section class="card gc-scale-in">
+    <h2 class="section-title" style="margin-top:0;">{{ t('routing.by_topic') }}</h2>
+    <p class="hint" style="margin-top:0;">{{ t('routing.by_topic_hint') }}</p>
+    {% for topic in topics %}
+    <div class="rt-rule" data-rule-topic="{{ topic }}">
+      <span class="rt-rule-name">{{ t('triage.topic_' ~ topic) }}</span>
+      {{ people('topic_' ~ topic, (cfg.by_topic or {}).get(topic, [])) }}
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="card gc-scale-in">
+    <h2 class="section-title" style="margin-top:0;">{{ t('routing.by_channel') }}</h2>
+    <p class="hint" style="margin-top:0;">{{ t('routing.by_channel_hint') }}</p>
+    {% for ch in channels %}
+    <div class="rt-rule" data-rule-channel="{{ ch }}">
+      <span class="rt-rule-name">{{ t('channels.ch_' ~ ch) }}</span>
+      {{ people('channel_' ~ ch, (cfg.by_channel or {}).get(ch, [])) }}
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="card gc-scale-in">
+    <h2 class="section-title" style="margin-top:0;">{{ t('routing.how') }}</h2>
+    <div class="rt-modes">
+      {% for m in ('least_open', 'turns') %}
+      <label class="rt-mode"><input type="radio" name="method" value="{{ m }}"{{ ' checked' if cfg.method == m else '' }}>
+        <span class="rt-mode-name">{{ t('routing.method_' ~ m) }}</span>
+        <span class="hint" style="margin:0;">{{ t('routing.method_' ~ m ~ '_hint') }}</span></label>
+      {% endfor %}
+    </div>
+    <label class="checkbox" style="margin-top:10px;"><input type="checkbox" name="keep_owner" value="1"{{ ' checked' if cfg.keep_owner else '' }}> {{ t('routing.keep_owner') }}</label>
+  </section>
+
+  <section class="card gc-scale-in">
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-alarm"></i> {{ t('routing.nobody') }}</h2>
+    <div class="rt-times">
+      <label>{{ t('routing.alert_minutes') }} <input class="input num" type="number" min="0" max="1440" name="alert_minutes" value="{{ cfg.alert_minutes }}" style="width:100px;"></label>
+      <label>{{ t('routing.escalate_minutes') }} <input class="input num" type="number" min="0" max="1440" name="escalate_minutes" value="{{ cfg.escalate_minutes }}" style="width:100px;"></label>
+    </div>
+    <p class="hint">{{ t('routing.nobody_hint') }}</p>
+    <h3 class="rt-h3">{{ t('routing.supervisors') }}</h3>
+    {{ people('supervisors', cfg.supervisors) }}
+    <label class="checkbox" style="margin-top:10px;"><input type="checkbox" name="reassign" value="1"{{ ' checked' if cfg.reassign else '' }}> {{ t('routing.reassign') }}</label>
+    <label class="checkbox"><input type="checkbox" name="open_hours_only" value="1"{{ ' checked' if cfg.open_hours_only else '' }}> {{ t('routing.open_hours_only') }}</label>
+  </section>
+
+  <div style="position:sticky;bottom:12px;">
+    <button class="btn btn-primary gc-press" type="submit" data-routing-save><i class="bi bi-save"></i> {{ t('common.save') }}</button>
+  </div>
+</form>
+
+<style>
+  .rt-page { display:grid; gap:14px; max-width:980px; }
+  .rt-modes { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; }
+  .rt-mode { display:grid; gap:4px; border:1px solid var(--line); border-radius:12px; padding:12px; cursor:pointer; }
+  .rt-mode input { justify-self:start; }
+  .rt-mode:has(input:checked) { border-color:var(--green-600,#2a8a68); background:var(--green-50,#e8f6ef); }
+  html[data-theme="dark"] .rt-mode:has(input:checked) { background:rgba(18,133,95,.18); }
+  .rt-mode-name { font-weight:700; }
+  .rt-people { display:flex; gap:6px; flex-wrap:wrap; }
+  .rt-person { display:inline-flex; gap:6px; align-items:center; border:1px solid var(--line); border-radius:999px; padding:4px 12px; cursor:pointer; font-size:.9rem; }
+  .rt-person:has(input:checked) { border-color:var(--green-600,#2a8a68); background:var(--green-50,#e8f6ef); font-weight:600; }
+  html[data-theme="dark"] .rt-person:has(input:checked) { background:rgba(18,133,95,.18); }
+  .rt-rule { display:grid; grid-template-columns:minmax(110px, 160px) 1fr; gap:10px; align-items:center; padding:8px 0; border-top:1px dashed var(--line); }
+  .rt-rule-name { font-weight:600; }
+  @media (max-width:600px) { .rt-rule { grid-template-columns:1fr; } }
+  .rt-load { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+  .rt-times { display:flex; gap:16px; flex-wrap:wrap; }
+  .rt-times label { display:flex; gap:8px; align-items:center; }
+  .rt-h3 { font-size:.95rem; margin:12px 0 8px; }
+</style>
+{% endblock %}

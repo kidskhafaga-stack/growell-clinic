@@ -50,6 +50,17 @@
       <button class="btn btn-outline btn-sm gc-press" type="submit">
         <i class="bi bi-person-check"></i> {{ t('common.save') }}</button>
     </form>
+    {# The clinic's rules named somebody (CONNECTHUB_PLAN.md م٥): one press
+       takes the suggestion; the list beside it hands it to anyone else. #}
+    {% if record and record.suggested and not record.assigned_to %}
+    <form method="post" action="{{ url_for('messages.inbox_take_suggestion', key=key) }}" style="margin:0;display:flex;gap:8px;align-items:center;" data-take-suggestion>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <span class="hint" style="margin:0;"><i class="bi bi-lightbulb"></i> {{ t('routing.suggested', name=record.suggested.display_name(current_lang)) }}</span>
+      <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('routing.take') }}</button>
+    </form>
+    {% elif record and record.assigned_by in ('auto', 'escalated', 'suggested') %}
+    <span class="hint" style="margin:0;" data-assigned-by="{{ record.assigned_by }}"><i class="bi bi-diagram-3"></i> {{ t('routing.by_' ~ record.assigned_by) }}</span>
+    {% endif %}
     {# Saying what it is about — and whether it can wait. Marking a thread
        urgent puts it above everything in the list, however long anybody
        else has been waiting. #}

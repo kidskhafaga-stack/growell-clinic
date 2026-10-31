@@ -359,6 +359,8 @@ def file_message(raw_bytes):
             break
     from app.utils.service_desk import maybe_send_social_away
     maybe_send_social_away(log)
+    from app.utils.routing import on_inbound
+    on_inbound(log)
     return log
 
 
