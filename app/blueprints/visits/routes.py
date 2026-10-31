@@ -427,6 +427,7 @@ def record(visit_id):
         "visits/record.html", visit=visit, recent_visits=recent_visits,
         fall_on=fall_on, er_here=er_here,
         er_sent=_er.sent_from(visit) if er_here else None,
+        er_services=_er_services() if er_here else [],
         fall_criteria=fall_screen.criteria() if fall_on else [],
         fall_row=fall_screen.for_visit(visit.id) if fall_on else None,
         # A test the lab answers line by line is typed line by line here too
@@ -2120,6 +2121,8 @@ def refer(visit_id):
     kind = (request.form.get("kind") or REFERRAL).strip()
     reason = (request.form.get("referral_note") or "").strip()
     sent_to = (request.form.get("referred_to") or "").strip() or None
+    if kind == ER_TREATMENT and module_enabled("emergency"):
+        return _send_for_treatment(visit, reason)
     if not reason:
         flash(t("referrals.reason_required"), "error")
         return redirect(request.referrer or url_for("visits.record", visit_id=visit.id))
@@ -2148,6 +2151,60 @@ def refer(visit_id):
     db.session.commit()
     flash(t("visits.referred_ok"), "warning")
     return redirect(request.referrer or url_for("visits.record", visit_id=visit.id))
+
+
+#: «علاج بس في الطوارئ» — a session, an injection, a dressing, and home.
+ER_TREATMENT = "in_house_treatment"
+
+
+def _er_services():
+    """What the emergency department gives — the same list its own order
+    form offers (everything but consultations, follow-ups and vaccines)."""
+    from app.models import Service
+
+    # By type *and* by category: a «كشف» whose type was left at «other» is
+    # still a consultation by its category.
+    rows = Service.query.filter(Service.is_active.is_(True)).order_by(Service.name).all()
+    return [s for s in rows
+            if s.kind not in ("consultation", "followup", "vaccination")
+            and s.category not in ("consultation", "booking", "vaccination_fee")]
+
+
+def _send_for_treatment(visit, reason):
+    """«حوّلت طفل لجلسة نفس في الطوارئ»: the child arrives in the department
+    marked «علاج بس», with the treatment already written as this doctor's
+    order — so the nurse there sees what to give, not just a reason.
+
+    The department's own rules stay: the child is triaged there like anyone
+    else, and the order is given and charged there (not on this visit's
+    bill, so nothing is charged twice).
+    """
+    from app.models import Service
+    from app.utils import emergency as er
+    from app.utils import emergency_orders as eo
+
+    back = request.referrer or url_for("visits.record", visit_id=visit.id)
+    service = db.session.get(Service, request.form.get("er_service_id", type=int) or 0)
+    if service is None or service not in _er_services():
+        flash(t("visits.er_treatment_pick"), "error")
+        return redirect(back)
+    detail = (request.form.get("er_detail") or "").strip()
+    why = reason or service.name
+    attendance = er.send_from_clinic(visit, why, user=current_user, treatment_only=True)
+    try:
+        eo.write(attendance, current_user, service=service, note=detail or None)
+    except eo.NotADoctor:
+        # Sent all the same; whoever is there writes what to give.
+        flash(t("visits.er_treatment_no_order"), "warning")
+    visit.referred_at = datetime.utcnow()
+    visit.referred_to = None
+    visit.referral_note = why
+    ActivityLog.record("visit.refer_er", user_id=current_user.id, entity="visit",
+                       entity_id=visit.id, detail=f"{attendance.id} {service.name}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("visits.er_treatment_ok", what=service.name), "warning")
+    return redirect(back)
 
 
 @visits_bp.route("/referrals/<int:referral_id>/describe", methods=["POST"])

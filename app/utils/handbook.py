@@ -1102,6 +1102,22 @@ SECTIONS = [
         "icon": "thermometer-half",
         "title": ("الطوارئ", "Emergency"),
         "lines": [
+            ("<b>«علاج بس في الطوارئ» من شاشة الكشف:</b> طبيب العيادة بيدوس "
+             "بلاطة «تحويل للطوارئ» ويختار «علاج بس» واللي يتعمل (جلسة تنفس، "
+             "حقنة، غيار) والتفاصيل. الطفل بيظهر هنا تحت «في القسم من غير سرير» "
+             "بعلامة «تنفيذ علاج»، والأمر مكتوب باسم الطبيب جاهز للتمريض يدوس "
+             "«اتدّى». الفرز والحساب هنا زي أي طفل، والجلسة مش بتتحسب على "
+             "فاتورة الكشف. ولحد ما حد هنا يلمس الطفل، الطبيب يقدر يرجع في "
+             "التحويل.",
+             "<b>«Treatment only in emergency» from the visit screen:</b> the "
+             "clinic doctor presses the «Refer to emergency» tile, chooses "
+             "«treatment only» and what to give (a nebuliser session, an "
+             "injection, a dressing) with the details. The child shows here "
+             "under «In the department without a bed», marked for treatment, "
+             "with the order in the doctor's name ready for the nurse to mark "
+             "«given». Triage and payment are here as for any child, and the "
+             "session is not charged on the visit's bill. Until somebody here "
+             "touches the child, the doctor can take the referral back."),
             ("<b>«ادفع الأول وبعدين يتنفذ»</b> (من الإعدادات ← السياسات، مقفول "
              "افتراضياً): للحالة اللي اتفرزت <b>غير عاجلة</b> بس — الطبيب بيكتب "
              "عادي، والإعطاء والعمل مستنيين الخزنة لحد «اتدفع — يكمل». الحالة "

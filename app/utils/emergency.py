@@ -23,11 +23,15 @@ def open_visits(limit=100):
 
     الأقدم الأول مش الأحدث: الطفل اللي قاعد من ساعتين هو اللي محدّش
     بصّله، وده السؤال اللي الشاشة موجودة علشانه.
+
+    **والحد بيقص من القديم، مش من الجديد.** لو فيه حضور قديم محدّش قفله،
+    الطفل اللي لسه واصل هو اللي لازم يبان — مش يقع من آخر القايمة.
     """
-    return (EmergencyVisit.query
-            .filter(EmergencyVisit.departed_at.is_(None))
-            .order_by(EmergencyVisit.arrived_at)
-            .limit(limit).all())
+    newest = (EmergencyVisit.query
+              .filter(EmergencyVisit.departed_at.is_(None))
+              .order_by(EmergencyVisit.arrived_at.desc(), EmergencyVisit.id.desc())
+              .limit(limit).all())
+    return newest[::-1]
 
 
 def for_patient(patient_id, limit=50):
@@ -202,13 +206,17 @@ def arrive(patient, user=None, arrival=None, visit=None, at=None,
     return row
 
 
-def send_from_clinic(visit, reason, user=None):
+def send_from_clinic(visit, reason, user=None, treatment_only=False):
     """«حوّل للطوارئ» → «طوارئ المستشفى عندنا»: the child arrives in this
     hospital's own emergency department, sent from a clinic visit, with the
     clinic doctor's reason on the attendance. The caller commits.
 
     A child already in the department is not opened twice — the clinic's
     reason is added to the attendance they are in.
+
+    ``treatment_only``: sent for a treatment and home — a nebuliser session,
+    an injection, a dressing — marked on the attendance the way the desk
+    marks a walk-in who came for one.
     """
     from app.models.emergency_visit import REFERRED
 
@@ -222,7 +230,8 @@ def send_from_clinic(visit, reason, user=None):
                    EmergencyVisit.departed_at.is_(None))
            .order_by(EmergencyVisit.arrived_at.desc()).first())
     if row is None:
-        row = arrive(visit.patient, user=user, arrival=REFERRED)
+        row = arrive(visit.patient, user=user, arrival=REFERRED,
+                     treatment_only=treatment_only)
     if row.from_visit_id is None:
         row.from_visit_id = visit.id
     row.sent_reason = why if not row.sent_reason else row.sent_reason
@@ -259,13 +268,26 @@ def take_back(visit):
         row.from_visit_id = None
         row.sent_reason = None
         return True
+    # What the clinic doctor wrote when sending («علاج بس») is the clinic's
+    # word too: it goes with the attendance as long as nobody gave it.
+    orders = EmergencyOrder.query.filter_by(emergency_visit_id=row.id).all()
+    ours_too = [o for o in orders if _written_with_the_referral(o, row)]
     started = (row.triaged_at is not None or row.departed_at is not None
-               or row.visit_id is not None
-               or EmergencyOrder.query.filter_by(emergency_visit_id=row.id).first())
+               or row.visit_id is not None or len(ours_too) != len(orders))
     if started:
         return False
+    for o in ours_too:
+        db.session.delete(o)
     db.session.delete(row)
     return True
+
+
+def _written_with_the_referral(order, row):
+    """An order the clinic doctor wrote in the same press that sent the child,
+    and that nobody has given or cancelled since."""
+    return (order.given_at is None and order.cancelled_at is None
+            and order.created_at is not None and row.arrived_at is not None
+            and abs((order.created_at - row.arrived_at).total_seconds()) < 60)
 
 
 def triage(row, level=None, scale=None, urgent=None, note=None, user=None,

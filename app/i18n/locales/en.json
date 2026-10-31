@@ -974,7 +974,15 @@
     "after_tiles": "After the consultation",
     "tile_sent": "Sent",
     "ai_strip_title": "AI visit summary",
-    "edit_phrases": "Edit phrases"
+    "edit_phrases": "Edit phrases",
+    "er_treatment": "Treatment only in emergency (session, injection, dressing)",
+    "er_treatment_hint": "The child arrives in emergency for treatment only, with what to give written as your order, ready for the nurse. Triage and payment are there, as for any child.",
+    "er_treatment_what": "What should be given?",
+    "er_treatment_detail": "Details — e.g. salbutamol 0.5 ml + saline 3 ml",
+    "er_treatment_why": "Reason (optional)",
+    "er_treatment_pick": "Choose what should be given in emergency.",
+    "er_treatment_ok": "The child was sent to emergency for «{what}», with the order written there in your name.",
+    "er_treatment_no_order": "The child was sent, but the order needs a doctor — the doctor in emergency will write it."
   },
   "diagnosis_types": {
     "working": "Working",
