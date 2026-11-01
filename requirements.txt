@@ -2,7 +2,7 @@ Flask==3.1.3
 Flask-SQLAlchemy==3.1.1
 Flask-Login==0.6.3
 # CSRF protection for every form in the clinic
-Flask-WTF==1.2.1
+Flask-WTF==1.3.0
 # 3.1.9 closes PYSEC-2026-4312 (3.1.6 had it).
 Werkzeug==3.1.9
 python-dotenv==1.2.4
@@ -21,9 +21,9 @@ segno==1.6.6
 # Arabic letters. Both are ready-made wheels on 32- and 64-bit Windows, with
 # nothing else to install (no GTK, no browser).
 fpdf2==2.8.9
-uharfbuzz==0.56.4
+uharfbuzz==0.57.0
 # Offline RCPCH UK growth reference (UK-WHO / UK90) — local Z-score/centile math
-rcpchgrowth==4.5.0
+rcpchgrowth==4.6.5
 # The IANA timezone database. Linux and macOS carry it; Windows does not,
 # and these clinics run on Windows — without it every ZoneInfo lookup fails
 # and the clinic's local time (and anything compared against a typed time)
