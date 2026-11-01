@@ -5802,6 +5802,7 @@ def approvals():
     waiting = (InvoiceItem.query.filter(InvoiceItem.approval_needed.is_(True))
                .order_by(InvoiceItem.id.desc()).limit(100).all())
     from app.utils import payer_forms
+    from app.utils import pdf as pdf_files
 
     payer_ids = {a.payer_id for a in rows}
     payers_by = {p.id: p for p in PayerEntity.query.filter(PayerEntity.id.in_(payer_ids)).all()} \
@@ -5810,6 +5811,7 @@ def approvals():
         "finance/approvals.html", rows=rows, state=state, states=APPROVAL_STATES,
         item=item, waiting=waiting,
         forms_of={pid: payer_forms.forms_for(p) for pid, p in payers_by.items()},
+        pdf_ready=pdf_files.available(),
         send_to={pid: payer_forms.where_to(p) for pid, p in payers_by.items()},
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
         services=Service.query.filter_by(is_active=True).order_by(Service.name).all())

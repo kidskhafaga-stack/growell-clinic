@@ -10,7 +10,8 @@ CONTRACTS_PLAN.md ع-٣, ع-٤ and ع-٥.
   and has none on file — said on the visit and the booking, not discovered
   when the bill is made. :func:`ask` opens the request, tied to them.
 * **Sent** (ع-٥): :func:`send` mails the request to the payer's approvals
-  desk, or puts it on WhatsApp, with the form as one self-contained file. The
+  desk, or puts it on WhatsApp, with the form as a PDF (``utils/pdf``; the self-contained page where the
+  library is missing). The
   answer is still recorded by a person (``utils/approvals.decide``) — the
   program never reads «approved» out of a reply by itself.
 """
@@ -278,6 +279,37 @@ def page_html(form, values, lang="ar"):
                            background=background, standalone=True)
 
 
+def page_pdf(form, values):
+    """The filled form as a PDF (``utils/pdf``) — the facts in their places
+    and, when the form prints on plain paper, the scan behind them. None when
+    the PDF library is not installed on this computer."""
+    import os
+
+    from app.utils import pdf
+    from app.utils.uploads import docs_dir
+
+    if form is None or not pdf.available():
+        return None
+    doc = pdf.new(form.width_mm, form.height_mm)
+    if form.background and form.print_background:
+        pdf.background(doc, os.path.join(docs_dir(), form.background))
+    for f in form.layout:
+        pdf.text_box(doc, f["x"], f["y"], f["w"], f["size"], values.get(f["key"], ""),
+                     align=f.get("align", "right"))
+    return pdf.output(doc)
+
+
+def attachment(form, values, lang="ar"):
+    """``(bytes, filename, mime)`` of the file that goes to the payer: the
+    PDF, or the self-contained page where the PDF library is missing."""
+    if form is None:
+        return None
+    data = page_pdf(form, values)
+    if data is not None:
+        return data, "approval-request.pdf", "application/pdf"
+    return page_html(form, values, lang).encode("utf-8"), "approval-request.html", "text/html"
+
+
 def send(approval, via, user, lang="ar"):
     """Send the request to the payer's approvals desk on ``via``. Returns
     the address it went to. The caller commits."""
@@ -294,18 +326,18 @@ def send(approval, via, user, lang="ar"):
     body = t("payer_form.request_body", patient=values["patient_name"],
              number=values["membership_number"] or "—", service=values["services"] or "—",
              diagnosis=values["diagnosis"] or "—", clinic=values["clinic_name"] or "")
+    attached = attachment(form, values, lang)
     if via == "email":
         _mail(address, t("payer_form.request_subject", patient=values["patient_name"]),
-              body, page_html(form, values, lang) if form is not None else None)
+              body, attached)
     else:
-        _whatsapp(address, body, approval, user,
-                  page_html(form, values, lang) if form is not None else None)
+        _whatsapp(address, body, approval, user, attached)
     approval.sent_at, approval.sent_via, approval.sent_to = datetime.utcnow(), via, address
     approval.sent_by = user.id
     return address
 
 
-def _mail(address, subject, body, html):
+def _mail(address, subject, body, attached=None):
     """Through the clinic's own mailbox (``utils/mail_channel``), the way it
     answers a family — the same server, the same login."""
     import email.utils
@@ -322,9 +354,10 @@ def _mail(address, subject, body, html):
     msg["From"], msg["To"], msg["Subject"] = cfg["address"], address, subject
     msg["Date"] = email.utils.formatdate(localtime=False)
     msg.set_content(body)
-    if html:
-        msg.add_attachment(html.encode("utf-8"), maintype="text", subtype="html",
-                           filename="approval-request.html")
+    if attached:
+        data, filename, mime = attached
+        maintype, subtype = mime.split("/", 1)
+        msg.add_attachment(data, maintype=maintype, subtype=subtype, filename=filename)
     context = ssl.create_default_context()
     try:
         if cfg["smtp_port"] == 465:
@@ -340,14 +373,15 @@ def _mail(address, subject, body, html):
         raise FormError("not_sent") from None
 
 
-def _whatsapp(address, body, approval, user, html=None):
+def _whatsapp(address, body, approval, user, attached=None):
     """On WhatsApp, with the form as a file where the connection can carry
     one (``whatsapp.send_document``); otherwise the words, and the person
     attaches the printed form."""
     from app.utils import whatsapp
 
-    if html:
-        log = whatsapp.send_document(body, address, html.encode("utf-8"), "approval-request.html",
+    if attached:
+        data, filename, mime = attached
+        log = whatsapp.send_document(body, address, data, filename, mime=mime,
                                      patient_id=approval.patient_id, user_id=user.id)
     else:
         log = whatsapp.send(body, address, patient_id=approval.patient_id, user_id=user.id,

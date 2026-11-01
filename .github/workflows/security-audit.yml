@@ -1,0 +1,58 @@
+# Known vulnerabilities in what the clinic runs — every week, whether or not
+# anybody pushed. A library pinned last month is not safer for nobody having
+# touched it: an advisory published today is about the version already in
+# every clinic. Asked as «نتأكد انها بتتحدث لوحدها علشان الامن».
+#
+# Cheap by design (a minute or two, no test suite): the Actions minutes are
+# metered (see python-package.yml). A failure here is mailed to the
+# repository's watchers like any failed run; the fix is a version bump, which
+# Dependabot usually opens by itself (.github/dependabot.yml).
+
+name: Security audit
+
+on:
+  schedule:
+    # Sundays 05:17 Cairo — after Dependabot's own Sunday run.
+    - cron: "17 3 * * 0"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "requirements.txt"
+      - "app/static/vendor/**"
+      - ".github/workflows/security-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      # requirements.txt: the Python libraries every clinic installs.
+      - name: Python libraries
+        run: |
+          python -m pip install pip-audit
+          pip-audit -r requirements.txt --progress-spinner off
+      # The 32-bit build stays on an older cryptography on purpose (no newer
+      # wheel exists for it — see requirements.txt). Its advisories are
+      # printed, not failed on, so the decision stays visible every week.
+      - name: Python libraries on 32-bit Windows (reported, kept on purpose)
+        run: |
+          grep 'platform_machine == "x86"' requirements.txt | sed 's/;.*//' > x86.txt
+          pip-audit -r x86.txt --progress-spinner off || true
+      # app/static/vendor: the browser libraries, listed in its package.json.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Browser libraries
+        working-directory: app/static/vendor
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm audit --audit-level=low
+          rm -f package-lock.json
+      - name: Which ones have a newer version (for information)
+        run: python tools/update_vendor.py --check

@@ -1,0 +1,47 @@
+# Keeping the program's own libraries current — asked as «نتأكد انها بتتحدث
+# لوحدها علشان الامن».
+#
+# Dependabot opens a pull request when a newer version is out; the full test
+# suite runs on it like on any change, and nothing reaches main until it is
+# green and merged. A clinic gets the new versions with its next `update.bat`
+# (UPGRADE_PLAN.md: opening the program never changes it).
+#
+# Grouped, and weekly or monthly: the Actions minutes are metered (see the
+# header of workflows/python-package.yml), and one pull request for every
+# library every day would spend them on nothing. A **security** fix does not
+# wait for the schedule — with Dependabot alerts and security updates switched
+# on in the repository's settings, it opens its own pull request at once.
+version: 2
+updates:
+  # requirements.txt — what every clinic installs.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "04:00"
+      timezone: "Africa/Cairo"
+    open-pull-requests-limit: 3
+    groups:
+      # Patch and minor releases together: one pull request, one test run.
+      python-libraries:
+        update-types: ["minor", "patch"]
+    # A major version changes how a library behaves; it gets its own pull
+    # request and a person reads its notes before it is merged.
+    commit-message:
+      prefix: "deps"
+    labels: ["dependencies"]
+
+  # The GitHub Actions the tests run on.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      timezone: "Africa/Cairo"
+    open-pull-requests-limit: 2
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci"
+    labels: ["dependencies"]

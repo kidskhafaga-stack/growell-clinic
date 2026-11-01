@@ -34,7 +34,7 @@ REM --- 1) Ensure Python is available ---
 where python >nul 2>nul
 if errorlevel 1 (
   echo [ERROR] Python is not installed or not on PATH.
-  echo Please install Python 3.10+ from https://www.python.org/downloads/
+  echo Please install Python 3.12 or newer from https://www.python.org/downloads/
   echo Make sure to tick "Add Python to PATH" during installation.
   pause
   exit /b 1

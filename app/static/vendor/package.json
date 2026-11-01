@@ -1,0 +1,11 @@
+{
+  "name": "growell-vendored-assets",
+  "private": true,
+  "description": "The browser libraries copied into app/static/vendor. Not installed with npm: listed here so GitHub's security alerts can see them, so tests/test_the_vendored_libraries_are_the_listed_versions.py can check the files are these versions, and so tools/update_vendor.py knows what to fetch.",
+  "dependencies": {
+    "alpinejs": "3.14.1",
+    "chart.js": "4.4.3",
+    "html2canvas": "1.4.1",
+    "bootstrap-icons": "1.11.3"
+  }
+}

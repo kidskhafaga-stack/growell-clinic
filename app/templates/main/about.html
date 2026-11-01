@@ -125,6 +125,10 @@
        background:var(--green-050);color:var(--ink);font-size:.85rem;line-height:1.7;
        white-space:pre-wrap;word-break:break-word;overflow-x:auto;"
   >{% for line in support_lines %}{{ line }}{{ '\n' if not loop.last }}{% endfor %}</pre>
+  {% if support.python_old %}
+  <p style="margin:10px 0 0;color:var(--danger);font-size:.88rem;" data-python-old>
+    <i class="bi bi-shield-exclamation"></i> {{ t('about.python_old', version=support.python) }}</p>
+  {% endif %}
   {% if support.backup.days is not none and support.backup.days >= 7 %}
   <p style="margin:10px 0 0;color:var(--danger);font-size:.88rem;">
     <i class="bi bi-exclamation-triangle"></i> {{ t('about.backup_stale') }}</p>
