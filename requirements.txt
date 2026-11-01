@@ -37,4 +37,4 @@ tzdata==2026.6
 # still open on 48.0.1 is certificate chains and PKCS#7, and the licence check
 # uses neither — one Ed25519 signature, nothing else.
 cryptography==50.0.2; platform_machine != "x86"
-cryptography==48.0.1; platform_machine == "x86"
+cryptography==50.0.2; platform_machine == "x86"
