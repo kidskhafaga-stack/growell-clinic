@@ -6652,7 +6652,10 @@ def cost_centre_list():
                                  db.func.count(JournalLine.id))
                 .filter(JournalLine.cost_centre_id.isnot(None))
                 .group_by(JournalLine.cost_centre_id).all())
-    return render_template("finance/cost_centres.html", rows=rows, used=used)
+    from app.models import User
+
+    staff = User.query.filter_by(is_active=True).order_by(User.full_name).all()
+    return render_template("finance/cost_centres.html", rows=rows, used=used, staff=staff)
 
 
 @finance_bp.route("/cost-centres/new", methods=["POST"])
@@ -6685,6 +6688,13 @@ def cost_centre_save(centre_id):
         row.name_ar = name[:80]
     row.name_en = (request.form.get("name_en") or "").strip()[:80] or None
     row.is_active = bool(request.form.get("is_active"))
+    if "head_id" in request.form:
+        from app.models import User
+        from app.utils import rca
+
+        head = db.session.get(User, request.form.get("head_id", type=int) or 0)
+        row.head_id = head.id if head is not None and head.is_active else None
+        rca.forget_heads()
     ActivityLog.record("cost_centre.update", user_id=current_user.id,
                        entity="cost_centre", entity_id=row.id,
                        detail=f"{row.key} active={int(row.is_active)}",

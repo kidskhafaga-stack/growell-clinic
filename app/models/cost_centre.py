@@ -34,8 +34,12 @@ class CostCentre(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     sort_order = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    #: رئيس القسم — sees the problems and the causes of this part of the
+    #: hospital on «تحليل الأسباب» (RCA_PLAN.md), and nothing else from it.
+    head_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
 
     unit = db.relationship("Unit")
+    head = db.relationship("User", foreign_keys=[head_id])
 
     @property
     def is_own(self):

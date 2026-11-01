@@ -113,6 +113,11 @@ def review(row, user, form):
         value = _text(form.get(field), limit)
         if value is not None or field in form:
             setattr(row, field, value)
+    if "cause_category" in form:
+        from app.models.complaint import ROOT_CAUSES
+
+        bone = (form.get("cause_category") or "").strip()
+        row.cause_category = bone if bone in ROOT_CAUSES else None
     raw_due = (form.get("action_due") or "").strip()
     if raw_due:
         try:

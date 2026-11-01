@@ -3493,6 +3493,57 @@ SECTIONS = [
         ],
     },
     {
+        # RCA_PLAN.md — the quality team's (whoever reviews the incident
+        # reports); a department's head reaches the same screen for their own.
+        "key": "rca",
+        "capability": "incident_manage",
+        "icon": "diagram-2",
+        "title": ("تحليل الأسباب (عظم السمكة وباريتو)", "Cause analysis (fishbone and Pareto)"),
+        "lines": [
+            ("<b>المشكلة</b> (الجودة ← تحليل الأسباب ← «مشكلة جديدة»): مؤشر جودة بعيد "
+             "عن هدفه (الشاشة بتعرض المؤشرات البعيدة عن هدفها ومحدش بيحللها، بزرار "
+             "«حلّل»)، أو الشكاوى، أو الحوادث، أو مشكلة تكتبها بإيدك — للمستشفى كلها "
+             "أو لقسم.",
+             "<b>The problem</b> (Quality → Cause analysis → «New problem»): a "
+             "quality measure off its target (the screen lists those nobody is "
+             "analysing, with «analyse»), the complaints, the incidents, or one "
+             "you write — for the whole hospital or for one department."),
+            ("<b>الأسباب</b>: كل سبب على فئة (الناس، الإجراءات، التواصل، الأجهزة، "
+             "المكان، السياسة، ظروف المريض) ووزن = حصل كام مرة. في الشكاوى والحوادث "
+             "الأسباب «من النظام» محسوبة لوحدها: الشكوى بسببها الجذري وموضوعها، "
+             "والحادثة بالفئة اللي المراجِع بيختارها في مراجعتها ونوعها. وتقدر "
+             "تضيف عليهم بإيدك.",
+             "<b>The causes</b>: each on a category (people, process, "
+             "communication, equipment, environment, policy, patient factors) "
+             "with a weight — how many times it happened. For complaints and "
+             "incidents the causes «from the system» are counted: a complaint by "
+             "its root cause and subject, an incident by the category its "
+             "reviewer chooses and its kind. You can add to them by hand."),
+            ("<b>رسمتين من نفس القايمة</b>: باريتو بالأتقل الأول وخط الـ٨٠٪ — "
+             "والجملة فوق بتقول أكبر سبب وأول كام سبب بيعملوا ٨٠٪، فابدأ بيهم — "
+             "وعظم السمكة بأتقل ٣ أسباب في كل فئة. اختار شهر أو ربع أو سنة، و«الكل / "
+             "من النظام / يدوي».",
+             "<b>Two drawings of one list</b>: the Pareto heaviest first with "
+             "the 80% line — the sentence above names the biggest cause and how "
+             "many make 80%, start with those — and the fishbone with the three "
+             "heaviest causes on each category. Pick a month, a quarter or a "
+             "year, and «All / From the system / Manual»."),
+            ("<b>من السبب لمشروع تحسين</b>: «ابدأ مشروع تحسين» على السبب، واكتب "
+             "الهدف — المشروع بيظهر في «مشاريع التحسين» مربوط بالمؤشر. ومشكلة "
+             "المؤشر بتحفظ قيمته يوم ما اتفتحت، والشاشة بتقول اتحسّن ولا اتسوأ.",
+             "<b>From a cause to an improvement project</b>: «Start an "
+             "improvement project» on the cause and write the aim — it appears "
+             "under «Improvement projects», tied to the measure. A measure's "
+             "problem keeps its value from the day it opened, and the screen "
+             "says whether it got better or worse."),
+            ("<b>رئيس القسم</b> (الحسابات ← مراكز التكلفة ← «رئيس القسم»): بيشوف "
+             "الشاشة دي لمشاكل قسمه بس، وبيفتح مشاكل لقسمه بس.",
+             "<b>The department head</b> (Finance → Cost centres → «Department "
+             "head»): sees this screen for their own department's problems only, "
+             "and opens problems for it only."),
+        ],
+    },
+    {
         "key": "settings",
         "module": "settings",
         "icon": "gear",

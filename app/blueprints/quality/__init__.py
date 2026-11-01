@@ -6,3 +6,4 @@ quality_bp = Blueprint("quality", __name__, url_prefix="/quality")
 
 from app.blueprints.quality import routes  # noqa: E402,F401
 from app.blueprints.quality import governance_routes  # noqa: E402,F401
+from app.blueprints.quality import rca_routes  # noqa: E402,F401

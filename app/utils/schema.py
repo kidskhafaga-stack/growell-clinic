@@ -1127,6 +1127,10 @@ ADDITIONS = [
     # an injection) without being admitted — counted as taken by every screen.
     ("emergency_visits", "place_bed_id", "INTEGER"),
     ("emergency_visits", "placed_at", "DATETIME"),
+    # «تحليل الأسباب» (RCA_PLAN.md): the head of each part of the hospital,
+    # and the bone of the fishbone an incident's cause sits on.
+    ("cost_centres", "head_id", "INTEGER"),
+    ("incidents", "cause_category", "VARCHAR(16)"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

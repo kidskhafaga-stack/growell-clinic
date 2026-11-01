@@ -46,6 +46,15 @@
   {% for field, rows_n in (('findings', 3), ('root_cause', 3), ('action', 3), ('family_told', 2), ('external_report', 2)) %}
   <div class="form-row" style="margin:0;"><label for="r_{{ field }}">{{ t('incident.f_' ~ field) }}</label>
     <textarea class="input" id="r_{{ field }}" name="{{ field }}" rows="{{ rows_n }}" {{ 'readonly' if ro }}>{{ row[field] or '' }}</textarea></div>
+  {% if field == 'root_cause' %}
+  {# Which bone of the fishbone — so «تحليل الأسباب» counts the incidents
+     beside the complaints (RCA_PLAN.md). #}
+  <div class="form-row" style="margin:0;"><label for="r_bone">{{ t('rca.bone') }}</label>
+    <select class="input" id="r_bone" name="cause_category" style="max-width:280px;" {{ 'disabled' if ro }} data-cause-category>
+      <option value="">—</option>
+      {% for c in cause_categories %}<option value="{{ c }}" {{ 'selected' if row.cause_category == c }}>{{ t('cmp.cause_' ~ c) }}</option>{% endfor %}
+    </select></div>
+  {% endif %}
   {% endfor %}
   <div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
     <div class="form-row" style="margin:0;"><label for="r_owner">{{ t('incident.f_action_owner') }}</label><input class="input" id="r_owner" name="action_owner" maxlength="160" value="{{ row.action_owner or '' }}" {{ 'readonly' if ro }}></div>

@@ -425,6 +425,18 @@ def create_app(config_name="default"):
         return {"booking_clinic_policy": booking_clinic_policy}
 
     @app.context_processor
+    def inject_rca_door():
+        """Whether the menu shows «تحليل الأسباب»: the quality team, the
+        administration, a department's head (RCA_PLAN.md). Asked lazily, and
+        the list of heads is kept for a minute (``utils/rca.heads``)."""
+        def rca_may_open(user):
+            if not getattr(user, "is_authenticated", False):
+                return False
+            from app.utils import rca
+            return rca.may_open(user)
+        return {"rca_may_open": rca_may_open}
+
+    @app.context_processor
     def inject_visit_types():
         """Expose the editable visit-type catalogue to templates: an active
         list for selects, plus label/colour resolvers for any stored key."""
