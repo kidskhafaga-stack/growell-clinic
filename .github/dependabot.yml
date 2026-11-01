@@ -31,6 +31,21 @@ updates:
     commit-message:
       prefix: "deps"
     labels: ["dependencies"]
+    # What Dependabot cannot know about the clinics' computers. Each of these
+    # opened a pull request that would have stopped an update.bat
+    # (tools/check_wheels.py catches the same on every change; these keep it
+    # from being asked every week).
+    ignore:
+      # The 32-bit line stays on 48.x: from 49 there is no 32-bit wheel, and
+      # Dependabot moves both lines together. A new major of cryptography is
+      # read and bumped by a person; the weekly audit says when it is due.
+      - dependency-name: "cryptography"
+        update-types: ["version-update:semver-major"]
+      # No Python 3.10 wheels from these on. Remove when 3.10 is dropped.
+      - dependency-name: "uharfbuzz"
+        versions: [">=0.57"]
+      - dependency-name: "fpdf2"
+        versions: [">=2.9"]
 
   # The GitHub Actions the tests run on.
   - package-ecosystem: "github-actions"

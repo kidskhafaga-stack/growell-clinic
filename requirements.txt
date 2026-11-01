@@ -23,7 +23,11 @@ segno==1.6.6
 fpdf2==2.8.9
 uharfbuzz==0.56.4
 # Offline RCPCH UK growth reference (UK-WHO / UK90) — local Z-score/centile math
-rcpchgrowth==4.5.0
+# Not on 32-bit Windows: it needs scipy, which has had no 32-bit wheel since
+# 1.9, so pip would try to compile it and update.bat would stop. Without it
+# the UK charts are off and WHO/CDC remain (app/utils/rcpch.py); found by
+# tools/check_wheels.py.
+rcpchgrowth==4.5.0; platform_machine != "x86"
 # The IANA timezone database. Linux and macOS carry it; Windows does not,
 # and these clinics run on Windows — without it every ZoneInfo lookup fails
 # and the clinic's local time (and anything compared against a typed time)

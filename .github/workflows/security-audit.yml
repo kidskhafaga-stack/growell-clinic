@@ -18,6 +18,7 @@ on:
   pull_request:
     paths:
       - "requirements.txt"
+      - "tools/check_wheels.py"
       - "app/static/vendor/**"
       - ".github/workflows/security-audit.yml"
 
@@ -56,3 +57,18 @@ jobs:
           rm -f package-lock.json
       - name: Which ones have a newer version (for information)
         run: python tools/update_vendor.py --check
+
+  # Can every clinic computer still install requirements.txt? Windows 32- and
+  # 64-bit, each Python a clinic may run, wheels only (tools/check_wheels.py).
+  # A version with no wheel for one of them stops that clinic's update.bat.
+  wheels:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Every Windows build and Python a clinic may run
+        run: |
+          python -m pip install uv
+          python tools/check_wheels.py
