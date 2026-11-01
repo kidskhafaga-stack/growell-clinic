@@ -344,3 +344,98 @@ def mark_seen(row, user, at=None):
     row.seen_at = at or datetime.utcnow()
     row.seen_by_id = getattr(user, "id", None)
     return True
+
+
+# ------------------------------------------------- partitions and queue ----
+# «أماكن الجلسات غالباً هي البارتيشن — خد بالك السرير اللي في البارتيشن».
+# The places a child sits for a session are the department's own partitions,
+# built once in the bed setup; nothing here is a second count of them.
+
+def partitions():
+    """Every partition in the emergency units, and who is in it.
+
+    ``{"rows": [{bed, unit, who, how}], "total", "busy", "free": [bed]}`` —
+    ``how`` is ``stay`` (admitted to it), ``session`` (sitting in it for a
+    treatment), ``free`` or ``off`` (out of service, or in a closed unit).
+    """
+    from app.models.place import Bed, Space, Unit
+    from app.utils import beds as place
+
+    beds = (Bed.query.join(Space, Bed.space_id == Space.id)
+            .join(Unit, Space.unit_id == Unit.id)
+            .filter(Unit.kind == "emergency")
+            .order_by(Unit.sort_order, Space.sort_order, Bed.sort_order, Bed.id).all())
+    stays = place.open_stays_by_bed()
+    sessions = place.session_beds()
+    rows, free = [], []
+    for bed in beds:
+        stay, sitting = stays.get(bed.id), sessions.get(bed.id)
+        if stay is not None:
+            how, who = "stay", stay.admission.patient
+        elif sitting is not None:
+            how, who = "session", sitting.patient
+        elif place.in_service(bed):
+            how, who = "free", None
+            free.append(bed)
+        else:
+            how, who = "off", None
+        rows.append({"bed": bed, "how": how, "who": who,
+                     "attendance": sitting, "unit": bed.space.unit})
+    in_use = [r for r in rows if r["how"] != "off"]
+    return {"rows": rows, "total": len(in_use),
+            "busy": sum(1 for r in in_use if r["how"] != "free"), "free": free}
+
+
+def queue(attendances):
+    """``{attendance id: number in the queue}`` for the children here who
+    are waiting for a place — not admitted and not in a partition.
+
+    Urgent first, then by who arrived first: the queue is the triage's
+    order, never only the clock's. A child not triaged yet waits by arrival,
+    after the urgent ones and before the rest — nobody knows they are not.
+    """
+    waiting = [a for a in attendances
+               if a.is_open and a.admission_id is None and a.place_bed_id is None]
+
+    def rank(a):
+        level = 0 if a.urgent else (1 if a.triaged_at is None else 2)
+        return (level, a.arrived_at, a.id)
+
+    return {a.id: n for n, a in enumerate(sorted(waiting, key=rank), start=1)}
+
+
+class NoPlace(ValueError):
+    """The partition is not one of the department's, is out of service, or
+    somebody is in it."""
+
+
+def seat(row, bed, user=None, at=None):
+    """Put a waiting child in a partition for their session. The caller
+    commits. Raises :class:`NoPlace`."""
+    from datetime import datetime
+
+    from app.utils import beds as place
+
+    if row is None or not row.is_open or row.admission_id is not None:
+        raise NoPlace("not waiting")
+    if bed is None or bed.space is None or bed.space.unit is None \
+            or bed.space.unit.kind != "emergency":
+        raise NoPlace("not a partition")
+    if not place.in_service(bed):
+        raise NoPlace("out of service")
+    if row.place_bed_id == bed.id:
+        return row
+    if bed.id in place.occupied_bed_ids():
+        raise NoPlace("occupied")
+    row.place_bed_id = bed.id
+    row.placed_at = at or datetime.utcnow()
+    return row
+
+
+def unseat(row):
+    """The session is over and the child is out of the partition, still in
+    the department (waiting to be seen again, or for the paper). The caller
+    commits."""
+    if row is not None and row.is_open:
+        row.place_bed_id = None
+    return row

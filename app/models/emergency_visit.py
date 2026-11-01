@@ -130,8 +130,16 @@ class EmergencyVisit(db.Model):
     # Empty on every child who walked in.
     from_visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), index=True)
     sent_reason = db.Column(db.Text)
+    # **The partition the child sits in for a session** — a nebuliser, an
+    # injection, a dressing — without being admitted. While the attendance
+    # is open the bed is taken on every screen (``beds.occupied_bed_ids``),
+    # so nobody admits another child into it; empty while the child waits
+    # in the queue. Kept after they leave, as the record of where they sat.
+    place_bed_id = db.Column(db.Integer, db.ForeignKey("care_beds.id"), index=True)
+    placed_at = db.Column(db.DateTime)
 
     patient = db.relationship("Patient", backref="emergency_visits")
+    place_bed = db.relationship("Bed", foreign_keys=[place_bed_id])
     visit = db.relationship("Visit", foreign_keys=[visit_id])
     from_visit = db.relationship("Visit", foreign_keys=[from_visit_id])
     admission = db.relationship("Admission")

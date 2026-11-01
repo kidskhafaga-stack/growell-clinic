@@ -242,6 +242,20 @@
         {% if stay.admission_id not in signed %}<span class="bm-bed__flag" data-unsigned title="{{ t('beds.consent_chip_missing') }}">✍ {{ t('beds.consent_flag') }}</span>{% endif %}
         <span class="bm-bed__timer" data-timer>{{ t('beds.since') }} {{ stay.since|clinic_stamp }}</span>
       </div>
+      {% elif cell.state == 'session' %}
+      {# In emergency for a session, not admitted: the partition is taken,
+         and the child is reached through their attendance. #}
+      <div class="bm-bed bm-bed--taken" data-bed="{{ cell.bed.id }}" data-bed-session="{{ cell.session.id }}">
+        {{ bed_shape(cell.bed.kind, row.unit.kind, True) }}
+        <span class="bm-bed__name">{{ cell.bed.display_name(current_lang) }}</span>
+        {% if row.unit.id in open_units %}
+        <a class="bm-bed__who" href="{{ url_for('emergency.attendance', attendance_id=cell.session.id) }}">{{ cell.patient.display_name(current_lang) }}</a>
+        {% else %}
+        <span class="bm-bed__who" data-team-only><i class="bi bi-shield-lock"></i> {{ t('beds.team_only') }}</span>
+        {% endif %}
+        <span class="bm-bed__dx">{{ t('er_queue.how_session') }}</span>
+        <span class="bm-bed__timer">{{ t('beds.since') }} {{ cell.session.placed_at|clinic_stamp }}</span>
+      </div>
       {% elif cell.state == 'free' %}
       <div role="button" tabindex="0" class="bm-bed bm-bed--free" data-bed="{{ cell.bed.id }}" data-free
               data-bed-name="{{ row.unit.display_name(current_lang) }} · {{ cell.bed.display_name(current_lang) }}">

@@ -508,7 +508,10 @@ def test_the_board_shows_the_children_in_order(hospital):
 
     page = hospital["sign_in"]("boss").get("/emergency/").get_data(as_text=True)
     assert 'data-level="unseen"' in page
-    assert page.index("محدش قاسه") < page.index("مستقر")
+    # In the worst-first list itself — the partitions above it name the same
+    # children in the order of the beds.
+    rows = page[page.index("dept-row lv-"):]
+    assert rows.index("محدش قاسه") < rows.index("مستقر")
 
 
 def test_the_department_does_not_ask_once_per_child(hospital):

@@ -16462,5 +16462,20 @@
     "by_auto": "Handed over automatically",
     "by_escalated": "Moved after nobody replied",
     "by_suggested": "From the program's suggestion"
+  },
+  "er_queue": {
+    "places": "Partitions",
+    "places_line": "{total} partitions · {busy} in use · {free} free",
+    "full": "Emergency is full — {n} in the queue",
+    "has_free": "A place is free — the first {n} in the queue may go in",
+    "how_stay": "Taken (admitted)",
+    "how_session": "Session",
+    "number": "Number {n} in the queue",
+    "its_turn": "Their turn now — a partition is free",
+    "seat": "Seat",
+    "unseat": "Done — free the partition",
+    "seated": "The child is in {bed}.",
+    "unseated": "The partition is free; the child is still in emergency.",
+    "no_place": "That partition is taken or out of service — choose another."
   }
 }

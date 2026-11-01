@@ -49,9 +49,50 @@ def index():
     from app.utils import waiting_on
 
     bedless = [a for a in er.open_visits() if a.admission_id is None]
+    # In a partition first, then the queue in its own order (urgent first).
+    numbers = er.queue(bedless)
+    bedless.sort(key=lambda a: (a.id in numbers, numbers.get(a.id, 0),
+                                a.placed_at or a.arrived_at))
     return department_screen.render(
         MODULE, KIND, attendances=bedless,
-        attendance_waiting=waiting_on.for_attendances(bedless))
+        attendance_waiting=waiting_on.for_attendances(bedless),
+        queue=numbers, partitions=er.partitions())
+
+
+@emergency_bp.route("/attendance/<int:attendance_id>/seat", methods=["POST"])
+@module_required(MODULE)
+def seat(attendance_id):
+    """«دخّله البارتيشن» — the child's turn: into a free partition for the
+    session, without being admitted."""
+    from app.models import EmergencyVisit
+    from app.models.place import Bed
+    from app.utils import emergency as er
+
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    bed = db.session.get(Bed, request.form.get("bed_id", type=int) or 0)
+    try:
+        er.seat(row, bed, user=current_user)
+    except er.NoPlace:
+        db.session.rollback()
+        flash(t("er_queue.no_place"), "error")
+        return redirect(url_for("emergency.index"))
+    db.session.commit()
+    flash(t("er_queue.seated", bed=bed.display_name(getattr(g, "lang", "ar"))), "success")
+    return redirect(url_for("emergency.index"))
+
+
+@emergency_bp.route("/attendance/<int:attendance_id>/unseat", methods=["POST"])
+@module_required(MODULE)
+def unseat(attendance_id):
+    """«خلّص — فضّى البارتيشن»: the session is over, the child is still here."""
+    from app.models import EmergencyVisit
+    from app.utils import emergency as er
+
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    er.unseat(row)
+    db.session.commit()
+    flash(t("er_queue.unseated"), "success")
+    return redirect(request.referrer or url_for("emergency.index"))
 
 
 def _reasons():
