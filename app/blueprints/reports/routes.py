@@ -1333,6 +1333,9 @@ def hospital_board():
     on = hospital_kpis.parts()
     if not any(on.values()):
         abort(404)
+    # ٧هـ: the money of a bed day — with the beds, and only for the finance
+    # rights (the same rule as «الأداء»).
+    on["money"] = on["safety"] and current_user.can("finance_manage")
     w = _board_window()
     return render_template(
         "reports/hospital_board.html", w=w, on=on,

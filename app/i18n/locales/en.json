@@ -15680,7 +15680,20 @@
     "unit_day_care": "Day care",
     "unit_recovery": "Recovery",
     "unit_None": "No unit",
-    "not_here": "Stays, occupancy, deaths, readmissions and emergency triage are on the medical board. Deaths against severity are still to come — the scoring scale's licence must be confirmed first."
+    "not_here": "Stays, occupancy, deaths, readmissions and emergency triage are on the medical board. Deaths against severity are still to come — the scoring scale's licence must be confirmed first.",
+    "money_title": "Revenue and cost per bed day and per case",
+    "money_sub": "Each unit's revenue and direct cost from the cost centres (the same figures as the cost-centre report and the books), divided by the bed days in the unit and by the cases that had a bed in it in the period. Shown only to the finance rights.",
+    "revenue_day": "Revenue per day",
+    "direct_day": "Direct cost per day",
+    "contribution_day": "Difference per day",
+    "revenue_case": "Revenue per case",
+    "direct_case": "Cost per case",
+    "cases": "Cases",
+    "cases_n": "{n} cases",
+    "revenue": "Revenue",
+    "direct": "Direct cost",
+    "money_note": "Shared costs ({shared}, such as rent and electricity) are not spread over the units, and revenue not placed in a cost centre ({unplaced}, such as old bills or an insurer's payment on a claim) is not counted to a unit. The cost per case is the unit's average.",
+    "money_door": "Cost-centre report"
   },
   "money": {
     "too_precise": "The amount has more than two places after the point — write it to the piastre (for example 12.35). Nothing was recorded."

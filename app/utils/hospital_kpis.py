@@ -5,7 +5,9 @@ Asked so that a clinic running at clinic level never sees them: *«زود ده �
 العيادة بس»*. So **each section exists only when its department is switched
 on** (`facility.module_enabled`): the emergency's times with ``emergency``,
 the theatres with ``theatres``, the return to intensive care with ``icu`` or
-``nicu``, the safety rates per 1000 bed days with ``beds``.
+``nicu``, the safety rates per 1000 bed days with ``beds`` — and, with
+``beds`` and only for whoever holds the finance rights, the revenue and the
+cost of a bed day and of a case in each unit (:func:`money`).
 
 What the medical board already shows (stays, occupancy, deaths, readmission,
 triage levels and where children went) is not repeated here.
@@ -284,13 +286,84 @@ def safety(d_from, d_to):
     return {"rows": rows, "days": round(total_days, 1), "whole": whole}
 
 
+# -------------------------------------- revenue and cost per bed day ----
+def _per(amount, by):
+    return round(amount / by, 2) if by else None
+
+
+def money(d_from, d_to):
+    """What a bed day and a case brought in and cost, in each unit.
+
+    The money is the cost-centre report's (``utils/cost_centre_report``):
+    read from the journal, so a unit's revenue and direct costs here are the
+    same figures as on that report and add up to the income statement. The
+    days are the bed stays (the same days as the safety rates); the cases are
+    the stays (admissions) that had a bed in the unit in the period.
+
+    Two things are said rather than spread: the **shared costs** (rent,
+    electricity — an expense entered against no centre) are not shared out to
+    the units by a rule nobody agreed, and the revenue **not placed** in a
+    centre (old bills, an insurer's payment on a claim) is not guessed into
+    one. Both are shown as their totals under the table.
+    """
+    from app.models.place import Unit
+    from app.utils import cost_centre_report
+    from app.utils.med_board import utc
+
+    start, end = utc(d_from, d_to)
+    now = datetime.utcnow()
+    days, cases = Counter(), defaultdict(set)
+    for aid, _pid, unit_id, _kind, since, until in _stays(start, end):
+        hours = (min(until or now, end) - max(since, start)).total_seconds() / 3600
+        if hours > 0:
+            days[unit_id] += hours / 24
+            cases[unit_id].add(aid)
+    report = cost_centre_report.report(d_from, d_to)
+    by_unit = {line["centre"].unit_id: line for line in report["lines"]
+               if line["centre"] is not None and line["centre"].unit_id}
+    units = {u.id: u for u in Unit.query.filter(
+        Unit.id.in_(list(set(days) | set(by_unit)) or [0])).all()}
+    rows = []
+    for unit_id in set(days) | set(by_unit):
+        line = by_unit.get(unit_id) or {}
+        revenue, direct = line.get("revenue", 0.0), line.get("direct", 0.0)
+        d, n = round(days.get(unit_id, 0.0), 1), len(cases.get(unit_id, ()))
+        rows.append({
+            "unit": units.get(unit_id), "days": d, "cases": n,
+            "revenue": revenue, "direct": direct,
+            "contribution": round(revenue - direct, 2),
+            "revenue_day": _per(revenue, d), "direct_day": _per(direct, d),
+            "contribution_day": _per(revenue - direct, d),
+            "revenue_case": _per(revenue, n), "direct_case": _per(direct, n),
+        })
+    rows.sort(key=lambda r: (-r["revenue"], -r["days"]))
+    total_days = round(sum(r["days"] for r in rows), 1)
+    total_cases = len(set().union(*cases.values())) if cases else 0
+    revenue = round(sum(r["revenue"] for r in rows), 2)
+    direct = round(sum(r["direct"] for r in rows), 2)
+    return {
+        "rows": rows,
+        "whole": {"days": total_days, "cases": total_cases, "revenue": revenue,
+                  "direct": direct, "contribution": round(revenue - direct, 2),
+                  "revenue_day": _per(revenue, total_days),
+                  "direct_day": _per(direct, total_days),
+                  "contribution_day": _per(revenue - direct, total_days),
+                  "revenue_case": _per(revenue, total_cases),
+                  "direct_case": _per(direct, total_cases)},
+        "shared": report["shared_total"],
+        "unplaced": report["unplaced_total"],
+    }
+
+
 def board(d_from, d_to, on=None):
     """Every section this hospital has, for the period. A department it does
-    not run is ``None`` and is not drawn."""
+    not run is ``None`` and is not drawn. ``on["money"]`` is the caller's to
+    set: it is the finance rights of whoever is looking, not a department."""
     on = on if on is not None else parts()
     return {
         "emergency": emergency(d_from, d_to) if on["emergency"] else None,
         "theatres": theatres(d_from, d_to) if on["theatres"] else None,
         "critical": critical(d_from, d_to) if on["critical"] else None,
         "safety": safety(d_from, d_to) if on["safety"] else None,
+        "money": money(d_from, d_to) if on.get("money") else None,
     }
