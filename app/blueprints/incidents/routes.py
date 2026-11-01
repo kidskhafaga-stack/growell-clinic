@@ -84,8 +84,11 @@ def index():
 @_reviewer
 def view(incident_id):
     row = db.get_or_404(Incident, incident_id)
+    from app.models.complaint import ROOT_CAUSES
+
     return render_template("incidents/view.html", row=row, classes=CLASSES,
-                           missing=inc.still_missing(row), clock=inc.sentinel_clock(row))
+                           missing=inc.still_missing(row), clock=inc.sentinel_clock(row),
+                           cause_categories=ROOT_CAUSES)
 
 
 @incidents_bp.route("/<int:incident_id>/review", methods=["POST"])

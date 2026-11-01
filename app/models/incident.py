@@ -69,6 +69,10 @@ class Incident(db.Model):
     classification = db.Column(db.String(16), index=True)
     findings = db.Column(db.Text)
     root_cause = db.Column(db.Text)
+    #: Which bone of the fishbone the cause sits on — the same eight the
+    #: complaints close with (``complaint.ROOT_CAUSES``), so «تحليل الأسباب»
+    #: can count the incidents beside the complaints (RCA_PLAN.md).
+    cause_category = db.Column(db.String(16), index=True)
     action = db.Column(db.Text)
     action_owner = db.Column(db.String(160))
     action_due = db.Column(db.Date)

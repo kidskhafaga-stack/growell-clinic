@@ -1,0 +1,335 @@
+{% extends "shell.html" %}
+{% set active_module = 'rca' %}
+{% block title %}{{ t('rca.title') }}{% endblock %}
+{% block page_heading %}{{ t('rca.title') }}{% endblock %}
+
+{# RCA_PLAN.md — «تحليل الأسباب»: the problems as cards, and the one chosen
+   drawn twice — the fishbone and the Pareto — from the same list of causes
+   (``utils/rca``). #}
+{% macro cause_name(r) -%}{{ r.text if r.text else t(r.label) }}{%- endmacro %}
+{% macro src_badge(s) -%}<span class="rca-src rca-src--{{ s }}">{{ t('rca.src_' ~ s) }}</span>{%- endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-diagram-2"></i> {{ t('rca.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:76ch;">{{ t('rca.lead') }}</p>
+  </div>
+  <button class="btn btn-outline gc-press no-print" type="button" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+</div>
+{% if team %}{% from "quality/_nav.html" import quality_nav with context %}{{ quality_nav('rca') }}{% endif %}
+
+<form method="get" class="card gc-scale-in rca-bar no-print" data-rca-period>
+  {% if view %}<input type="hidden" name="p" value="{{ view.p.id }}">{% endif %}
+  <div class="rca-seg">
+    {% for key, f, to in presets %}
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if (f == q['from'] and to == q['to']) else 'btn-outline' }}" href="{{ url_for('quality.rca', p=view.p.id if view else None, only=only, **{'from': f, 'to': to}) }}">{{ t('rca.p_' ~ key) }}</a>
+    {% endfor %}
+  </div>
+  <label>{{ t('board_cs.from') }} <input class="input" type="date" name="from" value="{{ q['from'] }}"></label>
+  <label>{{ t('board_cs.to') }} <input class="input" type="date" name="to" value="{{ q['to'] }}"></label>
+  <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('board_cs.show') }}</button>
+  <div class="rca-seg" style="margin-inline-start:auto;" data-rca-only>
+    {% for key in (None, 'system', 'manual') %}
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if only == key else 'btn-outline' }}" href="{{ url_for('quality.rca', p=view.p.id if view else None, only=key, **q) }}">{{ t('rca.only_' ~ (key or 'all')) }}</a>
+    {% endfor %}
+  </div>
+</form>
+
+{# The problems. #}
+<div class="rca-cards gc-scale-in" data-rca-cards>
+  {% for c in cards %}
+  {% set p = c.p %}
+  <a class="rca-card {{ 'is-on' if view and view.p.id == p.id else '' }} {{ 'is-closed' if not p.is_open else '' }}" href="{{ url_for('quality.rca', p=p.id, only=only, **q) }}" data-rca-card="{{ p.id }}">
+    <span class="rca-card__k">{{ p.measure.name if p.measure else (p.cost_centre.display_name(current_lang) if p.cost_centre else t('rca.whole')) }}</span>
+    <b class="rca-card__t" dir="auto">{{ p.title }}</b>
+    {% if c.measure %}
+      {% set m = c.measure %}
+      <span class="rca-card__v num {{ 'is-bad' if m.off else 'is-ok' if m.off == false else '' }}" dir="ltr">{{ m.now }}{% if m.change_pct is not none %} <small>{{ '+' if m.change_pct > 0 else '' }}{{ m.change_pct }}%</small>{% endif %}</span>
+    {% elif c.count is defined %}
+      <span class="rca-card__v num {{ 'is-bad' if c.change and c.change > 0 else 'is-ok' if c.change and c.change < 0 else '' }}" dir="ltr">{{ c.count }}{% if c.change is not none %} <small>{{ '+' if c.change > 0 else '' }}{{ c.change }}%</small>{% endif %}</span>
+    {% endif %}
+    <span class="rca-card__f"><span>{{ t('rca.n_causes', n=c.n) }}</span>{{ src_badge(p.source) }}</span>
+    {% if not p.is_open %}<span class="badge badge--muted">{{ t('rca.closed') }}</span>{% endif %}
+  </a>
+  {% endfor %}
+  <details class="rca-card rca-card--new" data-rca-new {{ 'open' if not cards }}>
+    <summary><i class="bi bi-plus-lg"></i> {{ t('rca.new') }}</summary>
+    <form method="post" action="{{ url_for('quality.rca_new') }}" class="rca-new" x-data="{ src: '{{ 'measure' if suggested else 'manual' }}' }">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <select class="input input-sm" name="source" x-model="src" data-rca-source>
+        {% for s in ('measure', 'complaints', 'incidents', 'manual') %}{% if team or s != 'measure' %}<option value="{{ s }}">{{ t('rca.src_' ~ s) }}</option>{% endif %}{% endfor %}
+      </select>
+      {% if team %}
+      <select class="input input-sm" name="measure_id" x-show="src === 'measure'" :disabled="src !== 'measure'">
+        {% for m in measures %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
+      </select>
+      {% endif %}
+      <input class="input input-sm" name="title" maxlength="200" placeholder="{{ t('rca.title_ph') }}" dir="auto">
+      <select class="input input-sm" name="cost_centre_id" {{ 'required' if not team }}>
+        {% if team %}<option value="">{{ t('rca.whole') }}</option>{% endif %}
+        {% for c in centres %}<option value="{{ c.id }}">{{ c.display_name(current_lang) }}</option>{% endfor %}
+      </select>
+      <button class="btn btn-primary btn-sm gc-press" type="submit" data-rca-open>{{ t('rca.open') }}</button>
+    </form>
+  </details>
+</div>
+
+{% if suggested %}
+<div class="rca-suggest gc-scale-in" data-rca-suggested>
+  <span class="hint" style="margin:0;"><i class="bi bi-exclamation-diamond"></i> {{ t('rca.suggested') }}</span>
+  {% for m, s in suggested %}
+  <form method="post" action="{{ url_for('quality.rca_new') }}" style="margin:0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="source" value="measure"><input type="hidden" name="measure_id" value="{{ m.id }}">
+    <button class="btn btn-sm btn-outline gc-press" type="submit" data-rca-suggest="{{ m.id }}">{{ m.name }} <b class="num" dir="ltr">{{ s.now }}</b> — {{ t('rca.analyse') }}</button>
+  </form>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if view %}
+{% set P = view.pareto %}
+{% if P.rows %}
+{% set top = P.rows[0] %}
+<div class="rca-headline gc-scale-in" data-rca-headline>
+  <i class="bi bi-lightbulb"></i>
+  {{ t('rca.headline', cause=cause_name(top), share=top.share|round|int, n=P.vital, line=line) }}
+</div>
+{% endif %}
+
+{% if view.measure %}
+{% set m = view.measure %}
+<div class="rca-measure gc-scale-in" data-rca-measure>
+  <span><b>{{ view.p.measure.name }}</b> — {{ t('rca.m_now', v=m.now, period=m.period) }}{% if view.p.measure.target is not none %} · {{ t('rca.m_target', v=view.p.measure.target) }}{% endif %}</span>
+  {% if view.p.baseline is not none %}
+  <span class="badge {{ 'badge--green' if m.better else 'badge--danger' if m.better == false else 'badge--muted' }}" data-rca-since>
+    {{ t('rca.m_since', v=view.p.baseline, period=view.p.baseline_period) }} · {{ t('rca.m_better') if m.better else t('rca.m_worse') if m.better == false else t('rca.m_same') }}</span>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="rca-grid">
+  {# The fishbone: the problem at the head, a bone per category that holds
+     something, its heaviest causes on it. #}
+  <section class="card gc-scale-in rca-fish" data-rca-fish>
+    <div class="rca-h"><h2 class="section-title" style="margin:0;">{{ t('rca.fish') }}</h2><span class="hint" style="margin:0;">{{ t('rca.fish_hint', n=3) }}</span></div>
+    {% set F = view.fish %}
+    {% if F.bones %}
+    <div class="rca-scroll">
+    <svg viewBox="0 0 {{ F.w }} {{ F.h }}" role="img" aria-label="{{ t('rca.fish') }}" class="rca-svg">
+      <ellipse cx="{{ (F.w / 2)|round(1) }}" cy="{{ F.spine_y }}" rx="{{ (F.w / 2 - 50)|round(1) }}" ry="{{ (F.h / 2 - 30)|round(1) }}" class="rca-body"/>
+      <line x1="{{ F.head_w }}" y1="{{ F.spine_y }}" x2="{{ F.tail_x }}" y2="{{ F.spine_y }}" class="rca-spine"/>
+      <polygon points="{{ F.tail_x }},{{ F.spine_y }} {{ F.w - 6 }},{{ F.spine_y - 40 }} {{ F.w - 6 }},{{ F.spine_y + 40 }}" class="rca-tail"/>
+      <path d="M {{ F.head_w }} {{ F.spine_y - 92 }} A {{ F.head_w - 14 }} 92 0 0 0 {{ F.head_w }} {{ F.spine_y + 92 }} Z" class="rca-head"/>
+      <text x="{{ (F.head_w / 2 + 22)|round(1) }}" y="{{ F.spine_y - 30 }}" text-anchor="middle" class="rca-head-k">{{ t('rca.the_problem') }}</text>
+      {% for line in F.title %}<text x="{{ (F.head_w / 2 + 22)|round(1) }}" y="{{ F.spine_y - 4 + loop.index0 * 17 }}" text-anchor="middle" class="rca-head-t">{{ line }}</text>{% endfor %}
+      <text x="{{ (F.head_w / 2 + 22)|round(1) }}" y="{{ F.spine_y + 42 }}" text-anchor="middle" class="rca-head-k">{{ t('rca.weight_total', n=F.total) }}</text>
+      {% for b in F.bones %}
+      <line x1="{{ b.x0 }}" y1="{{ b.y0 }}" x2="{{ b.x1 }}" y2="{{ b.y1 }}" class="rca-bone bone-{{ b.bone }}"/>
+      <g data-rca-bone="{{ b.bone }}">
+        <rect x="{{ b.lx - F.pill_w / 2 }}" y="{{ b.ly - 14 }}" width="{{ F.pill_w }}" height="26" rx="13" class="rca-pill rca-pill--{{ b.bone }}"><title>{{ t('cmp.cause_' ~ b.bone) }} · {{ b.share }}%</title></rect>
+        <text x="{{ b.lx }}" y="{{ b.ly + 4 }}" text-anchor="middle" class="rca-pill-t">{{ t('cmp.cause_' ~ b.bone)|truncate(F.pill_chars, True, '…') }} · {{ b.share }}%</text>
+      </g>
+      {% for it in b.twigs %}
+      <line x1="{{ it.x }}" y1="{{ it.y }}" x2="{{ it.end }}" y2="{{ it.y }}" class="rca-twig"/>
+      <circle cx="{{ it.x }}" cy="{{ it.y }}" r="4.5" class="{{ 'dot-vital' if it.row.vital else 'dot-' ~ b.bone }}"/>
+      <text x="{{ it.tx }}" y="{{ it.y - 6 }}" text-anchor="start" class="rca-twig-t"><title>{{ cause_name(it.row) }} — {{ it.row.weight }}</title>{{ cause_name(it.row)|truncate(20, True, '…') }}</text>
+      <text x="{{ it.nx }}" y="{{ it.y + 13 }}" text-anchor="start" class="rca-twig-n">{{ it.row.weight }}</text>
+      {% endfor %}
+      {% endfor %}
+    </svg>
+    </div>
+    {% else %}
+    <p class="hint" data-rca-empty>{{ t('rca.no_causes') }}</p>
+    {% endif %}
+  </section>
+
+  {# The Pareto: the same causes, heaviest first, and the line where 80% is. #}
+  <div class="rca-two">
+  <section class="card gc-scale-in" data-rca-pareto>
+    <h2 class="section-title" style="margin-top:0;">{{ t('rca.pareto') }}</h2>
+    {% set C = view.chart %}
+    {% if C %}
+    <svg viewBox="0 0 {{ C.w }} {{ C.h }}" role="img" aria-label="{{ t('rca.pareto') }}" class="rca-svg">
+      {% for y, lab in ((C.y100, '100%'), (C.y80, '80%'), (C.y50, '50%'), (C.y0, '0')) %}
+      <line x1="{{ C.left }}" y1="{{ y }}" x2="{{ C.right }}" y2="{{ y }}" class="{{ 'rca-l80' if lab == '80%' else 'rca-grid-l' }}"/>
+      <text x="{{ C.left - 4 }}" y="{{ y + 4 }}" text-anchor="end" class="rca-ax">{{ lab }}</text>
+      {% endfor %}
+      <text x="{{ C.right - 2 }}" y="{{ C.y80 - 4 }}" text-anchor="end" class="rca-l80-t">{{ t('rca.line', n=line) }}</text>
+      {% for b in C.bars %}
+      <rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" rx="2" class="{{ 'bar-vital' if b.vital else 'bar-rest' }}" data-rca-bar="{{ b.n }}"><title>{{ b.weight }}</title></rect>
+      <text x="{{ b.cx }}" y="{{ C.base + 16 }}" text-anchor="middle" class="rca-ax">{{ b.n }}</text>
+      {% endfor %}
+      <polyline points="{{ C.line }}" class="rca-run"/>
+      {% for x, y in C.dots %}<circle cx="{{ x }}" cy="{{ y }}" r="3.5" class="rca-run-dot"/>{% endfor %}
+    </svg>
+    {% else %}<p class="hint">{{ t('rca.no_causes') }}</p>{% endif %}
+  </section>
+  <section class="card gc-scale-in" data-rca-bones>
+    <h2 class="section-title" style="margin-top:0;">{{ t('rca.by_bone') }}</h2>
+    {% if view.bones %}
+    <div class="rca-strip" data-rca-strip>
+      {% for bone, n, share in view.bones %}<span class="dot-bg-{{ bone }}" style="width:{{ share }}%" title="{{ t('cmp.cause_' ~ bone) }} {{ share }}%"></span>{% endfor %}
+    </div>
+    <div class="rca-legend">
+      {% for bone, n, share in view.bones %}<span><i class="dot-bg-{{ bone }}"></i> {{ t('cmp.cause_' ~ bone) }} <b class="num">{{ share|round|int }}%</b></span>{% endfor %}
+    </div>
+    {# Each category as a bar of its own — the strip above, read one by one. #}
+    <ul class="rca-bonebars">
+      {% for bone, n, share in view.bones %}
+      <li><span>{{ t('cmp.cause_' ~ bone) }}</span><span class="rca-bonebar"><i class="dot-bg-{{ bone }}" style="width:{{ share }}%"></i></span><b class="num">{{ n }}</b></li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="hint">{{ t('rca.no_causes') }}</p>{% endif %}
+  </section>
+  </div>
+</div>
+
+{# Every cause, in the Pareto's order — the table the drawing is made from. #}
+<section class="card gc-scale-in" data-rca-table>
+  <div class="rca-h">
+    <h2 class="section-title" style="margin:0;">{{ t('rca.causes') }} — <span dir="auto">{{ view.p.title }}</span></h2>
+    {% if view.p.cost_centre %}<span class="badge badge--muted">{{ view.p.cost_centre.display_name(current_lang) }}</span>{% endif %}
+    {{ src_badge(view.p.source) }}
+  </div>
+  {% if P.rows %}
+  <div class="rca-tablewrap"><table class="table">
+    <thead><tr><th>#</th><th>{{ t('rca.bone') }}</th><th>{{ t('rca.cause') }}</th><th>{{ t('rca.weight') }}</th><th>{{ t('rca.share') }}</th><th>{{ t('rca.running') }}</th><th>{{ t('rca.source') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for r in P.rows %}
+    <tr class="{{ 'is-vital' if r.vital else '' }}" data-rca-row="{{ loop.index }}">
+      <td class="num">{{ loop.index }}</td>
+      <td><span class="rca-dot dot-bg-{{ r.category }}"></span> {{ t('cmp.cause_' ~ r.category) }}</td>
+      <td dir="auto">{{ cause_name(r) }}</td>
+      <td class="num">{{ r.weight }}</td>
+      <td class="num">{{ r.share }}%</td>
+      <td class="num">{{ r.running }}%</td>
+      <td>{{ src_badge(r.source) }}</td>
+      <td>
+        {% if r.row %}
+          {% if r.row.project %}
+          <a class="badge badge--green" href="{{ url_for('quality.projects') }}#p-{{ r.row.project_id }}" data-rca-project="{{ r.row.id }}"><i class="bi bi-lightbulb"></i> {{ t('rca.project') }}{% if r.row.project.implemented %} · {{ t('qual.implemented') }}{% endif %}</a>
+          {% elif view.may_edit and view.p.is_open %}
+          <details class="rca-mini">
+            <summary class="btn btn-sm btn-outline">{{ t('rca.to_project') }}</summary>
+            <form method="post" action="{{ url_for('quality.rca_cause_project', cause_id=r.row.id) }}" data-rca-to-project="{{ r.row.id }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <textarea class="input" name="aim" rows="2" required placeholder="{{ t('rca.aim_ph') }}" dir="auto"></textarea>
+              <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('rca.make_project') }}</button>
+            </form>
+          </details>
+          {% endif %}
+          {% if view.may_edit and view.p.is_open %}
+          <details class="rca-mini">
+            <summary class="btn btn-sm btn-outline"><i class="bi bi-pencil"></i></summary>
+            <form method="post" action="{{ url_for('quality.rca_cause_edit', cause_id=r.row.id) }}" data-rca-edit="{{ r.row.id }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <select class="input input-sm" name="category">{% for b in all_bones %}<option value="{{ b }}" {{ 'selected' if b == r.category }}>{{ t('cmp.cause_' ~ b) }}</option>{% endfor %}</select>
+              <input class="input input-sm" name="text" value="{{ r.text }}" maxlength="200" dir="auto">
+              <input class="input input-sm num" type="number" min="1" name="weight" value="{{ r.weight }}">
+              <div style="display:flex;gap:6px;"><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+              <button class="btn btn-sm btn-outline gc-press" type="submit" name="remove" value="1">{{ t('rca.remove') }}</button></div>
+            </form>
+          </details>
+          {% endif %}
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="hint">{{ t('rca.no_causes') }}</p>{% endif %}
+
+  {% if view.may_edit and view.p.is_open %}
+  <form method="post" action="{{ url_for('quality.rca_cause', problem_id=view.p.id) }}" class="rca-add" data-rca-add>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <b>{{ t('rca.add') }}</b>
+    <select class="input input-sm" name="category" required>{% for b in all_bones %}<option value="{{ b }}">{{ t('cmp.cause_' ~ b) }}</option>{% endfor %}</select>
+    <input class="input input-sm" name="text" required maxlength="200" placeholder="{{ t('rca.cause_ph') }}" dir="auto" style="min-width:220px;">
+    <label class="hint" style="margin:0;">{{ t('rca.weight') }} <input class="input input-sm num" type="number" min="1" name="weight" value="1" style="width:80px;"></label>
+    <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('rca.add_btn') }}</button>
+  </form>
+  {% if view.p.source in ('complaints', 'incidents') %}<p class="hint" style="margin:6px 0 0;">{{ t('rca.system_hint_' ~ view.p.source) }}</p>{% endif %}
+  {% endif %}
+  {% if view.may_edit %}
+  <form method="post" action="{{ url_for('quality.rca_close', problem_id=view.p.id) }}" style="margin-top:10px;" class="no-print">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-sm btn-outline gc-press" type="submit" data-rca-close>{{ t('rca.close') if view.p.is_open else t('rca.reopen') }}</button>
+  </form>
+  {% endif %}
+</section>
+{% elif not cards %}
+<div class="card gc-scale-in"><p class="hint" style="margin:0;">{{ t('rca.none') }}</p></div>
+{% endif %}
+
+<style>
+  :root { --b-people:#2d6cb5; --b-process:#b7791f; --b-communication:#8a5cc2; --b-equipment:#3f7d20;
+          --b-environment:#5b6ab0; --b-policy:#8a5a2b; --b-patient:#b0476b; --b-unclear:#8b93a1; }
+  .rca-bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  .rca-bar label { display:flex; gap:6px; align-items:center; }
+  .rca-seg { display:flex; gap:4px; flex-wrap:wrap; }
+  .rca-cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:10px; margin-bottom:12px; }
+  .rca-card { display:grid; gap:4px; align-content:start; background:var(--surface,#fff); border:1px solid var(--line); border-radius:14px; padding:12px 14px; color:inherit; text-decoration:none; }
+  .rca-card.is-on { border:2px solid var(--brand-700, #1d4f7a); box-shadow:0 2px 10px rgba(0,0,0,.06); }
+  .rca-card.is-closed { opacity:.7; }
+  .rca-card__k { color:var(--muted); font-size:.82rem; }
+  .rca-card__t { font-size:1.02rem; }
+  .rca-card__v { font-size:1.05rem; font-weight:800; }
+  .rca-card__v.is-bad { color:var(--red-600,#c0392b); } .rca-card__v.is-ok { color:var(--green-700,#1f6e52); }
+  .rca-card__f { display:flex; justify-content:space-between; gap:6px; color:var(--muted); font-size:.82rem; align-items:center; }
+  .rca-card--new { border-style:dashed; }
+  .rca-card--new summary { cursor:pointer; font-weight:700; list-style:none; text-align:center; padding:14px 0; }
+  .rca-new { display:grid; gap:6px; }
+  .rca-src { font-size:.75rem; border-radius:999px; padding:1px 8px; background:var(--surface-2, rgba(0,0,0,.05)); }
+  .rca-src--system, .rca-src--complaints, .rca-src--incidents { background:rgba(45,108,181,.12); }
+  .rca-src--measure { background:rgba(183,121,31,.15); }
+  .rca-suggest { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  .rca-headline, .rca-measure { display:flex; gap:10px; flex-wrap:wrap; align-items:center; background:var(--surface-2, rgba(0,0,0,.04)); border-radius:12px; padding:10px 14px; margin-bottom:12px; }
+  .rca-grid { display:grid; grid-template-columns:minmax(0, 1fr); gap:12px; margin-bottom:12px; }
+  .rca-two { display:grid; grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr); gap:12px; }
+  @media (max-width:860px) { .rca-two { grid-template-columns:minmax(0, 1fr); } }
+
+  .rca-h { display:flex; gap:8px; flex-wrap:wrap; align-items:baseline; margin-bottom:8px; }
+  .rca-h3 { font-size:.95rem; margin:14px 0 6px; }
+  .rca-scroll { overflow-x:auto; }
+  .rca-svg { width:100%; height:auto; font-family:inherit; }
+  .rca-fish .rca-svg { min-width:760px; }
+  .rca-tablewrap { overflow-x:auto; }
+  .rca-body { fill:var(--surface-2, rgba(0,0,0,.035)); }
+  .rca-spine { stroke:var(--ink, #1f2a3a); stroke-width:5; }
+  .rca-tail, .rca-head { fill:var(--ink, #1f2a3a); }
+  .rca-head-k { fill:#cfd6e2; font-size:12px; } .rca-head-t { fill:#fff; font-size:14px; font-weight:700; }
+  .rca-bone { stroke-width:4; stroke-linecap:round; }
+  .rca-twig { stroke:var(--muted, #8b93a1); stroke-width:1.2; }
+  .rca-twig-t { fill:var(--ink, #1f2a3a); font-size:12.5px; direction:rtl; unicode-bidi:plaintext; }
+  .rca-pill-t { direction:rtl; }
+  .rca-twig-n { fill:var(--ink, #1f2a3a); font-size:12px; font-weight:800; }
+  .rca-pill { fill:var(--surface, #fff); stroke-width:1.5; }
+  {% for b in all_bones %}.rca-pill--{{ b }} { stroke:var(--b-{{ b }}); } {% endfor %}
+  .rca-pill-t { fill:var(--ink, #1f2a3a); font-size:12.5px; font-weight:700; } .rca-pill-n { fill:var(--muted, #8b93a1); font-size:11.5px; }
+  {% for b in all_bones %}
+  .bone-{{ b }} { stroke:var(--b-{{ b }}); } .dot-{{ b }} { fill:var(--b-{{ b }}); } .dot-bg-{{ b }} { background:var(--b-{{ b }}); }
+  {% endfor %}
+  .dot-vital { fill:#d08a1c; stroke:#fff; stroke-width:1.5; }
+  .rca-grid-l { stroke:var(--line, #e3e7ee); } .rca-l80 { stroke:#d08a1c; stroke-dasharray:4 3; }
+  .rca-l80-t { fill:#b7791f; font-size:10px; font-weight:700; } .rca-ax { fill:var(--muted, #8b93a1); font-size:10px; }
+  .bar-vital { fill:#c98316; } .bar-rest { fill:#b9bcc2; }
+  .rca-run { fill:none; stroke:var(--ink, #1f2a3a); stroke-width:1.6; } .rca-run-dot { fill:var(--surface, #fff); stroke:var(--ink, #1f2a3a); stroke-width:1.4; }
+  .rca-bonebars { list-style:none; margin:14px 0 0; padding:0; display:grid; gap:8px; }
+  .rca-bonebars li { display:grid; grid-template-columns:minmax(90px, 140px) 1fr 40px; gap:8px; align-items:center; font-size:.9rem; }
+  .rca-bonebar { height:10px; border-radius:999px; background:var(--surface-2, rgba(0,0,0,.06)); overflow:hidden; display:block; }
+  .rca-bonebar i { display:block; height:100%; border-radius:999px; }
+  .rca-strip { display:flex; height:12px; border-radius:999px; overflow:hidden; gap:2px; }
+  .rca-legend { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; font-size:.85rem; }
+  .rca-legend i { display:inline-block; width:10px; height:10px; border-radius:3px; vertical-align:middle; }
+  .rca-dot { display:inline-block; width:10px; height:10px; border-radius:3px; vertical-align:middle; }
+  tr.is-vital td:first-child { box-shadow:inset -3px 0 0 #c98316; font-weight:800; }
+  .rca-mini { display:inline-block; } .rca-mini summary { list-style:none; cursor:pointer; }
+  .rca-mini form { display:grid; gap:6px; margin-top:6px; min-width:220px; }
+  .rca-add { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px; padding-top:10px; border-top:1px dashed var(--line); }
+  html[data-theme="dark"] .rca-twig-t, html[data-theme="dark"] .rca-twig-n, html[data-theme="dark"] .rca-pill-t { fill:#e6e9ef; }
+  html[data-theme="dark"] .rca-spine { stroke:#c9d1dc; } html[data-theme="dark"] .rca-tail, html[data-theme="dark"] .rca-head { fill:#2a3547; }
+  html[data-theme="dark"] .rca-run, html[data-theme="dark"] .rca-run-dot { stroke:#e6e9ef; }
+</style>
+{% endblock %}

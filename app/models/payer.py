@@ -64,6 +64,11 @@ class PayerEntity(db.Model):
     contact_person = db.Column(db.String(120))
     phone = db.Column(db.String(40))
     email = db.Column(db.String(120))
+    # CONTRACTS_PLAN.md ع-٥ — where an approval request is sent: the payer's
+    # approvals desk, by mail or on WhatsApp. Empty → nothing is sent, the
+    # request is printed.
+    approvals_email = db.Column(db.String(120))
+    approvals_whatsapp = db.Column(db.String(40))
     address = db.Column(db.String(255))
     notes = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
@@ -587,10 +592,21 @@ class InsuranceApproval(db.Model):
     requested_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     decided_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     decided_at = db.Column(db.DateTime)
+    # ع-٤ — asked for early: from the visit the doctor ordered it in, or the
+    # booking it was made for, before the bill finds it missing.
+    visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), index=True)
+    appointment_id = db.Column(db.Integer, db.ForeignKey("appointments.id"), index=True)
+    # ع-٥ — when, how and to whom it went to the payer, and by whom.
+    sent_at = db.Column(db.DateTime)
+    sent_via = db.Column(db.String(10))
+    sent_to = db.Column(db.String(120))
+    sent_by = db.Column(db.Integer, db.ForeignKey("users.id"))
 
     patient = db.relationship("Patient")
     payer = db.relationship("PayerEntity")
     service = db.relationship("Service")
+    visit = db.relationship("Visit")
+    appointment = db.relationship("Appointment")
 
     def holds_on(self, day):
         """Approved, and still in force on ``day``."""

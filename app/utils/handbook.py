@@ -358,6 +358,20 @@ SECTIONS = [
              "the empty boxes only — what you wrote stays — and «Write the "
              "prescription from» opens the prescription ready. Edit or share them "
              "under «Ready visits»."),
+            ("<b>والكشف الجاهز بيشيل كمان التحاليل والمتابعة وتعليمات الأهل:</b> "
+             "علّم «ومعاه التحاليل والمتابعة وتعليمات الأهل» وانت بتحفظه، أو ضيفهم "
+             "من «الكشوف الجاهزة» (ومعاهم قالب لوح التخصص لو عندك). لما تختاره في "
+             "كشف بيظهروا بعلامة صح — شيل اللي مش عايزه — و<b>مفيش حاجة بتتطلب إلا "
+             "لما تدوس «حفظ»</b>: التحليل المطلوب خلاص ما بيتطلبش تاني، والمتابعة "
+             "وتعليمات الأهل بيتكتبوا بس لو فاضيين.",
+             "<b>A ready visit also carries tests, the follow-up and the family's "
+             "instructions:</b> tick «with the tests, follow-up and family "
+             "instructions» when saving it, or add them under «Ready visits» "
+             "(with your specialty panel's template if you have one). Chosen on a "
+             "visit, they appear ticked — untick what you do not want — and "
+             "<b>nothing is ordered until you press «Save»</b>: a test already "
+             "ordered is not ordered twice, and the follow-up and the family's "
+             "instructions are written only where empty."),
             ("<b>تكرار روشتة المرض المزمن:</b> جنب كل مشكلة نشطة في قايمة مشاكل "
              "المريض زرار «كرر آخر روشتة» — في الكشف وفي شاشة الروشتة. بيفتح روشتة "
              "جديدة فيها نفس الأدوية: اللي جرعته بالوزن بتتحسب من جديد على وزن "
@@ -2769,6 +2783,30 @@ SECTIONS = [
         "icon": "file-earmark-medical",
         "title": ("الجهات والمطالبات", "Payers & claims"),
         "lines": [
+            ("<b>استمارة كل شركة:</b> (جهات الدفع ← استمارات الشركات) ارفع صورة الاستمارة "
+             "الفاضية مرة، ودوس على البيانات (اسم الطفل، رقم العضوية، الفئة، التشخيص وكوده، "
+             "نوع الخدمة، رقم الموافقة، الطبيب، التاريخ…) واسحبها لمكانها. بتطلع مليانة من "
+             "الكشف (زرار باسم الاستمارة فوق) ومن كل طلب موافقة — على ورق أبيض بالاستمارة "
+             "وراها، أو على ورق الشركة المطبوع بالبيانات بس — والطبيب يوقّع.",
+             "<b>Each payer's form:</b> (Payers → Payer forms) upload the blank "
+             "form's picture once, press the facts (child's name, membership "
+             "number, plan, diagnosis and code, kind of service, approval number, "
+             "doctor, date…) and drag them into place. It prints filled from the "
+             "visit (a button with the form's name at the top) and from every "
+             "approval request — on plain paper with the form behind, or on the "
+             "payer's printed form with the facts alone — and the doctor signs."),
+            ("<b>الموافقة بدري، والإرسال للشركة:</b> لو خدمة على الكشف محتاجة موافقة في "
+             "العقد، الكشف بيقول كده وفيه «اطلب الموافقة»؛ والحجز بيفتح الطلب لوحده "
+             "ويقول للاستقبال. من «الموافقات» اطبع الاستمارة أو ابعتها لإيميل أو واتساب "
+             "موافقات الشركة (بيتكتبوا في بيانات الجهة) — والرد بتسجّله إنت بالرقم "
+             "والخطاب، البرنامج ما بيقراش «اتقبلت» لوحده.",
+             "<b>Approval early, and sent to the payer:</b> when a service on a "
+             "visit needs an approval under the contract, the visit says so with "
+             "«Ask for the approval»; a booking opens the request by itself and "
+             "tells the desk. From «Approvals» print the form or send it to the "
+             "payer's approvals email or WhatsApp (set on the payer) — and you "
+             "record the answer with its number and letter; the program never "
+             "reads «approved» by itself."),
             ("<b>كارت التأمين والاستقبال:</b> في ملف الطفل (العيلة ← التأمين) الكارت فيه "
              "رقم العضوية وفئة الاشتراك وصاحب الاشتراك وصلته بالطفل وتاريخ الإصدار والانتهاء "
              "وصورته وش وضهر. حالة الكارت بتظهر جنب اسم الطفل عند الحجز وفي لوحة اليوم "
@@ -3490,6 +3528,57 @@ SECTIONS = [
              "staff accounts, wiping data, restoring a backup, the licence and "
              "the door itself. Every page and every save is recorded, and "
              "when the time is up it is signed out on its next click."),
+        ],
+    },
+    {
+        # RCA_PLAN.md — the quality team's (whoever reviews the incident
+        # reports); a department's head reaches the same screen for their own.
+        "key": "rca",
+        "capability": "incident_manage",
+        "icon": "diagram-2",
+        "title": ("تحليل الأسباب (عظم السمكة وباريتو)", "Cause analysis (fishbone and Pareto)"),
+        "lines": [
+            ("<b>المشكلة</b> (الجودة ← تحليل الأسباب ← «مشكلة جديدة»): مؤشر جودة بعيد "
+             "عن هدفه (الشاشة بتعرض المؤشرات البعيدة عن هدفها ومحدش بيحللها، بزرار "
+             "«حلّل»)، أو الشكاوى، أو الحوادث، أو مشكلة تكتبها بإيدك — للمستشفى كلها "
+             "أو لقسم.",
+             "<b>The problem</b> (Quality → Cause analysis → «New problem»): a "
+             "quality measure off its target (the screen lists those nobody is "
+             "analysing, with «analyse»), the complaints, the incidents, or one "
+             "you write — for the whole hospital or for one department."),
+            ("<b>الأسباب</b>: كل سبب على فئة (الناس، الإجراءات، التواصل، الأجهزة، "
+             "المكان، السياسة، ظروف المريض) ووزن = حصل كام مرة. في الشكاوى والحوادث "
+             "الأسباب «من النظام» محسوبة لوحدها: الشكوى بسببها الجذري وموضوعها، "
+             "والحادثة بالفئة اللي المراجِع بيختارها في مراجعتها ونوعها. وتقدر "
+             "تضيف عليهم بإيدك.",
+             "<b>The causes</b>: each on a category (people, process, "
+             "communication, equipment, environment, policy, patient factors) "
+             "with a weight — how many times it happened. For complaints and "
+             "incidents the causes «from the system» are counted: a complaint by "
+             "its root cause and subject, an incident by the category its "
+             "reviewer chooses and its kind. You can add to them by hand."),
+            ("<b>رسمتين من نفس القايمة</b>: باريتو بالأتقل الأول وخط الـ٨٠٪ — "
+             "والجملة فوق بتقول أكبر سبب وأول كام سبب بيعملوا ٨٠٪، فابدأ بيهم — "
+             "وعظم السمكة بأتقل ٣ أسباب في كل فئة. اختار شهر أو ربع أو سنة، و«الكل / "
+             "من النظام / يدوي».",
+             "<b>Two drawings of one list</b>: the Pareto heaviest first with "
+             "the 80% line — the sentence above names the biggest cause and how "
+             "many make 80%, start with those — and the fishbone with the three "
+             "heaviest causes on each category. Pick a month, a quarter or a "
+             "year, and «All / From the system / Manual»."),
+            ("<b>من السبب لمشروع تحسين</b>: «ابدأ مشروع تحسين» على السبب، واكتب "
+             "الهدف — المشروع بيظهر في «مشاريع التحسين» مربوط بالمؤشر. ومشكلة "
+             "المؤشر بتحفظ قيمته يوم ما اتفتحت، والشاشة بتقول اتحسّن ولا اتسوأ.",
+             "<b>From a cause to an improvement project</b>: «Start an "
+             "improvement project» on the cause and write the aim — it appears "
+             "under «Improvement projects», tied to the measure. A measure's "
+             "problem keeps its value from the day it opened, and the screen "
+             "says whether it got better or worse."),
+            ("<b>رئيس القسم</b> (الحسابات ← مراكز التكلفة ← «رئيس القسم»): بيشوف "
+             "الشاشة دي لمشاكل قسمه بس، وبيفتح مشاكل لقسمه بس.",
+             "<b>The department head</b> (Finance → Cost centres → «Department "
+             "head»): sees this screen for their own department's problems only, "
+             "and opens problems for it only."),
         ],
     },
     {

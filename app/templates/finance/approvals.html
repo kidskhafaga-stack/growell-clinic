@@ -12,7 +12,10 @@
     <h1 class="page-title"><i class="bi bi-patch-check"></i> {{ t('approvals.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('approvals.sub') }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('finance.claims') }}"><i class="bi bi-send"></i> {{ t('approvals.to_claims') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.payer_forms') }}" data-to-payer-forms><i class="bi bi-file-earmark-richtext"></i> {{ t('payer_form.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.claims') }}"><i class="bi bi-send"></i> {{ t('approvals.to_claims') }}</a>
+  </div>
 </div>
 
 {% if waiting %}
@@ -81,6 +84,10 @@
       <div class="hint" style="margin:0;">{{ a.service.display_name(current_lang) if a.service else t('approvals.whole_stay') }}
         {% if a.description %} · {{ a.description }}{% endif %}
         {% if a.estimate %} · {{ t('approvals.estimate') }} {{ a.estimate|money }}{% endif %}</div>
+      {# Asked for early (ع-٤) — from the visit or the booking it is for. #}
+      {% if a.visit_id %}<div class="hint" style="margin:0;" data-approval-from="visit"><i class="bi bi-clipboard2-pulse"></i> {{ t('payer_form.from_visit', day=a.visit.visit_date) }}</div>
+      {% elif a.appointment_id %}<div class="hint" style="margin:0;" data-approval-from="appointment"><i class="bi bi-calendar-check"></i> {{ t('payer_form.from_booking', day=a.appointment.appt_date) }}</div>{% endif %}
+      {% if a.sent_at %}<div class="hint" style="margin:0;" data-approval-sent><i class="bi bi-send-check"></i> {{ t('payer_form.sent_line', via=t('payer_form.via_' ~ a.sent_via), to=a.sent_to, when=a.sent_at|clinic_stamp) }}</div>{% endif %}
     </div>
     <span class="badge {{ 'badge--green' if a.status == 'approved' else ('badge--danger' if a.status == 'rejected' else 'badge--warn') }}">{{ t('approvals.state_' ~ a.status) }}</span>
     {% if a.status == 'approved' %}
@@ -99,6 +106,19 @@
       <input class="input" type="file" name="letter" accept=".pdf,image/*" required style="max-width:200px;">
       <button class="btn btn-sm btn-outline gc-press" type="submit"><i class="bi bi-upload"></i> {{ t('approvals.add_letter') }}</button>
     </form>
+    {% endif %}
+    {# The payer's form, filled for this request (ع-٣), and — to the payer's
+       approvals desk — sent (ع-٥). #}
+    {% for f in forms_of.get(a.payer_id, []) %}
+    <a class="btn btn-sm btn-outline gc-press" target="_blank" href="{{ url_for('main.payer_form_print', form_id=f.id, approval=a.id) }}" data-approval-form="{{ f.id }}"><i class="bi bi-printer"></i> {{ f.name }}</a>
+    {% endfor %}
+    {% if a.status == 'requested' %}
+    {% for via, to in send_to.get(a.payer_id, []) %}
+    <form method="post" action="{{ url_for('finance.approval_send', approval_id=a.id) }}" style="margin:0;" data-approval-send="{{ via }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="via" value="{{ via }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit" title="{{ to }}"><i class="bi bi-{{ 'envelope' if via == 'email' else 'whatsapp' }}"></i> {{ t('payer_form.send_' ~ via) }}</button>
+    </form>
+    {% endfor %}
     {% endif %}
     {% if a.status == 'requested' %}
     <details>

@@ -255,12 +255,20 @@ def record(visit_id):
         if used_vt:
             from app.utils import visit_templates
             visit_templates.used(set(used_vt), current_user)
+        # And the rest of a ready visit the doctor kept ticked: its tests,
+        # the follow-up and what the family is told — only where empty.
+        rest = None
+        if any(k in request.form for k in ("vt_test", "vt_days", "vt_family")):
+            from app.utils import visit_templates
+            rest = visit_templates.apply_rest(visit, request.form, current_user)
         ActivityLog.record(
             "visit.update", user_id=current_user.id, entity="visit",
             entity_id=visit.id, ip_address=client_ip(),
         )
         db.session.commit()
         flash(t("visits.saved"), "success")
+        if rest and (rest["tests"] or rest["followup"] or rest["family"]):
+            flash(t("visit_tpl.rest_done", n=rest["tests"]), "info")
         return redirect(url_for("visits.record", visit_id=visit.id))
 
     # Continuity context: what the doctor should see when the patient returns
@@ -427,6 +435,7 @@ def record(visit_id):
         "visits/record.html", visit=visit, recent_visits=recent_visits,
         fall_on=fall_on, er_here=er_here,
         er_sent=_er.sent_from(visit) if er_here else None,
+        **_payer_bits(visit),
         er_services=_er_services() if er_here else [],
         fall_criteria=fall_screen.criteria() if fall_on else [],
         fall_row=fall_screen.for_visit(visit.id) if fall_on else None,
@@ -597,6 +606,18 @@ def record(visit_id):
         vital_bands=vital_bands.table(),
         vital_fixed=vital_bands.FIXED,
     )
+
+
+def _payer_bits(visit):
+    """The payer's form for this visit and what on it waits for an approval
+    (CONTRACTS_PLAN.md ع-٣, ع-٤) — nothing for a child with no valid card."""
+    from app.utils import payer_forms
+
+    card = visit.patient.active_coverage if visit.patient is not None else None
+    if card is None or not card.is_valid_on(visit.visit_date):
+        return {"payer_forms_here": [], "payer_asks": []}
+    return {"payer_forms_here": payer_forms.forms_for(card.payer, "outpatient"),
+            "payer_asks": payer_forms.asks_for(visit.patient, visit=visit)}
 
 
 def _dental_chart_url(visit):
@@ -2543,11 +2564,19 @@ def visit_template_save():
     from app.utils import visit_templates
 
     data = request.get_json(silent=True) or {}
+    # With the rest of the visit when asked: its catalogue tests, what the
+    # family was told and the follow-up in days, read from the saved visit.
+    rest = {}
+    if data.get("with_rest") and data.get("visit_id"):
+        visit = db.session.get(Visit, int(data.get("visit_id") or 0))
+        if visit is not None:
+            rest = visit_templates.rest_of_visit(visit)
+    rest["panel"] = data.get("panel_tpl") or None
     try:
         row = visit_templates.save(current_user, data.get("name"), data.get("cc"),
                                    data.get("exam"), data.get("plan"),
                                    preset_id=data.get("preset") or None,
-                                   shared=bool(data.get("shared")))
+                                   shared=bool(data.get("shared")), rest=rest)
     except visit_templates.TemplateError as err:
         db.session.rollback()
         return jsonify(ok=False, message=t(f"visit_tpl.err_{err}")), 400
@@ -2579,16 +2608,32 @@ def visit_templates_screen():
                                    request.form.get("cc"), request.form.get("exam"),
                                    request.form.get("plan"),
                                    preset_id=request.form.get("preset", type=int),
-                                   shared=request.form.get("shared") == "1")
+                                   shared=request.form.get("shared") == "1",
+                                   rest={"tests": request.form.getlist("tests"),
+                                         "family": request.form.get("family"),
+                                         "days": request.form.get("days"),
+                                         "panel": request.form.get("panel_tpl", type=int)})
             db.session.commit()
             flash(t("common.saved"), "success")
         except visit_templates.TemplateError as err:
             db.session.rollback()
             flash(t(f"visit_tpl.err_{err}"), "danger")
         return redirect(url_for("visits.visit_templates_screen"))
+    from app.models import Investigation, PanelTemplate
+    from app.utils import panels
+
+    lang = getattr(g, "lang", "ar")
     return render_template("visits/visit_templates.html",
+                           panel_name=lambda k: (panels.panel(k) or {}).get(
+                               "name_en" if lang == "en" else "name_ar") or k,
                            rows=visit_templates.mine(current_user),
-                           presets=_rx_presets())
+                           presets=_rx_presets(),
+                           tests=Investigation.query.filter_by(is_active=True)
+                           .order_by(Investigation.kind, Investigation.name_ar).all(),
+                           panel_tpls=PanelTemplate.query.filter(db.or_(
+                               PanelTemplate.doctor_id == current_user.id,
+                               PanelTemplate.is_shared.is_(True)))
+                           .order_by(PanelTemplate.panel_key, PanelTemplate.name).all())
 
 
 # --------------------------------------------------- my panel templates -----

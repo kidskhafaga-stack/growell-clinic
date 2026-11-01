@@ -15,7 +15,7 @@
 <div class="card gc-scale-in" style="padding:0;overflow-x:auto;">
   <table class="table">
     <thead><tr><th>{{ t('cost_centres.name_ar') }}</th><th>{{ t('cost_centres.name_en') }}</th>
-      <th>{{ t('cost_centres.kind') }}</th><th>{{ t('cost_centres.lines') }}</th><th>{{ t('cost_centres.on') }}</th><th></th></tr></thead>
+      <th>{{ t('cost_centres.kind') }}</th><th>{{ t('cost_centres.head') }}</th><th>{{ t('cost_centres.lines') }}</th><th>{{ t('cost_centres.on') }}</th><th></th></tr></thead>
     <tbody>
       {% for c in rows %}
       <tr data-centre-row="{{ c.key }}" {% if not c.is_active %}style="opacity:.6;"{% endif %}>
@@ -24,6 +24,11 @@
         <td><input class="input" name="name_en" value="{{ c.name_en or '' }}" maxlength="80" dir="ltr" form="{{ f }}" aria-label="{{ t('cost_centres.name_en') }}"></td>
         <td><span class="badge {{ 'badge--role' if c.is_own else 'badge--muted' }}">
           {% if c.is_own %}{{ t('cost_centres.kind_own') }}{% elif c.unit_id %}{{ t('cost_centres.kind_unit') }}{% else %}{{ t('cost_centres.kind_program') }}{% endif %}</span></td>
+        {# رئيس القسم — sees this part's problems on «تحليل الأسباب». #}
+        <td><select class="input" name="head_id" form="{{ f }}" aria-label="{{ t('cost_centres.head') }}" style="min-width:140px;" data-centre-head>
+          <option value="">—</option>
+          {% for u in staff %}<option value="{{ u.id }}" {{ 'selected' if c.head_id == u.id }}>{{ u.display_name(current_lang) }}</option>{% endfor %}
+        </select></td>
         <td class="num">{{ used.get(c.id, 0) }}</td>
         <td><label class="checkbox" style="margin:0;"><input type="checkbox" name="is_active" value="1" form="{{ f }}" {{ 'checked' if c.is_active }} aria-label="{{ t('cost_centres.on') }}"></label></td>
         <td style="text-align:end;">

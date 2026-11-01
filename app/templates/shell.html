@@ -146,6 +146,12 @@
     {% set _ = doors.append({'key': 'incidents', 'href': url_for('incidents.index'),
                              'icon': 'clipboard2-pulse', 'label': t('incident.nav_board'), 'mark': 'data-nav-incidents'}) %}
     {% endif %}
+    {# «تحليل الأسباب» (RCA_PLAN.md) — the quality team and the
+       administration, and each department's head for their own. #}
+    {% if rca_may_open(current_user) %}
+    {% set _ = doors.append({'key': 'rca', 'href': url_for('quality.rca'),
+                             'icon': 'diagram-2', 'label': t('rca.title'), 'mark': 'data-nav-rca'}) %}
+    {% endif %}
     {# An alert organism grew — infection control's answer (`utils/ipc`). #}
     {% if current_user.can('infection_control') %}
     {% set _ = doors.append({'key': 'ipc', 'href': url_for('ipc.index'),

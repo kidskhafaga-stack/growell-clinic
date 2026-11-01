@@ -8,6 +8,8 @@
   <h1 class="page-title">{{ t('claims.entities') }}</h1>
   <a class="btn btn-outline gc-press" href="{{ url_for('finance.claims') }}">
     <i class="bi bi-file-earmark-medical"></i> {{ t('claims.title') }}</a>
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.payer_forms') }}" data-to-payer-forms>
+    <i class="bi bi-file-earmark-richtext"></i> {{ t('payer_form.title') }}</a>
   <a class="btn btn-outline gc-press" href="{{ url_for('finance.payer_record') }}" data-to-payer-record>
     <i class="bi bi-award"></i> {{ t('payer_record.title') }}</a>
 </div>
@@ -157,6 +159,9 @@
                 <select class="select" name="entity_type">{% for ty in types %}<option value="{{ ty.key }}" {{ 'selected' if p.entity_type==ty.key else '' }}>{{ ty.display_name(current_lang) }}</option>{% endfor %}</select></div>
               <div class="form-row"><label>{{ t('claims.discount_percent') }}</label><input class="input" type="number" step="0.01" name="discount_percent" value="{{ p.discount_percent }}"></div>
               <div class="form-row"><label>{{ t('claims.phone') }}</label><input class="input" name="phone" dir="ltr" value="{{ p.phone or '' }}"></div>
+              {# ع-٥ — the payer's approvals desk: an approval request is sent here. #}
+              <div class="form-row"><label>{{ t('payer_form.approvals_email') }}</label><input class="input" type="email" name="approvals_email" dir="ltr" value="{{ p.approvals_email or '' }}" data-approvals-email></div>
+              <div class="form-row"><label>{{ t('payer_form.approvals_whatsapp') }}</label><input class="input" name="approvals_whatsapp" dir="ltr" value="{{ p.approvals_whatsapp or '' }}" data-approvals-whatsapp></div>
               <div class="form-row checkbox"><input type="checkbox" id="pa_{{ p.id }}" name="is_active" value="1" {{ 'checked' if p.is_active else '' }}>
                 <label for="pa_{{ p.id }}" style="margin:0;font-weight:400;">{{ t('common.active') }}</label></div>
             </div>

@@ -42,6 +42,7 @@ SECTION_OF = {
     # quality
     "incident_report": "quality", "incidents": "quality",
     "complaints": "quality", "ipc": "quality", "programs": "quality",
+    "rca": "quality",
     # reports and messages
     "reports": "reports", "ai": "reports", "messages": "reports",
     # running the program

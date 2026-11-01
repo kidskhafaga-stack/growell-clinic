@@ -1,0 +1,63 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('payer_form.title') }}{% endblock %}
+{% block page_heading %}{{ t('payer_form.title') }}{% endblock %}
+
+{% block content %}
+{# CONTRACTS_PLAN.md ع-٣ — each payer's own forms: the blank page uploaded
+   once, the program's facts dragged onto it, printed filled with every visit,
+   booking or approval on that payer. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-file-earmark-richtext"></i> {{ t('payer_form.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:74ch;">{{ t('payer_form.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.payers') }}"><i class="bi bi-building"></i> {{ t('claims.payers_title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.approvals') }}"><i class="bi bi-patch-check"></i> {{ t('approvals.title') }}</a>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-payer-forms>
+  {% if rows %}
+  <div style="overflow-x:auto;"><table class="table">
+    <thead><tr><th>{{ t('payer_form.payer') }}</th><th>{{ t('payer_form.name') }}</th><th>{{ t('payer_form.setting') }}</th><th>{{ t('payer_form.n_fields') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for f in rows %}
+    <tr data-payer-form="{{ f.id }}" {% if not f.is_active %}style="opacity:.6;"{% endif %}>
+      <td>{{ f.payer.name }}</td>
+      <td><b>{{ f.name }}</b></td>
+      <td>{{ t('contracts.setting_' ~ f.setting) if f.setting else t('contracts.setting_any') }}</td>
+      <td class="num">{{ f.layout|length }}</td>
+      <td style="text-align:end;white-space:nowrap;">
+        <a class="btn btn-sm btn-primary gc-press" href="{{ url_for('finance.payer_form', form_id=f.id) }}"><i class="bi bi-arrows-move"></i> {{ t('payer_form.design') }}</a>
+        <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('main.payer_form_print', form_id=f.id) }}" target="_blank"><i class="bi bi-printer"></i> {{ t('payer_form.preview') }}</a>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('payer_form.none') }}</p>{% endif %}
+</div>
+
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-plus-circle"></i> {{ t('payer_form.new') }}</h2>
+  <form method="post" enctype="multipart/form-data" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;" data-payer-form-new>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label>{{ t('payer_form.payer') }}</label>
+      <select class="input" name="payer_id" required>{% for p in payers %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('payer_form.name') }}</label>
+      <input class="input" name="name" required maxlength="120" placeholder="{{ t('payer_form.name_ph') }}"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('payer_form.setting') }}</label>
+      <select class="input" name="setting"><option value="">{{ t('contracts.setting_any') }}</option>
+        {% for s in settings %}<option value="{{ s }}">{{ t('contracts.setting_' ~ s) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('payer_form.page') }}</label>
+      <select class="input" name="page">{% for k in pages %}<option value="{{ k }}">{{ k }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('payer_form.background') }}</label>
+      <input class="input" type="file" name="background" accept="image/*"></div>
+    <label class="checkbox" style="margin:0;"><input type="checkbox" name="print_background" value="1" checked> {{ t('payer_form.print_background') }}</label>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('payer_form.make') }}</button>
+  </form>
+  <p class="hint" style="margin:8px 0 0;">{{ t('payer_form.background_hint') }}</p>
+</div>
+{% endblock %}
