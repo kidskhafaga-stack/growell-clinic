@@ -111,6 +111,7 @@
        approvals desk — sent (ع-٥). #}
     {% for f in forms_of.get(a.payer_id, []) %}
     <a class="btn btn-sm btn-outline gc-press" target="_blank" href="{{ url_for('main.payer_form_print', form_id=f.id, approval=a.id) }}" data-approval-form="{{ f.id }}"><i class="bi bi-printer"></i> {{ f.name }}</a>
+    {% if pdf_ready %}<a class="btn btn-sm btn-outline gc-press" target="_blank" href="{{ url_for('main.payer_form_pdf', form_id=f.id, approval=a.id) }}" data-approval-pdf="{{ f.id }}" title="{{ t('payer_form.pdf') }}"><i class="bi bi-filetype-pdf"></i> PDF</a>{% endif %}
     {% endfor %}
     {% if a.status == 'requested' %}
     {% for via, to in send_to.get(a.payer_id, []) %}

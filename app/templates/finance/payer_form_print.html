@@ -23,6 +23,7 @@
 <body>
 {% if not standalone %}
 <div class="bar"><button type="button" onclick="window.print()">{{ t('common.print') }}</button>
+  {% if pdf_url %}<a href="{{ pdf_url }}" data-form-pdf>{{ t('payer_form.pdf') }}</a>{% endif %}
   <a href="javascript:history.back()">{{ t('common.back') }}</a></div>
 {% endif %}
 <div class="sheet" data-form-sheet>

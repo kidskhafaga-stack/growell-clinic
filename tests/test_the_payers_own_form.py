@@ -223,13 +223,15 @@ def test_sent_to_the_payers_approvals_desk(insured, monkeypatch):
         payer = insured["db"].session.get(PayerEntity, insured["ids"]["payer"])
         assert payer.approvals_email == "approvals@nile.example"
     sent = {}
-    monkeypatch.setattr(pf, "_mail", lambda to, subject, body, html: sent.update(
-        to=to, subject=subject, body=body, html=html))
+    monkeypatch.setattr(pf, "_mail", lambda to, subject, body, attached: sent.update(
+        to=to, subject=subject, body=body, attached=attached))
     page = boss.get("/finance/approvals").get_data(as_text=True)
     assert 'data-approval-send="email"' in page and 'data-approval-send="whatsapp"' in page
     boss.post(f"/finance/approvals/{aid}/send", data={"via": "email"})
     assert sent["to"] == "approvals@nile.example" and "NL-7781" in sent["body"]
-    assert "NL-7781" in sent["html"] and "<!doctype html>" in sent["html"].lower()
+    data, filename, mime = sent["attached"]
+    assert data.startswith(b"%PDF") and (filename, mime) == ("approval-request.pdf",
+                                                              "application/pdf")
     with insured["app"].app_context():
         row = insured["db"].session.get(InsuranceApproval, aid)
         assert (row.sent_via, row.sent_to, row.status) == ("email", "approvals@nile.example",

@@ -2787,14 +2787,17 @@ SECTIONS = [
              "الفاضية مرة، ودوس على البيانات (اسم الطفل، رقم العضوية، الفئة، التشخيص وكوده، "
              "نوع الخدمة، رقم الموافقة، الطبيب، التاريخ…) واسحبها لمكانها. بتطلع مليانة من "
              "الكشف (زرار باسم الاستمارة فوق) ومن كل طلب موافقة — على ورق أبيض بالاستمارة "
-             "وراها، أو على ورق الشركة المطبوع بالبيانات بس — والطبيب يوقّع.",
+             "وراها، أو على ورق الشركة المطبوع بالبيانات بس — والطبيب يوقّع. وزرار «PDF» "
+             "يطلّعها ملف PDF جاهز تحفظه أو تبعته، وهو نفس الملف اللي بيتبعت للشركة.",
              "<b>Each payer's form:</b> (Payers → Payer forms) upload the blank "
              "form's picture once, press the facts (child's name, membership "
              "number, plan, diagnosis and code, kind of service, approval number, "
              "doctor, date…) and drag them into place. It prints filled from the "
              "visit (a button with the form's name at the top) and from every "
              "approval request — on plain paper with the form behind, or on the "
-             "payer's printed form with the facts alone — and the doctor signs."),
+             "payer's printed form with the facts alone — and the doctor signs. "
+             "«PDF» makes it a PDF file to save or send — the same file that goes "
+             "to the payer."),
             ("<b>الموافقة بدري، والإرسال للشركة:</b> لو خدمة على الكشف محتاجة موافقة في "
              "العقد، الكشف بيقول كده وفيه «اطلب الموافقة»؛ والحجز بيفتح الطلب لوحده "
              "ويقول للاستقبال. من «الموافقات» اطبع الاستمارة أو ابعتها لإيميل أو واتساب "

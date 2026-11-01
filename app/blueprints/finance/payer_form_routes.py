@@ -79,14 +79,11 @@ def _may_print():
         user.can_access(m) for m in ("finance", "visits", "appointments")))
 
 
-@main_bp.route("/payer-forms/<int:form_id>/print")
-def payer_form_print(form_id):
-    """The form filled for one visit, booking or approval — or, with none,
-    with the names of the facts in their places (the designer's preview)."""
+def _filled(form_id):
+    """The form and its values for the visit, booking or approval asked for
+    — or, with none, the names of the facts (the designer's preview)."""
     from app.models import Appointment, InsuranceApproval, Patient, PayerForm, Visit
 
-    if not current_user.is_authenticated:
-        return current_app.login_manager.unauthorized()
     if not _may_print():
         abort(403, description=t("auth.no_permission"))
     form = db.get_or_404(PayerForm, form_id)
@@ -101,10 +98,41 @@ def payer_form_print(form_id):
     else:
         values = pf.facts(patient, form.payer, visit=visit, appointment=appt,
                           approval=approval, lang=_lang())
+    return form, values
+
+
+@main_bp.route("/payer-forms/<int:form_id>/print")
+def payer_form_print(form_id):
+    """The form filled for one visit, booking or approval — or, with none,
+    with the names of the facts in their places (the designer's preview)."""
+    from app.utils import pdf
+
+    if not current_user.is_authenticated:
+        return current_app.login_manager.unauthorized()
+    form, values = _filled(form_id)
     background = (url_for("static", filename="uploads/patient_docs/" + form.background)
                   if form.background and form.print_background else "")
     return render_template("finance/payer_form_print.html", form=form, values=values,
-                           background=background, standalone=False)
+                           background=background, standalone=False,
+                           pdf_url=(url_for("main.payer_form_pdf", form_id=form.id,
+                                            **request.args.to_dict())
+                                    if pdf.available() else None))
+
+
+@main_bp.route("/payer-forms/<int:form_id>/pdf")
+def payer_form_pdf(form_id):
+    """The same filled form as a PDF file — to save, attach or send."""
+    from flask import Response
+
+    if not current_user.is_authenticated:
+        return current_app.login_manager.unauthorized()
+    form, values = _filled(form_id)
+    data = pf.page_pdf(form, values)
+    if data is None:
+        abort(404)
+    name = "approval-request.pdf"
+    return Response(data, mimetype="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{name}"'})
 
 
 # ------------------------------------------------------------ early (ع-٤) --

@@ -16,6 +16,12 @@ pyzipper==0.4.0
 openpyxl==3.1.5
 requests==2.34.2
 segno==1.6.6
+# PDF files made by the program (app/utils/pdf.py) — the payer's approval
+# form, sent by mail or WhatsApp. fpdf2 draws the page; uharfbuzz joins the
+# Arabic letters. Both are ready-made wheels on 32- and 64-bit Windows, with
+# nothing else to install (no GTK, no browser).
+fpdf2==2.8.9
+uharfbuzz==0.56.4
 # Offline RCPCH UK growth reference (UK-WHO / UK90) — local Z-score/centile math
 rcpchgrowth==4.5.0
 # The IANA timezone database. Linux and macOS carry it; Windows does not,

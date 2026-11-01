@@ -16642,6 +16642,7 @@
     "err_no_card": "This child has no valid card.",
     "err_no_address": "This payer has no approvals email or WhatsApp — add it under Payers.",
     "err_no_mailbox": "The clinic's mailbox is not set up — connect it under the channels settings.",
-    "err_not_sent": "Sending failed — try again or print the form."
+    "err_not_sent": "Sending failed — try again or print the form.",
+    "pdf": "Save as PDF"
   }
 }
