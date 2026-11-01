@@ -1223,18 +1223,33 @@
         {# «طوارئ المستشفى عندنا» first where the hospital has one: the
            child goes downstairs and appears on the department's own list.
            The other two are papers to another hospital (ACT.14). #}
-        <div x-data="{ kind: '{{ 'in_house' if er_here else 'referral' }}' }">
-        <select class="input" name="kind" style="max-width:240px;" x-model="kind" data-refer-kind>
-          {% if er_here %}<option value="in_house">{{ t('visits.er_inhouse') }}</option>{% endif %}
+        {# «علاج بس في الطوارئ»: a nebuliser session, an injection, a
+           dressing — the child arrives marked for treatment, with what to
+           give already written as this doctor's order. #}
+        <div x-data="{ kind: '{{ 'in_house' if er_here else 'referral' }}' }" style="display:grid;gap:6px;">
+        <select class="input" name="kind" style="max-width:320px;" x-model="kind" data-refer-kind>
+          {% if er_here %}<option value="in_house">{{ t('visits.er_inhouse') }}</option>
+          {% if er_services %}<option value="in_house_treatment">{{ t('visits.er_treatment') }}</option>{% endif %}{% endif %}
           <option value="referral">{{ t('referrals.kind_referral') }}</option>
           <option value="transfer">{{ t('referrals.kind_transfer') }}</option>
         </select>
         <input class="input" name="referred_to" placeholder="{{ t('visits.refer_where') }}"
-               style="margin-top:6px;" x-show="kind !== 'in_house'" {% if er_here %}x-cloak{% endif %}>
-        <p class="hint" style="margin:6px 0 0;" x-show="kind === 'in_house'" {% if not er_here %}x-cloak{% endif %}>{{ t('visits.er_inhouse_hint') }}</p>
+               x-show="!kind.startsWith('in_house')" {% if er_here %}x-cloak{% endif %}>
+        <p class="hint" style="margin:0;" x-show="kind === 'in_house'" {% if not er_here %}x-cloak{% endif %}>{{ t('visits.er_inhouse_hint') }}</p>
+        {% if er_here and er_services %}
+        <div x-show="kind === 'in_house_treatment'" x-cloak style="display:grid;gap:6px;" data-er-treatment>
+          <p class="hint" style="margin:0;">{{ t('visits.er_treatment_hint') }}</p>
+          <select class="input" name="er_service_id" style="max-width:320px;" :required="kind === 'in_house_treatment'" :disabled="kind !== 'in_house_treatment'" data-er-service>
+            <option value="">{{ t('visits.er_treatment_what') }}</option>
+            {% for s in er_services %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+          </select>
+          <input class="input" name="er_detail" maxlength="255" :disabled="kind !== 'in_house_treatment'"
+                 placeholder="{{ t('visits.er_treatment_detail') }}" data-er-detail>
         </div>
-        <input class="input" name="referral_note" placeholder="{{ t('visits.refer_why') }}"
-               style="margin-top:6px;" required>
+        {% endif %}
+        <input class="input" name="referral_note" :placeholder="kind === 'in_house_treatment' ? {{ t('visits.er_treatment_why')|tojson|forceescape }} : {{ t('visits.refer_why')|tojson|forceescape }}"
+               placeholder="{{ t('visits.refer_why') }}" :required="kind !== 'in_house_treatment'" required>
+        </div>
         <button class="btn btn-danger btn-sm gc-press" type="submit" style="margin-top:6px;align-self:start;">
           <i class="bi bi-hospital"></i> {{ t('visits.refer_now') }}</button>
         {% endif %}

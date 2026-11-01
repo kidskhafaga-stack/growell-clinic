@@ -178,9 +178,13 @@ def months():
     """``[(month, runs, failed, review)]`` newest first."""
     from app.models import QcReview, QcRun
 
+    from app.utils.clock import local_date
+
     counts = {}
     for run in QcRun.query.all():
-        key = run.run_at.strftime("%Y-%m")
+        # The laboratory's month, not UTC's: a control run at half past
+        # midnight on the 1st belongs to the new month's review.
+        key = (local_date(run.run_at) or run.run_at.date()).strftime("%Y-%m")
         entry = counts.setdefault(key, [0, 0])
         entry[0] += 1
         entry[1] += 0 if run.accepted else 1
@@ -205,6 +209,10 @@ def month_stats(month):
         return []
     end = (start.replace(year=start.year + 1, month=1) if start.month == 12
            else start.replace(month=start.month + 1))
+    # The month's edges on the clinic's clock, as the UTC the runs are kept in.
+    from app.utils.clock import to_utc
+
+    start, end = to_utc(start), to_utc(end)
     runs = (QcRun.query.filter(QcRun.run_at >= start, QcRun.run_at < end)
             .order_by(QcRun.material_id, QcRun.run_at).all())
     by = {}

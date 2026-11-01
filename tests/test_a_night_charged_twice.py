@@ -107,10 +107,16 @@ def _admit(clinic, patient_id, bed_name="د١", days_ago=0):
     from app.models.place import Bed
     from app.utils import beds as place
 
+    from app.utils.clock import local_now, to_utc
+
     with clinic["app"].app_context():
+        # «Three days ago» on the clinic's own calendar, not 72 hours of UTC:
+        # in the days after the clocks go back, 72 hours before 23:50 is
+        # 00:50 on the next local day, and the stay is honestly a night short.
+        when = to_utc(local_now() - timedelta(days=days_ago))
         row = place.admit(Patient.query.get(patient_id),
                           Bed.query.get(clinic["beds"][bed_name]),
-                          when=datetime.utcnow() - timedelta(days=days_ago))
+                          when=when)
         clinic["db"].session.commit()
         return row.id
 
