@@ -49,11 +49,16 @@ def board(clinic):
         set_visit_type_service("new", paid_svc)
         set_visit_type_service("consultation", free_svc)
 
+        # One day for the whole test: read again later, ``local_today()`` can
+        # be tomorrow if the test runs across the clinic's midnight, and the
+        # bookings are then on a board nobody opened (seen on CI at 22:00 UTC).
+        day = local_today()
+        clinic["day"] = day
         made = {}
         for kind, at in (("new", time(15, 0)), ("consultation", time(18, 40))):
             appt = Appointment(patient_id=clinic["ids"]["child"],
                                doctor_id=clinic["ids"]["doctor"],
-                               appt_date=local_today(), appt_time=at,
+                               appt_date=day, appt_time=at,
                                appt_type=kind, status="scheduled")
             db.session.add(appt)
             db.session.flush()
@@ -69,7 +74,7 @@ def _state(fx, kind):
 
     with fx["app"].test_request_context():
         appt = fx["db"].session.get(Appointment, fx["appt"][kind])
-        return _payment_status([appt], local_today())[appt.id]["state"]
+        return _payment_status([appt], fx["day"])[appt.id]["state"]
 
 
 def test_a_visit_priced_at_nothing_is_not_waiting_to_be_collected(board):
@@ -88,7 +93,7 @@ def test_the_board_offers_no_till_for_a_free_visit(board):
     """What the desk actually sees. The badge says free of charge and there is
     nothing to press, because there is nothing to do."""
     page = board["sign_in"]("boss").get(
-        f"/appointments/?date={local_today()}").get_data(as_text=True)
+        f"/appointments/?date={board['day']}").get_data(as_text=True)
     rows = page.split("18:40")
     assert len(rows) > 1, "the free booking is not on the board"
     cell = rows[1][:1400]
@@ -98,7 +103,7 @@ def test_the_board_offers_no_till_for_a_free_visit(board):
 
 def test_the_board_still_offers_the_till_for_a_priced_one(board):
     page = board["sign_in"]("boss").get(
-        f"/appointments/?date={local_today()}").get_data(as_text=True)
+        f"/appointments/?date={board['day']}").get_data(as_text=True)
     cell = page.split("15:00")[1][:1400]
     assert "checkout" in cell, "a booking that owes money has no till button"
 
@@ -135,7 +140,7 @@ def test_the_board_and_the_till_answer_with_one_voice(board):
 def test_a_free_booking_is_not_counted_as_unpaid_on_the_day(board):
     """The number at the top of the board is what a manager reads first."""
     page = board["sign_in"]("boss").get(
-        f"/appointments/?date={local_today()}").get_data(as_text=True)
+        f"/appointments/?date={board['day']}").get_data(as_text=True)
     assert page.count("18:40") >= 1
     # One booking owes money today; the free one is not it.
     from app.blueprints.appointments.routes import _payment_status
@@ -144,7 +149,7 @@ def test_a_free_booking_is_not_counted_as_unpaid_on_the_day(board):
     with board["app"].test_request_context():
         appts = [board["db"].session.get(Appointment, i)
                  for i in board["appt"].values()]
-        states = _payment_status(appts, local_today())
+        states = _payment_status(appts, board["day"])
         unpaid = [a.id for a in appts
                   if states[a.id]["state"] in ("unpaid", "partial", "none")]
         assert unpaid == [board["appt"]["new"]]
@@ -178,7 +183,7 @@ def test_the_board_does_not_price_every_row_to_find_the_free_ones(board):
 
         event.listen(Engine, "before_cursor_execute", record)
         try:
-            _payment_status(appts, local_today())
+            _payment_status(appts, board["day"])
         finally:
             event.remove(Engine, "before_cursor_execute", record)
         return len(seen)
@@ -194,7 +199,7 @@ def test_the_board_does_not_price_every_row_to_find_the_free_ones(board):
         for i in range(20):
             row = Appointment(patient_id=board["ids"]["child"],
                               doctor_id=board["ids"]["doctor"],
-                              appt_date=local_today(), appt_time=time(9, i),
+                              appt_date=board["day"], appt_time=time(9, i),
                               appt_type="new", status="scheduled")
             db.session.add(row)
             extra.append(row)

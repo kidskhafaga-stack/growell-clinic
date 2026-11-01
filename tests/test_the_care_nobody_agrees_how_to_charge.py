@@ -41,6 +41,19 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import pytest  # noqa: E402
 
 
+def _days_back(days):
+    """The same clinic wall-clock time ``days`` days ago, as stored UTC.
+
+    Not ``utcnow() - days``: across the clinic's daylight-saving change that
+    lands on another clinic day for an hour each night (Cairo went from UTC+3
+    to UTC+2 on 29 Oct 2026), and a four-night stay was billed as three.
+    """
+    from app.utils.clock import local_now, to_utc
+
+    return to_utc(local_now() - timedelta(days=days))
+
+
+
 @pytest.fixture()
 def hospital(clinic):
     """A ward, a child in it, and services across four bill sections."""
@@ -123,7 +136,7 @@ def _stay(hospital, patient_id, days_ago=4):
     with hospital["app"].app_context():
         row = place.admit(Patient.query.get(patient_id),
                           Bed.query.get(hospital["ids"]["bed"]),
-                          when=datetime.utcnow() - timedelta(days=days_ago))
+                          when=_days_back(days_ago))
         hospital["db"].session.commit()
         return row.id
 
@@ -224,7 +237,7 @@ def test_posting_the_stay_again_corrects_the_line(hospital):
     # Two nights later, posted again.
     with hospital["app"].app_context():
         row = hospital["db"].session.get(Admission, stay)
-        row.admitted_at = datetime.utcnow() - timedelta(days=4)
+        row.admitted_at = _days_back(4)
         hospital["db"].session.commit()
     _post(hospital, stay)
 
@@ -269,7 +282,7 @@ def test_a_nursing_charge_filed_under_accommodation_does_not_count_itself(hospit
     # …and a genuine third night moves it to three, not to four or five.
     with hospital["app"].app_context():
         hospital["db"].session.get(Admission, stay).admitted_at = (
-            datetime.utcnow() - timedelta(days=3))
+            _days_back(3))
         hospital["db"].session.commit()
     _post(hospital, stay)
     with hospital["app"].app_context():
