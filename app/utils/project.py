@@ -741,6 +741,36 @@ def seed_credits():
     return {"developer": filled, "doctors": added}
 
 
+# The last day each Python line receives security fixes (python.org's release
+# status page). A clinic installs Python once and never thinks of it again;
+# the program's own libraries are kept current (SECURITY.md), but nothing
+# patches the interpreter under them once its line is past this date.
+PYTHON_SECURITY_END = {
+    (3, 9): "2025-10-31",
+    (3, 10): "2026-10-31",
+    (3, 11): "2027-10-31",
+    (3, 12): "2028-10-31",
+    (3, 13): "2029-10-31",
+    (3, 14): "2030-10-31",
+}
+
+
+def python_past_security(version=None, today=None):
+    """True when the running Python no longer receives security fixes.
+
+    A line older than the table is past it; a line newer than the table is
+    not (it is newer than anything this file knew of).
+    """
+    import sys
+    from datetime import date
+
+    major_minor = tuple((version or sys.version_info)[:2])
+    today = today or date.today()
+    if major_minor in PYTHON_SECURITY_END:
+        return today > date.fromisoformat(PYTHON_SECURITY_END[major_minor])
+    return major_minor < min(PYTHON_SECURITY_END)
+
+
 def support():
     """What somebody needs to know before they can help — counted, never asked.
 
@@ -814,6 +844,7 @@ def support():
         "schema": safe(schema_version),
         "generation": safe(schema_generation),
         "python": sys.version.split()[0],
+        "python_old": safe(python_past_security, False),
         "platform": safe(lambda: f"{platform.system()} {platform.release()}"),
         "db_mb": safe(db_size_mb),
         "backup": safe(backup, {"at": None, "days": None}),

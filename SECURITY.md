@@ -59,3 +59,38 @@ sent to the wrong family — those are reportable through the same channel and
 are taken at least as seriously as anything technical. The program refuses to
 guess by design; if you find somewhere it guesses anyway, that is a bug worth
 the same attention as a broken login.
+
+## Keeping the libraries current
+
+Asked for as «نتأكد انها بتتحدث لوحدها علشان الامن». What the program runs on,
+and what keeps each part current:
+
+| Part | Where | Kept current by |
+|---|---|---|
+| Python libraries | `requirements.txt` (exact versions) | Dependabot opens a pull request weekly, grouped (`.github/dependabot.yml`); a security fix opens one at once |
+| Known vulnerabilities in them | — | `pip-audit` on every pull request (it fails the change), and weekly on its own (`.github/workflows/security-audit.yml`) |
+| Browser libraries (Alpine, Chart.js, html2canvas, Bootstrap Icons) | copied into `app/static/vendor`, listed in its `package.json` | `npm audit` weekly; `python tools/update_vendor.py --check` says which are behind, and without `--check` fetches the listed versions from the npm registry, checked against its SHA-512 |
+| The actions the tests run on | `.github/workflows/*.yml` | Dependabot, monthly |
+
+A **major** version gets its own pull request and somebody reads its notes
+before merging; minor and patch releases come together. Nothing reaches
+`main` without the full test suite passing.
+
+**The 32-bit Windows build** stays on `cryptography` 48.0.1: there is no
+newer wheel for 32-bit, and without one the clinic's update stops. Its open
+advisories concern certificate chains and PKCS#7; the licence check uses
+one Ed25519 signature and neither of those. The weekly audit prints them
+every week so the decision stays visible.
+
+**A clinic** gets the new versions when it runs `update.bat` — never by
+opening the program (UPGRADE_PLAN.md, step ٢).
+
+**Python itself** is installed once on each computer and nothing updates
+it. When its line stops receiving security fixes, the About page says so in
+red, with what to do (`project.PYTHON_SECURITY_END`). Python 3.10 ended in
+October 2026; `start.bat` now asks for 3.12 or newer.
+
+**In the repository's settings** (Settings → Code security), *Dependabot
+alerts* and *Dependabot security updates* must be on for security fixes to
+open their pull request at once; the version updates above need only the
+file.

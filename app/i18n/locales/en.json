@@ -5548,7 +5548,8 @@
     "backup_never": "No backup has ever been taken.",
     "link_user": "One of the program's users?",
     "not_a_user": "— not a user of the program —",
-    "link_user_hint": "Pick a colleague and their name and photograph are read straight from their profile, so nothing here needs updating. Leave it empty for anybody without a login — a supervisor, the owner, somebody who helped."
+    "link_user_hint": "Pick a colleague and their name and photograph are read straight from their profile, so nothing here needs updating. Leave it empty for anybody without a login — a supervisor, the owner, somebody who helped.",
+    "python_old": "Python {version}, which the program runs on, no longer receives security fixes. Install Python 3.12 or newer from python.org, delete the .venv folder inside the program's folder, and run start.bat — it sets the libraries up again. The data is not touched."
   },
   "history_import": {
     "title": "Import case history",

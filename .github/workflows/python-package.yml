@@ -46,9 +46,9 @@ jobs:
         python-version: ${{ fromJSON(github.event_name == 'push' && '["3.10", "3.11"]' || '["3.11"]') }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         # 3. Cache the wheels. requirements.txt is long and installing it from
@@ -63,6 +63,14 @@ jobs:
         # check the files the clinic exports. Never installed in a clinic.
         python -m pip install "fhir.resources==7.1.0"
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    # 5. No library with a known vulnerability reaches main. The advisory
+    #    databases (PyPI's and OSV) are read for exactly the versions
+    #    requirements.txt pins; a fix that exists has to be taken before the
+    #    change merges. Seconds, against the suite's quarter of an hour.
+    - name: Audit the libraries for known vulnerabilities
+      run: |
+        python -m pip install pip-audit
+        pip-audit -r requirements.txt --progress-spinner off
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
