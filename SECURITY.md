@@ -72,6 +72,17 @@ and what keeps each part current:
 | Browser libraries (Alpine, Chart.js, html2canvas, Bootstrap Icons) | copied into `app/static/vendor`, listed in its `package.json` | `npm audit` weekly; `python tools/update_vendor.py --check` says which are behind, and without `--check` fetches the listed versions from the npm registry, checked against its SHA-512 |
 | The actions the tests run on | `.github/workflows/*.yml` | Dependabot, monthly |
 
+**Every clinic computer can still install it.** `tools/check_wheels.py`
+resolves `requirements.txt` for Windows 32- and 64-bit on each Python a
+clinic may run, from ready-made wheels only, on every change to it and weekly.
+A version with no wheel for one of them would stop that clinic's
+`update.bat`. When it was written it found that `rcpchgrowth` (through
+`scipy`) could not install on 32-bit Windows at all — it is now left out
+there, and the UK growth charts are off on those computers while WHO/CDC
+remain. Dependabot is told to skip what it cannot know (`ignore` in
+`.github/dependabot.yml`): `cryptography` majors, and the `uharfbuzz` and
+`fpdf2` versions that dropped Python 3.10.
+
 A **major** version gets its own pull request and somebody reads its notes
 before merging; minor and patch releases come together. Nothing reaches
 `main` without the full test suite passing.

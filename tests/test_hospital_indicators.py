@@ -253,3 +253,69 @@ def test_falls_pressure_injuries_and_medication_errors_per_1000_bed_days(hospita
     assert s["whole"]["fall"]["n"] == 2
     page = hospital["sign_in"]().get("/reports/hospital?preset=30").get_data(as_text=True)
     assert 'data-safety-row="ward"' in page and "data-safety-total" in page
+
+
+# ------------------------------------ revenue and cost per bed day (٧هـ) --
+def _books(fx, lines):
+    """One journal entry today: ``[(account_type, centre_key|None, amount)]``."""
+    from app.models import Account, JournalEntry, JournalLine
+    from app.utils import cost_centres
+    from app.utils.accounting import ensure_seeded
+
+    db = fx["db"]
+    with fx["app"].app_context():
+        ensure_seeded()
+        entry = JournalEntry(entry_number=f"T-{NOW().timestamp()}", entry_date=local_today(),
+                             source_type="manual")
+        db.session.add(entry)
+        db.session.flush()
+        for kind, key, amount in lines:
+            account = Account.query.filter_by(type=kind).order_by(Account.code).first()
+            centre = cost_centres.centre_id(key) if key else None
+            db.session.add(JournalLine(
+                entry_id=entry.id, account_id=account.id, cost_centre_id=centre,
+                debit=amount if kind == "expense" else 0,
+                credit=amount if kind == "revenue" else 0))
+        db.session.commit()
+
+
+def test_revenue_and_cost_per_bed_day_and_per_case(hospital):
+    from app.models.place import Unit
+
+    a, b = _kid(hospital, "ح"), _kid(hospital, "ط")
+    _stay(hospital, a, [("ward0", 24 * 6, 24 * 2)])            # four days
+    _stay(hospital, b, [("ward1", 24 * 7, 24 * 1)])            # six days
+    with hospital["app"].app_context():
+        ward = Unit.query.filter_by(kind="ward").one().id
+    _books(hospital, [("revenue", f"unit:{ward}", 5000.0), ("expense", f"unit:{ward}", 2000.0),
+                      ("expense", None, 700.0)])               # the rent: shared
+    from app.utils import hospital_kpis
+
+    with hospital["app"].app_context():
+        today = local_today()
+        m = hospital_kpis.money(today - timedelta(days=29), today)
+    (row,) = [r for r in m["rows"] if r["unit"] is not None and r["unit"].id == ward]
+    assert 9.9 <= row["days"] <= 10.1 and row["cases"] == 2
+    assert (row["revenue"], row["direct"]) == (5000.0, 2000.0)
+    assert 495 <= row["revenue_day"] <= 505 and 198 <= row["direct_day"] <= 202
+    assert (row["revenue_case"], row["direct_case"]) == (2500.0, 1000.0)
+    assert m["shared"] == 700.0, "the rent is said, not shared out"
+
+
+def test_the_money_only_for_the_finance_rights(hospital):
+    from app.models import User
+
+    _stay(hospital, _kid(hospital, "ي"), [("ward0", 24 * 3, None)])
+    boss = hospital["sign_in"]()
+    page = boss.get("/reports/hospital?preset=30").get_data(as_text=True)
+    assert 'data-kpi-section="money"' in page and "data-money-total" in page
+    assert "/reports/cost-centres" in page, "the door to the same figures by centre"
+    with hospital["app"].app_context():
+        assert User.query.filter_by(username="doc").one().can("finance_manage") is False
+    page = hospital["sign_in"]("doc").get("/reports/hospital?preset=30")
+    if page.status_code == 200:
+        assert 'data-kpi-section="money"' not in page.get_data(as_text=True)
+    # A hospital without beds: no money section either (it is per bed day).
+    _modules(hospital, beds=False)
+    assert 'data-kpi-section="money"' not in boss.get("/reports/hospital?preset=30").get_data(as_text=True)
+

@@ -3133,7 +3133,10 @@ SECTIONS = [
              "الطبيب. <b>العمليات</b> — الوقت المستخدم من المحجوز، وأول عملية في اليوم في ميعادها، "
              "والوقت بين عملية والتانية، والإلغاء والتأجيل وأسبابهم. <b>العناية والحضانة</b> — "
              "اللي رجعوا خلال ٤٨ ساعة من الخروج. <b>السلامة</b> — السقوط وقرح الفراش وأخطاء "
-             "الأدوية اللي وصلت للطفل لكل ١٠٠٠ يوم إقامة، من البلاغات زي ما اتكتبت. أرقام مش "
+             "الأدوية اللي وصلت للطفل لكل ١٠٠٠ يوم إقامة، من البلاغات زي ما اتكتبت. "
+             "<b>الإيراد والتكلفة لكل يوم إقامة ولكل حالة</b> (لصاحب صلاحية الحسابات بس) — إيراد "
+             "كل قسم وتكلفته المباشرة من مراكز التكلفة، على أيام الإقامة وعلى عدد الحالات؛ "
+             "والمصاريف المشتركة زي الإيجار بتتقال لوحدها، مش بتتوزع. أرقام مش "
              "أحكام، وجنب كل رقم نفس المدة اللي قبلها.",
              "<b>Hospital indicators</b> (Reports → Hospital indicators) — shown only "
              "with one of these departments running, each part with its own: "
@@ -3145,7 +3148,11 @@ SECTIONS = [
              "cancellations and postponements with their reasons. <b>ICU and NICU</b> — "
              "back within 48 hours of leaving. <b>Safety</b> — falls, pressure injuries "
              "and medication errors reaching the child per 1000 bed days, from the "
-             "reports as filed. Numbers, not judgements, each beside the stretch before."),
+             "reports as filed. <b>Revenue and cost per bed day and per case</b> "
+             "(finance rights only) — each unit's revenue and direct cost from the "
+             "cost centres, over its bed days and its cases; shared costs such as "
+             "the rent are stated on their own, not spread. Numbers, not "
+             "judgements, each beside the stretch before."),
             ("<b>لوحة الاستهلاك</b> (التقارير ← الاستهلاك): استهلكنا أد إيه "
              "وبكام في أي فترة، جنب نفس المدة اللي قبلها — المخزن كله (حسب "
              "القسم والمخزن ونوع الصنف)، والأدوية، ومستهلكات المعمل (وتكلفة كل "
