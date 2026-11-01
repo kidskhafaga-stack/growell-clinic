@@ -2,7 +2,7 @@ Flask==3.1.3
 Flask-SQLAlchemy==3.1.1
 Flask-Login==0.6.3
 # CSRF protection for every form in the clinic
-Flask-WTF==1.2.1
+Flask-WTF==1.3.0
 # 3.1.9 closes PYSEC-2026-4312 (3.1.6 had it).
 Werkzeug==3.1.9
 python-dotenv==1.2.4
@@ -27,7 +27,7 @@ uharfbuzz==0.56.4
 # 1.9, so pip would try to compile it and update.bat would stop. Without it
 # the UK charts are off and WHO/CDC remain (app/utils/rcpch.py); found by
 # tools/check_wheels.py.
-rcpchgrowth==4.5.0; platform_machine != "x86"
+rcpchgrowth==4.6.5; platform_machine != "x86"
 # The IANA timezone database. Linux and macOS carry it; Windows does not,
 # and these clinics run on Windows — without it every ZoneInfo lookup fails
 # and the clinic's local time (and anything compared against a typed time)
