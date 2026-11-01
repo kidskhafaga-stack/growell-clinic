@@ -421,7 +421,7 @@
         <td>{{ cell.bed.display_name(current_lang) }}</td>
         <td>{{ t('beds.bed_' ~ cell.bed.kind) }}</td>
         <td>
-          {% if cell.state == 'taken' %}
+          {% if cell.state in ('taken', 'session') %}
           <span class="badge badge--green">{{ t('beds.occupied') }}</span>
           {% elif cell.state == 'off' %}
           <span class="badge badge--muted">{{ t('beds.out_of_service') }}

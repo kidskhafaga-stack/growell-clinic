@@ -37,7 +37,23 @@ def occupied_bed_ids():
     """
     rows = (db.session.query(BedStay.bed_id)
             .filter(BedStay.until.is_(None)).all())
-    return {row[0] for row in rows}
+    return {row[0] for row in rows} | set(session_beds())
+
+
+def session_beds():
+    """``{bed_id: EmergencyVisit}`` — partitions with a child in them for a
+    session (a nebuliser, an injection) who was never admitted.
+
+    Counted here, with the stays, so that every screen that asks «is this
+    bed free» gets the same answer: a partition with a child on the
+    nebuliser is not free for an admission because nobody wrote a stay.
+    """
+    from app.models.emergency_visit import EmergencyVisit
+
+    rows = (EmergencyVisit.query
+            .filter(EmergencyVisit.place_bed_id.isnot(None),
+                    EmergencyVisit.departed_at.is_(None)).all())
+    return {row.place_bed_id: row for row in rows}
 
 
 def open_stays_by_bed():
@@ -86,6 +102,7 @@ def board(unit_id=None):
     units = units.all()
 
     stays = open_stays_by_bed()
+    sessions = session_beds()
     out = []
     for unit in units:
         spaces = []
@@ -95,8 +112,13 @@ def board(unit_id=None):
             beds = []
             for bed in space.beds:
                 stay = stays.get(bed.id)
+                session = None if stay else sessions.get(bed.id)
                 if stay:
                     state = "taken"
+                    taken += 1
+                elif session is not None:
+                    # A child in the partition for a session, not admitted.
+                    state = "session"
                     taken += 1
                 elif open_here and bed.is_active:
                     state = "free"
@@ -104,8 +126,10 @@ def board(unit_id=None):
                 else:
                     state = "off"
                 beds.append({"bed": bed, "stay": stay, "state": state,
-                             "patient": (stay.admission.patient
-                                         if stay else None)})
+                             "session": session,
+                             "patient": (stay.admission.patient if stay
+                                         else session.patient if session
+                                         else None)})
             spaces.append({"space": space, "beds": beds,
                            "closed": not space.is_active})
         out.append({"unit": unit, "spaces": spaces,
@@ -213,6 +237,12 @@ def admit(patient, bed, user=None, visit=None, doctor_id=None, reason=None,
         raise BedTaken("no bed")
     if not in_service(bed):
         raise BedTaken("out of service")
+    # The child on the nebuliser in this partition may be kept in it: the
+    # session's seat becomes the stay, rather than refusing their own bed.
+    sitting = session_beds().get(bed.id)
+    if sitting is not None and sitting.patient_id == patient.id:
+        sitting.place_bed_id = None
+        db.session.flush()
     if bed.id in occupied_bed_ids():
         raise BedTaken("occupied")
     if open_admission(patient.id) is not None:

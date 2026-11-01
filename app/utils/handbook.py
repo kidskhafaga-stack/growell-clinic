@@ -1102,6 +1102,25 @@ SECTIONS = [
         "icon": "thermometer-half",
         "title": ("الطوارئ", "Emergency"),
         "lines": [
+            ("<b>البارتيشنات ورقم الطابور:</b> فوق شاشة الطوارئ البارتيشنات اللي "
+             "اتبنت في إعداد الأسرّة — مين فيها (محجوز أو جلسة) وكام فاضي. الطفل "
+             "اللي مستني مكان ليه <b>رقم في الطابور</b>: العاجل الأول، بعده اللي "
+             "لسه ما اتفرزش، وبعدين الباقي باللي وصل الأول. لو فيه بارتيشن فاضي، "
+             "اللي عليه الدور بينوّر وجنبه «دخّله»؛ ولو مفيش، الشاشة بتقول "
+             "«الطوارئ مليانة — كام في الطابور». الطفل اللي في بارتيشن لجلسة "
+             "بيخلّيه مشغول في كل البرنامج (محدّش يحجز عليه)، و«خلّص — فضّى "
+             "البارتيشن» لما الجلسة تخلص والطفل لسه في القسم.",
+             "<b>Partitions and the queue number:</b> the top of the emergency "
+             "screen shows the partitions built in the bed setup — who is in "
+             "each (admitted or in a session) and how many are free. A child "
+             "waiting for a place has a <b>queue number</b>: urgent first, then "
+             "not yet triaged, then everybody else by who arrived first. When a "
+             "partition is free, the child whose turn it is lights up with "
+             "«Seat» beside them; when none is, the screen says «Emergency is "
+             "full — N in the queue». A child seated for a session makes the "
+             "partition taken everywhere in the program, and «Done — free the "
+             "partition» frees it when the session is over and the child is "
+             "still in the department."),
             ("<b>«علاج بس في الطوارئ» من شاشة الكشف:</b> طبيب العيادة بيدوس "
              "بلاطة «تحويل للطوارئ» ويختار «علاج بس» واللي يتعمل (جلسة تنفس، "
              "حقنة، غيار) والتفاصيل. الطفل بيظهر هنا تحت «في القسم من غير سرير» "

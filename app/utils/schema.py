@@ -1123,6 +1123,10 @@ ADDITIONS = [
     ("visit_investigations", "family_called_by", "INTEGER"),
     ("visit_investigations", "family_called_note", "VARCHAR(200)"),
     ("investigations", "sensitive", "BOOLEAN DEFAULT 0"),
+    # The partition a child in emergency sits in for a session (a nebuliser,
+    # an injection) without being admitted — counted as taken by every screen.
+    ("emergency_visits", "place_bed_id", "INTEGER"),
+    ("emergency_visits", "placed_at", "DATETIME"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"
