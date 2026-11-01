@@ -14982,7 +14982,19 @@
     "saved": "Ready visit «{name}» saved.",
     "deleted": "The ready visit was deleted.",
     "err_name": "Give the ready visit a name.",
-    "err_empty": "Write the complaint, examination or plan first, or pick a prescription."
+    "err_empty": "Write the complaint, examination or plan first, or pick a prescription.",
+    "tests": "Tests and imaging",
+    "tests_hint": "Offered ticked on the visit, and ordered only when the doctor saves. Ctrl to choose several.",
+    "family": "Instructions for the family",
+    "days": "Follow-up after (days)",
+    "panel_tpl": "Specialty panel template",
+    "rest_title": "And with this visit — added when you save:",
+    "rest_hint": "Untick anything you do not want. A test already on this visit is not ordered twice; the follow-up and the family's instructions are written only where empty.",
+    "followup_in": "Follow-up in",
+    "days_word": "days",
+    "with_rest": "with the tests, follow-up and family instructions",
+    "with_rest_hint": "What this visit holds: the catalogue tests ordered, the follow-up in days, and the family's instructions.",
+    "rest_done": "Added from the ready visit: {n} tests, and the follow-up and family instructions where they were empty."
   },
   "rx_repeat": {
     "title": "Repeat the last prescription for a long-term problem:",

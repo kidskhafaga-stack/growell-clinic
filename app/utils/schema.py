@@ -1131,6 +1131,12 @@ ADDITIONS = [
     # and the bone of the fishbone an incident's cause sits on.
     ("cost_centres", "head_id", "INTEGER"),
     ("incidents", "cause_category", "VARCHAR(16)"),
+    # The rest of the ready visit (DOCTOR_EASE_PLAN.md ب-١): tests, the
+    # family's instructions, the follow-up in days, the panel's template.
+    ("visit_templates", "tests", "TEXT"),
+    ("visit_templates", "family_instructions", "TEXT"),
+    ("visit_templates", "followup_days", "INTEGER"),
+    ("visit_templates", "panel_template_id", "INTEGER"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

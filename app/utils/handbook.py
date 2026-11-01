@@ -358,6 +358,20 @@ SECTIONS = [
              "the empty boxes only — what you wrote stays — and «Write the "
              "prescription from» opens the prescription ready. Edit or share them "
              "under «Ready visits»."),
+            ("<b>والكشف الجاهز بيشيل كمان التحاليل والمتابعة وتعليمات الأهل:</b> "
+             "علّم «ومعاه التحاليل والمتابعة وتعليمات الأهل» وانت بتحفظه، أو ضيفهم "
+             "من «الكشوف الجاهزة» (ومعاهم قالب لوح التخصص لو عندك). لما تختاره في "
+             "كشف بيظهروا بعلامة صح — شيل اللي مش عايزه — و<b>مفيش حاجة بتتطلب إلا "
+             "لما تدوس «حفظ»</b>: التحليل المطلوب خلاص ما بيتطلبش تاني، والمتابعة "
+             "وتعليمات الأهل بيتكتبوا بس لو فاضيين.",
+             "<b>A ready visit also carries tests, the follow-up and the family's "
+             "instructions:</b> tick «with the tests, follow-up and family "
+             "instructions» when saving it, or add them under «Ready visits» "
+             "(with your specialty panel's template if you have one). Chosen on a "
+             "visit, they appear ticked — untick what you do not want — and "
+             "<b>nothing is ordered until you press «Save»</b>: a test already "
+             "ordered is not ordered twice, and the follow-up and the family's "
+             "instructions are written only where empty."),
             ("<b>تكرار روشتة المرض المزمن:</b> جنب كل مشكلة نشطة في قايمة مشاكل "
              "المريض زرار «كرر آخر روشتة» — في الكشف وفي شاشة الروشتة. بيفتح روشتة "
              "جديدة فيها نفس الأدوية: اللي جرعته بالوزن بتتحسب من جديد على وزن "

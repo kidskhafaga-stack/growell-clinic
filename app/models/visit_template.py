@@ -26,12 +26,32 @@ class VisitTemplate(db.Model):
     clinical_exam = db.Column(db.Text)
     plan = db.Column(db.Text)
     rx_preset_id = db.Column(db.Integer, db.ForeignKey("rx_presets.id"), nullable=True)
+    # **The rest of the ready visit** (ب-١, the part left for later): the
+    # tests it orders (catalogue ids, JSON), what the family is told on the
+    # way out, the follow-up in days, and the specialty panel's own template.
+    # On the visit they are offered beside the boxes and land only when the
+    # doctor saves — never ordered by the press itself.
+    tests = db.Column(db.Text)
+    family_instructions = db.Column(db.Text)
+    followup_days = db.Column(db.Integer)
+    panel_template_id = db.Column(db.Integer, db.ForeignKey("panel_templates.id"), nullable=True)
     is_shared = db.Column(db.Boolean, default=False, nullable=False)
     use_count = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     doctor = db.relationship("User")
     rx_preset = db.relationship("RxPreset")
+    panel_template = db.relationship("PanelTemplate")
+
+    @property
+    def test_ids(self):
+        import json
+
+        try:
+            data = json.loads(self.tests or "[]")
+        except (TypeError, ValueError):
+            return []
+        return [int(x) for x in data if str(x).isdigit()]
 
     def visible_to(self, user):
         return self.is_shared or (user is not None and self.doctor_id == user.id)

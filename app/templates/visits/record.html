@@ -38,7 +38,7 @@
     'dxSuggestUrl': (url_for('ai.suggest_dx', visit_id=visit.id) if ai_dx_suggest else ''),
     'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None),
     'visitTpls': (visit_tpls or []), 'rxBase': _rx_base,
-    'vtSaveUrl': url_for('visits.visit_template_save'),
+    'vtSaveUrl': url_for('visits.visit_template_save'), 'visitId': visit.id,
     'vtWords': {'kept': t('visit_tpl.kept'), 'net': t('panel_tpl.err_net')}} | tojson }}
 </script>
 <div x-data="visitPage('{{ url_for('main.icd_search') }}',
@@ -934,6 +934,7 @@
               {% endfor %}
             </select>
             <label class="hint" style="margin:0;"><input type="checkbox" x-model="vt.shared"> {{ t('visit_tpl.share') }}</label>
+            <label class="hint" style="margin:0;" title="{{ t('visit_tpl.with_rest_hint') }}"><input type="checkbox" x-model="vt.rest" data-vt-with-rest> {{ t('visit_tpl.with_rest') }}</label>
             <button type="button" class="btn btn-sm btn-outline gc-press" x-on:click="saveTpl()" data-vt-save>{{ t('common.save') }}</button>
             <span class="hint" style="margin:0;" x-text="vt.said" data-vt-said></span>
           </div>
@@ -950,6 +951,27 @@
         </template>
       </div>
       <input type="hidden" name="visit_templates_used" :value="tplUsed.join(',')" data-vt-used>
+      {# The rest of the ready visit — ticked, and saved only with «حفظ».
+         Tests already on this visit are not ordered twice; the follow-up and
+         the family's words land only where the visit has none. #}
+      <div class="vt-rest" x-show="tplRest.tests.length || tplRest.days || tplRest.family" x-cloak data-vt-rest-box>
+        <div class="vt-rest-h"><i class="bi bi-lightning-charge"></i> {{ t('visit_tpl.rest_title') }}</div>
+        <template x-for="x in tplRest.tests" :key="x.id">
+          <label class="vt-rest-i"><input type="checkbox" name="vt_test" :value="x.id" x-model="x.on" data-vt-test>
+            <i class="bi bi-droplet"></i> <span x-text="x.name"></span></label>
+        </template>
+        <label class="vt-rest-i" x-show="tplRest.days"><input type="checkbox" checked
+            x-on:change="$refs.vtDays.disabled = !$event.target.checked" data-vt-days-on>
+          <i class="bi bi-arrow-repeat"></i> {{ t('visit_tpl.followup_in') }} <b x-text="tplRest.days"></b> {{ t('visit_tpl.days_word') }}</label>
+        <input type="hidden" name="vt_days" x-ref="vtDays" :value="tplRest.days || ''" :disabled="!tplRest.days">
+        <div class="vt-rest-f" x-show="tplRest.family">
+          <label class="vt-rest-i"><input type="checkbox" checked
+              x-on:change="$refs.vtFamily.disabled = !$event.target.checked" data-vt-family-on>
+            <i class="bi bi-chat-heart"></i> {{ t('visit_tpl.family') }}</label>
+          <textarea class="input" name="vt_family" rows="2" x-ref="vtFamily" x-model="tplRest.family" :disabled="!tplRest.family" data-vt-family></textarea>
+        </div>
+        <p class="hint" style="margin:4px 0 0;">{{ t('visit_tpl.rest_hint') }}</p>
+      </div>
 
       <div class="form-row"><label>{{ t('visits.chief_complaint') }}</label>
         {# The code expands as it is typed: "نورمال" + space becomes the
@@ -2894,7 +2916,10 @@
       // Ready visits (ب-١). `tplUsed` rides with the form so the server counts
       // them; `tplRx` is the prescription each one used offers.
       vtList: cfg.visitTpls || [], rxBase: cfg.rxBase || '', tplUsed: [], tplRx: [],
-      vt: { name: '', preset: '', shared: false, said: '', note: '' },
+      // The rest of the ready visits used (tests, follow-up, the family's
+      // instructions): offered ticked, saved only with the visit's «حفظ».
+      tplRest: { tests: [], days: null, family: '' },
+      vt: { name: '', preset: '', shared: false, said: '', note: '', rest: true },
       useTpl(t) {
         let kept = false;
         const put = (model, txt) => {
@@ -2907,6 +2932,17 @@
         if (t.preset && !this.tplRx.some(r => r.preset === t.preset)) {
           this.tplRx.push({ preset: t.preset, preset_name: t.preset_name });
         }
+        (t.tests || []).forEach(x => {
+          if (!this.tplRest.tests.some(y => y.id === x.id)) this.tplRest.tests.push({ ...x, on: true });
+        });
+        if (t.days && !this.tplRest.days) this.tplRest.days = t.days;
+        if (t.family && !this.tplRest.family) this.tplRest.family = t.family;
+        // The specialty panel's own template, pressed as if by hand: it fills
+        // only the panel's empty choices (أ-٣).
+        if (t.panel_tpl) {
+          const b = document.querySelector('[data-tpl="' + t.panel_tpl + '"]');
+          if (b) b.click();
+        }
         this.vt.note = kept ? ((cfg.vtWords || {}).kept || '') : '';
       },
       saveTpl() {
@@ -2915,7 +2951,7 @@
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: this.vt.name, cc: this.cc, exam: this.exam,
             plan: this.planTxt, preset: this.vt.preset ? Number(this.vt.preset) : null,
-            shared: !!this.vt.shared })
+            shared: !!this.vt.shared, with_rest: !!this.vt.rest, visit_id: cfg.visitId })
         }).then(r => r.json()).then(d => {
           this.vt.said = d.message || '';
           if (!d.ok) return;
@@ -3293,6 +3329,11 @@
   .vt-save summary::-webkit-details-marker { display:none; }
   .vt-save-box { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:6px; }
   .vt-rx { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; font-size:.88rem; }
+  .vt-rest { display:flex; gap:6px 14px; flex-wrap:wrap; align-items:center; margin-top:8px; padding:10px 12px;
+             border:1px dashed var(--brand-300, #9cc0e0); border-radius:12px; background:var(--surface-2, rgba(0,0,0,.02)); font-size:.9rem; }
+  .vt-rest-h { width:100%; font-weight:700; }
+  .vt-rest-i { display:inline-flex; gap:6px; align-items:center; margin:0; }
+  .vt-rest-f { width:100%; display:grid; gap:4px; }
   .pl-tpl-save summary::-webkit-details-marker { display:none; }
   [data-field].is-carried { background:color-mix(in srgb, var(--green-500) 8%, transparent); border-radius:10px; }
   .pl-carried { font-size:.75rem; font-weight:600; color:var(--green-700); }

@@ -49,6 +49,25 @@
       <div class="form-row"><label>{{ t('visits.plan') }}</label>
         <textarea class="input" name="plan" rows="2">{{ r.plan or '' }}</textarea></div>
     </div>
+    {# The rest of the ready visit: offered on the visit beside the boxes,
+       and only saved with the visit when the doctor keeps it ticked. #}
+    {% set mine_tests = r.test_ids %}
+    <div class="form-grid vt-rest" style="margin-top:4px;" data-vt-rest="{{ r.id }}">
+      <div class="form-row"><label><i class="bi bi-droplet"></i> {{ t('visit_tpl.tests') }}</label>
+        <select class="input" name="tests" multiple size="5" data-vt-tests>
+          {% for x in tests %}<option value="{{ x.id }}" {{ 'selected' if x.id in mine_tests }}>{{ x.name_ar }}{% if x.name_en %} — {{ x.name_en }}{% endif %}</option>{% endfor %}
+        </select>
+        <span class="hint">{{ t('visit_tpl.tests_hint') }}</span></div>
+      <div class="form-row"><label><i class="bi bi-chat-heart"></i> {{ t('visit_tpl.family') }}</label>
+        <textarea class="input" name="family" rows="3" placeholder="{{ t('followup.instructions_ph') }}" data-vt-family>{{ r.family_instructions or '' }}</textarea></div>
+      <div class="form-row"><label><i class="bi bi-arrow-repeat"></i> {{ t('visit_tpl.days') }}</label>
+        <input class="input num" type="number" min="1" max="365" name="days" value="{{ r.followup_days or '' }}" style="max-width:120px;" data-vt-days>
+        <label style="margin-top:8px;"><i class="bi bi-bookmark-star"></i> {{ t('visit_tpl.panel_tpl') }}</label>
+        <select class="input" name="panel_tpl" data-vt-panel>
+          <option value="">—</option>
+          {% for p in panel_tpls %}<option value="{{ p.id }}" {{ 'selected' if p.id == r.panel_template_id }}>{{ panel_name(p.panel_key) }} · {{ p.name }}</option>{% endfor %}
+        </select></div>
+    </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn btn-sm btn-primary gc-press" type="submit" name="action" value="save">{{ t('common.save') }}</button>
       <button class="btn btn-sm btn-outline gc-press" type="submit" name="action" value="delete" formnovalidate
