@@ -65,8 +65,32 @@
     <div style="display:flex;flex-direction:column;gap:8px;">
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.view', visit_id=visit.id) }}"><i class="bi bi-eye"></i> {{ t('visits.view_title') }}</a>
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=visit.patient_id) }}"><i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
+      {# The payer's own form, filled for this visit (CONTRACTS_PLAN.md ع-٣) —
+         the doctor signs it. #}
+      {% for f in payer_forms_here or [] %}
+      <a class="btn btn-outline btn-sm gc-press no-print" target="_blank" href="{{ url_for('main.payer_form_print', form_id=f.id, visit=visit.id) }}" data-visit-payer-form="{{ f.id }}"><i class="bi bi-file-earmark-richtext"></i> {{ f.name }}</a>
+      {% endfor %}
     </div>
   </div>
+
+  {# ع-٤ — what on this visit the payer wants an approval for, said now and
+     not when the bill is made: one press opens the request. #}
+  {% if payer_asks %}
+  <div class="alert-pill warn no-print" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;" data-payer-asks>
+    <i class="bi bi-patch-exclamation"></i>
+    {% for service, asked in payer_asks %}
+    <span>{{ t('payer_form.needs', service=service.name, payer=visit.patient.active_coverage.payer.name) }}</span>
+    {% if asked %}<span class="badge badge--warn" data-asked="{{ service.id }}">{{ t('payer_form.asked_waiting') }}</span>
+    {% else %}
+    <form method="post" action="{{ url_for('finance.approval_ask') }}" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="visit_id" value="{{ visit.id }}"><input type="hidden" name="service_id" value="{{ service.id }}">
+      <button class="btn btn-sm btn-primary gc-press" type="submit" data-ask-approval="{{ service.id }}">{{ t('payer_form.ask') }}</button>
+    </form>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
 
   <!-- Clinical safety: allergies / chronic diseases, up front -->
   {% with p = visit.patient %}{% include "_safety_banner.html" %}{% endwith %}

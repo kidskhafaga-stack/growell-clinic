@@ -5335,6 +5335,11 @@ def payer_edit(payer_id):
     p.discount_percent = request.form.get("discount_percent", type=float) or 0
     p.contact_person = (request.form.get("contact_person") or "").strip() or None
     p.phone = (request.form.get("phone") or "").strip() or None
+    # ع-٥ — where an approval request goes; a form that did not carry them
+    # leaves them as they were.
+    for field, limit in (("approvals_email", 120), ("approvals_whatsapp", 40)):
+        if field in request.form:
+            setattr(p, field, (request.form.get(field) or "").strip()[:limit] or None)
     p.is_active = bool(request.form.get("is_active"))
     db.session.commit()
     flash(t("claims.entity_updated"), "success")
@@ -5796,9 +5801,16 @@ def approvals():
     item = db.session.get(InvoiceItem, request.args.get("item", type=int) or 0)
     waiting = (InvoiceItem.query.filter(InvoiceItem.approval_needed.is_(True))
                .order_by(InvoiceItem.id.desc()).limit(100).all())
+    from app.utils import payer_forms
+
+    payer_ids = {a.payer_id for a in rows}
+    payers_by = {p.id: p for p in PayerEntity.query.filter(PayerEntity.id.in_(payer_ids)).all()} \
+        if payer_ids else {}
     return render_template(
         "finance/approvals.html", rows=rows, state=state, states=APPROVAL_STATES,
         item=item, waiting=waiting,
+        forms_of={pid: payer_forms.forms_for(p) for pid, p in payers_by.items()},
+        send_to={pid: payer_forms.where_to(p) for pid, p in payers_by.items()},
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
         services=Service.query.filter_by(is_active=True).order_by(Service.name).all())
 

@@ -435,6 +435,7 @@ def record(visit_id):
         "visits/record.html", visit=visit, recent_visits=recent_visits,
         fall_on=fall_on, er_here=er_here,
         er_sent=_er.sent_from(visit) if er_here else None,
+        **_payer_bits(visit),
         er_services=_er_services() if er_here else [],
         fall_criteria=fall_screen.criteria() if fall_on else [],
         fall_row=fall_screen.for_visit(visit.id) if fall_on else None,
@@ -605,6 +606,18 @@ def record(visit_id):
         vital_bands=vital_bands.table(),
         vital_fixed=vital_bands.FIXED,
     )
+
+
+def _payer_bits(visit):
+    """The payer's form for this visit and what on it waits for an approval
+    (CONTRACTS_PLAN.md ع-٣, ع-٤) — nothing for a child with no valid card."""
+    from app.utils import payer_forms
+
+    card = visit.patient.active_coverage if visit.patient is not None else None
+    if card is None or not card.is_valid_on(visit.visit_date):
+        return {"payer_forms_here": [], "payer_asks": []}
+    return {"payer_forms_here": payer_forms.forms_for(card.payer, "outpatient"),
+            "payer_asks": payer_forms.asks_for(visit.patient, visit=visit)}
 
 
 def _dental_chart_url(visit):

@@ -704,8 +704,20 @@ def create():
         # They have rebooked, so the "we missed you — shall we book you in?"
         # waiting in the queue would now be asking for something already done.
         no_show.cancel_for_patient(appt.patient_id)
+        # CONTRACTS_PLAN.md ع-٤ — a service on this booking the payer wants
+        # an approval for: the request opens now, at the desk, not when the
+        # bill finds it missing. Opening it sends nothing (ع-٥ is a press).
+        from app.utils import payer_forms
+        asked = []
+        for service, open_ in payer_forms.asks_for(appt.patient, appointment=appt):
+            if open_ is None:
+                payer_forms.ask(appt.patient, service, current_user, appointment=appt)
+            asked.append(service.name)
         db.session.commit()
         flash(t("appointments.created"), "success")
+        if asked:
+            flash(t("payer_form.booking_needs", services="، ".join(asked),
+                    payer=appt.patient.active_coverage.payer.name), "warning")
         # Consultation follow-up window: warn reception if it's late / overdue.
         if appt_type == "consultation":
             info = consultation_window(patient_id, doctor_id, on_date)

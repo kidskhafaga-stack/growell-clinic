@@ -1,0 +1,161 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ form.name }} — {{ t('payer_form.design') }}{% endblock %}
+{% block page_heading %}{{ t('payer_form.title') }}{% endblock %}
+
+{% block content %}
+{# CONTRACTS_PLAN.md ع-٣ — «دروب اند دراج للبيانات»: the payer's blank form
+   behind, the program's facts as boxes on it. Press a fact to add it, drag it
+   to its place, pull its left edge to widen it. Places are kept in
+   millimetres, so the print lands where the box was. #}
+{% set labels = {} %}
+{% for k in fields %}{% set _ = labels.update({k: t('payer_form.f_' ~ k)}) %}{% endfor %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-arrows-move"></i> {{ form.name }} <span class="badge badge--muted">{{ form.payer.name }}</span></h1>
+    <p class="page-sub" style="margin:0;max-width:74ch;">{{ t('payer_form.design_sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.payer_forms') }}"><i class="bi bi-list-ul"></i> {{ t('payer_form.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('main.payer_form_print', form_id=form.id) }}" target="_blank"><i class="bi bi-printer"></i> {{ t('payer_form.preview') }}</a>
+  </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="pfd"
+      x-data="pfDesign({{ form.layout|tojson|forceescape }}, {{ labels|tojson|forceescape }}, {{ form.width_mm }}, {{ form.height_mm }})"
+      x-on:keydown.window="nudge($event)" data-payer-form-design>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="layout" :value="JSON.stringify(fields)" data-layout>
+
+  <aside class="pfd-side">
+    <section class="card">
+      <h2 class="section-title" style="margin-top:0;">{{ t('payer_form.facts') }}</h2>
+      <p class="hint" style="margin-top:0;">{{ t('payer_form.facts_hint') }}</p>
+      <div class="pfd-palette">
+        {% for k in fields %}
+        <button type="button" class="md-chip" x-on:click="add('{{ k }}')" data-add-field="{{ k }}">{{ t('payer_form.f_' ~ k) }}</button>
+        {% endfor %}
+      </div>
+    </section>
+
+    <template x-if="sel !== null && fields[sel]">
+    <section class="card" data-field-inspector>
+      <h2 class="section-title" style="margin-top:0;" x-text="labels[fields[sel].key]"></h2>
+      <div class="pfd-props">
+        <label>X <input class="input input-sm num" type="number" step="0.5" min="0" :max="W" x-model.number="fields[sel].x"></label>
+        <label>Y <input class="input input-sm num" type="number" step="0.5" min="0" :max="H" x-model.number="fields[sel].y"></label>
+        <label>{{ t('payer_form.width') }} <input class="input input-sm num" type="number" step="1" min="5" :max="W" x-model.number="fields[sel].w"></label>
+        <label>{{ t('payer_form.size') }} <input class="input input-sm num" type="number" step="0.5" min="6" max="28" x-model.number="fields[sel].size"></label>
+        <label>{{ t('payer_form.align') }}
+          <select class="input input-sm" x-model="fields[sel].align">
+            {% for a in aligns %}<option value="{{ a }}">{{ t('payer_form.align_' ~ a) }}</option>{% endfor %}
+          </select></label>
+      </div>
+      <p class="hint" style="margin:6px 0;">{{ t('payer_form.nudge_hint') }}</p>
+      <button type="button" class="btn btn-sm btn-outline gc-press" x-on:click="remove()" data-remove-field><i class="bi bi-trash"></i> {{ t('payer_form.remove') }}</button>
+    </section>
+    </template>
+
+    <section class="card">
+      <h2 class="section-title" style="margin-top:0;">{{ t('payer_form.settings') }}</h2>
+      <div class="pfd-props">
+        <label>{{ t('payer_form.name') }} <input class="input" name="name" value="{{ form.name }}" required maxlength="120"></label>
+        <label>{{ t('payer_form.setting') }}
+          <select class="input" name="setting"><option value="">{{ t('contracts.setting_any') }}</option>
+            {% for s in settings %}<option value="{{ s }}" {{ 'selected' if form.setting == s }}>{{ t('contracts.setting_' ~ s) }}</option>{% endfor %}</select></label>
+        <label>{{ t('payer_form.page') }}
+          <select class="input" name="page">{% for k, wh in pages.items() %}<option value="{{ k }}" {{ 'selected' if (form.width_mm, form.height_mm) == wh }}>{{ k }}</option>{% endfor %}</select></label>
+        <label>{{ t('payer_form.background') }} <input class="input" type="file" name="background" accept="image/*"></label>
+        <label class="checkbox"><input type="checkbox" name="print_background" value="1" {{ 'checked' if form.print_background }}> {{ t('payer_form.print_background') }}</label>
+        <label class="checkbox"><input type="checkbox" name="is_active" value="1" {{ 'checked' if form.is_active }}
+               x-on:change="$el.form.querySelector('[data-active-off]').disabled = $el.checked"> {{ t('payer_form.active') }}</label>
+        <input type="hidden" name="is_active" value="0" data-active-off {{ 'disabled' if form.is_active }}>
+      </div>
+      <button class="btn btn-primary gc-press" type="submit" style="margin-top:10px;" data-save-design><i class="bi bi-save"></i> {{ t('common.save') }}</button>
+    </section>
+  </aside>
+
+  <div class="pfd-stage">
+    <div class="pfd-sheet" x-ref="sheet" style="width:{{ form.width_mm }}mm;height:{{ form.height_mm }}mm;"
+         x-on:pointerdown.self="sel = null" data-sheet>
+      {% if form.background %}<img class="pfd-bg" src="{{ url_for('static', filename='uploads/patient_docs/' ~ form.background) }}" alt="" draggable="false">
+      {% else %}<div class="pfd-nobg">{{ t('payer_form.no_background') }}</div>{% endif %}
+      <template x-for="(f, i) in fields" :key="i">
+        <div class="pfd-field" :class="sel === i && 'is-sel'" data-field
+             :style="`left:${f.x}mm;top:${f.y}mm;width:${f.w}mm;font-size:${f.size}pt;text-align:${f.align};`"
+             x-on:pointerdown.prevent="grab($event, i, 'move')">
+          <span x-text="labels[f.key]"></span>
+          <i class="pfd-grip" x-on:pointerdown.prevent.stop="grab($event, i, 'width')" title="{{ t('payer_form.width') }}"></i>
+        </div>
+      </template>
+    </div>
+  </div>
+</form>
+
+<style>
+  .pfd { display:grid; grid-template-columns:minmax(240px, 300px) minmax(0, 1fr); gap:14px; align-items:start; }
+  @media (max-width:900px) { .pfd { grid-template-columns:minmax(0, 1fr); } }
+  .pfd-side { display:grid; gap:12px; position:sticky; top:76px; }
+  .pfd-palette { display:flex; gap:6px; flex-wrap:wrap; }
+  .pfd-palette .md-chip { padding:4px 10px; font-size:.82rem; }
+  .pfd-props { display:grid; gap:8px; }
+  .pfd-props label { display:grid; gap:4px; font-size:.88rem; }
+  .pfd-stage { overflow:auto; background:var(--surface-2, #e9ecef); border-radius:14px; padding:16px; max-height:calc(100vh - 140px); }
+  .pfd-sheet { position:relative; margin:0 auto; background:#fff; box-shadow:0 2px 12px rgba(0,0,0,.15); touch-action:none; user-select:none; }
+  .pfd-bg { position:absolute; inset:0; width:100%; height:100%; object-fit:fill; pointer-events:none; }
+  .pfd-nobg { position:absolute; inset:0; display:grid; place-items:center; color:#9aa4b2; font-size:1.1rem; text-align:center; padding:20px; }
+  .pfd-field { position:absolute; min-height:1.3em; padding:1px 4px; border:1.5px dashed #2d6cb5; background:rgba(45,108,181,.10); color:#123; cursor:move; border-radius:3px; box-sizing:border-box; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pfd-field.is-sel { border-style:solid; border-color:#c27c0e; background:rgba(194,124,14,.14); z-index:2; }
+  .pfd-grip { position:absolute; left:-1px; top:0; bottom:0; width:8px; cursor:ew-resize; background:rgba(194,124,14,.5); }
+</style>
+<script>
+  function pfDesign(fields, labels, W, H) {
+    return {
+      fields: fields || [], labels: labels || {}, W: W, H: H, sel: null, drag: null,
+      mm(e) {
+        const r = this.$refs.sheet.getBoundingClientRect();
+        return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
+      },
+      add(key) {
+        this.fields.push({ key: key, x: 10, y: 10 + (this.fields.length % 20) * 8, w: 60, size: 11, align: 'right' });
+        this.sel = this.fields.length - 1;
+      },
+      remove() { if (this.sel !== null) { this.fields.splice(this.sel, 1); this.sel = null; } },
+      grab(e, i, how) {
+        this.sel = i;
+        const f = this.fields[i], p = this.mm(e);
+        this.drag = { how: how, i: i, x0: p.x, y0: p.y, fx: f.x, fy: f.y, fw: f.w };
+        const move = (ev) => this.moveTo(ev), up = () => {
+          this.drag = null;
+          window.removeEventListener('pointermove', move);
+          window.removeEventListener('pointerup', up);
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+      },
+      moveTo(e) {
+        const d = this.drag; if (!d) return;
+        const f = this.fields[d.i], p = this.mm(e), r = (v) => Math.round(v * 2) / 2;
+        if (d.how === 'move') {
+          f.x = r(Math.min(Math.max(d.fx + p.x - d.x0, 0), W - f.w));
+          f.y = r(Math.min(Math.max(d.fy + p.y - d.y0, 0), H - 4));
+        } else {
+          // The grip is the box's left edge: pulling it left widens the box.
+          const w = r(Math.min(Math.max(d.fw - (p.x - d.x0), 5), d.fx + d.fw));
+          f.x = r(d.fx + d.fw - w); f.w = w;
+        }
+      },
+      nudge(e) {
+        if (this.sel === null || ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+        const f = this.fields[this.sel], step = e.shiftKey ? 5 : 0.5;
+        const moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+        if (e.key === 'Delete') { this.remove(); e.preventDefault(); return; }
+        if (!moves[e.key]) return;
+        f.x = Math.min(Math.max(f.x + moves[e.key][0], 0), W - f.w);
+        f.y = Math.min(Math.max(f.y + moves[e.key][1], 0), H - 4);
+        e.preventDefault();
+      },
+    };
+  }
+</script>
+{% endblock %}

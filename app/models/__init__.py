@@ -397,6 +397,7 @@ from app.models.community import (Advertisement, CommunityActivity,
                                   CommunityPartner, NeedsAssessment)
 from app.models.incident import Incident
 from app.models.rca import RcaCause, RcaProblem  # noqa: E402,F401
+from app.models.payer_form import PayerForm  # noqa: E402,F401
 from app.models.hand_hygiene import (HandHygieneAction,
                                      HandHygieneFacilityCheck,
                                      HandHygieneOpportunity,

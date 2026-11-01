@@ -1137,6 +1137,16 @@ ADDITIONS = [
     ("visit_templates", "family_instructions", "TEXT"),
     ("visit_templates", "followup_days", "INTEGER"),
     ("visit_templates", "panel_template_id", "INTEGER"),
+    # CONTRACTS_PLAN.md ع-٤ / ع-٥: an approval asked for from a visit or a
+    # booking, and sent to the payer's approvals desk.
+    ("payer_entities", "approvals_email", "VARCHAR(120)"),
+    ("payer_entities", "approvals_whatsapp", "VARCHAR(40)"),
+    ("insurance_approvals", "visit_id", "INTEGER"),
+    ("insurance_approvals", "appointment_id", "INTEGER"),
+    ("insurance_approvals", "sent_at", "DATETIME"),
+    ("insurance_approvals", "sent_via", "VARCHAR(10)"),
+    ("insurance_approvals", "sent_to", "VARCHAR(120)"),
+    ("insurance_approvals", "sent_by", "INTEGER"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

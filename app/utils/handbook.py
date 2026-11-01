@@ -2783,6 +2783,30 @@ SECTIONS = [
         "icon": "file-earmark-medical",
         "title": ("الجهات والمطالبات", "Payers & claims"),
         "lines": [
+            ("<b>استمارة كل شركة:</b> (جهات الدفع ← استمارات الشركات) ارفع صورة الاستمارة "
+             "الفاضية مرة، ودوس على البيانات (اسم الطفل، رقم العضوية، الفئة، التشخيص وكوده، "
+             "نوع الخدمة، رقم الموافقة، الطبيب، التاريخ…) واسحبها لمكانها. بتطلع مليانة من "
+             "الكشف (زرار باسم الاستمارة فوق) ومن كل طلب موافقة — على ورق أبيض بالاستمارة "
+             "وراها، أو على ورق الشركة المطبوع بالبيانات بس — والطبيب يوقّع.",
+             "<b>Each payer's form:</b> (Payers → Payer forms) upload the blank "
+             "form's picture once, press the facts (child's name, membership "
+             "number, plan, diagnosis and code, kind of service, approval number, "
+             "doctor, date…) and drag them into place. It prints filled from the "
+             "visit (a button with the form's name at the top) and from every "
+             "approval request — on plain paper with the form behind, or on the "
+             "payer's printed form with the facts alone — and the doctor signs."),
+            ("<b>الموافقة بدري، والإرسال للشركة:</b> لو خدمة على الكشف محتاجة موافقة في "
+             "العقد، الكشف بيقول كده وفيه «اطلب الموافقة»؛ والحجز بيفتح الطلب لوحده "
+             "ويقول للاستقبال. من «الموافقات» اطبع الاستمارة أو ابعتها لإيميل أو واتساب "
+             "موافقات الشركة (بيتكتبوا في بيانات الجهة) — والرد بتسجّله إنت بالرقم "
+             "والخطاب، البرنامج ما بيقراش «اتقبلت» لوحده.",
+             "<b>Approval early, and sent to the payer:</b> when a service on a "
+             "visit needs an approval under the contract, the visit says so with "
+             "«Ask for the approval»; a booking opens the request by itself and "
+             "tells the desk. From «Approvals» print the form or send it to the "
+             "payer's approvals email or WhatsApp (set on the payer) — and you "
+             "record the answer with its number and letter; the program never "
+             "reads «approved» by itself."),
             ("<b>كارت التأمين والاستقبال:</b> في ملف الطفل (العيلة ← التأمين) الكارت فيه "
              "رقم العضوية وفئة الاشتراك وصاحب الاشتراك وصلته بالطفل وتاريخ الإصدار والانتهاء "
              "وصورته وش وضهر. حالة الكارت بتظهر جنب اسم الطفل عند الحجز وفي لوحة اليوم "
