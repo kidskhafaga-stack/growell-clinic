@@ -32,6 +32,19 @@ import pytest  # noqa: E402
 from app.utils.clock import local_today  # noqa: E402
 
 
+def _days_back(days):
+    """The same clinic wall-clock time ``days`` days ago, as stored UTC.
+
+    Not ``utcnow() - days``: across the clinic's daylight-saving change that
+    lands on another clinic day for an hour each night (Cairo went from UTC+3
+    to UTC+2 on 29 Oct 2026), and a four-night stay was billed as three.
+    """
+    from app.utils.clock import local_now, to_utc
+
+    return to_utc(local_now() - timedelta(days=days))
+
+
+
 @pytest.fixture()
 def insurer(clinic):
     """A payer on contract, with a 90-day window and 30-day payment terms."""
@@ -98,7 +111,7 @@ def _sent_claim(fx, invoice_id, days_ago, status="submitted"):
                       payer_id=fx["payer"], date_from=invoice.invoice_date,
                       date_to=invoice.invoice_date, status=status,
                       total_amount=invoice.discount_total,
-                      submitted_at=datetime.utcnow() - timedelta(days=days_ago))
+                      submitted_at=_days_back(days_ago))
         db.session.add(claim)
         db.session.flush()
         db.session.add(ClaimItem(claim_id=claim.id, invoice_id=invoice_id,
