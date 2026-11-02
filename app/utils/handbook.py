@@ -2064,6 +2064,20 @@ SECTIONS = [
              "قابلة للطباعة.",
              "<b>An age-based schedule per child</b> with dose recording and a "
              "printable vaccination certificate."),
+            ("<b>داء الكلب كورس مش جرعة:</b> مش في الجدول بالسن. من صفحة تطعيمات الطفل ← «كورس "
+             "داء الكلب» الدكتور يختار البروتوكول — بعد التعرّض: منظمة الصحة (٤ جرعات: ٠، ٣، ٧، ١٤) "
+             "أو المصري (٥ جرعات: ٠، ٣، ٧، ١٤، ٢٨)، أو متطعّم قبل كده (٠، ٣)، أو قبل التعرّض (٠، ٧) — "
+             "ويسجّل متطعّم قبل كده ولا لأ وفئة التعرّض. الجرعات بتتحسب من اليوم صفر (يوم أول "
+             "جرعة فعلاً)، والتذكير بيروح لكل جرعة، والكارت بيسأل عن الجلوبيولين المناعي (RIG) "
+             "لحد ما حد يجاوب. وتقدر توقّف الكورس بسبب.",
+             "<b>Rabies is a course, not a dose:</b> not in the schedule by age. From the "
+             "child's vaccinations page → «Rabies course» the doctor picks the protocol — "
+             "after exposure: WHO (4 doses: 0, 3, 7, 14) or Egyptian (5 doses: 0, 3, 7, "
+             "14, 28), previously vaccinated (0, 3), or pre-exposure (0, 7) — and records "
+             "whether the child was vaccinated before and the exposure category. Doses are "
+             "dated from day 0 (the real first dose), each one is reminded, and the card "
+             "asks about rabies immunoglobulin (RIG) until somebody answers. A course can "
+             "be stopped with a reason."),
             ("الجرعة اللي بتتاخد في العيادة <b>بتتخصم من المخزن تلقائياً</b> "
              "(الأقرب انتهاءً أولاً)، والأمبولة متعددة الجرعات محسوبة.",
              "A dose given in the clinic <b>deducts from stock "

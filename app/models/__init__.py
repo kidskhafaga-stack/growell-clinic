@@ -30,6 +30,7 @@ from app.models.crm import (IDENTITY_KINDS, LEAD_STAGES, LOST_REASONS,
 from app.models.clinic_room import ClinicRoom, RoomAssignment
 from app.models.nursing_station import NursingStation
 from app.models.vaccine_plan import VaccinePlanItem
+from app.models.vaccine_course import VaccineCourse
 from app.models.dental import (ALL_TEETH, CONDITIONS, PRIMARY_TEETH,
                                PERMANENT_TEETH, SURFACES, ToothFinding)
 from app.models.dental_plan import (ITEM_STATUSES, PLAN_STATUSES,
@@ -441,6 +442,7 @@ __all__ = [
     "RoomAssignment",
     "NursingStation",
     "VaccinePlanItem",
+    "VaccineCourse",
     "ReminderAction",
     "Parent",
     "Patient",

@@ -98,10 +98,33 @@ def view(patient_id):
                  and not item["vaccine"].on_demand
                  and item["vaccine"].is_offered
                  and item["vaccine"].id not in on_plan]
+    # Courses counted from day 0 (rabies): the protocols the doctor picks
+    # from, and the open course with what the card has to say about it.
+    from app.utils import vaccine_protocols
+
+    by_id = {item["vaccine"].id: item for item in plan}
+    courses = []
+    for v in Vaccine.query.order_by(Vaccine.sort_order).all():
+        protos = vaccine_protocols.protocols_for(v)
+        if not protos:
+            continue
+        item = by_id.get(v.id) or {}
+        course = item.get("day_course")
+        courses.append({
+            "vaccine": v, "protocols": protos, "course": course,
+            "protocol": item.get("day_protocol"), "item": item,
+            "warnings": (vaccine_protocols.warnings(course, v)
+                         if course is not None else []),
+            "next": next((d for d in item.get("doses", [])
+                          if d.get("course_day") is not None
+                          and d["status"] != "done"), None),
+        })
     return render_template(
         "vaccinations/view.html",
         patient=patient, plan=plan, summary=summary, next_due=nxt,
-        agreed=agreed, offerable=offerable,
+        agreed=agreed, offerable=offerable, courses=courses,
+        rig_states=vaccine_protocols.RIG_STATES,
+        categories=vaccine_protocols.CATEGORIES,
         groups=group_plan(plan), open_groups=OPEN_GROUPS,
         # Which dose is which, per vaccine — so the doctor picks "the second
         # dose" by name instead of typing a number and hoping.
@@ -410,6 +433,76 @@ def record(patient_id):
     return render_template(
         "messages/sent.html", log=log, appt=None,
         back_url=url_for("vaccinations.view", patient_id=patient.id))
+
+
+# ------------------------------------------------- courses from day 0 ----
+@vaccinations_bp.route("/<int:patient_id>/course/start", methods=["POST"])
+@module_required(MODULE)
+def course_start(patient_id):
+    """Open a course on the protocol the doctor chose (rabies)."""
+    from app.utils import vaccine_protocols
+
+    patient = db.get_or_404(Patient, patient_id)
+    vaccine = db.get_or_404(Vaccine, request.form.get("vaccine_id", type=int))
+    try:
+        course = vaccine_protocols.start(patient, vaccine, request.form, current_user)
+    except vaccine_protocols.CourseError as why:
+        db.session.rollback()
+        flash(t("vcourse.err_" + str(why)), "danger")
+        return redirect(url_for("vaccinations.view", patient_id=patient.id) + "#courses")
+    ActivityLog.record("vaccine.course_start", user_id=current_user.id,
+                       entity="patient", entity_id=patient.id,
+                       detail=f"{vaccine.code}:{course.protocol}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("vcourse.started"), "success")
+    return redirect(url_for("vaccinations.view", patient_id=patient.id) + "#courses")
+
+
+def _course_or_404(course_id):
+    from app.models.vaccine_course import VaccineCourse
+
+    return db.get_or_404(VaccineCourse, course_id)
+
+
+@vaccinations_bp.route("/course/<int:course_id>/rig", methods=["POST"])
+@module_required(MODULE)
+def course_rig(course_id):
+    """The immunoglobulin answer — the program asks, a person decides."""
+    from app.utils import vaccine_protocols
+
+    course = _course_or_404(course_id)
+    raw = (request.form.get("rig_given_on") or "").strip()
+    try:
+        on = datetime.strptime(raw, "%Y-%m-%d").date() if raw else local_today()
+        vaccine_protocols.set_rig(course, request.form.get("rig"), on)
+    except (ValueError, vaccine_protocols.CourseError):
+        db.session.rollback()
+        flash(t("vcourse.err_rig"), "danger")
+        return redirect(url_for("vaccinations.view", patient_id=course.patient_id) + "#courses")
+    db.session.commit()
+    flash(t("vcourse.saved"), "success")
+    return redirect(url_for("vaccinations.view", patient_id=course.patient_id) + "#courses")
+
+
+@vaccinations_bp.route("/course/<int:course_id>/close", methods=["POST"])
+@module_required(MODULE)
+def course_close(course_id):
+    """Stop a course, with the doctor's reason. Never deleted."""
+    from app.utils import vaccine_protocols
+
+    course = _course_or_404(course_id)
+    try:
+        vaccine_protocols.close(course, request.form.get("reason"), current_user)
+    except vaccine_protocols.CourseError as why:
+        db.session.rollback()
+        flash(t("vcourse.err_" + str(why)), "danger")
+        return redirect(url_for("vaccinations.view", patient_id=course.patient_id) + "#courses")
+    ActivityLog.record("vaccine.course_close", user_id=current_user.id,
+                       entity="patient", entity_id=course.patient_id,
+                       detail=course.close_reason, ip_address=client_ip())
+    db.session.commit()
+    flash(t("vcourse.closed"), "success")
+    return redirect(url_for("vaccinations.view", patient_id=course.patient_id) + "#courses")
 
 
 @vaccinations_bp.route("/<int:patient_id>/record-event", methods=["POST"])
