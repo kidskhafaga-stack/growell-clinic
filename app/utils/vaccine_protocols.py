@@ -238,3 +238,31 @@ def close(course, reason, user):
     course.closed_at = datetime.utcnow()
     course.close_reason = reason
     course.closed_by = getattr(user, "id", None)
+
+
+def cards(plan, patient_id=None):
+    """One entry per vaccine that has protocols — what both the vaccinations
+    page and the visit draw: the protocols to start from, or the open course
+    with its next dose and what it has to say. ``plan`` is ``patient_plan``."""
+    from app.models import Vaccine
+
+    by_id = {item["vaccine"].id: item for item in plan}
+    out = []
+    for v in Vaccine.query.order_by(Vaccine.sort_order).all():
+        protos = protocols_for(v)
+        if not protos:
+            continue
+        item = by_id.get(v.id) or {}
+        course = item.get("day_course")
+        out.append({
+            "vaccine": v, "protocols": protos, "course": course,
+            "protocol": item.get("day_protocol"), "item": item,
+            "warnings": warnings(course, v) if course is not None else [],
+            "next": next((d for d in item.get("doses", [])
+                          if d.get("course_day") is not None
+                          and d["status"] != "done"), None),
+            # The amount per injection differs by product (Verorab 0.5 mL,
+            # Rabipur 1.0 mL) and is said where the dose is given.
+            "brands": list(v.active_brands) or list(v.brands),
+        })
+    return out

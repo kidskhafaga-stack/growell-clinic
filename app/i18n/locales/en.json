@@ -16697,6 +16697,9 @@
     "err_future": "Day 0 cannot be after today.",
     "err_rig": "The RIG answer could not be read.",
     "err_reason": "Write why the course is stopped.",
-    "err_closed": "The course is already closed."
+    "err_closed": "The course is already closed.",
+    "volume": "Dose volume",
+    "details": "Course details",
+    "complete": "The course is complete — every dose given."
   }
 }

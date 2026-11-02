@@ -188,3 +188,33 @@ def test_a_second_bite_years_later_is_a_new_course_after_the_first(rabies):
         row = _plan_row(rabies)
         assert [d["dose_number"] for d in row["doses"]] == [1, 2, 3, 4]
         assert [d.get("earlier_course", False) for d in row["doses"]] == [True, True, False, False]
+
+
+def test_opened_and_given_from_the_visit_with_the_volume_said(rabies):
+    """The bite is seen in the visit: the course opens there, its next dose
+    is given there, and each product's dose volume is said where it is given."""
+    from app.models import PatientVaccine
+    from app.models.vaccine_course import VaccineCourse
+
+    doc = rabies["sign_in"]("doc")
+    vid, rid = rabies["ids"]["visit"], rabies["ids"]["rabies"]
+    page = doc.get(f"/visits/{vid}/record").get_data(as_text=True)
+    assert 'data-visit-course="RABIES"' in page and "data-visit-course-start" in page
+    doc.post(f"/visits/{vid}/vaccine-course", data={
+        "vaccine_id": rid, "protocol": "pep_who4", "previously_vaccinated": "0",
+        "exposure_category": "III"})
+    with rabies["app"].app_context():
+        assert VaccineCourse.query.one().protocol == "pep_who4"
+    page = doc.get(f"/visits/{vid}/record").get_data(as_text=True)
+    assert "data-visit-course-give" in page and 'data-visit-course-warning="rig_assess"' in page
+    assert "0.5 mL" in page and "1.0 mL" in page, "each product's volume"
+    doc.post(f"/visits/{vid}/give-vaccine", data={
+        "vaccine_id": rid, "dose_number": 1, "brand_id": rabies["ids"]["verorab"]})
+    with rabies["app"].app_context():
+        assert PatientVaccine.query.filter_by(vaccine_id=rid, event_type="given").count() == 1
+    page = doc.get(f"/visits/{vid}/record").get_data(as_text=True)
+    assert "الجرعة 2 (اليوم 3)" in page or "Dose 2 (day 3)" in page
+    # And on the vaccinations page.
+    boss = rabies["sign_in"]("boss")
+    page = boss.get(f"/vaccinations/{rabies['ids']['child']}").get_data(as_text=True)
+    assert "data-course-volumes" in page and "0.5 mL" in page

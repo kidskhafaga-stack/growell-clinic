@@ -2884,7 +2884,13 @@ def visit_vaccine_panel(patient, lang="ar"):
                  "overdue": len(given) > 0 and nxt["status"] == "overdue",
                  "seasonal": False}
         (give_now if brand.stock > 0 else out_of_stock).append(entry)
+    # Courses counted from day 0 (rabies): on the visit too, so a child
+    # brought in for day 7 has the dose in front of the doctor, and a bite
+    # seen today can be opened without leaving the visit.
+    from app.utils import vaccine_protocols
+
     return {"received": received, "give_now": give_now,
+            "courses": vaccine_protocols.cards(plan),
             "out_of_stock": out_of_stock,
             "next_optional": min(ahead, key=lambda e: e["due_date"]) if ahead else None}
 

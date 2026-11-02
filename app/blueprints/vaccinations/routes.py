@@ -98,27 +98,11 @@ def view(patient_id):
                  and not item["vaccine"].on_demand
                  and item["vaccine"].is_offered
                  and item["vaccine"].id not in on_plan]
-    # Courses counted from day 0 (rabies): the protocols the doctor picks
-    # from, and the open course with what the card has to say about it.
+    # Courses counted from day 0 (rabies) — the protocols to start from, or
+    # the open course with its next dose (``utils/vaccine_protocols.cards``).
     from app.utils import vaccine_protocols
 
-    by_id = {item["vaccine"].id: item for item in plan}
-    courses = []
-    for v in Vaccine.query.order_by(Vaccine.sort_order).all():
-        protos = vaccine_protocols.protocols_for(v)
-        if not protos:
-            continue
-        item = by_id.get(v.id) or {}
-        course = item.get("day_course")
-        courses.append({
-            "vaccine": v, "protocols": protos, "course": course,
-            "protocol": item.get("day_protocol"), "item": item,
-            "warnings": (vaccine_protocols.warnings(course, v)
-                         if course is not None else []),
-            "next": next((d for d in item.get("doses", [])
-                          if d.get("course_day") is not None
-                          and d["status"] != "done"), None),
-        })
+    courses = vaccine_protocols.cards(plan)
     return render_template(
         "vaccinations/view.html",
         patient=patient, plan=plan, summary=summary, next_due=nxt,

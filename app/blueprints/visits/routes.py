@@ -1463,6 +1463,30 @@ def give_vaccine(visit_id):
     return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
 
 
+@visits_bp.route("/<int:visit_id>/vaccine-course", methods=["POST"])
+@module_required(MODULE)
+def vaccine_course_start(visit_id):
+    """Open a rabies course from the visit — the bite is seen here, and the
+    doctor picks the protocol here (``utils/vaccine_protocols``)."""
+    from app.models import Vaccine
+    from app.utils import vaccine_protocols
+
+    visit = db.get_or_404(Visit, visit_id)
+    vaccine = db.get_or_404(Vaccine, request.form.get("vaccine_id", type=int))
+    try:
+        course = vaccine_protocols.start(visit.patient, vaccine, request.form, current_user)
+    except vaccine_protocols.CourseError as why:
+        db.session.rollback()
+        flash(t("vcourse.err_" + str(why)), "danger")
+        return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
+    ActivityLog.record("vaccine.course_start", user_id=current_user.id, entity="visit",
+                       entity_id=visit.id, detail=f"{vaccine.code}:{course.protocol}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("vcourse.started"), "success")
+    return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
+
+
 @visits_bp.route("/<int:visit_id>/plan-dose", methods=["POST"])
 @module_required(MODULE)
 def plan_dose(visit_id):
