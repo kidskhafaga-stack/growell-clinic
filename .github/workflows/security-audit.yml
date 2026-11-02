@@ -29,8 +29,8 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       # requirements.txt: the Python libraries every clinic installs.
@@ -46,7 +46,7 @@ jobs:
           grep 'platform_machine == "x86"' requirements.txt | sed 's/;.*//' > x86.txt
           pip-audit -r x86.txt --progress-spinner off || true
       # app/static/vendor: the browser libraries, listed in its package.json.
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: Browser libraries
@@ -64,8 +64,8 @@ jobs:
   wheels:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Every Windows build and Python a clinic may run

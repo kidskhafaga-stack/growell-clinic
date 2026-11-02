@@ -46,9 +46,9 @@ jobs:
         python-version: ${{ fromJSON(github.event_name == 'push' && '["3.10", "3.11"]' || '["3.11"]') }}
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
         # 3. Cache the wheels. requirements.txt is long and installing it from
