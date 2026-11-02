@@ -117,6 +117,30 @@ def next_dose(patient, vaccine, brand, current_dose, on_date=None):
         year = (on_date or date.today()).year + 1
         return {"kind": "seasonal", "date": None, "number": None, "year": year}
 
+    # A course opened on a protocol (rabies): the next dose is the course's,
+    # dated from day 0 — not "complete" after the first needle.
+    if vaccine is not None and getattr(patient, "id", None):
+        from app.models import PatientVaccine
+        from app.utils import vaccine_protocols
+
+        course = vaccine_protocols.open_course(patient.id, vaccine.id)
+        proto = (vaccine_protocols.protocol(vaccine, course.protocol)
+                 if course is not None else None)
+        if proto is not None:
+            first = course.first_dose_number or 1
+            given = {pv.dose_number: pv.given_date for pv in PatientVaccine.query.filter_by(
+                patient_id=patient.id, vaccine_id=vaccine.id, event_type="given").all()}
+            if current_dose is not None and on_date is not None:
+                given.setdefault(current_dose, on_date)
+            timings = vaccine_protocols.course_dates(
+                course.start_date, proto["days"], first, given, {},
+                on_date or date.today())
+            following = next((n for n, _ in vaccine_protocols.course_rota(proto["days"], first)
+                              if n not in given), None)
+            if following is None:
+                return {"kind": "complete", "date": None, "number": None}
+            return {"kind": "date", "date": timings[following][0], "number": following}
+
     doses = sorted(getattr(brand, "doses", None) or [],
                    key=lambda d: d.dose_number)
     if not doses:

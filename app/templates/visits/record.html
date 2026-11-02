@@ -2331,6 +2331,72 @@
     <p id="vacNoHit" class="hint" style="display:none;">
       <i class="bi bi-search"></i> {{ t('visits.vac_no_match') }}</p>
 
+    {# Rabies is a course from day 0, not a schedule by age
+       (utils/vaccine_protocols): the next dose of an open course, given here,
+       or the course opened here — the bite is seen in this room. #}
+    {% for c in vac_panel.courses %}
+    <div class="vac-card gc-lift" data-visit-course="{{ c.vaccine.code }}" style="margin-top:10px;">
+      <div class="vac-head">
+        <div>
+          <strong><i class="bi bi-shield-plus"></i> {{ t('vcourse.title', vaccine=c.vaccine.display_name(current_lang)) }}</strong>
+          {% if c.course %}<span class="badge badge--green">{{ t('vcourse.open') }}</span>{% endif %}
+        </div>
+        <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('vaccinations.view', patient_id=visit.patient_id) }}#courses">{{ t('vcourse.details') }}</a>
+      </div>
+      {% if c.course %}
+        {% set p = c.protocol %}
+        <p class="hint" style="margin:4px 0;"><strong>{{ p.ar if current_lang == 'ar' else p.en }}</strong> · {{ t('vcourse.day0') }} <span dir="ltr">{{ c.course.start_date }}</span></p>
+        {% for w in c.warnings %}{% if w.startswith('rig') or w == 'mismatch_previous' %}
+        <p class="hint" style="margin:4px 0;color:var(--danger);" data-visit-course-warning="{{ w }}"><i class="bi bi-exclamation-triangle"></i> {{ t('vcourse.warn_' ~ w) }}</p>
+        {% endif %}{% endfor %}
+        {% if c.next %}
+        <form method="post" action="{{ url_for('visits.give_vaccine', visit_id=visit.id) }}"
+              style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px;" data-visit-course-give>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="vaccine_id" value="{{ c.vaccine.id }}">
+          <input type="hidden" name="dose_number" value="{{ c.next.dose_number }}">
+          <span class="dn">{{ t('vcourse.give_dose', n=c.next.dose_number, day=c.next.age_label) }}
+            <span class="vst vst-{{ c.next.status }}">{{ t('vstatus.' ~ c.next.status) }}</span>
+            <span class="dd" dir="ltr">{{ c.next.due_date }}</span></span>
+          <select name="brand_id" class="select" style="height:34px;padding:2px 8px;font-size:0.82rem;max-width:260px;">
+            {% for b in c.brands %}<option value="{{ b.id }}">{{ b.display_name(current_lang) }}{% if b.dose_volume %} — {{ b.dose_volume }}{% endif %} ({{ b.stock }})</option>{% endfor %}
+          </select>
+          <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-syringe"></i> {{ t('visits.vac_give_btn') }}</button>
+        </form>
+        {% else %}
+        <p class="hint" style="margin:4px 0;">{{ t('vcourse.complete') }}</p>
+        {% endif %}
+      {% else %}
+      <details style="margin-top:4px;">
+        <summary class="hint" style="cursor:pointer;">{{ t('vcourse.start') }}</summary>
+        <form method="post" action="{{ url_for('visits.vaccine_course_start', visit_id=visit.id) }}" data-visit-course-start style="margin-top:6px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="vaccine_id" value="{{ c.vaccine.id }}">
+          <div style="display:grid;gap:4px;margin-bottom:8px;">
+            {% for p in c.protocols %}
+            <label style="display:flex;gap:8px;align-items:flex-start;font-size:.88rem;">
+              <input type="radio" name="protocol" value="{{ p.key }}" required>
+              <span>{{ p.ar if current_lang == 'ar' else p.en }} — <span dir="ltr">{{ p.days|join(', ') }}</span></span>
+            </label>
+            {% endfor %}
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;">
+            <label class="hint" style="margin:0;display:grid;gap:4px;">{{ t('vcourse.previously') }}
+              <select class="select" name="previously_vaccinated">
+                <option value="">{{ t('vcourse.prev_unknown') }}</option>
+                <option value="0">{{ t('vcourse.prev_no') }}</option>
+                <option value="1">{{ t('vcourse.prev_yes') }}</option></select></label>
+            <label class="hint" style="margin:0;display:grid;gap:4px;">{{ t('vcourse.category') }}
+              <select class="select" name="exposure_category"><option value="">—</option>
+                <option value="I">I</option><option value="II">II</option><option value="III">III</option></select></label>
+            <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-play-fill"></i> {{ t('vcourse.start') }}</button>
+          </div>
+        </form>
+      </details>
+      {% endif %}
+    </div>
+    {% endfor %}
+
     <!-- What the child already received — first, with the upcoming doses -->
     <details open class="vac-section">
       <summary style="cursor:pointer;color:var(--green-800);font-size:0.95rem;font-weight:600;margin:14px 0 8px;">

@@ -79,6 +79,115 @@
     {% endif %}
   </div>
 
+  {# Courses counted from day 0 — rabies (utils/vaccine_protocols). Not a
+     schedule by age: the doctor opens one after a bite (or before, for a
+     child at risk), picks the protocol, and every dose is dated from day 0. #}
+  {% for c in courses %}
+  <div class="card gc-scale-in" style="margin-top:18px;" id="courses" data-course-card="{{ c.vaccine.code }}">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <h2 style="margin:0;font-size:1.05rem;"><i class="bi bi-shield-plus"></i>
+        {{ t('vcourse.title', vaccine=c.vaccine.display_name(current_lang)) }}</h2>
+      {% if c.course %}<span class="badge badge--green">{{ t('vcourse.open') }}</span>{% endif %}
+    </div>
+    <p class="hint" style="margin:6px 0 12px;max-width:80ch;">{{ t('vcourse.hint') }}</p>
+
+    {% if c.course %}
+      {% set p = c.protocol %}
+      <div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-bottom:8px;">
+        <strong data-course-protocol="{{ p.key }}">{{ p.ar if current_lang == 'ar' else p.en }}</strong>
+        <span class="hint" style="margin:0;">{{ t('vcourse.source') }}: {{ p.source }}</span>
+        <span class="hint" style="margin:0;">{{ t('vcourse.day0') }}: <span class="num">{{ c.course.start_date }}</span></span>
+        <span class="hint" style="margin:0;">{{ t('vcourse.previously') }}:
+          {{ t('vcourse.prev_' ~ ('yes' if c.course.previously_vaccinated else 'no' if c.course.previously_vaccinated == false else 'unknown')) }}</span>
+        {% if c.course.exposure_category %}<span class="hint" style="margin:0;">{{ t('vcourse.category') }}: {{ c.course.exposure_category }}</span>{% endif %}
+      </div>
+      {% if (p.note_ar if current_lang == 'ar' else p.note_en) %}<p class="hint" style="margin:0 0 8px;">{{ p.note_ar if current_lang == 'ar' else p.note_en }}</p>{% endif %}
+      <p class="hint" style="margin:0 0 8px;" data-course-volumes><i class="bi bi-eyedropper"></i> {{ t('vcourse.volume') }}:
+        {% for b in c.brands %}<strong>{{ b.name }}</strong> <span dir="ltr">{{ b.dose_volume or '—' }}</span>{{ ' · ' if not loop.last }}{% endfor %}</p>
+      {% for w in c.warnings %}
+      <div class="notice" style="margin:6px 0;border-inline-start:4px solid var(--warning);" data-course-warning="{{ w }}"><i class="bi bi-exclamation-triangle"></i> {{ t('vcourse.warn_' ~ w) }}</div>
+      {% endfor %}
+      <div style="overflow-x:auto;">
+      <table class="table" style="min-width:420px;">
+        <thead><tr><th>{{ t('vaccinations.dose') }}</th><th>{{ t('vcourse.day') }}</th><th>{{ t('vcourse.due') }}</th><th>{{ t('vcourse.given') }}</th></tr></thead>
+        <tbody>
+          {% for d in c.item.doses %}
+          <tr data-course-dose="{{ d.dose_number }}">
+            <td class="num">{{ d.dose_number }}</td>
+            <td>{{ d.age_label }}</td>
+            <td class="num">{{ d.due_date or '—' }}</td>
+            <td>{% if d.status == 'done' %}<span class="badge badge--green">{{ d.given_date }}</span>
+                {% else %}<span class="badge badge--{{ 'danger' if d.status == 'overdue' else 'warning' if d.status == 'due' else 'muted' }}">{{ t('vstatus.' ~ d.status) }}</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% if c.next %}
+      <form method="post" action="{{ url_for('vaccinations.record', patient_id=patient.id) }}"
+            style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-top:10px;" data-course-give>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="vaccine_id" value="{{ c.vaccine.id }}">
+        <input type="hidden" name="dose_number" value="{{ c.next.dose_number }}">
+        <label class="hint" style="margin:0;display:grid;gap:4px;">{{ t('vcourse.give_dose', n=c.next.dose_number, day=c.next.age_label) }}
+          <select class="input" name="brand_id" data-course-brands>{% for b in c.brands %}<option value="{{ b.id }}">{{ b.name }}{% if b.dose_volume %} — {{ b.dose_volume }}{% endif %}</option>{% endfor %}</select></label>
+        <input class="input" type="date" name="given_date" value="{{ today }}" style="max-width:170px;">
+        <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2"></i> {{ t('vcourse.give') }}</button>
+      </form>
+      {% endif %}
+      {% if p.kind == 'pep' %}
+      <form method="post" action="{{ url_for('vaccinations.course_rig', course_id=c.course.id) }}"
+            style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-top:10px;" data-course-rig>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="hint" style="margin:0;display:grid;gap:4px;">{{ t('vcourse.rig') }}
+          <select class="input" name="rig">{% for r in rig_states %}<option value="{{ r }}" {{ 'selected' if c.course.rig == r }}>{{ t('vcourse.rig_' ~ r) }}</option>{% endfor %}</select></label>
+        <input class="input" type="date" name="rig_given_on" value="{{ c.course.rig_given_on or today }}" style="max-width:170px;">
+        <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+      </form>
+      {% endif %}
+      <details style="margin-top:10px;">
+        <summary class="hint" style="cursor:pointer;">{{ t('vcourse.stop') }}</summary>
+        <form method="post" action="{{ url_for('vaccinations.course_close', course_id=c.course.id) }}"
+              style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-top:8px;" data-course-close>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="input" name="reason" required maxlength="200" placeholder="{{ t('vcourse.stop_reason') }}" style="flex:1;min-width:220px;">
+          <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('vcourse.stop') }}</button>
+        </form>
+      </details>
+    {% else %}
+      <form method="post" action="{{ url_for('vaccinations.course_start', patient_id=patient.id) }}" data-course-start>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="vaccine_id" value="{{ c.vaccine.id }}">
+        <div style="display:grid;gap:6px;margin-bottom:10px;">
+          {% for p in c.protocols %}
+          <label style="display:flex;gap:8px;align-items:flex-start;" data-protocol="{{ p.key }}">
+            <input type="radio" name="protocol" value="{{ p.key }}" required>
+            <span><strong>{{ p.ar if current_lang == 'ar' else p.en }}</strong>
+              <span class="hint" style="margin:0;"> — {{ t('vcourse.days') }}: <span class="num" dir="ltr">{{ p.days|join(', ') }}</span> · {{ p.source }}</span>
+              {% if (p.note_ar if current_lang == 'ar' else p.note_en) %}<br><small class="hint">{{ p.note_ar if current_lang == 'ar' else p.note_en }}</small>{% endif %}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;">
+          <label class="hint" style="margin:0;display:grid;gap:4px;">{{ t('vcourse.day0') }}
+            <input class="input" type="date" name="start_date" value="{{ today }}" max="{{ today }}"></label>
+          <label class="hint" style="margin:0;display:grid;gap:4px;">{{ t('vcourse.previously') }}
+            <select class="input" name="previously_vaccinated">
+              <option value="">{{ t('vcourse.prev_unknown') }}</option>
+              <option value="0">{{ t('vcourse.prev_no') }}</option>
+              <option value="1">{{ t('vcourse.prev_yes') }}</option></select></label>
+          <label class="hint" style="margin:0;display:grid;gap:4px;">{{ t('vcourse.category') }}
+            <select class="input" name="exposure_category">
+              <option value="">—</option>
+              {% for cat in categories %}<option value="{{ cat }}">{{ cat }}</option>{% endfor %}</select></label>
+          <input class="input" name="notes" maxlength="300" placeholder="{{ t('vcourse.notes') }}" style="flex:1;min-width:200px;">
+          <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-play-fill"></i> {{ t('vcourse.start') }}</button>
+        </div>
+      </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+
   <!-- Summary cards -->
   <div class="stat-grid gc-stagger" style="margin:18px 0;">
     <div class="stat-card edge-green gc-lift"><i class="bi bi-check-circle ico"></i>

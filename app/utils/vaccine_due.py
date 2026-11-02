@@ -59,6 +59,7 @@ def due_list(start=None, end=None, vaccine_id=None, brand_id=None,
     # Who the sweep has anything to say about: a child who has had a dose
     # here, **or** one the doctor agreed a plan with. The second is the whole
     # point of a plan — its first dose can be late before any dose exists.
+    from app.models.vaccine_course import VaccineCourse
     from app.models.vaccine_plan import VaccinePlanItem, planned_by_patient
 
     rows = db.session.query(
@@ -69,7 +70,12 @@ def due_list(start=None, end=None, vaccine_id=None, brand_id=None,
                 db.session.query(PatientVaccine.patient_id)
                 .filter(PatientVaccine.event_type == "given").distinct()),
             Patient.id.in_(
-                db.session.query(VaccinePlanItem.patient_id).distinct()))).all()
+                db.session.query(VaccinePlanItem.patient_id).distinct()),
+            # A course the doctor opened today owes its day-0 dose before any
+            # dose exists — the same reason as an agreed plan.
+            Patient.id.in_(
+                db.session.query(VaccineCourse.patient_id)
+                .filter(VaccineCourse.closed_at.is_(None)).distinct()))).all()
     if not rows:
         return []
 
@@ -85,6 +91,10 @@ def due_list(start=None, end=None, vaccine_id=None, brand_id=None,
             (vid, bid, dose_number, given_date, event_type))
 
     agreed = planned_by_patient([r[0] for r in rows])
+    # Courses counted from day 0 (rabies) — ``utils/vaccine_protocols``.
+    from app.utils.vaccine_protocols import open_by_patient
+
+    courses = open_by_patient([r[0] for r in rows])
     # What somebody already dealt with. Held back rather than deleted, and
     # counted on the way past so a screen can say how many it is hiding —
     # a row that disappears for good is how a child quietly stops being
@@ -97,7 +107,8 @@ def due_list(start=None, end=None, vaccine_id=None, brand_id=None,
     found = []
     for patient_id, dob in rows:
         for row in scan_due(dob, by_patient.get(patient_id, []), today,
-                            agreed=agreed.get(patient_id, set())):
+                            agreed=agreed.get(patient_id, set()),
+                            courses=courses.get(patient_id)):
             if vaccine_id and row["vaccine"].id != int(vaccine_id):
                 continue
             if brand_id and (not row["brand"] or row["brand"].id != int(brand_id)):

@@ -69,6 +69,13 @@ def age_label(months, lang="ar"):
     return f"{years}y" + (f" {rem}m" if rem else "")
 
 
+def _course_day_label(day, lang="ar"):
+    """"اليوم ٣" for a dose counted from day 0; "كورس سابق" for one before."""
+    if day is None:
+        return "كورس سابق" if lang == "ar" else "earlier course"
+    return f"اليوم {day}" if lang == "ar" else f"day {day}"
+
+
 # ----------------------------------------------------------- seeding -------
 def _catalogue_load_flags():
     """Which parts of the bundled catalogue the clinic wants auto-loaded:
@@ -1745,6 +1752,13 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
             if cur is None or gpv.given_date > cur:
                 live_given[vid] = gpv.given_date
 
+    # Courses counted in days from the first dose (rabies) — chosen by the
+    # doctor, see ``utils/vaccine_protocols``. Not read when the caller handed
+    # in its own doses: those are a preview, not this child's record.
+    from app.utils import vaccine_protocols
+
+    courses = vaccine_protocols.open_by_vaccine(patient.id) if patient.id else {}
+
     plan = []
     for vaccine in all_vaccines:
         brand, locked = chosen_brand(patient.id, vaccine,
@@ -1882,6 +1896,21 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
                                earliest_live, closed_after, today,
                                start_closed_after=start_closed_after,
                                scope_after=scope_after)
+        # A course the doctor opened on a protocol: its doses are the
+        # protocol's, dated from day 0 — not from the birthday, and not one
+        # dose at birth. Read last so nothing above can move its dates.
+        course = courses.get(vaccine.id)
+        proto = (vaccine_protocols.protocol(vaccine, course.protocol)
+                 if course is not None else None)
+        course_days = {}
+        if proto is not None:
+            first = course.first_dose_number or 1
+            rota = vaccine_protocols.course_rota(proto["days"], first)
+            course_days = {first + i: d for i, d in enumerate(proto["days"])}
+            band, review = None, None
+            timings = vaccine_protocols.course_dates(
+                course.start_date, proto["days"], first, given_dates,
+                planned_dates, today)
 
         doses = []
         by_number = {d.dose_number: d for d in brand.doses}
@@ -1898,7 +1927,10 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
                 # off one set of brand rows.
                 "dose_number": dose_number,
                 "age_months": age_months,
-                "age_label": age_label(age_months, lang),
+                "age_label": (_course_day_label(course_days[dose_number], lang)
+                              if dose_number in course_days
+                              else age_label(age_months, lang)),
+                "course_day": course_days.get(dose_number),
                 # Carried so the card can say "the booster is what is left"
                 # rather than "3/4" and leave the reader to work out which of
                 # the two very different jobs that is.
@@ -1937,6 +1969,22 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
             })
         doses.extend(_doses_off_the_schedule(vaccine, brand, rows, doses,
                                              lang, band=band))
+        if proto is not None:
+            # An earlier course (a bite years ago) stays on the record, before
+            # this one's doses.
+            earlier = sorted(n for n in given_dates
+                             if n < (course.first_dose_number or 1))
+            doses[:0] = [{
+                "dose_number": n, "age_months": None,
+                "age_label": _course_day_label(None, lang),
+                "course_day": None, "booster": False,
+                "due_date": None,
+                "given_date": given_dates[n].isoformat() if given_dates[n] else None,
+                "brand_name": None, "lot_number": None, "doctor": None,
+                "outside": False, "outside_place": None, "pv_id": None,
+                "imported": False, "status": "done", "planned": False,
+                "event_type": None, "event_reason": None,
+                "earlier_course": True} for n in earlier]
         # Has this clinic actually begun this course? Everything about
         # "late" hangs on the answer.
         #
@@ -1952,6 +2000,9 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
         # dose is given here, the course is ours and the next dose really can
         # be late.
         started = any(x["status"] == "done" for x in doses)
+        # The doctor opened the course: that is the promise, before any needle.
+        if proto is not None:
+            started = True
         # A seasonal course is begun once, not once a winter.
         #
         # The doses above are **this** season's — see :func:`_this_season` —
@@ -2046,6 +2097,9 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
             # it in place of a due date, because a date computed from a
             # contradiction is worse than no date.
             "review": review,
+            # The open course and its protocol, when there is one.
+            "day_course": course if proto is not None else None,
+            "day_protocol": proto,
             "agreed": vaccine.id in (agreed or ()),
             "committed": started or vaccine.id in (agreed or ()),
             "done": sum(1 for x in doses if x["status"] == "done"),
@@ -2453,6 +2507,12 @@ def immunization_compliance(lang="ar", today=None):
 
 def next_undone_dose_number(patient_id, vaccine, brand):
     """The next dose number to administer for a vaccine/brand."""
+    # An open course (rabies) numbers its own doses.
+    from app.utils import vaccine_protocols
+
+    in_course = vaccine_protocols.next_number(patient_id, vaccine)
+    if in_course is not None:
+        return in_course or None
     given = {
         pv.dose_number
         for pv in PatientVaccine.query.filter_by(
@@ -2824,7 +2884,13 @@ def visit_vaccine_panel(patient, lang="ar"):
                  "overdue": len(given) > 0 and nxt["status"] == "overdue",
                  "seasonal": False}
         (give_now if brand.stock > 0 else out_of_stock).append(entry)
+    # Courses counted from day 0 (rabies): on the visit too, so a child
+    # brought in for day 7 has the dose in front of the doctor, and a bite
+    # seen today can be opened without leaving the visit.
+    from app.utils import vaccine_protocols
+
     return {"received": received, "give_now": give_now,
+            "courses": vaccine_protocols.cards(plan),
             "out_of_stock": out_of_stock,
             "next_optional": min(ahead, key=lambda e: e["due_date"]) if ahead else None}
 
@@ -2977,7 +3043,7 @@ def _banded_for(vaccine_id, brand_id, dob, given_dates, today,
     return (picked["doses"] if picked else None), picked
 
 
-def scan_due(dob, doses, today, agreed=None):
+def scan_due(dob, doses, today, agreed=None, courses=None):
     """Every pending dose for one child, from plain values.
 
     ``doses`` are ``(vaccine_id, brand_id, dose_number, given_date,
@@ -3032,6 +3098,24 @@ def scan_due(dob, doses, today, agreed=None):
     for vaccine_id, meta in vaccines.items():
         brand = _brand_for(vaccine_id, locked, brands, by_vaccine)
         if brand is None or not brand.get("doses"):
+            continue
+        # A course opened on a protocol (rabies): its own dates, from day 0 —
+        # the same function the child's file reads, so the two agree.
+        if courses and vaccine_id in courses:
+            from app.utils import vaccine_protocols
+
+            start, days, first = courses[vaccine_id]
+            timings = vaccine_protocols.course_dates(
+                start, days, first, given.get(vaccine_id, {}),
+                planned.get(vaccine_id, {}), today)
+            for number, _age in vaccine_protocols.course_rota(days, first):
+                due, status = timings[number]
+                if status in ("overdue", "due"):
+                    out.append({"vaccine": meta["obj"], "brand": brand["obj"],
+                                "dose_number": number,
+                                "due_date": due.isoformat() if due else None,
+                                "status": status})
+                    break
             continue
         mine = given.get(vaccine_id, {})
         if needs_clinical_review(dob, brand.get("doses"),
