@@ -245,16 +245,45 @@
     </form>
     <p class="rb-note" style="margin-top:6px;">{{ t('builder.save_hint') }}</p>
   </section>
-  <section class="card" data-builder-saved>
+  <section class="card" data-builder-saved id="saved">
     <h2 class="mb-h" style="font-size:1rem;"><i class="bi bi-bookmarks"></i> {{ t('builder.saved_title') }}</h2>
     {% if mine or shared %}
     <ul class="rb-saved" style="list-style:none;padding:0;margin:0;">
       {% for r in mine %}
-      <li data-saved="{{ r.id }}"><a href="{{ url_for('reports.builder') }}?{{ r.args }}">{{ r.name }}</a>
+      <li data-saved="{{ r.id }}" style="flex-wrap:wrap;"><a href="{{ url_for('reports.builder') }}?{{ r.args }}">{{ r.name }}</a>
         <span style="display:flex;gap:6px;align-items:center;">{% if r.shared %}<span class="mb-d flat">{{ t('builder.shared_tag') }}</span>{% endif %}
+        {% if r.send_every %}<span class="mb-d flat" data-sched-on="{{ r.id }}" title="{{ r.send_to }}"><i class="bi bi-send"></i> {{ t('rsched.every_' ~ r.send_every) }}</span>{% endif %}
         <form method="post" action="{{ url_for('reports.builder_delete', report_id=r.id) }}" onsubmit="return confirm({{ t('builder.delete_q')|tojson|forceescape }});">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn btn-ghost btn-sm" aria-label="{{ t('builder.delete') }}" title="{{ t('builder.delete') }}"><i class="bi bi-trash"></i></button></form></span></li>
+          <button type="submit" class="btn btn-ghost btn-sm" aria-label="{{ t('builder.delete') }}" title="{{ t('builder.delete') }}"><i class="bi bi-trash"></i></button></form></span>
+        {# REPORTS_PLAN.md ت-٤ — sent by itself, the last complete period. #}
+        <details style="flex-basis:100%;" data-sched="{{ r.id }}">
+          <summary class="hint" style="cursor:pointer;margin:0;"><i class="bi bi-send"></i> {{ t('rsched.title') }}</summary>
+          {% if r.send_every %}
+          <p class="hint" style="margin:4px 0;">{{ t('rsched.status', every=t('rsched.every_' ~ r.send_every), via=t('rsched.via_' ~ r.send_via), to=r.send_to) }}
+            {% if r.last_sent_for %} · {{ t('rsched.last', d=r.last_sent_for) }}{% endif %}</p>
+          {% if r.send_error %}<p class="hint" style="margin:4px 0;color:var(--danger);" data-sched-error="{{ r.send_error }}"><i class="bi bi-exclamation-triangle"></i> {{ t('rsched.why_' ~ r.send_error) }}</p>{% endif %}
+          {% endif %}
+          <form method="post" action="{{ url_for('reports.builder_schedule', report_id=r.id) }}" style="display:flex;flex-wrap:wrap;gap:6px;align-items:end;margin-top:4px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <select class="input input-sm" name="every" aria-label="{{ t('rsched.every') }}">
+              <option value="">{{ t('rsched.off') }}</option>
+              {% for e in ('week', 'month') %}<option value="{{ e }}" {{ 'selected' if r.send_every == e }}>{{ t('rsched.every_' ~ e) }}</option>{% endfor %}
+            </select>
+            <select class="input input-sm" name="via" aria-label="{{ t('rsched.via') }}">
+              {% for v in ('email', 'whatsapp') %}<option value="{{ v }}" {{ 'selected' if r.send_via == v }}>{{ t('rsched.via_' ~ v) }}</option>{% endfor %}
+            </select>
+            <input class="input input-sm" name="to" value="{{ r.send_to or '' }}" maxlength="160" dir="ltr" placeholder="{{ t('rsched.to_ph') }}" style="flex:1;min-width:160px;">
+            <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+          </form>
+          {% if r.send_every %}
+          <form method="post" action="{{ url_for('reports.builder_send_now', report_id=r.id) }}" style="margin-top:4px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-ghost btn-sm gc-press" type="submit" data-sched-now="{{ r.id }}"><i class="bi bi-send-check"></i> {{ t('rsched.send_now') }}</button>
+          </form>
+          {% endif %}
+          <p class="hint" style="margin:4px 0 0;">{{ t('rsched.hint') }}</p>
+        </details></li>
       {% endfor %}
       {% for r in shared %}
       <li data-saved="{{ r.id }}"><a href="{{ url_for('reports.builder') }}?{{ r.args }}">{{ r.name }}</a>

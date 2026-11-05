@@ -1147,6 +1147,13 @@ ADDITIONS = [
     ("insurance_approvals", "sent_via", "VARCHAR(10)"),
     ("insurance_approvals", "sent_to", "VARCHAR(120)"),
     ("insurance_approvals", "sent_by", "INTEGER"),
+    # REPORTS_PLAN.md ت-٤: a saved report that sends itself every week or
+    # month (``utils/report_schedule``).
+    ("saved_reports", "send_every", "VARCHAR(8)"),
+    ("saved_reports", "send_via", "VARCHAR(10)"),
+    ("saved_reports", "send_to", "VARCHAR(160)"),
+    ("saved_reports", "last_sent_for", "DATE"),
+    ("saved_reports", "send_error", "VARCHAR(40)"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"
