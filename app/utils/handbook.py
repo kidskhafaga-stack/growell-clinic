@@ -3073,7 +3073,8 @@ SECTIONS = [
              "word in the search box (or press /) to find a report, and the star puts "
              "it under «Starred» at the top — yours alone, on any computer."),
             ("<b>منشئ التقارير:</b> من «كل التقارير» ← «منشئ التقارير». اختار المصدر "
-             "(الزيارات، التشخيصات، الأدوية، الحجوزات، الفواتير، الخدمات المفوترة) والفترة، "
+             "(الزيارات، التشخيصات، الأدوية، الحجوزات، الفواتير، الخدمات المفوترة، التحاليل "
+             "والأشعة، التطعيمات، الرسايل، الإحالات، حركة المخزون — كل واحد بصلاحية مديوله) والفترة، "
              "وتعدّ إيه أو تجمع إيه، وقسّمه بالشهر أو الطبيب أو جهة الدفع أو السن. «قارن "
              "الفترة بـ» بتحط الفترة جنب اللي قبلها أو نفس التواريخ السنة اللي فاتت (أول "
              "٦ شهور السنة دي قصاد اللي فاتت شهر بشهر)، و«جنب بعض بـ» بتحط طبيب جنب طبيب أو "
@@ -3081,7 +3082,9 @@ SECTIONS = [
              "والوسيط والانحراف المعياري. الأرقام مجمّعة من غير أسماء، والفلوس بصلاحية "
              "المالية بس. وتقدر تصدّره Excel وتحفظه لنفسك أو لزمايلك.",
              "<b>Report builder:</b> from «All reports» → «Report builder». Pick the source "
-             "(visits, diagnoses, medicines, bookings, bills, billed services) and the period, "
+             "(visits, diagnoses, medicines, bookings, bills, billed services, tests and imaging, "
+             "vaccinations, messages, referrals, stock movements — each with its module's "
+             "rights) and the period, "
              "what to count or add up, and split it by month, doctor, payer or age. «Compare "
              "the period with» puts it beside the period before or the same dates last year "
              "(this year's first six months against last year's, month by month), and «side "
