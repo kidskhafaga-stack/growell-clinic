@@ -262,6 +262,162 @@ def _lines(d_from, d_to, ctx):
     return out
 
 
+# ------------------------------------------- the five sources added later --
+# REPORTS_PLAN.md ت-٢ «لسه»: the lab, the vaccinations, the messages, the
+# referrals and the stock. Each names its own buckets as it reads them, so
+# ``label`` finds them in ``ctx["names"]`` like the diagnoses and the drugs.
+def _t_or(key, fallback):
+    """The program's own name for something, or ``fallback`` when it has none."""
+    text = _t(key)
+    return fallback if not text or text == key else text
+
+
+def _named(ctx, dim, key, text):
+    ctx.setdefault("names", {}).setdefault(dim, {}).setdefault(key, text)
+    return key
+
+
+def _utc_bounds(d_from, d_to):
+    """The clinic's days ``d_from``–``d_to`` as stored UTC moments."""
+    from datetime import datetime, time
+
+    from app.utils.clock import to_utc
+
+    return (to_utc(datetime.combine(d_from, time.min)),
+            to_utc(datetime.combine(d_to + timedelta(days=1), time.min)))
+
+
+def _investigations(d_from, d_to, ctx):
+    from app.models import Investigation, Patient, Visit, VisitInvestigation
+
+    q = (db.session.query(VisitInvestigation.investigation_id, VisitInvestigation.name,
+                          VisitInvestigation.name_en, VisitInvestigation.kind,
+                          VisitInvestigation.status, VisitInvestigation.done_outside,
+                          VisitInvestigation.ordered_by, Investigation.category,
+                          Visit.visit_date, Visit.doctor_id, Visit.patient_id,
+                          Patient.date_of_birth, Patient.gender)
+         .join(Visit, Visit.id == VisitInvestigation.visit_id)
+         .join(Patient, Patient.id == VisitInvestigation.patient_id)
+         .outerjoin(Investigation, Investigation.id == VisitInvestigation.investigation_id)
+         .filter(Visit.visit_date >= d_from, Visit.visit_date <= d_to))
+    en = ctx["lang"] == "en"
+    out = []
+    for iid, name, name_en, kind, status, outside, by, cat, vd, doc, pid, dob, g in q.all():
+        test = _named(ctx, "test", f"i:{iid}" if iid else "n:" + _norm(name),
+                      ((name_en if en and name_en else name) or "").strip())
+        out.append({"d": vd, "child": pid, "doctor": by or doc, "gender": g or "",
+                    "age": _age_group(dob, vd), "age_m": _months(dob, vd), "test": test,
+                    "test_kind": _named(ctx, "test_kind", kind or "lab",
+                                        _t("builder.tk_" + (kind or "lab"))),
+                    "test_cat": _named(ctx, "test_cat", _norm(cat) if cat else "none",
+                                       cat.strip() if cat else _t("builder.none")),
+                    "test_status": _named(ctx, "test_status", status or "requested",
+                                          _t("builder.ts_" + (status or "requested"))),
+                    "where": _named(ctx, "where", "out" if outside else "here",
+                                    _t("builder.where_" + ("out" if outside else "here")))})
+    return out
+
+
+def _vaccines(d_from, d_to, ctx):
+    from app.models import Patient, PatientVaccine, Vaccine, VaccineBrand
+
+    q = (db.session.query(PatientVaccine.given_date, PatientVaccine.patient_id,
+                          PatientVaccine.doctor_id, PatientVaccine.given_outside,
+                          Vaccine.id, Vaccine.name_ar, Vaccine.name_en, VaccineBrand.id,
+                          VaccineBrand.name, Patient.date_of_birth, Patient.gender)
+         .join(Vaccine, Vaccine.id == PatientVaccine.vaccine_id)
+         .outerjoin(VaccineBrand, VaccineBrand.id == PatientVaccine.brand_id)
+         .join(Patient, Patient.id == PatientVaccine.patient_id)
+         .filter(PatientVaccine.event_type == "given",
+                 PatientVaccine.given_date >= d_from, PatientVaccine.given_date <= d_to))
+    en = ctx["lang"] == "en"
+    out = []
+    for gd, pid, doc, outside, vid, v_ar, v_en, bid, bname, dob, g in q.all():
+        out.append({"d": gd, "child": pid, "doctor": doc, "gender": g or "",
+                    "age": _age_group(dob, gd), "age_m": _months(dob, gd),
+                    "vaccine": _named(ctx, "vaccine", str(vid),
+                                      (v_en if en and v_en else v_ar) or ""),
+                    "brand": _named(ctx, "brand", str(bid or 0), bname or _t("builder.none")),
+                    "where": _named(ctx, "where", "out" if outside else "here",
+                                    _t("builder.where_" + ("out" if outside else "here")))})
+    return out
+
+
+def _messages(d_from, d_to, ctx):
+    from app.models import MessageLog
+    from app.utils.clock import local_date
+
+    start, end = _utc_bounds(d_from, d_to)
+    q = (db.session.query(MessageLog.created_at, MessageLog.patient_id, MessageLog.channel,
+                          MessageLog.provider, MessageLog.status, MessageLog.direction,
+                          MessageLog.template_type, MessageLog.created_by)
+         .filter(MessageLog.created_at >= start, MessageLog.created_at < end))
+    out = []
+    for at, pid, channel, provider, status, direction, purpose, by in q.all():
+        ch = channel or ("whatsapp" if provider else "other")
+        out.append({"d": local_date(at), "child": pid, "doctor": by,
+                    "channel": _named(ctx, "channel", ch, _t_or("channels.ch_" + ch, ch)),
+                    "msg_status": _named(ctx, "msg_status", status or "queued",
+                                         _t_or("builder.ms_" + (status or "queued"),
+                                               status or "queued")),
+                    "direction": _named(ctx, "direction", direction or "out",
+                                        _t("builder.dir_" + (direction or "out"))),
+                    "purpose": _named(ctx, "purpose", purpose or "other",
+                                      _t_or("occasions.occ_" + purpose, purpose)
+                                      if purpose else _t("builder.none"))})
+    return out
+
+
+def _referrals(d_from, d_to, ctx):
+    from app.models import Patient
+    from app.models.referral import Referral
+    from app.utils.clock import local_date
+
+    start, end = _utc_bounds(d_from, d_to)
+    q = (db.session.query(Referral.decided_at, Referral.patient_id, Referral.decided_by_id,
+                          Referral.kind, Referral.sent_to, Referral.feedback_at,
+                          Patient.date_of_birth, Patient.gender)
+         .join(Patient, Patient.id == Referral.patient_id)
+         .filter(Referral.decided_at >= start, Referral.decided_at < end))
+    out = []
+    for at, pid, by, kind, to, fb, dob, g in q.all():
+        day = local_date(at)
+        out.append({"d": day, "child": pid, "doctor": by, "gender": g or "",
+                    "age": _age_group(dob, day), "age_m": _months(dob, day),
+                    "ref_kind": _named(ctx, "ref_kind", kind or "referral",
+                                       _t("builder.rk_" + (kind or "referral"))),
+                    "sent_to": _named(ctx, "sent_to", _norm(to) if to else "none",
+                                      (to or "").strip() or _t("builder.none")),
+                    "feedback": _named(ctx, "feedback", "yes" if fb else "no",
+                                       _t("builder.fb_" + ("yes" if fb else "no")))})
+    return out
+
+
+def _stock(d_from, d_to, ctx):
+    from app.models.store import StockMovement, StoreItem, Warehouse
+    from app.utils.clock import local_date
+
+    start, end = _utc_bounds(d_from, d_to)
+    q = (db.session.query(StockMovement.created_at, StockMovement.kind, StockMovement.qty,
+                          StockMovement.created_by, StoreItem.id, StoreItem.name,
+                          StoreItem.name_en, StoreItem.category, Warehouse.id, Warehouse.name)
+         .join(StoreItem, StoreItem.id == StockMovement.item_id)
+         .outerjoin(Warehouse, Warehouse.id == StockMovement.warehouse_id)
+         .filter(StockMovement.created_at >= start, StockMovement.created_at < end))
+    en = ctx["lang"] == "en"
+    out = []
+    for at, kind, qty, by, iid, name, name_en, cat, wid, wname in q.all():
+        qty = qty or 0
+        out.append({"d": local_date(at), "doctor": by,
+                    "item": _named(ctx, "item", str(iid), (name_en if en and name_en else name) or ""),
+                    "item_cat": _named(ctx, "item_cat", _norm(cat) if cat else "none",
+                                       cat.strip() if cat else _t("builder.none")),
+                    "move": _named(ctx, "move", kind or "in", _t("builder.mv_" + (kind or "in"))),
+                    "store": _named(ctx, "store", str(wid or 0), wname or _t("builder.none")),
+                    "qty_in": max(qty, 0), "qty_out": max(-qty, 0)})
+    return out
+
+
 _COUNT = ("count", None, "int")
 _KIDS = ("distinct", "child", "int")
 _AGE = ("num", "age_m", "num")
@@ -311,6 +467,46 @@ SOURCES = {
         "service", "billed", _lines, _may_money,
         filters=("payer_kind", "payer", "payer_type", "category", "doctor"),
         text_dim="service", money=True),
+    "investigations": Source(
+        "investigations", "droplet",
+        ["test", "test_kind", "test_cat", "test_status", "where", "month", "quarter", "year",
+         "weekday", "doctor", "gender", "age"],
+        {"count": _COUNT, "children": _KIDS, "age_m": _AGE},
+        "test", "count", _investigations,
+        lambda u: _may_reports(u) and (u.can_open("labs") or u.can_open("visits")),
+        filters=("test_kind", "test_status", "where", "doctor", "gender", "age"),
+        text_dim="test"),
+    "vaccines": Source(
+        "vaccines", "shield-plus",
+        ["vaccine", "brand", "where", "month", "quarter", "year", "weekday", "doctor",
+         "gender", "age"],
+        {"count": _COUNT, "children": _KIDS, "age_m": _AGE},
+        "vaccine", "count", _vaccines,
+        lambda u: _may_reports(u) and u.can_open("vaccinations"),
+        filters=("vaccine", "where", "doctor", "gender", "age"), text_dim="vaccine"),
+    "messages": Source(
+        "messages", "chat-dots",
+        ["channel", "msg_status", "direction", "purpose", "month", "quarter", "year", "day",
+         "weekday"],
+        {"count": _COUNT, "children": _KIDS},
+        "month", "count", _messages,
+        lambda u: _may_reports(u) and u.can_open("messages"),
+        filters=("channel", "msg_status", "direction", "purpose")),
+    "referrals": Source(
+        "referrals", "box-arrow-up-right",
+        ["sent_to", "ref_kind", "feedback", "month", "quarter", "year", "doctor", "gender", "age"],
+        {"count": _COUNT, "children": _KIDS, "age_m": _AGE},
+        "sent_to", "count", _referrals,
+        lambda u: _may_reports(u) and u.can_open("visits"),
+        filters=("ref_kind", "feedback", "doctor", "gender", "age"), text_dim="sent_to"),
+    "stock": Source(
+        "stock", "boxes",
+        ["item", "item_cat", "move", "store", "month", "quarter", "year", "weekday"],
+        {"qty_out": ("num", "qty_out", "int"), "qty_in": ("num", "qty_in", "int"),
+         "count": _COUNT},
+        "item", "qty_out", _stock,
+        lambda u: _may_reports(u) and u.can_open("inventory"),
+        filters=("item_cat", "move", "store"), text_dim="item"),
 }
 
 
