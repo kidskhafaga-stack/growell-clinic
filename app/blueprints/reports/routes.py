@@ -274,6 +274,57 @@ def builder_save():
     return redirect(url_for("reports.builder") + "?" + query)
 
 
+def _own_saved(report_id):
+    from flask import abort
+
+    from app.models import SavedReport
+
+    row = db.session.get(SavedReport, report_id)
+    if row is None:
+        abort(404)
+    if row.owner_id != current_user.id and not current_user.is_admin:
+        abort(403)
+    return row
+
+
+@reports_bp.route("/builder/<int:report_id>/schedule", methods=["POST"])
+@module_required(MODULE)
+def builder_schedule(report_id):
+    """«ابعته لوحده» — every week or month, by mail or WhatsApp
+    (REPORTS_PLAN.md ت-٤, ``utils/report_schedule``)."""
+    from app.utils import report_schedule
+
+    row = _own_saved(report_id)
+    try:
+        report_schedule.set_schedule(row, request.form)
+    except report_schedule.ScheduleError as why:
+        db.session.rollback()
+        flash(t("rsched.err_" + str(why)), "warning")
+        return redirect(url_for("reports.builder") + "#saved")
+    db.session.commit()
+    flash(t("rsched.saved_on" if row.send_every else "rsched.saved_off", name=row.name), "success")
+    return redirect(url_for("reports.builder") + "#saved")
+
+
+@reports_bp.route("/builder/<int:report_id>/send-now", methods=["POST"])
+@module_required(MODULE)
+def builder_send_now(report_id):
+    """Send the last complete period now — to see what will arrive."""
+    from app.utils import report_schedule
+
+    row = _own_saved(report_id)
+    if not row.send_every:
+        flash(t("rsched.err_every"), "warning")
+        return redirect(url_for("reports.builder") + "#saved")
+    why = report_schedule.send(row, lang=getattr(g, "lang", "ar"))
+    db.session.commit()
+    if why:
+        flash(t("rsched.why_" + why), "warning")
+    else:
+        flash(t("rsched.sent", to=row.send_to), "success")
+    return redirect(url_for("reports.builder") + "#saved")
+
+
 @reports_bp.route("/builder/<int:report_id>/delete", methods=["POST"])
 @module_required(MODULE)
 def builder_delete(report_id):

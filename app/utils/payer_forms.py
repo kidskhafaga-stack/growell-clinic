@@ -338,39 +338,13 @@ def send(approval, via, user, lang="ar"):
 
 
 def _mail(address, subject, body, attached=None):
-    """Through the clinic's own mailbox (``utils/mail_channel``), the way it
-    answers a family — the same server, the same login."""
-    import email.utils
-    import smtplib
-    import ssl
-    from email.message import EmailMessage
-
+    """Through the clinic's own mailbox (``mail_channel.send_with_file``),
+    the way it answers a family — the same server, the same login."""
     from app.utils import mail_channel
 
-    if not mail_channel.ready():
-        raise FormError("no_mailbox")
-    cfg = mail_channel.config()
-    msg = EmailMessage()
-    msg["From"], msg["To"], msg["Subject"] = cfg["address"], address, subject
-    msg["Date"] = email.utils.formatdate(localtime=False)
-    msg.set_content(body)
-    if attached:
-        data, filename, mime = attached
-        maintype, subtype = mime.split("/", 1)
-        msg.add_attachment(data, maintype=maintype, subtype=subtype, filename=filename)
-    context = ssl.create_default_context()
-    try:
-        if cfg["smtp_port"] == 465:
-            server = smtplib.SMTP_SSL(cfg["smtp_host"], 465, context=context,
-                                      timeout=mail_channel.TIMEOUT)
-        else:
-            server = smtplib.SMTP(cfg["smtp_host"], cfg["smtp_port"], timeout=mail_channel.TIMEOUT)
-            server.starttls(context=context)
-        with server:
-            mail_channel._smtp_login(server, cfg)
-            server.send_message(msg)
-    except (OSError, smtplib.SMTPException, mail_channel.MailRefused):
-        raise FormError("not_sent") from None
+    why = mail_channel.send_with_file(address, subject, body, attached)
+    if why:
+        raise FormError(why)
 
 
 def _whatsapp(address, body, approval, user, attached=None):

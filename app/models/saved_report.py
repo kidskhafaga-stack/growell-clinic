@@ -20,6 +20,15 @@ class SavedReport(db.Model):
     shared = db.Column(db.Boolean, default=False, nullable=False)
     args = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    # REPORTS_PLAN.md ت-٤ — sent by itself (``utils/report_schedule``):
+    # "week" / "month" or empty, by "email" / "whatsapp", to an address or a
+    # number. ``last_sent_for`` is the last day of the period last sent, so a
+    # period goes once; ``send_error`` is why the last try did not go.
+    send_every = db.Column(db.String(8))
+    send_via = db.Column(db.String(10))
+    send_to = db.Column(db.String(160))
+    last_sent_for = db.Column(db.Date)
+    send_error = db.Column(db.String(40))
 
     owner = db.relationship("User")
 

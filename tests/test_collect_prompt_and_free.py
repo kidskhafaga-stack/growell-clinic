@@ -351,10 +351,14 @@ def test_the_till_picks_it_up_without_rebooking(clinic):
         exam = _service(clinic, "كشف", 200, "consultation")
         doctor = User.query.filter_by(username="doc").first()
         _override(clinic, exam, doctor, 0)
-        appt_id = _booking(clinic, "consultation").id
+        appt = _booking(clinic, "consultation")
+        appt_id, day = appt.id, appt.appt_date.isoformat()
         exam_id, doctor_id = exam.id, doctor.id
 
-    page = clinic["sign_in"]("desk").get("/finance/cashier",
+    # The booking's own day, not "today": a run that crosses Cairo's midnight
+    # between the two looks would otherwise read the next day's till, where
+    # yesterday's booking rightly is not.
+    page = clinic["sign_in"]("desk").get(f"/finance/cashier?date={day}",
                                          follow_redirects=True).data.decode()
     assert f"/finance/checkout/{appt_id}" not in page, \
         "a free consultation is on the chase list before the price changed"
@@ -368,7 +372,7 @@ def test_the_till_picks_it_up_without_rebooking(clinic):
         _override(clinic, db.session.get(Service, exam_id),
                   db.session.get(User, doctor_id), 250)
 
-    page = clinic["sign_in"]("desk").get("/finance/cashier",
+    page = clinic["sign_in"]("desk").get(f"/finance/cashier?date={day}",
                                          follow_redirects=True).data.decode()
     assert f"/finance/checkout/{appt_id}" in page, \
         "the doctor started charging and the till never noticed"

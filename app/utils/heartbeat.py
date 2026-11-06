@@ -6,6 +6,8 @@ answers — never before, so no screen waits on a mail server — this:
 
 * reads the clinic's mailbox, at most every few minutes
   (``mail_channel.maybe_poll``, its turn taken with ``Setting.swap``);
+* sends the saved reports that send themselves, each period once
+  (``report_schedule.maybe_send``, REPORTS_PLAN.md ت-٤);
 * renews Instagram's 60-day token when it is near its end
   (``social.instagram_token``), so an account nobody answered for a month
   does not quietly go dark.
@@ -22,6 +24,9 @@ def _beat():
     if routing.sweep()["assigned"] or routing.config()["mode"] == "auto":
         from app.extensions import db
         db.session.commit()
+    # Saved reports that send themselves, each period once.
+    from app.utils import report_schedule
+    report_schedule.maybe_send()
     if social.instagram_mode() == "login" and social.instagram_ready():
         social.instagram_token()
         from app.extensions import db

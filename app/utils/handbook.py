@@ -3080,7 +3080,9 @@ SECTIONS = [
              "٦ شهور السنة دي قصاد اللي فاتت شهر بشهر)، و«جنب بعض بـ» بتحط طبيب جنب طبيب أو "
              "نقدي جنب تعاقد أو شركة جنب شركة. وللسن والمبالغ فيه إحصاء وصفي: المتوسط "
              "والوسيط والانحراف المعياري. الأرقام مجمّعة من غير أسماء، والفلوس بصلاحية "
-             "المالية بس. وتقدر تصدّره Excel وتحفظه لنفسك أو لزمايلك.",
+             "المالية بس. وتقدر تصدّره Excel وتحفظه لنفسك أو لزمايلك. والتقرير المحفوظ ممكن «يتبعت لوحده» "
+             "كل أسبوع أو شهر على الإيميل أو الواتساب: آخر فترة كاملة (الأسبوع من السبت للجمعة، أو "
+             "الشهر اللي فات) بصلاحياتك، رسالة قصيرة ومعاها ملف Excel، وكل فترة بتتبعت مرة واحدة.",
              "<b>Report builder:</b> from «All reports» → «Report builder». Pick the source "
              "(visits, diagnoses, medicines, bookings, bills, billed services, tests and imaging, "
              "vaccinations, messages, referrals, stock movements — each with its module's "
@@ -3091,7 +3093,10 @@ SECTIONS = [
              "by side by» puts doctor beside doctor, cash beside contracts or payer beside "
              "payer. Ages and amounts have descriptive statistics: mean, median and standard "
              "deviation. Figures are totals without names, and money needs the finance "
-             "rights. Export it to Excel and save it for yourself or your colleagues."),
+             "rights. Export it to Excel and save it for yourself or your colleagues. A saved "
+             "report can «send itself» every week or month by email or WhatsApp: the last "
+             "complete period (the week Saturday to Friday, or last month) with your rights, "
+             "a short message and an Excel file, each period once."),
             ("<b>اسأل التقارير:</b> لو الذكاء الاصطناعي شغال و«اسأل التقارير» متشغّلة من "
              "الإعدادات، فوق منشئ التقارير فيه خانة تكتب فيها سؤالك بالكلام («إيرادات كل دكتور "
              "الشهر ده قصاد اللي فات»، «أكتر التشخيصات تحت سنتين»). التقرير بيطلع بإعداداته، "

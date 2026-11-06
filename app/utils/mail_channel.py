@@ -520,3 +520,40 @@ __all__ = ["AUTH_MODES", "MailRefused", "PROVIDERS", "access_token",
            "after_response", "auth_mode", "authorize_url", "config",
            "exchange_code", "file_message", "maybe_poll", "oauth_config",
            "pkce_pair", "poll", "ready", "send", "xoauth2"]
+
+
+def send_with_file(address, subject, body, attached=None):
+    """One message from the clinic's own mailbox, with a file if given
+    (``(data, filename, mime)``). Returns ``None`` when it went, otherwise
+    why not: ``no_mailbox`` or ``not_sent``. Shared by the payer's approval
+    request and the report that sends itself — one way out, one set of
+    reasons."""
+    import email.utils
+    import smtplib
+    import ssl
+    from email.message import EmailMessage
+
+    if not ready():
+        return "no_mailbox"
+    cfg = config()
+    msg = EmailMessage()
+    msg["From"], msg["To"], msg["Subject"] = cfg["address"], address, subject
+    msg["Date"] = email.utils.formatdate(localtime=False)
+    msg.set_content(body)
+    if attached:
+        data, filename, mime = attached
+        maintype, subtype = mime.split("/", 1)
+        msg.add_attachment(data, maintype=maintype, subtype=subtype, filename=filename)
+    context = ssl.create_default_context()
+    try:
+        if cfg["smtp_port"] == 465:
+            server = smtplib.SMTP_SSL(cfg["smtp_host"], 465, context=context, timeout=TIMEOUT)
+        else:
+            server = smtplib.SMTP(cfg["smtp_host"], cfg["smtp_port"], timeout=TIMEOUT)
+            server.starttls(context=context)
+        with server:
+            _smtp_login(server, cfg)
+            server.send_message(msg)
+    except (OSError, smtplib.SMTPException, MailRefused):
+        return "not_sent"
+    return None
