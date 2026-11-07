@@ -38,12 +38,19 @@ jobs:
       fail-fast: false
       matrix:
         # 2. One interpreter while a pull request is being iterated on, both
-        #    of them on main. 3.10 is still tested — on the commit where it
-        #    matters, after the merge — and a branch under active development
+        #    of them on main. The second one is tested on the commit where it
+        #    matters, after the merge, and a branch under active development
         #    stops paying twice for every intermediate commit.
         #
-        #    3.10+ only: a dependency (rcpchgrowth) requires Python >= 3.10.
-        python-version: ${{ fromJSON(github.event_name == 'push' && '["3.10", "3.11"]' || '["3.11"]') }}
+        #    The second one is 3.14, the Python clinics are told to move to.
+        #    It was 3.10 until Python 3.10's security fixes ended on
+        #    2026-10-31: Pillow's fixes from then on (13.0) need 3.11, so the
+        #    audit below failed on 3.10 with nothing requirements.txt could
+        #    pin, and every 3.10 test after it was skipped. A clinic still on
+        #    3.10 is told on the About page how to move
+        #    (`project.python_past_security`), and `tools/check_wheels.py`
+        #    still checks that 3.10 can install until it does.
+        python-version: ${{ fromJSON(github.event_name == 'push' && '["3.11", "3.14"]' || '["3.11"]') }}
 
     steps:
     - uses: actions/checkout@v7
