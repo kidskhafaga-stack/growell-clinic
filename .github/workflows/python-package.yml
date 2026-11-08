@@ -97,3 +97,44 @@ jobs:
     - name: Test with pytest
       run: |
         pytest -n auto --dist loadfile
+
+  # MONEY_SAFETY_PLAN.md ف-٦ — the same money tests on PostgreSQL, where a
+  # hospital keeps its books. There the locks are row locks and an advisory
+  # lock per document (`app/utils/holds.py`), a code path SQLite never takes,
+  # so the suite above cannot vouch for it. Only the file that holds two
+  # cashiers at the same moment: a few minutes, not the whole suite again.
+  money-on-postgres:
+
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pp
+          POSTGRES_PASSWORD: pp
+          POSTGRES_DB: pp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pp"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.11"
+        cache: 'pip'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install pytest "psycopg[binary]"
+        pip install -r requirements.txt
+    - name: Money written at the same moment, on PostgreSQL
+      env:
+        TEST_POSTGRES_URL: postgresql://pp:pp@127.0.0.1:5432/pp_test
+      run: |
+        pytest tests/test_money_two_at_once.py -k postgresql -v
