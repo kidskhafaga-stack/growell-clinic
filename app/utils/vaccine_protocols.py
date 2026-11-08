@@ -23,7 +23,8 @@ from app.extensions import db
 PROTOCOLS = {
     "RABIES": [
         {"key": "pep_who4", "kind": "pep", "previously": False,
-         "days": (0, 3, 7, 14), "source": "WHO", "rig": True,
+         "days": (0, 3, 7, 14), "until": (None, None, None, 28),
+         "source": "WHO", "rig": True,
          "ar": "بعد التعرّض — منظمة الصحة العالمية (٤ جرعات عضل)",
          "en": "Post-exposure — WHO (4 doses IM)",
          "note_ar": "الجرعة الرابعة من يوم ١٤ لحد يوم ٢٨.",
@@ -80,9 +81,28 @@ def _saved():
     out = {}
     for code, rows in (data or {}).items():
         if isinstance(rows, list):
-            out[code] = [dict(r, days=tuple(int(d) for d in r.get("days") or ()))
-                         for r in rows if isinstance(r, dict) and r.get("key")]
+            out[code] = [_normal(r) for r in rows if isinstance(r, dict) and r.get("key")]
     return out
+
+
+def _normal(p):
+    """``days`` as a tuple, and ``until`` as a tuple of the same length —
+    the last day of a dose that may be given within a window (WHO's fourth
+    dose: day 14 up to day 28), ``None`` for a dose on its day."""
+    p = dict(p)
+    p["days"] = tuple(int(d) for d in p.get("days") or ())
+    until = list(p.get("until") or ())
+    until = (until + [None] * len(p["days"]))[:len(p["days"])]
+    p["until"] = tuple(int(u) if u not in (None, "") else None for u in until)
+    # "0, 3, 7, 14-28" — the days as the screens write them.
+    p["days_text"] = ", ".join(f"{d}-{u}" if u is not None else str(d)
+                               for d, u in zip(p["days"], p["until"]))
+    return p
+
+
+def day_label(day, until=None, lang="ar"):
+    span = f"{day}–{until}" if until is not None else str(day)
+    return f"اليوم {span}" if lang == "ar" else f"day {span}"
 
 
 def protocols_by_code(code):
@@ -92,7 +112,7 @@ def protocols_by_code(code):
     saved = _saved()
     if code in saved:
         return saved[code]
-    return [dict(p) for p in PROTOCOLS.get(code, [])]
+    return [_normal(p) for p in PROTOCOLS.get(code, [])]
 
 
 def protocols_for(vaccine):
@@ -103,21 +123,31 @@ def is_customised(vaccine):
     return (getattr(vaccine, "code", None) or "") in _saved()
 
 
-def parse_days(text):
-    """``"0, 3, 7, 14"`` → ``(0, 3, 7, 14)``, or :class:`CourseError` —
-    day 0 first, each day after the one before, at most :data:`MAX_DOSES`."""
+def parse_schedule(text):
+    """``"0, 3, 7, 14-28"`` → ``((0, 3, 7, 14), (None, None, None, 28))``,
+    or :class:`CourseError` — day 0 first, each day after the one before, a
+    window's end after its start, at most :data:`MAX_DOSES`."""
     import re
 
     parts = [x for x in re.split(r"[\s,،;]+", (text or "").translate(
-        str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")).strip()) if x]
+        str.maketrans("٠١٢٣٤٥٦٧٨٩–—", "0123456789--")).strip()) if x]
+    days, until = [], []
     try:
-        days = tuple(int(x) for x in parts)
+        for x in parts:
+            a, _, b = x.partition("-")
+            days.append(int(a))
+            until.append(int(b) if b else None)
     except ValueError:
         raise CourseError("days") from None
     if not days or days[0] != 0 or len(days) > MAX_DOSES \
-            or any(b <= a for a, b in zip(days, days[1:])) or days[-1] > MAX_DAY:
+            or any(b <= a for a, b in zip(days, days[1:])) or days[-1] > MAX_DAY \
+            or any(u is not None and (u <= d or u > MAX_DAY) for d, u in zip(days, until)):
         raise CourseError("days")
-    return days
+    return tuple(days), tuple(until)
+
+
+def parse_days(text):
+    return parse_schedule(text)[0]
 
 
 def save_protocols(vaccine, rows):
@@ -139,7 +169,7 @@ def save_protocols(vaccine, rows):
             continue                      # the empty "add one" row
         if not ar:
             raise CourseError("name")
-        days = parse_days(r.get("days"))
+        days, until = parse_schedule(r.get("days"))
         kind = r.get("kind") if r.get("kind") in KINDS else "pep"
         prev = r.get("previously")
         key = (r.get("key") or "").strip()[:30]
@@ -152,7 +182,7 @@ def save_protocols(vaccine, rows):
         out.append({
             "key": key, "kind": kind,
             "previously": True if prev == "1" else False if prev == "0" else None,
-            "days": list(days),
+            "days": list(days), "until": list(until),
             "source": (r.get("source") or "").strip()[:80],
             "rig": bool(r.get("rig")),
             "ar": ar, "en": (r.get("en") or "").strip()[:120] or ar,
@@ -162,7 +192,8 @@ def save_protocols(vaccine, rows):
     if not out:
         raise CourseError("none_left")
     data = _saved()
-    data = {c: [dict(p, days=list(p["days"])) for p in ps] for c, ps in data.items()}
+    data = {c: [dict(p, days=list(p["days"]), until=list(p["until"])) for p in ps]
+            for c, ps in data.items()}
     data[vaccine.code] = out
     Setting.set(SETTING_KEY, json.dumps(data, ensure_ascii=False))
 
@@ -173,7 +204,8 @@ def reset_protocols(vaccine):
 
     from app.models import Setting
 
-    data = {c: [dict(p, days=list(p["days"])) for p in ps] for c, ps in _saved().items()}
+    data = {c: [dict(p, days=list(p["days"]), until=list(p["until"])) for p in ps]
+            for c, ps in _saved().items()}
     data.pop(vaccine.code, None)
     Setting.set(SETTING_KEY, json.dumps(data, ensure_ascii=False))
 
@@ -185,7 +217,8 @@ def protocol(vaccine, key):
 def _snapshot(p):
     import json
 
-    return json.dumps(dict(p, days=list(p["days"])), ensure_ascii=False)
+    p = _normal(p)
+    return json.dumps(dict(p, days=list(p["days"]), until=list(p["until"])), ensure_ascii=False)
 
 
 def course_protocol(course, vaccine=None, code=None):
@@ -200,8 +233,7 @@ def course_protocol(course, vaccine=None, code=None):
         return None
     if course.protocol_data:
         try:
-            p = json.loads(course.protocol_data)
-            p["days"] = tuple(int(d) for d in p.get("days") or ())
+            p = _normal(json.loads(course.protocol_data))
             if p["days"]:
                 return p
         except (ValueError, TypeError):
@@ -209,6 +241,12 @@ def course_protocol(course, vaccine=None, code=None):
     if vaccine is not None:
         return protocol(vaccine, course.protocol)
     return next((p for p in protocols_by_code(code) if p["key"] == course.protocol), None)
+
+
+def until_by_number(p, first_number):
+    """``{dose_number: last_day}`` for the protocol's doses given in a window."""
+    p = _normal(p)
+    return {first_number + i: u for i, u in enumerate(p["until"]) if u is not None}
 
 
 def open_course(patient_id, vaccine_id):
@@ -229,7 +267,7 @@ def open_by_vaccine(patient_id):
 
 
 def open_by_patient(patient_ids):
-    """``{patient_id: {vaccine_id: (start, days, first_number)}}`` for the
+    """``{patient_id: {vaccine_id: (start, days, first_number, until)}}`` for the
     register-wide sweep — plain values, the shape ``scan_due`` takes."""
     from app.models import Vaccine
     from app.models.vaccine_course import VaccineCourse
@@ -242,8 +280,9 @@ def open_by_patient(patient_ids):
                                          VaccineCourse.closed_at.is_(None)).all()):
         p = course_protocol(c, code=codes.get(c.vaccine_id))
         if p is not None:
+            first = c.first_dose_number or 1
             out.setdefault(c.patient_id, {})[c.vaccine_id] = (
-                c.start_date, p["days"], c.first_dose_number or 1)
+                c.start_date, p["days"], first, until_by_number(p, first))
     return out
 
 
@@ -253,22 +292,31 @@ def course_rota(days, first_number):
     return [(first_number + i, None) for i in range(len(days))]
 
 
-def course_dates(start, days, first_number, given, planned, today):
+def course_dates(start, days, first_number, given, planned, today, until=None):
     """``{dose_number: (due_date, status)}`` — the same shape as
     ``vaccines.course_dates``. Day 0 is the first dose's real date once it is
     given; every other dose is day 0 plus its day. A dose the doctor
-    pencilled in for a date wins, as everywhere else."""
+    pencilled in for a date wins, as everywhere else.
+
+    ``until`` (``{dose_number: last_day}``): a dose given within a window —
+    due from its day, late only after the window's last day."""
     anchor = given.get(first_number) or start
+    until = until or {}
     out = {}
     for i, offset in enumerate(days):
         number = first_number + i
         due = anchor + timedelta(days=offset)
-        if planned.get(number) and number not in given:
+        planned_here = bool(planned.get(number)) and number not in given
+        if planned_here:
             due = planned[number]
+        last = (anchor + timedelta(days=until[number])
+                if number in until and not planned_here else due)
         if given.get(number) is not None:
             status = "done"
-        elif due < today:
+        elif last < today:
             status = "overdue"
+        elif due <= today:
+            status = "due"
         elif (due - today).days <= COURSE_DUE_DAYS:
             status = "due"
         else:

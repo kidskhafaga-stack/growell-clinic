@@ -133,7 +133,7 @@ def next_dose(patient, vaccine, brand, current_dose, on_date=None):
                 given.setdefault(current_dose, on_date)
             timings = vaccine_protocols.course_dates(
                 course.start_date, proto["days"], first, given, {},
-                on_date or date.today())
+                on_date or date.today(), vaccine_protocols.until_by_number(proto, first))
             following = next((n for n, _ in vaccine_protocols.course_rota(proto["days"], first)
                               if n not in given), None)
             if following is None:

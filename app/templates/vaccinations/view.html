@@ -170,7 +170,7 @@
           <label style="display:flex;gap:8px;align-items:flex-start;" data-protocol="{{ p.key }}">
             <input type="radio" name="protocol" value="{{ p.key }}" required>
             <span><strong>{{ p.ar if current_lang == 'ar' else p.en }}</strong>
-              <span class="hint" style="margin:0;"> — {{ t('vcourse.days') }}: <span class="num" dir="ltr">{{ p.days|join(', ') }}</span> · {{ p.source }}</span>
+              <span class="hint" style="margin:0;"> — {{ t('vcourse.days') }}: <span class="num" dir="ltr">{{ p.days_text or p.days|join(', ') }}</span> · {{ p.source }}</span>
               {% if (p.note_ar if current_lang == 'ar' else p.note_en) %}<br><small class="hint">{{ p.note_ar if current_lang == 'ar' else p.note_en }}</small>{% endif %}</span>
           </label>
           {% endfor %}
@@ -436,12 +436,17 @@
         {% for c in courses if not c.course %}
         <div class="form-row" x-show="vId==={{ c.vaccine.id }}" x-cloak data-record-protocol="{{ c.vaccine.id }}"
              x-data="{proto: '', prev: '{{ '1' if c.before else '' }}', days: {{ c.protocols|map(attribute='days')|map('list')|list|tojson|forceescape }},
+                      until: {{ c.protocols|map(attribute='until')|map('list')|list|tojson|forceescape }},
                       keys: {{ c.protocols|map(attribute='key')|list|tojson|forceescape }},
                       dates() { const i = this.keys.indexOf(this.proto); if (i < 0) return [];
                         const f = this.$el.closest('form'); const v = (f && f.given_date && f.given_date.value) || '{{ today }}';
                         const d0 = new Date(v + 'T00:00:00');
-                        return this.days[i].map((n, k) => { const d = new Date(d0); d.setDate(d.getDate() + n);
-                          return {n: k + 1, day: n, date: d.toISOString().slice(0, 10)}; }); } }">
+                        const pad = (x) => String(x).padStart(2, '0');
+                        const at = (n) => { const d = new Date(d0); d.setDate(d.getDate() + n);
+                          return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+                        return this.days[i].map((n, k) => { const u = (this.until[i] || [])[k];
+                          return {n: k + 1, day: u == null ? String(n) : n + '–' + u,
+                                  date: at(n), until: u == null ? '' : at(u)}; }); } }">
           <label>{{ t('vcourse.pick') }} *</label>
           {% if c.before %}<div class="hint" style="color:var(--warning);margin:0 0 6px;"><i class="bi bi-clock-history"></i> {{ t('vcourse.before', n=c.before|length, date=c.before[-1]) }}</div>{% endif %}
           {% for p in c.protocols %}
@@ -449,15 +454,15 @@
             <input type="radio" name="protocol" value="{{ p.key }}" x-model="proto"
                    x-bind:required="vId==={{ c.vaccine.id }} && !outside">
             <span><strong>{{ p.ar if current_lang == 'ar' else p.en }}</strong>
-              <span class="hint" style="margin:0;"> — {{ t('vcourse.days') }}: <span class="num" dir="ltr">{{ p.days|join(', ') }}</span></span></span>
+              <span class="hint" style="margin:0;"> — {{ t('vcourse.days') }}: <span class="num" dir="ltr">{{ p.days_text or p.days|join(', ') }}</span></span></span>
           </label>
           {% endfor %}
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 0;" x-show="proto" data-record-dates>
             <template x-for="d in dates()">
               <span class="badge badge--muted" style="font-weight:400;">
                 {{ t('vaccinations.dose') }} <span class="num" x-text="d.n"></span> ·
-                <span class="num" dir="ltr" x-text="d.date"></span> ·
-                {{ t('vcourse.day') }} <span class="num" x-text="d.day"></span></span>
+                <bdi class="num" dir="ltr" x-text="d.date"></bdi><template x-if="d.until"><span> {{ t('vcourse.until') }} <bdi class="num" dir="ltr" x-text="d.until"></bdi></span></template> ·
+                {{ t('vcourse.day') }} <bdi class="num" dir="ltr" style="white-space:nowrap;" x-text="d.day"></bdi></span>
             </template>
           </div>
           <div class="notice" x-show="proto && prev !== '1' && ({{ c.protocols|selectattr('rig')|map(attribute='key')|list|tojson|forceescape }}.includes(proto) || (prev === '0' && {{ c.protocols|selectattr('kind', 'equalto', 'pep')|map(attribute='key')|list|tojson|forceescape }}.includes(proto)))"

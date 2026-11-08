@@ -81,7 +81,7 @@
       <summary style="cursor:pointer;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         {% if new %}<span><i class="bi bi-plus-lg"></i> {{ t('vcourse.protocol_new') }}</span>
         {% else %}<strong>{{ p.ar if current_lang == 'ar' else p.en }}</strong>
-          <span class="hint" style="margin:0;">{{ t('vcourse.days') }}: <span class="num" dir="ltr">{{ p.days|join(', ') }}</span></span>
+          <span class="hint" style="margin:0;">{{ t('vcourse.days') }}: <span class="num" dir="ltr">{{ p.days_text or p.days|join(', ') }}</span></span>
           {% if p.rig %}<span class="badge badge--muted">RIG</span>{% endif %}{% endif %}
       </summary>
       <div style="margin-top:10px;">
@@ -92,7 +92,7 @@
         <div class="form-row"><label>{{ t('vcourse.p_name_en') }}</label>
           <input class="input" name="en_{{ i }}" value="{{ p.en }}" maxlength="120" dir="ltr"></div>
         <div class="form-row"><label>{{ t('vcourse.days') }}{% if not new %} *{% endif %}</label>
-          <input class="input num" name="days_{{ i }}" value="{{ p.days|join(', ') }}" dir="ltr" placeholder="0, 3, 7, 14" {{ 'required' if not new }}>
+          <input class="input num" name="days_{{ i }}" value="{{ p.days_text or p.days|join(', ') }}" dir="ltr" placeholder="0, 3, 7, 14" {{ 'required' if not new }}>
           <div class="hint">{{ t('vcourse.p_days_hint') }}</div></div>
         <div class="form-row"><label>{{ t('vcourse.p_kind') }}</label>
           <select class="select" name="kind_{{ i }}">{% for k in protocol_kinds %}<option value="{{ k }}" {{ 'selected' if p.kind == k }}>{{ t('vcourse.kind_' ~ k) }}</option>{% endfor %}</select></div>

@@ -16788,7 +16788,8 @@
     "protocols_saved": "Protocols saved.",
     "protocols_reset": "Restore the program's protocols",
     "protocols_reset_confirm": "Restore the protocols as the program ships them? Open courses are not affected.",
-    "protocols_reset_done": "The program's protocols are back."
+    "protocols_reset_done": "The program's protocols are back.",
+    "until": "to"
   },
   "rsched": {
     "title": "Send it by itself",

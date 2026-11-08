@@ -2090,7 +2090,9 @@ SECTIONS = [
              "بتطلّع تحذير «بدري» — التحذير بس لو جرعتين في نفس اليوم. <b>البروتوكولات بتاعة "
              "العيادة:</b> إدارة التطعيمات ← داء الكلب ← «بروتوكولات الكورس»: عدّل الاسم والأيام "
              "وسؤال الـ RIG، أو ضيف بروتوكول، أو اكتب في ملاحظة المصري رقم النشرة اللي ماشيين "
-             "عليها (ساعتها تنبيه «اتأكد من المصدر» بيختفي). الكورس المفتوح بيفضل على أيامه.",
+             "عليها (ساعتها تنبيه «اتأكد من المصدر» بيختفي). الكورس المفتوح بيفضل على أيامه. "
+             "الجرعة اللي ليها فترة بتتكتب «14-28»: بتظهر «اليوم ١٤–٢٨»، مستحقة من يوم ١٤، "
+             "ومتأخرة بس بعد يوم ٢٨ (زي الجرعة الرابعة في بروتوكول منظمة الصحة).",
              "<b>A rabies dose from «Add record»:</b> with no course open, the form asks for "
              "the protocol and shows every dose's date and the RIG alert, and this dose is "
              "day 0. Without a protocol it is not recorded — except a dose given elsewhere "
@@ -2101,7 +2103,9 @@ SECTIONS = [
              "<b>The clinic's protocols:</b> Vaccine management → Rabies → «Course "
              "protocols»: edit the name, the days and the RIG question, add a protocol, or "
              "write the circular you follow in the Egyptian one's note (the «confirm the "
-             "source» warning then goes). An open course keeps its days."),
+             "source» warning then goes). An open course keeps its days. A dose with a "
+             "window is written «14-28»: it shows «day 14–28», is due from day 14 and "
+             "late only after day 28 (WHO's fourth dose)."),
             ("الجرعة اللي بتتاخد في العيادة <b>بتتخصم من المخزن تلقائياً</b> "
              "(الأقرب انتهاءً أولاً)، والأمبولة متعددة الجرعات محسوبة.",
              "A dose given in the clinic <b>deducts from stock "

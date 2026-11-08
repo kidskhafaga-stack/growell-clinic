@@ -1901,15 +1901,16 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
         # dose at birth. Read last so nothing above can move its dates.
         course = courses.get(vaccine.id)
         proto = vaccine_protocols.course_protocol(course, vaccine)
-        course_days = {}
+        course_days, course_until = {}, {}
         if proto is not None:
             first = course.first_dose_number or 1
             rota = vaccine_protocols.course_rota(proto["days"], first)
             course_days = {first + i: d for i, d in enumerate(proto["days"])}
+            course_until = vaccine_protocols.until_by_number(proto, first)
             band, review = None, None
             timings = vaccine_protocols.course_dates(
                 course.start_date, proto["days"], first, given_dates,
-                planned_dates, today)
+                planned_dates, today, course_until)
 
         doses = []
         by_number = {d.dose_number: d for d in brand.doses}
@@ -1926,7 +1927,8 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
                 # off one set of brand rows.
                 "dose_number": dose_number,
                 "age_months": age_months,
-                "age_label": (_course_day_label(course_days[dose_number], lang)
+                "age_label": (vaccine_protocols.day_label(
+                                  course_days[dose_number], course_until.get(dose_number), lang)
                               if dose_number in course_days
                               else age_label(age_months, lang)),
                 "course_day": course_days.get(dose_number),
@@ -3110,10 +3112,10 @@ def scan_due(dob, doses, today, agreed=None, courses=None):
         if courses and vaccine_id in courses:
             from app.utils import vaccine_protocols
 
-            start, days, first = courses[vaccine_id]
+            start, days, first, until = courses[vaccine_id]
             timings = vaccine_protocols.course_dates(
                 start, days, first, given.get(vaccine_id, {}),
-                planned.get(vaccine_id, {}), today)
+                planned.get(vaccine_id, {}), today, until)
             for number, _age in vaccine_protocols.course_rota(days, first):
                 due, status = timings[number]
                 if status in ("overdue", "due"):

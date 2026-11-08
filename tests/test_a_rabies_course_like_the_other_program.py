@@ -146,7 +146,7 @@ def _save(fx, rows, user="boss"):
 def _as_form(p):
     return {"key": p["key"], "ar": p["ar"], "en": p["en"], "kind": p["kind"],
             "previously": {True: "1", False: "0"}.get(p["previously"], ""),
-            "days": p["days"], "source": p["source"], "note_ar": p["note_ar"],
+            "days": p["days_text"], "source": p["source"], "note_ar": p["note_ar"],
             "note_en": p["note_en"], "rig": p["rig"]}
 
 
@@ -225,3 +225,55 @@ def test_the_last_protocol_cannot_be_deleted(rabies):
     rows = [dict(_as_form(p), delete=True) for p in _rows(rabies)]
     _save(rabies, rows)
     assert len(_rows(rabies)) == 4
+
+
+def test_the_fourth_who_dose_is_a_window_14_to_28(rabies):
+    """«خلي الجرعة الرابعة تظهر فترة ١٤–٢٨»: shown as day 14–28, due from
+    day 14, and late only after day 28 — on the card and in the sweep."""
+    from app.models import Patient
+    from app.utils import vaccines as V
+    from app.utils.vaccine_due import due_list
+
+    _start(rabies, "pep_who4", days_ago=20)
+    for ago in (20, 17, 13):
+        _record(rabies, days_ago=ago)
+    with rabies["app"].app_context():
+        kid = rabies["db"].session.get(Patient, rabies["ids"]["child"])
+        row = next(p for p in V.patient_plan(kid) if p["vaccine"].code == "RABIES")
+        fourth = next(d for d in row["doses"] if d["dose_number"] == 4)
+        assert fourth["age_label"] in ("اليوم 14–28", "day 14–28")
+        assert fourth["status"] == "due", "day 20 is inside the window: due, not late"
+        rows = [r for r in due_list(status="overdue") if r.get("patient_id") == kid.id
+                or getattr(r.get("patient"), "id", None) == kid.id]
+        assert not rows, "nobody is chased while the window is open"
+    page = _view(rabies)
+    row4 = page[page.find('data-course-dose="4"'):][:600]
+    assert "14–28" in row4
+    editor = rabies["sign_in"]("boss").get(
+        f"/vaccinations/manage/vaccine/{rabies['ids']['rabies']}/schedules").get_data(as_text=True)
+    assert 'value="0, 3, 7, 14-28"' in editor
+
+
+def test_after_day_28_it_is_late(rabies):
+    from app.models import Patient
+    from app.utils import vaccines as V
+
+    _start(rabies, "pep_who4", days_ago=30)
+    for ago in (30, 27, 23):
+        _record(rabies, days_ago=ago)
+    with rabies["app"].app_context():
+        kid = rabies["db"].session.get(Patient, rabies["ids"]["child"])
+        row = next(p for p in V.patient_plan(kid) if p["vaccine"].code == "RABIES")
+        assert next(d for d in row["doses"] if d["dose_number"] == 4)["status"] == "overdue"
+
+
+def test_the_editor_takes_a_window(rabies):
+    rows = [_as_form(p) for p in _rows(rabies)]
+    rows[0]["days"] = "0, 3, 7, 14-21"
+    _save(rabies, rows)
+    p = _rows(rabies)[0]
+    assert p["days"] == (0, 3, 7, 14) and p["until"] == (None, None, None, 21)
+    rows = [_as_form(p) for p in _rows(rabies)]
+    rows[0]["days"] = "0, 3, 7, 14-10"
+    _save(rabies, rows)
+    assert _rows(rabies)[0]["until"][3] == 21, "a window that ends before it starts is refused"
