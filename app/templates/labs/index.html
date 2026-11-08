@@ -38,6 +38,8 @@
     <p class="page-sub" style="margin:0;">{{ t('lab.sub') }}</p>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('labs.walk_in') }}" data-walkin-door>
+      <i class="bi bi-person-plus"></i> {{ t('lab_walkin.door') }}</a>
     {# The two jobs, as two counts. Whoever is holding a rack wants their own
        number, not a total that mixes it with somebody else's.
        `data-tally`, not `data-count`: the page's number animation rewrites

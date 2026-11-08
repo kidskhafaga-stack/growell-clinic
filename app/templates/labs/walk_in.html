@@ -1,0 +1,92 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% import "_pickers.html" as pickers with context %}
+{% block title %}{{ t('lab_walkin.title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_walkin.title') }}{% endblock %}
+{% block content %}
+{# LAB_GLAB360_PLAN.md م-٦ — a child who came for a test only, on an outside
+   doctor's paper. ``utils/lab_walkin``. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-person-plus"></i> {{ t('lab_walkin.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:80ch;">{{ t('lab_walkin.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}"><i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
+</div>
+
+{% if done %}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-walkin-done>
+  <strong><i class="bi bi-check2-circle"></i> {{ t('lab_walkin.done', name=done.patient.display_name(current_lang)) }}</strong>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+    {% for o in done.investigations %}
+    <a class="badge badge--muted" href="{{ url_for('labs.order', order_id=o.id) }}">{{ o.display_name(current_lang) }}</a>
+    {% endfor %}
+  </div>
+  <form method="post" action="{{ url_for('labs.patient_labels', patient_id=done.patient_id) }}" style="margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-upc"></i> {{ t('lab.print_child_labels') }}</button>
+  </form>
+</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="card gc-scale-in" data-walkin-form
+      x-data="{q: ''}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_walkin.child') }}</h2>
+  {{ pickers.patient_picker('patient_id', chosen, required=True) }}
+  <p class="hint" style="margin:6px 0 0;">{{ t('lab_walkin.new_child') }}
+    <a href="{{ url_for('patients.create') }}" target="_blank" rel="noopener">{{ t('lab_walkin.new_child_link') }}</a></p>
+
+  <h2 class="section-title">{{ t('lab_walkin.doctor') }}</h2>
+  <div class="form-grid">
+    <div class="form-row"><label>{{ t('lab_walkin.doctor_name') }} *</label>
+      <input class="input" name="doctor_name" required maxlength="160" value="{{ form.get('doctor_name', '') }}"></div>
+    <div class="form-row"><label>{{ t('lab_walkin.doctor_specialty') }}</label>
+      <input class="input" name="doctor_specialty" maxlength="160" value="{{ form.get('doctor_specialty', '') }}"></div>
+    <div class="form-row"><label>{{ t('lab_walkin.doctor_place') }}</label>
+      <input class="input" name="doctor_place" maxlength="200" value="{{ form.get('doctor_place', '') }}"></div>
+    <div class="form-row"><label>{{ t('lab_walkin.doctor_phone') }}</label>
+      <input class="input" name="doctor_phone" maxlength="40" dir="ltr" value="{{ form.get('doctor_phone', '') }}">
+      <div class="hint">{{ t('lab_walkin.doctor_phone_hint') }}</div></div>
+  </div>
+  <div class="form-row"><label>{{ t('lab_walkin.paper') }}</label>
+    <input class="input" type="file" name="paper" accept="image/*,application/pdf" capture="environment">
+    <div class="hint">{{ t('lab_walkin.paper_hint') }}</div></div>
+
+  <h2 class="section-title">{{ t('lab_walkin.tests') }} *</h2>
+  <input class="input" x-model="q" placeholder="{{ t('lab_walkin.filter') }}" style="max-width:320px;margin-bottom:8px;">
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px 14px;max-height:340px;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:8px 10px;" data-walkin-tests>
+    {% for x in tests %}
+    <label class="checkbox" style="margin:0;" x-show="!q || {{ (x.name_ar ~ ' ' ~ (x.name_en or '') ~ ' ' ~ (x.code or ''))|lower|tojson|forceescape }}.includes(q.toLowerCase())">
+      <input type="checkbox" name="test_id" value="{{ x.id }}" {{ 'checked' if x.id in picked }}>
+      <span style="font-weight:400;">{{ x.display_name(current_lang) }}
+        {% if not x.in_house %}<small class="hint">({{ t('lab_walkin.sent_on') }})</small>{% endif %}</span>
+    </label>
+    {% endfor %}
+  </div>
+  <div class="form-row" style="margin-top:10px;"><label>{{ t('lab_walkin.notes') }}</label>
+    <input class="input" name="notes" maxlength="255" value="{{ form.get('notes', '') }}" placeholder="{{ t('lab_walkin.notes_ph') }}"></div>
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('lab_walkin.save') }}</button>
+</form>
+
+{% if recent %}
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_walkin.recent') }}</h2>
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr><th>{{ t('lab_walkin.child') }}</th><th>{{ t('lab_walkin.doctor') }}</th><th>{{ t('lab_walkin.tests') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for v in recent %}
+      <tr data-walkin-row="{{ v.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=v.patient_id) }}">{{ v.patient.display_name(current_lang) }}</a></td>
+        <td>{{ v.outside_doctor.name if v.outside_doctor else '—' }}</td>
+        <td>{% for o in v.investigations %}<a class="badge badge--muted" href="{{ url_for('labs.order', order_id=o.id) }}">{{ o.display_name(current_lang) }} · {{ t('lab.state_' ~ o.status) }}</a> {% endfor %}</td>
+        <td class="num" dir="ltr">{{ v.visit_date }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

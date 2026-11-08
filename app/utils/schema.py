@@ -1157,6 +1157,9 @@ ADDITIONS = [
     # A rabies course keeps the protocol it was opened on — the clinic can
     # now edit its protocols (``utils/vaccine_protocols.course_protocol``).
     ("vaccine_courses", "protocol_data", "TEXT"),
+    # LAB_GLAB360_PLAN م-٦: a child who came for a test only, on an outside
+    # doctor's paper (``utils/lab_walkin``).
+    ("visits", "outside_doctor_id", "INTEGER"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

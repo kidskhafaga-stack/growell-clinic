@@ -15,6 +15,8 @@
       · <span class="badge badge--muted" data-status>{{ t('lab.state_' ~ order.status) }}</span>
       {% if order.urgent %}· <span class="badge badge--danger" data-urgent><i class="bi bi-lightning-charge"></i> {{ t('lab_reception.urgent') }}</span>{% endif %}
       · <span class="hint" dir="ltr">{{ t('lab.waiting_n', n=waited) }}</span>
+      {% if order.visit and order.visit.outside_doctor %}· <span class="badge badge--muted" data-outside-doctor>
+        <i class="bi bi-person-badge"></i> {{ t('lab_walkin.asked_by', who=order.visit.outside_doctor.name) }}</span>{% endif %}
     </p>
   </div>
   <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}">
@@ -521,7 +523,7 @@
     <input type="hidden" name="order" value="{{ order.id }}">
     <input type="hidden" name="back" value="order">
     <div class="form-row" style="margin:0;min-width:220px;"><label for="external_doctor_id">{{ t('lab_share.to_doctor') }}</label>
-      <select class="select" id="external_doctor_id" name="external_doctor_id">{% for d in share_doctors %}<option value="{{ d.id }}">{{ d.name }}{% if d.place %} — {{ d.place }}{% endif %}</option>{% endfor %}</select></div>
+      <select class="select" id="external_doctor_id" name="external_doctor_id">{% for d in share_doctors %}<option value="{{ d.id }}" {{ 'selected' if order.visit and order.visit.outside_doctor_id == d.id }}>{{ d.name }}{% if d.place %} — {{ d.place }}{% endif %}</option>{% endfor %}</select></div>
     <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-whatsapp"></i> {{ t('lab_share.send_doctor') }}</button>
   </form>
   {% endif %}

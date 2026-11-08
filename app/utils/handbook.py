@@ -1427,6 +1427,18 @@ SECTIONS = [
         "icon": "eyedropper",
         "title": ("المعمل", "The lab"),
         "lines": [
+            ("<b>مريض جاي للمعمل بس</b>: من قايمة المعمل ← «مريض جاي للمعمل بس». طفل جاي "
+             "بورقة من دكتور برّه من غير كشف عندنا: اختار الطفل، واكتب اسم الدكتور (وموبايله لو "
+             "عايز تبعتله النتيجة)، وصوّر الورقة، وعلّم التحاليل. بتنزل على المعمل زي أي طلب، "
+             "وصفحة الطلب بتقول «طلب د. فلان (من برّه)» والنتيجة بتتبعت له من نفس الصفحة. "
+             "الطفل ده مش بيظهر في قايمة أي دكتور، والفلوس بتتحصّل في الخزنة لما العينة تتسحب.",
+             "<b>A lab-only patient</b>: from the lab's list → «Lab-only patient». A child "
+             "with a paper from a doctor outside and no consultation here: choose the "
+             "child, write the doctor's name (and mobile, to send them the result), "
+             "photograph the paper and tick the tests. They go on the rack like any "
+             "order; the order page says «Asked by Dr … (outside)» and the result goes to "
+             "them from the same page. The child is on no doctor's list, and the desk "
+             "collects once the sample is drawn."),
             ("<b>قايمة كل قسم</b>: فوق قايمة المعمل تبويب لكل قسم فيه شغل "
              "مستني (أمراض الدم، الكيمياء، الهرمونات…) بعدده، وعلامة البرق لو فيه "
              "مستعجل. اختار قسمك والقايمة تبقى بتاعته بس — المستعجل الأول وبعده "
