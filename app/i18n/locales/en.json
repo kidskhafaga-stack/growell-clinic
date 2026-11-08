@@ -9853,7 +9853,9 @@
     "none_mine": "No prescriptions in your name waiting for confirmation.",
     "no_tests": "No tests or scans ordered for this attendance yet.",
     "billed": "Billed",
-    "collect": "Collect at the desk ({n})"
+    "collect": "Collect at the desk ({n})",
+    "write_visit": "Write the visit",
+    "safety_title": "Warnings on what is written — allergies, interactions and dose"
   },
   "inv_list": {
     "title": "Tests and scans",

@@ -453,6 +453,7 @@ def attendance(attendance_id):
             current_user.can_access("finance") or current_user.can("cashier")),
         owed=len(eo.unbilled(row.patient_id)),
         tests=eo.tests_for(row), missing=er.missing(row),
+        safety=eo.safety(row, lang=getattr(g, "lang", "ar")),
         # GAHAR ICD.02 ev. 3 — the ambulance run that brought this child, so
         # the pre-hospital record is one press from the attendance.
         ambulance_runs=_ambulance_runs(row),
@@ -542,8 +543,61 @@ def write_order(attendance_id):
         return _to_attendance(row.id)
     db.session.commit()
     _refresh_bell()
+    # Said now, in the room — the same check and the same words as the
+    # prescription screen (DOCTOR_EASE_PLAN ط-١). Never a block: the doctor
+    # decides, knowingly.
+    _say_safety(eo.safety(row, lang=getattr(g, "lang", "ar")),
+                (request.form.get("name") or "").strip()
+                or getattr(pick(Drug, "drug_id"), "trade_name", ""))
     flash(t("er_orders.written"), "success")
     return _to_attendance(row.id)
+
+
+def _say_safety(result, name):
+    """The allergy, dose and interaction warnings for the line just written."""
+    if not result:
+        return
+    lang = getattr(g, "lang", "ar")
+    for line in result["lines"]:
+        if name and line["name"] != name:
+            continue
+        alg = line.get("allergy")
+        if alg:
+            flash(t("allergy.flash_" + alg["level"])
+                  .replace("{drug}", line["name"])
+                  .replace("{allergy}", alg["allergy"]), "danger")
+        for w in line["warnings"]:
+            flash(f"{line['name']}: " + t("drugbook.warn_" + w), "warning")
+    for r in result["interactions"]:
+        a, b = r.pair_names(lang)
+        msg = t("rx.interaction_line").replace("{a}", a).replace("{b}", b)
+        if r.note:
+            msg += " — " + r.note
+        flash(msg, "danger" if r.severity == "severe" else "warning")
+
+
+@emergency_bp.route("/attendance/<int:attendance_id>/visit", methods=["POST"])
+@module_required(MODULE)
+def write_visit(attendance_id):
+    """«اكتب الكشف» (DOCTOR_EASE_PLAN ط-٢): the attendance's own encounter on
+    the visit screen — the assessment, the diagnosis, the vitals. The page
+    said «still missing: the doctor's assessment, the diagnosis» and had no
+    door to write them."""
+    from app.models import EmergencyVisit
+    from app.utils import emergency as er
+    from app.utils import emergency_orders as eo
+
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    visit = eo.encounter(row, current_user)
+    # The encounter was made by whoever first ordered a test; the doctor who
+    # writes the examination is the one it belongs to.
+    if eo.is_doctor(current_user) and visit.doctor_id != current_user.id \
+            and not (visit.chief_complaint or visit.clinical_exam):
+        visit.doctor_id = current_user.id
+    if eo.is_doctor(current_user):
+        er.mark_seen(row, current_user)
+    db.session.commit()
+    return redirect(url_for("visits.record", visit_id=visit.id))
 
 
 def _order_or_404(order_id):

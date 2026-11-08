@@ -1116,6 +1116,20 @@ SECTIONS = [
         "icon": "thermometer-half",
         "title": ("الطوارئ", "Emergency"),
         "lines": [
+            ("<b>العلاج بيتفحص زي الروشتة:</b> الدوا اللي بيتكتب في الطوارئ بيعدّي على نفس فحص "
+             "الحساسية والتداخلات والجرعة اللي في الروشتة والداخلي. لو الطفل عنده حساسية منه "
+             "بيطلع تحذير أحمر ساعة الكتابة، وبيفضل في صفحة الحضور طول ما الأوردر قايم — "
+             "تحذير مش منع، والدكتور هو اللي بيقرر. و<b>«اكتب الكشف»</b> في صفحة الحضور بيفتح "
+             "زيارة الطوارئ نفسها في شاشة الكشف: الشكوى والفحص والعلامات الحيوية والتشخيص — "
+             "اللي «لسه ناقص في الملف» بيطلبهم.",
+             "<b>Treatment is checked like a prescription:</b> a medicine written in "
+             "emergency goes through the same allergy, interaction and dose check as the "
+             "prescription screen and the ward. If the child is allergic to it, a red "
+             "warning shows as it is written and stays on the attendance while the order "
+             "stands — a warning, not a block; the doctor decides. <b>«Write the "
+             "visit»</b> on the attendance opens the emergency encounter itself on the "
+             "visit screen: complaint, examination, vitals and diagnosis — what «still "
+             "missing» asks for."),
             ("<b>البارتيشنات ورقم الطابور:</b> فوق شاشة الطوارئ البارتيشنات اللي "
              "اتبنت في إعداد الأسرّة — مين فيها (محجوز أو جلسة) وكام فاضي. الطفل "
              "اللي مستني مكان ليه <b>رقم في الطابور</b>: العاجل الأول، بعده اللي "
