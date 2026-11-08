@@ -94,7 +94,7 @@
       {% else %}<div class="patient-avatar sm"><i class="bi bi-telephone"></i></div>{% endif %}
       <div style="flex:1;min-width:0;">
         <div style="display:flex;justify-content:space-between;gap:10px;">
-          <strong dir="auto">{{ c.patient.display_name(current_lang) if c.patient else (c.contact.name if c.contact else c.phone) }}
+          <strong dir="auto">{% if c.siblings %}<span data-siblings-row title="{{ t('inbox.siblings_one_thread') }}"><i class="bi bi-people"></i> {% for s in c.siblings %}{{ s.display_name(current_lang) }}{{ ' + ' if not loop.last }}{% endfor %}</span>{% else %}{{ c.patient.display_name(current_lang) if c.patient else (c.contact.name if c.contact else c.phone) }}{% endif %}
             {% if c.channel != 'whatsapp' %}<span class="badge badge--muted" style="font-weight:500;" data-conv-channel="{{ c.channel }}">{{ t('channels.ch_' ~ c.channel) }}</span>{% endif %}
             {% if c.orphan %}<span class="badge badge--muted" style="font-weight:500;">{{ t('inbox.unknown') }}</span>{% endif %}
             {# What it is about. A guess is drawn as a guess — dashed, with a

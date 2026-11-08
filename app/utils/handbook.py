@@ -3283,14 +3283,19 @@ SECTIONS = [
              "على واتساب، وبيتحفظ في ملف الطفل. و<b>اللي علّق على صفحة فيسبوك</b> وبعدين رديت "
              "عليه رد خاص، لو كتب على ماسنجر بيوصل في نفس المحادثة، ولو كان كاتب قبل كده "
              "الاتنين بيبقوا شخص واحد. و<b>مواعيد مختلفة لأيام معيّنة</b> (الجمعة مثلاً) من "
-             "«الردود الجاهزة» تحت مواعيد العمل.",
+             "«الردود الجاهزة» تحت مواعيد العمل. و<b>الأم اللي بتكتب عن أكتر من طفل</b> من نفس الرقم "
+             "بقت صف واحد بأسامي الإخوات، ومحادثة واحدة جنب كل رسالة اسم الطفل، و«اترد عليها» "
+             "بيقفلها للكل.",
              "<b>In the inbox:</b> search reads every message of every conversation, "
              "however old, and shows the line with the word. Under the reply, «Send a "
              "picture or a file» — an image or a PDF on WhatsApp, kept on the child's "
              "file. <b>Someone who commented on the Facebook page</b> and got a private "
              "reply lands in the same conversation when they write on Messenger, and if "
              "they wrote before the two become one person. <b>Different hours on some "
-             "days</b> (Friday, say) under the working hours in «Quick replies»."),
+             "days</b> (Friday, say) under the working hours in «Quick replies». <b>A mother "
+             "writing about more than one child</b> from one number is one row with the "
+             "siblings' names, one chat with each message's child named, and «answered» "
+             "closes it for all of them."),
             ("<b>التقييم بعد كل خدمة، مش بعد الكشف بس:</b> بعد الخروج من "
              "الداخلي والحضّانات والطوارئ الأهل بيوصلهم تقييم بتلات نواحي — "
              "الطبية والخدمية والمالية — ومرة واحدة في الأسبوع بالكتير. "

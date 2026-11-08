@@ -222,11 +222,6 @@ def conversations(search=None, only_open=False, limit=200, assignee=None):
             "resolved": (record is not None
                          and record.is_resolved_for(last.created_at)),
         }
-        if only_open and not conv["open"]:
-            continue
-        if assignee is not None and (
-                record is None or record.assigned_to != assignee):
-            continue
         if not _matches(conv, search, hits):
             continue
         if conv["key"] in hits:
@@ -249,12 +244,98 @@ def conversations(search=None, only_open=False, limit=200, assignee=None):
         conv["suggested_topic"] = (None if conv["topic"]
                                    else suggest_topic(conv["last"].body))
         out.append(conv)
+    # Siblings are folded together before the filters, so a child whose own
+    # thread is answered still joins a brother's that is waiting.
+    out = _group_siblings(out)
+    if only_open:
+        out = [c for c in out if c["open"]]
+    if assignee is not None:
+        out = [c for c in out if c["record"] is not None
+               and c["record"].assigned_to == assignee]
     # Emergencies first, then closing windows, then whoever has waited
     # longest — a work list ordered by "newest" puts the person ignored for
     # three days at the bottom, and one ordered only by waiting time puts a
     # feverish child behind eleven questions about prices.
     out.sort(key=rank)
     return out
+
+
+# ------------------------------------------------- one mother, two children --
+#
+# SERVICE_DESK_PLAN «تجميع الإخوة في محادثة واحدة»: a mother writes from one
+# number about two children. Her messages are filed on one child (the first
+# the number matches) and the reminders on each child's own thread, so she
+# was two conversations — answered twice, or once and the other left
+# waiting. A thread stays the child's (routing, the record, the file all
+# read ``p<id>``); what changes is that siblings of one family on one number
+# are **shown** as one: one row in the list, one chat on the screen, one
+# «answered».
+
+def _group_key(conv):
+    patient = conv.get("patient")
+    if patient is None or not getattr(patient, "family_id", None) or not conv.get("phone"):
+        return None
+    return (patient.family_id, normalize_phone(conv["phone"]))
+
+
+def _group_siblings(rows):
+    """One row per family and number: the newest child's conversation, with
+    the others' names, unread and waiting folded into it."""
+    groups, out = {}, []
+    for conv in rows:
+        gk = _group_key(conv)
+        if gk is None:
+            out.append(conv)
+            continue
+        head = groups.get(gk)
+        if head is None:
+            groups[gk] = conv
+            conv["siblings"] = [conv["patient"]]
+            out.append(conv)
+            continue
+        if conv["last"].created_at > head["last"].created_at:
+            # The newest message leads the row; keep the row where it was.
+            for field in ("key", "patient", "last", "record", "assignee", "resolved",
+                          "topic", "suggested_topic"):
+                head[field], conv[field] = conv[field], head[field]
+        head["siblings"].append(conv["patient"])
+        head["count"] = head.get("count", 0) + conv.get("count", 0)
+        head["unread"] = head.get("unread", 0) + conv.get("unread", 0)
+        head["open"] = head.get("open") or conv.get("open")
+        head["waiting_hours"] = max(filter(lambda x: x is not None,
+                                           (head.get("waiting_hours"), conv.get("waiting_hours"))),
+                                    default=None)
+        lefts = [x for x in (head.get("hours_left"), conv.get("hours_left")) if x is not None]
+        head["hours_left"] = min(lefts) if lefts else None
+        head["closing"] = head.get("closing") or conv.get("closing")
+    for conv in out:
+        if len(conv.get("siblings") or []) < 2:
+            conv.pop("siblings", None)
+    return out
+
+
+def siblings_on_number(patient, phone):
+    """``[patient_id, …]`` — this child and their brothers and sisters whose
+    conversations are on this same number; empty when there are none."""
+    if patient is None or not getattr(patient, "family_id", None) or not phone:
+        return []
+    kids = [row.id for row in Patient.query.filter_by(family_id=patient.family_id).all()]
+    if len(kids) < 2:
+        return []
+    variants = phone_variants(phone)
+    ids = {row[0] for row in db.session.query(MessageLog.patient_id)
+           .filter(MessageLog.patient_id.in_(kids), MessageLog.to_phone.in_(variants))
+           .distinct()}
+    ids.add(patient.id)
+    return sorted(ids) if len(ids) > 1 else []
+
+
+def family_query(patient_id, sibling_ids, phone):
+    """The child's own conversation and their siblings' on this number."""
+    variants = phone_variants(phone)
+    return MessageLog.query.filter(db.or_(
+        MessageLog.patient_id == patient_id,
+        db.and_(MessageLog.patient_id.in_(sibling_ids), MessageLog.to_phone.in_(variants))))
 
 
 def conversation_records(keys):

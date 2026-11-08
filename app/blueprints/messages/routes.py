@@ -613,14 +613,22 @@ def inbox_resolve(key):
     patient re-opens it without anyone remembering to."""
     from app.utils.inbox import conversation_for
 
-    record = conversation_for(key)
-    if request.form.get("reopen"):
-        record.resolved_at = record.resolved_by = None
-        flash(t("inbox.reopened"), "info")
-    else:
-        record.resolved_at = datetime.utcnow()
-        record.resolved_by = current_user.id
-        flash(t("inbox.resolved"), "success")
+    # Siblings shown as one conversation are answered as one.
+    keys = [key]
+    if key.startswith("p") and key[1:].isdigit():
+        from app.utils.inbox import siblings_on_number
+        child = db.session.get(Patient, int(key[1:]))
+        phone, _ = _thread_phone(key)
+        keys += [f"p{i}" for i in siblings_on_number(child, phone) if f"p{i}" != key]
+    for one in keys:
+        record = conversation_for(one)
+        if request.form.get("reopen"):
+            record.resolved_at = record.resolved_by = None
+        else:
+            record.resolved_at = datetime.utcnow()
+            record.resolved_by = current_user.id
+    flash(t("inbox.reopened") if request.form.get("reopen") else t("inbox.resolved"),
+          "info" if request.form.get("reopen") else "success")
     db.session.commit()
     return redirect(url_for("messages.inbox_thread", key=key))
 
@@ -639,6 +647,18 @@ def inbox_thread(key):
     if not msgs:
         flash(t("inbox.empty_thread"), "warning")
         return redirect(url_for("messages.inbox"))
+    # A mother writing about two children from one number is one
+    # conversation: her brothers' and sisters' threads on that number are
+    # shown here with each child named (``inbox.siblings_on_number``).
+    from app.utils.inbox import family_query, siblings_on_number
+    siblings = []
+    first_patient = next((m.patient for m in msgs if m.patient), None)
+    family_phone = next((m.to_phone for m in reversed(msgs) if m.to_phone), None)
+    ids = siblings_on_number(first_patient, family_phone) if key.startswith("p") else []
+    if ids:
+        msgs = (family_query(first_patient.id, ids, family_phone)
+                .order_by(MessageLog.created_at).all())
+        siblings = Patient.query.filter(Patient.id.in_(ids)).order_by(Patient.id).all()
     # Opening the thread marks its inbound messages as read.
     changed = False
     for m in msgs:
@@ -681,6 +701,7 @@ def inbox_thread(key):
         canned=canned, ai_ready=ai_available(),
         topics=TRIAGE_TOPICS,
         conv_lead=_lead_for(key),
+        siblings=siblings,
         **_booking_from_thread(key, patient, phone, msgs, lang))
 
 

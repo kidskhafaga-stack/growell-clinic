@@ -4300,7 +4300,8 @@
     "file_hint": "An image or a PDF, on WhatsApp. On a child's conversation it is kept on the file too. With click-to-send WhatsApp the chat opens and you attach the file yourself.",
     "file_whatsapp_only": "Files go on WhatsApp only for now — this conversation is on another channel.",
     "file_sent_label": "Sent to the family on WhatsApp",
-    "file_attach_by_hand": "The chat is open — attach the file ({name}) yourself before sending."
+    "file_attach_by_hand": "The chat is open — attach the file ({name}) yourself before sending.",
+    "siblings_one_thread": "One number writing about more than one child — their conversations are together here, each message with the child's name:"
   },
   "journal": {
     "title": "Journal",
