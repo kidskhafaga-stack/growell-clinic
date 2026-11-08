@@ -385,6 +385,18 @@
           <i class="bi bi-send"></i> {{ t('inbox.send') }}</button>
       </div>
     </form>
+    {# A picture or a PDF — the result, the prescription, the map. #}
+    <details style="margin-top:8px;" data-send-file>
+      <summary class="hint" style="cursor:pointer;"><i class="bi bi-paperclip"></i> {{ t('inbox.send_file') }}</summary>
+      <form method="post" enctype="multipart/form-data" action="{{ url_for('messages.inbox_send_file', key=key) }}"
+            style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="input" type="file" name="file" accept="image/*,application/pdf" required style="max-width:280px;">
+        <input class="input" name="caption" maxlength="1000" placeholder="{{ t('inbox.file_caption') }}" style="flex:1;min-width:180px;">
+        <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-send"></i> {{ t('inbox.send') }}</button>
+      </form>
+      <p class="hint" style="margin:6px 0 0;">{{ t('inbox.file_hint') }}</p>
+    </details>
     <p class="hint" style="margin:8px 0 0;" x-show="drafted" x-cloak>
       <i class="bi bi-stars"></i> {{ t('inbox.ai_review') }}</p>
     <p class="hint" style="margin:8px 0 0;color:var(--danger);font-weight:600;"

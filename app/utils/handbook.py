@@ -3278,6 +3278,19 @@ SECTIONS = [
         "icon": "whatsapp",
         "title": ("خدمة عملاء المرضى", "Patient Care"),
         "lines": [
+            ("<b>في صندوق الرسايل:</b> البحث بيدوّر في كل رسايل كل محادثة مهما كانت قديمة "
+             "وبيوري الجملة اللي فيها الكلمة. وتحت الرد «ابعت صورة أو ملف» — صورة أو PDF "
+             "على واتساب، وبيتحفظ في ملف الطفل. و<b>اللي علّق على صفحة فيسبوك</b> وبعدين رديت "
+             "عليه رد خاص، لو كتب على ماسنجر بيوصل في نفس المحادثة، ولو كان كاتب قبل كده "
+             "الاتنين بيبقوا شخص واحد. و<b>مواعيد مختلفة لأيام معيّنة</b> (الجمعة مثلاً) من "
+             "«الردود الجاهزة» تحت مواعيد العمل.",
+             "<b>In the inbox:</b> search reads every message of every conversation, "
+             "however old, and shows the line with the word. Under the reply, «Send a "
+             "picture or a file» — an image or a PDF on WhatsApp, kept on the child's "
+             "file. <b>Someone who commented on the Facebook page</b> and got a private "
+             "reply lands in the same conversation when they write on Messenger, and if "
+             "they wrote before the two become one person. <b>Different hours on some "
+             "days</b> (Friday, say) under the working hours in «Quick replies»."),
             ("<b>التقييم بعد كل خدمة، مش بعد الكشف بس:</b> بعد الخروج من "
              "الداخلي والحضّانات والطوارئ الأهل بيوصلهم تقييم بتلات نواحي — "
              "الطبية والخدمية والمالية — ومرة واحدة في الأسبوع بالكتير. "

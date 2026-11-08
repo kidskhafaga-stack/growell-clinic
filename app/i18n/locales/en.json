@@ -4294,7 +4294,13 @@
     "tpl_unknown": "That template is not registered.",
     "tpl_missing_param": "Fill every parameter — Meta rejects a template with a blank in it.",
     "tpl_sent": "Sent as an approved template.",
-    "tpl_failed": "Template send failed: {err}"
+    "tpl_failed": "Template send failed: {err}",
+    "send_file": "Send a picture or a file",
+    "file_caption": "A line with the file (optional)",
+    "file_hint": "An image or a PDF, on WhatsApp. On a child's conversation it is kept on the file too. With click-to-send WhatsApp the chat opens and you attach the file yourself.",
+    "file_whatsapp_only": "Files go on WhatsApp only for now — this conversation is on another channel.",
+    "file_sent_label": "Sent to the family on WhatsApp",
+    "file_attach_by_hand": "The chat is open — attach the file ({name}) yourself before sending."
   },
   "journal": {
     "title": "Journal",
@@ -5148,7 +5154,9 @@
     "overnight_hint": "A closing time earlier than the opening one means the shift runs past midnight (16:00 → 02:00) — that's fine.",
     "away_body": "Message text",
     "away_once": "Sent at most once every 12 hours per conversation — so nobody gets a robot answering every message.",
-    "away_manual_note": "Only works when automatic sending is on. In manual mode every message becomes a link, and nobody is there to click it at 1 a.m."
+    "away_manual_note": "Only works when automatic sending is on. In manual mode every message becomes a link, and nobody is there to click it at 1 a.m.",
+    "per_day": "Different hours on some days",
+    "per_day_hint": "Leave a day empty for the ordinary hours above. The day must be ticked as a working day."
   },
   "presets": {
     "pediatric_dental_clinic": "Paediatric dental clinic",

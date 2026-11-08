@@ -906,6 +906,18 @@ def away_hours():
                 (request.form.get("open_from") or "").strip() or DEFAULT_OPEN_FROM)
     Setting.set("wa_open_to",
                 (request.form.get("open_to") or "").strip() or DEFAULT_OPEN_TO)
+    # A day with its own hours: both times filled, else the ordinary hours.
+    import json
+
+    from app.utils.service_desk import PER_DAY_KEY, parse_per_day
+    own = {}
+    for d in range(7):
+        frm = (request.form.get(f"day_from_{d}") or "").strip()
+        to = (request.form.get(f"day_to_{d}") or "").strip()
+        if frm and to and str(d) in days:
+            own[str(d)] = [frm, to]
+    Setting.set(PER_DAY_KEY, json.dumps({str(k): list(v) for k, v in
+                                         parse_per_day(json.dumps(own)).items()}))
     Setting.set("wa_away_body",
                 (request.form.get("away_body") or "").strip() or DEFAULT_AWAY_BODY)
     db.session.commit()
@@ -964,6 +976,64 @@ def inbox_send(key):
         return redirect(log.link)
     flash(t("inbox.sent"), "success")
     return redirect(url_for("messages.inbox_thread", key=key))
+
+
+_FILE_MIME = {"pdf": "application/pdf", "png": "image/png", "jpg": "image/jpeg",
+              "jpeg": "image/jpeg", "webp": "image/webp", "gif": "image/gif"}
+
+
+@messages_bp.route("/inbox/<key>/send-file", methods=["POST"])
+@module_required(MODULE)
+def inbox_send_file(key):
+    """Reply with a picture or a PDF (SERVICE_DESK_PLAN «بعد كده»): the
+    result, the prescription, the clinic's map. On WhatsApp — the channel
+    the program can attach a file on. Sent by the program on the Cloud API;
+    on click-to-send the chat opens and the person attaches the file they
+    just chose. On a child's conversation it is also kept on the file."""
+    import os
+
+    from app.models import PatientAttachment
+    from app.utils.inbox import reply_channel
+    from app.utils.uploads import docs_dir, save_document
+
+    back = url_for("messages.inbox_thread", key=key)
+    channel = reply_channel(key)
+    if channel != "whatsapp":
+        flash(t("inbox.file_whatsapp_only"), "warning")
+        return redirect(back)
+    phone, patient_id = _thread_phone(key)
+    if not phone:
+        flash(t("inbox.no_phone"), "danger")
+        return redirect(back)
+    upload = request.files.get("file")
+    stored = save_document(upload)
+    if not stored:
+        flash(t("visits.att_bad_type"), "warning")
+        return redirect(back)
+    with open(os.path.join(docs_dir(), stored), "rb") as fh:
+        data = fh.read()
+    name = upload.filename or stored
+    caption = (request.form.get("caption") or "").strip()[:1000]
+    log = wa.send_document(caption or f"📎 {name}", phone, data, name,
+                           mime=_FILE_MIME.get(stored.rsplit(".", 1)[-1], "application/octet-stream"),
+                           patient_id=patient_id, user_id=current_user.id)
+    if patient_id:
+        db.session.add(PatientAttachment(
+            patient_id=patient_id, filename=stored, original_name=name,
+            kind="other", label=t("inbox.file_sent_label")[:160],
+            uploaded_by=current_user.id))
+    else:
+        from app.utils.uploads import remove_document
+        remove_document(stored)
+    db.session.commit()
+    if log.status == "link" or (log.status == "failed" and log.link):
+        flash(t("inbox.file_attach_by_hand", name=name), "warning")
+        return redirect(log.link)
+    if log.status == "sent":
+        flash(t("inbox.sent"), "success")
+    else:
+        flash(t("social.failed", err=log.error or "—"), "danger")
+    return redirect(back)
 
 
 def _thread_phone(key):

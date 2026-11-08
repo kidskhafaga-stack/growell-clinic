@@ -119,7 +119,7 @@
         <div style="display:flex;justify-content:space-between;gap:10px;">
           <span style="color:var(--muted);font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70ch;">
             {% if c.last.direction == 'out' %}<i class="bi bi-arrow-up-left" style="color:var(--green-700);"></i>{% else %}<i class="bi bi-arrow-down-right" style="color:#2563eb;"></i>{% endif %}
-            {{ c.last.body[:120] }}</span>
+            {% if c.hit %}<span data-search-hit><i class="bi bi-search"></i> {{ c.hit }}</span>{% else %}{{ c.last.body[:120] }}{% endif %}</span>
           <span style="display:flex;gap:6px;align-items:center;">
             {% if c.assignee %}<span class="badge badge--role"{% if c.record.assigned_by in ('auto', 'escalated') %} title="{{ t('routing.by_' ~ c.record.assigned_by) }}"{% endif %}><i class="bi bi-{{ 'diagram-3' if c.record.assigned_by in ('auto', 'escalated') else 'person' }}"></i> {{ c.assignee.display_name(current_lang) }}</span>
             {% elif c.record and c.record.suggested %}<span class="route-sug" data-suggested="{{ c.record.suggested_to }}" title="{{ t('routing.suggested_hint') }}"><i class="bi bi-lightbulb"></i> {{ c.record.suggested.display_name(current_lang) }}؟</span>{% endif %}

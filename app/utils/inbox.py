@@ -99,9 +99,41 @@ def unread_count():
                     MessageLog.status != "read").count())
 
 
-def _matches(conv, needle):
-    """Free-text search over the patient's name, the number and the last body."""
+#: How many matching messages the search looks through for its threads.
+SEARCH_SCAN = 2000
+
+
+def _search_hits(needle):
+    """``{thread_key: (message, snippet)}`` — every conversation where any
+    message, however old, says ``needle``. The search used to read the last
+    message only, so «the result I sent her in March» found nothing."""
+    needle = (needle or "").strip()
+    if len(needle) < 2:
+        return {}
+    pattern = "%" + needle.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    rows = (MessageLog.query
+            .filter(MessageLog.body.ilike(pattern, escape="\\"))
+            .order_by(MessageLog.created_at.desc()).limit(SEARCH_SCAN).all())
+    hits = {}
+    low = needle.lower()
+    for row in rows:
+        key = thread_key(row)
+        if key in hits:
+            continue
+        body = row.body or ""
+        at = body.lower().find(low)
+        start = max(at - 40, 0)
+        snippet = ("…" if start else "") + body[start:at + len(needle) + 60].replace("\n", " ")
+        hits[key] = (row, snippet)
+    return hits
+
+
+def _matches(conv, needle, hits=None):
+    """Free-text search over the patient's name, the number, and every
+    message in the conversation (``hits``, from :func:`_search_hits`)."""
     if not needle:
+        return True
+    if hits and conv["key"] in hits:
         return True
     needle = needle.strip().lower()
     haystack = " ".join(filter(None, [
@@ -140,10 +172,14 @@ def conversations(search=None, only_open=False, limit=200, assignee=None):
     # inbox, the search — so a lazy load here is one `SELECT patients WHERE
     # id = ?` per conversation: measured at 134 of the desk's 164 queries,
     # and it grew with the clinic while the rest of the screen did not.
+    hits = _search_hits(search) if search else {}
+    # Searching looks past the newest ``limit`` threads: an old conversation
+    # that says the words is the one being looked for.
     lasts = (MessageLog.query.filter(MessageLog.id.in_(db.select(newest)))
              .options(db.joinedload(MessageLog.patient),
                       db.joinedload(MessageLog.contact))
-             .order_by(MessageLog.created_at.desc()).limit(limit).all())
+             .order_by(MessageLog.created_at.desc())
+             .limit(None if search else limit).all())
     if not lasts:
         return []
 
@@ -191,8 +227,10 @@ def conversations(search=None, only_open=False, limit=200, assignee=None):
         if assignee is not None and (
                 record is None or record.assigned_to != assignee):
             continue
-        if not _matches(conv, search):
+        if not _matches(conv, search, hits):
             continue
+        if conv["key"] in hits:
+            conv["hit"] = hits[conv["key"]][1]
         conv["waiting_hours"] = waiting_since(conv)
         window = session_window(conv["key"], provider=provider,
                                 last_inbound=inbound_at.get(conv["key"]),

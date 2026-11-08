@@ -539,9 +539,14 @@ def meta_mode(last_inbound, now=None, human_agent=False):
     raise SendRefused("window")
 
 
-def send_meta(channel, recipient, text, mode="RESPONSE"):
+def send_meta(channel, recipient, text, mode="RESPONSE", seen=None):
     """Reply on Messenger or Instagram. ``recipient`` is ``{"id": …}`` or
-    ``{"comment_id": …}``. Returns ``(ok, message_id, error)``."""
+    ``{"comment_id": …}``. Returns ``(ok, message_id, error)``.
+
+    ``seen``, a dict, receives what the platform said back beside the id:
+    ``recipient_id`` — for a private reply to a Facebook comment, Meta's
+    answer carries the person's Messenger id, the one proof that the
+    commenter and the Messenger thread are the same person."""
     if channel == "instagram" and instagram_mode() == "login":
         return _send_instagram_login(recipient, text, mode)
     cfg = meta_config()
@@ -569,6 +574,8 @@ def send_meta(channel, recipient, text, mode="RESPONSE"):
     except ValueError:
         data = {}
     if 200 <= status < 300 and data.get("message_id"):
+        if seen is not None and data.get("recipient_id"):
+            seen["recipient_id"] = str(data["recipient_id"])
         return True, str(data["message_id"]), None
     err = (data.get("error") or {}) if isinstance(data, dict) else {}
     return False, None, (f"{err.get('code', status)}: {err.get('message', '')}"[:200]

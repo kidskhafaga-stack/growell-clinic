@@ -42,6 +42,24 @@
         <div class="hint">{{ t('quick.overnight_hint') }}</div></div>
     </div>
 
+    {# A day whose hours differ — Friday evening only, a short Thursday. Empty
+       is the ordinary hours above. #}
+    <details style="margin-top:10px;" {{ 'open' if hours.per_day }} data-per-day-hours>
+      <summary class="hint" style="cursor:pointer;">{{ t('quick.per_day') }}</summary>
+      <div style="display:grid;gap:6px;margin-top:8px;">
+        {% for d in weekdays %}
+        {% set own = hours.per_day.get(d) %}
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <span style="min-width:90px;">{{ t('weekdays.' ~ d) }}</span>
+          <input class="input" type="time" name="day_from_{{ d }}" value="{{ own[0] if own else '' }}" dir="ltr" style="max-width:140px;">
+          <span>–</span>
+          <input class="input" type="time" name="day_to_{{ d }}" value="{{ own[1] if own else '' }}" dir="ltr" style="max-width:140px;">
+        </div>
+        {% endfor %}
+        <div class="hint">{{ t('quick.per_day_hint') }}</div>
+      </div>
+    </details>
+
     <div class="form-row" style="margin-top:10px;">
       <label>{{ t('quick.away_body') }}</label>
       <textarea class="input" name="away_body" rows="5" style="resize:vertical;">{{ hours.body }}</textarea>
