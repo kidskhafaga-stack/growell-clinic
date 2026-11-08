@@ -462,7 +462,7 @@
           </div>
           <div class="notice" x-show="proto && prev !== '1' && ({{ c.protocols|selectattr('rig')|map(attribute='key')|list|tojson|forceescape }}.includes(proto) || (prev === '0' && {{ c.protocols|selectattr('kind', 'equalto', 'pep')|map(attribute='key')|list|tojson|forceescape }}.includes(proto)))"
                style="margin:6px 0 0;border-inline-start:4px solid var(--danger);" data-record-rig>
-            <i class="bi bi-exclamation-triangle"></i> {{ t('vcourse.warn_rig_assess') }}</div>
+            <i class="bi bi-shield-exclamation"></i> {{ t('vcourse.warn_rig_assess') }}</div>
           <div class="form-grid" style="margin-top:6px;">
             <div class="form-row" style="margin:0;"><label>{{ t('vcourse.previously') }}</label>
               <select class="select" name="previously_vaccinated" x-model="prev">
