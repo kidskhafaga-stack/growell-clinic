@@ -124,8 +124,7 @@ def next_dose(patient, vaccine, brand, current_dose, on_date=None):
         from app.utils import vaccine_protocols
 
         course = vaccine_protocols.open_course(patient.id, vaccine.id)
-        proto = (vaccine_protocols.protocol(vaccine, course.protocol)
-                 if course is not None else None)
+        proto = vaccine_protocols.course_protocol(course, vaccine)
         if proto is not None:
             first = course.first_dose_number or 1
             given = {pv.dose_number: pv.given_date for pv in PatientVaccine.query.filter_by(
@@ -134,7 +133,7 @@ def next_dose(patient, vaccine, brand, current_dose, on_date=None):
                 given.setdefault(current_dose, on_date)
             timings = vaccine_protocols.course_dates(
                 course.start_date, proto["days"], first, given, {},
-                on_date or date.today())
+                on_date or date.today(), vaccine_protocols.until_by_number(proto, first))
             following = next((n for n, _ in vaccine_protocols.course_rota(proto["days"], first)
                               if n not in given), None)
             if following is None:

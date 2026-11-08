@@ -31,6 +31,10 @@ class VaccineCourse(db.Model):
                            nullable=False, index=True)
     # The protocol's key in ``utils/vaccine_protocols.PROTOCOLS``.
     protocol = db.Column(db.String(30), nullable=False)
+    # The protocol as it was when the course opened (JSON: days, names, RIG).
+    # The clinic can change its protocols later; a child half-way through a
+    # course keeps the dates the doctor gave them.
+    protocol_data = db.Column(db.Text)
     # Day 0. Moves to the first dose's real date once it is given, so a
     # course opened today and started tomorrow is dated from tomorrow.
     start_date = db.Column(db.Date, nullable=False)

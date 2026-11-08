@@ -2376,7 +2376,7 @@
             {% for p in c.protocols %}
             <label style="display:flex;gap:8px;align-items:flex-start;font-size:.88rem;">
               <input type="radio" name="protocol" value="{{ p.key }}" required>
-              <span>{{ p.ar if current_lang == 'ar' else p.en }} — <span dir="ltr">{{ p.days|join(', ') }}</span></span>
+              <span>{{ p.ar if current_lang == 'ar' else p.en }} — <span dir="ltr">{{ p.days_text or p.days|join(', ') }}</span></span>
             </label>
             {% endfor %}
           </div>

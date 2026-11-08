@@ -1423,6 +1423,14 @@ def give_vaccine(visit_id):
     # two doses go into one visit without a word. Read before the record is
     # written, because afterwards "the last dose" is the one being given.
     too_soon = interval_warning(visit.patient_id, vaccine)
+    # A course vaccine (rabies) is given from its course: opened on the card
+    # in this same tab, with the protocol the doctor chooses.
+    from app.utils import vaccine_protocols
+
+    if vaccine_protocols.protocols_for(vaccine) and not request.form.get("given_outside") \
+            and vaccine_protocols.open_course(visit.patient_id, vaccine.id) is None:
+        flash(t("vcourse.err_need_protocol"), "danger")
+        return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
     pv, result = administer_dose(
         visit.patient, vaccine, brand=req_brand,
         dose_number=request.form.get("dose_number", type=int),
