@@ -1900,8 +1900,7 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
         # protocol's, dated from day 0 — not from the birthday, and not one
         # dose at birth. Read last so nothing above can move its dates.
         course = courses.get(vaccine.id)
-        proto = (vaccine_protocols.protocol(vaccine, course.protocol)
-                 if course is not None else None)
+        proto = vaccine_protocols.course_protocol(course, vaccine)
         course_days = {}
         if proto is not None:
             first = course.first_dose_number or 1
@@ -2642,6 +2641,13 @@ def interval_warning(patient_id, vaccine, given_date=None):
     if gap < 0:
         return None
     minimum = vaccine.min_interval_days or _CATCH_UP_MIN_INTERVAL
+    # A vaccine given as a course counted in days (rabies): its doses are
+    # days apart by design — day 3 is not "too soon after day 0". Only a
+    # second dose on the same day is.
+    from app.utils import vaccine_protocols
+
+    if vaccine_protocols.protocols_for(vaccine):
+        minimum = 1
     if gap >= minimum:
         return None
     return {"previous_date": last.given_date, "previous_dose": last.dose_number,
@@ -2890,7 +2896,7 @@ def visit_vaccine_panel(patient, lang="ar"):
     from app.utils import vaccine_protocols
 
     return {"received": received, "give_now": give_now,
-            "courses": vaccine_protocols.cards(plan),
+            "courses": vaccine_protocols.cards(plan, patient.id),
             "out_of_stock": out_of_stock,
             "next_optional": min(ahead, key=lambda e: e["due_date"]) if ahead else None}
 

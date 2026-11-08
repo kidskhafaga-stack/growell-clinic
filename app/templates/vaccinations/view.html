@@ -87,7 +87,10 @@
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <h2 style="margin:0;font-size:1.05rem;"><i class="bi bi-shield-plus"></i>
         {{ t('vcourse.title', vaccine=c.vaccine.display_name(current_lang)) }}</h2>
-      {% if c.course %}<span class="badge badge--green">{{ t('vcourse.open') }}</span>{% endif %}
+      {% if c.course %}<span class="badge badge--green">{{ t('vcourse.open') }}</span>
+        {% if c.count_all %}<span class="badge {{ 'badge--green' if not c.next else 'badge--muted' }}" data-course-count>
+          {% if not c.next %}{{ t('vcourse.complete_badge') }} ✓{% else %}<span class="num">{{ c.count_done }}/{{ c.count_all }}</span> {{ t('vcourse.doses_done') }}{% endif %}</span>{% endif %}
+      {% endif %}
     </div>
     <p class="hint" style="margin:6px 0 12px;max-width:80ch;">{{ t('vcourse.hint') }}</p>
 
@@ -155,6 +158,10 @@
         </form>
       </details>
     {% else %}
+      {% if c.before %}
+      <div class="notice" style="margin:0 0 10px;border-inline-start:4px solid var(--warning);" data-course-before>
+        <i class="bi bi-clock-history"></i> {{ t('vcourse.before', n=c.before|length, date=c.before[-1]) }}</div>
+      {% endif %}
       <form method="post" action="{{ url_for('vaccinations.course_start', patient_id=patient.id) }}" data-course-start>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="vaccine_id" value="{{ c.vaccine.id }}">
@@ -423,7 +430,53 @@
         </div>
         <!-- Which dose. Everything downstream depends on it: what the parent
              is told, when the next reminder falls, whether the course is done. -->
-        <div class="form-row">
+        {# A course vaccine (rabies) with no course open: the dose is the
+           course's first, on the protocol chosen here — required unless the
+           dose is history from another place. #}
+        {% for c in courses if not c.course %}
+        <div class="form-row" x-show="vId==={{ c.vaccine.id }}" x-cloak data-record-protocol="{{ c.vaccine.id }}"
+             x-data="{proto: '', prev: '{{ '1' if c.before else '' }}', days: {{ c.protocols|map(attribute='days')|map('list')|list|tojson|forceescape }},
+                      keys: {{ c.protocols|map(attribute='key')|list|tojson|forceescape }},
+                      dates() { const i = this.keys.indexOf(this.proto); if (i < 0) return [];
+                        const f = this.$el.closest('form'); const v = (f && f.given_date && f.given_date.value) || '{{ today }}';
+                        const d0 = new Date(v + 'T00:00:00');
+                        return this.days[i].map((n, k) => { const d = new Date(d0); d.setDate(d.getDate() + n);
+                          return {n: k + 1, day: n, date: d.toISOString().slice(0, 10)}; }); } }">
+          <label>{{ t('vcourse.pick') }} *</label>
+          {% if c.before %}<div class="hint" style="color:var(--warning);margin:0 0 6px;"><i class="bi bi-clock-history"></i> {{ t('vcourse.before', n=c.before|length, date=c.before[-1]) }}</div>{% endif %}
+          {% for p in c.protocols %}
+          <label style="display:flex;gap:8px;align-items:flex-start;margin:0 0 4px;font-weight:400;">
+            <input type="radio" name="protocol" value="{{ p.key }}" x-model="proto"
+                   x-bind:required="vId==={{ c.vaccine.id }} && !outside">
+            <span><strong>{{ p.ar if current_lang == 'ar' else p.en }}</strong>
+              <span class="hint" style="margin:0;"> — {{ t('vcourse.days') }}: <span class="num" dir="ltr">{{ p.days|join(', ') }}</span></span></span>
+          </label>
+          {% endfor %}
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 0;" x-show="proto" data-record-dates>
+            <template x-for="d in dates()">
+              <span class="badge badge--muted" style="font-weight:400;">
+                {{ t('vaccinations.dose') }} <span class="num" x-text="d.n"></span> ·
+                <span class="num" dir="ltr" x-text="d.date"></span> ·
+                {{ t('vcourse.day') }} <span class="num" x-text="d.day"></span></span>
+            </template>
+          </div>
+          <div class="notice" x-show="proto && prev !== '1' && ({{ c.protocols|selectattr('rig')|map(attribute='key')|list|tojson|forceescape }}.includes(proto) || (prev === '0' && {{ c.protocols|selectattr('kind', 'equalto', 'pep')|map(attribute='key')|list|tojson|forceescape }}.includes(proto)))"
+               style="margin:6px 0 0;border-inline-start:4px solid var(--danger);" data-record-rig>
+            <i class="bi bi-exclamation-triangle"></i> {{ t('vcourse.warn_rig_assess') }}</div>
+          <div class="form-grid" style="margin-top:6px;">
+            <div class="form-row" style="margin:0;"><label>{{ t('vcourse.previously') }}</label>
+              <select class="select" name="previously_vaccinated" x-model="prev">
+                <option value="">{{ t('vcourse.prev_unknown') }}</option>
+                <option value="0">{{ t('vcourse.prev_no') }}</option>
+                <option value="1" {{ 'selected' if c.before }}>{{ t('vcourse.prev_yes') }}</option></select></div>
+            <div class="form-row" style="margin:0;"><label>{{ t('vcourse.category') }}</label>
+              <select class="select" name="exposure_category"><option value="">—</option>
+                {% for cat in categories %}<option value="{{ cat }}">{{ cat }}</option>{% endfor %}</select></div>
+          </div>
+          <div class="hint" x-show="outside">{{ t('vcourse.outside_no_protocol') }}</div>
+        </div>
+        {% endfor %}
+        <div class="form-row" x-show="outside || !{{ courses|rejectattr('course')|map(attribute='vaccine')|map(attribute='id')|list|tojson|forceescape }}.includes(vId)">
           <label>{{ t('vaccinations.which_dose') }} *</label>
           <select class="select" name="dose_number" x-model="doseNo" required>
             {% for vid, options in dose_options.items() %}

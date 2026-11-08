@@ -1154,6 +1154,9 @@ ADDITIONS = [
     ("saved_reports", "send_to", "VARCHAR(160)"),
     ("saved_reports", "last_sent_for", "DATE"),
     ("saved_reports", "send_error", "VARCHAR(40)"),
+    # A rabies course keeps the protocol it was opened on — the clinic can
+    # now edit its protocols (``utils/vaccine_protocols.course_protocol``).
+    ("vaccine_courses", "protocol_data", "TEXT"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

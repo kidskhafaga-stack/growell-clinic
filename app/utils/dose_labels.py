@@ -124,8 +124,7 @@ def next_dose(patient, vaccine, brand, current_dose, on_date=None):
         from app.utils import vaccine_protocols
 
         course = vaccine_protocols.open_course(patient.id, vaccine.id)
-        proto = (vaccine_protocols.protocol(vaccine, course.protocol)
-                 if course is not None else None)
+        proto = vaccine_protocols.course_protocol(course, vaccine)
         if proto is not None:
             first = course.first_dose_number or 1
             given = {pv.dose_number: pv.given_date for pv in PatientVaccine.query.filter_by(

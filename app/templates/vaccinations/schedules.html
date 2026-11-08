@@ -61,6 +61,73 @@
   </form>
 </details>
 
+{# A vaccine given as a course counted in days (rabies): the clinic's own
+   protocols — names, days from day 0, and whether the immunoglobulin
+   question is asked. A course already open keeps the days it opened with. #}
+{% if protocols %}
+<div class="card gc-scale-in" style="margin-bottom:18px;" id="protocols" data-protocol-editor>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h2 class="section-title" style="margin:0;"><i class="bi bi-shield-plus"></i> {{ t('vcourse.protocols_title') }}</h2>
+    <span class="badge {{ 'badge--green' if protocols_custom else 'badge--muted' }}">{{ t('vcourse.protocols_custom' if protocols_custom else 'vcourse.protocols_default') }}</span>
+  </div>
+  <p class="hint" style="margin:6px 0 12px;max-width:80ch;">{{ t('vcourse.protocols_hint') }}</p>
+  <form method="post" action="{{ url_for('vaccinations.protocols_save', vaccine_id=vaccine.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="rows" value="{{ protocols|length + 1 }}">
+    {% for p in protocols + [{'key': '', 'kind': 'pep', 'previously': none, 'days': [], 'rig': false, 'ar': '', 'en': '', 'source': '', 'note_ar': '', 'note_en': ''}] %}
+    {% set i = loop.index0 %}
+    {% set new = not p.key %}
+    <details style="border:1px solid var(--border);border-radius:10px;padding:8px 12px;margin:0 0 8px;" data-protocol-row="{{ p.key or 'new' }}">
+      <summary style="cursor:pointer;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        {% if new %}<span><i class="bi bi-plus-lg"></i> {{ t('vcourse.protocol_new') }}</span>
+        {% else %}<strong>{{ p.ar if current_lang == 'ar' else p.en }}</strong>
+          <span class="hint" style="margin:0;">{{ t('vcourse.days') }}: <span class="num" dir="ltr">{{ p.days|join(', ') }}</span></span>
+          {% if p.rig %}<span class="badge badge--muted">RIG</span>{% endif %}{% endif %}
+      </summary>
+      <div style="margin-top:10px;">
+      <input type="hidden" name="key_{{ i }}" value="{{ p.key }}">
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('vcourse.p_name_ar') }}{% if not new %} *{% endif %}</label>
+          <input class="input" name="ar_{{ i }}" value="{{ p.ar }}" maxlength="120" {{ 'required' if not new }}></div>
+        <div class="form-row"><label>{{ t('vcourse.p_name_en') }}</label>
+          <input class="input" name="en_{{ i }}" value="{{ p.en }}" maxlength="120" dir="ltr"></div>
+        <div class="form-row"><label>{{ t('vcourse.days') }}{% if not new %} *{% endif %}</label>
+          <input class="input num" name="days_{{ i }}" value="{{ p.days|join(', ') }}" dir="ltr" placeholder="0, 3, 7, 14" {{ 'required' if not new }}>
+          <div class="hint">{{ t('vcourse.p_days_hint') }}</div></div>
+        <div class="form-row"><label>{{ t('vcourse.p_kind') }}</label>
+          <select class="select" name="kind_{{ i }}">{% for k in protocol_kinds %}<option value="{{ k }}" {{ 'selected' if p.kind == k }}>{{ t('vcourse.kind_' ~ k) }}</option>{% endfor %}</select></div>
+        <div class="form-row"><label>{{ t('vcourse.previously') }}</label>
+          <select class="select" name="previously_{{ i }}">
+            <option value="" {{ 'selected' if p.previously is none }}>{{ t('vcourse.p_prev_any') }}</option>
+            <option value="0" {{ 'selected' if p.previously == false }}>{{ t('vcourse.prev_no') }}</option>
+            <option value="1" {{ 'selected' if p.previously == true }}>{{ t('vcourse.prev_yes') }}</option></select></div>
+        <div class="form-row"><label>{{ t('vcourse.source') }}</label>
+          <input class="input" name="source_{{ i }}" value="{{ p.source }}" maxlength="80"></div>
+      </div>
+      <div class="form-row"><label>{{ t('vcourse.p_note') }}</label>
+        <input class="input" name="note_ar_{{ i }}" value="{{ p.note_ar }}" maxlength="300">
+        <input type="hidden" name="note_en_{{ i }}" value="{{ p.note_en }}"></div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;">
+        <label class="checkbox"><input type="checkbox" name="rig_{{ i }}" value="1" {{ 'checked' if p.rig }}>
+          <span style="font-weight:400;">{{ t('vcourse.p_rig') }}</span></label>
+        {% if not new %}<label class="checkbox"><input type="checkbox" name="delete_{{ i }}" value="1">
+          <span style="font-weight:400;">{{ t('vcourse.p_delete') }}</span></label>{% endif %}
+      </div>
+      </div>
+    </details>
+    {% endfor %}
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+  {% if protocols_custom %}
+  <form method="post" action="{{ url_for('vaccinations.protocols_reset', vaccine_id=vaccine.id) }}" style="margin-top:8px;"
+        onsubmit="return confirm('{{ t('vcourse.protocols_reset_confirm') }}');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-arrow-counterclockwise"></i> {{ t('vcourse.protocols_reset') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
 <div class="info-note" style="margin-bottom:14px;"><i class="bi bi-info-circle"></i> {{ t('vaccinations.tpl_help') }}</div>
 
 <!-- Existing templates -->

@@ -8,6 +8,7 @@ import io
 from datetime import datetime
 
 from flask import (
+    abort,
     current_app,
     flash,
     g,
@@ -102,7 +103,7 @@ def view(patient_id):
     # the open course with its next dose (``utils/vaccine_protocols.cards``).
     from app.utils import vaccine_protocols
 
-    courses = vaccine_protocols.cards(plan)
+    courses = vaccine_protocols.cards(plan, patient.id)
     return render_template(
         "vaccinations/view.html",
         patient=patient, plan=plan, summary=summary, next_due=nxt,
@@ -369,9 +370,20 @@ def record(patient_id):
     # Read before the record is written — afterwards the newest dose is the one
     # being added, and every check would compare it against itself.
     too_soon = interval_warning(patient.id, vaccine, given_date)
+    # A vaccine given as a course counted in days (rabies) is not given
+    # without its protocol: with no course open, the form's protocol opens
+    # one from this dose. A dose typed in from an old card ("given
+    # elsewhere") may stay without one — it is history, and nothing is
+    # reminded from it.
+    dose_number = request.form.get("dose_number", type=int)
+    opened = _open_course_from_form(patient, vaccine, given_date)
+    if opened is False:
+        return redirect(url_for("vaccinations.view", patient_id=patient.id) + "#courses")
+    if opened is not None:
+        dose_number = None          # the course numbers its first dose
     pv, result = administer_dose(
         patient, vaccine, brand=req_brand,
-        dose_number=request.form.get("dose_number", type=int),
+        dose_number=dose_number,
         doctor_id=request.form.get("doctor_id", type=int) or current_user.id,
         given_date=given_date,
         lot_number=(request.form.get("lot_number") or "").strip() or None,
@@ -420,6 +432,38 @@ def record(patient_id):
 
 
 # ------------------------------------------------- courses from day 0 ----
+def _open_course_from_form(patient, vaccine, given_date):
+    """For a vaccine given as a course (rabies) with none open: the course
+    opened from the record form's protocol, ``None`` when nothing had to be
+    opened, ``False`` (and the reason flashed) when the dose cannot be
+    recorded."""
+    from app.utils import vaccine_protocols
+
+    if not vaccine_protocols.protocols_for(vaccine) \
+            or vaccine_protocols.open_course(patient.id, vaccine.id) is not None:
+        return None
+    if not request.form.get("protocol"):
+        if request.form.get("given_outside"):
+            return None
+        flash(t("vcourse.err_need_protocol"), "danger")
+        return False
+    try:
+        course = vaccine_protocols.start(patient, vaccine, {
+            "protocol": request.form.get("protocol"),
+            "start_date": given_date.isoformat(),
+            "previously_vaccinated": request.form.get("previously_vaccinated"),
+            "exposure_category": request.form.get("exposure_category"),
+        }, current_user)
+    except vaccine_protocols.CourseError as why:
+        db.session.rollback()
+        flash(t("vcourse.err_" + str(why)), "danger")
+        return False
+    ActivityLog.record("vaccine.course_start", user_id=current_user.id,
+                       entity="patient", entity_id=patient.id,
+                       detail=f"{vaccine.code}:{course.protocol}", ip_address=client_ip())
+    return course
+
+
 @vaccinations_bp.route("/<int:patient_id>/course/start", methods=["POST"])
 @module_required(MODULE)
 def course_start(patient_id):
@@ -810,7 +854,64 @@ def schedule_templates(vaccine_id):
                                    .filter(Vaccine.id != vaccine.id)
                                    .order_by(Vaccine.is_mandatory.desc(),
                                              Vaccine.sort_order).all()),
-                           vaccine_types=VACCINE_TYPES)
+                           vaccine_types=VACCINE_TYPES,
+                           **_protocol_editor(vaccine))
+
+
+def _protocol_editor(vaccine):
+    """The clinic's protocols for a vaccine given as a course (rabies)."""
+    from app.utils import vaccine_protocols
+
+    protos = vaccine_protocols.protocols_for(vaccine)
+    return {"protocols": protos,
+            "protocols_custom": vaccine_protocols.is_customised(vaccine),
+            "protocol_kinds": vaccine_protocols.KINDS}
+
+
+@vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/protocols", methods=["POST"])
+@module_required(MODULE)
+def protocols_save(vaccine_id):
+    """Save the clinic's protocols: names, days, the RIG question — and new
+    ones. A course already open keeps the days it was opened with."""
+    from app.utils import vaccine_protocols
+
+    vaccine = db.get_or_404(Vaccine, vaccine_id)
+    back = url_for("vaccinations.schedule_templates", vaccine_id=vaccine.id) + "#protocols"
+    if not vaccine_protocols.protocols_for(vaccine):
+        abort(404)
+    f = request.form
+    rows = []
+    for i in range(f.get("rows", type=int) or 0):
+        rows.append({k: f.get(f"{k}_{i}") for k in (
+            "key", "ar", "en", "kind", "previously", "days", "source", "note_ar", "note_en")}
+            | {"rig": bool(f.get(f"rig_{i}")), "delete": bool(f.get(f"delete_{i}"))})
+    try:
+        vaccine_protocols.save_protocols(vaccine, rows)
+    except vaccine_protocols.CourseError as why:
+        db.session.rollback()
+        flash(t("vcourse.err_" + str(why)), "danger")
+        return redirect(back)
+    ActivityLog.record("vaccine.protocols_saved", user_id=current_user.id,
+                       entity="vaccine", entity_id=vaccine.id,
+                       detail=vaccine.code, ip_address=client_ip())
+    db.session.commit()
+    flash(t("vcourse.protocols_saved"), "success")
+    return redirect(back)
+
+
+@vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/protocols/reset", methods=["POST"])
+@module_required(MODULE)
+def protocols_reset(vaccine_id):
+    from app.utils import vaccine_protocols
+
+    vaccine = db.get_or_404(Vaccine, vaccine_id)
+    vaccine_protocols.reset_protocols(vaccine)
+    ActivityLog.record("vaccine.protocols_reset", user_id=current_user.id,
+                       entity="vaccine", entity_id=vaccine.id,
+                       detail=vaccine.code, ip_address=client_ip())
+    db.session.commit()
+    flash(t("vcourse.protocols_reset_done"), "success")
+    return redirect(url_for("vaccinations.schedule_templates", vaccine_id=vaccine.id) + "#protocols")
 
 
 @vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/credits/new",

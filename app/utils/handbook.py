@@ -2082,6 +2082,26 @@ SECTIONS = [
              "be stopped with a reason. The course is on the visit's vaccines tab too: open "
              "it there, the next dose is in front of you with «Give», and each product's "
              "dose volume is beside it (Verorab 0.5 mL, Rabipur 1 mL)."),
+            ("<b>جرعة سعار من «إضافة سجل»:</b> لو مفيش كورس مفتوح، الفورم بيطلب البروتوكول وبيعرض "
+             "تواريخ كل الجرعات وتنبيه الـ RIG، والجرعة دي بتبقى اليوم صفر. من غير بروتوكول مش "
+             "بتتسجّل — إلا جرعة اتاخدت برّه زمان (علّم «اتاخد برّه»)، وده تاريخ مش بيطلع عليه تذكير. "
+             "الطفل اللي متسجّل له جرعات سعار قبل كده الكارت بيقول إنه غالبًا «متطعّم قبل كده». "
+             "الكارت بيقول وصل فين («٢/٤ جرعة») ولما يكمل «الكورس اكتمل ✓»، وجرعة يوم ٣ مش "
+             "بتطلّع تحذير «بدري» — التحذير بس لو جرعتين في نفس اليوم. <b>البروتوكولات بتاعة "
+             "العيادة:</b> إدارة التطعيمات ← داء الكلب ← «بروتوكولات الكورس»: عدّل الاسم والأيام "
+             "وسؤال الـ RIG، أو ضيف بروتوكول، أو اكتب في ملاحظة المصري رقم النشرة اللي ماشيين "
+             "عليها (ساعتها تنبيه «اتأكد من المصدر» بيختفي). الكورس المفتوح بيفضل على أيامه.",
+             "<b>A rabies dose from «Add record»:</b> with no course open, the form asks for "
+             "the protocol and shows every dose's date and the RIG alert, and this dose is "
+             "day 0. Without a protocol it is not recorded — except a dose given elsewhere "
+             "long ago (tick «given elsewhere»), kept as history with nothing reminded. A "
+             "child with rabies doses on file is said to be most likely «vaccinated before». "
+             "The card says how far the course is («2/4 doses») and «Course complete ✓», "
+             "and the day-3 dose no longer warns «too soon» — only two doses on one day do. "
+             "<b>The clinic's protocols:</b> Vaccine management → Rabies → «Course "
+             "protocols»: edit the name, the days and the RIG question, add a protocol, or "
+             "write the circular you follow in the Egyptian one's note (the «confirm the "
+             "source» warning then goes). An open course keeps its days."),
             ("الجرعة اللي بتتاخد في العيادة <b>بتتخصم من المخزن تلقائياً</b> "
              "(الأقرب انتهاءً أولاً)، والأمبولة متعددة الجرعات محسوبة.",
              "A dose given in the clinic <b>deducts from stock "
