@@ -94,7 +94,7 @@
       {% else %}<div class="patient-avatar sm"><i class="bi bi-telephone"></i></div>{% endif %}
       <div style="flex:1;min-width:0;">
         <div style="display:flex;justify-content:space-between;gap:10px;">
-          <strong dir="auto">{{ c.patient.display_name(current_lang) if c.patient else (c.contact.name if c.contact else c.phone) }}
+          <strong dir="auto">{% if c.siblings %}<span data-siblings-row title="{{ t('inbox.siblings_one_thread') }}"><i class="bi bi-people"></i> {% for s in c.siblings %}{{ s.display_name(current_lang) }}{{ ' + ' if not loop.last }}{% endfor %}</span>{% else %}{{ c.patient.display_name(current_lang) if c.patient else (c.contact.name if c.contact else c.phone) }}{% endif %}
             {% if c.channel != 'whatsapp' %}<span class="badge badge--muted" style="font-weight:500;" data-conv-channel="{{ c.channel }}">{{ t('channels.ch_' ~ c.channel) }}</span>{% endif %}
             {% if c.orphan %}<span class="badge badge--muted" style="font-weight:500;">{{ t('inbox.unknown') }}</span>{% endif %}
             {# What it is about. A guess is drawn as a guess — dashed, with a
@@ -119,7 +119,7 @@
         <div style="display:flex;justify-content:space-between;gap:10px;">
           <span style="color:var(--muted);font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70ch;">
             {% if c.last.direction == 'out' %}<i class="bi bi-arrow-up-left" style="color:var(--green-700);"></i>{% else %}<i class="bi bi-arrow-down-right" style="color:#2563eb;"></i>{% endif %}
-            {{ c.last.body[:120] }}</span>
+            {% if c.hit %}<span data-search-hit><i class="bi bi-search"></i> {{ c.hit }}</span>{% else %}{{ c.last.body[:120] }}{% endif %}</span>
           <span style="display:flex;gap:6px;align-items:center;">
             {% if c.assignee %}<span class="badge badge--role"{% if c.record.assigned_by in ('auto', 'escalated') %} title="{{ t('routing.by_' ~ c.record.assigned_by) }}"{% endif %}><i class="bi bi-{{ 'diagram-3' if c.record.assigned_by in ('auto', 'escalated') else 'person' }}"></i> {{ c.assignee.display_name(current_lang) }}</span>
             {% elif c.record and c.record.suggested %}<span class="route-sug" data-suggested="{{ c.record.suggested_to }}" title="{{ t('routing.suggested_hint') }}"><i class="bi bi-lightbulb"></i> {{ c.record.suggested.display_name(current_lang) }}؟</span>{% endif %}

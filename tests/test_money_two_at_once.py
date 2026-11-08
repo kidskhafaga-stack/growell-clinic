@@ -8,6 +8,14 @@ These run over a real SQLite file with a thread per cashier, and the moment
 between «how much is owed / held?» and «write it» is held open on purpose —
 the way ``test_one_slot_one_child`` holds the diary — so that a missing lock
 shows up as money recorded twice instead of passing by luck.
+
+**And on PostgreSQL** (MONEY_SAFETY_PLAN.md ف-٦), where a hospital keeps its
+books: the locks there are not SQLite's one writer at a time but row locks
+and an advisory lock per document (``utils/holds``) — a different code path
+that no test had ever run. Every test here runs on both when
+``TEST_POSTGRES_URL`` names an empty database; CI starts one
+(``.github/workflows/python-package.yml``, «money-on-postgres»). Without it
+the PostgreSQL half is skipped, and says so.
 """
 import os
 import sys
@@ -22,16 +30,26 @@ import pytest  # noqa: E402
 PAUSE = 0.4
 
 
-@pytest.fixture()
-def till(tmp_path, monkeypatch):
-    """A clinic on a real file: two cashiers, a child, a bill of 100 and an
-    account holding 100 for the family."""
+POSTGRES = (os.environ.get("TEST_POSTGRES_URL") or "").strip()
+
+
+@pytest.fixture(params=["sqlite", "postgresql"])
+def till(request, tmp_path, monkeypatch):
+    """A clinic on a real database: two cashiers, a child, a bill of 100 and
+    an account holding 100 for the family."""
     from app import create_app
     from app.extensions import db
 
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path}/till.db")
+    if request.param == "postgresql":
+        if not POSTGRES:
+            pytest.skip("TEST_POSTGRES_URL is not set — the PostgreSQL run is CI's")
+        monkeypatch.setenv("DATABASE_URL", POSTGRES)
+    else:
+        monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path}/till.db")
     app = create_app("testing")
     with app.app_context():
+        if request.param == "postgresql":
+            _empty_schema(db)
         db.create_all()
         from app.models import (Invoice, InvoiceItem, Patient, PatientCredit,
                                 Service, User)
@@ -72,7 +90,23 @@ def till(tmp_path, monkeypatch):
         client.post("/login", data={"username": username, "password": "secret"})
         return client
 
-    return {"app": app, "db": db, "ids": ids, "sign_in": sign_in}
+    yield {"app": app, "db": db, "ids": ids, "sign_in": sign_in}
+    with app.app_context():
+        db.session.remove()
+        if request.param == "postgresql":
+            _empty_schema(db)
+        db.engine.dispose()
+
+
+def _empty_schema(db):
+    """Start the PostgreSQL database empty. ``drop_all`` cannot: some tables
+    point at each other in a ring, which only a cascade undoes."""
+    from sqlalchemy import text
+
+    db.session.remove()
+    with db.engine.begin() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
 
 
 def _together(n, work):

@@ -62,6 +62,14 @@
     </p>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
+  {# The assessment and the diagnosis the gaps below ask for are written on
+     the attendance's own encounter — this is its door (ط-٢). #}
+  {% if current_user.can_access('visits') %}
+  <form method="post" action="{{ url_for('emergency.write_visit', attendance_id=row.id) }}" style="margin:0;" data-write-visit>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-clipboard2-pulse"></i> {{ t('er_orders.write_visit') }}</button>
+  </form>
+  {% endif %}
   {% if row.is_open and not row.seen_at %}
   <form method="post" action="{{ url_for('emergency.seen', attendance_id=row.id) }}" style="margin:0;" data-seen-form>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -105,6 +113,26 @@
 <div class="card gc-scale-in" style="margin-bottom:14px;" data-gaps>
   <span class="hint" style="margin:0;">{{ t('er_orders.still_missing') }}</span>
   {% for gap in missing %}<span class="badge badge--warn" data-missing="{{ gap }}">{{ t('emergency.item_' ~ gap) }}</span> {% endfor %}
+</div>
+{% endif %}
+
+{# ط-١ — the clinic's own safety check over what is written here: the file's
+   allergies, the interaction pairs (with what the child is already on), the
+   dose ceilings. The same check as the prescription screen. #}
+{% if safety and safety.has_warnings %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--danger);" data-er-safety>
+  <strong><i class="bi bi-shield-exclamation"></i> {{ t('er_orders.safety_title') }}</strong>
+  <ul style="margin:6px 0 0;padding-inline-start:18px;">
+    {% for l in safety.allergies %}
+    <li data-er-allergy style="color:var(--danger);font-weight:600;">{{ t('allergy.flash_' ~ l.allergy.level).replace('{drug}', l.name).replace('{allergy}', l.allergy.allergy) }}</li>
+    {% endfor %}
+    {% for l in safety.lines %}{% for w in l.warnings %}
+    <li data-er-dose-warning>{{ l.name }}: {{ t('drugbook.warn_' ~ w) }}</li>
+    {% endfor %}{% endfor %}
+    {% for r in safety.interactions %}{% set ab = r.pair_names(current_lang) %}
+    <li data-er-interaction style="{{ 'color:var(--danger);' if r.severity == 'severe' }}">{{ t('rx.interaction_line').replace('{a}', ab[0]).replace('{b}', ab[1]) }}{% if r.note %} — {{ r.note }}{% endif %}</li>
+    {% endfor %}
+  </ul>
 </div>
 {% endif %}
 

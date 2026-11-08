@@ -229,6 +229,24 @@ def encounter(attendance, user):
     return visit
 
 
+def safety(attendance, lang="ar"):
+    """The clinic's own safety check (``rx_safety.check``) over the medicines
+    written in this attendance — the allergies on the file, the interaction
+    pairs (with what the child is already on), the dose ceilings. Not a
+    second check: the prescription screen and the ward's drug round read the
+    same one. A service with no drug (a nebuliser session, a dressing) is not
+    a medicine; a cancelled order is not given."""
+    from app.utils import rx_safety
+
+    if attendance is None:
+        return None
+    lines = [o for o in for_attendance(attendance)
+             if o.cancelled_at is None and (o.drug_id or not o.service_id)]
+    if not lines:
+        return None
+    return rx_safety.check(lines, patient=attendance.patient, lang=lang)
+
+
 def order_test(attendance, user, investigation=None, name=None, kind=None,
                notes=None, outside=None, urgent=None):
     """A test or scan for a child in emergency. Returns the order.

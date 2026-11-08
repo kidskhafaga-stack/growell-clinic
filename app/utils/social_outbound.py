@@ -101,8 +101,17 @@ def reply(key, channel, body, user_id=None, template_type=None, automated=False)
                 # The one private reply a comment gets is a person's.
                 raise social.SendRefused("comment_used")
             event, reply_to = "private_reply", last_in.provider_msg_id
+            seen = {}
             ok, msg_id, error = social.send_meta(
-                channel, {"comment_id": reply_to}, body)
+                channel, {"comment_id": reply_to}, body, seen=seen)
+            # A Facebook commenter is filed under the id the comment gave;
+            # their Messenger thread under another. Meta's answer to the
+            # private reply names the Messenger one — so from here on they
+            # are one person, on Meta's word and not on a guess.
+            if ok and channel == "messenger" and seen.get("recipient_id"):
+                from app.utils import leads
+                contact = leads.same_person(contact, social.SENDER_KIND["messenger"],
+                                            seen["recipient_id"], user_id=user_id)
         elif channel == "email":
             from app.utils import mail_channel
             ident = contact.identity("email")

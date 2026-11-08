@@ -1116,6 +1116,20 @@ SECTIONS = [
         "icon": "thermometer-half",
         "title": ("الطوارئ", "Emergency"),
         "lines": [
+            ("<b>العلاج بيتفحص زي الروشتة:</b> الدوا اللي بيتكتب في الطوارئ بيعدّي على نفس فحص "
+             "الحساسية والتداخلات والجرعة اللي في الروشتة والداخلي. لو الطفل عنده حساسية منه "
+             "بيطلع تحذير أحمر ساعة الكتابة، وبيفضل في صفحة الحضور طول ما الأوردر قايم — "
+             "تحذير مش منع، والدكتور هو اللي بيقرر. و<b>«اكتب الكشف»</b> في صفحة الحضور بيفتح "
+             "زيارة الطوارئ نفسها في شاشة الكشف: الشكوى والفحص والعلامات الحيوية والتشخيص — "
+             "اللي «لسه ناقص في الملف» بيطلبهم.",
+             "<b>Treatment is checked like a prescription:</b> a medicine written in "
+             "emergency goes through the same allergy, interaction and dose check as the "
+             "prescription screen and the ward. If the child is allergic to it, a red "
+             "warning shows as it is written and stays on the attendance while the order "
+             "stands — a warning, not a block; the doctor decides. <b>«Write the "
+             "visit»</b> on the attendance opens the emergency encounter itself on the "
+             "visit screen: complaint, examination, vitals and diagnosis — what «still "
+             "missing» asks for."),
             ("<b>البارتيشنات ورقم الطابور:</b> فوق شاشة الطوارئ البارتيشنات اللي "
              "اتبنت في إعداد الأسرّة — مين فيها (محجوز أو جلسة) وكام فاضي. الطفل "
              "اللي مستني مكان ليه <b>رقم في الطابور</b>: العاجل الأول، بعده اللي "
@@ -1427,6 +1441,18 @@ SECTIONS = [
         "icon": "eyedropper",
         "title": ("المعمل", "The lab"),
         "lines": [
+            ("<b>مريض جاي للمعمل بس</b>: من قايمة المعمل ← «مريض جاي للمعمل بس». طفل جاي "
+             "بورقة من دكتور برّه من غير كشف عندنا: اختار الطفل، واكتب اسم الدكتور (وموبايله لو "
+             "عايز تبعتله النتيجة)، وصوّر الورقة، وعلّم التحاليل. بتنزل على المعمل زي أي طلب، "
+             "وصفحة الطلب بتقول «طلب د. فلان (من برّه)» والنتيجة بتتبعت له من نفس الصفحة. "
+             "الطفل ده مش بيظهر في قايمة أي دكتور، والفلوس بتتحصّل في الخزنة لما العينة تتسحب.",
+             "<b>A lab-only patient</b>: from the lab's list → «Lab-only patient». A child "
+             "with a paper from a doctor outside and no consultation here: choose the "
+             "child, write the doctor's name (and mobile, to send them the result), "
+             "photograph the paper and tick the tests. They go on the rack like any "
+             "order; the order page says «Asked by Dr … (outside)» and the result goes to "
+             "them from the same page. The child is on no doctor's list, and the desk "
+             "collects once the sample is drawn."),
             ("<b>قايمة كل قسم</b>: فوق قايمة المعمل تبويب لكل قسم فيه شغل "
              "مستني (أمراض الدم، الكيمياء، الهرمونات…) بعدده، وعلامة البرق لو فيه "
              "مستعجل. اختار قسمك والقايمة تبقى بتاعته بس — المستعجل الأول وبعده "
@@ -3266,6 +3292,24 @@ SECTIONS = [
         "icon": "whatsapp",
         "title": ("خدمة عملاء المرضى", "Patient Care"),
         "lines": [
+            ("<b>في صندوق الرسايل:</b> البحث بيدوّر في كل رسايل كل محادثة مهما كانت قديمة "
+             "وبيوري الجملة اللي فيها الكلمة. وتحت الرد «ابعت صورة أو ملف» — صورة أو PDF "
+             "على واتساب، وبيتحفظ في ملف الطفل. و<b>اللي علّق على صفحة فيسبوك</b> وبعدين رديت "
+             "عليه رد خاص، لو كتب على ماسنجر بيوصل في نفس المحادثة، ولو كان كاتب قبل كده "
+             "الاتنين بيبقوا شخص واحد. و<b>مواعيد مختلفة لأيام معيّنة</b> (الجمعة مثلاً) من "
+             "«الردود الجاهزة» تحت مواعيد العمل. و<b>الأم اللي بتكتب عن أكتر من طفل</b> من نفس الرقم "
+             "بقت صف واحد بأسامي الإخوات، ومحادثة واحدة جنب كل رسالة اسم الطفل، و«اترد عليها» "
+             "بيقفلها للكل.",
+             "<b>In the inbox:</b> search reads every message of every conversation, "
+             "however old, and shows the line with the word. Under the reply, «Send a "
+             "picture or a file» — an image or a PDF on WhatsApp, kept on the child's "
+             "file. <b>Someone who commented on the Facebook page</b> and got a private "
+             "reply lands in the same conversation when they write on Messenger, and if "
+             "they wrote before the two become one person. <b>Different hours on some "
+             "days</b> (Friday, say) under the working hours in «Quick replies». <b>A mother "
+             "writing about more than one child</b> from one number is one row with the "
+             "siblings' names, one chat with each message's child named, and «answered» "
+             "closes it for all of them."),
             ("<b>التقييم بعد كل خدمة، مش بعد الكشف بس:</b> بعد الخروج من "
              "الداخلي والحضّانات والطوارئ الأهل بيوصلهم تقييم بتلات نواحي — "
              "الطبية والخدمية والمالية — ومرة واحدة في الأسبوع بالكتير. "

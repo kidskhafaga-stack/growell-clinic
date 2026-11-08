@@ -613,14 +613,22 @@ def inbox_resolve(key):
     patient re-opens it without anyone remembering to."""
     from app.utils.inbox import conversation_for
 
-    record = conversation_for(key)
-    if request.form.get("reopen"):
-        record.resolved_at = record.resolved_by = None
-        flash(t("inbox.reopened"), "info")
-    else:
-        record.resolved_at = datetime.utcnow()
-        record.resolved_by = current_user.id
-        flash(t("inbox.resolved"), "success")
+    # Siblings shown as one conversation are answered as one.
+    keys = [key]
+    if key.startswith("p") and key[1:].isdigit():
+        from app.utils.inbox import siblings_on_number
+        child = db.session.get(Patient, int(key[1:]))
+        phone, _ = _thread_phone(key)
+        keys += [f"p{i}" for i in siblings_on_number(child, phone) if f"p{i}" != key]
+    for one in keys:
+        record = conversation_for(one)
+        if request.form.get("reopen"):
+            record.resolved_at = record.resolved_by = None
+        else:
+            record.resolved_at = datetime.utcnow()
+            record.resolved_by = current_user.id
+    flash(t("inbox.reopened") if request.form.get("reopen") else t("inbox.resolved"),
+          "info" if request.form.get("reopen") else "success")
     db.session.commit()
     return redirect(url_for("messages.inbox_thread", key=key))
 
@@ -639,6 +647,18 @@ def inbox_thread(key):
     if not msgs:
         flash(t("inbox.empty_thread"), "warning")
         return redirect(url_for("messages.inbox"))
+    # A mother writing about two children from one number is one
+    # conversation: her brothers' and sisters' threads on that number are
+    # shown here with each child named (``inbox.siblings_on_number``).
+    from app.utils.inbox import family_query, siblings_on_number
+    siblings = []
+    first_patient = next((m.patient for m in msgs if m.patient), None)
+    family_phone = next((m.to_phone for m in reversed(msgs) if m.to_phone), None)
+    ids = siblings_on_number(first_patient, family_phone) if key.startswith("p") else []
+    if ids:
+        msgs = (family_query(first_patient.id, ids, family_phone)
+                .order_by(MessageLog.created_at).all())
+        siblings = Patient.query.filter(Patient.id.in_(ids)).order_by(Patient.id).all()
     # Opening the thread marks its inbound messages as read.
     changed = False
     for m in msgs:
@@ -681,6 +701,7 @@ def inbox_thread(key):
         canned=canned, ai_ready=ai_available(),
         topics=TRIAGE_TOPICS,
         conv_lead=_lead_for(key),
+        siblings=siblings,
         **_booking_from_thread(key, patient, phone, msgs, lang))
 
 
@@ -906,6 +927,18 @@ def away_hours():
                 (request.form.get("open_from") or "").strip() or DEFAULT_OPEN_FROM)
     Setting.set("wa_open_to",
                 (request.form.get("open_to") or "").strip() or DEFAULT_OPEN_TO)
+    # A day with its own hours: both times filled, else the ordinary hours.
+    import json
+
+    from app.utils.service_desk import PER_DAY_KEY, parse_per_day
+    own = {}
+    for d in range(7):
+        frm = (request.form.get(f"day_from_{d}") or "").strip()
+        to = (request.form.get(f"day_to_{d}") or "").strip()
+        if frm and to and str(d) in days:
+            own[str(d)] = [frm, to]
+    Setting.set(PER_DAY_KEY, json.dumps({str(k): list(v) for k, v in
+                                         parse_per_day(json.dumps(own)).items()}))
     Setting.set("wa_away_body",
                 (request.form.get("away_body") or "").strip() or DEFAULT_AWAY_BODY)
     db.session.commit()
@@ -964,6 +997,64 @@ def inbox_send(key):
         return redirect(log.link)
     flash(t("inbox.sent"), "success")
     return redirect(url_for("messages.inbox_thread", key=key))
+
+
+_FILE_MIME = {"pdf": "application/pdf", "png": "image/png", "jpg": "image/jpeg",
+              "jpeg": "image/jpeg", "webp": "image/webp", "gif": "image/gif"}
+
+
+@messages_bp.route("/inbox/<key>/send-file", methods=["POST"])
+@module_required(MODULE)
+def inbox_send_file(key):
+    """Reply with a picture or a PDF (SERVICE_DESK_PLAN «بعد كده»): the
+    result, the prescription, the clinic's map. On WhatsApp — the channel
+    the program can attach a file on. Sent by the program on the Cloud API;
+    on click-to-send the chat opens and the person attaches the file they
+    just chose. On a child's conversation it is also kept on the file."""
+    import os
+
+    from app.models import PatientAttachment
+    from app.utils.inbox import reply_channel
+    from app.utils.uploads import docs_dir, save_document
+
+    back = url_for("messages.inbox_thread", key=key)
+    channel = reply_channel(key)
+    if channel != "whatsapp":
+        flash(t("inbox.file_whatsapp_only"), "warning")
+        return redirect(back)
+    phone, patient_id = _thread_phone(key)
+    if not phone:
+        flash(t("inbox.no_phone"), "danger")
+        return redirect(back)
+    upload = request.files.get("file")
+    stored = save_document(upload)
+    if not stored:
+        flash(t("visits.att_bad_type"), "warning")
+        return redirect(back)
+    with open(os.path.join(docs_dir(), stored), "rb") as fh:
+        data = fh.read()
+    name = upload.filename or stored
+    caption = (request.form.get("caption") or "").strip()[:1000]
+    log = wa.send_document(caption or f"📎 {name}", phone, data, name,
+                           mime=_FILE_MIME.get(stored.rsplit(".", 1)[-1], "application/octet-stream"),
+                           patient_id=patient_id, user_id=current_user.id)
+    if patient_id:
+        db.session.add(PatientAttachment(
+            patient_id=patient_id, filename=stored, original_name=name,
+            kind="other", label=t("inbox.file_sent_label")[:160],
+            uploaded_by=current_user.id))
+    else:
+        from app.utils.uploads import remove_document
+        remove_document(stored)
+    db.session.commit()
+    if log.status == "link" or (log.status == "failed" and log.link):
+        flash(t("inbox.file_attach_by_hand", name=name), "warning")
+        return redirect(log.link)
+    if log.status == "sent":
+        flash(t("inbox.sent"), "success")
+    else:
+        flash(t("social.failed", err=log.error or "—"), "danger")
+    return redirect(back)
 
 
 def _thread_phone(key):

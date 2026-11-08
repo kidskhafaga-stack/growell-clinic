@@ -45,8 +45,44 @@ def hours_config():
         "days": _parse_days(Setting.get("wa_open_days", DEFAULT_OPEN_DAYS)),
         "from": Setting.get("wa_open_from", DEFAULT_OPEN_FROM),
         "to": Setting.get("wa_open_to", DEFAULT_OPEN_TO),
+        # A day with hours of its own — Friday is not Wednesday.
+        "per_day": parse_per_day(Setting.get(PER_DAY_KEY, "")),
         "body": Setting.get(AWAY_TEMPLATE_KEY, "") or DEFAULT_AWAY_BODY,
     }
+
+
+#: ``{"4": ["18:00", "21:00"]}`` — the days whose hours differ from the rest.
+PER_DAY_KEY = "wa_open_hours"
+
+
+def parse_per_day(raw):
+    """``{weekday: (from, to)}`` from the setting; anything unreadable is
+    dropped, and a day missing here keeps the clinic's ordinary hours."""
+    import json
+
+    try:
+        data = json.loads(raw) if raw else {}
+    except ValueError:
+        return {}
+    out = {}
+    for day, pair in (data or {}).items():
+        if str(day).isdigit() and 0 <= int(day) <= 6 and isinstance(pair, (list, tuple)) \
+                and len(pair) == 2 and all(_valid_time(x) for x in pair):
+            out[int(day)] = (pair[0], pair[1])
+    return out
+
+
+def _valid_time(raw):
+    try:
+        hh, mm = (raw or "").split(":")
+        return 0 <= int(hh) <= 23 and 0 <= int(mm) <= 59
+    except (ValueError, AttributeError):
+        return False
+
+
+def day_hours(cfg, weekday):
+    """``(from, to)`` as text for one day: its own, else the ordinary."""
+    return (cfg.get("per_day") or {}).get(weekday, (cfg["from"], cfg["to"]))
 
 
 def _parse_days(raw):
@@ -76,17 +112,26 @@ def is_open(at=None, cfg=None):
     """
     cfg = cfg or hours_config()
     at = at or local_now()      # the clinic's wall clock, not the server's
-    start = _parse_time(cfg["from"], DEFAULT_OPEN_FROM)
-    end = _parse_time(cfg["to"], DEFAULT_OPEN_TO)
     now = at.time()
-    if start <= end:
-        return at.weekday() in cfg["days"] and start <= now <= end
-    # Overnight: after opening counts today, before closing counts as
-    # yesterday's shift still running.
-    if now >= start:
-        return at.weekday() in cfg["days"]
-    if now <= end:
-        return (at - timedelta(days=1)).weekday() in cfg["days"]
+    today = at.weekday()
+    if today in cfg["days"]:
+        frm, to = day_hours(cfg, today)
+        start = _parse_time(frm, DEFAULT_OPEN_FROM)
+        end = _parse_time(to, DEFAULT_OPEN_TO)
+        if start <= end and start <= now <= end:
+            return True
+        # Overnight: after opening counts today.
+        if start > end and now >= start:
+            return True
+    # Before closing, yesterday's overnight shift may still be running —
+    # with yesterday's own hours.
+    yesterday = (at - timedelta(days=1)).weekday()
+    if yesterday in cfg["days"]:
+        frm, to = day_hours(cfg, yesterday)
+        start = _parse_time(frm, DEFAULT_OPEN_FROM)
+        end = _parse_time(to, DEFAULT_OPEN_TO)
+        if start > end and now <= end:
+            return True
     return False
 
 
@@ -95,11 +140,26 @@ def hours_label(cfg=None, lang="ar"):
     from app.i18n import t
 
     cfg = cfg or hours_config()
-    try:
-        names = [t("weekdays." + str(d)) for d in cfg["days"]]
-    except Exception:  # noqa: BLE001 - outside a request, fall back to numbers
-        names = [str(d) for d in cfg["days"]]
-    return f"{'، '.join(names)} {cfg['from']} – {cfg['to']}"
+
+    def name(d):
+        try:
+            return t("weekdays." + str(d))
+        except Exception:  # noqa: BLE001 - outside a request, numbers
+            return str(d)
+
+    # Days with the same hours said together: «السبت، الأحد … 16:00 – 22:00،
+    # الجمعة 18:00 – 21:00».
+    groups = []
+    for d in cfg["days"]:
+        hours = day_hours(cfg, d)
+        for g in groups:
+            if g[0] == hours:
+                g[1].append(d)
+                break
+        else:
+            groups.append((hours, [d]))
+    return "، ".join(f"{'، '.join(name(d) for d in days)} {frm} – {to}"
+                     for (frm, to), days in groups)
 
 
 def _recently_told(log, hours=AWAY_COOLDOWN_HOURS):

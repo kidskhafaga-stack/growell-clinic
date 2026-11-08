@@ -2931,3 +2931,44 @@ def referral_invoice(lab_id):
     return redirect(url_for("labs.referral_account", lab_id=lab.id,
                             **({"from": start.isoformat(), "to": end.isoformat()}
                                if start and end else {})))
+
+
+# --------------------------------------------- a child for the lab only ----
+@labs_bp.route("/walk-in", methods=["GET", "POST"])
+@module_required(MODULE)
+def walk_in():
+    """«مريض جاي للمعمل بس» (LAB_GLAB360_PLAN.md م-٦): an outside doctor's
+    paper, the tests on it, and the child on the rack — no consultation."""
+    from app.models import Patient
+    from app.utils import lab_walkin
+
+    chosen = db.session.get(Patient, request.values.get("patient_id", type=int) or 0)
+    if request.method == "POST":
+        f = request.form
+        ids = [int(x) for x in f.getlist("test_id") if x.isdigit()]
+        tests = Investigation.query.filter(Investigation.id.in_(ids)).all() if ids else []
+        try:
+            visit = lab_walkin.register(
+                chosen, tests, current_user,
+                doctor_name=f.get("doctor_name"), doctor_specialty=f.get("doctor_specialty"),
+                doctor_place=f.get("doctor_place"), doctor_phone=f.get("doctor_phone"),
+                notes=f.get("notes"), paper=request.files.get("paper"))
+        except lab_walkin.WalkInError as why:
+            db.session.rollback()
+            flash(t("lab_walkin.err_" + str(why)), "danger")
+            return render_template("labs/walk_in.html", chosen=chosen,
+                                   tests=lab_walkin.lab_tests(), recent=lab_walkin.recent(),
+                                   picked=set(ids), form=f), 400
+        from app.models import ActivityLog
+
+        ActivityLog.record("lab.walk_in", user_id=current_user.id, entity="patient",
+                           entity_id=chosen.id, detail=f"visit:{visit.id} tests:{len(tests)}")
+        db.session.commit()
+        flash(t("lab_walkin.saved", n=len(tests)), "success")
+        return redirect(url_for("labs.walk_in") + f"?done={visit.id}")
+    from app.models import Visit
+
+    done = db.session.get(Visit, request.args.get("done", type=int) or 0)
+    return render_template("labs/walk_in.html", chosen=chosen,
+                           tests=lab_walkin.lab_tests(), recent=lab_walkin.recent(),
+                           picked=set(), form={}, done=done)

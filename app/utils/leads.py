@@ -83,6 +83,64 @@ def contact_for(name, identities, user=None):
     return contact
 
 
+def same_person(contact, kind, value, user_id=None):
+    """The platform said this contact is the one behind ``(kind, value)``.
+
+    Not a guess on a name: Meta's answer to a private reply names the
+    commenter's Messenger id. When nobody holds that id it is added to this
+    contact. When somebody already does — the person wrote on Messenger
+    before they commented — the two are one person: everything filed under
+    this contact moves to that one, and the contact the thread now belongs to
+    is returned."""
+    value = (value or "").strip()
+    if not value:
+        return contact
+    row = ContactIdentity.query.filter_by(kind=kind, value=value).first()
+    if row is None:
+        contact.identities.append(ContactIdentity(kind=kind, value=value, shown=""))
+        db.session.flush()
+        return contact
+    if row.contact_id == contact.id:
+        return contact
+    keep = row.contact
+    _merge(contact, keep, user_id)
+    return keep
+
+
+def _merge(gone, keep, user_id=None):
+    """Move one contact's identities, messages and leads onto another."""
+    from app.models import MessageLog
+
+    if keep.patient_id is None and gone.patient_id is not None:
+        keep.patient_id, keep.linked_by, keep.linked_at = (
+            gone.patient_id, gone.linked_by, gone.linked_at)
+    for ident in list(gone.identities):
+        ident.contact_id = keep.id
+    for msg in MessageLog.query.filter_by(contact_id=gone.id).all():
+        msg.contact_id = keep.id
+        if keep.patient_id and msg.patient_id is None:
+            msg.patient_id = keep.patient_id
+    key = f"p{keep.patient_id}" if keep.patient_id else f"c{keep.id}"
+    open_keep = open_lead_of(keep)
+    for lead in list(gone.leads):
+        if lead.is_open and open_keep is not None:
+            # One open lead per person: the comment becomes a step on the
+            # lead they already have, and this one is closed as the same.
+            _event(open_keep, "note", f"{lead.channel}: {lead.message or ''}"[:255], None)
+            lead.stage, lead.lost_reason = "lost", "other"
+            lead.closed_at = lead.stage_at = datetime.utcnow()
+            _event(lead, "note", f"same person → contact {keep.id}", None)
+        else:
+            lead.contact_id = keep.id
+            lead.conversation_key = key
+            if lead.is_open:
+                open_keep = lead
+    gone.note = f"merged into contact {keep.id}"[:NOTE_MAX]
+    db.session.flush()
+    ActivityLog.record("crm.same_person", user_id=user_id, entity="crm_contact",
+                       entity_id=keep.id, detail=f"from contact {gone.id}")
+
+
 def link_patient(contact, patient, user, ip_address=None):
     """A person says this contact is this child's family."""
     contact.patient_id = patient.id

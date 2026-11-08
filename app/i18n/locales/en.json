@@ -4294,7 +4294,14 @@
     "tpl_unknown": "That template is not registered.",
     "tpl_missing_param": "Fill every parameter — Meta rejects a template with a blank in it.",
     "tpl_sent": "Sent as an approved template.",
-    "tpl_failed": "Template send failed: {err}"
+    "tpl_failed": "Template send failed: {err}",
+    "send_file": "Send a picture or a file",
+    "file_caption": "A line with the file (optional)",
+    "file_hint": "An image or a PDF, on WhatsApp. On a child's conversation it is kept on the file too. With click-to-send WhatsApp the chat opens and you attach the file yourself.",
+    "file_whatsapp_only": "Files go on WhatsApp only for now — this conversation is on another channel.",
+    "file_sent_label": "Sent to the family on WhatsApp",
+    "file_attach_by_hand": "The chat is open — attach the file ({name}) yourself before sending.",
+    "siblings_one_thread": "One number writing about more than one child — their conversations are together here, each message with the child's name:"
   },
   "journal": {
     "title": "Journal",
@@ -5148,7 +5155,9 @@
     "overnight_hint": "A closing time earlier than the opening one means the shift runs past midnight (16:00 → 02:00) — that's fine.",
     "away_body": "Message text",
     "away_once": "Sent at most once every 12 hours per conversation — so nobody gets a robot answering every message.",
-    "away_manual_note": "Only works when automatic sending is on. In manual mode every message becomes a link, and nobody is there to click it at 1 a.m."
+    "away_manual_note": "Only works when automatic sending is on. In manual mode every message becomes a link, and nobody is there to click it at 1 a.m.",
+    "per_day": "Different hours on some days",
+    "per_day_hint": "Leave a day empty for the ordinary hours above. The day must be ticked as a working day."
   },
   "presets": {
     "pediatric_dental_clinic": "Paediatric dental clinic",
@@ -9844,7 +9853,9 @@
     "none_mine": "No prescriptions in your name waiting for confirmation.",
     "no_tests": "No tests or scans ordered for this attendance yet.",
     "billed": "Billed",
-    "collect": "Collect at the desk ({n})"
+    "collect": "Collect at the desk ({n})",
+    "write_visit": "Write the visit",
+    "safety_title": "Warnings on what is written — allergies, interactions and dose"
   },
   "inv_list": {
     "title": "Tests and scans",
@@ -16821,5 +16832,35 @@
     "msg_more": "And {n} more in the file.",
     "msg_total": "Total: {total}",
     "msg_file": "The whole table is in the attached Excel file."
+  },
+  "lab_walkin": {
+    "door": "Lab-only patient",
+    "title": "Lab-only patient",
+    "sub": "A child who comes for tests only, on a paper from a doctor outside. Choose the child, write the doctor, photograph the paper and tick the tests — they go on the rack like any order. The desk collects once the sample is drawn.",
+    "child": "Child",
+    "new_child": "Not registered?",
+    "new_child_link": "Register first (opens in a new page)",
+    "doctor": "The doctor who wrote the request",
+    "doctor_name": "Doctor's name",
+    "doctor_specialty": "Specialty",
+    "doctor_place": "Place (clinic / hospital)",
+    "doctor_phone": "Doctor's mobile",
+    "doctor_phone_hint": "With it, the result can be sent to them on WhatsApp from the order.",
+    "paper": "Photo of the request",
+    "paper_hint": "An image or a PDF — kept on the child's file beside the orders.",
+    "tests": "Tests",
+    "filter": "Find a test…",
+    "sent_on": "sent to another lab",
+    "notes": "Note",
+    "notes_ph": "e.g. fasting since 8 hours",
+    "save": "Save and send to the lab",
+    "saved": "{n} test(s) saved and on the rack.",
+    "done": "{name}'s request is on the rack:",
+    "recent": "Recently registered this way",
+    "asked_by": "Asked by Dr {who} (outside)",
+    "err_patient": "Choose the child.",
+    "err_tests": "Tick at least one test.",
+    "err_doctor": "Write the name of the doctor who wrote the request.",
+    "err_paper": "That file is not an image or a PDF."
   }
 }

@@ -242,12 +242,20 @@
   </div>
   {% endif %}
 
+  {% if siblings %}
+  <div class="notice" style="margin:0 0 10px;" data-siblings-thread>
+    <i class="bi bi-people"></i> {{ t('inbox.siblings_one_thread') }}
+    {% for s in siblings %}<a class="badge badge--muted" href="{{ url_for('patients.view', patient_id=s.id) }}">{{ s.display_name(current_lang) }}</a> {% endfor %}
+  </div>
+  {% endif %}
+
   <!-- Chat -->
   <div class="card gc-scale-in" id="chat"
        style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto;">
     {% for m in msgs %}
     <div style="display:flex;{{ 'justify-content:flex-end;' if m.direction == 'out' else '' }}">
       <div class="bubble {{ 'out' if m.direction == 'out' else 'in' }}">
+        {% if siblings and m.patient %}<div class="hint" style="margin:0 0 3px;" data-bubble-child="{{ m.patient_id }}"><i class="bi bi-person"></i> {{ m.patient.display_name(current_lang) }}</div>{% endif %}
         {% if m.template_type %}<div class="hint" style="margin:0 0 3px;"><i class="bi bi-tag"></i> {{ m.template_type }}</div>{% endif %}
         {% if m.channel and m.channel != 'whatsapp' %}<div class="hint" style="margin:0 0 3px;" data-bubble-channel="{{ m.channel }}">{{ t('channels.ch_' ~ m.channel) }}{% if m.event %} · {{ t('social.ev_' ~ m.event) }}{% endif %}</div>{% endif %}
         {% if m.image_url %}
@@ -385,6 +393,18 @@
           <i class="bi bi-send"></i> {{ t('inbox.send') }}</button>
       </div>
     </form>
+    {# A picture or a PDF — the result, the prescription, the map. #}
+    <details style="margin-top:8px;" data-send-file>
+      <summary class="hint" style="cursor:pointer;"><i class="bi bi-paperclip"></i> {{ t('inbox.send_file') }}</summary>
+      <form method="post" enctype="multipart/form-data" action="{{ url_for('messages.inbox_send_file', key=key) }}"
+            style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="input" type="file" name="file" accept="image/*,application/pdf" required style="max-width:280px;">
+        <input class="input" name="caption" maxlength="1000" placeholder="{{ t('inbox.file_caption') }}" style="flex:1;min-width:180px;">
+        <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-send"></i> {{ t('inbox.send') }}</button>
+      </form>
+      <p class="hint" style="margin:6px 0 0;">{{ t('inbox.file_hint') }}</p>
+    </details>
     <p class="hint" style="margin:8px 0 0;" x-show="drafted" x-cloak>
       <i class="bi bi-stars"></i> {{ t('inbox.ai_review') }}</p>
     <p class="hint" style="margin:8px 0 0;color:var(--danger);font-weight:600;"
