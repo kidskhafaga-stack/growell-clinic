@@ -36,6 +36,7 @@ def test_first_dose_watched_family_told_and_taught_and_discharge_counselling(war
                              dose="1 g", route="iv", every_hours=24,
                              when=datetime.utcnow() - timedelta(hours=2))
         db.session.flush()
+        o.skin_test_result = "negative"   # an IV antibiotic's first dose waits for it (د-٢)
         drug_round.give(o, GIVEN, boss)
         db.session.commit()
         oid, gid = o.id, g.id
