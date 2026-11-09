@@ -43,7 +43,7 @@ FAMILIES = {
         "chip_ar": "سيفالوسبورين", "chip_en": "Cephalosporin",
         "words": ["cephalosporin", "سيفالوسبورين", "cefixime", "سيفيكسيم",
                   "ceftriaxone", "سيفترياكسون", "cefuroxime", "سيفوروكسيم",
-                  "cephalexin", "سيفاليكسين", "cefaclor", "سيفاكلور",
+                  "cephalexin", "cefalexin", "سيفاليكسين", "cefaclor", "سيفاكلور",
                   "cefadroxil", "سيفادروكسيل", "cefpodoxime", "سيفبودوكسيم",
                   # Injected in emergency and on the ward; missing here, a
                   # ceftriaxone allergy said nothing about cefotaxime.

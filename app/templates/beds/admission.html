@@ -1447,10 +1447,11 @@
     {% endfor %}
   </div>
   {% endif %}
-  {% for line in (safety.lines if safety else []) if line.allergy and line.allergy.hit %}
-  <div class="alert-pill danger" style="margin-bottom:12px;" data-allergy>
-    <i class="bi bi-shield-exclamation"></i>
-    {{ t('meds.allergy_to', name=line.name) }}</div>
+  {# The allergy check's answer is the hit itself (``allergy.check_drug``) —
+     it was read as ``.hit``, a key it never had, so the warning never showed. #}
+  {% from "_allergy_line.html" import allergy_line with context %}
+  {% for line in (safety.lines if safety else []) if line.allergy %}
+  {{ allergy_line(line.allergy, line.name, 'margin-bottom:12px;') }}
   {% endfor %}
 
   {% if not meds.orders %}

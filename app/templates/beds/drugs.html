@@ -68,6 +68,8 @@
     <div class="dr-order" data-order="{{ item.order.id }}">
       <div class="dr-order__what">
         <span class="dr-drug">{{ item.order.drug_name }}</span>
+        {% from "_allergy_line.html" import allergy_line with context %}
+        {{ allergy_line(allergy_of(item.order, row.patient), item.order.drug_name, 'margin:4px 0;') }}
         {% if item.order.dose %} · {{ item.order.dose }}{% endif %}
         <span class="badge badge--muted">{{ t('meds.route_' ~ item.order.route) }}</span>
         {% if item.order.is_prn %}
