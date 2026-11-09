@@ -70,6 +70,10 @@
     <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-clipboard2-pulse"></i> {{ t('er_orders.write_visit') }}</button>
   </form>
   {% endif %}
+  {# The paper the family takes home (ط-٦). #}
+  <a class="btn btn-outline gc-press" data-to-family-paper
+     href="{{ url_for('emergency.family_paper', attendance_id=row.id) }}">
+    <i class="bi bi-file-earmark-text"></i> {{ t('er_paper.door') }}</a>
   {% if row.is_open and not row.seen_at %}
   <form method="post" action="{{ url_for('emergency.seen', attendance_id=row.id) }}" style="margin:0;" data-seen-form>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -177,10 +181,10 @@
   <form method="post" action="{{ url_for('emergency.record_vitals', attendance_id=row.id) }}"
         style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:8px;" data-er-vitals-form>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input class="input num" name="temperature_c" type="number" step="0.1" placeholder="{{ t('er_triage.k_temperature_c') }}" style="max-width:80px;" dir="ltr">
-    <input class="input num" name="pulse_bpm" type="number" placeholder="{{ t('er_triage.k_pulse_bpm') }}" style="max-width:76px;" dir="ltr">
-    <input class="input num" name="resp_rate" type="number" placeholder="{{ t('er_triage.k_resp_rate') }}" style="max-width:76px;" dir="ltr">
-    <input class="input num" name="spo2" type="number" placeholder="{{ t('er_triage.k_spo2') }}" style="max-width:80px;" dir="ltr">
+    <input class="input num" name="temperature_c" type="number" step="0.1" placeholder="{{ t('er_triage.k_temperature_c') }}" style="max-width:92px;" dir="ltr">
+    <input class="input num" name="pulse_bpm" type="number" placeholder="{{ t('er_triage.k_pulse_bpm') }}" style="max-width:92px;" dir="ltr">
+    <input class="input num" name="resp_rate" type="number" placeholder="{{ t('er_triage.k_resp_rate') }}" style="max-width:92px;" dir="ltr">
+    <input class="input num" name="spo2" type="number" placeholder="{{ t('er_triage.k_spo2') }}" style="max-width:92px;" dir="ltr">
     <button class="btn btn-sm btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('er_vitals.add') }}</button>
   </form>
   {% endif %}

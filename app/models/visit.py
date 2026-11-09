@@ -109,11 +109,11 @@ class Visit(db.Model):
     # A **date** and not a duration: "in two weeks" is a sentence whose meaning
     # moves every day it is read, and this one is read months later by somebody
     # asking whether the child ever came back.
+    followup_due = db.Column(db.Date, index=True)
+    followup_instructions = db.Column(db.Text)
     # A child who came for a test only (LAB_GLAB360_PLAN م-٦): the outside
     # doctor whose paper the test was asked on (``utils/lab_walkin``).
     outside_doctor_id = db.Column(db.Integer, db.ForeignKey("external_doctors.id"))
-    followup_due = db.Column(db.Date, index=True)
-    followup_instructions = db.Column(db.Text)
 
     @property
     def referral(self):

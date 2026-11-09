@@ -573,6 +573,40 @@ def record_vitals(attendance_id):
     return _to_attendance(row.id)
 
 
+@emergency_bp.route("/attendance/<int:attendance_id>/paper")
+@module_required(MODULE)
+def family_paper(attendance_id):
+    """The paper the family takes home (ط-٦): the diagnosis, what was given,
+    the condition at departure, the follow-up — and when to come back at
+    once, in the hospital's own words (``er_return_signs``; none written, a
+    blank space the doctor writes in by hand)."""
+    from app.models import EmergencyVisit, Setting, Visit
+    from app.utils import emergency_orders as eo
+
+    # Handed to the family in either language, whatever the screen's.
+    if request.args.get("lang") in ("ar", "en"):
+        from app.i18n import get_direction
+
+        g.lang = request.args["lang"]
+        g.direction = get_direction(g.lang)
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    visit = db.session.get(Visit, row.visit_id) if row.visit_id else None
+    diagnoses = []
+    if visit is not None:
+        diagnoses = visit.final_diagnoses() or list(visit.diagnoses)
+    given = [o for o in eo.for_attendance(row) if o.given_at is not None]
+    return render_template(
+        "emergency/family_paper.html", row=row, visit=visit, diagnoses=diagnoses,
+        given=given, return_signs=(Setting.get("er_return_signs") or "").strip(),
+        printed_at=_now_local())
+
+
+def _now_local():
+    from app.utils.clock import local_now
+
+    return local_now()
+
+
 def _today_iso():
     from app.utils.clock import local_today
 

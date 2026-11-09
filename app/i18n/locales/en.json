@@ -16919,5 +16919,25 @@
     "out_of_band": "Saved — a reading is outside the age band: {readings}",
     "up": "rising",
     "down": "falling"
+  },
+  "er_paper": {
+    "title": "Discharge paper for the family",
+    "door": "Family discharge paper",
+    "arrived": "Arrived",
+    "departed": "Left",
+    "diagnosis": "Diagnosis",
+    "given": "Done in emergency",
+    "condition": "Condition on leaving",
+    "followup": "Follow-up",
+    "followup_due": "Follow-up date",
+    "return": "Come back to emergency at once if",
+    "return_blank": "(written by the doctor)",
+    "doctor": "Doctor",
+    "signature": "Signature",
+    "none": "—",
+    "still_here": "Still in emergency",
+    "setting": "Family discharge paper — «Come back at once if…»",
+    "setting_ph": "One sign per line, in the hospital's words",
+    "setting_hint": "Printed on the emergency discharge paper as written. The program writes no signs of its own — left empty, a blank space is printed for the doctor to write by hand."
   }
 }

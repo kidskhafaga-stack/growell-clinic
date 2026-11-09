@@ -1170,6 +1170,19 @@ SECTIONS = [
              "at the door, from the board or the observation chart — in one table, each "
              "number coloured by the age band with an arrow for which way it moved. Below "
              "it, «Record a reading» from the same page the doctor has open."),
+            ("<b>ورقة الخروج للأهل:</b> من صفحة الحضور «ورقة الخروج للأهل» — ورقة تتطبع "
+             "بالعربي أو الإنجليزي فيها التشخيص من الكشف، العلاج اللي اتدّى فعلاً، حالته وهو "
+             "خارج، المتابعة (اللي اتكتبت عند الخروج وتعليمات الأهل في الكشف وميعاد المتابعة)، "
+             "وفي مربع أحمر «ارجعوا الطوارئ فوراً لو…» بكلام المستشفى اللي بتكتبه في "
+             "الإعدادات. البرنامج ما بيكتبش علامات من عنده: لو فاضية بيتطبع مكان فاضي الدكتور "
+             "يكتب فيه بإيده.",
+             "<b>The family's discharge paper:</b> «Family discharge paper» on the attendance "
+             "prints, in Arabic or English, the diagnosis from the encounter, the treatment "
+             "actually given, the condition on leaving, the follow-up (written at departure, "
+             "the family instructions on the encounter and the follow-up date), and in a red "
+             "box «Come back to emergency at once if…» in the hospital's own words, written "
+             "in settings. The program writes no signs of its own: left empty, a blank space "
+             "is printed for the doctor to write by hand."),
             ("<b>البارتيشنات ورقم الطابور:</b> فوق شاشة الطوارئ البارتيشنات اللي "
              "اتبنت في إعداد الأسرّة — مين فيها (محجوز أو جلسة) وكام فاضي. الطفل "
              "اللي مستني مكان ليه <b>رقم في الطابور</b>: العاجل الأول، بعده اللي "

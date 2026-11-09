@@ -649,6 +649,12 @@
       <label for="er_skin_test" style="margin:0;font-weight:400;">{{ t('skin_test.setting') }}</label>
     </div>
     <p class="hint">{{ t('skin_test.setting_hint') }}</p>
+    <div class="form-row" data-er-return-signs>
+      <label for="er_return_signs">{{ t('er_paper.setting') }}</label>
+      <textarea class="input" id="er_return_signs" name="er_return_signs" rows="4" dir="auto"
+                placeholder="{{ t('er_paper.setting_ph') }}">{{ values.get('er_return_signs','') }}</textarea>
+    </div>
+    <p class="hint">{{ t('er_paper.setting_hint') }}</p>
     <hr style="border:none;border-top:1px solid var(--line);margin:16px 0;">
     <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-lock"></i> {{ t('settings.login_security') }}</h3>
     <p class="hint" style="margin-top:-6px;">{{ t('settings.login_security_hint') }}</p>

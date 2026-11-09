@@ -35,7 +35,7 @@ def _levels(er):
     from app.utils import er_triage
 
     with er["app"].app_context():
-        return {l["name"]: l["key"] for l in er_triage.levels()}
+        return {lv["name"]: lv["key"] for lv in er_triage.levels()}
 
 
 def _row(er, att):
