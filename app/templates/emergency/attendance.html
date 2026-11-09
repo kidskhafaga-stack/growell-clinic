@@ -318,7 +318,9 @@
             if (!this.q && !this.drugId) { this.sug = null; return; }
             const u = {{ url_for('emergency.dose_for', attendance_id=row.id)|tojson|forceescape }}
               + '?drug_id=' + encodeURIComponent(this.drugId || '') + '&name=' + encodeURIComponent(this.q || '');
-            fetch(u, {credentials: 'same-origin'}).then(r => r.json()).then(d => { this.sug = d; }).catch(() => {});
+            const self = this;
+            fetch(u, {credentials: 'same-origin'}).then(function (r) { return r.json(); })
+              .then(function (d) { self.sug = d; }).catch(function () {});
           },
           doseText() {
             const d = this.sug; if (!d || d.dose_mg == null) return '';
