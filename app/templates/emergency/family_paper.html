@@ -1,0 +1,98 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import age_label with context %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'emergency' %}
+{% block title %}{{ t('er_paper.title') }}{% endblock %}
+{% block page_heading %}{{ t('er_paper.title') }}{% endblock %}
+
+{% block content %}
+{# The paper the family takes home from emergency (DOCTOR_EASE ط-٦): what
+   the child had, what was done, how they left, what to do next — and when to
+   come back at once, in the hospital's own words (`er_return_signs`). Nothing
+   on it is written by the program: every line is the file's or the
+   hospital's. #}
+{% set p = row.patient %}
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('emergency.attendance', attendance_id=row.id) }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <div class="btn-group" style="display:flex;gap:4px;">
+      <a class="btn btn-sm gc-press {{ 'btn-primary' if current_lang == 'ar' else 'btn-outline' }}"
+         href="{{ url_for('emergency.family_paper', attendance_id=row.id, lang='ar') }}">العربية</a>
+      <a class="btn btn-sm gc-press {{ 'btn-primary' if current_lang == 'en' else 'btn-outline' }}"
+         href="{{ url_for('emergency.family_paper', attendance_id=row.id, lang='en') }}">English</a>
+    </div>
+    <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+  </div>
+</div>
+
+<div class="card gc-scale-in print-area" data-family-paper>
+  {{ print_header(t('er_paper.title'), '<span dir="ltr">' ~ printed_at.strftime('%Y-%m-%d %H:%M') ~ '</span>') }}
+
+  <div class="info-grid" style="margin-bottom:16px;">
+    <div class="info-item"><div class="k">{{ t('appointments.patient') }}</div><div class="v">{{ p.display_name(current_lang) if p else '—' }}</div></div>
+    <div class="info-item"><div class="k">{{ t('patients.file_number') }}</div><div class="v">{{ p.patient_number if p else '—' }}</div></div>
+    {% if p %}<div class="info-item"><div class="k">{{ t('patients.age') }}</div><div class="v">{{ age_label(p) }}</div></div>{% endif %}
+    <div class="info-item"><div class="k">{{ t('er_paper.arrived') }}</div><div class="v" dir="ltr">{{ row.arrived_at|clinic_stamp }}</div></div>
+    <div class="info-item"><div class="k">{{ t('er_paper.departed') }}</div><div class="v">
+      {% if row.departed_at %}<span dir="ltr">{{ row.departed_at|clinic_stamp }}</span>{% if row.disposition %} · {{ t('emergency.disp_' ~ row.disposition) }}{% endif %}
+      {% else %}{{ t('er_paper.still_here') }}{% endif %}</div></div>
+  </div>
+
+  <section style="margin-bottom:14px;" data-paper-diagnosis>
+    <h3 class="section-title" style="margin:0 0 6px;">{{ t('er_paper.diagnosis') }}</h3>
+    {% if diagnoses %}
+    <ul style="margin:0;padding-inline-start:20px;">
+      {% for d in diagnoses %}<li dir="auto">{{ d.display_title(current_lang) }}</li>{% endfor %}
+    </ul>
+    {% else %}<p style="margin:0;">{{ t('er_paper.none') }}</p>{% endif %}
+  </section>
+
+  <section style="margin-bottom:14px;" data-paper-given>
+    <h3 class="section-title" style="margin:0 0 6px;">{{ t('er_paper.given') }}</h3>
+    {% if given %}
+    <ul style="margin:0;padding-inline-start:20px;">
+      {% for o in given %}
+      <li><strong dir="auto">{{ o.name }}</strong>{% if o.dose %} · <span dir="auto">{{ o.dose }}</span>{% endif %}{% if o.route %} · {{ t('meds.route_' ~ o.route) }}{% endif %}
+        · <span dir="ltr" class="hint" style="margin:0;">{{ o.given_at|clinic_time }}</span></li>
+      {% endfor %}
+    </ul>
+    {% else %}<p style="margin:0;">{{ t('er_paper.none') }}</p>{% endif %}
+  </section>
+
+  {% if row.condition %}
+  <section style="margin-bottom:14px;" data-paper-condition>
+    <h3 class="section-title" style="margin:0 0 6px;">{{ t('er_paper.condition') }}</h3>
+    <p style="margin:0;" dir="auto">{{ row.condition }}</p>
+  </section>
+  {% endif %}
+
+  <section style="margin-bottom:14px;" data-paper-followup>
+    <h3 class="section-title" style="margin:0 0 6px;">{{ t('er_paper.followup') }}</h3>
+    {% set said = [row.followup_instructions, visit.followup_instructions if visit else none]|select|unique|list %}
+    {% for text in said %}<p style="margin:0 0 4px;white-space:pre-line;" dir="auto">{{ text }}</p>{% endfor %}
+    {% if visit and visit.followup_due %}<p style="margin:0;"><strong>{{ t('er_paper.followup_due') }}:</strong> <span dir="ltr">{{ visit.followup_due }}</span></p>{% endif %}
+    {% if not said and not (visit and visit.followup_due) %}<p style="margin:0;">{{ t('er_paper.none') }}</p>{% endif %}
+  </section>
+
+  <section style="margin-bottom:18px;padding:10px 12px;border:2px solid var(--red-600, #dc2626);border-radius:8px;" data-paper-return>
+    <h3 class="section-title" style="margin:0 0 6px;color:var(--red-700, #b91c1c);"><i class="bi bi-exclamation-octagon"></i> {{ t('er_paper.return') }}</h3>
+    {% if return_signs %}
+    <ul style="margin:0;padding-inline-start:20px;" data-return-signs>
+      {% for line in return_signs.splitlines() if line.strip() %}<li dir="auto">{{ line.strip() }}</li>{% endfor %}
+    </ul>
+    {% else %}
+    <div data-return-blank>
+      <div class="hint" style="margin:0 0 4px;">{{ t('er_paper.return_blank') }}</div>
+      {% for _ in range(4) %}<div style="border-bottom:1px dotted var(--line);height:26px;"></div>{% endfor %}
+    </div>
+    {% endif %}
+  </section>
+
+  <div style="display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-top:24px;">
+    <div>{{ t('er_paper.doctor') }}:
+      <strong>{{ visit.doctor.display_name(current_lang) if visit and visit.doctor else '' }}</strong></div>
+    <div>{{ t('er_paper.signature') }}: ____________________</div>
+  </div>
+</div>
+{% endblock %}

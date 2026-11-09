@@ -138,6 +138,12 @@ def give(order, user, at=None):
     paper no doctor of ours has approved."""
     if order.state != "ready":
         raise ValueError(order.state)
+    # An antibiotic injection waits for its skin test (``utils/skin_test``).
+    from app.utils import skin_test
+
+    why = skin_test.blocks(order)
+    if why:
+        raise ValueError(why)
     order.given_at = at or datetime.utcnow()
     order.given_by = getattr(user, "id", None)
     return order

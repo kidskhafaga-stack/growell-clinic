@@ -1,0 +1,10 @@
+{# One allergy line for a medicine, from ``allergy.check_drug`` — the same
+   words everywhere a written drug meets the child's file. «match» is the drug
+   or its family named in the allergy; «caution» is a family that cross-reacts. #}
+{% macro allergy_line(hit, drug, style='margin-top:8px;') %}
+{% if hit %}
+<div class="alert-pill {{ 'danger' if hit.level == 'match' else 'warn' }}" style="{{ style }}" data-allergy="{{ hit.level }}">
+  <i class="bi bi-shield-exclamation"></i>
+  {{ t('allergy.flash_' ~ hit.level).replace('{drug}', drug or '').replace('{allergy}', hit.allergy or '') }}</div>
+{% endif %}
+{% endmacro %}

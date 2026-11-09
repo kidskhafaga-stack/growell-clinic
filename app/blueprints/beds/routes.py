@@ -1928,8 +1928,13 @@ def drugs():
     owed a dose under the twenty who are not.
     """
     kind = (request.args.get("kind") or "").strip() or None
+    from app.utils.allergy import check_drug
+
     return render_template("beds/drugs.html",
                            rows=drug_round.board(kind), kind=kind,
+                           # The allergy said where the dose is given, not
+                           # only where it was written.
+                           allergy_of=lambda o, p: check_drug(p, drug=o.drug, name=o.drug_name),
                            levels=drug_round, routes=ROUTES,
                            outcomes=DOSE_OUTCOMES)
 

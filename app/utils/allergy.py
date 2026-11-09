@@ -43,8 +43,12 @@ FAMILIES = {
         "chip_ar": "سيفالوسبورين", "chip_en": "Cephalosporin",
         "words": ["cephalosporin", "سيفالوسبورين", "cefixime", "سيفيكسيم",
                   "ceftriaxone", "سيفترياكسون", "cefuroxime", "سيفوروكسيم",
-                  "cephalexin", "سيفاليكسين", "cefaclor", "سيفاكلور",
-                  "cefadroxil", "سيفادروكسيل", "cefpodoxime", "سيفبودوكسيم"],
+                  "cephalexin", "cefalexin", "سيفاليكسين", "cefaclor", "سيفاكلور",
+                  "cefadroxil", "سيفادروكسيل", "cefpodoxime", "سيفبودوكسيم",
+                  # Injected in emergency and on the ward; missing here, a
+                  # ceftriaxone allergy said nothing about cefotaxime.
+                  "cefotaxime", "سيفوتاكسيم", "ceftazidime", "سيفتازيديم",
+                  "cefepime", "سيفيبيم", "cefazolin", "سيفازولين"],
         "caution": "penicillin",
         "note_ar": "حساسية من عائلة السيفالوسبورين",
     },

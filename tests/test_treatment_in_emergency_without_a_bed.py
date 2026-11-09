@@ -32,6 +32,10 @@ def er(clinic):
     with clinic["app"].app_context():
         db = clinic["db"]
         Setting.set("mod_enabled:emergency", "1")
+        # These tests are about whose word an order is on; the skin test
+        # before an antibiotic injection has its own
+        # (test_emergency_orders_are_checked_and_written_up).
+        Setting.set("er_skin_test", "0")
         nurse = User(username="nurse", full_name="ممرضة", role="nursing",
                      is_active=True)
         nurse.set_password("secret")

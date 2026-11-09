@@ -59,7 +59,7 @@
 <div class="card gc-scale-in" style="margin-bottom:14px;">
   {% for order in orders %}
   {% set look = (safety.lines[loop.index0] if safety and safety.lines and loop.index0 < safety.lines|length else None) %}
-  {% set flagged = look and ((look.allergy and look.allergy.hit) or look.warnings) %}
+  {% set flagged = look and ((look.allergy) or look.warnings) %}
   <div class="cp-order {{ 'asked' if order.queried_at and not order.answered_at else ('flagged' if flagged else '') }}"
        data-order="{{ order.id }}">
     {% set alert = high_alert.get(order.id) %}
@@ -75,11 +75,8 @@
     </div>
 
     {% if look %}
-    {% if look.allergy and look.allergy.hit %}
-    <div class="alert-pill danger" style="margin-top:8px;" data-allergy>
-      <i class="bi bi-exclamation-triangle"></i>
-      {{ t('meds.allergy_to', name=order.drug_name) }}</div>
-    {% endif %}
+    {% from "_allergy_line.html" import allergy_line with context %}
+    {{ allergy_line(look.allergy, order.drug_name) }}
     {% for code in look.warnings %}
     <div class="alert-pill warn" style="margin-top:8px;" data-dose-warning>
       <i class="bi bi-exclamation-triangle"></i> {{ t('drugbook.warn_' ~ code) }}</div>

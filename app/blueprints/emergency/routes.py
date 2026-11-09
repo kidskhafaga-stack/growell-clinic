@@ -132,6 +132,9 @@ def register():
                                eo.awaiting_confirmation(current_user)),
                            outside_waiting=len(eo.waiting_doctor()),
                            untriaged=er.untriaged(),
+                           levels=_triage().levels(),
+                           over_time=_triage().over_time,
+                           level_color=_triage().color_of,
                            incomplete=er.incomplete_departed(),
                            dispositions=DISPOSITIONS, arrivals=ARRIVALS,
                            leave_reasons=_reasons(), asked_on=_asked_on(),
@@ -229,10 +232,25 @@ def triage(visit_id):
     from app.utils import emergency as er
 
     row = db.get_or_404(EmergencyVisit, visit_id)
+    from app.utils import er_triage
+
+    # The hospital's own level, one press (ط-٤) — or typed, as before, where
+    # the hospital wrote none.
+    chosen = er_triage.level(request.form.get("level_key"))
+    level_name = chosen["name"] if chosen else request.form.get("level")
+    urgent = _tri(request.form.get("urgent"))
+    if chosen is not None and urgent is None:
+        urgent = chosen["urgent"]
+    # The vitals at the door, kept; a reading outside the age band raises
+    # «urgent» — never lowers it.
+    _obs, flags = er_triage.door_vitals(row, request.form, current_user)
+    raised = bool(flags) and urgent is not True
+    if raised:
+        urgent = True
     try:
-        er.triage(row, level=request.form.get("level"),
-                  scale=request.form.get("scale"),
-                  urgent=_tri(request.form.get("urgent")),
+        er.triage(row, level=level_name,
+                  scale=request.form.get("scale") or (t("er_triage.scale_own") if chosen else None),
+                  urgent=urgent,
                   note=request.form.get("note"), user=current_user)
     except ValueError:
         db.session.rollback()
@@ -241,6 +259,9 @@ def triage(visit_id):
     row.resp_symptoms = request.form.get("resp") == "1"
     row.resp_mask = (request.form.get("mask") == "1") if row.resp_symptoms else None
     db.session.commit()
+    if raised:
+        flash(t("er_triage.raised", readings="، ".join(
+            f"{t('er_triage.k_' + k)} {v}" for k, v in flags)), "warning")
     return _back(t("emergency.triaged"), "success")
 
 
@@ -454,6 +475,13 @@ def attendance(attendance_id):
         owed=len(eo.unbilled(row.patient_id)),
         tests=eo.tests_for(row), missing=er.missing(row),
         safety=eo.safety(row, lang=getattr(g, "lang", "ar")),
+        # The antibiotic injections that wait for a skin test.
+        skin_tests={o.id: True for o in orders if _skin().needed(o)},
+        skin_ready=lambda o: _skin().blocks(o) is None,
+        weighed=_weighed(row),
+        today_iso=_today_iso(),
+        vitals=_triage().readings(row),
+        may_chart=module_enabled("observations"),
         # GAHAR ICD.02 ev. 3 — the ambulance run that brought this child, so
         # the pre-hospital record is one press from the attendance.
         ambulance_runs=_ambulance_runs(row),
@@ -463,6 +491,175 @@ def attendance(attendance_id):
         is_doctor=eo.is_doctor(current_user),
         dispositions=DISPOSITIONS, leave_reasons=_reasons(),
         asked_on=_asked_on())
+
+
+@emergency_bp.route("/attendance/<int:attendance_id>/dose")
+@module_required(MODULE)
+def dose_for(attendance_id):
+    """JSON for the order form (ط-٣): the dose for *this* child by the
+    clinic's own dosing rules (``rx_safety.check`` → ``dosing.calculate``),
+    the weight it was worked from with its date, and the allergy on the file.
+    A suggestion the doctor presses to use — never filled in by itself."""
+    from app.models import Drug, EmergencyVisit
+    from app.utils.dosing import latest_weight_record
+    from app.utils.rx_safety import check
+
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    drug = db.session.get(Drug, request.args.get("drug_id", type=int) or 0)
+    name = (request.args.get("name") or "").strip()[:200]
+    lang = getattr(g, "lang", "ar")
+    weighed = latest_weight_record(row.patient)
+    out = {"weight": weighed.weight_kg if weighed else None,
+           "weight_date": weighed.record_date.isoformat() if weighed else None}
+    if not drug and not name:
+        return jsonify(out)
+    result = check([{"name": name or drug.label(lang), "drug": drug}], patient=row.patient, lang=lang)
+    line = result["lines"][0]
+    res = line.get("result") or {}
+    alg = line.get("allergy")
+    out.update({
+        "generic": line.get("generic_name") or "",
+        "dose_mg": res.get("dose_mg"), "dose_mg_max": res.get("dose_mg_max"),
+        "ml": res.get("ml"), "ml_max": res.get("ml_max"),
+        "doses_per_day": res.get("doses_per_day"),
+        "warnings": [t("drugbook.warn_" + w) for w in line.get("warnings") or []],
+        "allergy": (t("allergy.flash_" + alg["level"]).replace("{drug}", line["name"])
+                    .replace("{allergy}", alg["allergy"]) if alg else None),
+    })
+    return jsonify(out)
+
+
+@emergency_bp.route("/attendance/<int:attendance_id>/weight", methods=["POST"])
+@module_required(MODULE)
+def record_weight(attendance_id):
+    """Today's weight, from the attendance — a dose by weight needs one, and
+    a child in emergency is weighed at the door."""
+    from app.models import EmergencyVisit, GrowthRecord
+    from app.utils.clock import local_today
+
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    kg = request.form.get("weight_kg", type=float)
+    if kg is None or not (0.3 <= kg <= 200):
+        flash(t("er_dose.err_weight"), "error")
+        return _to_attendance(row.id)
+    db.session.add(GrowthRecord(patient_id=row.patient_id, visit_id=row.visit_id,
+                                record_date=local_today(), weight_kg=round(kg, 2),
+                                source="emergency"))
+    db.session.commit()
+    flash(t("er_dose.weight_saved", kg=round(kg, 2)), "success")
+    return _to_attendance(row.id)
+
+
+@emergency_bp.route("/attendance/<int:attendance_id>/vitals", methods=["POST"])
+@module_required(MODULE)
+def record_vitals(attendance_id):
+    """A set of readings from the attendance the doctor has open (ط-٥) —
+    the same record the board and the observations chart keep."""
+    from app.models import EmergencyVisit
+    from app.utils import er_triage
+
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    obs, flags = er_triage.door_vitals(row, request.form, current_user)
+    if obs is None:
+        db.session.rollback()
+        flash(t("observations.nothing_measured"), "error")
+        return _to_attendance(row.id)
+    db.session.commit()
+    if flags:
+        flash(t("er_vitals.out_of_band", readings="، ".join(
+            f"{t('er_triage.k_' + k)} {v}" for k, v in flags)), "warning")
+    else:
+        flash(t("observations.saved"), "success")
+    return _to_attendance(row.id)
+
+
+@emergency_bp.route("/attendance/<int:attendance_id>/paper")
+@module_required(MODULE)
+def family_paper(attendance_id):
+    """The paper the family takes home (ط-٦): the diagnosis, what was given,
+    the condition at departure, the follow-up — and when to come back at
+    once, in the hospital's own words (``er_return_signs``; none written, a
+    blank space the doctor writes in by hand)."""
+    from app.models import EmergencyVisit, Setting, Visit
+    from app.utils import emergency_orders as eo
+
+    # Handed to the family in either language, whatever the screen's.
+    if request.args.get("lang") in ("ar", "en"):
+        from app.i18n import get_direction
+
+        g.lang = request.args["lang"]
+        g.direction = get_direction(g.lang)
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    visit = db.session.get(Visit, row.visit_id) if row.visit_id else None
+    diagnoses = []
+    if visit is not None:
+        diagnoses = visit.final_diagnoses() or list(visit.diagnoses)
+    given = [o for o in eo.for_attendance(row) if o.given_at is not None]
+    return render_template(
+        "emergency/family_paper.html", row=row, visit=visit, diagnoses=diagnoses,
+        given=given, return_signs=(Setting.get("er_return_signs") or "").strip(),
+        printed_at=_now_local())
+
+
+def _now_local():
+    from app.utils.clock import local_now
+
+    return local_now()
+
+
+def _today_iso():
+    from app.utils.clock import local_today
+
+    return local_today().isoformat()
+
+
+def _weighed(row):
+    from app.utils.dosing import latest_weight_record
+
+    return latest_weight_record(row.patient)
+
+
+def _triage():
+    from app.utils import er_triage
+
+    return er_triage
+
+
+@emergency_bp.route("/levels", methods=["GET", "POST"])
+@module_required(MODULE)
+def triage_levels():
+    """The hospital's triage levels — its names, colours and minutes (ط-٤).
+    The program ships none."""
+    from app.models import ActivityLog
+    from app.utils import er_triage
+
+    if not current_user.is_admin:
+        abort(403, description=t("auth.no_permission"))
+    if request.method == "POST":
+        f = request.form
+        rows = [{"key": f.get(f"key_{i}"), "name": f.get(f"name_{i}"),
+                 "color": f.get(f"color_{i}"), "urgent": bool(f.get(f"urgent_{i}")),
+                 "minutes": f.get(f"minutes_{i}"), "delete": bool(f.get(f"delete_{i}"))}
+                for i in range(f.get("rows", type=int) or 0)]
+        try:
+            er_triage.save_levels(rows)
+        except er_triage.LevelError as why:
+            db.session.rollback()
+            flash(t("er_triage.err_" + str(why)), "error")
+            return redirect(url_for("emergency.triage_levels"))
+        ActivityLog.record("emergency.triage_levels", user_id=current_user.id,
+                           entity="setting", detail=str(len(rows)))
+        db.session.commit()
+        flash(t("er_triage.saved"), "success")
+        return redirect(url_for("emergency.triage_levels"))
+    return render_template("emergency/levels.html", levels=er_triage.levels(),
+                           max_levels=er_triage.MAX_LEVELS)
+
+
+def _skin():
+    from app.utils import skin_test
+
+    return skin_test
 
 
 def _ambulance_runs(row):
@@ -645,11 +842,37 @@ def give_order(order_id):
         eo.give(order, current_user)
     except ValueError as why:
         db.session.rollback()
-        flash(t("er_orders.needs_approval" if str(why) == "waiting_doctor"
-                else "er_orders.refused"), "error")
+        flash(t({"waiting_doctor": "er_orders.needs_approval",
+                 "skin_test": "skin_test.err_needed",
+                 "skin_positive": "skin_test.err_positive"}.get(str(why), "er_orders.refused")),
+              "error")
         return _to_attendance(order.emergency_visit_id)
     db.session.commit()
     flash(t("er_orders.given"), "success")
+    return _to_attendance(order.emergency_visit_id)
+
+
+@emergency_bp.route("/order/<int:order_id>/skin-test", methods=["POST"])
+@module_required(MODULE)
+def skin_test_result(order_id):
+    """The skin test read before an antibiotic injection — the nurse's act,
+    like giving."""
+    from app.models import ActivityLog
+    from app.utils import skin_test
+
+    order = _order_or_404(order_id)
+    result = request.form.get("result")
+    try:
+        skin_test.record(order, result, current_user)
+    except skin_test.SkinTestError as why:
+        db.session.rollback()
+        flash(t("skin_test.err_" + str(why)), "error")
+        return _to_attendance(order.emergency_visit_id)
+    ActivityLog.record("emergency.skin_test", user_id=current_user.id,
+                       entity="emergency_order", entity_id=order.id,
+                       detail=f"{order.name}:{result}")
+    db.session.commit()
+    flash(t("skin_test.saved_" + result), "danger" if result == "positive" else "success")
     return _to_attendance(order.emergency_visit_id)
 
 

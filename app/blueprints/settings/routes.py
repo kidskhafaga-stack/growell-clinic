@@ -91,6 +91,9 @@ TEXT_KEYS = [
     "currency_code",
     # Login security: lock an account after N failed attempts for M minutes.
     "login_max_attempts", "login_lockout_minutes",
+    # «Come back at once if…» on the emergency paper for the family — the
+    # hospital's own words; the program writes none (DOCTOR_EASE ط-٦).
+    "er_return_signs",
 ]
 TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled",
                "ai_patient_context", "ai_anonymize", "ai_discussion",
@@ -127,6 +130,9 @@ TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled"
                # «Pay first» in emergency — a child triaged non-urgent only,
                # never an urgent or untriaged one (`utils/er_pay_first`).
                "er_pay_first",
+               # The skin test before an antibiotic injection in emergency —
+               # on unless the hospital switches it off (`utils/skin_test`).
+               "er_skin_test",
                # Whether the program looks for a newer version when it starts.
                # It only ever *says*; updating stays a decision somebody makes
                # in update.bat. One anonymous request to GitHub carrying no
