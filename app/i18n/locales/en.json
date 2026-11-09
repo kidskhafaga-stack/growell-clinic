@@ -16909,5 +16909,15 @@
     "k_pulse_bpm": "Pulse",
     "k_resp_rate": "Resp",
     "k_spo2": "SpO₂ %"
+  },
+  "er_vitals": {
+    "title": "Vital signs",
+    "none": "No reading yet since arrival.",
+    "add": "Record a reading",
+    "at": "Time",
+    "chart": "Observation chart",
+    "out_of_band": "Saved — a reading is outside the age band: {readings}",
+    "up": "rising",
+    "down": "falling"
   }
 }

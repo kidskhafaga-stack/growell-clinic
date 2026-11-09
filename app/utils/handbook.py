@@ -1162,6 +1162,14 @@ SECTIONS = [
              "never lowers what the nurse decided. A child past their level's minutes and "
              "not yet seen shows «… min past its time». With no levels written, triage is "
              "typed by hand as before."),
+            ("<b>العلامات الحيوية في صفحة الحضور:</b> كل القراءات من ساعة ما الطفل وصل — عند "
+             "الباب، من اللوحة، أو من شاشة الملاحظة — في جدول واحد، كل رقم ملوّن بحدود سنّه "
+             "وجنبه سهم طالع ولا نازل عن اللي قبله. وتحتها خانة «سجّل قراءة» من نفس الصفحة "
+             "اللي الدكتور فاتحها.",
+             "<b>Vital signs on the attendance:</b> every reading since the child arrived — "
+             "at the door, from the board or the observation chart — in one table, each "
+             "number coloured by the age band with an arrow for which way it moved. Below "
+             "it, «Record a reading» from the same page the doctor has open."),
             ("<b>البارتيشنات ورقم الطابور:</b> فوق شاشة الطوارئ البارتيشنات اللي "
              "اتبنت في إعداد الأسرّة — مين فيها (محجوز أو جلسة) وكام فاضي. الطفل "
              "اللي مستني مكان ليه <b>رقم في الطابور</b>: العاجل الأول، بعده اللي "

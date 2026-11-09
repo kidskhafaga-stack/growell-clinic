@@ -127,6 +127,38 @@ def door_vitals(attendance, form, user, at=None):
     return obs, flags
 
 
+# --------------------------------------------- the readings of the stay (ط-٥) --
+def readings(attendance):
+    """The readings taken since the child arrived — newest first, each with
+    its bands and which way it moved from the reading before:
+    ``[{"obs", "bands": {field: band}, "trend": {field: "up"|"down"|None}}]``.
+    Taken here, from the board, or on the observations chart — one record."""
+    from app.models.observation import Observation
+    from app.utils import vital_bands
+    from app.utils.dosing import age_months_of
+
+    q = Observation.query.filter(Observation.patient_id == attendance.patient_id,
+                                 Observation.taken_at >= attendance.arrived_at)
+    if attendance.departed_at:
+        q = q.filter(Observation.taken_at <= attendance.departed_at)
+    rows = q.order_by(Observation.taken_at.asc(), Observation.id.asc()).all()
+    age = age_months_of(attendance.patient)
+    field_of = dict(vital_bands.READINGS)
+    out, before = [], {}
+    for obs in rows:
+        bands, trend = {}, {}
+        for kind, (value, band) in vital_bands.read(obs, age).items():
+            field = field_of[kind]
+            bands[field] = band
+            prev = before.get(field)
+            trend[field] = (None if value is None or prev is None or value == prev
+                            else "up" if value > prev else "down")
+            if value is not None:
+                before[field] = value
+        out.append({"obs": obs, "bands": bands, "trend": trend})
+    return out[::-1]
+
+
 # ----------------------------------------------------------- the waiting --
 def over_time(attendance, now=None):
     """Minutes past the level's time to the doctor, or ``None`` — a child

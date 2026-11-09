@@ -126,3 +126,58 @@ def test_only_an_admin_writes_the_levels_and_the_minutes_are_checked(er):
 
     with er["app"].app_context():
         assert er_triage.levels() == []
+
+
+# --------------------------------------------- ط-٥ the vitals on the attendance --
+#
+# The repeated readings were kept from the board, but the attendance — the
+# page the doctor has open — did not show them. Now it does, coloured by the
+# age band, with which way each moved, and a reading can be taken from it.
+
+def test_the_attendance_shows_the_readings_and_their_trend(er):
+    att = _arrive(er)
+    nurse = er["sign_in"]("nurse")
+    page = nurse.get(f"/emergency/attendance/{att}").get_data(as_text=True)
+    assert "data-er-vitals" in page and "data-no-vitals" in page
+    nurse.post(f"/emergency/triage/{att}", data={"level": "أصفر", "pulse_bpm": "120",
+                                                 "spo2": "97"})
+    from app.models import EmergencyVisit
+    from app.models.observation import Observation
+
+    with er["app"].app_context():
+        er["db"].session.get(EmergencyVisit, att).arrived_at -= timedelta(hours=1)
+        first = Observation.query.one()
+        first.taken_at = first.taken_at - timedelta(minutes=30)
+        er["db"].session.commit()
+    page = nurse.post(f"/emergency/attendance/{att}/vitals",
+                      data={"pulse_bpm": "150", "spo2": "88"},
+                      follow_redirects=True).get_data(as_text=True)
+    assert "data-er-vitals-table" in page and page.count("data-reading=") == 2
+    newest = page.split("data-reading=", 2)[1]
+    assert 'data-trend="up"' in newest and 'data-trend="down"' in newest
+    assert 'data-band="bad"' in newest, "SpO2 88 is outside the band"
+    assert "أكسجين" in page.split('class="flash flash--warning"', 1)[1][:400]
+
+
+def test_an_empty_reading_is_refused(er):
+    from app.models.observation import Observation
+
+    att = _arrive(er)
+    er["sign_in"]("nurse").post(f"/emergency/attendance/{att}/vitals", data={})
+    with er["app"].app_context():
+        assert Observation.query.count() == 0
+
+
+def test_readings_from_before_the_attendance_are_not_its_own(er):
+    from app.models import Patient
+    from app.models.observation import Observation
+
+    with er["app"].app_context():
+        er["db"].session.add(Observation(
+            patient_id=er["ids"]["child"], spo2=90,
+            taken_at=datetime.utcnow() - timedelta(days=3)))
+        er["db"].session.commit()
+        assert er["db"].session.get(Patient, er["ids"]["child"])
+    att = _arrive(er)
+    page = er["sign_in"]("doc").get(f"/emergency/attendance/{att}").get_data(as_text=True)
+    assert "data-no-vitals" in page

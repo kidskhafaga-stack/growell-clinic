@@ -480,6 +480,8 @@ def attendance(attendance_id):
         skin_ready=lambda o: _skin().blocks(o) is None,
         weighed=_weighed(row),
         today_iso=_today_iso(),
+        vitals=_triage().readings(row),
+        may_chart=module_enabled("observations"),
         # GAHAR ICD.02 ev. 3 — the ambulance run that brought this child, so
         # the pre-hospital record is one press from the attendance.
         ambulance_runs=_ambulance_runs(row),
@@ -545,6 +547,29 @@ def record_weight(attendance_id):
                                 source="emergency"))
     db.session.commit()
     flash(t("er_dose.weight_saved", kg=round(kg, 2)), "success")
+    return _to_attendance(row.id)
+
+
+@emergency_bp.route("/attendance/<int:attendance_id>/vitals", methods=["POST"])
+@module_required(MODULE)
+def record_vitals(attendance_id):
+    """A set of readings from the attendance the doctor has open (ط-٥) —
+    the same record the board and the observations chart keep."""
+    from app.models import EmergencyVisit
+    from app.utils import er_triage
+
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    obs, flags = er_triage.door_vitals(row, request.form, current_user)
+    if obs is None:
+        db.session.rollback()
+        flash(t("observations.nothing_measured"), "error")
+        return _to_attendance(row.id)
+    db.session.commit()
+    if flags:
+        flash(t("er_vitals.out_of_band", readings="، ".join(
+            f"{t('er_triage.k_' + k)} {v}" for k, v in flags)), "warning")
+    else:
+        flash(t("observations.saved"), "success")
     return _to_attendance(row.id)
 
 
