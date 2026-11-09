@@ -16873,8 +16873,8 @@
     "err_positive": "Skin test positive — this injection is not given. The doctor changes the treatment.",
     "err_result": "The result is negative or positive.",
     "err_closed": "This order was given or cancelled.",
-    "setting": "Skin test before an antibiotic injection in emergency",
-    "setting_hint": "An antibiotic injection (IM or IV) cannot be marked given until a negative skin test is written. A positive one is written on the child's allergies. Untick if the hospital does not skin-test."
+    "setting": "Skin test before an antibiotic injection (emergency and ward)",
+    "setting_hint": "An antibiotic injection (IM or IV) can be marked given only after a negative skin test is written — in emergency before the injection, on the ward before the first dose of each drug in the stay. A positive result is written on the child's allergies. Untick if the hospital does not skin-test."
   },
   "er_dose": {
     "suggest": "Dose by the program's rules for a weight of",

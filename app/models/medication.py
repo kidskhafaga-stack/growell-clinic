@@ -142,6 +142,11 @@ class MedicationOrder(db.Model):
     max_per_day = db.Column(db.String(60))
     rate = db.Column(db.String(60))
     course_days = db.Column(db.Integer)
+    # The skin test before an antibiotic injection (``utils/skin_test``) —
+    # once per drug in the stay, read before its first dose (د-٢).
+    skin_test_result = db.Column(db.String(10))
+    skin_test_at = db.Column(db.DateTime)
+    skin_test_by = db.Column(db.Integer, db.ForeignKey("users.id"))
 
     @property
     def missing_elements(self):

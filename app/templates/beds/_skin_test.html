@@ -1,0 +1,19 @@
+{# The skin test before the first dose of an injected antibiotic on the ward
+   (DOCTOR_EASE د-٢ — `utils/skin_test`): once per drug in the stay. #}
+{% macro skin_box(order) %}
+{% if skin_needed(order) %}
+  {% if order.skin_test_result == 'positive' %}
+  <span class="badge badge--danger" data-skin-result="positive">{{ t('skin_test.result_positive') }} · <span dir="ltr">{{ order.skin_test_at|clinic_time }}</span></span>
+  {% else %}
+  <form method="post" action="{{ url_for('beds.skin_test_result', order_id=order.id) }}"
+        style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0;" data-skin-test data-order-skin="{{ order.id }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <span class="hint" style="margin:0;"><i class="bi bi-eyedropper"></i> {{ t('skin_test.ask') }}</span>
+    <button class="btn btn-sm btn-outline gc-press" type="submit" name="result" value="negative">{{ t('skin_test.result_negative') }}</button>
+    <button class="btn btn-sm btn-outline gc-press" type="submit" name="result" value="positive" style="color:var(--danger);">{{ t('skin_test.result_positive') }}</button>
+  </form>
+  {% endif %}
+{% elif order.skin_test_result == 'negative' %}
+  <span class="badge badge--green" data-skin-result="negative">{{ t('skin_test.result_negative') }}</span>
+{% endif %}
+{% endmacro %}

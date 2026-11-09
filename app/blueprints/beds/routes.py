@@ -880,6 +880,7 @@ def admission(admission_id):
         # reconciled (`utils/med_reconciliation`).
         recon=_med_rec().status(row),
         stopped=[o for o in row.medication_orders if not o.is_running],
+        **_skin_helpers(),
         safety=drug_round.safety(row, lang=getattr(g, "lang", "ar")),
         routes=ROUTES, dose_outcomes=DOSE_OUTCOMES,
         may_order=current_user.can("medication_order"),
@@ -1935,6 +1936,7 @@ def drugs():
                            # The allergy said where the dose is given, not
                            # only where it was written.
                            allergy_of=lambda o, p: check_drug(p, drug=o.drug, name=o.drug_name),
+                           **_skin_helpers(),
                            levels=drug_round, routes=ROUTES,
                            outcomes=DOSE_OUTCOMES)
 
@@ -2039,6 +2041,11 @@ def dose(order_id):
         db.session.rollback()
         flash(t("meds.needs_reason"), "error")
         return _back_from_dose(row)
+    except drug_round.SkinTestFirst as why:
+        db.session.rollback()
+        flash(t("skin_test.err_" + ("positive" if str(why) == "skin_positive" else "needed")),
+              "error")
+        return _back_from_dose(row)
     except drug_round.TooSoon as floor:
         db.session.rollback()
         flash(t("meds.too_soon", at=to_local(floor.args[0]).strftime("%H:%M")),
@@ -2126,6 +2133,37 @@ def _ward_items():
     return (StoreItem.query
             .filter(StoreItem.is_active.is_(True))
             .order_by((StoreItem.item_type != "drug"), StoreItem.name).all())
+
+
+@beds_bp.route("/medication/<int:order_id>/skin-test", methods=["POST"])
+@module_required(MODULE)
+def skin_test_result(order_id):
+    """The skin test read before the first dose of an injected antibiotic —
+    the nurse's act, like giving (د-٢). A positive one goes on the child's
+    allergies."""
+    from app.models import ActivityLog
+    from app.utils import skin_test
+
+    row = MedicationOrder.query.get_or_404(order_id)
+    result = request.form.get("result")
+    try:
+        skin_test.record(row, result, current_user)
+    except skin_test.SkinTestError as why:
+        db.session.rollback()
+        flash(t("skin_test.err_" + str(why)), "error")
+        return _back_from_dose(row)
+    ActivityLog.record("ward.skin_test", user_id=current_user.id,
+                       entity="medication_order", entity_id=row.id,
+                       detail=f"{row.drug_name}:{result}")
+    db.session.commit()
+    flash(t("skin_test.saved_" + result), "danger" if result == "positive" else "success")
+    return _back_from_dose(row)
+
+
+def _skin_helpers():
+    from app.utils import skin_test
+
+    return {"skin_needed": skin_test.needed, "skin_blocks": skin_test.blocks}
 
 
 def _back_from_dose(order_row):

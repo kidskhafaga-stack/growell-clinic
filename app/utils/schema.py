@@ -1165,6 +1165,10 @@ ADDITIONS = [
     ("emergency_orders", "skin_test_result", "VARCHAR(10)"),
     ("emergency_orders", "skin_test_at", "DATETIME"),
     ("emergency_orders", "skin_test_by", "INTEGER"),
+    # …and on the ward, once per drug in the stay (DOCTOR_EASE د-٢).
+    ("medication_orders", "skin_test_result", "VARCHAR(10)"),
+    ("medication_orders", "skin_test_at", "DATETIME"),
+    ("medication_orders", "skin_test_by", "INTEGER"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"
