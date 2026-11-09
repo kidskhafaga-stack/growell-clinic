@@ -16885,5 +16885,29 @@
     "save_weight": "Save weight",
     "err_weight": "Weight in kg, between 0.3 and 200.",
     "weight_saved": "Weight saved: {kg} kg."
+  },
+  "er_triage": {
+    "title": "Triage levels",
+    "sub": "The hospital's own levels: name and colour, urgent or not, and the most minutes a child waits for the doctor. The program ships no scale and no times.",
+    "pick": "Level…",
+    "scale_own": "Hospital levels",
+    "name": "Level name",
+    "color": "Colour",
+    "urgent": "Urgent",
+    "minutes": "Longest wait for the doctor (min)",
+    "minutes_hint": "Empty = no limit",
+    "delete": "Remove",
+    "add": "New level",
+    "save": "Save levels",
+    "saved": "Triage levels saved.",
+    "none": "No levels written — triage is typed by hand as before.",
+    "err_minutes": "Minutes must be a number from 0 to 1440.",
+    "err_too_many": "At most 8 levels.",
+    "late": "{n} min past its time",
+    "raised": "Marked urgent for a reading outside the age band: {readings}",
+    "k_temperature_c": "Temp",
+    "k_pulse_bpm": "Pulse",
+    "k_resp_rate": "Resp",
+    "k_spo2": "SpO₂ %"
   }
 }

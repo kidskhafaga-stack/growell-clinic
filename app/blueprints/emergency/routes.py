@@ -132,6 +132,9 @@ def register():
                                eo.awaiting_confirmation(current_user)),
                            outside_waiting=len(eo.waiting_doctor()),
                            untriaged=er.untriaged(),
+                           levels=_triage().levels(),
+                           over_time=_triage().over_time,
+                           level_color=_triage().color_of,
                            incomplete=er.incomplete_departed(),
                            dispositions=DISPOSITIONS, arrivals=ARRIVALS,
                            leave_reasons=_reasons(), asked_on=_asked_on(),
@@ -229,10 +232,25 @@ def triage(visit_id):
     from app.utils import emergency as er
 
     row = db.get_or_404(EmergencyVisit, visit_id)
+    from app.utils import er_triage
+
+    # The hospital's own level, one press (ط-٤) — or typed, as before, where
+    # the hospital wrote none.
+    chosen = er_triage.level(request.form.get("level_key"))
+    level_name = chosen["name"] if chosen else request.form.get("level")
+    urgent = _tri(request.form.get("urgent"))
+    if chosen is not None and urgent is None:
+        urgent = chosen["urgent"]
+    # The vitals at the door, kept; a reading outside the age band raises
+    # «urgent» — never lowers it.
+    _obs, flags = er_triage.door_vitals(row, request.form, current_user)
+    raised = bool(flags) and urgent is not True
+    if raised:
+        urgent = True
     try:
-        er.triage(row, level=request.form.get("level"),
-                  scale=request.form.get("scale"),
-                  urgent=_tri(request.form.get("urgent")),
+        er.triage(row, level=level_name,
+                  scale=request.form.get("scale") or (t("er_triage.scale_own") if chosen else None),
+                  urgent=urgent,
                   note=request.form.get("note"), user=current_user)
     except ValueError:
         db.session.rollback()
@@ -241,6 +259,9 @@ def triage(visit_id):
     row.resp_symptoms = request.form.get("resp") == "1"
     row.resp_mask = (request.form.get("mask") == "1") if row.resp_symptoms else None
     db.session.commit()
+    if raised:
+        flash(t("er_triage.raised", readings="، ".join(
+            f"{t('er_triage.k_' + k)} {v}" for k, v in flags)), "warning")
     return _back(t("emergency.triaged"), "success")
 
 
@@ -537,6 +558,43 @@ def _weighed(row):
     from app.utils.dosing import latest_weight_record
 
     return latest_weight_record(row.patient)
+
+
+def _triage():
+    from app.utils import er_triage
+
+    return er_triage
+
+
+@emergency_bp.route("/levels", methods=["GET", "POST"])
+@module_required(MODULE)
+def triage_levels():
+    """The hospital's triage levels — its names, colours and minutes (ط-٤).
+    The program ships none."""
+    from app.models import ActivityLog
+    from app.utils import er_triage
+
+    if not current_user.is_admin:
+        abort(403, description=t("auth.no_permission"))
+    if request.method == "POST":
+        f = request.form
+        rows = [{"key": f.get(f"key_{i}"), "name": f.get(f"name_{i}"),
+                 "color": f.get(f"color_{i}"), "urgent": bool(f.get(f"urgent_{i}")),
+                 "minutes": f.get(f"minutes_{i}"), "delete": bool(f.get(f"delete_{i}"))}
+                for i in range(f.get("rows", type=int) or 0)]
+        try:
+            er_triage.save_levels(rows)
+        except er_triage.LevelError as why:
+            db.session.rollback()
+            flash(t("er_triage.err_" + str(why)), "error")
+            return redirect(url_for("emergency.triage_levels"))
+        ActivityLog.record("emergency.triage_levels", user_id=current_user.id,
+                           entity="setting", detail=str(len(rows)))
+        db.session.commit()
+        flash(t("er_triage.saved"), "success")
+        return redirect(url_for("emergency.triage_levels"))
+    return render_template("emergency/levels.html", levels=er_triage.levels(),
+                           max_levels=er_triage.MAX_LEVELS)
 
 
 def _skin():

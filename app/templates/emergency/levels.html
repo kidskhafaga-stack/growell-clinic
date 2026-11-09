@@ -1,0 +1,56 @@
+{% extends "shell.html" %}
+{% set active_module = 'emergency' %}
+{% block title %}{{ t('er_triage.title') }}{% endblock %}
+{% block page_heading %}{{ t('er_triage.title') }}{% endblock %}
+
+{% block content %}
+{# The hospital's triage levels, in its own words and numbers (ط-٤ —
+   `utils/er_triage`). The program ships none: with none written, triage is
+   typed by hand exactly as before. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-sliders"></i> {{ t('er_triage.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:70ch;">{{ t('er_triage.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('emergency.register') }}">
+    <i class="bi bi-arrow-return-right"></i> {{ t('emergency.register_title') }}</a>
+</div>
+
+{% set blanks = [max_levels - levels|length, 2]|min %}
+{% set total = levels|length + blanks %}
+<div class="card gc-scale-in">
+  {% if not levels %}<p class="hint" data-no-levels>{{ t('er_triage.none') }}</p>{% endif %}
+  <form method="post" data-levels-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="rows" value="{{ total }}">
+    <div style="overflow-x:auto;">
+    <table class="table" style="min-width:620px;">
+      <thead><tr>
+        <th>{{ t('er_triage.name') }}</th><th>{{ t('er_triage.color') }}</th>
+        <th>{{ t('er_triage.urgent') }}</th>
+        <th>{{ t('er_triage.minutes') }}<div class="hint">{{ t('er_triage.minutes_hint') }}</div></th>
+        <th>{{ t('er_triage.delete') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for i in range(total) %}{% set l = levels[i] if i < levels|length else none %}
+        <tr data-level-row="{{ i }}">
+          <td>
+            <input type="hidden" name="key_{{ i }}" value="{{ l.key if l else '' }}">
+            <input class="input" name="name_{{ i }}" maxlength="40" value="{{ l.name if l else '' }}"
+                   placeholder="{{ t('er_triage.add') if not l else '' }}" dir="auto"></td>
+          <td><input type="color" name="color_{{ i }}" value="{{ l.color if l else '#64748b' }}"
+                     style="width:44px;height:32px;border:0;background:none;"></td>
+          <td><input type="checkbox" name="urgent_{{ i }}" value="1" {% if l and l.urgent %}checked{% endif %}></td>
+          <td><input class="input num" type="number" min="0" max="1440" name="minutes_{{ i }}"
+                     value="{{ l.minutes if l and l.minutes is not none else '' }}" style="max-width:110px;" dir="ltr"></td>
+          <td>{% if l %}<input type="checkbox" name="delete_{{ i }}" value="1">{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit" style="margin-top:10px;">
+      <i class="bi bi-check2"></i> {{ t('er_triage.save') }}</button>
+  </form>
+</div>
+{% endblock %}

@@ -1145,6 +1145,23 @@ SECTIONS = [
              "dose:</b> above the treatment, the weight and its date (or a box to weigh the "
              "child now); as soon as the doctor picks the drug, the dose by the program's "
              "rules for that weight shows with «Use it», and the allergy if there is one."),
+            ("<b>مستويات الفرز بتاعت المستشفى:</b> من سجل الطوارئ ← «مستويات الفرز» "
+             "(للمدير) المستشفى تكتب مستوياتها هي: الاسم واللون، طارئ ولا لأ، وأقصى دقايق "
+             "يستنى فيها الطفل الدكتور — البرنامج ما بيحطش مقياس ولا أوقات من عنده. بعدها "
+             "الفرز ضغطة على مستوى، ومعاه الحرارة والنبض والتنفس والأكسجين والوزن عند الباب "
+             "بتتحفظ قراءة. قراءة برّه حدود سنّ الطفل بتعلّمه «طارئ» وتقول أنهي قراءة — "
+             "وعمرها ما بتنزّل اللي الممرضة قررته. ولو الطفل عدّى دقايق مستواه ولسه الدكتور "
+             "ما شافهوش بيظهر جنبه «عدّى وقته بـ … د». من غير مستويات مكتوبة الفرز بيتكتب "
+             "باليد زي الأول.",
+             "<b>The hospital's triage levels:</b> from the emergency register ← «Triage "
+             "levels» (admin) the hospital writes its own levels: name and colour, urgent or "
+             "not, and the most minutes a child waits for the doctor — the program ships no "
+             "scale and no times. Triage is then one press on a level, and the temperature, "
+             "pulse, breathing, oxygen and weight taken at the door are kept as a reading. A "
+             "reading outside the child's age band marks them urgent and says which — it "
+             "never lowers what the nurse decided. A child past their level's minutes and "
+             "not yet seen shows «… min past its time». With no levels written, triage is "
+             "typed by hand as before."),
             ("<b>البارتيشنات ورقم الطابور:</b> فوق شاشة الطوارئ البارتيشنات اللي "
              "اتبنت في إعداد الأسرّة — مين فيها (محجوز أو جلسة) وكام فاضي. الطفل "
              "اللي مستني مكان ليه <b>رقم في الطابور</b>: العاجل الأول، بعده اللي "

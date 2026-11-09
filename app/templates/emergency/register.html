@@ -20,6 +20,10 @@
       {% if mine_to_confirm %}<span class="badge badge--warn" data-mine-to-confirm>{{ mine_to_confirm }}</span>{% endif %}</a>
     {# The urgent attendances and their first 48 hours — free by decree
        1063/2014, listed to be claimed. #}
+    {% if current_user.is_admin %}
+    <a class="btn btn-outline gc-press" data-to-triage-levels href="{{ url_for('emergency.triage_levels') }}">
+      <i class="bi bi-sliders"></i> {{ t('er_triage.title') }}</a>
+    {% endif %}
     <a class="btn btn-outline gc-press" data-to-free-48h href="{{ url_for('emergency.free_48h') }}">
       <i class="bi bi-shield-plus"></i> {{ t('er_pay.free_title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('emergency.index') }}">
@@ -139,11 +143,28 @@
           <form method="post" action="{{ url_for('emergency.triage', visit_id=row.id) }}"
                 style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            {# المستوى بكلام المستشفى — البرنامج ما بيخترعش مقياس فرز. #}
+            {# المستوى بكلام المستشفى — البرنامج ما بيخترعش مقياس فرز. لو
+               المستشفى كتبت مستوياتها (ط-٤) الفرز ضغطة على مستوى. #}
+            {% if levels %}
+            <select class="select" name="level_key" style="max-width:150px;" required data-triage-level-pick>
+              <option value="">{{ t('er_triage.pick') }}</option>
+              {% for l in levels %}<option value="{{ l.key }}" style="color:{{ l.color }};">● {{ l.name }}</option>{% endfor %}
+            </select>
+            {% else %}
             <input class="input" name="level" style="max-width:110px;"
                    placeholder="{{ t('emergency.level_ph') }}" data-triage-level>
             <input class="input" name="scale" style="max-width:110px;"
                    placeholder="{{ t('emergency.scale_ph') }}">
+            {% endif %}
+            {# The vitals at the door — kept, and a reading outside the age
+               band raises «urgent». #}
+            <span style="display:flex;gap:4px;flex-wrap:wrap;" data-triage-vitals>
+              <input class="input num" name="temperature_c" type="number" step="0.1" placeholder="{{ t('er_triage.k_temperature_c') }}" style="max-width:76px;" dir="ltr">
+              <input class="input num" name="pulse_bpm" type="number" placeholder="{{ t('er_triage.k_pulse_bpm') }}" style="max-width:70px;" dir="ltr">
+              <input class="input num" name="resp_rate" type="number" placeholder="{{ t('er_triage.k_resp_rate') }}" style="max-width:70px;" dir="ltr">
+              <input class="input num" name="spo2" type="number" placeholder="{{ t('er_triage.k_spo2') }}" style="max-width:70px;" dir="ltr">
+              <input class="input num" name="weight_kg" type="number" step="0.01" placeholder="{{ t('er_dose.kg') }}" style="max-width:70px;" dir="ltr">
+            </span>
             <select class="select" name="urgent" style="max-width:120px;" data-triage-urgent>
               <option value="">{{ t('education.unsaid') }}</option>
               <option value="yes">{{ t('emergency.urgent_yes') }}</option>
@@ -203,8 +224,12 @@
         <td dir="ltr">{{ row.minutes }}′</td>
         <td>
           {% if row.level %}
+          {% set lc = level_color(row) %}
           <span class="badge {{ 'badge--danger' if row.urgent else 'badge--muted' }}"
+                {% if lc %}style="border-inline-start:4px solid {{ lc }};"{% endif %}
                 data-triage-of="{{ row.id }}">{{ row.level }}</span>
+          {% set late = over_time(row) %}
+          {% if late %}<span class="alert-pill danger" data-triage-late="{{ row.id }}"><i class="bi bi-alarm"></i> {{ t('er_triage.late', n=late) }}</span>{% endif %}
           {% if row.wait_to_triage is not none %}
           <span class="hint" dir="ltr">+{{ row.wait_to_triage }}′</span>{% endif %}
           {% else %}
