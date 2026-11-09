@@ -127,6 +127,9 @@ TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled"
                # «Pay first» in emergency — a child triaged non-urgent only,
                # never an urgent or untriaged one (`utils/er_pay_first`).
                "er_pay_first",
+               # The skin test before an antibiotic injection in emergency —
+               # on unless the hospital switches it off (`utils/skin_test`).
+               "er_skin_test",
                # Whether the program looks for a newer version when it starts.
                # It only ever *says*; updating stays a decision somebody makes
                # in update.bat. One anonymous request to GitHub carrying no

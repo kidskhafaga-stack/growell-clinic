@@ -1130,6 +1130,21 @@ SECTIONS = [
              "visit»</b> on the attendance opens the emergency encounter itself on the "
              "visit screen: complaint, examination, vitals and diagnosis — what «still "
              "missing» asks for."),
+            ("<b>اختبار الجلد قبل حقنة المضاد الحيوي:</b> أي مضاد حيوي متكتب عضل أو وريد في "
+             "الطوارئ زرار «اتدّى» بتاعه مش بيظهر غير بعد ما الممرضة تكتب نتيجة اختبار الجلد. "
+             "سلبي — الحقنة تتدّى. إيجابي — ما تتدّاش، وبتتكتب في حساسية الطفل لوحدها، والفحص "
+             "بيحذّر منها بعد كده. المستشفى اللي مش بتعمل اختبار جلد تشيله من الإعدادات. "
+             "و<b>الوزن والجرعة:</b> فوق العلاج الوزن وتاريخه (أو خانة توزن الطفل دلوقتي)، "
+             "وأول ما الدكتور يختار الدوا بتظهر الجرعة حسب قواعد البرنامج لوزنه بزرار "
+             "«استخدمها»، والحساسية لو موجودة.",
+             "<b>The skin test before an antibiotic injection:</b> an antibiotic written IM "
+             "or IV in emergency shows «Give» only after the nurse writes the skin test "
+             "result. Negative — it is given. Positive — it is not, it is written on the "
+             "child's allergies by itself, and the check warns about it from then on. A "
+             "hospital that does not skin-test switches it off in settings. <b>Weight and "
+             "dose:</b> above the treatment, the weight and its date (or a box to weigh the "
+             "child now); as soon as the doctor picks the drug, the dose by the program's "
+             "rules for that weight shows with «Use it», and the allergy if there is one."),
             ("<b>البارتيشنات ورقم الطابور:</b> فوق شاشة الطوارئ البارتيشنات اللي "
              "اتبنت في إعداد الأسرّة — مين فيها (محجوز أو جلسة) وكام فاضي. الطفل "
              "اللي مستني مكان ليه <b>رقم في الطابور</b>: العاجل الأول، بعده اللي "

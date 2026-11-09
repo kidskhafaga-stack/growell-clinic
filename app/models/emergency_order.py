@@ -63,6 +63,11 @@ class EmergencyOrder(db.Model):
     store_item_id = db.Column(db.Integer, db.ForeignKey("store_items.id"))
     units = db.Column(db.Integer, default=1, nullable=False)
     note = db.Column(db.String(255))
+    # The skin test before an antibiotic injection (``utils/skin_test``):
+    # negative / positive, when and by whom.
+    skin_test_result = db.Column(db.String(10))
+    skin_test_at = db.Column(db.DateTime)
+    skin_test_by = db.Column(db.Integer, db.ForeignKey("users.id"))
 
     # ---- whose -----------------------------------------------------------
     source = db.Column(db.String(12), nullable=False, default=OURS)

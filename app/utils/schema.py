@@ -1160,6 +1160,11 @@ ADDITIONS = [
     # LAB_GLAB360_PLAN م-٦: a child who came for a test only, on an outside
     # doctor's paper (``utils/lab_walkin``).
     ("visits", "outside_doctor_id", "INTEGER"),
+    # The skin test before an antibiotic injection in emergency
+    # (``utils/skin_test``).
+    ("emergency_orders", "skin_test_result", "VARCHAR(10)"),
+    ("emergency_orders", "skin_test_at", "DATETIME"),
+    ("emergency_orders", "skin_test_by", "INTEGER"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

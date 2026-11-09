@@ -454,6 +454,11 @@ def attendance(attendance_id):
         owed=len(eo.unbilled(row.patient_id)),
         tests=eo.tests_for(row), missing=er.missing(row),
         safety=eo.safety(row, lang=getattr(g, "lang", "ar")),
+        # The antibiotic injections that wait for a skin test.
+        skin_tests={o.id: True for o in orders if _skin().needed(o)},
+        skin_ready=lambda o: _skin().blocks(o) is None,
+        weighed=_weighed(row),
+        today_iso=_today_iso(),
         # GAHAR ICD.02 ev. 3 — the ambulance run that brought this child, so
         # the pre-hospital record is one press from the attendance.
         ambulance_runs=_ambulance_runs(row),
@@ -463,6 +468,81 @@ def attendance(attendance_id):
         is_doctor=eo.is_doctor(current_user),
         dispositions=DISPOSITIONS, leave_reasons=_reasons(),
         asked_on=_asked_on())
+
+
+@emergency_bp.route("/attendance/<int:attendance_id>/dose")
+@module_required(MODULE)
+def dose_for(attendance_id):
+    """JSON for the order form (ط-٣): the dose for *this* child by the
+    clinic's own dosing rules (``rx_safety.check`` → ``dosing.calculate``),
+    the weight it was worked from with its date, and the allergy on the file.
+    A suggestion the doctor presses to use — never filled in by itself."""
+    from app.models import Drug, EmergencyVisit
+    from app.utils.dosing import latest_weight_record
+    from app.utils.rx_safety import check
+
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    drug = db.session.get(Drug, request.args.get("drug_id", type=int) or 0)
+    name = (request.args.get("name") or "").strip()[:200]
+    lang = getattr(g, "lang", "ar")
+    weighed = latest_weight_record(row.patient)
+    out = {"weight": weighed.weight_kg if weighed else None,
+           "weight_date": weighed.record_date.isoformat() if weighed else None}
+    if not drug and not name:
+        return jsonify(out)
+    result = check([{"name": name or drug.label(lang), "drug": drug}], patient=row.patient, lang=lang)
+    line = result["lines"][0]
+    res = line.get("result") or {}
+    alg = line.get("allergy")
+    out.update({
+        "generic": line.get("generic_name") or "",
+        "dose_mg": res.get("dose_mg"), "dose_mg_max": res.get("dose_mg_max"),
+        "ml": res.get("ml"), "ml_max": res.get("ml_max"),
+        "doses_per_day": res.get("doses_per_day"),
+        "warnings": [t("drugbook.warn_" + w) for w in line.get("warnings") or []],
+        "allergy": (t("allergy.flash_" + alg["level"]).replace("{drug}", line["name"])
+                    .replace("{allergy}", alg["allergy"]) if alg else None),
+    })
+    return jsonify(out)
+
+
+@emergency_bp.route("/attendance/<int:attendance_id>/weight", methods=["POST"])
+@module_required(MODULE)
+def record_weight(attendance_id):
+    """Today's weight, from the attendance — a dose by weight needs one, and
+    a child in emergency is weighed at the door."""
+    from app.models import EmergencyVisit, GrowthRecord
+    from app.utils.clock import local_today
+
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    kg = request.form.get("weight_kg", type=float)
+    if kg is None or not (0.3 <= kg <= 200):
+        flash(t("er_dose.err_weight"), "error")
+        return _to_attendance(row.id)
+    db.session.add(GrowthRecord(patient_id=row.patient_id, visit_id=row.visit_id,
+                                record_date=local_today(), weight_kg=round(kg, 2),
+                                source="emergency"))
+    db.session.commit()
+    flash(t("er_dose.weight_saved", kg=round(kg, 2)), "success")
+    return _to_attendance(row.id)
+
+
+def _today_iso():
+    from app.utils.clock import local_today
+
+    return local_today().isoformat()
+
+
+def _weighed(row):
+    from app.utils.dosing import latest_weight_record
+
+    return latest_weight_record(row.patient)
+
+
+def _skin():
+    from app.utils import skin_test
+
+    return skin_test
 
 
 def _ambulance_runs(row):
@@ -645,11 +725,37 @@ def give_order(order_id):
         eo.give(order, current_user)
     except ValueError as why:
         db.session.rollback()
-        flash(t("er_orders.needs_approval" if str(why) == "waiting_doctor"
-                else "er_orders.refused"), "error")
+        flash(t({"waiting_doctor": "er_orders.needs_approval",
+                 "skin_test": "skin_test.err_needed",
+                 "skin_positive": "skin_test.err_positive"}.get(str(why), "er_orders.refused")),
+              "error")
         return _to_attendance(order.emergency_visit_id)
     db.session.commit()
     flash(t("er_orders.given"), "success")
+    return _to_attendance(order.emergency_visit_id)
+
+
+@emergency_bp.route("/order/<int:order_id>/skin-test", methods=["POST"])
+@module_required(MODULE)
+def skin_test_result(order_id):
+    """The skin test read before an antibiotic injection — the nurse's act,
+    like giving."""
+    from app.models import ActivityLog
+    from app.utils import skin_test
+
+    order = _order_or_404(order_id)
+    result = request.form.get("result")
+    try:
+        skin_test.record(order, result, current_user)
+    except skin_test.SkinTestError as why:
+        db.session.rollback()
+        flash(t("skin_test.err_" + str(why)), "error")
+        return _to_attendance(order.emergency_visit_id)
+    ActivityLog.record("emergency.skin_test", user_id=current_user.id,
+                       entity="emergency_order", entity_id=order.id,
+                       detail=f"{order.name}:{result}")
+    db.session.commit()
+    flash(t("skin_test.saved_" + result), "danger" if result == "positive" else "success")
     return _to_attendance(order.emergency_visit_id)
 
 
