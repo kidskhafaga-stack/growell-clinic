@@ -16996,5 +16996,31 @@
     "mode_optional": "Optional",
     "mode_required": "Required",
     "scanned": "Band scanned"
+  },
+  "vent": {
+    "title": "Ventilator",
+    "now": "Now",
+    "off": "Not on a machine",
+    "never": "No settings written yet.",
+    "mode": "Mode",
+    "mode_ph": "CPAP, SIMV, PC…",
+    "fio2": "FiO2 %",
+    "peep": "PEEP",
+    "rate": "Rate",
+    "pip": "PIP",
+    "tidal_ml": "Volume mL",
+    "pressure_support": "PS",
+    "ti": "Ti s",
+    "flow": "Flow L/min",
+    "note": "Note",
+    "at": "Time",
+    "add": "Record settings",
+    "stopped": "Taken off the machine",
+    "saved": "Settings recorded.",
+    "err_mode": "Write the mode.",
+    "err_number": "A number is outside what a machine can be set to.",
+    "err_at": "The time must be between admission and now.",
+    "err_closed": "This stay has ended.",
+    "hint": "The doctor's numbers — the program suggests no settings. Each change is a row; the latest is what the machine is on."
   }
 }

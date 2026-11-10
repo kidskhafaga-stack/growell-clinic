@@ -971,6 +971,15 @@ SECTIONS = [
              "blood pressure and the oxygen support (room air, nasal, mask, CPAP, "
              "ventilator), and both show in the readings table. The board says, beside "
              "the child, when the last reading was on CPAP or a ventilator."),
+            ("<b>جهاز التنفس (ع-٢):</b> في صفحة إقامة العناية والحضّانات كارت «جهاز التنفس»: "
+             "الطبيب يكتب الوضع وFiO2 وPEEP والمعدّل وPIP والحجم وPS وTi والتدفق — كل تغيير "
+             "صف، وفوق «دلوقتي» بآخر إعداد، وعلامة «اتشال من الجهاز» لما يتشال. البرنامج "
+             "ما بيقترحش إعدادات، وبيرفض بس رقم مفيش جهاز بيتظبط عليه.",
+             "<b>Ventilator:</b> on an intensive care or incubator stay, a «Ventilator» card: "
+             "the doctor writes the mode, FiO2, PEEP, rate, PIP, volume, PS, Ti and flow — each "
+             "change a row, «Now» above with the latest, and «Taken off the machine» when it "
+             "stops. The program suggests no settings and refuses only a number no machine "
+             "can be set to."),
             ("<b>ميزان السوائل (د-٥):</b> في تاب «التمريض والتقييم» الممرضة بتكتب الداخل "
              "(بالفم، رضعة/أنبوبة، محاليل، دم) والخارج (بول، ترجيع، براز، درنقة، شفط معدة) "
              "بالمللي وبالساعة اللي حصل فيها. فوق: مجموع آخر ٢٤ ساعة والفرق، والبول مل/كجم/ساعة "

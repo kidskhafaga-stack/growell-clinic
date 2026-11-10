@@ -431,9 +431,12 @@ from app.models.device import (
 
 # DOCTOR_EASE د-٥ — fluid balance on the ward.
 from app.models.fluid_balance import FluidEntry
+# DOCTOR_EASE ع-٢ — the breathing machine's settings.
+from app.models.ventilation import VentSetting
 
 __all__ = [
     "FluidEntry",
+    "VentSetting",
     "User",
     "Setting",
     "SavedReport",

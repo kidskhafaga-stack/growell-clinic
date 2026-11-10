@@ -890,6 +890,9 @@ def admission(admission_id):
         fluid=_fluid().summary(row), fluid_days=_fluid().by_day(row),
         fluid_recent=_fluid().recent(row), fluid_in=_fluid().KINDS_IN,
         fluid_out=_fluid().KINDS_OUT, fluid_now=_local_now_input(),
+        # ع-٢ — the breathing machine's settings, in the doctor's numbers.
+        vent_rows=_vent().history(row), vent_now=_vent().current(row),
+        vent_shown=_vent().shown(row),
         safety=drug_round.safety(row, lang=getattr(g, "lang", "ar")),
         routes=ROUTES, dose_outcomes=DOSE_OUTCOMES,
         may_order=current_user.can("medication_order"),
@@ -2228,6 +2231,28 @@ def _setting(key):
     from app.models import Setting
 
     return Setting.get(key)
+
+
+def _vent():
+    from app.utils import ventilation
+
+    return ventilation
+
+
+@beds_bp.route("/stay/<int:admission_id>/vent", methods=["POST"])
+@module_required(MODULE)
+def record_vent(admission_id):
+    """A change of the breathing machine's settings (ع-٢) — the doctor's."""
+    row = Admission.query.get_or_404(admission_id)
+    try:
+        _vent().record(row, request.form, user=current_user, at=_happened_at())
+    except _vent().VentError as why:
+        db.session.rollback()
+        flash(t("vent.err_" + str(why)), "error")
+    else:
+        db.session.commit()
+        flash(t("vent.saved"), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id) + "#overview")
 
 
 def _fluid():
