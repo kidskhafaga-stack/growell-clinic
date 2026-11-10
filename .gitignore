@@ -12,7 +12,11 @@ venv/
 env/
 ENV/
 
-# Flask / instance
+# The clinic's own files — database, uploads, backups, clinic.env, licence.
+# Never the program's (app/data_home.py), never in this repository.
+/data/
+
+# Flask / instance — where an older copy kept the database before data/
 instance/
 
 # Per-machine settings (port, database location) — the clinic's own
@@ -36,11 +40,8 @@ Thumbs.db
 # Logs
 *.log
 
-# Uploaded files (keep the folder, ignore contents)
-app/static/uploads/**
-!app/static/uploads/
-!app/static/uploads/**/
-!app/static/uploads/**/.gitkeep
+# Where an older copy kept uploaded files, before they moved into data/uploads
+app/static/uploads/
 
 # Imported at runtime by a clinic (WHO ICD-11 needs their own credentials),
 # never shipped — and a test that wrote one here used to dirty the tree.

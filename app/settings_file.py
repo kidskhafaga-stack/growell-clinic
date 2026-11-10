@@ -1,5 +1,8 @@
 """``clinic.env`` — the handful of settings that live outside the database.
 
+It lives in the clinic's ``data`` folder beside the database, so an update —
+which replaces the program and never ``data`` — cannot take it away.
+
 The port, the database location and the secret key have to be known *before*
 the app is built, so they can't be clinic settings like everything else. They
 were environment variables, which on a clinic's Windows PC means "edit a batch
@@ -49,8 +52,9 @@ DEFAULT_LANGUAGE=ar
 # واحتفظ بنسخة منها في مكان أمان: مافيش أي طريقة لاسترجاعها.
 # BACKUP_PASSWORD=
 
-# Where the database lives. The default is instance/growell.db
-# DATABASE_URL=sqlite:///instance/growell.db
+# Where the database lives. The default is growell.db in this same
+# data folder — leave it unless the clinic moved to PostgreSQL.
+# DATABASE_URL=postgresql://…
 
 # How many server processes answer. One is right for a clinic. A hospital
 # with dozens of screens open at once can set it to the number of cores
@@ -62,13 +66,17 @@ DEFAULT_LANGUAGE=ar
 
 
 def default_root():
-    """The project folder — where the file sits next to start.bat."""
+    """The program folder — where start.bat is."""
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def path(root=None):
-    """Where the file is, or would be."""
-    return os.path.join(root or default_root(), FILENAME)
+    """Where the file is, or would be: inside the data folder, out of every
+    update's way (``app/data_home``) — or beside start.bat on an older copy
+    until it is moved."""
+    from app.data_home import env_path
+
+    return env_path(root or default_root())
 
 
 def parse(text):
@@ -118,6 +126,7 @@ def ensure_file(root=None):
     if os.path.isfile(target):
         return False
     try:
+        os.makedirs(os.path.dirname(target), exist_ok=True)
         with open(target, "w", encoding="utf-8") as fh:
             fh.write(TEMPLATE)
         return True
@@ -173,6 +182,7 @@ def ensure_secret(root=None, environ=None):
     try:
         # Append rather than rewrite: the file belongs to the clinic and may
         # carry their own edits and comments.
+        os.makedirs(os.path.dirname(target), exist_ok=True)
         with open(target, "a", encoding="utf-8") as fh:
             fh.write(line)
     except OSError:
@@ -209,6 +219,7 @@ def set_value(key, value, root=None, environ=None):
     if value:
         kept.append(f"{key}={value}")
     try:
+        os.makedirs(os.path.dirname(target), exist_ok=True)
         with open(target, "w", encoding="utf-8") as fh:
             fh.write("\n".join(kept).rstrip("\n") + "\n")
     except OSError:

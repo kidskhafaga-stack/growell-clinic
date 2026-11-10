@@ -130,6 +130,17 @@ def schema_generation():
     return len(ADDITIONS)
 
 
+def _migration():
+    try:
+        from app.extensions import db
+        from app.utils.migrations import current
+
+        with db.engine.connect() as connection:
+            return current(connection)
+    except Exception:  # noqa: BLE001 - a label never fails a backup
+        return None
+
+
 def manifest():
     """What goes in the archive beside the database."""
     from datetime import datetime
@@ -138,5 +149,8 @@ def manifest():
         "app_version": APP_VERSION,
         "schema_version": schema_version(),
         "schema_generation": schema_generation(),
+        # The last numbered migration this database ran (UPGRADE_PLAN ٧) —
+        # a program that does not know it is older than the copy.
+        "migration": _migration(),
         "created_at": datetime.now().isoformat(timespec="seconds"),
     }

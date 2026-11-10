@@ -24,6 +24,7 @@ from flask import (
 )
 from flask_login import current_user, login_required
 
+from app.data_home import upload_dir
 from app.blueprints.patients import patients_bp
 from app.extensions import db
 from app.i18n import t
@@ -78,7 +79,7 @@ MODULE = "patients"
 
 
 def _upload_dir():
-    return os.path.join(current_app.static_folder, "uploads", "patients")
+    return upload_dir("patients")
 
 
 @patients_bp.route("/<int:patient_id>/documents", methods=["POST"])

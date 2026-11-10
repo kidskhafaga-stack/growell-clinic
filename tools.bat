@@ -42,7 +42,7 @@ echo   ACCOUNTS
 echo     9  Create an administrator
 echo.
 echo   SETTINGS
-echo    10  Open clinic.env (port, language)
+echo    10  Open data\clinic.env (port, language)
 echo    11  Show all available commands
 echo.
 echo     0  Exit
@@ -135,8 +135,9 @@ goto done
 
 :settings
 echo.
-if not exist "clinic.env" python -c "from app.settings_file import ensure_file; ensure_file()"
-notepad clinic.env
+python -c "from app.settings_file import ensure_file; ensure_file()"
+for /f "usebackq delims=" %%E in (`python -c "from app.settings_file import path; print(path())"`) do set "PP_ENV=%%E"
+notepad "%PP_ENV%"
 echo Restart the program for the change to take effect.
 goto done
 

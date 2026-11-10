@@ -59,7 +59,7 @@ def clinic_db(tmp_path, monkeypatch):
 
     monkeypatch.setattr("app.utils.backups.db_path", lambda: str(live))
     monkeypatch.setattr("app.utils.backups.backup_dir", lambda: str(backups))
-    monkeypatch.setattr("app.utils.backups.uploads_root", lambda: str(uploads))
+    app.config["UPLOAD_FOLDER"] = str(uploads)
     return {"app": app, "db": db, "live": live, "backups": backups,
             "uploads": uploads}
 

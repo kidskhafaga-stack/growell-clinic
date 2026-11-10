@@ -3,7 +3,7 @@ REM ============================================================
 REM   PediaPro - One-click startup for Windows
 REM   Installs everything the app needs, then launches it.
 REM
-REM   To change the port: edit clinic.env (PORT=8080), or run
+REM   To change the port: edit data\clinic.env (PORT=8080), or run
 REM   this file with the port after it:   start.bat 8080
 REM   For maintenance commands (backup, upgrade, import...),
 REM   run tools.bat - or read COMMANDS.md.
@@ -52,11 +52,15 @@ call ".venv\Scripts\activate.bat"
 python -m pip install --upgrade pip >nul 2>nul
 pip install -r requirements.txt
 
-REM --- 4) Local settings file (port, language) on first run ---
-if not exist "clinic.env" (
-  echo [3/5] Creating clinic.env - open it in Notepad to change the port.
-  python -c "from app.settings_file import ensure_file; ensure_file()"
-)
+REM --- 4) The clinic's data folder, and its settings file ---
+REM Everything that is the clinic's and not the program's lives in data\ :
+REM the database, the uploaded files, the backups and clinic.env. An update
+REM replaces the program and never that folder. A copy from before this kept
+REM them inside the program folder; they move into data\ here, once, by
+REM themselves - and only when nothing else has the database open.
+echo [3/5] Checking the clinic's data folder...
+python -m app.data_home settle
+python -c "from app.settings_file import ensure_file; ensure_file()"
 
 REM --- 5) Initialise on first run, then match the database shape to the code ---
 REM
@@ -73,7 +77,8 @@ REM quietly, and a full disk is what stops a clinic.
 REM
 REM The heavy version (seeding, backfills, a snapshot before it) belongs to
 REM update.bat, where somebody decided to update.
-if not exist "instance\growell.db" (
+python -m app.data_home has-db
+if errorlevel 1 (
   echo [4/5] Initialising database and seeding the clinic catalogues...
   flask --app run seed
   if errorlevel 1 (

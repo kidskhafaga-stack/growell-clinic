@@ -564,10 +564,10 @@ def _local_image_path(image_url):
     if not image_url or image_url.startswith(("http://", "https://")):
         return None
     try:
-        from flask import current_app
-        rel = image_url.split("static/", 1)[1] if "static/" in image_url else image_url
-        path = os.path.join(current_app.static_folder, rel)
-        return path if os.path.isfile(path) else None
+        from app.data_home import stored_path
+
+        path = stored_path(image_url)
+        return path if path and os.path.isfile(path) else None
     except Exception:  # noqa: BLE001 - no app context / bad path
         return None
 

@@ -60,7 +60,7 @@ def test_clearing_what_was_never_marked_is_not_an_error(root):
 def test_it_lives_beside_the_database_not_beside_the_code(root):
     """The code directory is the thing being overwritten while this file has
     to keep meaning something."""
-    assert os.path.dirname(update_guard.marker_path(root)).endswith("instance")
+    assert os.path.basename(os.path.dirname(update_guard.marker_path(root))) == "data"
 
 
 # ------------------------------------------------------------ going stale ----

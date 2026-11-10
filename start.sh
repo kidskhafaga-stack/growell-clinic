@@ -3,7 +3,7 @@
 #   PediaPro - One-click startup for Linux / macOS
 #   Installs everything the app needs, then launches it.
 #
-#   To change the port: edit clinic.env (PORT=8080), or pass it
+#   To change the port: edit data/clinic.env (PORT=8080), or pass it
 #   here:   ./start.sh 8080
 #   For maintenance commands (backup, upgrade, import...), run
 #   ./tools.sh - or read COMMANDS.md.
@@ -40,16 +40,18 @@ source .venv/bin/activate
 python -m pip install --upgrade pip >/dev/null 2>&1 || true
 pip install -r requirements.txt
 
-# 4) Local settings file (port, language) on first run
-if [ ! -f "clinic.env" ]; then
-  echo "[3/5] Creating clinic.env - edit it to change the port."
-  python -c "from app.settings_file import ensure_file; ensure_file()"
-fi
+# 4) The clinic's data folder (database, uploads, backups, clinic.env) - an
+#    update replaces the program and never data/. A copy from before this kept
+#    them inside the program folder; they move here once, by themselves, and
+#    only when nothing else has the database open.
+echo "[3/5] Checking the clinic's data folder..."
+python -m app.data_home settle
+python -c "from app.settings_file import ensure_file; ensure_file()"
 
 # 5) Initialise the database on first run, then ALWAYS upgrade it. The upgrade
 #    step is what adds new columns/tables after an update, so it must run on
 #    every start - not only when a database already existed.
-if [ ! -f "instance/growell.db" ]; then
+if ! python -m app.data_home has-db; then
   echo "[4/5] Initialising database and seeding the clinic catalogues..."
   flask --app run seed
 fi

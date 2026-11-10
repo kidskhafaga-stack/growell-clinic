@@ -25,10 +25,12 @@ class Config:
     # every clinic already running has its data in a file called this, and a
     # program looking for a different name would come up empty and offer to
     # set up a new clinic.
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL",
-        "sqlite:///" + os.path.join(basedir, "instance", "growell.db"),
-    )
+    #
+    # Unset here means «growell.db in the clinic's data folder», which is
+    # worked out as the app is built (``app._apply_environment``) — the
+    # folder is only known once an older copy's ``instance/`` has had the
+    # chance to move (``app/data_home``).
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or None
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
 

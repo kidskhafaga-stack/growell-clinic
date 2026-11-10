@@ -6,6 +6,10 @@ Flask-WTF==1.3.0
 # 3.1.9 closes PYSEC-2026-4312 (3.1.6 had it).
 Werkzeug==3.1.9
 python-dotenv==1.2.4
+# Numbered database migrations for what the additive upgrade cannot do —
+# a rename, a drop, a change of type (app/utils/migrations.py). Pure Python,
+# so the same wheel serves 32- and 64-bit Windows.
+alembic==1.20.1
 # Serves the clinic instead of Werkzeug's development server
 waitress==3.0.2
 # AES-256 ZIP for encrypted backups — the archive is every patient the clinic

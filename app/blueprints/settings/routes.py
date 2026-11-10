@@ -7,6 +7,7 @@ from flask import (current_app, flash, g, jsonify, redirect, render_template,
 from flask_login import current_user
 from werkzeug.utils import secure_filename
 
+from app.data_home import upload_dir
 from app.blueprints.settings import settings_bp
 from app.extensions import db
 from app.i18n import t
@@ -244,7 +245,7 @@ def _keep_or_clear_secrets():
 
 
 def _logo_dir():
-    return os.path.join(current_app.static_folder, "uploads", "clinic")
+    return upload_dir("clinic")
 
 
 def _ai_form_config():

@@ -29,6 +29,7 @@ def clinic(tmp_path):
     static = tmp_path / "static"
     (static / "uploads").mkdir(parents=True)
     app.static_folder = str(static)
+    app.config["UPLOAD_FOLDER"] = str(static / "uploads")
     with app.app_context():
         db.create_all()
         from app.models import Family, Parent, Patient

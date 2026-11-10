@@ -24,6 +24,7 @@ biography of a real person belongs in a source file. Each of them carries both
 languages: this page is read in Arabic by the clinic and in English by whoever
 is being shown the system, and one string cannot serve both.
 """
+from app.data_home import upload_dir
 from app.models.setting import Setting
 
 # The developer's credit already existed as the copyright line; this is the
@@ -383,7 +384,7 @@ def _photo_dir():
 
     from flask import current_app
 
-    path = os.path.join(current_app.static_folder, "uploads", "about")
+    path = upload_dir("about")
     os.makedirs(path, exist_ok=True)
     return path
 

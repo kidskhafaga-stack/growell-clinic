@@ -39,6 +39,7 @@ def journey(clinic, tmp_path):
     static = tmp_path / "static"
     (static / "uploads" / "patient_docs").mkdir(parents=True)
     clinic["app"].static_folder = str(static)
+    clinic["app"].config["UPLOAD_FOLDER"] = str(static / "uploads")
 
     with clinic["app"].app_context():
         from datetime import time

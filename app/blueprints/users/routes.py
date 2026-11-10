@@ -4,6 +4,7 @@ from flask_login import current_user
 
 import re
 
+from app.data_home import upload_dir
 from app.blueprints.users import users_bp
 from app.extensions import db
 from app.i18n import t
@@ -449,7 +450,7 @@ def _save_user_photo():
     ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
     if ext not in {"png", "jpg", "jpeg", "webp"}:
         return None
-    path = os.path.join(current_app.static_folder, "uploads", "users")
+    path = upload_dir("users")
     os.makedirs(path, exist_ok=True)
     name = f"{uuid.uuid4().hex}.{ext}"
     file.save(os.path.join(path, secure_filename(name)))

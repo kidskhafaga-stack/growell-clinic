@@ -44,7 +44,7 @@ while true; do
     9  Create an administrator
 
   SETTINGS / الإعدادات
-   10  Edit clinic.env (port, language)
+   10  Edit data/clinic.env (port, language)
    11  Show all available commands
 
     0  Exit
@@ -84,8 +84,8 @@ for b in list_backups():
        fi
        pause ;;
     9) flask --app run create-admin; pause ;;
-    10) [ -f clinic.env ] || python -c "from app.settings_file import ensure_file; ensure_file()"
-        "${EDITOR:-nano}" clinic.env
+    10) python -c "from app.settings_file import ensure_file; ensure_file()"
+        "${EDITOR:-nano}" "$(python -c 'from app.settings_file import path; print(path())')"
         echo "Restart the program for the change to take effect."; pause ;;
     11) flask --app run --help
         echo; echo "Full reference with explanations: COMMANDS.md"; pause ;;

@@ -107,7 +107,7 @@ flask --app run seed
 python run.py
 # ثم افتح http://localhost:5000
 
-# لتغيير المنفذ: عدّل PORT في ملف clinic.env، أو مرّة واحدة:
+# لتغيير المنفذ: عدّل PORT في ملف data\clinic.env، أو مرّة واحدة:
 python run.py 8080
 ```
 

@@ -9672,7 +9672,7 @@
     "last": "آخر مزامنة",
     "last_failed": "آخر محاولة ما نجحتش",
     "sync_now": "زامن دلوقتي",
-    "env_hint": "اكتب SURVEY_PAGE_URL و SURVEY_SYNC_KEY في clinic.env وافتح البرنامج تاني — الخطوات في outside/survey/README.md. لحد ما تتوصّل، الاستبيان بيتبعت بصفحة البرنامج زي الأول."
+    "env_hint": "اكتب SURVEY_PAGE_URL و SURVEY_SYNC_KEY في data/clinic.env وافتح البرنامج تاني — الخطوات في outside/survey/README.md. لحد ما تتوصّل، الاستبيان بيتبعت بصفحة البرنامج زي الأول."
   },
   "stay_tests": {
     "title": "التحاليل والأشعة",
