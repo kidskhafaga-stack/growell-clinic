@@ -437,12 +437,18 @@ from app.models.ventilation import VentSetting
 from app.models.neonatal_event import NeonatalEvent
 # DOCTOR_EASE ح-٣ — phototherapy sessions.
 from app.models.phototherapy import PhotoSession
+# LAB_GLAB360_PLAN م-٢ أ — the analysers and their result files.
+from app.models.lab_device import LabDevice, LabDeviceCode, LabImportLine, LabImportRun
 
 __all__ = [
     "FluidEntry",
     "VentSetting",
     "NeonatalEvent",
     "PhotoSession",
+    "LabDevice",
+    "LabDeviceCode",
+    "LabImportRun",
+    "LabImportLine",
     "User",
     "Setting",
     "SavedReport",

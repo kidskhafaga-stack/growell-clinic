@@ -1,0 +1,64 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_device.run_title', device=run.device.name) }}{% endblock %}
+{% block page_heading %}{{ t('lab_device.title') }}{% endblock %}
+
+{% block content %}
+{# One file read: each line written onto its tube, or held with the reason
+   and the way to finish it. Nothing is put on a child by a near match. #}
+{% from "labs/_nav.html" import lab_nav with context %}
+{{ lab_nav('devices') }}
+{% set held = run.lines|selectattr('state', 'in', review)|list %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-file-earmark-text"></i> {{ t('lab_device.run_title', device=run.device.name) }}</h1>
+    <p class="page-sub" style="margin:0;"><span dir="ltr">{{ run.at|clinic_stamp }}</span>{% if run.filename %} · <span dir="ltr">{{ run.filename }}</span>{% endif %}
+      {% if run.shape %} · {{ t('lab_device.shape_' ~ run.shape) }}{% endif %}{% if run.by %} · {{ run.by.display_name(current_lang) }}{% endif %}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    {% if held %}
+    <form method="post" style="margin:0;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-primary gc-press" type="submit" name="action" value="retry" data-retry><i class="bi bi-arrow-repeat"></i> {{ t('lab_device.retry') }}</button></form>
+    {% endif %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('labs.device', device_id=run.device_id) }}"><i class="bi bi-hdd-network"></i> {{ run.device.name }}</a>
+  </div>
+</div>
+<div class="card gc-scale-in">
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:760px;" data-import-lines>
+    <thead><tr><th>{{ t('lab_device.row') }}</th><th>{{ t('lab_device.sample') }}</th><th>{{ t('lab_device.code') }}</th>
+      <th>{{ t('lab_device.value') }}</th><th>{{ t('lab_device.flag') }}</th><th>{{ t('lab_device.state') }}</th><th></th></tr></thead>
+    <tbody>{% for ln in run.lines %}
+      <tr data-line="{{ ln.id }}" data-state="{{ ln.state }}">
+        <td dir="ltr">{{ ln.row_no }}</td>
+        <td dir="ltr">{% if ln.order_id %}<a href="{{ url_for('labs.order', order_id=ln.order_id) }}">{{ ln.sample_code }}</a>{% else %}{{ ln.sample_code or '—' }}{% endif %}</td>
+        <td dir="ltr"><b>{{ ln.code or '—' }}</b>{% if ln.analyte %} <span class="hint" style="margin:0;">→ {{ ln.analyte.name }}</span>{% endif %}</td>
+        <td dir="ltr">{{ ln.raw_value or '' }} {{ ln.unit or '' }}</td>
+        <td dir="ltr">{% if ln.flag %}<span class="badge badge--warn">{{ ln.flag }}</span>{% endif %}</td>
+        <td><span class="badge {{ 'badge--green' if ln.state == 'applied' else 'badge--muted' if ln.state in ('empty', 'dismissed') else 'badge--warn' }}">{{ t('lab_device.s_' ~ ln.state) }}</span>
+          {% if ln.note %}<span class="hint" style="margin:0;"> · {{ ln.note }}</span>{% endif %}</td>
+        <td>{% if ln.state in review %}
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+          {% if ln.state == 'no_code' and may_set_up %}
+          <form method="post" style="display:flex;gap:4px;margin:0;" data-link-line><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="line_id" value="{{ ln.id }}"><input type="hidden" name="action" value="link">
+            <select class="select" name="analyte_id" required style="max-width:170px;"><option value="">{{ t('lab_device.analyte') }}…</option>
+              {% for a in analytes %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}</select>
+            <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('lab_device.link') }}</button></form>
+          {% endif %}
+          {% if ln.state == 'already' and ln.order and not ln.order.verified_at %}
+          <form method="post" style="margin:0;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="line_id" value="{{ ln.id }}">
+            <button class="btn btn-sm btn-outline gc-press" type="submit" name="action" value="write" data-write-anyway>{{ t('lab_device.write') }}</button></form>
+          {% endif %}
+          <form method="post" style="margin:0;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="line_id" value="{{ ln.id }}">
+            <button class="btn btn-sm btn-outline gc-press" type="submit" name="action" value="dismiss">{{ t('lab_device.dismiss') }}</button></form>
+          </div>
+        {% endif %}</td>
+      </tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endblock %}

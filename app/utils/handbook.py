@@ -1690,6 +1690,21 @@ SECTIONS = [
              "The list says beside each result «Passes the rules» or why not, and «Release "
              "everything that passed» is for whoever may release — recorded in their name, "
              "«by the rules». The program never releases on its own."),
+            ("<b>ملفات نتايج الأجهزة:</b> من شريط المعمل ← «الأجهزة وملفات النتايج»: ضيف الجهاز، "
+             "واربط كل كود فيه (HGB، K…) بالمكوّن عندنا، وبعدين «اقرا ملف نتايج» (CSV أو نص، "
+             "سطر لكل تحليل أو سطر لكل أنبوبة). السطر بيتكتب بس لو رقم الأنبوبة لقى طلب واحد، "
+             "والكود مربوط، والمكوّن في التحليل المطلوب — وبيعدّي على نفس فحوصات المدى والحرج "
+             "والدلتا ومش بيتعتمد لوحده. أي حاجة تانية بتستنى حد ومكتوب سببها: اربط الكود من "
+             "السطر نفسه، أو «اكتب فوقها» لنتيجة مكتوبة قبل كده، أو «تجاهل». النتيجة المعتمدة "
+             "عمرها ما بتتكتب فوقها.",
+             "<b>Analyser result files:</b> from the lab bar ← «Analysers and result files»: add "
+             "the analyser, link each of its codes (HGB, K…) to the analyte here, then «Read a "
+             "result file» (CSV or text, a row per test or a row per tube). A line is written "
+             "only when the tube's number finds one order, the code is linked and the analyte "
+             "is on the ordered test — through the same range, critical and delta checks, and "
+             "never released by arriving. Anything else waits for a person with its reason: "
+             "link the code from the line itself, «Write over it» for a result already "
+             "written, or «Dismiss». A released result is never written over."),
             ("<b>مكونات التحليل وأقسامه ومراجعه</b> (المعمل ← التحاليل): "
              "التحليل المعروف (بول، براز، صورة دم، صفراء، وظائف كبد وكلى، "
              "فيتامينات…) بيتعرض عليه مكوناته بأساميها ووحداتها من غير ولا "

@@ -1,0 +1,52 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_device.title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_device.title') }}{% endblock %}
+
+{% block content %}
+{# LAB_GLAB360_PLAN م-٢ أ — the analysers, their result files read onto the
+   tubes, and the lines that wait for a person (`utils/lab_device_import`). #}
+{% from "labs/_nav.html" import lab_nav with context %}
+{{ lab_nav('devices') }}
+<div class="gc-animate" style="margin-bottom:12px;">
+  <h1 class="page-title"><i class="bi bi-hdd-network"></i> {{ t('lab_device.title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:80ch;">{{ t('lab_device.sub') }}</p>
+  {% if held %}<p style="margin:6px 0 0;"><span class="badge badge--warn" data-held-total>{{ t('lab_device.held', n=held) }}</span></p>{% endif %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;">
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_device.devices') }}</h2>
+  {% if devices %}
+  <ul style="margin:0 0 10px;padding-inline-start:18px;" data-devices>
+    {% for d in devices %}<li><a href="{{ url_for('labs.device', device_id=d.id) }}" data-device="{{ d.id }}">{{ d.name }}</a>
+      {% if d.model %}<span class="hint" style="margin:0;"> · {{ d.model }}</span>{% endif %}
+      <span class="hint" style="margin:0;"> · {{ d.codes|length }} {{ t('lab_device.codes') }}</span></li>{% endfor %}
+  </ul>
+  {% else %}<p class="hint" data-no-devices>{{ t('lab_device.none') }}</p>{% endif %}
+  {% if may_set_up %}
+  <form method="post" style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;" data-new-device>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="dv_name">{{ t('lab_device.name') }}</label>
+      <input class="input" id="dv_name" name="name" maxlength="120" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label for="dv_model">{{ t('lab_device.model') }}</label>
+      <input class="input" id="dv_model" name="model" maxlength="120" dir="auto"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('lab_device.new') }}</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if runs %}
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_device.runs') }}</h2>
+  <table class="table" data-runs>
+    <tbody>{% for r in runs %}
+      {% set held_n = r.lines|selectattr('state', 'in', ('no_sample', 'no_code', 'not_on_test', 'already'))|list|length %}
+      <tr><td dir="ltr">{{ r.at|clinic_stamp }}</td>
+        <td><a href="{{ url_for('labs.import_run', run_id=r.id) }}">{{ r.device.name }}</a> <span class="hint" style="margin:0;" dir="ltr">{{ r.filename or '' }}</span></td>
+        <td>{{ t('lab_device.s_applied') }}: {{ r.lines|selectattr('state', 'equalto', 'applied')|list|length }}</td>
+        <td>{% if held_n %}<span class="badge badge--warn">{{ t('lab_device.held', n=held_n) }}</span>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

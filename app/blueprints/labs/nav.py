@@ -33,5 +33,16 @@ def lab_nav_state():
         "poct_attention": lab_poct.needing_attention(),
         "staff_attention": lab_competency.attention(),
         "critical_open": len(lab_results.all_waiting()),
+        # م-٢ أ — lines from an analyser's file waiting for a person.
+        "device_held": _device_held(),
         "may_build": bool(current_user.is_authenticated and current_user.is_admin),
     }
+
+
+def _device_held():
+    from app.utils import lab_device_import
+
+    try:
+        return lab_device_import.held_count()
+    except Exception:                   # noqa: BLE001 — a table not made yet
+        return 0

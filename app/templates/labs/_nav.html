@@ -19,6 +19,7 @@
     {% if s.release_on %}{{ door('verify', 'labs.to_verify', 'patch-check', t('lab_release.to_verify'), 'data-to-verify', s.to_release, '', 'warn') }}{% endif %}
     {% if s.sent_labs %}{{ door('send_out', 'labs.send_out', 'truck', t('lab_sendout.title'), 'data-to-send-out') }}{% endif %}
     {{ door('critical', 'labs.critical', 'exclamation-octagon', t('lab_result.critical_title'), 'data-to-critical', s.critical_open) }}
+    {{ door('devices', 'labs.devices', 'hdd-network', t('lab_device.title'), 'data-to-devices', s.device_held, 'data-device-held', 'warn') }}
     </span>
   </div>
   <div class="lab-group" data-lab-group="quality">
