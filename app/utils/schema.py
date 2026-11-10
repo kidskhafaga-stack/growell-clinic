@@ -1173,6 +1173,8 @@ ADDITIONS = [
     ("medication_doses", "band_scanned", "BOOLEAN"),
     ("transfusions", "band_scanned", "BOOLEAN"),
     ("visit_investigations", "band_scanned", "BOOLEAN"),
+    # LAB_GLAB360_PLAN م-١ — released on the laboratory's auto-validation rules.
+    ("visit_investigations", "verified_by_rules", "BOOLEAN"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

@@ -274,7 +274,7 @@
   <div>
     {% if order.verified_at %}
     <span class="badge badge--green" data-verified><i class="bi bi-patch-check"></i>
-      {{ t('lab_release.verified_line', who=order.verifier.display_name(current_lang) if order.verifier else '—', when=order.verified_at|clinic_stamp) }}</span>
+      {{ t('lab_release.verified_line', who=order.verifier.display_name(current_lang) if order.verifier else '—', when=order.verified_at|clinic_stamp) }}{% if order.verified_by_rules %} · {{ t('lab_auto.by_rules') }}{% endif %}</span>
     {% elif release_required %}
     {{ lv.unverified(order) }}
     {% if may_release %}

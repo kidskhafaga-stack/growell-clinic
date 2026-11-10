@@ -1678,6 +1678,18 @@ SECTIONS = [
              "the file. It carries Arabic and English behind a language switch: "
              "it opens in Arabic for the family, in English for the referring "
              "doctor."),
+            ("<b>التصديق الآلي:</b> من «مستني الاعتماد» ← «قواعد التصديق الآلي» المعمل بيختار "
+             "التحاليل. النتيجة بتعدّي بس لو كل مكوّن رقمه جوه مدى معتمد لسن الطفل ونوعه، مفيش "
+             "قيمة حرجة ولا delta، كنترول النهارده عدّى، والعينة ما اترفضتش ومفيش عليها ملحوظة. "
+             "القايمة بتقول جنب كل نتيجة «عدّى القواعد» أو ليه لأ، وزرار «اعتمد كل اللي عدّى» "
+             "لحد عنده صلاحية الاعتماد — بيتسجّل باسمه و«بالقواعد». البرنامج ما بيصدّقش لوحده.",
+             "<b>Auto-validation:</b> from «Waiting for release» ← «Auto-validation rules» the "
+             "laboratory chooses its tests. A result passes only if every analyte is a number "
+             "inside a range approved for the child's age and sex, nothing is critical or "
+             "delta-flagged, today's control passed, and the sample was not rejected or noted. "
+             "The list says beside each result «Passes the rules» or why not, and «Release "
+             "everything that passed» is for whoever may release — recorded in their name, "
+             "«by the rules». The program never releases on its own."),
             ("<b>مكونات التحليل وأقسامه ومراجعه</b> (المعمل ← التحاليل): "
              "التحليل المعروف (بول، براز، صورة دم، صفراء، وظائف كبد وكلى، "
              "فيتامينات…) بيتعرض عليه مكوناته بأساميها ووحداتها من غير ولا "

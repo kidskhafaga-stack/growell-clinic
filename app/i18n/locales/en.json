@@ -17100,5 +17100,31 @@
     "err_not_on": "The light is not on.",
     "err_at": "The time does not make sense.",
     "err_closed": "This stay has ended."
+  },
+  "lab_auto": {
+    "title": "Auto-validation",
+    "sub": "The laboratory's rules say whether a result is ready to release — a person from the lab releases it. Off until you choose the tests.",
+    "rules": "A result passes only if: every analyte has a number inside a range approved for the child's age and sex, there is no critical value and no delta flag, today's control passed for each analyte, and the sample was not rejected and has no note.",
+    "pick": "Tests in auto-validation",
+    "none_tests": "No tests with analytes in the catalogue.",
+    "save": "Save",
+    "saved": "Saved — {n} tests in auto-validation.",
+    "door": "Auto-validation rules",
+    "passes": "Passes the rules",
+    "why": "Does not pass:",
+    "release_all": "Release everything that passed ({n})",
+    "released": "{n} results released by the rules.",
+    "by_rules": "by the rules",
+    "why_not_chosen": "Test not in auto-validation",
+    "why_not_measured": "Not written by analyte",
+    "why_no_value": "An analyte has no number",
+    "why_no_range": "No approved range",
+    "why_outside": "Outside the range",
+    "why_critical": "Critical value",
+    "why_delta": "Delta flag",
+    "why_no_qc_today": "No control today",
+    "why_qc_failed": "Today's control rejected",
+    "why_rejected": "Sample rejected",
+    "why_sample_note": "Note on the sample"
   }
 }

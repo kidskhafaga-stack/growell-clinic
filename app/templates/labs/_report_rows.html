@@ -8,7 +8,7 @@
       <h3 style="margin:0;font-size:1.05rem;">{{ row.display_name(current_lang) }}
         {% if row.urgent %}<span class="badge badge--danger">{{ t('lab_reception.urgent') }}</span>{% endif %}</h3>
       {% if row.verified_at %}
-      <span class="badge badge--green" data-report-verified>{{ t('lab_release.verified_line', who=row.verifier.display_name(current_lang) if row.verifier else '—', when=row.verified_at|clinic_stamp) }}</span>
+      <span class="badge badge--green" data-report-verified>{{ t('lab_release.verified_line', who=row.verifier.display_name(current_lang) if row.verifier else '—', when=row.verified_at|clinic_stamp) }}{% if row.verified_by_rules %} · {{ t('lab_auto.by_rules') }}{% endif %}</span>
       {% elif required %}
       <span class="badge badge--warn" data-report-preliminary>{{ t('lab_release.preliminary') }}</span>
       {% endif %}

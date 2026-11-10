@@ -1,0 +1,38 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab_auto.title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_auto.title') }}{% endblock %}
+
+{% block content %}
+{# LAB_GLAB360_PLAN م-١ — which tests the laboratory opens to its rules
+   (`utils/lab_autoverify`). The rules read the lab's own approved ranges,
+   critical and delta limits and today's controls; a person releases. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-cpu"></i> {{ t('lab_auto.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:75ch;">{{ t('lab_auto.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.to_verify') }}">
+    <i class="bi bi-patch-check"></i> {{ t('lab_release.to_verify') }}</a>
+</div>
+<div class="card gc-scale-in" style="margin-bottom:12px;">
+  <p style="margin:0;" data-auto-rules>{{ t('lab_auto.rules') }}</p>
+</div>
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_auto.pick') }}</h2>
+  {% if tests %}
+  <form method="post" data-auto-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px;">
+      {% for test in tests %}
+      <label style="display:flex;gap:6px;align-items:center;">
+        <input type="checkbox" name="test_id" value="{{ test.id }}" {% if test.id in chosen %}checked{% endif %} data-auto-test="{{ test.id }}">
+        <span dir="auto">{{ test.name_ar if current_lang == 'ar' and test.name_ar else (test.name_en or test.name_ar) }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <button class="btn btn-primary gc-press" type="submit" style="margin-top:10px;"><i class="bi bi-check2"></i> {{ t('lab_auto.save') }}</button>
+  </form>
+  {% else %}<p class="hint" style="margin:0;">{{ t('lab_auto.none_tests') }}</p>{% endif %}
+</div>
+{% endblock %}

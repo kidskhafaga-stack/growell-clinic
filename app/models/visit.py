@@ -488,6 +488,9 @@ class VisitInvestigation(db.Model):
     # again after it was verified is unverified until somebody looks again.
     verified_at = db.Column(db.DateTime)
     verified_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # Released by that person on the laboratory's auto-validation rules
+    # (LAB_GLAB360_PLAN م-١ — `utils/lab_autoverify`).
+    verified_by_rules = db.Column(db.Boolean)
     # DAS.13 دليل ٥ / DAS.15 (د): a sample drawn here and sent to a referral
     # laboratory — where, when, by whom, on which batch, and when its result
     # came back (`utils/lab_sendout`). Not `done_outside`: that is an order

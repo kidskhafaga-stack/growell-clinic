@@ -491,13 +491,61 @@ def verify(order_id):
     return redirect(back)
 
 
+@labs_bp.route("/verify/passing", methods=["POST"])
+@module_required(MODULE)
+def release_passing():
+    """Release every waiting result that passes the laboratory's rules — one
+    press, by somebody authorized to release (م-١)."""
+    from app.models import ActivityLog
+    from app.utils import lab_autoverify, lab_release
+
+    try:
+        done = lab_autoverify.release_passing(current_user)
+    except lab_release.ReleaseError as err:
+        db.session.rollback()
+        flash(t(f"lab_release.err_{err}"), "error")
+        return redirect(url_for("labs.to_verify"))
+    ActivityLog.record("lab.verified_by_rules", user_id=current_user.id,
+                       entity="visit_investigation", detail=",".join(str(o.id) for o in done))
+    db.session.commit()
+    flash(t("lab_auto.released", n=len(done)), "success")
+    return redirect(url_for("labs.to_verify"))
+
+
+@labs_bp.route("/autoverify", methods=["GET", "POST"])
+@module_required(MODULE)
+def autoverify_rules():
+    """Which tests the laboratory opens to auto-validation (م-١) — its
+    director's choice; the rules themselves are fixed and read the lab's own
+    ranges, limits and controls."""
+    from app.models import ActivityLog
+    from app.utils import lab_autoverify, lab_release
+
+    if not (current_user.is_admin or lab_release.may_release(current_user)):
+        abort(403)
+    if request.method == "POST":
+        picked = lab_autoverify.choose(request.form.getlist("test_id"))
+        ActivityLog.record("lab.autoverify_tests", user_id=current_user.id,
+                           entity="setting", detail=",".join(map(str, picked)))
+        db.session.commit()
+        flash(t("lab_auto.saved", n=len(picked)), "success")
+        return redirect(url_for("labs.autoverify_rules"))
+    return render_template("labs/autoverify.html", tests=lab_autoverify.lab_tests(),
+                           chosen=lab_autoverify.chosen())
+
+
 @labs_bp.route("/verify")
 @module_required(MODULE)
 def to_verify():
     """Results written and waiting for release, oldest first."""
-    from app.utils import lab_release
+    from app.utils import lab_autoverify, lab_release
 
-    return render_template("labs/verify.html", rows=lab_release.waiting(),
+    rows = lab_release.waiting()
+    verdicts = lab_autoverify.sort_out(rows)
+    return render_template("labs/verify.html", rows=rows,
+                           # م-١ — the laboratory's rules: passes, or why not.
+                           verdicts=verdicts, auto_on=lab_autoverify.on(),
+                           passing=sum(1 for v in verdicts.values() if v == []),
                            required=lab_release.required(),
                            may_release=lab_release.may_release(current_user),
                            beds=bench.beds_of(lab_release.waiting()))
