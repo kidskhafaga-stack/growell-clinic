@@ -16,9 +16,11 @@
   </div>
   {% if vitals %}
   <div style="overflow-x:auto;">
-  <table class="table" style="min-width:420px;" data-er-vitals-table>
+  <table class="table" style="min-width:560px;" data-er-vitals-table>
     <thead><tr><th>{{ t('er_vitals.at') }}</th>
-      {% for f, _u in vcols %}<th>{{ t('er_triage.k_' ~ f) }}</th>{% endfor %}</tr></thead>
+      {% for f, _u in vcols %}<th>{{ t('er_triage.k_' ~ f) }}</th>{% endfor %}
+      {# ع-١ — the blood pressure and the breathing support, beside the rest. #}
+      <th>{{ t('observations.bp') }}</th><th>{{ t('observations.oxygen') }}</th></tr></thead>
     <tbody>
       {% for v in vitals %}
       <tr data-reading="{{ v.obs.id }}">
@@ -33,6 +35,10 @@
           {% else %}<span class="hint">—</span>{% endif %}
         </td>
         {% endfor %}
+        <td dir="ltr" style="white-space:nowrap;" data-bp>{% if v.obs.bp_systolic %}{{ v.obs.bp_systolic }}/{{ v.obs.bp_diastolic or '–' }}{% else %}<span class="hint">—</span>{% endif %}</td>
+        <td data-o2="{{ v.obs.oxygen_support or '' }}">{% if v.obs.oxygen_support %}
+          <span class="badge {{ 'badge--danger' if v.obs.oxygen_support == 'ventilator' else 'badge--warn' if v.obs.oxygen_support in ('cpap', 'mask', 'nasal') else 'badge--muted' }}">{{ t('observations.oxygen_' ~ v.obs.oxygen_support) }}</span>
+          {% else %}<span class="hint">—</span>{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -47,6 +53,12 @@
     <input class="input num" name="pulse_bpm" type="number" placeholder="{{ t('er_triage.k_pulse_bpm') }}" style="max-width:92px;" dir="ltr">
     <input class="input num" name="resp_rate" type="number" placeholder="{{ t('er_triage.k_resp_rate') }}" style="max-width:92px;" dir="ltr">
     <input class="input num" name="spo2" type="number" placeholder="{{ t('er_triage.k_spo2') }}" style="max-width:92px;" dir="ltr">
+    <input class="input num" name="bp_systolic" type="number" placeholder="{{ t('er_vitals.bp_sys') }}" style="max-width:92px;" dir="ltr">
+    <input class="input num" name="bp_diastolic" type="number" placeholder="{{ t('er_vitals.bp_dia') }}" style="max-width:92px;" dir="ltr">
+    <select class="select" name="oxygen_support" style="max-width:170px;" aria-label="{{ t('observations.oxygen') }}">
+      <option value="">{{ t('observations.oxygen') }}…</option>
+      {% for o in ('room_air', 'nasal', 'mask', 'cpap', 'ventilator') %}<option value="{{ o }}">{{ t('observations.oxygen_' ~ o) }}</option>{% endfor %}
+    </select>
     <button class="btn btn-sm btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('er_vitals.add') }}</button>
   </form>
   {% endif %}

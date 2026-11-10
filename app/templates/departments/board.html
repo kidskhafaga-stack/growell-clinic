@@ -270,8 +270,14 @@
         {% if row.last.pulse_bpm %} · <b>{{ row.last.pulse_bpm }}</b>{% endif %}
         {% if row.last.resp_rate %} · <b>{{ row.last.resp_rate }}</b>{% endif %}
         {% if row.last.spo2 %} · <b>{{ row.last.spo2 }}</b>%{% endif %}
+        {% if row.last.bp_systolic %} · <b>{{ row.last.bp_systolic }}/{{ row.last.bp_diastolic or '–' }}</b>{% endif %}
         <span class="hint">{{ row.last.taken_at|clinic_time }}</span>
       </span>
+      {# ع-١ — a child on CPAP or a ventilator looks it from the board. #}
+      {% if row.last.oxygen_support and row.last.oxygen_support != 'room_air' %}
+      <span class="alert-pill {{ 'danger' if row.last.oxygen_support == 'ventilator' else 'warn' }}" data-o2-support="{{ row.last.oxygen_support }}">
+        <i class="bi bi-lungs"></i> {{ t('observations.oxygen_' ~ row.last.oxygen_support) }}</span>
+      {% endif %}
       {% endif %}
 
       {% if kind == 'nicu' and row.newborn %}

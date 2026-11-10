@@ -964,6 +964,13 @@ SECTIONS = [
              "admission — from the board, the observation chart or here — each coloured by "
              "the child's age band with an arrow for which way it moved, and «Record a "
              "reading» below."),
+            ("<b>دعم التنفس والضغط (ع-١):</b> في «سجّل قراءة» خانتين للضغط واختيار نوع "
+             "الأكسجين (هوا عادي، أنبوبة أنف، ماسك، CPAP، تنفس صناعي)، وبيظهروا في جدول "
+             "العلامات. واللوحة بتقول جنب الطفل لو آخر قراءة كانت على CPAP أو جهاز.",
+             "<b>Breathing support and blood pressure:</b> «Record a reading» takes the "
+             "blood pressure and the oxygen support (room air, nasal, mask, CPAP, "
+             "ventilator), and both show in the readings table. The board says, beside "
+             "the child, when the last reading was on CPAP or a ventilator."),
             ("<b>ميزان السوائل (د-٥):</b> في تاب «التمريض والتقييم» الممرضة بتكتب الداخل "
              "(بالفم، رضعة/أنبوبة، محاليل، دم) والخارج (بول، ترجيع، براز، درنقة، شفط معدة) "
              "بالمللي وبالساعة اللي حصل فيها. فوق: مجموع آخر ٢٤ ساعة والفرق، والبول مل/كجم/ساعة "

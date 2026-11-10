@@ -16921,7 +16921,9 @@
     "chart": "Observation chart",
     "out_of_band": "Saved — a reading is outside the age band: {readings}",
     "up": "rising",
-    "down": "falling"
+    "down": "falling",
+    "bp_sys": "Systolic",
+    "bp_dia": "Diastolic"
   },
   "er_paper": {
     "title": "Discharge paper for the family",

@@ -79,7 +79,9 @@ def save_levels(rows):
 
 # ------------------------------------------------------- vitals at the door --
 VITALS = (("temperature_c", float, 30, 44), ("pulse_bpm", int, 20, 300),
-          ("resp_rate", int, 5, 150), ("spo2", int, 30, 100))
+          ("resp_rate", int, 5, 150), ("spo2", int, 30, 100),
+          # ع-١ — the blood pressure, and below the breathing support.
+          ("bp_systolic", int, 20, 250), ("bp_diastolic", int, 10, 200))
 
 
 def door_vitals(attendance, form, user, at=None):
@@ -103,6 +105,11 @@ def door_vitals(attendance, form, user, at=None):
             continue
         if low <= value <= high:
             values[field] = value
+    from app.models.observation import OXYGEN_SUPPORT
+
+    support = (form.get("oxygen_support") or "").strip()
+    if support in OXYGEN_SUPPORT:
+        values["oxygen_support"] = support
     kg = (form.get("weight_kg") or "").strip()
     try:
         kg = float(kg) if kg else None
