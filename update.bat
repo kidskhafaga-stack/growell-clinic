@@ -371,7 +371,8 @@ echo.
 echo         Nothing was changed. Your backup is untouched.
 echo         Until it is sorted: sign in on github.com, download the ZIP
 echo         yourself, and copy it over this folder WITHOUT touching
-echo         data\ - or instance\ and uploads\ on an older copy - then run:
+echo         data\ - or instance\, uploads\ and clinic.env on an older
+echo         copy - then run:
 echo             flask --app run upgrade-db
 goto :die
 
