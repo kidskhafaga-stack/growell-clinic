@@ -941,6 +941,22 @@ SECTIONS = [
         "icon": "capsule",
         "title": ("دورة الدواء", "The drug round"),
         "lines": [
+            ("<b>الحساسية واختبار الجلد والجرعة بالوزن (د-١ لـ د-٣):</b> لو الطفل عنده "
+             "حساسية من الدوا أو عيلته بيظهر تحذير أحمر (أو أصفر لعيلة ممكن تتفاعل) في شيت "
+             "الدوا ودورة الدوا وشاشة الصيدلي. المضاد الحيوي العضل أو الوريد أول جرعة منه "
+             "في الإقامة بتستنى نتيجة اختبار الجلد — مرة واحدة لكل دوا: بعدها الجرعات وأي "
+             "أمر تاني لنفس الدوا ما بيسألوش. الإيجابي ما يتدّاش وبيتكتب في حساسية الطفل. "
+             "وفوق شيت الدوا وزن الطفل وتاريخه (أو خانة توزنه النهارده)، وأول ما الدكتور "
+             "يختار الدوا بتظهر الجرعة حسب قواعد البرنامج لوزنه بزرار «استخدمها».",
+             "<b>Allergy, skin test and dose by weight (د-١ to د-٣):</b> an allergy to the "
+             "drug or its family shows in red (amber for a cross-reacting family) on the "
+             "drug chart, the drug round and the pharmacist's screen. The first dose of an "
+             "IM or IV antibiotic in the stay waits for the skin test result — once per "
+             "drug: later doses, and another order for the same drug, do not ask again. "
+             "A positive one is not given and is written on the child's allergies. Above "
+             "the chart, the child's weight and its date (or a box to weigh them today); "
+             "as soon as the doctor picks the drug, the dose by the program's rules for "
+             "that weight shows with «Use it»."),
             ("<b>الأمر حاجة والجرعة حاجة تانية.</b> الطبيب بيكتب أمر ثابت — "
              "الدوا والجرعة وكل كام ساعة — والتمريض بيسجّل كل جرعة: اتعطت، "
              "اتأجلت، أو اترفضت. لو كان في عمود واحد اسمه «آخر جرعة» على "

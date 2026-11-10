@@ -107,3 +107,40 @@ def test_switched_off_by_a_hospital_that_does_not_skin_test(ward):
     oid = _order(ward, stay)
     _give(ward, oid)
     assert _doses(ward, oid) == 1
+
+
+# ------------------------------------------------ د-٣ weight and dose --
+#
+# The ward's dose box was free text. The order form now asks the clinic's own
+# dosing rules for this child as soon as the drug is named (``dose_hint``) —
+# the same answer as emergency — and the child can be weighed from the stay.
+
+def test_weigh_the_child_on_the_stay_then_the_dose_follows_the_weight(ward):
+    from app.models.drugbook import GenericDrug
+
+    with ward["app"].app_context():
+        ward["db"].session.add(GenericDrug(name_ar="باراسيتامول", name_en="Paracetamol",
+                                           dose_per_kg=15, doses_per_day=4))
+        ward["db"].session.commit()
+    stay = _admit(ward, _child(ward, "يوسف"))
+    boss = ward["sign_in"]("boss")
+    page = boss.get(f"/beds/admission/{stay}").get_data(as_text=True)
+    assert "data-ward-weight" in page and "data-ward-dose-suggest" in page
+    boss.post(f"/beds/admission/{stay}/weight", data={"weight_kg": "12"})
+    d = boss.get(f"/beds/admission/{stay}/dose?name=Paracetamol").get_json()
+    assert d["weight"] == 12 and d["dose_mg"] == 180
+
+
+def test_the_ward_dose_box_says_the_allergy_and_refuses_a_weight_that_is_not_a_child_s(ward):
+    from app.models import GrowthRecord, Patient
+
+    pid = _child(ward, "يوسف")
+    with ward["app"].app_context():
+        ward["db"].session.get(Patient, pid).allergies = "Amoxicillin"
+        ward["db"].session.commit()
+    stay = _admit(ward, pid)
+    d = ward["sign_in"]("boss").get(f"/beds/admission/{stay}/dose?name=Amoxicillin").get_json()
+    assert d["allergy"] and "Amoxicillin" in d["allergy"]
+    ward["sign_in"]("boss").post(f"/beds/admission/{stay}/weight", data={"weight_kg": "900"})
+    with ward["app"].app_context():
+        assert GrowthRecord.query.filter_by(source="ward").count() == 0

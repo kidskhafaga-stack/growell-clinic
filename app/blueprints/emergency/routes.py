@@ -501,18 +501,12 @@ def dose_for(attendance_id):
     the weight it was worked from with its date, and the allergy on the file.
     A suggestion the doctor presses to use — never filled in by itself."""
     from app.models import Drug, EmergencyVisit
-    from app.utils.dosing import latest_weight_record
-    from app.utils.rx_safety import check
+    from app.utils import dose_hint
 
     row = db.get_or_404(EmergencyVisit, attendance_id)
     drug = db.session.get(Drug, request.args.get("drug_id", type=int) or 0)
-    name = (request.args.get("name") or "").strip()[:200]
-    lang = getattr(g, "lang", "ar")
-    weighed = latest_weight_record(row.patient)
-    out = {"weight": weighed.weight_kg if weighed else None,
-           "weight_date": weighed.record_date.isoformat() if weighed else None}
-    if not drug and not name:
-        return jsonify(out)
+    return jsonify(dose_hint.for_patient(row.patient, drug, request.args.get("name"),
+                                         lang=getattr(g, "lang", "ar")))
     result = check([{"name": name or drug.label(lang), "drug": drug}], patient=row.patient, lang=lang)
     line = result["lines"][0]
     res = line.get("result") or {}

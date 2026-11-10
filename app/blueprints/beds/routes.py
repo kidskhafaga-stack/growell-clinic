@@ -881,6 +881,8 @@ def admission(admission_id):
         recon=_med_rec().status(row),
         stopped=[o for o in row.medication_orders if not o.is_running],
         **_skin_helpers(),
+        # د-٣ — the weight a dose by weight is worked from, with its date.
+        weighed=_weighed(row.patient), today_iso=local_today().isoformat(),
         safety=drug_round.safety(row, lang=getattr(g, "lang", "ar")),
         routes=ROUTES, dose_outcomes=DOSE_OUTCOMES,
         may_order=current_user.can("medication_order"),
@@ -2009,6 +2011,38 @@ def add_medication(admission_id):
     return redirect(url_for("beds.admission", admission_id=row.id))
 
 
+@beds_bp.route("/admission/<int:admission_id>/dose")
+@module_required(MODULE)
+def dose_for(admission_id):
+    """JSON for the order form (د-٣): the dose for this child by the clinic's
+    own rules, the weight it was worked from with its date, and the allergy —
+    a suggestion the doctor presses to use (``utils/dose_hint``)."""
+    from flask import jsonify
+
+    from app.utils import dose_hint
+
+    row = Admission.query.get_or_404(admission_id)
+    drug = db.session.get(Drug, request.args.get("drug_id", type=int) or 0)
+    return jsonify(dose_hint.for_patient(row.patient, drug, request.args.get("name"),
+                                         lang=getattr(g, "lang", "ar")))
+
+
+@beds_bp.route("/admission/<int:admission_id>/weight", methods=["POST"])
+@module_required(MODULE)
+def record_weight(admission_id):
+    """Today's weight, from the stay — the dose by weight is worked from it."""
+    from app.utils import dose_hint
+
+    row = Admission.query.get_or_404(admission_id)
+    kg = request.form.get("weight_kg", type=float)
+    if dose_hint.weigh(row.patient, kg, visit_id=row.visit_id, source="ward") is None:
+        flash(t("er_dose.err_weight"), "error")
+    else:
+        db.session.commit()
+        flash(t("er_dose.weight_saved", kg=round(kg, 2)), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id) + "#treatment")
+
+
 @beds_bp.route("/medication/<int:order_id>/stop", methods=["POST"])
 @module_required(MODULE)
 @capability_required("medication_order")
@@ -2158,6 +2192,12 @@ def skin_test_result(order_id):
     db.session.commit()
     flash(t("skin_test.saved_" + result), "danger" if result == "positive" else "success")
     return _back_from_dose(row)
+
+
+def _weighed(patient):
+    from app.utils.dosing import latest_weight_record
+
+    return latest_weight_record(patient)
 
 
 def _skin_helpers():
