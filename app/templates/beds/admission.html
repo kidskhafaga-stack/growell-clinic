@@ -1522,6 +1522,7 @@
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input class="input" name="reason" maxlength="200"
                      style="width:130px;" placeholder="{{ t('meds.reason_if_not') }}">
+              {% if band_mode() != 'off' %}{% from "_band_scan.html" import band_field with context %}{{ band_field() }}{% endif %}
               {% if not skin_blocks(item.order) %}
               <button class="btn btn-sm btn-primary gc-press" type="submit"
                       name="outcome" value="given" data-give>{{ t('meds.given') }}</button>{% endif %}
@@ -2018,6 +2019,9 @@
             action="{{ url_for('beds.blood_hang', request_id=req.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          {# د-٨ — the bag goes up on this child's band. #}
+          {% if band_mode() != 'off' %}{% from "_band_scan.html" import band_field with context %}
+          <div class="form-row" style="margin-bottom:0;"><label>{{ t('band.field_ph') }}</label>{{ band_field() }}</div>{% endif %}
           <div class="form-row" style="margin-bottom:0;min-width:150px;">
             <label for="bh_code_{{ req.id }}">{{ t('blood.unit_code') }}</label>
             <input class="input" id="bh_code_{{ req.id }}" name="unit_code"

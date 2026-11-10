@@ -1300,12 +1300,19 @@ def blood_hang(request_id):
     from app.models import BloodRequest, User
 
     row = BloodRequest.query.get_or_404(request_id)
+    # د-٨ — the bag goes up on this child's band, never another's.
+    from app.utils import band_scan
+
+    why = band_scan.check(row.patient_id, request.form.get("band"))
+    if why:
+        flash(band_scan.say(why, getattr(g, "lang", "ar")), "error")
+        return redirect(_blood_back(row))
     # The second name is chosen from the ward's own people and checked against
     # the user table, because the whole of ICD.21's intent is that two people
     # looked — and a name typed into a box is not a person who looked.
     second = User.query.get(request.form.get("checked_by", type=int) or 0)
     try:
-        blood.hang(row, unit_code=request.form.get("unit_code"),
+        bag = blood.hang(row, unit_code=request.form.get("unit_code"),
                    given_by=current_user, checked_by=second,
                    bag_checked=_yes_no(request.form.get("bag_checked")),
                    bag_note=request.form.get("bag_note"),
@@ -1314,6 +1321,8 @@ def blood_hang(request_id):
         db.session.rollback()
         flash(t("blood.not_hung"), "error")
         return redirect(_blood_back(row))
+    if band_scan.scanned(request.form.get("band")) and bag is not None:
+        bag.band_scanned = True
     db.session.commit()
     flash(t("blood.hung"), "success")
     return redirect(_blood_back(row))
@@ -2076,8 +2085,17 @@ def dose(order_id):
     the whole reason the two are separate capabilities.
     """
     row = MedicationOrder.query.get_or_404(order_id)
+    outcome = (request.form.get("outcome") or "given").strip()
+    # د-٨ — the band of another child is refused; under «required» no band is.
+    from app.utils import band_scan
+
+    if outcome == "given":
+        why = band_scan.check(row.patient_id, request.form.get("band"))
+        if why:
+            flash(band_scan.say(why, getattr(g, "lang", "ar")), "error")
+            return _back_from_dose(row)
     try:
-        drug_round.give(row, (request.form.get("outcome") or "given").strip(),
+        dose_row = drug_round.give(row, outcome,
                         user=current_user, at=_happened_at(),
                         reason=request.form.get("reason"),
                         note=request.form.get("note"))
@@ -2099,6 +2117,8 @@ def dose(order_id):
         db.session.rollback()
         flash(t("meds.refused"), "error")
         return _back_from_dose(row)
+    if outcome == "given" and band_scan.scanned(request.form.get("band")):
+        dose_row.band_scanned = True
     db.session.commit()
     flash(t("meds.recorded"), "success")
     return _back_from_dose(row)
@@ -2253,6 +2273,21 @@ def strike_fluid(entry_id):
     db.session.commit()
     flash(t("fluid.struck"), "success")
     return redirect(url_for("beds.admission", admission_id=entry.admission_id) + "#care")
+
+
+@beds_bp.route("/scan")
+@module_required(MODULE)
+def scan_band():
+    """A wristband scanned (د-٨): opens the child — the stay on its treatment,
+    the emergency attendance, or the file."""
+    from app.utils import band_scan
+
+    child = band_scan.find(request.args.get("code"))
+    if child is None:
+        flash(t("band.not_found", code=(request.args.get("code") or "").strip()[:40]), "error")
+        here = request.referrer or ""
+        return redirect(here if here.startswith(request.host_url) else url_for("beds.drugs"))
+    return redirect(band_scan.destination(child))
 
 
 def _module_on(key):

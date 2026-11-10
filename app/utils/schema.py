@@ -1169,6 +1169,10 @@ ADDITIONS = [
     ("medication_orders", "skin_test_result", "VARCHAR(10)"),
     ("medication_orders", "skin_test_at", "DATETIME"),
     ("medication_orders", "skin_test_by", "INTEGER"),
+    # «Scan the wristband» — whether the band was scanned with the act (د-٨).
+    ("medication_doses", "band_scanned", "BOOLEAN"),
+    ("transfusions", "band_scanned", "BOOLEAN"),
+    ("visit_investigations", "band_scanned", "BOOLEAN"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

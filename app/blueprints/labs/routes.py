@@ -176,7 +176,10 @@ def _render_order(row, **extra):
     from app.utils import lab_reception
     from app.utils import lab_review
 
+    from app.utils import band_scan
+
     return render_template("labs/order.html", order=row, bench=bench,
+                           band_on_child=band_scan.on() and band_scan.wears_a_band(row.patient),
                            reasons=lab_reception.reasons(),
                            release_required=_release().required(),
                            may_release=_release().may_release(current_user),
@@ -302,6 +305,15 @@ def collect(order_id):
     from app.utils import lab_transfer
 
     row = db.get_or_404(VisitInvestigation, order_id)
+    # د-٨ — a child in a bed or in emergency wears a band: the tube is drawn
+    # on theirs, never another child's. A clinic child wears none.
+    from app.utils import band_scan
+
+    why = band_scan.check(row.patient_id, request.form.get("band"),
+                          banded=band_scan.wears_a_band(row.patient))
+    if why:
+        flash(band_scan.say(why, getattr(g, "lang", "ar")), "error")
+        return redirect(url_for("labs.order", order_id=row.id))
     # Where it was drawn — asked only where tubes are drawn outside the lab.
     where = (lab_transfer.clean(request.form.get("where"), row)
              if lab_transfer.spread() else None)
@@ -315,6 +327,8 @@ def collect(order_id):
         # somebody to draw blood a second time to find out.
         flash(t("lab.already_resulted"), "error")
         return redirect(url_for("labs.order", order_id=row.id))
+    if band_scan.scanned(request.form.get("band")):
+        row.band_scanned = True
     db.session.commit()
     flash(t("lab.collected", code=row.sample_code), "success")
     return redirect(request.referrer or url_for("labs.index"))

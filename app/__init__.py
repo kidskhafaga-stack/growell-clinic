@@ -324,6 +324,11 @@ def create_app(config_name="default"):
         from app.utils import ipc
         return ipc.for_patient(patient_id, since=since) if patient_id else []
 
+    def _band_mode():
+        from app.utils import band_scan
+
+        return band_scan.mode()
+
     @app.context_processor
     def inject_navigation():
         from app.models import Setting
@@ -333,6 +338,8 @@ def create_app(config_name="default"):
             "MODULE_ICONS": MODULE_ICONS,
             "MODULE_ENDPOINTS": module_endpoints,
             "module_enabled": module_enabled,
+            # «Scan the wristband» — off / optional / required (`utils/band_scan`).
+            "band_mode": _band_mode,
             "device_board_shown": _device_board_shown,
             # The side menu in sections, only where a hospital part is on
             # (`utils/nav_menu`).

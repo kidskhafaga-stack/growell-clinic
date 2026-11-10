@@ -984,6 +984,19 @@ SECTIONS = [
              "emergency at once if…» in the hospital's own words from settings (the same text "
              "as the emergency paper). Left empty, a blank is printed for the doctor's hand, "
              "with the doctor's and the family's signatures below."),
+            ("<b>امسح السوار (د-٨):</b> فوق لوحة القسم ودورة الدوا خانة «امسح السوار»: "
+             "بقارئ الباركود أو بكاميرا الموبايل، والمسحة بتفتح الطفل على تاب العلاج. وجنب "
+             "«انعطى» وتعليق كيس الدم وسحب العينة خانة للسوار: سوار طفل تاني بيترفض ويتقال "
+             "اسمه، والمسحة الصح بتتسجّل مع الجرعة. المستشفى بتختار من الإعدادات: «اختياري» "
+             "(من غير مسح عادي)، «إجباري» (من غير مسح ما بيتسجّلش)، أو «مقفول». طفل العيادة "
+             "ما بيلبسش سوار، فسحب عينته عمره ما بيسأل عنه.",
+             "<b>Scan the wristband (د-٨):</b> above the department board and the drug round "
+             "a «Scan the wristband» box — a barcode reader or a phone camera; the scan opens "
+             "the child on the treatment tab. Beside «Given», hanging a blood bag and drawing "
+             "a sample, a band box: another child's band is refused and named, the right "
+             "scan is recorded with the dose. The hospital chooses in settings: «Optional» "
+             "(no scan is allowed), «Required» (nothing is recorded without one) or «Off». "
+             "A clinic child wears no band, so their sample is never asked for one."),
             ("<b>الأمر حاجة والجرعة حاجة تانية.</b> الطبيب بيكتب أمر ثابت — "
              "الدوا والجرعة وكل كام ساعة — والتمريض بيسجّل كل جرعة: اتعطت، "
              "اتأجلت، أو اترفضت. لو كان في عمود واحد اسمه «آخر جرعة» على "

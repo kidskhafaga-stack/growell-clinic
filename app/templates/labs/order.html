@@ -54,6 +54,9 @@
   <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;"
         action="{{ url_for('labs.collect', order_id=order.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {# د-٨ — a child in a bed or in emergency: the tube is drawn on their band. #}
+    {% if band_on_child %}{% from "_band_scan.html" import band_field with context %}
+    <div class="form-row" style="margin-bottom:0;"><label>{{ t('band.field_ph') }}</label>{{ band_field() }}</div>{% endif %}
     <div class="form-row" style="margin-bottom:0;min-width:180px;">
       {# Left blank the program writes one. A label nobody has to invent is a
          label that actually gets written on the tube. #}

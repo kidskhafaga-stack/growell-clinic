@@ -216,6 +216,8 @@ class MedicationDose(db.Model):
                             nullable=False)
 
     outcome = db.Column(db.String(12), default=GIVEN, nullable=False)
+    # The child's wristband was scanned with this dose (DOCTOR_EASE د-٨).
+    band_scanned = db.Column(db.Boolean)
     # Why it was not given. Required for a hold or a refusal and refused
     # without one — see ``utils/drug_round.give``. A hold with no reason is
     # indistinguishable from a dose somebody forgot, and it silences the board

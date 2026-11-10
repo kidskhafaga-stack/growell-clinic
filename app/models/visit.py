@@ -335,6 +335,8 @@ class VisitInvestigation(db.Model):
     # "requested" — and the second one is answered by waiting while the first
     # needs somebody to go to the bed.
     sample_code = db.Column(db.String(24), index=True)
+    # The child's wristband was scanned as the tube was drawn (DOCTOR_EASE د-٨).
+    band_scanned = db.Column(db.Boolean)
     collected_at = db.Column(db.DateTime)
     collected_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     # Where it was drawn (`lab_transfer.PLACES`) — empty reads as the lab.

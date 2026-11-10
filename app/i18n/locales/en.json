@@ -16979,5 +16979,20 @@
     "k_aspirate": "Gastric aspirate",
     "k_other_out": "Other out",
     "no_limits": "The program sets no limits — reading the numbers is the doctor's."
+  },
+  "band": {
+    "open": "Open",
+    "open_ph": "Scan the wristband…",
+    "field_ph": "Scan the band",
+    "not_found": "No child with this file number ({code}).",
+    "err_other": "This band is another child's: {name} ({number}) — nothing was recorded.",
+    "err_unknown": "This band is not a child in the program — nothing was recorded.",
+    "err_needed": "Scan the child's wristband first.",
+    "setting": "Scanning the child's wristband",
+    "setting_hint": "Before a dose, a blood bag or a sample for a child in a bed or in emergency. «Optional»: a wrong band is refused, no scan is allowed. «Required»: nothing is recorded without a scan. «Off»: no scan boxes.",
+    "mode_off": "Off",
+    "mode_optional": "Optional",
+    "mode_required": "Required",
+    "scanned": "Band scanned"
   }
 }
