@@ -507,20 +507,6 @@ def dose_for(attendance_id):
     drug = db.session.get(Drug, request.args.get("drug_id", type=int) or 0)
     return jsonify(dose_hint.for_patient(row.patient, drug, request.args.get("name"),
                                          lang=getattr(g, "lang", "ar")))
-    result = check([{"name": name or drug.label(lang), "drug": drug}], patient=row.patient, lang=lang)
-    line = result["lines"][0]
-    res = line.get("result") or {}
-    alg = line.get("allergy")
-    out.update({
-        "generic": line.get("generic_name") or "",
-        "dose_mg": res.get("dose_mg"), "dose_mg_max": res.get("dose_mg_max"),
-        "ml": res.get("ml"), "ml_max": res.get("ml_max"),
-        "doses_per_day": res.get("doses_per_day"),
-        "warnings": [t("drugbook.warn_" + w) for w in line.get("warnings") or []],
-        "allergy": (t("allergy.flash_" + alg["level"]).replace("{drug}", line["name"])
-                    .replace("{allergy}", alg["allergy"]) if alg else None),
-    })
-    return jsonify(out)
 
 
 @emergency_bp.route("/attendance/<int:attendance_id>/weight", methods=["POST"])
