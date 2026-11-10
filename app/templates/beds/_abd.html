@@ -1,0 +1,54 @@
+{# ---- A/B/D — DOCTOR_EASE ح-٢ --------------------------------------------- #}
+{# Apnoea, bradycardia and desaturation episodes (`utils/neonatal_events`):
+   each one the nurse saw, and how many in the last 24 hours. No limit of
+   ours — the count is the doctor's to read. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="abd" data-abd>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+    <h2 class="section-title" style="margin:0;"><i class="bi bi-heart-pulse"></i> {{ t('abd.title') }}</h2>
+    <span>
+      <span class="badge {{ 'badge--warn' if abd_rows else 'badge--muted' }}" data-abd-24h>{{ t('abd.last_day', n=abd_rows|length) }}</span>
+      <span class="hint" style="margin:0;">{{ t('abd.all', n=abd_all) }}</span>
+    </span>
+  </div>
+  {% if abd_rows %}
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:520px;" data-abd-rows>
+    <thead><tr><th>{{ t('abd.at') }}</th><th>{{ t('abd.short') }}</th><th>{{ t('abd.seconds') }}</th>
+      <th>{{ t('abd.lowest_hr') }}</th><th>{{ t('abd.lowest_spo2') }}</th><th>{{ t('abd.recovery') }}</th><th>{{ t('abd.note') }}</th></tr></thead>
+    <tbody>{% for e in abd_rows %}
+      <tr data-abd-row="{{ e.id }}">
+        <td dir="ltr" style="white-space:nowrap;">{{ e.at|clinic_stamp }}</td>
+        <td dir="ltr"><b>{{ e.label }}</b></td>
+        <td dir="ltr">{{ e.seconds or '' }}</td><td dir="ltr">{{ e.lowest_hr or '' }}</td><td dir="ltr">{{ e.lowest_spo2 or '' }}</td>
+        <td>{{ t('abd.r_' ~ e.recovery) if e.recovery else '' }}</td>
+        <td dir="auto">{{ e.note or '' }}</td>
+      </tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="hint" data-abd-none>{{ t('abd.none') }}</p>{% endif %}
+  {% if admission.is_open %}
+  <form method="post" action="{{ url_for('beds.record_abd', admission_id=admission.id) }}"
+        style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-top:10px;" data-abd-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for k in ('apnoea', 'brady', 'desat') %}
+    <label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" name="{{ k }}" value="1"> {{ t('abd.' ~ k) }}</label>
+    {% endfor %}
+    <div class="form-row" style="margin:0;"><label for="abd_s">{{ t('abd.seconds') }}</label>
+      <input class="input num" id="abd_s" name="seconds" type="number" min="1" max="3600" style="max-width:90px;" dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label for="abd_hr">{{ t('abd.lowest_hr') }}</label>
+      <input class="input num" id="abd_hr" name="lowest_hr" type="number" style="max-width:80px;" dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label for="abd_o2">{{ t('abd.lowest_spo2') }}</label>
+      <input class="input num" id="abd_o2" name="lowest_spo2" type="number" style="max-width:80px;" dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label for="abd_r">{{ t('abd.recovery') }}</label>
+      <select class="select" id="abd_r" name="recovery"><option value="">—</option>
+        {% for r in ('self', 'stimulation', 'oxygen', 'bagging') %}<option value="{{ r }}">{{ t('abd.r_' ~ r) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;"><label for="abd_at">{{ t('abd.at') }}</label>
+      <input class="input" id="abd_at" name="at" type="datetime-local" value="{{ fluid_now }}" dir="ltr"></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:140px;"><label for="abd_n">{{ t('abd.note') }}</label>
+      <input class="input" id="abd_n" name="note" maxlength="160" dir="auto"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('abd.add') }}</button>
+  </form>
+  <p class="hint" style="margin:6px 0 0;">{{ t('abd.hint') }}</p>
+  {% endif %}
+</div>

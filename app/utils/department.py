@@ -297,8 +297,11 @@ def _newborn_extras(admissions):
     none of them is recomputed here.
     """
     from app.utils import jaundice
+    from app.utils import neonatal_events
 
     ids = [a.patient_id for a in admissions]
+    # ح-٢ — the A/B/D episodes in the last 24 hours.
+    episodes = neonatal_events.count_last_day([a.id for a in admissions])
     bilirubin = _latest_bilirubin(ids)
     weights = _latest_weight(ids)
 
@@ -319,6 +322,7 @@ def _newborn_extras(admissions):
             verdict = jaundice.assess(baby, result.result_value, hours=hours)
         out[admission.patient_id] = {
             **_age_and_weight(baby, weighed),
+            "abd_24h": episodes.get(admission.id, 0),
             "hours": getattr(baby, "age_hours", None),
             "weeks": getattr(baby, "gestation_weeks", None),
             "birth_weight": getattr(baby, "birth_weight_kg", None),

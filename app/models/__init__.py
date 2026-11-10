@@ -433,10 +433,13 @@ from app.models.device import (
 from app.models.fluid_balance import FluidEntry
 # DOCTOR_EASE ع-٢ — the breathing machine's settings.
 from app.models.ventilation import VentSetting
+# DOCTOR_EASE ح-٢ — apnoea, bradycardia and desaturation episodes.
+from app.models.neonatal_event import NeonatalEvent
 
 __all__ = [
     "FluidEntry",
     "VentSetting",
+    "NeonatalEvent",
     "User",
     "Setting",
     "SavedReport",

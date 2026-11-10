@@ -17045,5 +17045,33 @@
     "err_dose": "Write the dose.",
     "err_weight": "No weight — weigh the child first.",
     "err_syringe": "Write what the syringe holds: so many mg (or units) in so many mL."
+  },
+  "abd": {
+    "title": "Apnoea, bradycardia and desaturation",
+    "short": "A/B/D",
+    "last_day": "Last 24 h: {n}",
+    "all": "Whole stay: {n}",
+    "apnoea": "Apnoea (A)",
+    "brady": "Bradycardia (B)",
+    "desat": "Desaturation (D)",
+    "seconds": "Duration (s)",
+    "lowest_hr": "Lowest HR",
+    "lowest_spo2": "Lowest SpO2 %",
+    "recovery": "Recovered with",
+    "r_self": "Self",
+    "r_stimulation": "Stimulation",
+    "r_oxygen": "Oxygen",
+    "r_bagging": "Bagging",
+    "note": "Note",
+    "at": "Time",
+    "add": "Record the episode",
+    "none": "No episodes in the last 24 hours.",
+    "saved": "Episode recorded.",
+    "board_title": "A/B/D episodes in the last 24 hours",
+    "err_kind": "Choose the kind: apnoea, bradycardia or desaturation.",
+    "err_number": "A number does not make sense.",
+    "err_at": "The time must be between admission and now.",
+    "err_closed": "This stay has ended.",
+    "hint": "The count is for the doctor to read — the program sets no limit."
   }
 }

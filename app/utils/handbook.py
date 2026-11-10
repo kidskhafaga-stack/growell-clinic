@@ -995,6 +995,15 @@ SECTIONS = [
              "<b>The incubator board:</b> beside each baby, the day of life, the "
              "postmenstrual age (gestation at birth plus the days since) and today's weight "
              "against the birth weight in per cent — worked out from what is recorded."),
+            ("<b>نوبات A/B/D (ح-٢):</b> في صفحة إقامة الحضّانة تاب «التمريض والتقييم»: الممرضة "
+             "بتسجّل كل نوبة توقّف تنفس أو بطء قلب أو نقص أكسجين (أو أكتر من واحدة مع بعض)، "
+             "مدتها وأقل نبض وأقل أكسجين ورجع بإيه. العدد في آخر ٢٤ ساعة ظاهر فوق وعلى لوحة "
+             "الحضّانات. البرنامج ما بيحطش حد للعدد.",
+             "<b>A/B/D episodes:</b> on an incubator stay's «Nursing» tab the nurse records "
+             "each apnoea, bradycardia or desaturation (or more than one together), its "
+             "duration, the lowest heart rate and saturation, and what brought the baby back. "
+             "The count for the last 24 hours shows above and on the incubator board. The "
+             "program sets no limit for the count."),
             ("<b>ميزان السوائل (د-٥):</b> في تاب «التمريض والتقييم» الممرضة بتكتب الداخل "
              "(بالفم، رضعة/أنبوبة، محاليل، دم) والخارج (بول، ترجيع، براز، درنقة، شفط معدة) "
              "بالمللي وبالساعة اللي حصل فيها. فوق: مجموع آخر ٢٤ ساعة والفرق، والبول مل/كجم/ساعة "

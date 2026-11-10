@@ -893,6 +893,9 @@ def admission(admission_id):
         # ع-٢ — the breathing machine's settings, in the doctor's numbers.
         vent_rows=_vent().history(row), vent_now=_vent().current(row),
         vent_shown=_vent().shown(row),
+        # ح-٢ — apnoea, bradycardia and desaturation episodes.
+        abd_rows=_abd().recent(row), abd_shown=_abd().shown(row),
+        abd_all=len(row.neonatal_events or []),
         safety=drug_round.safety(row, lang=getattr(g, "lang", "ar")),
         routes=ROUTES, dose_outcomes=DOSE_OUTCOMES,
         may_order=current_user.can("medication_order"),
@@ -2253,6 +2256,28 @@ def _setting(key):
     from app.models import Setting
 
     return Setting.get(key)
+
+
+def _abd():
+    from app.utils import neonatal_events
+
+    return neonatal_events
+
+
+@beds_bp.route("/stay/<int:admission_id>/abd", methods=["POST"])
+@module_required(MODULE)
+def record_abd(admission_id):
+    """One apnoea / bradycardia / desaturation episode (ح-٢) — the nurse's."""
+    row = Admission.query.get_or_404(admission_id)
+    try:
+        _abd().record(row, request.form, user=current_user, at=_happened_at())
+    except _abd().EventError as why:
+        db.session.rollback()
+        flash(t("abd.err_" + str(why)), "error")
+    else:
+        db.session.commit()
+        flash(t("abd.saved"), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id) + "#care")
 
 
 def _vent():

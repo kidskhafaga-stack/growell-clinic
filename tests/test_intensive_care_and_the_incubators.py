@@ -138,3 +138,31 @@ def test_the_incubator_board_says_the_day_pma_and_the_weight_against_birth(clini
     assert "data-day-of-life" in page and "يوم 3" in page
     change = page.split("data-weight-change", 1)[1][:200]
     assert "-5.0%" in change
+
+
+# ----------------------------------------------- ح-٢ the A/B/D episodes --
+
+def test_episodes_are_recorded_and_counted_on_the_stay_and_the_board(clinic):
+    from tests.test_who_do_i_look_at_first import _admit as admit_to
+    from tests.test_who_do_i_look_at_first import _child as baby_of
+    from tests.test_who_do_i_look_at_first import hospital as incubators
+
+    world = incubators.__wrapped__(clinic)
+    pid = baby_of(world, "مولودة", born_days=3, gestation_weeks=30)
+    stay = admit_to(world, pid, "ح١", minutes_ago=600)
+    nurse = world["sign_in"]("boss")
+    page = nurse.get(f"/beds/admission/{stay}").get_data(as_text=True)
+    assert "data-abd" in page and "data-abd-none" in page
+    nurse.post(f"/beds/stay/{stay}/abd", data={"apnoea": "1", "brady": "1", "seconds": "20",
+                                               "lowest_hr": "70", "recovery": "stimulation"})
+    page = nurse.post(f"/beds/stay/{stay}/abd", data={"desat": "1", "lowest_spo2": "78"},
+                      follow_redirects=True).get_data(as_text=True)
+    assert page.count("data-abd-row=") == 2 and "A / B" in page
+    board = nurse.get("/nicu/").get_data(as_text=True)
+    assert "A/B/D 2" in board.split("data-abd-count", 1)[1][:60]
+    # Nothing ticked is not an episode.
+    nurse.post(f"/beds/stay/{stay}/abd", data={"seconds": "10"})
+    from app.models import NeonatalEvent
+
+    with world["app"].app_context():
+        assert NeonatalEvent.query.count() == 2

@@ -297,6 +297,7 @@
         <span class="badge badge--muted">{{ row.newborn.weight }}kg
           {%- if row.newborn.birth_weight %} / {{ row.newborn.birth_weight }}{% endif %}</span>
         {% endif %}
+        {% if row.newborn.abd_24h %}<span class="badge badge--warn" data-abd-count title="{{ t('abd.board_title') }}">A/B/D {{ row.newborn.abd_24h }}</span>{% endif %}
         {% if row.newborn.weight_change_pct is not none %}
         <span class="badge {{ 'badge--warn' if row.newborn.weight_change_pct < 0 else 'badge--muted' }}" data-weight-change title="{{ t('dept.weight_change_title') }}">
           {{ '+' if row.newborn.weight_change_pct > 0 else '' }}{{ row.newborn.weight_change_pct }}%</span>
