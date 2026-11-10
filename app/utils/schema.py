@@ -1175,6 +1175,8 @@ ADDITIONS = [
     ("visit_investigations", "band_scanned", "BOOLEAN"),
     # LAB_GLAB360_PLAN م-١ — released on the laboratory's auto-validation rules.
     ("visit_investigations", "verified_by_rules", "BOOLEAN"),
+    # LAB_GLAB360_PLAN م-٢ أ — the folder an analyser drops its files into.
+    ("lab_devices", "folder", "VARCHAR(400)"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

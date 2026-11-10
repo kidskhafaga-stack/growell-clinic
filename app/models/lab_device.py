@@ -31,6 +31,9 @@ class LabDevice(db.Model):
     col_value = db.Column(db.String(60))
     col_unit = db.Column(db.String(60))
     col_flag = db.Column(db.String(60))
+    # A shared folder the analyser drops its files into — read on its own
+    # (``lab_device_import.scan_folders``). Empty: files are uploaded by hand.
+    folder = db.Column(db.String(400))
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 

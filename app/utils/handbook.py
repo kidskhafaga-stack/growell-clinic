@@ -1705,6 +1705,15 @@ SECTIONS = [
              "never released by arriving. Anything else waits for a person with its reason: "
              "link the code from the line itself, «Write over it» for a result already "
              "written, or «Dismiss». A released result is never written over."),
+            ("<b>فولدر الجهاز:</b> لو الجهاز بيحط ملفاته في فولدر على شبكة المعمل، اكتب مكانه في "
+             "صفحة الجهاز: البرنامج بيبص عليه كل دقيقتين ويقرا أي ملف جديد بنفس الطريقة، وبعدها "
+             "بينقله لفولدر «done» جنبه — أو «failed» لو ما اتقريش ومفيش حاجة اتكتبت منه. الملف "
+             "اللي لسه بيتكتب بيستنى اللفة الجاية.",
+             "<b>The analyser's folder:</b> if the analyser drops its files in a folder on the "
+             "lab's network, write its path on the analyser's page: the program looks every two "
+             "minutes, reads any new file the same way, then moves it into a «done» folder beside "
+             "it — or «failed» if it could not be read and nothing was written from it. A file "
+             "still being written waits for the next look."),
             ("<b>مكونات التحليل وأقسامه ومراجعه</b> (المعمل ← التحاليل): "
              "التحليل المعروف (بول، براز، صورة دم، صفراء، وظائف كبد وكلى، "
              "فيتامينات…) بيتعرض عليه مكوناته بأساميها ووحداتها من غير ولا "

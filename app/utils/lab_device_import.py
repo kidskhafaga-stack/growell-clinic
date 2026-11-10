@@ -264,7 +264,111 @@ def save_device(form, device=None):
     device.model = (form.get("model") or "").strip()[:120] or None
     for col in ("col_sample", "col_code", "col_value", "col_unit", "col_flag"):
         setattr(device, col, (form.get(col) or "").strip()[:60] or None)
+    if "folder" in form:
+        device.folder = (form.get("folder") or "").strip()[:400] or None
     if device.id is None:
         db.session.add(device)
     db.session.flush()
     return device
+
+
+# ================================================ the analyser's folder ===
+#
+# «اقرا ملفات الأجهزة من الفولدر» — most analysers can write each run's file
+# into a folder on the laboratory's network. The program looks there by
+# itself, every few minutes, on the heartbeat the screens already send (there
+# is no scheduler in this program): a new file is read exactly as an uploaded
+# one, then moved to ``done`` (or ``failed``, with nothing written) beside it,
+# so a file is read once and the folder says what happened to each.
+
+FOLDER_EXT = (".csv", ".txt", ".tsv")
+SCAN_MINUTES = 2
+DONE, FAILED = "done", "failed"
+
+
+def _move(path, sub):
+    import os
+    import shutil
+
+    folder = os.path.join(os.path.dirname(path), sub)
+    os.makedirs(folder, exist_ok=True)
+    target = os.path.join(folder, os.path.basename(path))
+    if os.path.exists(target):
+        stem, ext = os.path.splitext(os.path.basename(path))
+        target = os.path.join(folder, f"{stem}-{datetime.utcnow():%Y%m%d%H%M%S}{ext}")
+    shutil.move(path, target)
+    return target
+
+
+def scan_folder(device, now=None, settle_seconds=10):
+    """Read the new files in one device's folder. Returns ``(read, failed)``
+    counts. Commits after each file, so one bad file never undoes another."""
+    import os
+
+    folder = (device.folder or "").strip()
+    if not folder or not os.path.isdir(folder):
+        return 0, 0
+    read_n = failed_n = 0
+    stamp = (now or datetime.utcnow()).timestamp()
+    for name in sorted(os.listdir(folder)):
+        path = os.path.join(folder, name)
+        if not os.path.isfile(path) or not name.lower().endswith(FOLDER_EXT):
+            continue
+        # A file still being written by the analyser is left for next time.
+        if stamp - os.path.getmtime(path) < settle_seconds:
+            continue
+        try:
+            with open(path, "rb") as fh:
+                data = fh.read(MAX_BYTES + 1)
+            run(device, data, filename=name, now=now)
+            db.session.commit()
+            _move(path, DONE)
+            read_n += 1
+        except ImportError_:
+            db.session.rollback()
+            try:
+                _move(path, FAILED)
+            except OSError:
+                pass
+            failed_n += 1
+        except OSError:
+            db.session.rollback()
+            failed_n += 1
+    return read_n, failed_n
+
+
+def scan_folders(now=None):
+    """Every active device with a folder."""
+    out = {}
+    for device in LabDevice.query.filter(LabDevice.is_active.is_(True),
+                                         LabDevice.folder.isnot(None)).all():
+        out[device.id] = scan_folder(device, now=now)
+    return out
+
+
+def maybe_scan(min_gap_minutes=SCAN_MINUTES):
+    """From the heartbeat: at most every few minutes, and one worker at a time
+    (the turn is taken with ``Setting.swap``)."""
+    from datetime import timedelta
+
+    from app.models import Setting
+
+    try:
+        if not LabDevice.query.filter(LabDevice.folder.isnot(None)).first():
+            return None
+        now = datetime.utcnow()
+        last = Setting._read("lab_folder_last_scan")
+        if last:
+            try:
+                if now - datetime.fromisoformat(last) < timedelta(minutes=min_gap_minutes):
+                    return None
+            except ValueError:
+                pass
+        if not Setting.swap("lab_folder_last_scan", last, now.isoformat()):
+            db.session.rollback()
+            return None
+        db.session.commit()
+        return scan_folders(now=now)
+    except Exception:  # noqa: BLE001 — a heartbeat never breaks on a folder
+        db.session.rollback()
+        return None

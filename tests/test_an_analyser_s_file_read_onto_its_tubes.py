@@ -133,3 +133,44 @@ def test_a_file_without_a_sample_column_is_refused_and_nothing_is_written(bench)
     assert "عمود رقم العينة" in page
     with bench["app"].app_context():
         assert LabImportRun.query.count() == 0
+
+
+# ------------------------------------------------ the analyser's folder --
+
+def test_a_file_dropped_in_the_folder_is_read_once_and_moved_aside(bench, tmp_path):
+    from datetime import datetime, timedelta
+
+    from app.models import LabDevice, LabImportRun
+    from app.utils import lab_device_import as imp
+
+    cbc = _tube(bench, "cbc", "S1")
+    did = _device(bench, HGB="hb")
+    bench["sign_in"]("boss").post(f"/labs/devices/{did}", data={
+        "name": "Sysmex", "folder": str(tmp_path)})
+    (tmp_path / "run1.csv").write_text("Sample ID,Test,Result\nS1,HGB,12.3\n", encoding="utf-8")
+    (tmp_path / "junk.csv").write_text("Foo,Bar\n1,2\n", encoding="utf-8")
+    (tmp_path / "picture.png").write_bytes(b"not a result file")
+    later = datetime.utcnow() + timedelta(minutes=1)
+    with bench["app"].app_context():
+        assert bench["db"].session.get(LabDevice, did).folder == str(tmp_path)
+        imp.scan_folders(now=later)
+        imp.scan_folders(now=later)          # a second look reads nothing again
+        assert LabImportRun.query.count() == 1
+    assert _value(bench, cbc, "hb")[0] == 12.3
+    assert (tmp_path / "done" / "run1.csv").exists() and not (tmp_path / "run1.csv").exists()
+    assert (tmp_path / "failed" / "junk.csv").exists(), "a file that cannot be read is put aside"
+    assert (tmp_path / "picture.png").exists(), "anything else is left alone"
+
+
+def test_a_file_still_being_written_waits_for_the_next_look(bench, tmp_path):
+    from app.models import LabImportRun
+    from app.utils import lab_device_import as imp
+
+    _tube(bench, "cbc", "S1")
+    did = _device(bench, HGB="hb")
+    bench["sign_in"]("boss").post(f"/labs/devices/{did}", data={"name": "Sysmex", "folder": str(tmp_path)})
+    (tmp_path / "run1.csv").write_text("Sample ID,Test,Result\nS1,HGB,12.3\n", encoding="utf-8")
+    with bench["app"].app_context():
+        imp.scan_folders()
+        assert LabImportRun.query.count() == 0
+    assert (tmp_path / "run1.csv").exists()
