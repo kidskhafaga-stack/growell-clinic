@@ -302,6 +302,10 @@ def _newborn_extras(admissions):
     ids = [a.patient_id for a in admissions]
     # ح-٢ — the A/B/D episodes in the last 24 hours.
     episodes = neonatal_events.count_last_day([a.id for a in admissions])
+    # ح-٣ — under the light now.
+    from app.utils import phototherapy
+
+    lights = phototherapy.on_now([a.id for a in admissions])
     bilirubin = _latest_bilirubin(ids)
     weights = _latest_weight(ids)
 
@@ -323,6 +327,7 @@ def _newborn_extras(admissions):
         out[admission.patient_id] = {
             **_age_and_weight(baby, weighed),
             "abd_24h": episodes.get(admission.id, 0),
+            "light": lights.get(admission.id),
             "hours": getattr(baby, "age_hours", None),
             "weeks": getattr(baby, "gestation_weeks", None),
             "birth_weight": getattr(baby, "birth_weight_kg", None),

@@ -896,6 +896,9 @@ def admission(admission_id):
         # ح-٢ — apnoea, bradycardia and desaturation episodes.
         abd_rows=_abd().recent(row), abd_shown=_abd().shown(row),
         abd_all=len(row.neonatal_events or []),
+        # ح-٣ — phototherapy: on, off, the hours.
+        photo_rows=_photo().sessions(row), photo_on=_photo().running(row),
+        photo_hours=_photo().total_hours(row), photo_shown=_photo().shown(row),
         safety=drug_round.safety(row, lang=getattr(g, "lang", "ar")),
         routes=ROUTES, dose_outcomes=DOSE_OUTCOMES,
         may_order=current_user.can("medication_order"),
@@ -2256,6 +2259,34 @@ def _setting(key):
     from app.models import Setting
 
     return Setting.get(key)
+
+
+def _photo():
+    from app.utils import phototherapy
+
+    return phototherapy
+
+
+@beds_bp.route("/stay/<int:admission_id>/photo", methods=["POST"])
+@module_required(MODULE)
+def photo(admission_id):
+    """The light on, or off (ح-٣)."""
+    row = Admission.query.get_or_404(admission_id)
+    try:
+        if request.form.get("action") == "stop":
+            _photo().stop(row, user=current_user, at=_happened_at())
+            said = "photo.stopped"
+        else:
+            _photo().start(row, kind=request.form.get("kind"), user=current_user,
+                           at=_happened_at(), note=request.form.get("note"))
+            said = "photo.started"
+    except _photo().PhotoError as why:
+        db.session.rollback()
+        flash(t("photo.err_" + str(why)), "error")
+    else:
+        db.session.commit()
+        flash(t(said), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id) + "#care")
 
 
 def _abd():

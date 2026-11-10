@@ -1,0 +1,47 @@
+{# ---- العلاج الضوئي — DOCTOR_EASE ح-٣ --------------------------------------- #}
+{# When the light went on, what kind, when it came off, and the hours
+   (`utils/phototherapy`). The threshold itself is `utils/jaundice`'s. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="photo" data-photo>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+    <h2 class="section-title" style="margin:0;"><i class="bi bi-lightbulb"></i> {{ t('photo.title') }}</h2>
+    <span>
+      {% if photo_on %}<span class="alert-pill warn" data-photo-on>{{ t('photo.on', at=photo_on.started_at|clinic_stamp) }}{% if photo_on.kind %} · {{ t('photo.k_' ~ photo_on.kind) }}{% endif %}</span>
+      {% else %}<span class="badge badge--muted">{{ t('photo.off') }}</span>{% endif %}
+      {% if photo_rows %}<span class="hint" style="margin:0;" data-photo-total>{{ t('photo.total', n=photo_hours) }}</span>{% endif %}
+    </span>
+  </div>
+  {% if photo_rows %}
+  <table class="table" data-photo-rows>
+    <thead><tr><th>{{ t('photo.from') }}</th><th>{{ t('photo.to') }}</th><th>{{ t('photo.kind') }}</th><th>{{ t('photo.hours') }}</th><th>{{ t('photo.note') }}</th></tr></thead>
+    <tbody>{% for s in photo_rows %}
+      <tr data-photo-row="{{ s.id }}">
+        <td dir="ltr">{{ s.started_at|clinic_stamp }}</td>
+        <td dir="ltr">{{ s.stopped_at|clinic_stamp if s.stopped_at else '…' }}</td>
+        <td>{{ t('photo.k_' ~ s.kind) if s.kind else '' }}</td>
+        <td dir="ltr">{{ '%.1f'|format(s.hours()) }}</td>
+        <td dir="auto">{{ s.note or '' }}</td>
+      </tr>{% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="hint" data-photo-none>{{ t('photo.none') }}</p>{% endif %}
+  {% if admission.is_open %}
+  <form method="post" action="{{ url_for('beds.photo', admission_id=admission.id) }}"
+        style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-top:10px;" data-photo-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if not photo_on %}
+    <div class="form-row" style="margin:0;"><label for="ph_kind">{{ t('photo.kind') }}</label>
+      <select class="select" id="ph_kind" name="kind"><option value="">—</option>
+        {% for k in ('single', 'double', 'intensive', 'blanket') %}<option value="{{ k }}">{{ t('photo.k_' ~ k) }}</option>{% endfor %}</select></div>
+    {% endif %}
+    <div class="form-row" style="margin:0;"><label for="ph_at">{{ t('photo.at') }}</label>
+      <input class="input" id="ph_at" name="at" type="datetime-local" value="{{ fluid_now }}" dir="ltr"></div>
+    {% if not photo_on %}
+    <div class="form-row" style="margin:0;flex:1;min-width:140px;"><label for="ph_note">{{ t('photo.note') }}</label>
+      <input class="input" id="ph_note" name="note" maxlength="160" dir="auto"></div>
+    <button class="btn btn-primary gc-press" type="submit" name="action" value="start"><i class="bi bi-lightbulb"></i> {{ t('photo.start') }}</button>
+    {% else %}
+    <button class="btn btn-outline gc-press" type="submit" name="action" value="stop"><i class="bi bi-lightbulb-off"></i> {{ t('photo.stop') }}</button>
+    {% endif %}
+  </form>
+  {% endif %}
+</div>

@@ -435,11 +435,14 @@ from app.models.fluid_balance import FluidEntry
 from app.models.ventilation import VentSetting
 # DOCTOR_EASE ح-٢ — apnoea, bradycardia and desaturation episodes.
 from app.models.neonatal_event import NeonatalEvent
+# DOCTOR_EASE ح-٣ — phototherapy sessions.
+from app.models.phototherapy import PhotoSession
 
 __all__ = [
     "FluidEntry",
     "VentSetting",
     "NeonatalEvent",
+    "PhotoSession",
     "User",
     "Setting",
     "SavedReport",

@@ -17073,5 +17073,31 @@
     "err_at": "The time must be between admission and now.",
     "err_closed": "This stay has ended.",
     "hint": "The count is for the doctor to read — the program sets no limit."
+  },
+  "photo": {
+    "title": "Phototherapy",
+    "since": "Under the light since {at}",
+    "on": "On since {at}",
+    "off": "Not under the light",
+    "total": "Total hours: {n}",
+    "kind": "Kind",
+    "k_single": "Single",
+    "k_double": "Double",
+    "k_intensive": "Intensive",
+    "k_blanket": "Blanket",
+    "start": "Light on",
+    "stop": "Light off",
+    "at": "Time",
+    "note": "Note",
+    "none": "No phototherapy yet.",
+    "from": "From",
+    "to": "To",
+    "hours": "Hours",
+    "started": "Recorded: the light is on.",
+    "stopped": "Recorded: the light is off.",
+    "err_already_on": "The light is already on — switch it off first.",
+    "err_not_on": "The light is not on.",
+    "err_at": "The time does not make sense.",
+    "err_closed": "This stay has ended."
   }
 }

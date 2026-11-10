@@ -1004,6 +1004,13 @@ SECTIONS = [
              "duration, the lowest heart rate and saturation, and what brought the baby back. "
              "The count for the last 24 hours shows above and on the incubator board. The "
              "program sets no limit for the count."),
+            ("<b>العلاج الضوئي (ح-٣):</b> في إقامة الحضّانة «شغّل الضوء» بنوعه (لمبة، لمبتين، "
+             "مكثّف، بطانية) والساعة، و«وقّف الضوء». الصفحة بتقول كل جلسة وساعاتها والإجمالي، "
+             "ولوحة الحضّانات بتقول «تحت الضوء من …» جنب المولود.",
+             "<b>Phototherapy:</b> on an incubator stay, «Light on» with its kind (single, "
+             "double, intensive, blanket) and time, and «Light off». The page lists each "
+             "session with its hours and the total; the incubator board says «Under the "
+             "light since …» beside the baby."),
             ("<b>ميزان السوائل (د-٥):</b> في تاب «التمريض والتقييم» الممرضة بتكتب الداخل "
              "(بالفم، رضعة/أنبوبة، محاليل، دم) والخارج (بول، ترجيع، براز، درنقة، شفط معدة) "
              "بالمللي وبالساعة اللي حصل فيها. فوق: مجموع آخر ٢٤ ساعة والفرق، والبول مل/كجم/ساعة "

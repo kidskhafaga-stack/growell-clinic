@@ -166,3 +166,30 @@ def test_episodes_are_recorded_and_counted_on_the_stay_and_the_board(clinic):
 
     with world["app"].app_context():
         assert NeonatalEvent.query.count() == 2
+
+
+# ------------------------------------------------- ح-٣ phototherapy --
+
+def test_the_light_on_and_off_with_its_hours_on_the_stay_and_the_board(clinic):
+    from datetime import timedelta
+
+    from tests.test_who_do_i_look_at_first import _admit as admit_to
+    from tests.test_who_do_i_look_at_first import _child as baby_of
+    from tests.test_who_do_i_look_at_first import hospital as incubators
+    from app.utils.clock import local_now
+
+    world = incubators.__wrapped__(clinic)
+    pid = baby_of(world, "مولودة", born_days=3, gestation_weeks=36)
+    stay = admit_to(world, pid, "ح١", minutes_ago=600)
+    nurse = world["sign_in"]("boss")
+    six_ago = (local_now() - timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M")
+    nurse.post(f"/beds/stay/{stay}/photo", data={"action": "start", "kind": "double", "at": six_ago})
+    assert "data-under-light" in nurse.get("/nicu/").get_data(as_text=True)
+    page = nurse.post(f"/beds/stay/{stay}/photo", data={"action": "start"},
+                      follow_redirects=True).get_data(as_text=True)
+    assert "شغّال أصلاً" in page, "one light at a time"
+    page = nurse.post(f"/beds/stay/{stay}/photo", data={"action": "stop"},
+                      follow_redirects=True).get_data(as_text=True)
+    total = page.split("data-photo-total", 1)[1][:80]
+    assert "6.0" in total or "5.9" in total or "6" in total
+    assert "data-under-light" not in nurse.get("/nicu/").get_data(as_text=True)
