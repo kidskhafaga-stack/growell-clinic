@@ -133,16 +133,22 @@ def readings(attendance):
     its bands and which way it moved from the reading before:
     ``[{"obs", "bands": {field: band}, "trend": {field: "up"|"down"|None}}]``.
     Taken here, from the board, or on the observations chart — one record."""
+    return readings_between(attendance.patient, attendance.arrived_at,
+                            attendance.departed_at)
+
+
+def readings_between(patient, start, end=None):
+    """:func:`readings` for any stay — an attendance, or an admission (د-٤)."""
     from app.models.observation import Observation
     from app.utils import vital_bands
     from app.utils.dosing import age_months_of
 
-    q = Observation.query.filter(Observation.patient_id == attendance.patient_id,
-                                 Observation.taken_at >= attendance.arrived_at)
-    if attendance.departed_at:
-        q = q.filter(Observation.taken_at <= attendance.departed_at)
+    q = Observation.query.filter(Observation.patient_id == patient.id,
+                                 Observation.taken_at >= start)
+    if end:
+        q = q.filter(Observation.taken_at <= end)
     rows = q.order_by(Observation.taken_at.asc(), Observation.id.asc()).all()
-    age = age_months_of(attendance.patient)
+    age = age_months_of(patient)
     field_of = dict(vital_bands.READINGS)
     out, before = [], {}
     for obs in rows:

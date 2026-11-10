@@ -957,6 +957,13 @@ SECTIONS = [
              "the chart, the child's weight and its date (or a box to weigh them today); "
              "as soon as the doctor picks the drug, the dose by the program's rules for "
              "that weight shows with «Use it»."),
+            ("<b>العلامات الحيوية في صفحة الإقامة (د-٤):</b> في تاب «الإقامة» جدول كل "
+             "القراءات من ساعة الدخول — من اللوحة أو شاشة الملاحظة أو من هنا — كل رقم ملوّن "
+             "بحدود سنّ الطفل وجنبه سهم طالع ولا نازل، وتحته «سجّل قراءة».",
+             "<b>Vital signs on the stay (د-٤):</b> the «Stay» tab lists every reading since "
+             "admission — from the board, the observation chart or here — each coloured by "
+             "the child's age band with an arrow for which way it moved, and «Record a "
+             "reading» below."),
             ("<b>الأمر حاجة والجرعة حاجة تانية.</b> الطبيب بيكتب أمر ثابت — "
              "الدوا والجرعة وكل كام ساعة — والتمريض بيسجّل كل جرعة: اتعطت، "
              "اتأجلت، أو اترفضت. لو كان في عمود واحد اسمه «آخر جرعة» على "

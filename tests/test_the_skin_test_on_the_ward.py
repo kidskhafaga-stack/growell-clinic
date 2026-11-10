@@ -144,3 +144,31 @@ def test_the_ward_dose_box_says_the_allergy_and_refuses_a_weight_that_is_not_a_c
     ward["sign_in"]("boss").post(f"/beds/admission/{stay}/weight", data={"weight_kg": "900"})
     with ward["app"].app_context():
         assert GrowthRecord.query.filter_by(source="ward").count() == 0
+
+
+# ------------------------------------------- د-٤ the vitals on the stay --
+
+def test_the_stay_shows_its_readings_and_their_trend_and_takes_one(ward):
+    from datetime import datetime, timedelta
+
+    from app.models.observation import Observation
+
+    pid = _child(ward, "يوسف")
+    stay = _admit(ward, pid)
+    with ward["app"].app_context():
+        ward["db"].session.add_all([
+            Observation(patient_id=pid, taken_at=datetime.utcnow() - timedelta(days=5), spo2=80),
+            Observation(patient_id=pid, taken_at=datetime.utcnow() - timedelta(hours=3),
+                        pulse_bpm=120, spo2=97)])
+        ward["db"].session.commit()
+    boss = ward["sign_in"]("boss")
+    page = boss.post(f"/beds/admission/{stay}/vitals", data={"pulse_bpm": "150", "spo2": "88"},
+                     follow_redirects=True).get_data(as_text=True)
+    assert "data-vitals-card" in page
+    assert page.count("data-reading=") == 2, "the reading from before the stay is not its own"
+    newest = page.split("data-reading=", 2)[1]
+    assert 'data-trend="up"' in newest and 'data-trend="down"' in newest
+    assert 'data-band="bad"' in newest
+    boss.post(f"/beds/admission/{stay}/vitals", data={})
+    with ward["app"].app_context():
+        assert Observation.query.filter_by(patient_id=pid).count() == 3, "an empty reading is refused"

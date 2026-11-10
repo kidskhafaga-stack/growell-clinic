@@ -398,6 +398,11 @@
   </table>
   </div>
 </div>
+{# د-٤ — the readings of the stay, banded by age with which way each moved,
+   and the box to take one, on the page the doctor has open. #}
+{% from "_vitals_card.html" import vitals_card with context %}
+{{ vitals_card(vitals, url_for('beds.record_vitals', admission_id=admission.id), admission.patient_id, admission.is_open, may_chart) }}
+
 {# The stay's own thread. The board answers "has anybody been round today"
    across a whole department; this is the other half of the same fact — what
    was actually decided, day by day, for one child. A doctor coming on shift

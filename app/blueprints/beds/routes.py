@@ -883,6 +883,9 @@ def admission(admission_id):
         **_skin_helpers(),
         # د-٣ — the weight a dose by weight is worked from, with its date.
         weighed=_weighed(row.patient), today_iso=local_today().isoformat(),
+        # د-٤ — the readings of the stay, banded by age with their trend.
+        vitals=_er_triage().readings_between(row.patient, row.admitted_at, row.discharged_at),
+        may_chart=_module_on("observations"),
         safety=drug_round.safety(row, lang=getattr(g, "lang", "ar")),
         routes=ROUTES, dose_outcomes=DOSE_OUTCOMES,
         may_order=current_user.can("medication_order"),
@@ -2192,6 +2195,38 @@ def skin_test_result(order_id):
     db.session.commit()
     flash(t("skin_test.saved_" + result), "danger" if result == "positive" else "success")
     return _back_from_dose(row)
+
+
+def _module_on(key):
+    from app.utils.facility import module_enabled
+
+    return module_enabled(key)
+
+
+def _er_triage():
+    from app.utils import er_triage
+
+    return er_triage
+
+
+@beds_bp.route("/admission/<int:admission_id>/vitals", methods=["POST"])
+@module_required(MODULE)
+def record_vitals(admission_id):
+    """A set of readings from the stay the doctor has open (د-٤) — the same
+    record the ward board and the observations chart keep."""
+    row = Admission.query.get_or_404(admission_id)
+    obs, flags = _er_triage().door_vitals(row, request.form, current_user)
+    if obs is None:
+        db.session.rollback()
+        flash(t("observations.nothing_measured"), "error")
+    else:
+        db.session.commit()
+        if flags:
+            flash(t("er_vitals.out_of_band", readings="، ".join(
+                f"{t('er_triage.k_' + k)} {v}" for k, v in flags)), "warning")
+        else:
+            flash(t("observations.saved"), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id) + "#overview")
 
 
 def _weighed(patient):
