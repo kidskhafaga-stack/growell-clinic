@@ -85,7 +85,11 @@ def summary(admission, now=None):
     urine = by_kind.get("urine", 0)
     rate = (round(urine / weight / hours, 1)
             if weight and hours >= 1 and any(e.kind == "urine" for e in rows) else None)
+    # ح-٤ — what went in per kilo over the window (24 hours once the stay is
+    # that long: then it is the mL/kg/day the units work in). Arithmetic.
+    in_per_kg = round(total_in / weight, 1) if weight and total_in else None
     return {"in": total_in, "out": total_out, "net": total_in - total_out,
+            "in_ml_kg": in_per_kg,
             "by_kind": {k: v for k, v in by_kind.items() if v},
             "hours": round(hours, 1), "urine": urine, "weight": weight,
             "urine_ml_kg_h": rate, "count": len(rows)}

@@ -13,7 +13,10 @@
     <div class="stat-card edge-blue" style="min-width:120px;"><div class="value" dir="ltr" data-fluid-in>{{ fluid['in'] }}</div><div class="label">{{ t('fluid.in') }} ({{ t('fluid.ml') }})</div></div>
     <div class="stat-card edge-amber" style="min-width:120px;"><div class="value" dir="ltr" data-fluid-out>{{ fluid['out'] }}</div><div class="label">{{ t('fluid.out') }} ({{ t('fluid.ml') }})</div></div>
     <div class="stat-card edge-green" style="min-width:120px;"><div class="value" dir="ltr" data-fluid-net>{{ '+' if fluid.net > 0 else '' }}{{ fluid.net }}</div><div class="label">{{ t('fluid.net') }}</div></div>
-    <div style="align-self:center;">
+    <div style="align-self:center;display:grid;gap:4px;">
+      {% if fluid.in_ml_kg is not none %}
+      <span class="badge badge--muted" data-in-ml-kg dir="auto">{{ t('fluid.in_ml_kg', n=fluid.in_ml_kg, h=(fluid.hours|round|int)) }}</span>
+      {% endif %}
       {% if fluid.urine_ml_kg_h is not none %}
       <span class="badge badge--muted" data-urine-rate dir="auto">{{ t('fluid.urine_rate', n=fluid.urine_ml_kg_h) }} · {{ fluid.weight }} kg</span>
       {% else %}<span class="hint" style="margin:0;">{{ t('fluid.urine_rate_none') }}</span>{% endif %}

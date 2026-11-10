@@ -16983,7 +16983,8 @@
     "k_drain": "Drain",
     "k_aspirate": "Gastric aspirate",
     "k_other_out": "Other out",
-    "no_limits": "The program sets no limits — reading the numbers is the doctor's."
+    "no_limits": "The program sets no limits — reading the numbers is the doctor's.",
+    "in_ml_kg": "In: {n} mL/kg over the last {h} h"
   },
   "band": {
     "open": "Open",

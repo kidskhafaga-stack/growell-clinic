@@ -193,3 +193,26 @@ def test_the_light_on_and_off_with_its_hours_on_the_stay_and_the_board(clinic):
     total = page.split("data-photo-total", 1)[1][:80]
     assert "6.0" in total or "5.9" in total or "6" in total
     assert "data-under-light" not in nurse.get("/nicu/").get_data(as_text=True)
+
+
+# ------------------------------------------- ح-٤ fluids per kilo a day --
+
+def test_what_went_in_per_kilo_over_the_last_24_hours(ward):
+    from datetime import datetime, timedelta
+
+    from app.models import FluidEntry, GrowthRecord
+    from app.utils.clock import local_today
+
+    pid = _child(ward, "سليم")
+    stay = _admit(ward, pid)        # admitted a day ago
+    with ward["app"].app_context():
+        ward["db"].session.add(GrowthRecord(patient_id=pid, record_date=local_today(),
+                                            weight_kg=2, source="ward"))
+        for h, ml in ((20, 120), (10, 100), (2, 80)):
+            ward["db"].session.add(FluidEntry(admission_id=stay, patient_id=pid, direction="in",
+                                              kind="feed", ml=ml,
+                                              at=datetime.utcnow() - timedelta(hours=h)))
+        ward["db"].session.commit()
+    page = ward["sign_in"]("boss").get(f"/beds/admission/{stay}").get_data(as_text=True)
+    badge = page.split("data-in-ml-kg", 1)[1][:160]
+    assert "150.0" in badge and "24" in badge, "300 mL / 2 kg over 24 h"

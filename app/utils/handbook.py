@@ -1011,6 +1011,11 @@ SECTIONS = [
              "double, intensive, blanket) and time, and «Light off». The page lists each "
              "session with its hours and the total; the incubator board says «Under the "
              "light since …» beside the baby."),
+            ("<b>السوائل بالمل/كجم (ح-٤):</b> ميزان السوائل بيقول كمان الداخل بالمل/كجم في "
+             "آخر ٢٤ ساعة من آخر وزن — ولو الإقامة لسه أقصر بيقول في كام ساعة. حساب بس.",
+             "<b>Fluids per kilo:</b> the fluid balance also says what went in, in mL/kg over "
+             "the last 24 hours from the latest weight — or over how many hours, for a "
+             "shorter stay. Arithmetic only."),
             ("<b>ميزان السوائل (د-٥):</b> في تاب «التمريض والتقييم» الممرضة بتكتب الداخل "
              "(بالفم، رضعة/أنبوبة، محاليل، دم) والخارج (بول، ترجيع، براز، درنقة، شفط معدة) "
              "بالمللي وبالساعة اللي حصل فيها. فوق: مجموع آخر ٢٤ ساعة والفرق، والبول مل/كجم/ساعة "
