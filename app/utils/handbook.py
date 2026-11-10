@@ -975,6 +975,15 @@ SECTIONS = [
              "24 hours' totals and the difference, and urine in mL/kg/h from the latest weight; "
              "below, day by day. A wrong amount is struck through and stays visible. The "
              "program sets no limits — reading the numbers is the doctor's."),
+            ("<b>ملخّص الخروج المطبوع (د-٦):</b> من تاب «الخروج» ← طباعة الملخّص: فيه "
+             "عناصره التسعة، وتحت التعليمات مربع أحمر «ارجعوا الطوارئ فوراً لو…» بنفس كلام "
+             "المستشفى اللي في الإعدادات (هو نفسه اللي في ورقة الطوارئ). لو فاضي بيتطبع مكان "
+             "فاضي الدكتور يكتب فيه بإيده، وتحت توقيع الدكتور والأهل.",
+             "<b>The printed discharge summary (د-٦):</b> from the «Discharge» tab ← print the "
+             "summary: its nine elements, and under the instructions a red box «Come back to "
+             "emergency at once if…» in the hospital's own words from settings (the same text "
+             "as the emergency paper). Left empty, a blank is printed for the doctor's hand, "
+             "with the doctor's and the family's signatures below."),
             ("<b>الأمر حاجة والجرعة حاجة تانية.</b> الطبيب بيكتب أمر ثابت — "
              "الدوا والجرعة وكل كام ساعة — والتمريض بيسجّل كل جرعة: اتعطت، "
              "اتأجلت، أو اترفضت. لو كان في عمود واحد اسمه «آخر جرعة» على "

@@ -1062,6 +1062,9 @@ def summary_print(admission_id):
         procedures=summary.procedures_during(row),
         meds_during=summary.medicines_during(row),
         meds_before=summary.medicines_before(row),
+        # د-٦ — «come back at once if…», the hospital's own words (the same
+        # text as emergency's paper); none written, a blank for the doctor.
+        return_signs=(_setting("er_return_signs") or "").strip(),
         today=local_today(), generated_by=current_user)
 
 
@@ -2199,6 +2202,12 @@ def skin_test_result(order_id):
     db.session.commit()
     flash(t("skin_test.saved_" + result), "danger" if result == "positive" else "success")
     return _back_from_dose(row)
+
+
+def _setting(key):
+    from app.models import Setting
+
+    return Setting.get(key)
 
 
 def _fluid():

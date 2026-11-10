@@ -16936,9 +16936,9 @@
     "signature": "Signature",
     "none": "—",
     "still_here": "Still in emergency",
-    "setting": "Family discharge paper — «Come back at once if…»",
+    "setting": "Family discharge paper (emergency and ward) — «Come back at once if…»",
     "setting_ph": "One sign per line, in the hospital's words",
-    "setting_hint": "Printed on the emergency discharge paper as written. The program writes no signs of its own — left empty, a blank space is printed for the doctor to write by hand."
+    "setting_hint": "Printed on the emergency discharge paper and the ward's discharge summary as written. The program writes no signs of its own — left empty, a blank space is printed for the doctor to write by hand."
   },
   "fluid": {
     "title": "Fluid balance",

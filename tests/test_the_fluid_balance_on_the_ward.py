@@ -86,3 +86,19 @@ def test_the_hour_the_nurse_writes_is_kept(ward):
     with ward["app"].app_context():
         row = FluidEntry.query.one()
         assert abs((row.at - to_utc(two_hours_ago.replace(tzinfo=None))).total_seconds()) < 61
+
+
+# ------------------------------- د-٦ «come back at once if…» on the summary --
+
+def test_the_discharge_summary_says_when_to_come_back_in_the_hospital_s_words(ward):
+    from app.models import Setting
+
+    stay = _admit(ward, _child(ward, "يوسف"))
+    page = ward["sign_in"]("boss").get(f"/beds/admission/{stay}/summary/print").get_data(as_text=True)
+    assert "data-return-blank" in page and "data-return-signs" not in page
+    with ward["app"].app_context():
+        Setting.set("er_return_signs", "نَفَس سريع\nمش بيرضع")
+        ward["db"].session.commit()
+    page = ward["sign_in"]("boss").get(f"/beds/admission/{stay}/summary/print").get_data(as_text=True)
+    signs = page.split("data-return-signs", 1)[1].split("</ul>", 1)[0]
+    assert "نَفَس سريع" in signs and "مش بيرضع" in signs
