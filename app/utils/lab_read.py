@@ -231,3 +231,147 @@ def read_report(order, attachment, config=None):
     if not found:
         raise ReadError("nothing_found_report")
     return found
+
+
+# ================================== one paper, every test it answers ======
+#
+# «التحاليل الى طلبها ممكن يرفعها وتتملى بشكل تلقائي في التحاليل المنتظرة» —
+# a family brings one report with the CBC, the CRP and the urine on it. Read
+# test by test, that is three readings of the same page. Here the assistant
+# is shown the paper once with **every test still waiting for this child**,
+# each with its own lines (or, for a scan or a test of one value, its report
+# fields), and asked the same narrow thing: the value as printed against each
+# key it can find, nothing else. The answers come back per test, into one
+# review page; nothing is saved until the doctor presses save, test by test
+# through the same saves as before.
+
+MANY_SYSTEM = (
+    "You read a photo or scan of a paediatric medical report that may answer "
+    "several of the tests listed. You are given the tests, each with a key and "
+    "either its lines (each with a key, names and unit) or report fields. For "
+    "every line you find, map its key to the value exactly as printed (a number "
+    "with its decimal point, or the printed word such as Negative). For a test "
+    "with report fields, map \"<test key>.text\" to its findings copied as "
+    "printed, and for a laboratory test also \"<test key>.value\", \".unit\", "
+    "\".low\", \".high\" as printed. Do not convert units, calculate, interpret "
+    "or diagnose, and never fill a key you cannot read clearly — leave it out. "
+    "Answer with one JSON object only, and nothing else."
+)
+
+
+def _patient_paper_part(patient, attachment, cfg):
+    """The paper as a message part, after the same checks as one test's —
+    except that it belongs to the child, not to one order."""
+    from flask import current_app
+
+    from app.utils import ai
+    from app.utils.uploads import docs_dir
+
+    if attachment is None or patient is None or attachment.patient_id != patient.id:
+        raise ReadError("no_paper")
+    media = readable(attachment)
+    if media is None:
+        raise ReadError("not_readable")
+    if not cfg.get("enabled"):
+        raise ReadError("ai_off")
+    if not ai.patient_context_enabled():
+        raise ReadError("no_consent")
+    if media == "application/pdf" and not ai.reads_pdf(cfg):
+        raise ReadError("pdf_provider")
+    path = os.path.join(docs_dir(), attachment.filename)
+    try:
+        if os.path.getsize(path) > MAX_BYTES:
+            raise ReadError("too_big")
+        with open(path, "rb") as fh:
+            data = base64.b64encode(fh.read()).decode("ascii")
+    except OSError:
+        current_app.logger.warning("lab_read: cannot open %s", attachment.filename)
+        raise ReadError("no_paper") from None
+    return ({"type": "pdf", "data": data} if media == "application/pdf"
+            else {"type": "image", "media_type": media, "data": data})
+
+
+def _tests_prompt(orders):
+    from app.utils import lab_results
+
+    tests = []
+    for order in orders:
+        entry = {"key": f"t{order.id}", "name": order.name or "",
+                 "kind": order.kind or "lab"}
+        if lab_results.measured(order):
+            entry["lines"] = [
+                {"key": f"t{order.id}.{line['analyte'].id}",
+                 "names": [n for n in line["analyte"].names() if n],
+                 "unit": line.get("unit") or line["analyte"].unit or ""}
+                for line in lab_results.sheet(order)]
+        else:
+            entry["report_fields"] = (["text"] if order.kind == "imaging"
+                                      else list(REPORT_KEYS))
+        tests.append(entry)
+    return json.dumps(tests, ensure_ascii=False)
+
+
+def parse_many(text, orders):
+    """``{order_id: proposals}`` — for a test answered line by line
+    ``{analyte_id: value}``, for a report ``{field: value}``. Only keys that
+    were asked; numbers only where a number belongs."""
+    from app.utils import lab_results
+
+    match = re.search(r"\{.*\}", text or "", re.S)
+    if not match:
+        return {}
+    try:
+        data = json.loads(match.group(0))
+    except ValueError:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    out = {}
+    for order in orders:
+        prefix = f"t{order.id}."
+        mine = {str(k)[len(prefix):]: v for k, v in data.items()
+                if str(k).startswith(prefix) and v is not None
+                and not isinstance(v, (dict, list))}
+        if not mine:
+            continue
+        if lab_results.measured(order):
+            ids = {str(line["analyte"].id): line["analyte"].id
+                   for line in lab_results.sheet(order)}
+            got = {ids[k]: str(v).strip()[:120] for k, v in mine.items()
+                   if k in ids and str(v).strip()}
+        else:
+            got = parse_report(json.dumps(mine), imaging=order.kind == "imaging")
+        if got:
+            out[order.id] = got
+    return out
+
+
+def read_many(patient, attachment, orders, config=None):
+    """Ask the assistant for every waiting test this paper answers. Returns
+    ``{order_id: proposals}`` — never saved here."""
+    from app.utils import ai
+
+    orders = [o for o in orders if o.patient_id == getattr(patient, "id", None)]
+    if not orders:
+        raise ReadError("no_lines")
+    cfg = config or ai.get_config()
+    part = _patient_paper_part(patient, attachment, cfg)
+    result = ai.chat(
+        [{"role": "user", "content": [
+            part, {"type": "text", "text": "Tests to look for:\n" + _tests_prompt(orders)}]}],
+        system=MANY_SYSTEM, config=cfg, feature="lab_read")
+    if not result.get("ok"):
+        raise ReadError("ai:" + str(result.get("error") or "unknown"))
+    found = parse_many(result.get("text"), orders)
+    if not found:
+        raise ReadError("nothing_found")
+    return found
+
+
+def readable_papers(patient, limit=15):
+    """The child's papers the assistant could read, newest first."""
+    from app.models import PatientAttachment
+
+    rows = (PatientAttachment.query.filter(PatientAttachment.patient_id == patient.id)
+            .order_by(PatientAttachment.created_at.desc()).limit(60).all())
+    return [r for r in rows if readable(r)][:limit]

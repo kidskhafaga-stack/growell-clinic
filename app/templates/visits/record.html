@@ -222,6 +222,24 @@
         <i class="bi bi-chevron-down pend-chev" aria-hidden="true"></i>
       </summary>
       <div class="hint" style="margin:8px 0;">{{ t('visits.pending_results_hint') }}</div>
+      {# One paper with several tests on it: read once by the assistant onto
+         every test still waiting, into one page to check and save. #}
+      {% if ai_reads_papers %}{% set _papers = child_papers() %}
+      <form method="post" action="{{ url_for('visits.read_paper_all', visit_id=visit.id) }}" enctype="multipart/form-data"
+            style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 10px;padding:8px 10px;border:1px dashed var(--line);border-radius:10px;" data-read-paper-all>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <span style="font-weight:600;"><i class="bi bi-magic"></i> {{ t('lab_read.many_door') }}</span>
+        {% if _papers %}
+        <select class="input" name="attachment_id" style="max-width:220px;" aria-label="{{ t('lab_read.many_pick') }}">
+          <option value="">{{ t('lab_read.many_pick') }}</option>
+          {% for f in _papers %}<option value="{{ f.id }}">{{ f.original_name or f.filename }} · {{ f.created_at.strftime('%Y-%m-%d') }}</option>{% endfor %}
+        </select>{% endif %}
+        <label class="hint" style="margin:0;">{{ t('lab_read.many_upload') }}
+          <input type="file" name="file" accept="image/*,application/pdf" style="max-width:220px;"></label>
+        <button class="btn btn-sm btn-primary gc-press" type="submit"><i class="bi bi-magic"></i> {{ t('lab_read.many_read') }}</button>
+        <span class="hint" style="margin:0;">{{ t('lab_read.you_confirm') }}</span>
+      </form>
+      {% endif %}
       <div style="display:flex;flex-direction:column;gap:8px;">
         {% for x in pending_investigations %}
         {% set _x_wa = x.files|selectattr('arrived_by_whatsapp')|list %}

@@ -12,6 +12,7 @@
   strings.
 """
 import os
+import uuid
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -56,7 +57,7 @@ def _paper(c, order_id, name="cbc.png", data=PNG):
 
     with c["app"].app_context():
         os.makedirs(docs_dir(), exist_ok=True)
-        stored = f"test_{order_id}_{name}"
+        stored = f"test_{order_id}_{uuid.uuid4().hex[:10]}_{name}"
         with open(os.path.join(docs_dir(), stored), "wb") as fh:
             fh.write(data)
         _WRITTEN.append(os.path.join(docs_dir(), stored))

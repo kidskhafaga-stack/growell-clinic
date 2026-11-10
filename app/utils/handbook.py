@@ -508,6 +508,22 @@ SECTIONS = [
              "assistant. A suggestion fills the same form you fill by hand, "
              "the search is unchanged, and nothing is saved until you press "
              "add. Off until Settings \u2192 AI turns it on."),
+            ("<b>ورقة فيها كذا تحليل.</b> لو الأهل جابوا ورقة نتايج (صورة أو "
+             "PDF) فيها أكتر من تحليل من اللي مستنيين: في «نتايج مستنية» اختار "
+             "الورقة أو ارفعها ودوس «اقرا ووزّع». المساعد بيقرا الورقة مرة واحدة "
+             "ويحط اللي لقاه قدام كل تحليل مستني، في صفحة واحدة جنب الورقة. "
+             "بتراجع، وتعلّم على اللي عايز تحفظه، ومحدش بيتحفظ غير لما تدوس "
+             "«احفظ» — وكل تحليل بيتحكم عليه بمعدّلات المعمل زي ما بتكتبه بإيدك. "
+             "محتاج الذكاء الاصطناعي مفتوح وموافقة العيادة على إرسال ورق الأطفال.",
+             "<b>One paper with several tests.</b> When a family brings one "
+             "result paper (an image or a PDF) with several of the tests still "
+             "waiting: under the waiting results, pick the paper or upload it "
+             "and press \u201cread and spread\u201d. The assistant reads it once "
+             "and puts what it found under each waiting test, on one page beside "
+             "the paper. You check, tick the ones to keep, and nothing is saved "
+             "until you press save \u2014 each test judged against the lab's "
+             "ranges exactly as if typed by hand. Needs the AI switched on and "
+             "the clinic's consent to send children's papers."),
         ],
     },
     {
