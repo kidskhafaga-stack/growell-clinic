@@ -6612,7 +6612,9 @@
     "jaundice_exchange": "above the exchange line",
     "jaundice_below": "below both lines",
     "no_unit_ward": "No inpatient ward has been built yet. Build one in the bed setup: a unit of kind ward, its rooms, and a bed or more in each.",
-    "no_unit_icu": "No intensive care unit has been built yet. Build one in the bed setup: a unit of kind intensive care, an open bay holding the beds, and one or two partitions marked as isolation."
+    "no_unit_icu": "No intensive care unit has been built yet. Build one in the bed setup: a unit of kind intensive care, an open bay holding the beds, and one or two partitions marked as isolation.",
+    "here_for_h": "here {h} h {m} min",
+    "here_for_d": "here {d} d {h} h"
   },
   "emergency": {
     "sub": "Who first, and who has been here without anybody measuring them",
@@ -13524,7 +13526,8 @@
     "src_problems": "problem list",
     "src_home_meds": "home medicines",
     "src_panel": "specialty history",
-    "err_empty": "Nothing was written."
+    "err_empty": "Nothing was written.",
+    "write": "Write what is missing ({n})"
   },
   "needscreen": {
     "title": "Needs screening",

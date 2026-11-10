@@ -4,6 +4,14 @@
 {% block title %}{{ t('nav.' ~ module) }}{% endblock %}
 {% block page_heading %}{{ t('nav.' ~ module) }}{% endblock %}
 
+{# How long a child has been here — minutes for the first hour, then hours,
+   then days: «3060 min» was a sum the nurse had to do (DOCTOR_EASE د-٧). #}
+{% macro here_for(minutes) -%}
+{%- set m = minutes or 0 -%}
+{%- if m < 60 -%}{{ t('dept.here_for', n=m) }}
+{%- elif m < 1440 -%}{{ t('dept.here_for_h', h=m // 60, m=m % 60) }}
+{%- else -%}{{ t('dept.here_for_d', d=m // 1440, h=(m % 1440) // 60) }}{%- endif -%}
+{%- endmacro %}
 {% block content %}
 <style>
   /* The partitions (ER places) and the queue number. */
@@ -119,7 +127,7 @@
         <a href="{{ url_for('emergency.attendance', attendance_id=a.id) }}">{{ a.patient.display_name(current_lang) }}</a>
         {% if a.treatment_only %}<span class="badge badge--muted">{{ t('er_orders.walk_in') }}</span>{% endif %}
         {% if a.place_bed_id and a.place_bed %}<span class="badge badge--green" data-in-place="{{ a.place_bed_id }}"><i class="bi bi-layout-split"></i> {{ a.place_bed.display_name(current_lang) }}</span>{% endif %}</div>
-      <div class="hint" dir="ltr">{{ t('dept.here_for', n=a.minutes) }} · {{ a.arrived_at|clinic_stamp }}</div>
+      <div class="hint" dir="ltr">{{ here_for(a.minutes) }} · {{ a.arrived_at|clinic_stamp }}</div>
       {% if a.level %}<div class="hint"><span class="badge {{ 'badge--danger' if a.urgent else 'badge--muted' }}">{{ a.level }}</span></div>{% endif %}
       {% if _turn %}<div class="hint er-turn" data-its-turn>{{ t('er_queue.its_turn') }}</div>
       {% elif _n and _pt and _pt.total %}<div class="hint" data-in-queue>{{ t('er_queue.number', n=_n) }}</div>{% endif %}
@@ -188,7 +196,7 @@
         {% if row.bed and row.bed.is_isolation %}
         · <span class="alert-pill warn">{{ t('beds.isolation') }}</span>{% endif %}
       </div>
-      <div class="hint" dir="ltr">{{ t('dept.here_for', n=row.minutes) }}
+      <div class="hint" dir="ltr">{{ here_for(row.minutes) }}
         · {{ row.since|clinic_stamp }}</div>
       {% if row.admission.reason %}
       <div class="hint">{{ row.admission.reason }}</div>{% endif %}

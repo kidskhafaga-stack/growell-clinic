@@ -25,6 +25,11 @@
   {% endfor %}
   </div>
   {% if gaps and admission.is_open %}
+  {# Folded (د-٧): the missing ones are already listed above, and ten empty
+     boxes under them made the stay's first page a form. One press opens it. #}
+  <details style="margin-top:10px;" data-medical-write>
+  <summary class="btn btn-sm btn-primary gc-press" style="display:inline-flex;list-style:none;">
+    <i class="bi bi-pencil-square"></i>&nbsp;{{ t('medass.write', n=gaps|length) }}</summary>
   <form method="post" action="{{ url_for('beds.medical_initial', admission_id=admission.id) }}" style="display:grid;gap:8px;margin-top:10px;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <p class="hint" style="margin:0;">{{ t('medass.only_missing') }}</p>
@@ -34,6 +39,7 @@
     {% endfor %}
     <div><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('medass.save') }}</button></div>
   </form>
+  </details>
   {% endif %}
   {% if medical_row and medical_row.by %}<p class="hint" style="margin:8px 0 0;">{{ medical_row.by.display_name(current_lang) }} · <span dir="ltr">{{ medical_row.at|clinic_stamp }}</span></p>{% endif %}
 </div>

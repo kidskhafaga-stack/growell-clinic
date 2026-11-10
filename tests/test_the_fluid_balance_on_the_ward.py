@@ -102,3 +102,21 @@ def test_the_discharge_summary_says_when_to_come_back_in_the_hospital_s_words(wa
     page = ward["sign_in"]("boss").get(f"/beds/admission/{stay}/summary/print").get_data(as_text=True)
     signs = page.split("data-return-signs", 1)[1].split("</ul>", 1)[0]
     assert "نَفَس سريع" in signs and "مش بيرضع" in signs
+
+
+# ------------------------------------------------- د-٧ two small things --
+
+def test_the_board_says_days_and_hours_not_thousands_of_minutes(ward):
+    stay = _admit(ward, _child(ward, "يوسف"))       # admitted a day ago
+    page = ward["sign_in"]("boss").get("/ward/").get_data(as_text=True)
+    assert "1440" not in page and "دقيقة" not in page.split("يوسف", 1)[1][:600]
+    assert "يوم" in page.split("يوسف", 1)[1][:600]
+    assert stay
+
+
+def test_the_initial_assessment_s_boxes_fold_behind_one_press(ward):
+    stay = _admit(ward, _child(ward, "يوسف"))
+    page = ward["sign_in"]("boss").get(f"/beds/admission/{stay}").get_data(as_text=True)
+    assert "data-medical-write" in page
+    fold = page.split("data-medical-write", 1)[1]
+    assert fold.index("<summary") < fold.index("<textarea"), "the boxes sit inside the fold"
