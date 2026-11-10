@@ -114,3 +114,27 @@ def test_nonsense_is_refused_not_answered(ward):
     for args in ((0, "mg_kg_h", 10, 5, 5), (1, "drops", 10, 5, 5), (1, "mg_kg_h", 10, 5, 0)):
         with pytest.raises(infusion.InfusionError):
             infusion.rate(*args)
+
+
+# ------------------------------- ح-١ the age since the last period and weight --
+
+def test_the_incubator_board_says_the_day_pma_and_the_weight_against_birth(clinic):
+    from tests.test_who_do_i_look_at_first import _admit as admit_to
+    from tests.test_who_do_i_look_at_first import _child as baby_of
+    from tests.test_who_do_i_look_at_first import hospital as incubators
+
+    world = incubators.__wrapped__(clinic)
+    pid = baby_of(world, "مولودة", born_days=2, gestation_weeks=33, birth_weight_kg=2.0)
+    admit_to(world, pid, "ح١")
+    from app.models import GrowthRecord
+    from app.utils.clock import local_today
+
+    with world["app"].app_context():
+        world["db"].session.add(GrowthRecord(patient_id=pid, record_date=local_today(),
+                                             weight_kg=1.9, source="ward"))
+        world["db"].session.commit()
+    page = world["sign_in"]("boss").get("/nicu/").get_data(as_text=True)
+    assert "PMA 33+2" in page, "33 weeks at birth, two days ago"
+    assert "data-day-of-life" in page and "يوم 3" in page
+    change = page.split("data-weight-change", 1)[1][:200]
+    assert "-5.0%" in change

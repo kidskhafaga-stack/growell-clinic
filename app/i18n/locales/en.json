@@ -6614,7 +6614,10 @@
     "no_unit_ward": "No inpatient ward has been built yet. Build one in the bed setup: a unit of kind ward, its rooms, and a bed or more in each.",
     "no_unit_icu": "No intensive care unit has been built yet. Build one in the bed setup: a unit of kind intensive care, an open bay holding the beds, and one or two partitions marked as isolation.",
     "here_for_h": "here {h} h {m} min",
-    "here_for_d": "here {d} d {h} h"
+    "here_for_d": "here {d} d {h} h",
+    "day_of_life": "day {n}",
+    "pma_title": "Postmenstrual age: gestation at birth plus the days since",
+    "weight_change_title": "Today's weight against the birth weight"
   },
   "emergency": {
     "sub": "Who first, and who has been here without anybody measuring them",

@@ -989,6 +989,12 @@ SECTIONS = [
              "the syringe (so many mg in so many mL); the program works out mL an hour from "
              "the latest weight, with «Put it in the rate». Arithmetic only — the program "
              "has no dose, and the doctor confirms."),
+            ("<b>لوحة الحضّانات (ح-١):</b> جنب كل مولود يوم كام من عمره، والعمر من أول آخر "
+             "دورة (PMA: أسابيع الحمل عند الولادة + الأيام من ساعتها)، والوزن النهارده قصاد "
+             "وزن الولادة بالنسبة المئوية. حساب من اللي متسجّل.",
+             "<b>The incubator board:</b> beside each baby, the day of life, the "
+             "postmenstrual age (gestation at birth plus the days since) and today's weight "
+             "against the birth weight in per cent — worked out from what is recorded."),
             ("<b>ميزان السوائل (د-٥):</b> في تاب «التمريض والتقييم» الممرضة بتكتب الداخل "
              "(بالفم، رضعة/أنبوبة، محاليل، دم) والخارج (بول، ترجيع، براز، درنقة، شفط معدة) "
              "بالمللي وبالساعة اللي حصل فيها. فوق: مجموع آخر ٢٤ ساعة والفرق، والبول مل/كجم/ساعة "

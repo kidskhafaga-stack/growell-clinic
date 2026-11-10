@@ -289,9 +289,17 @@
         {% endif %}
         {% if row.newborn.weeks %}
         <span class="badge badge--muted">{{ row.newborn.weeks }}w</span>{% endif %}
+        {# ح-١ — the day of life and the age since the last period, worked out
+           from the birth date and the gestation at birth. #}
+        {% if row.newborn.day_of_life %}<span class="badge badge--muted" data-day-of-life>{{ t('dept.day_of_life', n=row.newborn.day_of_life) }}</span>{% endif %}
+        {% if row.newborn.pma %}<span class="badge badge--muted" data-pma title="{{ t('dept.pma_title') }}">PMA {{ row.newborn.pma }}</span>{% endif %}
         {% if row.newborn.weight %}
         <span class="badge badge--muted">{{ row.newborn.weight }}kg
           {%- if row.newborn.birth_weight %} / {{ row.newborn.birth_weight }}{% endif %}</span>
+        {% endif %}
+        {% if row.newborn.weight_change_pct is not none %}
+        <span class="badge {{ 'badge--warn' if row.newborn.weight_change_pct < 0 else 'badge--muted' }}" data-weight-change title="{{ t('dept.weight_change_title') }}">
+          {{ '+' if row.newborn.weight_change_pct > 0 else '' }}{{ row.newborn.weight_change_pct }}%</span>
         {% endif %}
       </span>
       {% if row.newborn.jaundice and row.newborn.jaundice.ok %}
