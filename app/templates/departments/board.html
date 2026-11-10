@@ -4,6 +4,14 @@
 {% block title %}{{ t('nav.' ~ module) }}{% endblock %}
 {% block page_heading %}{{ t('nav.' ~ module) }}{% endblock %}
 
+{# How long a child has been here — minutes for the first hour, then hours,
+   then days: «3060 min» was a sum the nurse had to do (DOCTOR_EASE د-٧). #}
+{% macro here_for(minutes) -%}
+{%- set m = minutes or 0 -%}
+{%- if m < 60 -%}{{ t('dept.here_for', n=m) }}
+{%- elif m < 1440 -%}{{ t('dept.here_for_h', h=m // 60, m=m % 60) }}
+{%- else -%}{{ t('dept.here_for_d', d=m // 1440, h=(m % 1440) // 60) }}{%- endif -%}
+{%- endmacro %}
 {% block content %}
 <style>
   /* The partitions (ER places) and the queue number. */
@@ -71,6 +79,12 @@
   </div>
 </div>
 
+{# د-٨ — scan a child's wristband and their stay (or attendance) opens. #}
+{% if band_mode() != 'off' and module_enabled('beds') %}
+{% from "_band_scan.html" import band_open with context %}
+{{ band_open() }}
+{% endif %}
+
 {# **The children with no bed.** Emergency only: most of the department sits
    on a chair, is treated and goes home, and the beds below never list them.
    Each with what they are waiting on and for how long. #}
@@ -119,7 +133,7 @@
         <a href="{{ url_for('emergency.attendance', attendance_id=a.id) }}">{{ a.patient.display_name(current_lang) }}</a>
         {% if a.treatment_only %}<span class="badge badge--muted">{{ t('er_orders.walk_in') }}</span>{% endif %}
         {% if a.place_bed_id and a.place_bed %}<span class="badge badge--green" data-in-place="{{ a.place_bed_id }}"><i class="bi bi-layout-split"></i> {{ a.place_bed.display_name(current_lang) }}</span>{% endif %}</div>
-      <div class="hint" dir="ltr">{{ t('dept.here_for', n=a.minutes) }} · {{ a.arrived_at|clinic_stamp }}</div>
+      <div class="hint" dir="ltr">{{ here_for(a.minutes) }} · {{ a.arrived_at|clinic_stamp }}</div>
       {% if a.level %}<div class="hint"><span class="badge {{ 'badge--danger' if a.urgent else 'badge--muted' }}">{{ a.level }}</span></div>{% endif %}
       {% if _turn %}<div class="hint er-turn" data-its-turn>{{ t('er_queue.its_turn') }}</div>
       {% elif _n and _pt and _pt.total %}<div class="hint" data-in-queue>{{ t('er_queue.number', n=_n) }}</div>{% endif %}
@@ -188,7 +202,7 @@
         {% if row.bed and row.bed.is_isolation %}
         · <span class="alert-pill warn">{{ t('beds.isolation') }}</span>{% endif %}
       </div>
-      <div class="hint" dir="ltr">{{ t('dept.here_for', n=row.minutes) }}
+      <div class="hint" dir="ltr">{{ here_for(row.minutes) }}
         · {{ row.since|clinic_stamp }}</div>
       {% if row.admission.reason %}
       <div class="hint">{{ row.admission.reason }}</div>{% endif %}
@@ -256,8 +270,14 @@
         {% if row.last.pulse_bpm %} · <b>{{ row.last.pulse_bpm }}</b>{% endif %}
         {% if row.last.resp_rate %} · <b>{{ row.last.resp_rate }}</b>{% endif %}
         {% if row.last.spo2 %} · <b>{{ row.last.spo2 }}</b>%{% endif %}
+        {% if row.last.bp_systolic %} · <b>{{ row.last.bp_systolic }}/{{ row.last.bp_diastolic or '–' }}</b>{% endif %}
         <span class="hint">{{ row.last.taken_at|clinic_time }}</span>
       </span>
+      {# ع-١ — a child on CPAP or a ventilator looks it from the board. #}
+      {% if row.last.oxygen_support and row.last.oxygen_support != 'room_air' %}
+      <span class="alert-pill {{ 'danger' if row.last.oxygen_support == 'ventilator' else 'warn' }}" data-o2-support="{{ row.last.oxygen_support }}">
+        <i class="bi bi-lungs"></i> {{ t('observations.oxygen_' ~ row.last.oxygen_support) }}</span>
+      {% endif %}
       {% endif %}
 
       {% if kind == 'nicu' and row.newborn %}
@@ -269,9 +289,19 @@
         {% endif %}
         {% if row.newborn.weeks %}
         <span class="badge badge--muted">{{ row.newborn.weeks }}w</span>{% endif %}
+        {# ح-١ — the day of life and the age since the last period, worked out
+           from the birth date and the gestation at birth. #}
+        {% if row.newborn.day_of_life %}<span class="badge badge--muted" data-day-of-life>{{ t('dept.day_of_life', n=row.newborn.day_of_life) }}</span>{% endif %}
+        {% if row.newborn.pma %}<span class="badge badge--muted" data-pma title="{{ t('dept.pma_title') }}">PMA {{ row.newborn.pma }}</span>{% endif %}
         {% if row.newborn.weight %}
         <span class="badge badge--muted">{{ row.newborn.weight }}kg
           {%- if row.newborn.birth_weight %} / {{ row.newborn.birth_weight }}{% endif %}</span>
+        {% endif %}
+        {% if row.newborn.light %}<span class="alert-pill warn" data-under-light><i class="bi bi-lightbulb"></i> {{ t('photo.since', at=row.newborn.light.started_at|clinic_time) }}</span>{% endif %}
+        {% if row.newborn.abd_24h %}<span class="badge badge--warn" data-abd-count title="{{ t('abd.board_title') }}">A/B/D {{ row.newborn.abd_24h }}</span>{% endif %}
+        {% if row.newborn.weight_change_pct is not none %}
+        <span class="badge {{ 'badge--warn' if row.newborn.weight_change_pct < 0 else 'badge--muted' }}" data-weight-change title="{{ t('dept.weight_change_title') }}">
+          {{ '+' if row.newborn.weight_change_pct > 0 else '' }}{{ row.newborn.weight_change_pct }}%</span>
         {% endif %}
       </span>
       {% if row.newborn.jaundice and row.newborn.jaundice.ok %}

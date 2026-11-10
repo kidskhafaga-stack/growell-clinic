@@ -1,0 +1,55 @@
+{# ---- جهاز التنفس — DOCTOR_EASE ع-٢ ---------------------------------------- #}
+{# The machine's settings in the doctor's own numbers (`utils/ventilation`):
+   what it is on now, how it got there, and the box for the next change. The
+   program suggests no setting. #}
+{% set vcols = [('fio2', ''), ('peep', ''), ('rate', ''), ('pip', ''), ('tidal_ml', ''), ('pressure_support', ''), ('ti', ''), ('flow', '')] %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="vent" data-vent>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+    <h2 class="section-title" style="margin:0;"><i class="bi bi-lungs"></i> {{ t('vent.title') }}</h2>
+    {% if vent_now %}
+    <span class="alert-pill danger" data-vent-now dir="auto">{{ t('vent.now') }}: <b>{{ vent_now.mode }}</b>
+      {% for f, _u in vcols %}{% if vent_now[f] is not none %} · {{ t('vent.' ~ f) }} <span dir="ltr">{{ vent_now[f] }}</span>{% endif %}{% endfor %}</span>
+    {% elif vent_rows %}<span class="badge badge--muted" data-vent-off>{{ t('vent.off') }}</span>{% endif %}
+  </div>
+
+  {% if vent_rows %}
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:640px;" data-vent-rows>
+    <thead><tr><th>{{ t('vent.at') }}</th><th>{{ t('vent.mode') }}</th>
+      {% for f, _u in vcols %}<th>{{ t('vent.' ~ f) }}</th>{% endfor %}<th>{{ t('vent.note') }}</th></tr></thead>
+    <tbody>
+      {% for r in vent_rows %}
+      <tr data-vent-row="{{ r.id }}">
+        <td dir="ltr" style="white-space:nowrap;">{{ r.at|clinic_stamp }}</td>
+        <td dir="auto">{% if r.stopped %}<span class="badge badge--muted">{{ t('vent.stopped') }}</span>{% else %}<b>{{ r.mode }}</b>{% endif %}</td>
+        {% for f, _u in vcols %}<td dir="ltr" style="font-variant-numeric:tabular-nums;">{{ r[f] if r[f] is not none else '' }}</td>{% endfor %}
+        <td dir="auto">{{ r.note or '' }}{% if r.by %} <span class="hint" style="margin:0;">· {{ r.by.display_name(current_lang) }}</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="hint" data-vent-never>{{ t('vent.never') }}</p>{% endif %}
+
+  {% if admission.is_open %}
+  <form method="post" action="{{ url_for('beds.record_vent', admission_id=admission.id) }}"
+        style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-top:10px;" data-vent-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="vt_mode">{{ t('vent.mode') }}</label>
+      <input class="input" id="vt_mode" name="mode" maxlength="30" style="max-width:130px;" dir="ltr"
+             placeholder="{{ t('vent.mode_ph') }}" value="{{ vent_now.mode if vent_now else '' }}"></div>
+    {% for f, _u in vcols %}
+    <div class="form-row" style="margin:0;"><label for="vt_{{ f }}">{{ t('vent.' ~ f) }}</label>
+      <input class="input num" id="vt_{{ f }}" name="{{ f }}" type="number" step="any" style="max-width:80px;" dir="ltr"
+             value="{{ vent_now[f] if vent_now and vent_now[f] is not none else '' }}"></div>
+    {% endfor %}
+    <div class="form-row" style="margin:0;"><label for="vt_at">{{ t('vent.at') }}</label>
+      <input class="input" id="vt_at" name="at" type="datetime-local" value="{{ fluid_now }}" dir="ltr"></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:140px;"><label for="vt_note">{{ t('vent.note') }}</label>
+      <input class="input" id="vt_note" name="note" maxlength="160" dir="auto"></div>
+    <label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" name="stopped" value="1"> {{ t('vent.stopped') }}</label>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('vent.add') }}</button>
+  </form>
+  <p class="hint" style="margin:6px 0 0;">{{ t('vent.hint') }}</p>
+  {% endif %}
+</div>

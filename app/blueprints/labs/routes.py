@@ -176,7 +176,10 @@ def _render_order(row, **extra):
     from app.utils import lab_reception
     from app.utils import lab_review
 
+    from app.utils import band_scan
+
     return render_template("labs/order.html", order=row, bench=bench,
+                           band_on_child=band_scan.on() and band_scan.wears_a_band(row.patient),
                            reasons=lab_reception.reasons(),
                            release_required=_release().required(),
                            may_release=_release().may_release(current_user),
@@ -302,6 +305,15 @@ def collect(order_id):
     from app.utils import lab_transfer
 
     row = db.get_or_404(VisitInvestigation, order_id)
+    # د-٨ — a child in a bed or in emergency wears a band: the tube is drawn
+    # on theirs, never another child's. A clinic child wears none.
+    from app.utils import band_scan
+
+    why = band_scan.check(row.patient_id, request.form.get("band"),
+                          banded=band_scan.wears_a_band(row.patient))
+    if why:
+        flash(band_scan.say(why, getattr(g, "lang", "ar")), "error")
+        return redirect(url_for("labs.order", order_id=row.id))
     # Where it was drawn — asked only where tubes are drawn outside the lab.
     where = (lab_transfer.clean(request.form.get("where"), row)
              if lab_transfer.spread() else None)
@@ -315,6 +327,8 @@ def collect(order_id):
         # somebody to draw blood a second time to find out.
         flash(t("lab.already_resulted"), "error")
         return redirect(url_for("labs.order", order_id=row.id))
+    if band_scan.scanned(request.form.get("band")):
+        row.band_scanned = True
     db.session.commit()
     flash(t("lab.collected", code=row.sample_code), "success")
     return redirect(request.referrer or url_for("labs.index"))
@@ -477,13 +491,61 @@ def verify(order_id):
     return redirect(back)
 
 
+@labs_bp.route("/verify/passing", methods=["POST"])
+@module_required(MODULE)
+def release_passing():
+    """Release every waiting result that passes the laboratory's rules — one
+    press, by somebody authorized to release (م-١)."""
+    from app.models import ActivityLog
+    from app.utils import lab_autoverify, lab_release
+
+    try:
+        done = lab_autoverify.release_passing(current_user)
+    except lab_release.ReleaseError as err:
+        db.session.rollback()
+        flash(t(f"lab_release.err_{err}"), "error")
+        return redirect(url_for("labs.to_verify"))
+    ActivityLog.record("lab.verified_by_rules", user_id=current_user.id,
+                       entity="visit_investigation", detail=",".join(str(o.id) for o in done))
+    db.session.commit()
+    flash(t("lab_auto.released", n=len(done)), "success")
+    return redirect(url_for("labs.to_verify"))
+
+
+@labs_bp.route("/autoverify", methods=["GET", "POST"])
+@module_required(MODULE)
+def autoverify_rules():
+    """Which tests the laboratory opens to auto-validation (م-١) — its
+    director's choice; the rules themselves are fixed and read the lab's own
+    ranges, limits and controls."""
+    from app.models import ActivityLog
+    from app.utils import lab_autoverify, lab_release
+
+    if not (current_user.is_admin or lab_release.may_release(current_user)):
+        abort(403)
+    if request.method == "POST":
+        picked = lab_autoverify.choose(request.form.getlist("test_id"))
+        ActivityLog.record("lab.autoverify_tests", user_id=current_user.id,
+                           entity="setting", detail=",".join(map(str, picked)))
+        db.session.commit()
+        flash(t("lab_auto.saved", n=len(picked)), "success")
+        return redirect(url_for("labs.autoverify_rules"))
+    return render_template("labs/autoverify.html", tests=lab_autoverify.lab_tests(),
+                           chosen=lab_autoverify.chosen())
+
+
 @labs_bp.route("/verify")
 @module_required(MODULE)
 def to_verify():
     """Results written and waiting for release, oldest first."""
-    from app.utils import lab_release
+    from app.utils import lab_autoverify, lab_release
 
-    return render_template("labs/verify.html", rows=lab_release.waiting(),
+    rows = lab_release.waiting()
+    verdicts = lab_autoverify.sort_out(rows)
+    return render_template("labs/verify.html", rows=rows,
+                           # م-١ — the laboratory's rules: passes, or why not.
+                           verdicts=verdicts, auto_on=lab_autoverify.on(),
+                           passing=sum(1 for v in verdicts.values() if v == []),
                            required=lab_release.required(),
                            may_release=lab_release.may_release(current_user),
                            beds=bench.beds_of(lab_release.waiting()))
@@ -2972,3 +3034,128 @@ def walk_in():
     return render_template("labs/walk_in.html", chosen=chosen,
                            tests=lab_walkin.lab_tests(), recent=lab_walkin.recent(),
                            picked=set(), form={}, done=done)
+
+
+# ====================================== the analysers' result files (م-٢ أ) ===
+def _may_set_up_devices():
+    from app.utils import lab_release
+
+    return bool(current_user.is_admin or lab_release.may_release(current_user))
+
+
+@labs_bp.route("/devices", methods=["GET", "POST"])
+@module_required(MODULE)
+def devices():
+    """The analysers, the files read from them, and what waits for a person."""
+    from app.models import LabDevice, LabImportRun
+    from app.utils import lab_device_import as imp
+
+    if request.method == "POST":
+        if not _may_set_up_devices():
+            abort(403)
+        try:
+            row = imp.save_device(request.form)
+        except imp.ImportError_ as why:
+            db.session.rollback()
+            flash(t("lab_device.err_" + str(why)), "error")
+            return redirect(url_for("labs.devices"))
+        db.session.commit()
+        return redirect(url_for("labs.device", device_id=row.id))
+    return render_template("labs/devices.html",
+                           devices=LabDevice.query.order_by(LabDevice.name).all(),
+                           runs=LabImportRun.query.order_by(LabImportRun.at.desc()).limit(20).all(),
+                           held=imp.held_count(), may_set_up=_may_set_up_devices())
+
+
+@labs_bp.route("/devices/<int:device_id>", methods=["GET", "POST"])
+@module_required(MODULE)
+def device(device_id):
+    """One analyser: its file's columns and its codes linked to analytes."""
+    from app.models import LabAnalyte, LabDevice
+    from app.utils import lab_device_import as imp
+
+    row = db.get_or_404(LabDevice, device_id)
+    if request.method == "POST":
+        if not _may_set_up_devices():
+            abort(403)
+        try:
+            if request.form.get("action") == "link":
+                imp.link_code(row, request.form.get("code"), request.form.get("analyte_id", type=int))
+            else:
+                imp.save_device(request.form, row)
+        except imp.ImportError_ as why:
+            db.session.rollback()
+            flash(t("lab_device.err_" + str(why)), "error")
+            return redirect(url_for("labs.device", device_id=row.id))
+        db.session.commit()
+        flash(t("lab_device.saved"), "success")
+        return redirect(url_for("labs.device", device_id=row.id))
+    return render_template("labs/device.html", device=row,
+                           analytes=LabAnalyte.query.order_by(LabAnalyte.name).all(),
+                           may_set_up=_may_set_up_devices())
+
+
+@labs_bp.route("/devices/<int:device_id>/import", methods=["POST"])
+@module_required(MODULE)
+def device_import(device_id):
+    """Read an analyser's result file onto its tubes."""
+    from app.models import ActivityLog, LabDevice
+    from app.utils import lab_device_import as imp
+
+    row = db.get_or_404(LabDevice, device_id)
+    file = request.files.get("file")
+    if not file or not file.filename:
+        flash(t("lab_device.err_empty"), "error")
+        return redirect(url_for("labs.device", device_id=row.id))
+    try:
+        run = imp.run(row, file.read(imp.MAX_BYTES + 1), filename=file.filename, user=current_user)
+    except imp.ImportError_ as why:
+        db.session.rollback()
+        flash(t("lab_device.err_" + str(why)), "error")
+        return redirect(url_for("labs.device", device_id=row.id))
+    ActivityLog.record("lab.device_import", user_id=current_user.id, entity="lab_import_run",
+                       entity_id=run.id, detail=file.filename[:120])
+    db.session.commit()
+    written = sum(1 for ln in run.lines if ln.state == "applied")
+    held = sum(1 for ln in run.lines if ln.state in imp.REVIEW_STATES)
+    flash(t("lab_device.imported", written=written, held=held), "success" if not held else "warning")
+    return redirect(url_for("labs.import_run", run_id=run.id))
+
+
+@labs_bp.route("/import/<int:run_id>", methods=["GET", "POST"])
+@module_required(MODULE)
+def import_run(run_id):
+    """One file read: each line, written or held with its reason; and, for a
+    held one, the way to finish it."""
+    from app.models import LabAnalyte, LabImportLine, LabImportRun
+    from app.utils import lab_device_import as imp
+
+    run = db.get_or_404(LabImportRun, run_id)
+    if request.method == "POST":
+        action = request.form.get("action")
+        line = db.session.get(LabImportLine, request.form.get("line_id", type=int) or 0)
+        if line is not None and line.run_id != run.id:
+            abort(404)
+        if action == "retry":
+            n = imp.retry(run, user=current_user)
+            flash(t("lab_device.retried", n=n), "success")
+        elif action == "link" and line is not None:
+            if not _may_set_up_devices():
+                abort(403)
+            try:
+                imp.link_code(run.device, line.code, request.form.get("analyte_id", type=int))
+            except imp.ImportError_ as why:
+                db.session.rollback()
+                flash(t("lab_device.err_" + str(why)), "error")
+                return redirect(url_for("labs.import_run", run_id=run.id))
+            n = imp.retry(run, user=current_user)
+            flash(t("lab_device.retried", n=n), "success")
+        elif action == "write" and line is not None:
+            imp.write_anyway(line, user=current_user)
+        elif action == "dismiss" and line is not None:
+            imp.dismiss(line, user=current_user, note=request.form.get("note"))
+        db.session.commit()
+        return redirect(url_for("labs.import_run", run_id=run.id))
+    return render_template("labs/import_run.html", run=run, review=imp.REVIEW_STATES,
+                           analytes=LabAnalyte.query.order_by(LabAnalyte.name).all(),
+                           may_set_up=_may_set_up_devices())

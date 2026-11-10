@@ -39,6 +39,11 @@ class TooSoon(Exception):
     pass
 
 
+class SkinTestFirst(ValueError):
+    """The first dose of an injected antibiotic waits for its skin test
+    (``utils/skin_test``) — ``args[0]`` is ``skin_test`` or ``skin_positive``."""
+
+
 class NoReason(Exception):
     """A hold or a refusal with nothing said about why.
 
@@ -338,6 +343,12 @@ def give(order_row, outcome=GIVEN, user=None, at=None, reason=None, note=None,
     said = (reason or "").strip()
     if outcome != GIVEN and not said:
         raise NoReason(outcome)
+    if outcome == GIVEN:
+        from app.utils import skin_test
+
+        why = skin_test.blocks(order_row)
+        if why:
+            raise SkinTestFirst(why)
 
     now = now or datetime.utcnow()
     when = at or now

@@ -1,0 +1,66 @@
+{# The readings of a stay — since the child arrived, wherever they were taken
+   (at the door, the board, the observations chart: one record) — each
+   coloured by the age band, with which way it moved, and the box to take one.
+   Emergency (ط-٥) and the ward (د-٤) show the same card. #}
+{% macro vitals_card(vitals, action, patient_id, is_open, may_chart) %}
+{% set vcols = [('temperature_c', '°'), ('pulse_bpm', ''), ('resp_rate', ''), ('spo2', '%')] %}
+{# The readings since the child arrived — at the door, from the board or the
+   observations chart, one record — each coloured by the age band and with
+   which way it moved. The doctor reads them where they write. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="vitals" data-vitals-card data-er-vitals>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+    <h2 class="section-title" style="margin:0;"><i class="bi bi-activity"></i> {{ t('er_vitals.title') }}</h2>
+    {% if may_chart %}<a class="btn btn-sm btn-outline gc-press" data-to-obs-chart
+       href="{{ url_for('observations.chart', patient_id=patient_id) }}">
+      <i class="bi bi-graph-up"></i> {{ t('er_vitals.chart') }}</a>{% endif %}
+  </div>
+  {% if vitals %}
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:560px;" data-er-vitals-table>
+    <thead><tr><th>{{ t('er_vitals.at') }}</th>
+      {% for f, _u in vcols %}<th>{{ t('er_triage.k_' ~ f) }}</th>{% endfor %}
+      {# ع-١ — the blood pressure and the breathing support, beside the rest. #}
+      <th>{{ t('observations.bp') }}</th><th>{{ t('observations.oxygen') }}</th></tr></thead>
+    <tbody>
+      {% for v in vitals %}
+      <tr data-reading="{{ v.obs.id }}">
+        <td dir="ltr" style="white-space:nowrap;">{{ v.obs.taken_at|clinic_stamp }}</td>
+        {% for f, unit in vcols %}{% set val = v.obs[f] %}{% set b = v.bands[f] %}
+        <td dir="ltr" style="font-variant-numeric:tabular-nums;">
+          {% if val is not none %}
+          <span class="badge {{ 'badge--danger' if b == 'bad' else 'badge--warn' if b == 'warn' else 'badge--muted' }}"
+                data-band="{{ b }}">{{ val }}{{ unit }}</span>
+          {% set tr = v.trend[f] %}
+          {% if tr %}<i class="bi bi-arrow-{{ tr }}" title="{{ t('er_vitals.' ~ tr) }}" data-trend="{{ tr }}"></i>{% endif %}
+          {% else %}<span class="hint">—</span>{% endif %}
+        </td>
+        {% endfor %}
+        <td dir="ltr" style="white-space:nowrap;" data-bp>{% if v.obs.bp_systolic %}{{ v.obs.bp_systolic }}/{{ v.obs.bp_diastolic or '–' }}{% else %}<span class="hint">—</span>{% endif %}</td>
+        <td data-o2="{{ v.obs.oxygen_support or '' }}">{% if v.obs.oxygen_support %}
+          <span class="badge {{ 'badge--danger' if v.obs.oxygen_support == 'ventilator' else 'badge--warn' if v.obs.oxygen_support in ('cpap', 'mask', 'nasal') else 'badge--muted' }}">{{ t('observations.oxygen_' ~ v.obs.oxygen_support) }}</span>
+          {% else %}<span class="hint">—</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="hint" data-no-vitals>{{ t('er_vitals.none') }}</p>{% endif %}
+  {% if is_open %}
+  <form method="post" action="{{ action }}"
+        style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:8px;" data-er-vitals-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input class="input num" name="temperature_c" type="number" step="0.1" placeholder="{{ t('er_triage.k_temperature_c') }}" style="max-width:92px;" dir="ltr">
+    <input class="input num" name="pulse_bpm" type="number" placeholder="{{ t('er_triage.k_pulse_bpm') }}" style="max-width:92px;" dir="ltr">
+    <input class="input num" name="resp_rate" type="number" placeholder="{{ t('er_triage.k_resp_rate') }}" style="max-width:92px;" dir="ltr">
+    <input class="input num" name="spo2" type="number" placeholder="{{ t('er_triage.k_spo2') }}" style="max-width:92px;" dir="ltr">
+    <input class="input num" name="bp_systolic" type="number" placeholder="{{ t('er_vitals.bp_sys') }}" style="max-width:92px;" dir="ltr">
+    <input class="input num" name="bp_diastolic" type="number" placeholder="{{ t('er_vitals.bp_dia') }}" style="max-width:92px;" dir="ltr">
+    <select class="select" name="oxygen_support" style="max-width:170px;" aria-label="{{ t('observations.oxygen') }}">
+      <option value="">{{ t('observations.oxygen') }}…</option>
+      {% for o in ('room_air', 'nasal', 'mask', 'cpap', 'ventilator') %}<option value="{{ o }}">{{ t('observations.oxygen_' ~ o) }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-sm btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('er_vitals.add') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endmacro %}

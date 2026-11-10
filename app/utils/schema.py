@@ -1165,6 +1165,18 @@ ADDITIONS = [
     ("emergency_orders", "skin_test_result", "VARCHAR(10)"),
     ("emergency_orders", "skin_test_at", "DATETIME"),
     ("emergency_orders", "skin_test_by", "INTEGER"),
+    # …and on the ward, once per drug in the stay (DOCTOR_EASE د-٢).
+    ("medication_orders", "skin_test_result", "VARCHAR(10)"),
+    ("medication_orders", "skin_test_at", "DATETIME"),
+    ("medication_orders", "skin_test_by", "INTEGER"),
+    # «Scan the wristband» — whether the band was scanned with the act (د-٨).
+    ("medication_doses", "band_scanned", "BOOLEAN"),
+    ("transfusions", "band_scanned", "BOOLEAN"),
+    ("visit_investigations", "band_scanned", "BOOLEAN"),
+    # LAB_GLAB360_PLAN م-١ — released on the laboratory's auto-validation rules.
+    ("visit_investigations", "verified_by_rules", "BOOLEAN"),
+    # LAB_GLAB360_PLAN م-٢ أ — the folder an analyser drops its files into.
+    ("lab_devices", "folder", "VARCHAR(400)"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

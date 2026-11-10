@@ -649,6 +649,15 @@
       <label for="er_skin_test" style="margin:0;font-weight:400;">{{ t('skin_test.setting') }}</label>
     </div>
     <p class="hint">{{ t('skin_test.setting_hint') }}</p>
+    <div class="form-row" data-band-scan-setting>
+      <label for="band_scan">{{ t('band.setting') }}</label>
+      <select class="select" id="band_scan" name="band_scan" style="max-width:220px;">
+        {% for m in ('optional', 'required', 'off') %}
+        <option value="{{ m }}" {{ 'selected' if values.get('band_scan', 'optional') == m else '' }}>{{ t('band.mode_' ~ m) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <p class="hint">{{ t('band.setting_hint') }}</p>
     <div class="form-row" data-er-return-signs>
       <label for="er_return_signs">{{ t('er_paper.setting') }}</label>
       <textarea class="input" id="er_return_signs" name="er_return_signs" rows="4" dir="auto"

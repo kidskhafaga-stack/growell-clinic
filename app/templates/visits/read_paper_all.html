@@ -1,0 +1,75 @@
+{% extends "shell.html" %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('lab_read.many_title') }}{% endblock %}
+{% block page_heading %}{{ t('lab_read.many_title') }}{% endblock %}
+
+{% block content %}
+{# One paper read against every test still waiting for this child
+   (`lab_read.read_many`), beside the paper itself. Every value the assistant
+   proposed is marked; each test has its own tick, and nothing is saved until
+   the doctor presses save — through each test's ordinary save. #}
+{% set mark = 'background:var(--warn-50, rgba(255,193,7,.12));' %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-magic"></i> {{ t('lab_read.many_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ visit.patient.display_name(current_lang) }} · <span dir="ltr">#{{ visit.patient.patient_number }}</span></p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ back }}"><i class="bi bi-x-lg"></i> {{ t('lab_read.discard') }}</a>
+</div>
+<div class="card" style="margin-bottom:12px;border-color:var(--warn);" data-ai-warning>
+  <p style="margin:0;"><i class="bi bi-exclamation-triangle"></i> {{ t('lab_read.many_hint') }}</p>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;align-items:start;">
+  <div class="card" data-paper style="position:sticky;top:70px;">
+    {% set src = url_for('static', filename='uploads/patient_docs/' ~ paper.filename) %}
+    {% if is_pdf %}
+      <object data="{{ src }}" type="application/pdf" style="width:100%;height:75vh;"><a href="{{ src }}" target="_blank" rel="noopener">{{ t('lab_read.open_paper') }}</a></object>
+    {% else %}
+      <a href="{{ src }}" target="_blank" rel="noopener"><img src="{{ src }}" alt="{{ paper.original_name or paper.filename }}" style="max-width:100%;height:auto;border-radius:8px;"></a>
+    {% endif %}
+  </div>
+
+  <form method="post" action="{{ url_for('visits.save_paper_all', visit_id=visit.id) }}" data-read-all-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="attachment_id" value="{{ paper.id }}">
+    {% for o in orders %}{% set got = proposed.get(o.id, {}) %}{% set p = 'o' ~ o.id ~ '_' %}
+    <input type="hidden" name="orders" value="{{ o.id }}">
+    <div class="card" style="margin-bottom:10px;{{ '' if got else 'opacity:.7;' }}" data-read-test="{{ o.id }}" {% if got %}data-found{% endif %}>
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;">
+        <strong>{{ o.display_name(current_lang) }}</strong>
+        <label style="display:flex;gap:6px;align-items:center;margin:0;">
+          <input type="checkbox" name="{{ p }}use" value="1" {% if got %}checked{% endif %}> {{ t('lab_read.many_use') }}</label>
+      </div>
+      {% if not got %}<p class="hint" style="margin:4px 0 0;">{{ t('lab_read.many_none') }}</p>{% endif %}
+      {% set lines = sheets.get(o.id) %}
+      {% if lines %}
+      <table class="table" style="margin-top:6px;font-variant-numeric:tabular-nums;">
+        <tbody>{% for line in lines %}{% set a = line.analyte %}{% set v = line.row %}{% set from_ai = a.id in got %}
+          <tr {% if from_ai %}data-ai-read style="{{ mark }}"{% endif %}>
+            <td dir="ltr">{{ a.name }}</td>
+            <td style="width:150px;"><input class="input" name="{{ p }}a_{{ a.id }}" dir="ltr" maxlength="120" inputmode="decimal" autocomplete="off"
+                       value="{{ got[a.id] if from_ai else (v.shown() if v else '') }}"></td>
+            <td dir="ltr" class="hint">{{ line.unit or '' }}</td>
+          </tr>{% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      {% if o.kind != 'imaging' %}
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-top:6px;">
+        {% for key, label in (('value', t('lab.value')), ('unit', t('lab.unit')), ('low', t('lab.low')), ('high', t('lab.high'))) %}
+        <div class="form-row" style="margin:0;" {% if key in got %}data-ai-read{% endif %}><label>{{ label }}</label>
+          <input class="input" name="{{ p }}result_{{ key }}" dir="ltr" maxlength="40" autocomplete="off" {% if key in got %}style="{{ mark }}"{% endif %}
+                 value="{{ got[key] if key in got else '' }}"></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="form-row" style="margin:6px 0 0;" {% if 'text' in got %}data-ai-read{% endif %}><label>{{ t('lab.report') }}</label>
+        <textarea class="input" name="{{ p }}result_text" rows="4" dir="auto" {% if 'text' in got %}style="{{ mark }}"{% endif %}>{{ got.text if 'text' in got else '' }}</textarea></div>
+      {% endif %}
+    </div>
+    {% endfor %}
+    <button class="btn btn-primary gc-press gc-ripple" type="submit" data-confirm-save><i class="bi bi-check2-circle"></i> {{ t('lab_read.checked_save') }}</button>
+  </form>
+</div>
+{% endblock %}

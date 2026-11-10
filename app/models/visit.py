@@ -335,6 +335,8 @@ class VisitInvestigation(db.Model):
     # "requested" — and the second one is answered by waiting while the first
     # needs somebody to go to the bed.
     sample_code = db.Column(db.String(24), index=True)
+    # The child's wristband was scanned as the tube was drawn (DOCTOR_EASE د-٨).
+    band_scanned = db.Column(db.Boolean)
     collected_at = db.Column(db.DateTime)
     collected_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     # Where it was drawn (`lab_transfer.PLACES`) — empty reads as the lab.
@@ -486,6 +488,9 @@ class VisitInvestigation(db.Model):
     # again after it was verified is unverified until somebody looks again.
     verified_at = db.Column(db.DateTime)
     verified_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # Released by that person on the laboratory's auto-validation rules
+    # (LAB_GLAB360_PLAN م-١ — `utils/lab_autoverify`).
+    verified_by_rules = db.Column(db.Boolean)
     # DAS.13 دليل ٥ / DAS.15 (د): a sample drawn here and sent to a referral
     # laboratory — where, when, by whom, on which batch, and when its result
     # came back (`utils/lab_sendout`). Not `done_outside`: that is an order

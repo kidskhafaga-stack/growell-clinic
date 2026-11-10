@@ -38,6 +38,10 @@
   </div>
 </div>
 
+{# د-٨ — scan a wristband to open the child. #}
+{% from "_band_scan.html" import band_open, band_field with context %}
+{% if band_mode() != 'off' %}{{ band_open() }}{% endif %}
+
 {% if not rows %}
 {# Not an empty screen: "nobody is owed anything" is a real and good answer,
    and it has to read as one rather than as a module that failed to load. #}
@@ -110,14 +114,18 @@
       {# Given is one press. Held and refused are two, and the second one is
          the reason — a hold with nothing said about why is indistinguishable
          from a dose somebody forgot, and it silences this board either way. #}
+      {% from "beds/_skin_test.html" import skin_box with context %}
+      {{ skin_box(item.order) }}
       <form method="post" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;"
             action="{{ url_for('beds.dose', order_id=item.order.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input class="input" name="reason" maxlength="200" style="width:170px;"
                placeholder="{{ t('meds.reason_if_not') }}">
+        {% if band_mode() != 'off' %}{{ band_field() }}{% endif %}
+        {% if not skin_blocks(item.order) %}
         <button class="btn btn-sm btn-primary gc-press" type="submit"
-                name="outcome" value="given">
-          <i class="bi bi-check2"></i> {{ t('meds.given') }}</button>
+                name="outcome" value="given" data-give>
+          <i class="bi bi-check2"></i> {{ t('meds.given') }}</button>{% endif %}
         <button class="btn btn-sm btn-outline gc-press" type="submit"
                 name="outcome" value="held">
           <i class="bi bi-pause"></i> {{ t('meds.held') }}</button>

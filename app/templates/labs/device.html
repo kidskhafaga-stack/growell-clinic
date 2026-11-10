@@ -1,0 +1,68 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ device.name }}{% endblock %}
+{% block page_heading %}{{ t('lab_device.title') }}{% endblock %}
+
+{% block content %}
+{% from "labs/_nav.html" import lab_nav with context %}
+{{ lab_nav('devices') }}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-hdd-network"></i> {{ device.name }}</h1>
+    {% if device.model %}<p class="page-sub" style="margin:0;">{{ device.model }}</p>{% endif %}
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.devices') }}"><i class="bi bi-arrow-return-right"></i> {{ t('lab_device.devices') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-upload>
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-file-earmark-arrow-up"></i> {{ t('lab_device.upload') }}</h2>
+  {% if device.folder %}<p class="hint" style="margin:0 0 8px;" data-device-folder><i class="bi bi-folder2-open"></i> {{ t('lab_device.folder_on', folder=device.folder) }}</p>{% endif %}
+  <form method="post" action="{{ url_for('labs.device_import', device_id=device.id) }}" enctype="multipart/form-data"
+        style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input class="input" type="file" name="file" accept=".csv,.txt,.tsv,text/csv,text/plain" required>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-upload"></i> {{ t('lab_device.read') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:12px;" data-device-codes>
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_device.codes') }}</h2>
+  {% if device.codes %}
+  <table class="table"><thead><tr><th>{{ t('lab_device.code') }}</th><th>{{ t('lab_device.analyte') }}</th></tr></thead>
+    <tbody>{% for c in device.codes %}<tr data-code="{{ c.code }}"><td dir="ltr"><b>{{ c.code }}</b></td><td>{{ c.analyte.name }}{% if c.analyte.unit %} <span class="hint" style="margin:0;">({{ c.analyte.unit }})</span>{% endif %}</td></tr>{% endfor %}</tbody>
+  </table>
+  {% else %}<p class="hint">{{ t('lab_device.no_codes') }}</p>{% endif %}
+  {% if may_set_up %}
+  <form method="post" style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-top:8px;" data-link-code>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="link">
+    <div class="form-row" style="margin:0;"><label for="lk_code">{{ t('lab_device.code') }}</label>
+      <input class="input" id="lk_code" name="code" maxlength="40" required dir="ltr" style="max-width:140px;"></div>
+    <div class="form-row" style="margin:0;"><label for="lk_an">{{ t('lab_device.analyte') }}</label>
+      <select class="select" id="lk_an" name="analyte_id" required><option value="">—</option>
+        {% for a in analytes %}<option value="{{ a.id }}">{{ a.name }}{% if a.unit %} ({{ a.unit }}){% endif %}</option>{% endfor %}</select></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-link-45deg"></i> {{ t('lab_device.link') }}</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if may_set_up %}
+<div class="card gc-scale-in" data-device-cols>
+  <h2 class="section-title" style="margin-top:0;">{{ t('lab_device.cols') }}</h2>
+  <p class="hint" style="margin:0 0 8px;">{{ t('lab_device.cols_hint') }}</p>
+  <form method="post" style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label>{{ t('lab_device.name') }}</label><input class="input" name="name" value="{{ device.name }}" required dir="auto"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('lab_device.model') }}</label><input class="input" name="model" value="{{ device.model or '' }}" dir="auto"></div>
+    <div class="form-row" style="margin:0;flex-basis:100%;"><label>{{ t('lab_device.folder') }}</label>
+      <input class="input" name="folder" value="{{ device.folder or '' }}" maxlength="400" dir="ltr" placeholder="\\LAB-PC\xn350  /  D:\Results\XN">
+      <div class="hint">{{ t('lab_device.folder_hint') }}</div></div>
+    {% for col in ('col_sample', 'col_code', 'col_value', 'col_unit', 'col_flag') %}
+    <div class="form-row" style="margin:0;"><label>{{ t('lab_device.' ~ col) }}</label>
+      <input class="input" name="{{ col }}" value="{{ device[col] or '' }}" maxlength="60" dir="ltr" style="max-width:140px;"></div>
+    {% endfor %}
+    <button class="btn btn-primary gc-press" type="submit">{{ t('lab_device.save') }}</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

@@ -15,6 +15,9 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.drugbook_import') }}">
       <i class="bi bi-upload"></i> {{ t('drugbook.import_nav') }}</a>
     {% endif %}
+    {# The drugs this clinic writes with no dose by weight — where to start. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.dose_gaps') }}" data-to-dose-gaps>
+      <i class="bi bi-calculator"></i> {{ t('dose_gaps.door') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.index') }}">
       <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('rx.title') }}</a>
   </div>

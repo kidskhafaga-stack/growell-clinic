@@ -1,0 +1,57 @@
+{% extends "shell.html" %}
+{% block title %}{{ t('dose_gaps.title') }}{% endblock %}
+{% block page_heading %}{{ t('dose_gaps.title') }}{% endblock %}
+
+{% block content %}
+{# The drugs this clinic writes most with no dose by weight behind them,
+   most written first, each with the door to write its rule
+   (`utils/dose_gaps`). The numbers are the clinic's to write. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-calculator"></i> {{ t('dose_gaps.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:80ch;">{{ t('dose_gaps.sub') }}</p>
+  </div>
+  <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <div class="form-row" style="margin:0;"><label>{{ t('dose_gaps.from') }}</label>
+      <input class="input" type="date" name="from" value="{{ date_from.isoformat() }}"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('dose_gaps.to') }}</label>
+      <input class="input" type="date" name="to" value="{{ date_to.isoformat() }}"></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i></button>
+  </form>
+</div>
+
+<div class="stat-grid stat-grid--compact" style="margin-bottom:14px;" data-dose-coverage>
+  <div class="stat-card edge-blue"><div class="value" dir="ltr">{{ data.lines }}</div><div class="label">{{ t('dose_gaps.lines') }}</div></div>
+  <div class="stat-card edge-green"><div class="value" dir="ltr">{{ data.covered }}</div><div class="label">{{ t('dose_gaps.covered') }}</div></div>
+  <div class="stat-card edge-amber"><div class="value" dir="ltr" data-coverage-pct>{{ data.pct if data.pct is not none else '—' }}{% if data.pct is not none %}%{% endif %}</div><div class="label">{{ t('dose_gaps.coverage') }}</div></div>
+</div>
+
+<div class="card gc-scale-in">
+  {% if data.rows %}
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:620px;" data-dose-gaps>
+    <thead><tr><th>#</th><th>{{ t('dose_gaps.name') }}</th><th>{{ t('dose_gaps.kind') }}</th>
+      <th>{{ t('dose_gaps.times') }}</th><th>{{ t('dose_gaps.last') }}</th><th></th></tr></thead>
+    <tbody>{% for r in data.rows %}
+      <tr data-gap="{{ r.kind }}">
+        <td dir="ltr">{{ loop.index }}</td>
+        <td dir="auto"><b>{{ r.generic.display_name(current_lang) if r.generic else (r.drug.trade_name if r.drug else r.name) }}</b>
+          {% if r.generic and r.name %}<div class="hint" style="margin:0;" dir="auto">{{ r.name }}</div>{% endif %}</td>
+        <td><span class="badge badge--muted">{{ t('dose_gaps.k_' ~ r.kind) }}</span></td>
+        <td dir="ltr" style="font-variant-numeric:tabular-nums;" data-gap-count>{{ r.count }}</td>
+        <td dir="ltr">{{ r.last or '' }}</td>
+        <td>
+          {% if r.kind == 'generic' and may_write %}
+          <a class="btn btn-sm btn-primary gc-press" href="{{ url_for('prescriptions.drugbook_generic', generic_id=r.generic.id, from='gaps') }}#dose-rule" data-write-rule>
+            <i class="bi bi-pencil-square"></i> {{ t('dose_gaps.write') }}</a>
+          {% elif r.kind == 'brand' %}
+          <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('prescriptions.drugbook_product', drug_id=r.drug.id) }}">{{ t('dose_gaps.open_brand') }}</a>
+          {% else %}<span class="hint" style="margin:0;">{{ t('dose_gaps.free_hint') }}</span>{% endif %}
+        </td>
+      </tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="hint" style="margin:0;" data-no-gaps>{{ t('dose_gaps.none') }}</p>{% endif %}
+</div>
+{% endblock %}

@@ -79,7 +79,9 @@ def save_levels(rows):
 
 # ------------------------------------------------------- vitals at the door --
 VITALS = (("temperature_c", float, 30, 44), ("pulse_bpm", int, 20, 300),
-          ("resp_rate", int, 5, 150), ("spo2", int, 30, 100))
+          ("resp_rate", int, 5, 150), ("spo2", int, 30, 100),
+          # ع-١ — the blood pressure, and below the breathing support.
+          ("bp_systolic", int, 20, 250), ("bp_diastolic", int, 10, 200))
 
 
 def door_vitals(attendance, form, user, at=None):
@@ -103,6 +105,11 @@ def door_vitals(attendance, form, user, at=None):
             continue
         if low <= value <= high:
             values[field] = value
+    from app.models.observation import OXYGEN_SUPPORT
+
+    support = (form.get("oxygen_support") or "").strip()
+    if support in OXYGEN_SUPPORT:
+        values["oxygen_support"] = support
     kg = (form.get("weight_kg") or "").strip()
     try:
         kg = float(kg) if kg else None
@@ -133,16 +140,22 @@ def readings(attendance):
     its bands and which way it moved from the reading before:
     ``[{"obs", "bands": {field: band}, "trend": {field: "up"|"down"|None}}]``.
     Taken here, from the board, or on the observations chart — one record."""
+    return readings_between(attendance.patient, attendance.arrived_at,
+                            attendance.departed_at)
+
+
+def readings_between(patient, start, end=None):
+    """:func:`readings` for any stay — an attendance, or an admission (د-٤)."""
     from app.models.observation import Observation
     from app.utils import vital_bands
     from app.utils.dosing import age_months_of
 
-    q = Observation.query.filter(Observation.patient_id == attendance.patient_id,
-                                 Observation.taken_at >= attendance.arrived_at)
-    if attendance.departed_at:
-        q = q.filter(Observation.taken_at <= attendance.departed_at)
+    q = Observation.query.filter(Observation.patient_id == patient.id,
+                                 Observation.taken_at >= start)
+    if end:
+        q = q.filter(Observation.taken_at <= end)
     rows = q.order_by(Observation.taken_at.asc(), Observation.id.asc()).all()
-    age = age_months_of(attendance.patient)
+    age = age_months_of(patient)
     field_of = dict(vital_bands.READINGS)
     out, before = [], {}
     for obs in rows:

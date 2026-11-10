@@ -187,6 +187,19 @@
         {{ summary.medicines if summary and summary.medicines else t('summary.not_recorded') }}</div>
       <div style="margin-top:6px;"><span class="k muted">{{ t('summary.el_followup') }}:</span>
         {{ summary.followup if summary and summary.followup else t('summary.not_recorded') }}</div>
+      {# د-٦ — when to come back at once, in the hospital's own words
+         (`er_return_signs`); the program writes no sign of its own. #}
+      <div style="margin-top:10px;padding:8px 10px;border:2px solid #dc2626;border-radius:6px;" data-paper-return>
+        <div style="font-weight:700;color:#b91c1c;">{{ t('er_paper.return') }}</div>
+        {% if return_signs %}
+        <ul style="margin:4px 0 0;padding-inline-start:20px;" data-return-signs>
+          {% for line in return_signs.splitlines() if line.strip() %}<li dir="auto">{{ line.strip() }}</li>{% endfor %}
+        </ul>
+        {% else %}
+        <div data-return-blank><div class="muted" style="font-size:.85em;">{{ t('er_paper.return_blank') }}</div>
+          {% for _ in range(3) %}<div style="border-bottom:1px dotted #999;height:24px;"></div>{% endfor %}</div>
+        {% endif %}
+      </div>
     </section>
 
     {# (i) — stamped at the discharge, not typed here. #}

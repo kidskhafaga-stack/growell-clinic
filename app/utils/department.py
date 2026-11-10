@@ -266,6 +266,27 @@ def _latest_weight(patient_ids):
     return {row.patient_id: row for row in rows}
 
 
+def _age_and_weight(baby, weighed):
+    """ح-١ — the day of life, the age since the last period (gestation at
+    birth plus the days since: «PMA»), and the weight against the birth
+    weight in per cent. Arithmetic on what is recorded; ``None`` where a
+    number is missing."""
+    from app.utils.clock import local_today
+
+    out = {"day_of_life": None, "pma": None, "weight_change_pct": None}
+    if baby.date_of_birth:
+        days = (local_today() - baby.date_of_birth).days
+        out["day_of_life"] = days + 1          # the day of birth is day 1
+        total = getattr(baby, "gestation_total_days", None)
+        if total is not None:
+            pma = total + days
+            out["pma"] = f"{pma // 7}+{pma % 7}"
+    birth = getattr(baby, "birth_weight_kg", None)
+    if weighed is not None and birth:
+        out["weight_change_pct"] = round((weighed.weight_kg - birth) / birth * 100, 1)
+    return out
+
+
 def _newborn_extras(admissions):
     """What the incubators need that no other department does.
 
@@ -276,8 +297,15 @@ def _newborn_extras(admissions):
     none of them is recomputed here.
     """
     from app.utils import jaundice
+    from app.utils import neonatal_events
 
     ids = [a.patient_id for a in admissions]
+    # ح-٢ — the A/B/D episodes in the last 24 hours.
+    episodes = neonatal_events.count_last_day([a.id for a in admissions])
+    # ح-٣ — under the light now.
+    from app.utils import phototherapy
+
+    lights = phototherapy.on_now([a.id for a in admissions])
     bilirubin = _latest_bilirubin(ids)
     weights = _latest_weight(ids)
 
@@ -297,6 +325,9 @@ def _newborn_extras(admissions):
                 hours = max(0, hours - drawn / 3600.0)
             verdict = jaundice.assess(baby, result.result_value, hours=hours)
         out[admission.patient_id] = {
+            **_age_and_weight(baby, weighed),
+            "abd_24h": episodes.get(admission.id, 0),
+            "light": lights.get(admission.id),
             "hours": getattr(baby, "age_hours", None),
             "weeks": getattr(baby, "gestation_weeks", None),
             "birth_weight": getattr(baby, "birth_weight_kg", None),

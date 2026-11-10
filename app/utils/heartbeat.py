@@ -27,6 +27,12 @@ def _beat():
     # Saved reports that send themselves, each period once.
     from app.utils import report_schedule
     report_schedule.maybe_send()
+    # The analysers' folders (LAB_GLAB360_PLAN م-٢ أ), every few minutes.
+    from app.utils.facility import module_enabled
+
+    if module_enabled("labs"):
+        from app.utils import lab_device_import
+        lab_device_import.maybe_scan()
     if social.instagram_mode() == "login" and social.instagram_ready():
         social.instagram_token()
         from app.extensions import db

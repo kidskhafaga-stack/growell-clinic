@@ -54,6 +54,9 @@
   <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;"
         action="{{ url_for('labs.collect', order_id=order.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {# د-٨ — a child in a bed or in emergency: the tube is drawn on their band. #}
+    {% if band_on_child %}{% from "_band_scan.html" import band_field with context %}
+    <div class="form-row" style="margin-bottom:0;"><label>{{ t('band.field_ph') }}</label>{{ band_field() }}</div>{% endif %}
     <div class="form-row" style="margin-bottom:0;min-width:180px;">
       {# Left blank the program writes one. A label nobody has to invent is a
          label that actually gets written on the tube. #}
@@ -271,7 +274,7 @@
   <div>
     {% if order.verified_at %}
     <span class="badge badge--green" data-verified><i class="bi bi-patch-check"></i>
-      {{ t('lab_release.verified_line', who=order.verifier.display_name(current_lang) if order.verifier else '—', when=order.verified_at|clinic_stamp) }}</span>
+      {{ t('lab_release.verified_line', who=order.verifier.display_name(current_lang) if order.verifier else '—', when=order.verified_at|clinic_stamp) }}{% if order.verified_by_rules %} · {{ t('lab_auto.by_rules') }}{% endif %}</span>
     {% elif release_required %}
     {{ lv.unverified(order) }}
     {% if may_release %}

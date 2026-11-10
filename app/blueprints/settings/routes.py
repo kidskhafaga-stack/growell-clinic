@@ -94,6 +94,8 @@ TEXT_KEYS = [
     # «Come back at once if…» on the emergency paper for the family — the
     # hospital's own words; the program writes none (DOCTOR_EASE ط-٦).
     "er_return_signs",
+    # «Scan the wristband» — off / optional / required (`utils/band_scan`).
+    "band_scan",
 ]
 TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled",
                "ai_patient_context", "ai_anonymize", "ai_discussion",

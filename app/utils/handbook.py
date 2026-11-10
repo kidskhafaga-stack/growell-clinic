@@ -508,6 +508,22 @@ SECTIONS = [
              "assistant. A suggestion fills the same form you fill by hand, "
              "the search is unchanged, and nothing is saved until you press "
              "add. Off until Settings \u2192 AI turns it on."),
+            ("<b>ورقة فيها كذا تحليل.</b> لو الأهل جابوا ورقة نتايج (صورة أو "
+             "PDF) فيها أكتر من تحليل من اللي مستنيين: في «نتايج مستنية» اختار "
+             "الورقة أو ارفعها ودوس «اقرا ووزّع». المساعد بيقرا الورقة مرة واحدة "
+             "ويحط اللي لقاه قدام كل تحليل مستني، في صفحة واحدة جنب الورقة. "
+             "بتراجع، وتعلّم على اللي عايز تحفظه، ومحدش بيتحفظ غير لما تدوس "
+             "«احفظ» — وكل تحليل بيتحكم عليه بمعدّلات المعمل زي ما بتكتبه بإيدك. "
+             "محتاج الذكاء الاصطناعي مفتوح وموافقة العيادة على إرسال ورق الأطفال.",
+             "<b>One paper with several tests.</b> When a family brings one "
+             "result paper (an image or a PDF) with several of the tests still "
+             "waiting: under the waiting results, pick the paper or upload it "
+             "and press \u201cread and spread\u201d. The assistant reads it once "
+             "and puts what it found under each waiting test, on one page beside "
+             "the paper. You check, tick the ones to keep, and nothing is saved "
+             "until you press save \u2014 each test judged against the lab's "
+             "ranges exactly as if typed by hand. Needs the AI switched on and "
+             "the clinic's consent to send children's papers."),
         ],
     },
     {
@@ -941,6 +957,114 @@ SECTIONS = [
         "icon": "capsule",
         "title": ("دورة الدواء", "The drug round"),
         "lines": [
+            ("<b>الحساسية واختبار الجلد والجرعة بالوزن (د-١ لـ د-٣):</b> لو الطفل عنده "
+             "حساسية من الدوا أو عيلته بيظهر تحذير أحمر (أو أصفر لعيلة ممكن تتفاعل) في شيت "
+             "الدوا ودورة الدوا وشاشة الصيدلي. المضاد الحيوي العضل أو الوريد أول جرعة منه "
+             "في الإقامة بتستنى نتيجة اختبار الجلد — مرة واحدة لكل دوا: بعدها الجرعات وأي "
+             "أمر تاني لنفس الدوا ما بيسألوش. الإيجابي ما يتدّاش وبيتكتب في حساسية الطفل. "
+             "وفوق شيت الدوا وزن الطفل وتاريخه (أو خانة توزنه النهارده)، وأول ما الدكتور "
+             "يختار الدوا بتظهر الجرعة حسب قواعد البرنامج لوزنه بزرار «استخدمها».",
+             "<b>Allergy, skin test and dose by weight:</b> an allergy to the "
+             "drug or its family shows in red (amber for a cross-reacting family) on the "
+             "drug chart, the drug round and the pharmacist's screen. The first dose of an "
+             "IM or IV antibiotic in the stay waits for the skin test result — once per "
+             "drug: later doses, and another order for the same drug, do not ask again. "
+             "A positive one is not given and is written on the child's allergies. Above "
+             "the chart, the child's weight and its date (or a box to weigh them today); "
+             "as soon as the doctor picks the drug, the dose by the program's rules for "
+             "that weight shows with «Use it»."),
+            ("<b>العلامات الحيوية في صفحة الإقامة (د-٤):</b> في تاب «الإقامة» جدول كل "
+             "القراءات من ساعة الدخول — من اللوحة أو شاشة الملاحظة أو من هنا — كل رقم ملوّن "
+             "بحدود سنّ الطفل وجنبه سهم طالع ولا نازل، وتحته «سجّل قراءة».",
+             "<b>Vital signs on the stay:</b> the «Stay» tab lists every reading since "
+             "admission — from the board, the observation chart or here — each coloured by "
+             "the child's age band with an arrow for which way it moved, and «Record a "
+             "reading» below."),
+            ("<b>دعم التنفس والضغط (ع-١):</b> في «سجّل قراءة» خانتين للضغط واختيار نوع "
+             "الأكسجين (هوا عادي، أنبوبة أنف، ماسك، CPAP، تنفس صناعي)، وبيظهروا في جدول "
+             "العلامات. واللوحة بتقول جنب الطفل لو آخر قراءة كانت على CPAP أو جهاز.",
+             "<b>Breathing support and blood pressure:</b> «Record a reading» takes the "
+             "blood pressure and the oxygen support (room air, nasal, mask, CPAP, "
+             "ventilator), and both show in the readings table. The board says, beside "
+             "the child, when the last reading was on CPAP or a ventilator."),
+            ("<b>جهاز التنفس (ع-٢):</b> في صفحة إقامة العناية والحضّانات كارت «جهاز التنفس»: "
+             "الطبيب يكتب الوضع وFiO2 وPEEP والمعدّل وPIP والحجم وPS وTi والتدفق — كل تغيير "
+             "صف، وفوق «دلوقتي» بآخر إعداد، وعلامة «اتشال من الجهاز» لما يتشال. البرنامج "
+             "ما بيقترحش إعدادات، وبيرفض بس رقم مفيش جهاز بيتظبط عليه.",
+             "<b>Ventilator:</b> on an intensive care or incubator stay, a «Ventilator» card: "
+             "the doctor writes the mode, FiO2, PEEP, rate, PIP, volume, PS, Ti and flow — each "
+             "change a row, «Now» above with the latest, and «Taken off the machine» when it "
+             "stops. The program suggests no settings and refuses only a number no machine "
+             "can be set to."),
+            ("<b>حاسبة التسريب المستمر (ع-٣):</b> في أمر الدوا تحت «معدّل التسريب»: الطبيب "
+             "يكتب الجرعة ووحدتها (مكجم/كجم/دقيقة، مكجم/كجم/ساعة، مجم/كجم/ساعة، وحدة/كجم/ساعة) "
+             "واللي في السرنجة (كام مجم في كام مل)، والبرنامج يحسب المل/ساعة من آخر وزن، وزرار "
+             "«حطّها في معدّل التسريب». حساب بس — البرنامج ما عندوش جرعة، والطبيب بيأكّد.",
+             "<b>Continuous infusion calculator:</b> in the drug order under «Rate»: the doctor "
+             "writes the dose and its unit (mcg/kg/min, mcg/kg/h, mg/kg/h, units/kg/h) and "
+             "the syringe (so many mg in so many mL); the program works out mL an hour from "
+             "the latest weight, with «Put it in the rate». Arithmetic only — the program "
+             "has no dose, and the doctor confirms."),
+            ("<b>لوحة الحضّانات (ح-١):</b> جنب كل مولود يوم كام من عمره، والعمر من أول آخر "
+             "دورة (PMA: أسابيع الحمل عند الولادة + الأيام من ساعتها)، والوزن النهارده قصاد "
+             "وزن الولادة بالنسبة المئوية. حساب من اللي متسجّل.",
+             "<b>The incubator board:</b> beside each baby, the day of life, the "
+             "postmenstrual age (gestation at birth plus the days since) and today's weight "
+             "against the birth weight in per cent — worked out from what is recorded."),
+            ("<b>نوبات A/B/D (ح-٢):</b> في صفحة إقامة الحضّانة تاب «التمريض والتقييم»: الممرضة "
+             "بتسجّل كل نوبة توقّف تنفس أو بطء قلب أو نقص أكسجين (أو أكتر من واحدة مع بعض)، "
+             "مدتها وأقل نبض وأقل أكسجين ورجع بإيه. العدد في آخر ٢٤ ساعة ظاهر فوق وعلى لوحة "
+             "الحضّانات. البرنامج ما بيحطش حد للعدد.",
+             "<b>A/B/D episodes:</b> on an incubator stay's «Nursing» tab the nurse records "
+             "each apnoea, bradycardia or desaturation (or more than one together), its "
+             "duration, the lowest heart rate and saturation, and what brought the baby back. "
+             "The count for the last 24 hours shows above and on the incubator board. The "
+             "program sets no limit for the count."),
+            ("<b>العلاج الضوئي (ح-٣):</b> في إقامة الحضّانة «شغّل الضوء» بنوعه (لمبة، لمبتين، "
+             "مكثّف، بطانية) والساعة، و«وقّف الضوء». الصفحة بتقول كل جلسة وساعاتها والإجمالي، "
+             "ولوحة الحضّانات بتقول «تحت الضوء من …» جنب المولود.",
+             "<b>Phototherapy:</b> on an incubator stay, «Light on» with its kind (single, "
+             "double, intensive, blanket) and time, and «Light off». The page lists each "
+             "session with its hours and the total; the incubator board says «Under the "
+             "light since …» beside the baby."),
+            ("<b>السوائل بالمل/كجم (ح-٤):</b> ميزان السوائل بيقول كمان الداخل بالمل/كجم في "
+             "آخر ٢٤ ساعة من آخر وزن — ولو الإقامة لسه أقصر بيقول في كام ساعة. حساب بس.",
+             "<b>Fluids per kilo:</b> the fluid balance also says what went in, in mL/kg over "
+             "the last 24 hours from the latest weight — or over how many hours, for a "
+             "shorter stay. Arithmetic only."),
+            ("<b>ميزان السوائل (د-٥):</b> في تاب «التمريض والتقييم» الممرضة بتكتب الداخل "
+             "(بالفم، رضعة/أنبوبة، محاليل، دم) والخارج (بول، ترجيع، براز، درنقة، شفط معدة) "
+             "بالمللي وبالساعة اللي حصل فيها. فوق: مجموع آخر ٢٤ ساعة والفرق، والبول مل/كجم/ساعة "
+             "من آخر وزن، وتحت يوم بيوم. المقدار الغلط بيتشطب ويفضل ظاهر. البرنامج ما بيحطش "
+             "حدود — قراءة الأرقام للدكتور.",
+             "<b>Fluid balance:</b> on the «Nursing» tab the nurse writes what went in "
+             "(by mouth, feed/tube, IV fluids, blood) and what came out (urine, vomit, stool, "
+             "drain, gastric aspirate) in millilitres, at the hour it happened. Above: the last "
+             "24 hours' totals and the difference, and urine in mL/kg/h from the latest weight; "
+             "below, day by day. A wrong amount is struck through and stays visible. The "
+             "program sets no limits — reading the numbers is the doctor's."),
+            ("<b>ملخّص الخروج المطبوع (د-٦):</b> من تاب «الخروج» ← طباعة الملخّص: فيه "
+             "عناصره التسعة، وتحت التعليمات مربع أحمر «ارجعوا الطوارئ فوراً لو…» بنفس كلام "
+             "المستشفى اللي في الإعدادات (هو نفسه اللي في ورقة الطوارئ). لو فاضي بيتطبع مكان "
+             "فاضي الدكتور يكتب فيه بإيده، وتحت توقيع الدكتور والأهل.",
+             "<b>The printed discharge summary:</b> from the «Discharge» tab ← print the "
+             "summary: its nine elements, and under the instructions a red box «Come back to "
+             "emergency at once if…» in the hospital's own words from settings (the same text "
+             "as the emergency paper). Left empty, a blank is printed for the doctor's hand, "
+             "with the doctor's and the family's signatures below."),
+            ("<b>امسح السوار (د-٨):</b> فوق لوحة القسم ودورة الدوا خانة «امسح السوار»: "
+             "بقارئ الباركود أو بكاميرا الموبايل، والمسحة بتفتح الطفل على تاب العلاج. وجنب "
+             "«انعطى» وتعليق كيس الدم وسحب العينة خانة للسوار: سوار طفل تاني بيترفض ويتقال "
+             "اسمه، والمسحة الصح بتتسجّل مع الجرعة. المستشفى بتختار من الإعدادات: «اختياري» "
+             "(من غير مسح عادي)، «إجباري» (من غير مسح ما بيتسجّلش)، أو «مقفول». طفل العيادة "
+             "ما بيلبسش سوار، فسحب عينته عمره ما بيسأل عنه.",
+             "<b>Scan the wristband:</b> above the department board and the drug round "
+             "a «Scan the wristband» box — a barcode reader or a phone camera; the scan opens "
+             "the child on the treatment tab. Beside «Given», hanging a blood bag and drawing "
+             "a sample, a band box: another child's band is refused and named, the right "
+             "scan is recorded with the dose. The hospital chooses in settings: «Optional» "
+             "(no scan is allowed), «Required» (nothing is recorded without one) or «Off». "
+             "A clinic child wears no band, so their sample is never asked for one."),
             ("<b>الأمر حاجة والجرعة حاجة تانية.</b> الطبيب بيكتب أمر ثابت — "
              "الدوا والجرعة وكل كام ساعة — والتمريض بيسجّل كل جرعة: اتعطت، "
              "اتأجلت، أو اترفضت. لو كان في عمود واحد اسمه «آخر جرعة» على "
@@ -1570,6 +1694,42 @@ SECTIONS = [
              "the file. It carries Arabic and English behind a language switch: "
              "it opens in Arabic for the family, in English for the referring "
              "doctor."),
+            ("<b>التصديق الآلي:</b> من «مستني الاعتماد» ← «قواعد التصديق الآلي» المعمل بيختار "
+             "التحاليل. النتيجة بتعدّي بس لو كل مكوّن رقمه جوه مدى معتمد لسن الطفل ونوعه، مفيش "
+             "قيمة حرجة ولا delta، كنترول النهارده عدّى، والعينة ما اترفضتش ومفيش عليها ملحوظة. "
+             "القايمة بتقول جنب كل نتيجة «عدّى القواعد» أو ليه لأ، وزرار «اعتمد كل اللي عدّى» "
+             "لحد عنده صلاحية الاعتماد — بيتسجّل باسمه و«بالقواعد». البرنامج ما بيصدّقش لوحده.",
+             "<b>Auto-validation:</b> from «Waiting for release» ← «Auto-validation rules» the "
+             "laboratory chooses its tests. A result passes only if every analyte is a number "
+             "inside a range approved for the child's age and sex, nothing is critical or "
+             "delta-flagged, today's control passed, and the sample was not rejected or noted. "
+             "The list says beside each result «Passes the rules» or why not, and «Release "
+             "everything that passed» is for whoever may release — recorded in their name, "
+             "«by the rules». The program never releases on its own."),
+            ("<b>ملفات نتايج الأجهزة:</b> من شريط المعمل ← «الأجهزة وملفات النتايج»: ضيف الجهاز، "
+             "واربط كل كود فيه (HGB، K…) بالمكوّن عندنا، وبعدين «اقرا ملف نتايج» (CSV أو نص، "
+             "سطر لكل تحليل أو سطر لكل أنبوبة). السطر بيتكتب بس لو رقم الأنبوبة لقى طلب واحد، "
+             "والكود مربوط، والمكوّن في التحليل المطلوب — وبيعدّي على نفس فحوصات المدى والحرج "
+             "والدلتا ومش بيتعتمد لوحده. أي حاجة تانية بتستنى حد ومكتوب سببها: اربط الكود من "
+             "السطر نفسه، أو «اكتب فوقها» لنتيجة مكتوبة قبل كده، أو «تجاهل». النتيجة المعتمدة "
+             "عمرها ما بتتكتب فوقها.",
+             "<b>Analyser result files:</b> from the lab bar ← «Analysers and result files»: add "
+             "the analyser, link each of its codes (HGB, K…) to the analyte here, then «Read a "
+             "result file» (CSV or text, a row per test or a row per tube). A line is written "
+             "only when the tube's number finds one order, the code is linked and the analyte "
+             "is on the ordered test — through the same range, critical and delta checks, and "
+             "never released by arriving. Anything else waits for a person with its reason: "
+             "link the code from the line itself, «Write over it» for a result already "
+             "written, or «Dismiss». A released result is never written over."),
+            ("<b>فولدر الجهاز:</b> لو الجهاز بيحط ملفاته في فولدر على شبكة المعمل، اكتب مكانه في "
+             "صفحة الجهاز: البرنامج بيبص عليه كل دقيقتين ويقرا أي ملف جديد بنفس الطريقة، وبعدها "
+             "بينقله لفولدر «done» جنبه — أو «failed» لو ما اتقريش ومفيش حاجة اتكتبت منه. الملف "
+             "اللي لسه بيتكتب بيستنى اللفة الجاية.",
+             "<b>The analyser's folder:</b> if the analyser drops its files in a folder on the "
+             "lab's network, write its path on the analyser's page: the program looks every two "
+             "minutes, reads any new file the same way, then moves it into a «done» folder beside "
+             "it — or «failed» if it could not be read and nothing was written from it. A file "
+             "still being written waits for the next look."),
             ("<b>مكونات التحليل وأقسامه ومراجعه</b> (المعمل ← التحاليل): "
              "التحليل المعروف (بول، براز، صورة دم، صفراء، وظائف كبد وكلى، "
              "فيتامينات…) بيتعرض عليه مكوناته بأساميها ووحداتها من غير ولا "
@@ -2553,6 +2713,18 @@ SECTIONS = [
         "icon": "capsule",
         "title": ("الروشتة والمرجع الدوائي", "Prescriptions & drug reference"),
         "lines": [
+            ("<b>أدوية من غير حساب جرعة:</b> من «دليل الأدوية» ← «أدوية من غير حساب جرعة»: من "
+             "روشتات العيادة نفسها، الأدوية اللي اتكتبت ومفيش ورا مادتها الفعّالة جرعة بالكيلو، "
+             "الأكتر كتابة الأول، ونسبة التغطية فوق. جنب كل مادة «اكتب القاعدة»: الدكتور يكتب "
+             "الجرعة مجم/كجم ومرات اليوم والحد الأقصى، <b>والمرجع إجباري</b> — من غير مرجع ما "
+             "بتتحفظش — والروشتة بتحسب بيها على طول. البرنامج ما بيحطش أرقام من عنده.",
+             "<b>Drugs with no dose rule:</b> from the «Drug reference» ← «Drugs with no dose "
+             "rule»: from the clinic's own prescriptions, the drugs written whose ingredient "
+             "carries no dose per kilo, most written first, with the coverage above. Beside "
+             "each ingredient «Write the rule»: the doctor writes the dose in mg/kg, times a "
+             "day and the maximum, <b>and the reference is required</b> — none, nothing saved "
+             "— and the prescription calculates with it at once. The program adds no numbers "
+             "of its own."),
             ("<b>روشتة جديدة</b> من داخل الزيارة أو من ملف المريض — بتفتح "
              "مملوءة بالمريض والطبيب والوزن والتشخيص.",
              "<b>New prescription</b> from inside the visit or from the "

@@ -880,6 +880,25 @@ def admission(admission_id):
         # reconciled (`utils/med_reconciliation`).
         recon=_med_rec().status(row),
         stopped=[o for o in row.medication_orders if not o.is_running],
+        **_skin_helpers(),
+        # د-٣ — the weight a dose by weight is worked from, with its date.
+        weighed=_weighed(row.patient), today_iso=local_today().isoformat(),
+        # د-٤ — the readings of the stay, banded by age with their trend.
+        vitals=_er_triage().readings_between(row.patient, row.admitted_at, row.discharged_at),
+        may_chart=_module_on("observations"),
+        # د-٥ — fluid balance: the last 24 hours, day by day, and the entries.
+        fluid=_fluid().summary(row), fluid_days=_fluid().by_day(row),
+        fluid_recent=_fluid().recent(row), fluid_in=_fluid().KINDS_IN,
+        fluid_out=_fluid().KINDS_OUT, fluid_now=_local_now_input(),
+        # ع-٢ — the breathing machine's settings, in the doctor's numbers.
+        vent_rows=_vent().history(row), vent_now=_vent().current(row),
+        vent_shown=_vent().shown(row),
+        # ح-٢ — apnoea, bradycardia and desaturation episodes.
+        abd_rows=_abd().recent(row), abd_shown=_abd().shown(row),
+        abd_all=len(row.neonatal_events or []),
+        # ح-٣ — phototherapy: on, off, the hours.
+        photo_rows=_photo().sessions(row), photo_on=_photo().running(row),
+        photo_hours=_photo().total_hours(row), photo_shown=_photo().shown(row),
         safety=drug_round.safety(row, lang=getattr(g, "lang", "ar")),
         routes=ROUTES, dose_outcomes=DOSE_OUTCOMES,
         may_order=current_user.can("medication_order"),
@@ -1052,6 +1071,9 @@ def summary_print(admission_id):
         procedures=summary.procedures_during(row),
         meds_during=summary.medicines_during(row),
         meds_before=summary.medicines_before(row),
+        # د-٦ — «come back at once if…», the hospital's own words (the same
+        # text as emergency's paper); none written, a blank for the doctor.
+        return_signs=(_setting("er_return_signs") or "").strip(),
         today=local_today(), generated_by=current_user)
 
 
@@ -1287,12 +1309,19 @@ def blood_hang(request_id):
     from app.models import BloodRequest, User
 
     row = BloodRequest.query.get_or_404(request_id)
+    # د-٨ — the bag goes up on this child's band, never another's.
+    from app.utils import band_scan
+
+    why = band_scan.check(row.patient_id, request.form.get("band"))
+    if why:
+        flash(band_scan.say(why, getattr(g, "lang", "ar")), "error")
+        return redirect(_blood_back(row))
     # The second name is chosen from the ward's own people and checked against
     # the user table, because the whole of ICD.21's intent is that two people
     # looked — and a name typed into a box is not a person who looked.
     second = User.query.get(request.form.get("checked_by", type=int) or 0)
     try:
-        blood.hang(row, unit_code=request.form.get("unit_code"),
+        bag = blood.hang(row, unit_code=request.form.get("unit_code"),
                    given_by=current_user, checked_by=second,
                    bag_checked=_yes_no(request.form.get("bag_checked")),
                    bag_note=request.form.get("bag_note"),
@@ -1301,6 +1330,8 @@ def blood_hang(request_id):
         db.session.rollback()
         flash(t("blood.not_hung"), "error")
         return redirect(_blood_back(row))
+    if band_scan.scanned(request.form.get("band")) and bag is not None:
+        bag.band_scanned = True
     db.session.commit()
     flash(t("blood.hung"), "success")
     return redirect(_blood_back(row))
@@ -1935,6 +1966,7 @@ def drugs():
                            # The allergy said where the dose is given, not
                            # only where it was written.
                            allergy_of=lambda o, p: check_drug(p, drug=o.drug, name=o.drug_name),
+                           **_skin_helpers(),
                            levels=drug_round, routes=ROUTES,
                            outcomes=DOSE_OUTCOMES)
 
@@ -2007,6 +2039,60 @@ def add_medication(admission_id):
     return redirect(url_for("beds.admission", admission_id=row.id))
 
 
+@beds_bp.route("/admission/<int:admission_id>/dose")
+@module_required(MODULE)
+def dose_for(admission_id):
+    """JSON for the order form (د-٣): the dose for this child by the clinic's
+    own rules, the weight it was worked from with its date, and the allergy —
+    a suggestion the doctor presses to use (``utils/dose_hint``)."""
+    from flask import jsonify
+
+    from app.utils import dose_hint
+
+    row = Admission.query.get_or_404(admission_id)
+    drug = db.session.get(Drug, request.args.get("drug_id", type=int) or 0)
+    return jsonify(dose_hint.for_patient(row.patient, drug, request.args.get("name"),
+                                         lang=getattr(g, "lang", "ar")))
+
+
+@beds_bp.route("/admission/<int:admission_id>/infusion")
+@module_required(MODULE)
+def infusion_rate(admission_id):
+    """JSON for the order form (ع-٣): the doctor's dose per kilo as mL an
+    hour, from the syringe they write and the child's latest weight —
+    arithmetic only (``utils/infusion``)."""
+    from flask import jsonify
+
+    from app.utils import infusion
+    from app.utils.dosing import latest_weight
+
+    row = Admission.query.get_or_404(admission_id)
+    weight = request.args.get("weight") or latest_weight(row.patient)
+    try:
+        out = infusion.rate(request.args.get("dose"), request.args.get("unit"), weight,
+                            request.args.get("amount"), request.args.get("volume"))
+    except infusion.InfusionError as why:
+        return jsonify({"error": t("infusion.err_" + str(why)), "weight": weight})
+    out["weight"] = float(weight)
+    return jsonify(out)
+
+
+@beds_bp.route("/admission/<int:admission_id>/weight", methods=["POST"])
+@module_required(MODULE)
+def record_weight(admission_id):
+    """Today's weight, from the stay — the dose by weight is worked from it."""
+    from app.utils import dose_hint
+
+    row = Admission.query.get_or_404(admission_id)
+    kg = request.form.get("weight_kg", type=float)
+    if dose_hint.weigh(row.patient, kg, visit_id=row.visit_id, source="ward") is None:
+        flash(t("er_dose.err_weight"), "error")
+    else:
+        db.session.commit()
+        flash(t("er_dose.weight_saved", kg=round(kg, 2)), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id) + "#treatment")
+
+
 @beds_bp.route("/medication/<int:order_id>/stop", methods=["POST"])
 @module_required(MODULE)
 @capability_required("medication_order")
@@ -2030,14 +2116,28 @@ def dose(order_id):
     the whole reason the two are separate capabilities.
     """
     row = MedicationOrder.query.get_or_404(order_id)
+    outcome = (request.form.get("outcome") or "given").strip()
+    # د-٨ — the band of another child is refused; under «required» no band is.
+    from app.utils import band_scan
+
+    if outcome == "given":
+        why = band_scan.check(row.patient_id, request.form.get("band"))
+        if why:
+            flash(band_scan.say(why, getattr(g, "lang", "ar")), "error")
+            return _back_from_dose(row)
     try:
-        drug_round.give(row, (request.form.get("outcome") or "given").strip(),
+        dose_row = drug_round.give(row, outcome,
                         user=current_user, at=_happened_at(),
                         reason=request.form.get("reason"),
                         note=request.form.get("note"))
     except drug_round.NoReason:
         db.session.rollback()
         flash(t("meds.needs_reason"), "error")
+        return _back_from_dose(row)
+    except drug_round.SkinTestFirst as why:
+        db.session.rollback()
+        flash(t("skin_test.err_" + ("positive" if str(why) == "skin_positive" else "needed")),
+              "error")
         return _back_from_dose(row)
     except drug_round.TooSoon as floor:
         db.session.rollback()
@@ -2048,6 +2148,8 @@ def dose(order_id):
         db.session.rollback()
         flash(t("meds.refused"), "error")
         return _back_from_dose(row)
+    if outcome == "given" and band_scan.scanned(request.form.get("band")):
+        dose_row.band_scanned = True
     db.session.commit()
     flash(t("meds.recorded"), "success")
     return _back_from_dose(row)
@@ -2126,6 +2228,213 @@ def _ward_items():
     return (StoreItem.query
             .filter(StoreItem.is_active.is_(True))
             .order_by((StoreItem.item_type != "drug"), StoreItem.name).all())
+
+
+@beds_bp.route("/medication/<int:order_id>/skin-test", methods=["POST"])
+@module_required(MODULE)
+def skin_test_result(order_id):
+    """The skin test read before the first dose of an injected antibiotic —
+    the nurse's act, like giving (د-٢). A positive one goes on the child's
+    allergies."""
+    from app.models import ActivityLog
+    from app.utils import skin_test
+
+    row = MedicationOrder.query.get_or_404(order_id)
+    result = request.form.get("result")
+    try:
+        skin_test.record(row, result, current_user)
+    except skin_test.SkinTestError as why:
+        db.session.rollback()
+        flash(t("skin_test.err_" + str(why)), "error")
+        return _back_from_dose(row)
+    ActivityLog.record("ward.skin_test", user_id=current_user.id,
+                       entity="medication_order", entity_id=row.id,
+                       detail=f"{row.drug_name}:{result}")
+    db.session.commit()
+    flash(t("skin_test.saved_" + result), "danger" if result == "positive" else "success")
+    return _back_from_dose(row)
+
+
+def _setting(key):
+    from app.models import Setting
+
+    return Setting.get(key)
+
+
+def _photo():
+    from app.utils import phototherapy
+
+    return phototherapy
+
+
+@beds_bp.route("/stay/<int:admission_id>/photo", methods=["POST"])
+@module_required(MODULE)
+def photo(admission_id):
+    """The light on, or off (ح-٣)."""
+    row = Admission.query.get_or_404(admission_id)
+    try:
+        if request.form.get("action") == "stop":
+            _photo().stop(row, user=current_user, at=_happened_at())
+            said = "photo.stopped"
+        else:
+            _photo().start(row, kind=request.form.get("kind"), user=current_user,
+                           at=_happened_at(), note=request.form.get("note"))
+            said = "photo.started"
+    except _photo().PhotoError as why:
+        db.session.rollback()
+        flash(t("photo.err_" + str(why)), "error")
+    else:
+        db.session.commit()
+        flash(t(said), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id) + "#care")
+
+
+def _abd():
+    from app.utils import neonatal_events
+
+    return neonatal_events
+
+
+@beds_bp.route("/stay/<int:admission_id>/abd", methods=["POST"])
+@module_required(MODULE)
+def record_abd(admission_id):
+    """One apnoea / bradycardia / desaturation episode (ح-٢) — the nurse's."""
+    row = Admission.query.get_or_404(admission_id)
+    try:
+        _abd().record(row, request.form, user=current_user, at=_happened_at())
+    except _abd().EventError as why:
+        db.session.rollback()
+        flash(t("abd.err_" + str(why)), "error")
+    else:
+        db.session.commit()
+        flash(t("abd.saved"), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id) + "#care")
+
+
+def _vent():
+    from app.utils import ventilation
+
+    return ventilation
+
+
+@beds_bp.route("/stay/<int:admission_id>/vent", methods=["POST"])
+@module_required(MODULE)
+def record_vent(admission_id):
+    """A change of the breathing machine's settings (ع-٢) — the doctor's."""
+    row = Admission.query.get_or_404(admission_id)
+    try:
+        _vent().record(row, request.form, user=current_user, at=_happened_at())
+    except _vent().VentError as why:
+        db.session.rollback()
+        flash(t("vent.err_" + str(why)), "error")
+    else:
+        db.session.commit()
+        flash(t("vent.saved"), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id) + "#overview")
+
+
+def _fluid():
+    from app.utils import fluid_balance
+
+    return fluid_balance
+
+
+def _local_now_input():
+    from app.utils.clock import local_now
+
+    return local_now().strftime("%Y-%m-%dT%H:%M")
+
+
+@beds_bp.route("/stay/<int:admission_id>/fluid", methods=["POST"])
+@module_required(MODULE)
+def record_fluid(admission_id):
+    """One amount in or out, in millilitres (د-٥) — the nurse's chart."""
+    row = Admission.query.get_or_404(admission_id)
+    try:
+        _fluid().record(row, (request.form.get("kind") or "").strip(),
+                        request.form.get("ml"), user=current_user, at=_happened_at(),
+                        note=request.form.get("note"))
+    except _fluid().FluidError as why:
+        db.session.rollback()
+        flash(t("fluid.err_" + str(why)), "error")
+        return redirect(url_for("beds.admission", admission_id=row.id) + "#care")
+    db.session.commit()
+    flash(t("fluid.saved"), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id) + "#care")
+
+
+@beds_bp.route("/fluid/<int:entry_id>/strike", methods=["POST"])
+@module_required(MODULE)
+def strike_fluid(entry_id):
+    """A wrong amount struck through — kept on the chart, out of the totals."""
+    from app.models import ActivityLog, FluidEntry
+
+    entry = db.get_or_404(FluidEntry, entry_id)
+    _fluid().strike(entry, current_user)
+    ActivityLog.record("ward.fluid_struck", user_id=current_user.id, entity="fluid_entry",
+                       entity_id=entry.id, detail=f"{entry.kind}:{entry.ml}")
+    db.session.commit()
+    flash(t("fluid.struck"), "success")
+    return redirect(url_for("beds.admission", admission_id=entry.admission_id) + "#care")
+
+
+@beds_bp.route("/scan")
+@module_required(MODULE)
+def scan_band():
+    """A wristband scanned (د-٨): opens the child — the stay on its treatment,
+    the emergency attendance, or the file."""
+    from app.utils import band_scan
+
+    child = band_scan.find(request.args.get("code"))
+    if child is None:
+        flash(t("band.not_found", code=(request.args.get("code") or "").strip()[:40]), "error")
+        here = request.referrer or ""
+        return redirect(here if here.startswith(request.host_url) else url_for("beds.drugs"))
+    return redirect(band_scan.destination(child))
+
+
+def _module_on(key):
+    from app.utils.facility import module_enabled
+
+    return module_enabled(key)
+
+
+def _er_triage():
+    from app.utils import er_triage
+
+    return er_triage
+
+
+@beds_bp.route("/admission/<int:admission_id>/vitals", methods=["POST"])
+@module_required(MODULE)
+def record_vitals(admission_id):
+    """A set of readings from the stay the doctor has open (د-٤) — the same
+    record the ward board and the observations chart keep."""
+    row = Admission.query.get_or_404(admission_id)
+    obs, flags = _er_triage().door_vitals(row, request.form, current_user)
+    if obs is None:
+        db.session.rollback()
+        flash(t("observations.nothing_measured"), "error")
+    else:
+        db.session.commit()
+        if flags:
+            flash(t("er_vitals.out_of_band", readings="، ".join(
+                f"{t('er_triage.k_' + k)} {v}" for k, v in flags)), "warning")
+        else:
+            flash(t("observations.saved"), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id) + "#overview")
+
+
+def _weighed(patient):
+    from app.utils.dosing import latest_weight_record
+
+    return latest_weight_record(patient)
+
+
+def _skin_helpers():
+    from app.utils import skin_test
+
+    return {"skin_needed": skin_test.needed, "skin_blocks": skin_test.blocks}
 
 
 def _back_from_dose(order_row):

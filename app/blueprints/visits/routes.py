@@ -448,6 +448,8 @@ def record(visit_id):
         # offered only where the clinic switched the assistant on and agreed
         # to send it a child's papers.
         lab_papers=_lab_papers, ai_reads_papers=_ai_reads_papers(),
+        # One paper read onto every waiting test (`lab_read.read_many`).
+        child_papers=lambda: _child_papers(visit.patient),
         # `ICD.17` — كل طلب بيقول هو مين وليه، واللي ناقص بيتقفل على سطره.
         order_missing=_order_check.missing,
         order_orderer=_order_check.orderer,
@@ -1563,6 +1565,12 @@ def _lab_papers(order):
     return lab_read.papers(order)
 
 
+def _child_papers(patient):
+    from app.utils import lab_read
+
+    return lab_read.readable_papers(patient)
+
+
 def _ai_reads_papers():
     from app.utils import ai
 
@@ -1616,6 +1624,110 @@ def read_paper(inv_id):
                            lines=lines, proposed=proposed, back=back,
                            save_url=url_for("visits.result_investigation", inv_id=inv.id),
                            is_pdf=lab_read.readable(paper) == "application/pdf")
+
+
+def _waiting_orders(patient_id):
+    from app.models.visit import INVESTIGATION_OPEN
+
+    return (VisitInvestigation.query
+            .filter(VisitInvestigation.patient_id == patient_id,
+                    VisitInvestigation.status.in_(INVESTIGATION_OPEN))
+            .order_by(VisitInvestigation.created_at.desc()).limit(25).all())
+
+
+@visits_bp.route("/<int:visit_id>/read-paper-all", methods=["POST"])
+@module_required(MODULE)
+def read_paper_all(visit_id):
+    """One paper — a report the family brought — read by the assistant onto
+    every test still waiting for this child, into one page to check and save
+    (``lab_read.read_many``). Nothing is written by the reading."""
+    from app.models import PatientAttachment
+    from app.utils import lab_read
+    from app.utils.uploads import save_document
+
+    visit = db.get_or_404(Visit, visit_id)
+    back = url_for("visits.record", visit_id=visit.id) + "#inv"
+    paper = None
+    upload = request.files.get("file")
+    if upload is not None and upload.filename:
+        stored = save_document(upload)
+        if not stored:
+            flash(t("visits.att_bad_type"), "warning")
+            return redirect(back)
+        paper = PatientAttachment(patient_id=visit.patient_id, visit_id=visit.id,
+                                  filename=stored, original_name=upload.filename,
+                                  kind="result", uploaded_by=current_user.id)
+        db.session.add(paper)
+        db.session.commit()
+    else:
+        paper = db.session.get(PatientAttachment, request.form.get("attachment_id", type=int) or 0)
+    orders = _waiting_orders(visit.patient_id)
+    try:
+        proposed = lab_read.read_many(visit.patient, paper, orders)
+    except lab_read.ReadError as err:
+        key = str(err)
+        if key.startswith("ai:"):
+            from app.utils import ai
+
+            flash(ai.error_sentence(key[3:]), "error")
+        else:
+            flash(t(f"lab_read.err_{key}"), "error")
+        return redirect(back)
+    from app.utils import lab_results
+
+    return render_template("visits/read_paper_all.html", visit=visit, paper=paper,
+                           orders=orders, proposed=proposed, back=back,
+                           sheets={o.id: (lab_results.sheet(o) if lab_results.measured(o) else [])
+                                   for o in orders},
+                           is_pdf=lab_read.readable(paper) == "application/pdf")
+
+
+@visits_bp.route("/<int:visit_id>/save-paper-all", methods=["POST"])
+@module_required(MODULE)
+def save_paper_all(visit_id):
+    """Save what the doctor checked, test by test, through each test's own
+    save — the ticked tests only."""
+    from app.models import PatientAttachment
+    from app.utils import lab_results, labs
+
+    visit = db.get_or_404(Visit, visit_id)
+    saved = 0
+    first = None
+    for raw in request.form.getlist("orders"):
+        if not str(raw).isdigit():
+            continue
+        inv = db.session.get(VisitInvestigation, int(raw))
+        if inv is None or inv.patient_id != visit.patient_id:
+            continue
+        if not request.form.get(f"o{inv.id}_use"):
+            continue
+        p = f"o{inv.id}_"
+        if lab_results.measured(inv):
+            entries = {int(k[len(p) + 2:]): v for k, v in request.form.items()
+                       if k.startswith(p + "a_") and k[len(p) + 2:].isdigit()}
+            if not any((v or "").strip() for v in entries.values()):
+                continue
+            lab_results.save(inv, entries, user=current_user)
+        else:
+            value = _number(request.form.get(p + "result_value"))
+            text = request.form.get(p + "result_text") or ""
+            if value is None and not text.strip():
+                continue
+            labs.record(inv, value=value, unit=request.form.get(p + "result_unit"),
+                        low=_number(request.form.get(p + "result_low")),
+                        high=_number(request.form.get(p + "result_high")),
+                        text=text, comment=inv.result_comment or "", user=current_user)
+        saved += 1
+        first = first or inv
+    paper = db.session.get(PatientAttachment, request.form.get("attachment_id", type=int) or 0)
+    if (first is not None and paper is not None and paper.patient_id == visit.patient_id
+            and paper.investigation_id is None):
+        # The paper is kept on the first test it answered, where the order's
+        # files are read from.
+        paper.investigation_id = first.id
+    db.session.commit()
+    flash(t("lab_read.saved_many", n=saved), "success" if saved else "warning")
+    return redirect(url_for("visits.record", visit_id=visit.id) + "#inv")
 
 
 @visits_bp.route("/investigations/<int:inv_id>/result", methods=["POST"])

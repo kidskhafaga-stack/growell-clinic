@@ -148,6 +148,8 @@ class Transfusion(db.Model):
 
     #: The bag's own number, as printed on it.
     unit_code = db.Column(db.String(64), index=True)
+    #: The child's wristband was scanned as the bag went up (DOCTOR_EASE د-٨).
+    band_scanned = db.Column(db.Boolean)
 
     #: `ICD.21` evidence 3 — *"Blood or blood component bags are **visually
     #: checked** before transfusion."* Three states, like the operative

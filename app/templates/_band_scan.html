@@ -1,0 +1,85 @@
+{# «Scan the wristband» (DOCTOR_EASE د-٨ — `utils/band_scan`). A barcode
+   reader types the file number and Enter into the box; a phone reads it with
+   the camera through the browser's own BarcodeDetector (no library — the app
+   keeps working offline; where the browser has none, the camera button stays
+   hidden and the reader still works).
+
+   `band_open()` — the box that opens a child (its own GET form).
+   `band_field()` — a box inside an act's form (a dose, a bag, a tube): the
+   camera only fills it, so «held» is never sent by a scan. #}
+{% macro band_open(hint=None) %}
+<form method="get" action="{{ url_for('beds.scan_band') }}" class="card gc-scale-in" data-band-scan data-submit="1"
+      style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:10px 12px;">
+  <i class="bi bi-upc-scan" style="font-size:1.3rem;"></i>
+  <input class="input" type="search" name="code" autocomplete="off" data-band-input dir="ltr"
+         placeholder="{{ t('band.open_ph') }}" style="flex:1;min-width:180px;" aria-label="{{ t('band.open_ph') }}">
+  <button class="btn btn-outline gc-press" type="submit">{{ t('band.open') }}</button>
+  <button class="btn btn-outline gc-press" type="button" data-band-camera hidden><i class="bi bi-camera"></i> {{ t('scan.camera') }}</button>
+  <video data-band-video playsinline muted hidden style="width:100%;max-width:360px;border-radius:10px;background:#000;"></video>
+  {% if hint %}<span class="hint" style="margin:0;flex-basis:100%;">{{ hint }}</span>{% endif %}
+</form>
+{{ _band_script() }}
+{% endmacro %}
+
+{% macro band_field(required=False) %}
+<span data-band-scan data-submit="0" style="display:inline-flex;gap:4px;align-items:center;flex-wrap:wrap;">
+  <input class="input" name="band" autocomplete="off" data-band-input dir="ltr"
+         placeholder="{{ t('band.field_ph') }}" style="width:120px;" {% if required %}required{% endif %}
+         aria-label="{{ t('band.field_ph') }}">
+  <button class="btn btn-sm btn-outline gc-press" type="button" data-band-camera hidden title="{{ t('scan.camera') }}"><i class="bi bi-camera"></i></button>
+  <video data-band-video playsinline muted hidden style="width:100%;max-width:300px;border-radius:10px;background:#000;"></video>
+</span>
+{{ _band_script() }}
+{% endmacro %}
+
+{% macro _band_script() %}
+<script>
+(function () {
+  if (window.__gcBandScan) { window.__gcBandScan(); return; }
+  var ok = ('BarcodeDetector' in window) && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+  function wire() {
+    document.querySelectorAll('[data-band-scan]:not([data-wired])').forEach(function (box) {
+      box.setAttribute('data-wired', '1');
+      var btn = box.querySelector('[data-band-camera]');
+      var input = box.querySelector('[data-band-input]');
+      var video = box.querySelector('[data-band-video]');
+      if (!input) return;
+      // Inside an act's form, the reader's Enter must not press «given» (or
+      // «held») for the nurse: the scan fills the box, the nurse presses.
+      if (box.getAttribute('data-submit') !== '1') {
+        input.addEventListener('keydown', function (e) { if (e.key === 'Enter') e.preventDefault(); });
+      }
+      if (!ok || !btn || !video) return;
+      btn.hidden = false;
+      var stream = null, timer = null;
+      function stop() {
+        if (timer) { clearInterval(timer); timer = null; }
+        if (stream) { stream.getTracks().forEach(function (tr) { tr.stop(); }); stream = null; }
+        video.hidden = true;
+      }
+      window.addEventListener('pagehide', stop);
+      btn.addEventListener('click', function () {
+        if (stream) { stop(); return; }
+        var detector = new window.BarcodeDetector({ formats: ['code_39', 'code_128', 'qr_code'] });
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(function (s) {
+          stream = s; video.srcObject = s; video.hidden = false; video.play();
+          timer = setInterval(function () {
+            detector.detect(video).then(function (codes) {
+              if (!codes || !codes.length) return;
+              var value = (codes[0].rawValue || '').trim();
+              if (!value) return;
+              stop();
+              input.value = value;
+              if (box.getAttribute('data-submit') === '1' && input.form) input.form.submit();
+              else input.focus();
+            }).catch(function () {});
+          }, 350);
+        }).catch(function () { alert({{ t('scan.no_camera')|tojson }}); });
+      });
+    });
+  }
+  window.__gcBandScan = wire;
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
+})();
+</script>
+{% endmacro %}
