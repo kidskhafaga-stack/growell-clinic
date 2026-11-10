@@ -3947,6 +3947,22 @@ SECTIONS = [
              "the latest backup has a problem, the bell tells the "
              "administrator, and a restore refuses a backup with a problem "
              "before touching the data."),
+            ("<b>فولدر data بتاع العيادة</b>: قاعدة البيانات والصور والمستندات "
+             "والنسخ الاحتياطية وملف clinic.env والترخيص كلهم في فولدر "
+             "<code>data</code> جنب البرنامج. التحديث بيغيّر البرنامج وعمره ما "
+             "بيلمس الفولدر ده، ولو هتنقل العيادة لجهاز تاني انقله كله. النسخة "
+             "القديمة بتنقل حاجتها له لوحدها أول تشغيل بعد التحديث. وكل نسخة "
+             "احتياطية بتقول قاعدة بياناتها واقفة عند أنهي خطوة ترقية، فالبرنامج "
+             "الأقدم بيرفض نسخة من برنامج أحدث منه.",
+             "<b>The clinic's data folder</b>: the database, photos and "
+             "documents, backups, the clinic.env file and the licence all live "
+             "in the <code>data</code> folder beside the program. An update "
+             "replaces the program and never touches that folder; to move the "
+             "clinic to another computer, move the whole folder. An older copy "
+             "moves its files there by itself on the first start after the "
+             "update. Every backup also records which upgrade step its "
+             "database has reached, so an older program refuses a backup "
+             "made by a newer one."),
             ("<b>فحص الفلوس بالقرش</b> (أدوات البيانات ← «فحص الفلوس بالقرش»): "
              "كل حساب فلوس في البرنامج بقى بالقرش، والتقريب نص لفوق (١٥٪ من "
              "٠٫٥٠ = ٠٫٠٨)، والمبلغ اللي فيه أكتر من رقمين بعد العلامة بيترفض بدل ما "

@@ -9,6 +9,7 @@ from flask import (
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
+from app.data_home import upload_dir
 from app.blueprints.main import main_bp
 from app.extensions import db
 from app.i18n import t
@@ -757,7 +758,7 @@ def notif_dismiss_all():
 
 
 def _users_dir():
-    path = os.path.join(current_app.static_folder, "uploads", "users")
+    path = upload_dir("users")
     os.makedirs(path, exist_ok=True)
     return path
 

@@ -1216,6 +1216,10 @@ def apply_schema(report=None):
 
     from app.extensions import db
 
+    # A database with no tables at all is being built now, from the models —
+    # already the newest shape, so no numbered migration has anything to do
+    # on it (``app/utils/migrations``).
+    fresh = not (set(inspect(db.engine).get_table_names()) - {"alembic_version"})
     db.create_all()                 # brand-new tables
     inspector = inspect(db.engine)
     existing_tables = set(inspector.get_table_names())
@@ -1418,6 +1422,15 @@ def apply_schema(report=None):
             report(f"  ~ tills: gave {linked} an account in the chart")
     except Exception:  # noqa: BLE001 — never blocks an upgrade
         db.session.rollback()
+
+    # The numbered migrations (UPGRADE_PLAN ٧): what the additive step above
+    # cannot do — a rename, a drop, a change of type, data moved between
+    # shapes. A database never numbered is stamped at the baseline first.
+    # Not swallowed: a migration that fails is an upgrade that failed, and
+    # the update stops and says so.
+    from app.utils.migrations import bring_forward
+
+    applied += len(bring_forward(fresh=fresh, report=report))
 
     # What was looked at, when nothing had to change.
     #

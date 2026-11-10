@@ -371,7 +371,8 @@ echo.
 echo         Nothing was changed. Your backup is untouched.
 echo         Until it is sorted: sign in on github.com, download the ZIP
 echo         yourself, and copy it over this folder WITHOUT touching
-echo         instance\, uploads\ or clinic.env - then run:
+echo         data\ - or instance\, uploads\ and clinic.env on an older
+echo         copy - then run:
 echo             flask --app run upgrade-db
 goto :die
 
@@ -402,9 +403,10 @@ if not exist "%PP_SRC%\run.py" (
 REM Copy the program over the top, and nothing else.
 REM
 REM The exclusions are the clinic's own data and they are not optional:
-REM `instance` is the database and every backup, `uploads` is every
-REM photograph, signature and scanned document, and `clinic.env` is this
-REM machine's port and language. Copying without them is an update; copying
+REM `data` holds all of it - the database, every backup, every photograph,
+REM signature and scanned document, and clinic.env with this machine's port,
+REM key and passphrase. `instance`, `uploads` and clinic.env are where an
+REM older copy kept the same things before they moved into data. Copying without them is an update; copying
 REM over them is a clinic losing its records to a routine maintenance task.
 REM
 REM They are belt and braces - none of those are in the archive, because none
@@ -429,7 +431,7 @@ REM and /NDL stay: the per-file list on a first-time copy is thousands of
 REM lines and would push everything else off the screen, which is its own way
 REM of telling somebody nothing.
 robocopy "%PP_SRC%" "%~dp0." /E ^
-  /XD instance .venv .git uploads __pycache__ backups ^
+  /XD data instance .venv .git uploads __pycache__ backups ^
   /XF clinic.env *.db *.sqlite *.sqlite3 ^
   /NFL /NDL /NJH /NP
 REM robocopy reports 0-7 for success (0 = nothing to do, 1 = files copied).

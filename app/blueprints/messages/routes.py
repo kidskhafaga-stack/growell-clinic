@@ -13,6 +13,7 @@ from flask import (abort, current_app, flash, g, jsonify, redirect,
 from flask_login import current_user
 from werkzeug.utils import secure_filename
 
+from app.data_home import upload_dir
 from app.blueprints.messages import messages_bp
 from app.extensions import db
 from app.i18n import t
@@ -61,7 +62,7 @@ WA_TOGGLE_KEYS = ["wa_inbound_enabled"]
 
 
 def _crm_img_dir():
-    return os.path.join(current_app.static_folder, "uploads", "crm")
+    return upload_dir("crm")
 
 
 def _save_crm_image(file):
@@ -81,8 +82,10 @@ def _save_crm_image(file):
 def _remove_crm_image(rel_path):
     if not rel_path or not rel_path.startswith("static/uploads/crm/"):
         return
-    path = os.path.join(current_app.static_folder, rel_path.split("static/", 1)[1])
-    if os.path.isfile(path):
+    from app.data_home import stored_path
+
+    path = stored_path(rel_path)
+    if path and os.path.isfile(path):
         try:
             os.remove(path)
         except OSError:

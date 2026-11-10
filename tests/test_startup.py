@@ -56,9 +56,11 @@ def test_a_missing_file_is_not_an_error(tmp_path):
     assert load_env(str(tmp_path), {}) == {}
 
 
-def test_the_file_sits_next_to_the_program():
+def test_the_file_sits_in_the_clinic_s_data_folder(tmp_path):
+    """Beside the database, out of every update's way (UPGRADE_PLAN ٥)."""
     assert os.path.basename(path()) == "clinic.env"
-    assert os.path.isfile(os.path.join(os.path.dirname(path()), "run.py"))
+    assert os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(path())), "run.py"))
+    assert path(str(tmp_path)) == os.path.join(str(tmp_path), "data", "clinic.env")
 
 
 # ------------------------------------------------------------- the port --

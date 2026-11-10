@@ -35,6 +35,7 @@ def clinic(tmp_path):
     static = tmp_path / "static"
     (static / "uploads" / "users").mkdir(parents=True)
     app.static_folder = str(static)
+    app.config["UPLOAD_FOLDER"] = str(static / "uploads")
     app.instance_path = str(tmp_path / "instance")
     os.makedirs(app.instance_path, exist_ok=True)
 

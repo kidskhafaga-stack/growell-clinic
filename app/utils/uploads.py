@@ -14,6 +14,7 @@ import uuid
 
 from flask import current_app
 from werkzeug.utils import secure_filename
+from app.data_home import upload_dir
 
 # Document kinds shown to users (lab tests / imaging / report / other).
 ATTACHMENT_KINDS = ["lab", "imaging", "report", "other"]
@@ -40,7 +41,7 @@ _MAGIC = (
 
 
 def docs_dir():
-    return os.path.join(current_app.static_folder, "uploads", "patient_docs")
+    return upload_dir("patient_docs")
 
 
 def allowed_doc(filename):
@@ -128,7 +129,7 @@ ALLOWED_DRUG_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "webp"}
 
 
 def drug_media_dir():
-    return os.path.join(current_app.static_folder, "uploads", "drug_media")
+    return upload_dir("drug_media")
 
 
 def allowed_drug_file(filename):

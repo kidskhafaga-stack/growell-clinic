@@ -111,11 +111,44 @@ def _apply_environment(app):
     database = (os.environ.get("DATABASE_URL") or "").strip()
     if database:
         app.config["SQLALCHEMY_DATABASE_URI"] = database
+    if not app.config.get("SQLALCHEMY_DATABASE_URI"):
+        # growell.db in the clinic's data folder (``app/data_home``) — the
+        # instance path, which is that folder.
+        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(
+            app.instance_path, "growell.db")
     # Secure cookies are correct behind TLS and a lock-out without it.
     if not app.config.get("DEBUG") and not app.config.get("TESTING"):
         behind_tls = (os.environ.get("HTTPS") or "0").strip() == "1"
         app.config["SESSION_COOKIE_SECURE"] = behind_tls
         app.config["REMEMBER_COOKIE_SECURE"] = behind_tls
+
+
+def _serve_uploads_from_data(app):
+    """``/static/uploads/…`` — answered from the clinic's data folder.
+
+    Uploaded files moved out of the program (``app/data_home``), and every
+    page, message and stored address still names them ``static/uploads/…``.
+    So the address stays and only where it is read from changes: the static
+    route answers ``uploads/<kind>/<file>`` from that kind's folder — the data
+    folder, or the old one while a file there has not moved yet. Everything
+    else under ``/static`` is the program's own and is served as before; the
+    endpoint keeps its name, so nothing that lets ``static`` through changes.
+    """
+    from flask import abort, send_from_directory
+
+    from app.data_home import upload_dir
+
+    original = app.view_functions["static"]
+
+    def static(filename):
+        if filename.startswith("uploads/"):
+            kind, _, name = filename[len("uploads/"):].partition("/")
+            if not kind or not name or kind.startswith("."):
+                abort(404)
+            return send_from_directory(upload_dir(kind), name)
+        return original(filename=filename)
+
+    app.view_functions["static"] = static
 
 
 def create_app(config_name="default"):
@@ -126,8 +159,9 @@ def create_app(config_name="default"):
     app.config.from_object(cfg)
     _apply_environment(app)
 
-    # Ensure the instance folder (for SQLite) exists.
+    # Ensure the instance folder — the clinic's data folder — exists.
     os.makedirs(app.instance_path, exist_ok=True)
+    _serve_uploads_from_data(app)
 
     # Extensions.
     db.init_app(app)
@@ -726,10 +760,15 @@ def Flask_app():
     """Create the bare Flask object with project template/static folders."""
     from flask import Flask
 
+    from app.data_home import data_dir
+
+    # The instance folder *is* the clinic's data folder: the database, the
+    # backups, the licence, the version stamp — kept out of every update.
     return Flask(
         __name__,
         template_folder="templates",
         static_folder="static",
+        instance_path=data_dir(),
         instance_relative_config=True,
     )
 

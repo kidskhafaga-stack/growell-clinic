@@ -9672,7 +9672,7 @@
     "last": "Last sync",
     "last_failed": "The last attempt failed",
     "sync_now": "Sync now",
-    "env_hint": "Put SURVEY_PAGE_URL and SURVEY_SYNC_KEY in clinic.env and restart the program — the steps are in outside/survey/README.md. Until then surveys go out with the program's own page, as before."
+    "env_hint": "Put SURVEY_PAGE_URL and SURVEY_SYNC_KEY in data/clinic.env and restart the program — the steps are in outside/survey/README.md. Until then surveys go out with the program's own page, as before."
   },
   "stay_tests": {
     "title": "Tests and scans",

@@ -224,6 +224,7 @@ def books(tmp_path, monkeypatch):
     static = tmp_path / "static"
     (static / "uploads").mkdir(parents=True)
     app.static_folder = str(static)
+    app.config["UPLOAD_FOLDER"] = str(static / "uploads")
     app.instance_path = str(tmp_path / "instance")
     os.makedirs(app.instance_path, exist_ok=True)
     with app.app_context():

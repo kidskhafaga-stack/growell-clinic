@@ -28,7 +28,7 @@ def test_a_clinic_gets_its_own_session_key(tmp_path):
     assert key and len(key) >= 40
     assert key != DEFAULT_SECRET
     assert environ["SECRET_KEY"] == key
-    assert f"SECRET_KEY={key}" in (tmp_path / "clinic.env").read_text(encoding="utf-8")
+    assert f"SECRET_KEY={key}" in (tmp_path / "data" / "clinic.env").read_text(encoding="utf-8")
 
 
 def test_the_key_survives_a_restart(tmp_path):

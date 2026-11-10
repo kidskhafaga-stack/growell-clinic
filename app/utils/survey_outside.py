@@ -31,6 +31,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timedelta
 
+from app.data_home import upload_dir
 from app.extensions import db
 
 ENV_URL = "SURVEY_PAGE_URL"
@@ -91,8 +92,7 @@ def brand(lang="ar"):
            "colour": (Setting.get("clinic_accent") or "").strip()}
     logo = Setting.get("clinic_logo") or ""
     if logo:
-        path = os.path.join(current_app.static_folder, "uploads", "clinic",
-                            os.path.basename(logo))
+        path = os.path.join(upload_dir("clinic"), os.path.basename(logo))
         mime = mimetypes.guess_type(path)[0] or ""
         if (mime in ("image/png", "image/jpeg", "image/webp", "image/gif")
                 and os.path.isfile(path) and os.path.getsize(path) <= MAX_LOGO):

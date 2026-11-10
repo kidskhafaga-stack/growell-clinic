@@ -46,7 +46,9 @@ def marker_path(root=None):
     The whole point of an update is that the code directory is being
     overwritten while this file has to keep meaning something.
     """
-    return os.path.join(root or _root(), "instance", MARKER)
+    from app.data_home import data_dir
+
+    return os.path.join(data_dir(root or _root()), MARKER)
 
 
 def mark(root=None):

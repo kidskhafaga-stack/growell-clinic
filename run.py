@@ -22,8 +22,13 @@ import socket
 import sys
 
 from app import create_app
+from app.data_home import settle
 from app.settings_file import ensure_secret, load_env
 
+# What an older copy kept inside the program folder — the database, the
+# uploads, clinic.env — moves into data/ before anything opens it, once, and
+# only when nothing else has the database open (see app/data_home.py).
+settle()
 # Read clinic.env before the app is built: it may carry DATABASE_URL and the
 # language default as well as the port.
 load_env()

@@ -91,8 +91,19 @@ def backup_dir():
 
 
 def uploads_root():
-    """The folder holding every uploaded file."""
-    return os.path.join(current_app.static_folder, "uploads")
+    """The folder holding every uploaded file — in the clinic's data folder
+    (``app/data_home``)."""
+    from app.data_home import uploads_root as _root
+
+    return _root()
+
+
+def _upload_dir(folder):
+    """One kind's folder — where its files really are, even before they
+    moved out of the program (``app/data_home.upload_dir``)."""
+    from app.data_home import upload_dir
+
+    return upload_dir(folder)
 
 
 def backup_password():
@@ -210,15 +221,15 @@ def create_backup(reason="manual", kind=None):
 
 def _upload_files():
     """``(relative_path, absolute_path)`` for every uploaded file."""
-    root = uploads_root()
     for folder in UPLOAD_DIRS:
-        base = os.path.join(root, folder)
+        base = _upload_dir(folder)
         if not os.path.isdir(base):
             continue
         for dirpath, _dirs, files in os.walk(base):
             for fn in files:
                 path = os.path.join(dirpath, fn)
-                yield os.path.relpath(path, root).replace(os.sep, "/"), path
+                rel = os.path.relpath(path, base).replace(os.sep, "/")
+                yield f"{folder}/{rel}", path
 
 
 def list_backups():
@@ -547,9 +558,14 @@ def restore_check(name, password=None):
 
     An archive with no manifest is allowed through — see :func:`read_manifest`.
     """
+    from app.utils.migrations import known
     from app.utils.version import schema_generation
 
     info = read_manifest(name, password)
+    # A numbered migration this program has never heard of: the copy was
+    # written by a newer program, whatever the column count says.
+    if not known(info.get("migration")):
+        return False, "newer", info
     theirs = info.get("schema_generation")
     if not isinstance(theirs, int):
         return True, "unknown", info
@@ -969,16 +985,19 @@ def _upgrade_restored_schema():
 
 
 def _restore_files(archive, password=None):
-    """Write the archive's uploaded files back under ``static/uploads``."""
-    root = uploads_root()
+    """Write the archive's uploaded files back into the uploads folder."""
     restored = 0
     with _zip_reader(archive, password or backup_password()) as zf:
         for entry in zf.namelist():
             if not entry.startswith(FILES_PREFIX) or entry.endswith("/"):
                 continue
             rel = entry[len(FILES_PREFIX):]
+            kind, _, name = rel.partition("/")
+            if not kind or not name or kind in (".", ".."):
+                continue
+            root = _upload_dir(kind)
             # Never let an archive write outside the uploads folder.
-            dest = os.path.normpath(os.path.join(root, rel))
+            dest = os.path.normpath(os.path.join(root, name))
             if not dest.startswith(os.path.normpath(root) + os.sep):
                 continue
             os.makedirs(os.path.dirname(dest), exist_ok=True)
