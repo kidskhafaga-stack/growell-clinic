@@ -174,10 +174,69 @@ def drugbook_generic(generic_id):
                     .join(Drug, or_(DrugInteraction.drug_a_id == Drug.id,
                                     DrugInteraction.drug_b_id == Drug.id))
                     .filter(Drug.generic_id == generic.id).distinct().all())
+    from app.utils import dose_gaps as gaps
+
     return render_template("prescriptions/drugbook_generic.html", generic=generic,
                            patient=patient, weight=weight, age_months=age_months,
                            product=product, result=result,
-                           interactions=interactions)
+                           interactions=interactions,
+                           may_write_dose=gaps.may_write(current_user),
+                           from_gaps=request.args.get("from") == "gaps")
+
+
+@prescriptions_bp.route("/dose-gaps")
+@module_required(MODULE)
+def dose_gaps():
+    """The drugs this clinic writes most with no dose by weight behind them —
+    most first, each with the door to write its rule (``utils/dose_gaps``)."""
+    from datetime import date as _date
+
+    from app.utils import dose_gaps as gaps
+
+    start, end = gaps.window()
+    try:
+        start = _date.fromisoformat(request.args.get("from") or "") or start
+    except ValueError:
+        pass
+    try:
+        end = _date.fromisoformat(request.args.get("to") or "") or end
+    except ValueError:
+        pass
+    return render_template("prescriptions/dose_gaps.html", data=gaps.report(start, end),
+                           date_from=start, date_to=end,
+                           may_write=gaps.may_write(current_user))
+
+
+@prescriptions_bp.route("/drugbook/<int:generic_id>/dose", methods=["POST"])
+@module_required(MODULE)
+def drugbook_dose(generic_id):
+    """A doctor writes an ingredient's dose by weight, with its reference."""
+    import json as _json
+
+    from flask import abort
+
+    from app.models import ActivityLog
+    from app.utils import dose_gaps as gaps
+
+    if not gaps.may_write(current_user):
+        abort(403)
+    generic = db.get_or_404(GenericDrug, generic_id)
+    try:
+        changed = gaps.write_rule(generic, request.form)
+    except gaps.RuleError as why:
+        db.session.rollback()
+        flash(t("dose_gaps.err_" + str(why)), "error")
+        return redirect(url_for("prescriptions.drugbook_generic", generic_id=generic.id) + "#dose-rule")
+    ActivityLog.record("drugbook.dose_rule", user_id=current_user.id, entity="generic_drug",
+                       entity_id=generic.id,
+                       detail=_json.dumps({k: [str(a), str(b)] for k, (a, b) in changed.items()},
+                                          ensure_ascii=False)[:2000])
+    db.session.commit()
+    flash(t("dose_gaps.saved"), "success")
+    back = request.form.get("back")
+    if back == "gaps":
+        return redirect(url_for("prescriptions.dose_gaps"))
+    return redirect(url_for("prescriptions.drugbook_generic", generic_id=generic.id))
 
 
 @prescriptions_bp.route("/drugbook/import", methods=["GET", "POST"])

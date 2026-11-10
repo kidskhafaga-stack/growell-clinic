@@ -142,6 +142,42 @@
   </div>
 </div>
 
+{# The ingredient's dose by weight, written by a doctor with its reference
+   (`utils/dose_gaps`) — the rule the prescription check reads. #}
+{% if may_write_dose %}
+<div class="card gc-scale-in" style="margin-top:14px;" id="dose-rule" data-dose-rule>
+  <details {{ 'open' if from_gaps or not generic.dose_per_kg }}>
+  <summary class="section-title" style="cursor:pointer;margin:0;"><i class="bi bi-calculator"></i> {{ t('dose_gaps.rule_title') }}</summary>
+  <p class="hint" style="margin:6px 0 8px;">{{ t('dose_gaps.rule_hint') }}</p>
+  <form method="post" action="{{ url_for('prescriptions.drugbook_dose', generic_id=generic.id) }}"
+        style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;" data-dose-rule-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if from_gaps %}<input type="hidden" name="back" value="gaps">{% endif %}
+    {% for f in ('dose_per_kg', 'dose_per_kg_max') %}
+    <div class="form-row" style="margin:0;"><label for="dr_{{ f }}">{{ t('dose_gaps.' ~ f) }}</label>
+      <input class="input num" id="dr_{{ f }}" name="{{ f }}" type="number" step="any" min="0" style="max-width:110px;" dir="ltr"
+             value="{{ generic[f] if generic[f] is not none else '' }}"></div>
+    {% endfor %}
+    <div class="form-row" style="margin:0;"><label for="dr_basis">{{ t('dose_gaps.dose_basis') }}</label>
+      <select class="select" id="dr_basis" name="dose_basis">
+        {% for b in ('per_dose', 'per_day') %}<option value="{{ b }}" {{ 'selected' if generic.dose_basis == b }}>{{ t('dose_gaps.b_' ~ b) }}</option>{% endfor %}
+      </select></div>
+    {% for f in ('doses_per_day', 'max_per_kg_day', 'max_single_dose_mg', 'max_daily_dose_mg') %}
+    <div class="form-row" style="margin:0;"><label for="dr_{{ f }}">{{ t('dose_gaps.' ~ f) }}</label>
+      <input class="input num" id="dr_{{ f }}" name="{{ f }}" type="number" step="any" min="0" style="max-width:120px;" dir="ltr"
+             value="{{ generic[f] if generic[f] is not none else '' }}"></div>
+    {% endfor %}
+    <div class="form-row" style="margin:0;flex:1;min-width:200px;"><label for="dr_note">{{ t('dose_gaps.dose_note') }}</label>
+      <input class="input" id="dr_note" name="dose_note" maxlength="255" dir="auto" value="{{ generic.dose_note or '' }}"></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:240px;"><label for="dr_ref">{{ t('dose_gaps.reference') }}</label>
+      <input class="input" id="dr_ref" name="reference" maxlength="255" required dir="auto"
+             placeholder="{{ t('dose_gaps.reference_ph') }}" value="{{ generic.reference or '' }}"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2"></i> {{ t('dose_gaps.save') }}</button>
+  </form>
+  </details>
+</div>
+{% endif %}
+
 <!-- Brands + strengths -->
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:14px;">
   <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-box-seam"></i> {{ t('drugbook.brands') }}</h2>

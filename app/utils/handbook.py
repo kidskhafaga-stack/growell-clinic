@@ -2688,6 +2688,18 @@ SECTIONS = [
         "icon": "capsule",
         "title": ("الروشتة والمرجع الدوائي", "Prescriptions & drug reference"),
         "lines": [
+            ("<b>أدوية من غير حساب جرعة:</b> من «دليل الأدوية» ← «أدوية من غير حساب جرعة»: من "
+             "روشتات العيادة نفسها، الأدوية اللي اتكتبت ومفيش ورا مادتها الفعّالة جرعة بالكيلو، "
+             "الأكتر كتابة الأول، ونسبة التغطية فوق. جنب كل مادة «اكتب القاعدة»: الدكتور يكتب "
+             "الجرعة مجم/كجم ومرات اليوم والحد الأقصى، <b>والمرجع إجباري</b> — من غير مرجع ما "
+             "بتتحفظش — والروشتة بتحسب بيها على طول. البرنامج ما بيحطش أرقام من عنده.",
+             "<b>Drugs with no dose rule:</b> from the «Drug reference» ← «Drugs with no dose "
+             "rule»: from the clinic's own prescriptions, the drugs written whose ingredient "
+             "carries no dose per kilo, most written first, with the coverage above. Beside "
+             "each ingredient «Write the rule»: the doctor writes the dose in mg/kg, times a "
+             "day and the maximum, <b>and the reference is required</b> — none, nothing saved "
+             "— and the prescription calculates with it at once. The program adds no numbers "
+             "of its own."),
             ("<b>روشتة جديدة</b> من داخل الزيارة أو من ملف المريض — بتفتح "
              "مملوءة بالمريض والطبيب والوزن والتشخيص.",
              "<b>New prescription</b> from inside the visit or from the "
