@@ -2049,6 +2049,28 @@ def dose_for(admission_id):
                                          lang=getattr(g, "lang", "ar")))
 
 
+@beds_bp.route("/admission/<int:admission_id>/infusion")
+@module_required(MODULE)
+def infusion_rate(admission_id):
+    """JSON for the order form (ع-٣): the doctor's dose per kilo as mL an
+    hour, from the syringe they write and the child's latest weight —
+    arithmetic only (``utils/infusion``)."""
+    from flask import jsonify
+
+    from app.utils import infusion
+    from app.utils.dosing import latest_weight
+
+    row = Admission.query.get_or_404(admission_id)
+    weight = request.args.get("weight") or latest_weight(row.patient)
+    try:
+        out = infusion.rate(request.args.get("dose"), request.args.get("unit"), weight,
+                            request.args.get("amount"), request.args.get("volume"))
+    except infusion.InfusionError as why:
+        return jsonify({"error": t("infusion.err_" + str(why)), "weight": weight})
+    out["weight"] = float(weight)
+    return jsonify(out)
+
+
 @beds_bp.route("/admission/<int:admission_id>/weight", methods=["POST"])
 @module_required(MODULE)
 def record_weight(admission_id):

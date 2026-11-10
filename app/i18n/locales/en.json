@@ -17022,5 +17022,25 @@
     "err_at": "The time must be between admission and now.",
     "err_closed": "This stay has ended.",
     "hint": "The doctor's numbers — the program suggests no settings. Each change is a row; the latest is what the machine is on."
+  },
+  "infusion": {
+    "title": "Continuous infusion calculator",
+    "dose": "Dose",
+    "unit": "Unit",
+    "syringe": "Syringe",
+    "amount": "holds",
+    "volume": "in mL",
+    "weight": "Weight",
+    "u_mcg_kg_min": "mcg/kg/min",
+    "u_mcg_kg_h": "mcg/kg/h",
+    "u_mg_kg_h": "mg/kg/h",
+    "u_units_kg_h": "units/kg/h",
+    "result": "= {ml} mL/h",
+    "use": "Put it in the rate",
+    "hint": "Arithmetic only from the doctor's numbers and the child's weight — the doctor confirms. The program has no dose.",
+    "err_unit": "Choose the unit.",
+    "err_dose": "Write the dose.",
+    "err_weight": "No weight — weigh the child first.",
+    "err_syringe": "Write what the syringe holds: so many mg (or units) in so many mL."
   }
 }

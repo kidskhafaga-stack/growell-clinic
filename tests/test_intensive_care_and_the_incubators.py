@@ -77,3 +77,40 @@ def test_the_card_is_on_intensive_care_and_not_on_an_ordinary_ward_stay(ward):
     with ward["app"].app_context():
         kind = ward["db"].session.get(Admission, stay).bed.unit.kind
     assert ("data-vent" in page) == (kind in ("icu", "nicu"))
+
+
+# ------------------------------------------ ع-٣ the infusion calculator --
+
+def test_the_dose_per_kilo_becomes_millilitres_an_hour(ward):
+    from app.models import GrowthRecord
+    from app.utils import infusion
+    from app.utils.clock import local_today
+
+    # 1 mcg/kg/min for 10 kg = 0.6 mg/h; 50 mg in 50 mL = 1 mg/mL → 0.6 mL/h.
+    assert infusion.rate(1, "mcg_kg_min", 10, 50, 50)["ml_h"] == 0.6
+    assert infusion.rate(0.1, "mg_kg_h", 12, 10, 50)["ml_h"] == 6.0
+    assert infusion.rate(20, "units_kg_h", 5, 500, 50)["ml_h"] == 10.0
+    pid = _child(ward, "سليم")
+    stay = _admit(ward, pid)
+    page = ward["sign_in"]("boss").get(f"/beds/admission/{stay}").get_data(as_text=True)
+    assert "data-infusion-calc" in page
+    d = ward["sign_in"]("boss").get(f"/beds/admission/{stay}/infusion?dose=1&unit=mcg_kg_min"
+                                    "&amount=50&volume=50").get_json()
+    assert "error" in d, "no weight, no answer"
+    with ward["app"].app_context():
+        ward["db"].session.add(GrowthRecord(patient_id=pid, record_date=local_today(),
+                                            weight_kg=10, source="ward"))
+        ward["db"].session.commit()
+    d = ward["sign_in"]("boss").get(f"/beds/admission/{stay}/infusion?dose=1&unit=mcg_kg_min"
+                                    "&amount=50&volume=50").get_json()
+    assert d["ml_h"] == 0.6 and d["weight"] == 10
+
+
+def test_nonsense_is_refused_not_answered(ward):
+    import pytest
+
+    from app.utils import infusion
+
+    for args in ((0, "mg_kg_h", 10, 5, 5), (1, "drops", 10, 5, 5), (1, "mg_kg_h", 10, 5, 0)):
+        with pytest.raises(infusion.InfusionError):
+            infusion.rate(*args)

@@ -1682,6 +1682,43 @@
       <div class="form-row" style="margin-bottom:0;min-width:120px;">
         <label for="rate">{{ t('meds.rate') }}</label>
         <input class="input" id="rate" name="rate" maxlength="60" dir="auto" placeholder="ml/h"></div>
+      {# ع-٣ — the doctor's dose per kilo as mL an hour, from the syringe they
+         write and the child's weight (`utils/infusion`): arithmetic only, shown
+         for the doctor to put in the rate. The boxes have no name: nothing of
+         them is sent with the order but what the doctor puts in the rate. #}
+      <details style="flex-basis:100%;" data-infusion-calc
+               x-data="{ dose: '', unit: 'mcg_kg_min', amount: '', volume: '', res: null,
+                         calc() {
+                           const self = this;
+                           if (!this.dose || !this.amount || !this.volume) { this.res = null; return; }
+                           const q = new URLSearchParams({ dose: this.dose, unit: this.unit, amount: this.amount, volume: this.volume });
+                           fetch({{ url_for('beds.infusion_rate', admission_id=admission.id)|tojson|forceescape }} + '?' + q.toString(), {credentials: 'same-origin'})
+                             .then(function (r) { return r.json(); }).then(function (d) { self.res = d; }).catch(function () {});
+                         },
+                         text() {
+                           if (!this.res || this.res.ml_h == null) return '';
+                           const u = { mcg_kg_min: 'mcg/kg/min', mcg_kg_h: 'mcg/kg/h', mg_kg_h: 'mg/kg/h', units_kg_h: 'u/kg/h' }[this.unit];
+                           return (this.res.ml_h + ' ml/h = ' + this.dose + ' ' + u + ' (' + this.amount + '/' + this.volume + 'ml)').slice(0, 60);
+                         } }">
+        <summary class="hint" style="cursor:pointer;margin:0;"><i class="bi bi-calculator"></i> {{ t('infusion.title') }}</summary>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-top:6px;">
+          <div class="form-row" style="margin:0;"><label>{{ t('infusion.dose') }}</label>
+            <input class="input num" type="number" step="any" min="0" x-model="dose" x-on:input.debounce.300ms="calc()" style="max-width:90px;" dir="ltr"></div>
+          <div class="form-row" style="margin:0;"><label>{{ t('infusion.unit') }}</label>
+            <select class="select" x-model="unit" x-ref="unit" x-on:change="calc()">
+              {% for u in ('mcg_kg_min', 'mcg_kg_h', 'mg_kg_h', 'units_kg_h') %}<option value="{{ u }}">{{ t('infusion.u_' ~ u) }}</option>{% endfor %}
+            </select></div>
+          <div class="form-row" style="margin:0;"><label>{{ t('infusion.syringe') }} — {{ t('infusion.amount') }}</label>
+            <input class="input num" type="number" step="any" min="0" x-model="amount" x-on:input.debounce.300ms="calc()" style="max-width:90px;" dir="ltr" placeholder="mg"></div>
+          <div class="form-row" style="margin:0;"><label>{{ t('infusion.volume') }}</label>
+            <input class="input num" type="number" step="any" min="0" x-model="volume" x-on:input.debounce.300ms="calc()" style="max-width:90px;" dir="ltr" placeholder="ml"></div>
+          <strong dir="ltr" x-show="res && res.ml_h != null" x-text="text()" data-infusion-result></strong>
+          <span class="hint" style="color:var(--danger);margin:0;" x-show="res && res.error" x-text="res && res.error"></span>
+          <button type="button" class="btn btn-sm btn-outline gc-press" x-show="res && res.ml_h != null"
+                  x-on:click="document.getElementById('rate').value = text()">{{ t('infusion.use') }}</button>
+        </div>
+        <p class="hint" style="margin:4px 0 0;">{{ t('infusion.hint') }}</p>
+      </details>
       <div class="form-row" style="margin-bottom:0;min-width:100px;">
         <label for="course_days">{{ t('meds.course_days') }}</label>
         <input class="input" type="number" min="1" max="365" id="course_days" name="course_days" dir="ltr"></div>

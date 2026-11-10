@@ -980,6 +980,15 @@ SECTIONS = [
              "change a row, «Now» above with the latest, and «Taken off the machine» when it "
              "stops. The program suggests no settings and refuses only a number no machine "
              "can be set to."),
+            ("<b>حاسبة التسريب المستمر (ع-٣):</b> في أمر الدوا تحت «معدّل التسريب»: الطبيب "
+             "يكتب الجرعة ووحدتها (مكجم/كجم/دقيقة، مكجم/كجم/ساعة، مجم/كجم/ساعة، وحدة/كجم/ساعة) "
+             "واللي في السرنجة (كام مجم في كام مل)، والبرنامج يحسب المل/ساعة من آخر وزن، وزرار "
+             "«حطّها في معدّل التسريب». حساب بس — البرنامج ما عندوش جرعة، والطبيب بيأكّد.",
+             "<b>Continuous infusion calculator:</b> in the drug order under «Rate»: the doctor "
+             "writes the dose and its unit (mcg/kg/min, mcg/kg/h, mg/kg/h, units/kg/h) and "
+             "the syringe (so many mg in so many mL); the program works out mL an hour from "
+             "the latest weight, with «Put it in the rate». Arithmetic only — the program "
+             "has no dose, and the doctor confirms."),
             ("<b>ميزان السوائل (د-٥):</b> في تاب «التمريض والتقييم» الممرضة بتكتب الداخل "
              "(بالفم، رضعة/أنبوبة، محاليل، دم) والخارج (بول، ترجيع، براز، درنقة، شفط معدة) "
              "بالمللي وبالساعة اللي حصل فيها. فوق: مجموع آخر ٢٤ ساعة والفرق، والبول مل/كجم/ساعة "
