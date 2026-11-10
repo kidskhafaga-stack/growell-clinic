@@ -948,7 +948,7 @@ SECTIONS = [
              "أمر تاني لنفس الدوا ما بيسألوش. الإيجابي ما يتدّاش وبيتكتب في حساسية الطفل. "
              "وفوق شيت الدوا وزن الطفل وتاريخه (أو خانة توزنه النهارده)، وأول ما الدكتور "
              "يختار الدوا بتظهر الجرعة حسب قواعد البرنامج لوزنه بزرار «استخدمها».",
-             "<b>Allergy, skin test and dose by weight (د-١ to د-٣):</b> an allergy to the "
+             "<b>Allergy, skin test and dose by weight:</b> an allergy to the "
              "drug or its family shows in red (amber for a cross-reacting family) on the "
              "drug chart, the drug round and the pharmacist's screen. The first dose of an "
              "IM or IV antibiotic in the stay waits for the skin test result — once per "
@@ -960,7 +960,7 @@ SECTIONS = [
             ("<b>العلامات الحيوية في صفحة الإقامة (د-٤):</b> في تاب «الإقامة» جدول كل "
              "القراءات من ساعة الدخول — من اللوحة أو شاشة الملاحظة أو من هنا — كل رقم ملوّن "
              "بحدود سنّ الطفل وجنبه سهم طالع ولا نازل، وتحته «سجّل قراءة».",
-             "<b>Vital signs on the stay (د-٤):</b> the «Stay» tab lists every reading since "
+             "<b>Vital signs on the stay:</b> the «Stay» tab lists every reading since "
              "admission — from the board, the observation chart or here — each coloured by "
              "the child's age band with an arrow for which way it moved, and «Record a "
              "reading» below."),
@@ -969,7 +969,7 @@ SECTIONS = [
              "بالمللي وبالساعة اللي حصل فيها. فوق: مجموع آخر ٢٤ ساعة والفرق، والبول مل/كجم/ساعة "
              "من آخر وزن، وتحت يوم بيوم. المقدار الغلط بيتشطب ويفضل ظاهر. البرنامج ما بيحطش "
              "حدود — قراءة الأرقام للدكتور.",
-             "<b>Fluid balance (د-٥):</b> on the «Nursing» tab the nurse writes what went in "
+             "<b>Fluid balance:</b> on the «Nursing» tab the nurse writes what went in "
              "(by mouth, feed/tube, IV fluids, blood) and what came out (urine, vomit, stool, "
              "drain, gastric aspirate) in millilitres, at the hour it happened. Above: the last "
              "24 hours' totals and the difference, and urine in mL/kg/h from the latest weight; "
@@ -979,7 +979,7 @@ SECTIONS = [
              "عناصره التسعة، وتحت التعليمات مربع أحمر «ارجعوا الطوارئ فوراً لو…» بنفس كلام "
              "المستشفى اللي في الإعدادات (هو نفسه اللي في ورقة الطوارئ). لو فاضي بيتطبع مكان "
              "فاضي الدكتور يكتب فيه بإيده، وتحت توقيع الدكتور والأهل.",
-             "<b>The printed discharge summary (د-٦):</b> from the «Discharge» tab ← print the "
+             "<b>The printed discharge summary:</b> from the «Discharge» tab ← print the "
              "summary: its nine elements, and under the instructions a red box «Come back to "
              "emergency at once if…» in the hospital's own words from settings (the same text "
              "as the emergency paper). Left empty, a blank is printed for the doctor's hand, "
@@ -990,7 +990,7 @@ SECTIONS = [
              "اسمه، والمسحة الصح بتتسجّل مع الجرعة. المستشفى بتختار من الإعدادات: «اختياري» "
              "(من غير مسح عادي)، «إجباري» (من غير مسح ما بيتسجّلش)، أو «مقفول». طفل العيادة "
              "ما بيلبسش سوار، فسحب عينته عمره ما بيسأل عنه.",
-             "<b>Scan the wristband (د-٨):</b> above the department board and the drug round "
+             "<b>Scan the wristband:</b> above the department board and the drug round "
              "a «Scan the wristband» box — a barcode reader or a phone camera; the scan opens "
              "the child on the treatment tab. Beside «Given», hanging a blood bag and drawing "
              "a sample, a band box: another child's band is refused and named, the right "
