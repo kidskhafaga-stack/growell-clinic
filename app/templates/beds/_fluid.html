@@ -1,0 +1,82 @@
+{# ---- ميزان السوائل — DOCTOR_EASE د-٥ ------------------------------------ #}
+{# In and out in millilitres (`utils/fluid_balance`): the last 24 hours with
+   the difference and urine per kilo per hour (arithmetic, from the latest
+   weight), the day-by-day totals, and the entries. No limits from the
+   program — the numbers are the chart, the reading is the doctor's. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;" id="fluid" data-fluid>
+  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+    <h2 class="section-title" style="margin:0;"><i class="bi bi-droplet-half"></i> {{ t('fluid.title') }}</h2>
+    <span class="hint" style="margin:0;">{{ t('fluid.sub') }}{% if fluid.hours and fluid.hours < 24 %} · {{ t('fluid.hours', n=fluid.hours) }}{% endif %}</span>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;" data-fluid-totals>
+    <div class="stat-card edge-blue" style="min-width:120px;"><div class="value" dir="ltr" data-fluid-in>{{ fluid['in'] }}</div><div class="label">{{ t('fluid.in') }} ({{ t('fluid.ml') }})</div></div>
+    <div class="stat-card edge-amber" style="min-width:120px;"><div class="value" dir="ltr" data-fluid-out>{{ fluid['out'] }}</div><div class="label">{{ t('fluid.out') }} ({{ t('fluid.ml') }})</div></div>
+    <div class="stat-card edge-green" style="min-width:120px;"><div class="value" dir="ltr" data-fluid-net>{{ '+' if fluid.net > 0 else '' }}{{ fluid.net }}</div><div class="label">{{ t('fluid.net') }}</div></div>
+    <div style="align-self:center;">
+      {% if fluid.urine_ml_kg_h is not none %}
+      <span class="badge badge--muted" data-urine-rate dir="auto">{{ t('fluid.urine_rate', n=fluid.urine_ml_kg_h) }} · {{ fluid.weight }} kg</span>
+      {% else %}<span class="hint" style="margin:0;">{{ t('fluid.urine_rate_none') }}</span>{% endif %}
+    </div>
+  </div>
+  {% if fluid.by_kind %}
+  <p class="hint" style="margin:0 0 10px;" data-fluid-kinds>
+    {% for k, v in fluid.by_kind.items() %}{{ t('fluid.k_' ~ k) }} <span dir="ltr">{{ v }}</span>{% if not loop.last %} · {% endif %}{% endfor %}
+  </p>
+  {% endif %}
+
+  {% if admission.is_open %}
+  <form method="post" action="{{ url_for('beds.record_fluid', admission_id=admission.id) }}"
+        style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-bottom:12px;" data-fluid-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="fl_kind">{{ t('fluid.kind') }}</label>
+      <select class="select" id="fl_kind" name="kind" required>
+        <option value="">—</option>
+        <optgroup label="{{ t('fluid.in') }}">{% for k in fluid_in %}<option value="{{ k }}">{{ t('fluid.k_' ~ k) }}</option>{% endfor %}</optgroup>
+        <optgroup label="{{ t('fluid.out') }}">{% for k in fluid_out %}<option value="{{ k }}">{{ t('fluid.k_' ~ k) }}</option>{% endfor %}</optgroup>
+      </select></div>
+    <div class="form-row" style="margin:0;"><label for="fl_ml">{{ t('fluid.ml') }}</label>
+      <input class="input num" id="fl_ml" name="ml" type="number" min="1" max="5000" required style="max-width:100px;" dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label for="fl_at">{{ t('fluid.at') }}</label>
+      <input class="input" id="fl_at" name="at" type="datetime-local" value="{{ fluid_now }}" dir="ltr"></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:140px;"><label for="fl_note">{{ t('fluid.note') }}</label>
+      <input class="input" id="fl_note" name="note" maxlength="160" dir="auto"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('fluid.add') }}</button>
+  </form>
+  {% endif %}
+
+  {% if fluid_recent %}
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:460px;" data-fluid-rows>
+    <thead><tr><th>{{ t('fluid.at') }}</th><th>{{ t('fluid.kind') }}</th><th>{{ t('fluid.ml') }}</th><th>{{ t('fluid.note') }}</th><th></th></tr></thead>
+    <tbody>
+      {% for e in fluid_recent %}
+      <tr data-fluid-row="{{ e.id }}" {% if e.struck_at %}style="text-decoration:line-through;opacity:.55;" data-struck{% endif %}>
+        <td dir="ltr" style="white-space:nowrap;">{{ e.at|clinic_stamp }}</td>
+        <td><span class="badge {{ 'badge--muted' if e.direction == 'in' else 'badge--warn' }}">{{ t('fluid.in') if e.direction == 'in' else t('fluid.out') }}</span> {{ t('fluid.k_' ~ e.kind) }}</td>
+        <td dir="ltr" style="font-variant-numeric:tabular-nums;">{{ e.ml }}</td>
+        <td dir="auto">{{ e.note or '' }}</td>
+        <td>{% if not e.struck_at and admission.is_open %}
+          <form method="post" action="{{ url_for('beds.strike_fluid', entry_id=e.id) }}" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('fluid.strike') }}</button></form>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="hint" data-fluid-none>{{ t('fluid.none') }}</p>{% endif %}
+
+  {% if fluid_days|length > 1 %}
+  <details style="margin-top:10px;" data-fluid-days>
+    <summary>{{ t('fluid.by_day') }}</summary>
+    <table class="table" style="margin-top:6px;">
+      <thead><tr><th>{{ t('fluid.day') }}</th><th>{{ t('fluid.in') }}</th><th>{{ t('fluid.out') }}</th><th>{{ t('fluid.net') }}</th></tr></thead>
+      <tbody>{% for d, i, o, n in fluid_days %}
+        <tr><td dir="ltr">{{ d }}</td><td dir="ltr">{{ i }}</td><td dir="ltr">{{ o }}</td><td dir="ltr">{{ '+' if n > 0 else '' }}{{ n }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </details>
+  {% endif %}
+  <p class="hint" style="margin:8px 0 0;">{{ t('fluid.no_limits') }}</p>
+</div>

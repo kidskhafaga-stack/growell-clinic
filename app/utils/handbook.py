@@ -964,6 +964,17 @@ SECTIONS = [
              "admission — from the board, the observation chart or here — each coloured by "
              "the child's age band with an arrow for which way it moved, and «Record a "
              "reading» below."),
+            ("<b>ميزان السوائل (د-٥):</b> في تاب «التمريض والتقييم» الممرضة بتكتب الداخل "
+             "(بالفم، رضعة/أنبوبة، محاليل، دم) والخارج (بول، ترجيع، براز، درنقة، شفط معدة) "
+             "بالمللي وبالساعة اللي حصل فيها. فوق: مجموع آخر ٢٤ ساعة والفرق، والبول مل/كجم/ساعة "
+             "من آخر وزن، وتحت يوم بيوم. المقدار الغلط بيتشطب ويفضل ظاهر. البرنامج ما بيحطش "
+             "حدود — قراءة الأرقام للدكتور.",
+             "<b>Fluid balance (د-٥):</b> on the «Nursing» tab the nurse writes what went in "
+             "(by mouth, feed/tube, IV fluids, blood) and what came out (urine, vomit, stool, "
+             "drain, gastric aspirate) in millilitres, at the hour it happened. Above: the last "
+             "24 hours' totals and the difference, and urine in mL/kg/h from the latest weight; "
+             "below, day by day. A wrong amount is struck through and stays visible. The "
+             "program sets no limits — reading the numbers is the doctor's."),
             ("<b>الأمر حاجة والجرعة حاجة تانية.</b> الطبيب بيكتب أمر ثابت — "
              "الدوا والجرعة وكل كام ساعة — والتمريض بيسجّل كل جرعة: اتعطت، "
              "اتأجلت، أو اترفضت. لو كان في عمود واحد اسمه «آخر جرعة» على "

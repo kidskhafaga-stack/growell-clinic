@@ -429,7 +429,11 @@ from app.models.device import (
     MedicalDevice,
 )
 
+# DOCTOR_EASE د-٥ — fluid balance on the ward.
+from app.models.fluid_balance import FluidEntry
+
 __all__ = [
+    "FluidEntry",
     "User",
     "Setting",
     "SavedReport",

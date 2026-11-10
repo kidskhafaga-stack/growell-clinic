@@ -886,6 +886,10 @@ def admission(admission_id):
         # د-٤ — the readings of the stay, banded by age with their trend.
         vitals=_er_triage().readings_between(row.patient, row.admitted_at, row.discharged_at),
         may_chart=_module_on("observations"),
+        # د-٥ — fluid balance: the last 24 hours, day by day, and the entries.
+        fluid=_fluid().summary(row), fluid_days=_fluid().by_day(row),
+        fluid_recent=_fluid().recent(row), fluid_in=_fluid().KINDS_IN,
+        fluid_out=_fluid().KINDS_OUT, fluid_now=_local_now_input(),
         safety=drug_round.safety(row, lang=getattr(g, "lang", "ar")),
         routes=ROUTES, dose_outcomes=DOSE_OUTCOMES,
         may_order=current_user.can("medication_order"),
@@ -2195,6 +2199,51 @@ def skin_test_result(order_id):
     db.session.commit()
     flash(t("skin_test.saved_" + result), "danger" if result == "positive" else "success")
     return _back_from_dose(row)
+
+
+def _fluid():
+    from app.utils import fluid_balance
+
+    return fluid_balance
+
+
+def _local_now_input():
+    from app.utils.clock import local_now
+
+    return local_now().strftime("%Y-%m-%dT%H:%M")
+
+
+@beds_bp.route("/stay/<int:admission_id>/fluid", methods=["POST"])
+@module_required(MODULE)
+def record_fluid(admission_id):
+    """One amount in or out, in millilitres (د-٥) — the nurse's chart."""
+    row = Admission.query.get_or_404(admission_id)
+    try:
+        _fluid().record(row, (request.form.get("kind") or "").strip(),
+                        request.form.get("ml"), user=current_user, at=_happened_at(),
+                        note=request.form.get("note"))
+    except _fluid().FluidError as why:
+        db.session.rollback()
+        flash(t("fluid.err_" + str(why)), "error")
+        return redirect(url_for("beds.admission", admission_id=row.id) + "#care")
+    db.session.commit()
+    flash(t("fluid.saved"), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id) + "#care")
+
+
+@beds_bp.route("/fluid/<int:entry_id>/strike", methods=["POST"])
+@module_required(MODULE)
+def strike_fluid(entry_id):
+    """A wrong amount struck through — kept on the chart, out of the totals."""
+    from app.models import ActivityLog, FluidEntry
+
+    entry = db.get_or_404(FluidEntry, entry_id)
+    _fluid().strike(entry, current_user)
+    ActivityLog.record("ward.fluid_struck", user_id=current_user.id, entity="fluid_entry",
+                       entity_id=entry.id, detail=f"{entry.kind}:{entry.ml}")
+    db.session.commit()
+    flash(t("fluid.struck"), "success")
+    return redirect(url_for("beds.admission", admission_id=entry.admission_id) + "#care")
 
 
 def _module_on(key):
