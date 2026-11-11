@@ -168,6 +168,18 @@ SECTIONS = [
              "under Settings → Phrases. The drug allergies are deliberately "
              "not editable there: they come from the checker itself, so the "
              "chip and the check can never drift apart."),
+            ("<b>آخر كشف والجاي</b>: تحت اسم الطفل في ملفه سطر بيقول آخر مرة "
+             "اتكشف إمتى ومع مين، والميعاد الجاي إمتى وليه — حجز موجود، أو متابعة "
+             "طلبها الدكتور ولسه محدش جه، أو جرعة تطعيم — ولو الميعاد فات بيقول "
+             "من كام يوم. وفي قايمة المرضى زرار «فاتهم ميعادهم» بيجيب الأطفال "
+             "اللي الدكتور طلب يرجعوا واليوم فات ومحدش جه ولا اتحجز لهم.",
+             "<b>Last check-up and the next</b>: under the child's name on the "
+             "file, one line says when they were last seen and by whom, and when "
+             "the next date is and why — a booking, a follow-up a doctor asked "
+             "for that nobody has come for yet, or a vaccine dose — and how many "
+             "days late it is when the date has passed. On the patient list, "
+             "«Missed their date» shows the children a doctor asked back whose "
+             "day has passed with nobody seen and nothing booked."),
             ("<b>ملف الطفل لمستشفى تانية</b>: من صفحة المريض «ملف FHIR كامل» "
              "بينزّل الملف كله بصيغة FHIR R4، و«ملخص IPS» بينزّل ملخص المريض "
              "الدولي (المشاكل والحساسية والأدوية الحالية والتطعيمات "
@@ -192,19 +204,21 @@ SECTIONS = [
              "النهارده مين جوه ومين اللي بعده، وزرار «اللي بعده» بينادي أول طفل "
              "وصل ولسه ما دخلش. «افتح شاشة الاستقبال» بتفتح صفحة للتلفزيون فيها "
              "الأرقام بس من غير أسامي، بتتحدّث لوحدها وبترن لما رقم جديد يتنادى. "
-             "والدكتور لما يفتح الكشف بيتحسب إنه نادى الطفل. ومن إعدادات الطابور "
-             "(للمدير): «ترتيب الكشف» بالدور أو بالتوقيت، و«قرّب دورك» — رسالة "
-             "واتساب واحدة للأهل لما يفضل قبلهم عدد تختاره، مقفولة لحد ما تفتحها.",
+             "والدكتور لما يفتح الكشف بيتحسب إنه نادى الطفل. «ترتيب الكشف» (بالدور "
+             "أو بالتوقيت) في الإعدادات ← العيادة. ولو العيادة بتبعت رسايل، "
+             "«قرّب دورك» في شاشة الطابور (للمدير): رسالة واتساب واحدة للأهل "
+             "لما يفضل قبلهم عدد تختاره، مقفولة لحد ما تفتحها.",
              "<b>The queue and the reception screen</b> (Appointments → «Queue»): "
              "for each doctor today, who is in and who is next, and «Next» calls "
              "the first child who has arrived and not gone in. «Open the "
              "reception screen» opens a page for a television with numbers only, "
              "no names; it refreshes itself and chimes when a new number is "
              "called. A doctor opening the visit counts as calling the child in. "
-             "In the queue settings (administrators): the consultation order, by "
-             "number or by time, and «your turn is near» — one WhatsApp message "
-             "to the family once a number you choose are left before them, off "
-             "until you turn it on."),
+             "The consultation order (by number or by time) is in Settings → "
+             "Clinic. Where the clinic sends messages, «your turn is near» is on "
+             "the queue page (administrators): one WhatsApp message to the "
+             "family once a number you choose are left before them, off until "
+             "you turn it on."),
             ("<b>لوحة اليوم</b>: تنقّل بين الأيام والأطباء والعيادات، وغيّر حالة "
              "الموعد (منتظر / جاري / مكتمل / لم يحضر).",
              "<b>Day board</b>: move between days, doctors and clinics, and "

@@ -191,6 +191,15 @@
          correct without this; it is needed the moment a stored moment has to
          be compared with a time somebody typed — "did the doctor start at
          10:00" being the first of them. #}
+      {# How the queue is ordered and numbered — a booking setting, so it is
+         here and not inside the WhatsApp settings: a clinic that never sends
+         a message still has a queue. #}
+      <div class="form-row" data-queue-mode-setting><label>{{ t('settings.queue_mode') }}</label>
+        <select class="select" name="queue_mode">
+          <option value="number" {{ 'selected' if values.get('queue_mode','number') != 'time' else '' }}>{{ t('settings.queue_number') }}</option>
+          <option value="time" {{ 'selected' if values.get('queue_mode') == 'time' else '' }}>{{ t('settings.queue_time') }}</option>
+        </select>
+        <div class="hint">{{ t('queue.mode_hint') }}</div></div>
       <div class="form-row"><label>{{ t('settings.timezone') }}</label>
         {% set tz = values.get('clinic_timezone') or default_tz %}
         <select class="select" name="clinic_timezone" dir="ltr">

@@ -47,17 +47,18 @@
   {% endfor %}
 </div>
 
-{% if current_user.is_admin %}
-<details class="card" style="margin-top:18px;" data-queue-settings>
-  <summary style="cursor:pointer;font-weight:600;"><i class="bi bi-gear"></i> {{ t('queue.settings') }}</summary>
+<p class="hint" style="margin:16px 0 0;" data-queue-order>
+  {{ t('settings.queue_mode') }}: <b>{{ t('settings.queue_number') if how == 'number' else t('settings.queue_time') }}</b>
+  {% if current_user.is_admin %} — <a href="{{ url_for('settings.index', tab='clinic') }}" data-queue-order-door>{{ t('queue.change_in_settings') }}</a>{% endif %}
+</p>
+
+{# «قرّب دورك» is a WhatsApp message, so it is offered only where the clinic
+   sends messages at all. #}
+{% if current_user.is_admin and module_enabled('messages') %}
+<details class="card" style="margin-top:14px;" data-queue-settings>
+  <summary style="cursor:pointer;font-weight:600;"><i class="bi bi-whatsapp"></i> {{ t('queue.notify_title') }}</summary>
   <form method="post" action="{{ url_for('appointments.queue_settings') }}" style="margin-top:12px;display:grid;gap:12px;max-width:560px;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="form-row" style="margin:0;"><label for="q_mode">{{ t('settings.queue_mode') }}</label>
-      <select class="select" id="q_mode" name="queue_mode">
-        <option value="number" {{ 'selected' if how == 'number' else '' }}>{{ t('settings.queue_number') }}</option>
-        <option value="time" {{ 'selected' if how == 'time' else '' }}>{{ t('settings.queue_time') }}</option>
-      </select>
-      <div class="hint">{{ t('queue.mode_hint') }}</div></div>
     <label style="display:flex;gap:8px;align-items:center;">
       <input type="checkbox" name="notify" value="1" {{ 'checked' if notify else '' }}> {{ t('queue.notify') }}</label>
     <div class="form-row" style="margin:0;"><label for="q_ahead">{{ t('queue.ahead') }}</label>

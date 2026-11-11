@@ -486,12 +486,6 @@ function crmTabs(){
           {% endfor %}
         </select></div>
       <div class="form-row"><label>{{ t('settings.wa_country_code') }}</label><input class="input" name="wa_country_code" dir="ltr" value="{{ values.get('wa_country_code','20') }}" placeholder="20"></div>
-      <div class="form-row"><label>{{ t('settings.queue_mode') }}</label>
-        <select class="select" name="queue_mode">
-          <option value="number" {{ 'selected' if values.get('queue_mode','number')=='number' else '' }}>{{ t('settings.queue_number') }}</option>
-          <option value="time" {{ 'selected' if values.get('queue_mode')=='time' else '' }}>{{ t('settings.queue_time') }}</option>
-        </select>
-        <div class="hint"><a href="{{ url_for('appointments.queue', all=1) }}">{{ t('queue.door') }}</a> — {{ t('queue.lives_there') }}</div></div>
     </div>
 
     <h3 style="font-size:0.95rem;margin:12px 0 6px;"><i class="bi bi-clock"></i> {{ t('crm.window_title') }}</h3>

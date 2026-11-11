@@ -194,6 +194,23 @@
         {% if patient.blood_type %}<span><i class="bi bi-droplet"></i> <b>{{ patient.blood_type }}</b></span>{% endif %}
         {% if patient.family %}<span><i class="bi bi-house-heart"></i> <b>{{ patient.family.display_name(current_lang) }}</b></span>{% endif %}
       </div>
+      {# «بيعمل الفحص إمتى»: the last check-up, and the next one with why —
+         a booking, a follow-up a doctor asked for, or a vaccine dose. #}
+      {% if checkup and (checkup.last or checkup.next) %}
+      <div class="meta-row" style="margin-top:6px;" data-checkup>
+        {% if checkup.last %}
+        <span data-checkup-last><i class="bi bi-clipboard2-pulse"></i> {{ t('checkup.last') }}:
+          <b dir="ltr">{{ checkup.last.date }}</b>{% if checkup.last.who %} · {{ checkup.last.who }}{% endif %}</span>
+        {% endif %}
+        {% if checkup.next %}{% set nx = checkup.next %}
+        <span data-checkup-next="{{ nx.kind }}" {% if nx.late_days %}class="alert-pill warn" data-checkup-late="{{ nx.late_days }}"{% endif %}>
+          <i class="bi bi-calendar-event"></i> {{ t('checkup.next') }}: <b dir="ltr">{{ nx.date }}</b> —
+          {{ t('checkup.kind_' ~ nx.kind, who=nx.who, what=nx.what) }}{% if nx.late_days %} · {{ t('checkup.late', n=nx.late_days) }}{% endif %}</span>
+        {% else %}
+        <span class="hint" style="margin:0;" data-checkup-none>{{ t('checkup.none_next') }}</span>
+        {% endif %}
+      </div>
+      {% endif %}
       {% if patient.has_alerts and current_user.can('patient_medical') %}
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
         {% if patient.allergies %}<span class="alert-pill danger"><i class="bi bi-exclamation-octagon"></i> {{ t('patients.allergies') }}</span>{% endif %}

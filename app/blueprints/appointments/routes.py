@@ -2097,16 +2097,13 @@ def queue_next(doctor_id):
 @appointments_bp.route("/queue/settings", methods=["POST"])
 @module_required(MODULE)
 def queue_settings():
-    """«ترتيب الكشف» and «قرّب دورك» — where the queue is, not inside the
-    WhatsApp connection settings where nobody looked for them."""
+    """«قرّب دورك» — on or off, and how close. (The queue's order itself is
+    a clinic setting: Settings → the clinic tab.)"""
     from app.models import Setting
     from app.utils import queue_turns
 
     if not current_user.is_admin:
         abort(403)
-    how = request.form.get("queue_mode")
-    if how in ("number", "time"):
-        Setting.set("queue_mode", how)
     Setting.set(queue_turns.NOTIFY, "1" if request.form.get("notify") else "0")
     try:
         ahead = max(0, min(int(request.form.get("ahead") or queue_turns.DEFAULT_AHEAD), 10))

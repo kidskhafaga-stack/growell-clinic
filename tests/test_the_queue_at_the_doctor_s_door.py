@@ -146,20 +146,46 @@ def test_your_turn_is_near_goes_once_to_those_close_enough(day):
             "#4 joins; #2 and #3 are not sent twice"
 
 
-def test_only_the_administrator_changes_the_settings(day):
+def test_only_the_administrator_turns_your_turn_is_near_on(day):
     from app.models import Setting
 
     day["sign_in"]("desk").post("/appointments/queue/settings",
-                                data={"queue_mode": "time", "notify": "1", "ahead": "3"})
+                                data={"notify": "1", "ahead": "3"})
     with day["app"].app_context():
-        assert (Setting.get("queue_mode", "number") or "number") == "number"
+        assert (Setting.get("queue_near_notify", "0") or "0") == "0"
     page = day["sign_in"]("boss").get("/appointments/queue?all=1").get_data(as_text=True)
-    assert "data-queue-settings" in page
+    assert "data-queue-settings" in page and "data-queue-order-door" in page
     day["sign_in"]("boss").post("/appointments/queue/settings",
-                                data={"queue_mode": "time", "notify": "1", "ahead": "3"})
+                                data={"notify": "1", "ahead": "3"})
+    with day["app"].app_context():
+        assert Setting.get("queue_near_notify") == "1" and Setting.get("queue_near_ahead") == "3"
+
+
+def test_your_turn_is_near_is_not_offered_without_messages(day):
+    from app.models import Setting
+
+    with day["app"].app_context():
+        Setting.set("facility_configured", "1")      # the switches count from here
+        Setting.set("mod_enabled:messages", "0")
+        day["db"].session.commit()
+    page = day["sign_in"]("boss").get("/appointments/queue?all=1").get_data(as_text=True)
+    assert "data-queue-settings" not in page and "data-queue-order" in page
+
+
+def test_the_order_is_a_clinic_setting_not_a_whatsapp_one(day):
+    """Asked: «لازم تكون في إعدادات العيادة — افرض العيادة مش شغالة بالواتساب»."""
+    from app.models import Setting
+
+    boss = day["sign_in"]("boss")
+    assert "data-queue-mode-setting" in boss.get("/settings/").get_data(as_text=True)
+    assert 'name="queue_mode"' not in boss.get("/messages/occasions").get_data(as_text=True)
+    boss.post("/settings/", data={"queue_mode": "time", "active_tab": "clinic"})
     with day["app"].app_context():
         assert Setting.get("queue_mode") == "time"
-        assert Setting.get("queue_near_notify") == "1" and Setting.get("queue_near_ahead") == "3"
+    # Saving the WhatsApp connection no longer touches it.
+    boss.post("/messages/connection", data={"crm_mode": "manual"})
+    with day["app"].app_context():
+        assert Setting.get("queue_mode") == "time"
 
 
 def test_the_doors_to_it(day):

@@ -60,8 +60,10 @@ TEXT_KEYS = [
     # from ten years — and switching recomputes from the doses already on file
     # without re-entering one.
     "vaccine_guideline_profile",
-    # NOTE: WhatsApp / CRM settings (crm_mode, wa_*, queue_mode, templates) now
-    # live in the unified Patient Customer Service hub (messages.occasions).
+    # NOTE: WhatsApp / CRM settings (crm_mode, wa_*, templates) live in the
+    # unified Patient Customer Service hub (messages.occasions). `queue_mode`
+    # moved out of there to the clinic tab — it is how the queue is ordered,
+    # and a clinic that never sends a message still has a queue.
     # Visit quick-chips (one per line) — common complaints + exam findings.
     "visit_complaint_chips", "visit_exam_chips", "visit_plan_chips",
     # The patient file's chips: other allergies (foods, environment) and long
@@ -579,6 +581,11 @@ def index():
 
         for key in TOGGLE_KEYS:
             Setting.set(key, "1" if request.form.get(key) else "0")
+
+        # «ترتيب الكشف» — written only when the form says one of the two, so
+        # a save from anywhere that does not carry it leaves it alone.
+        if request.form.get("queue_mode") in ("number", "time"):
+            Setting.set("queue_mode", request.form["queue_mode"])
 
         # Which details the clinic counts as basic. **Written whenever the
         # form carries the marker**, not only when something is ticked: a

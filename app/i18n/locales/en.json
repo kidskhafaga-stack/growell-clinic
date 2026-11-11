@@ -17252,8 +17252,7 @@
     "call_next": "Next",
     "called": "Number {n} called.",
     "nobody_waiting": "Nobody has arrived and is waiting.",
-    "settings": "Queue settings",
-    "mode_hint": "«By number» shows the queue number sent to the family in the booking confirmation; «by time» shows the booked time. This is the same «consultation order» setting that used to be inside the WhatsApp settings.",
+    "mode_hint": "«By number» shows the queue number sent to the family in the booking confirmation and on the reception screen; «by time» shows the booked time instead.",
     "notify": "Send the family «your turn is near» on WhatsApp",
     "ahead": "When this many or fewer are before them",
     "notify_hint": "One message per booking once that many or fewer are still before them, so they can wait outside or leave home in time. The daily message cap, the sending hours and families who opted out are all respected.",
@@ -17261,6 +17260,20 @@
     "saved": "Queue settings saved.",
     "screen_title": "Queue",
     "door": "Queue",
-    "lives_there": "this setting is also on the queue screen now, beside the reception screen and «your turn is near»."
+    "change_in_settings": "change it in Settings → Clinic",
+    "notify_title": "«Your turn is near» on WhatsApp"
+  },
+  "checkup": {
+    "last": "Last check-up",
+    "next": "Next",
+    "kind_booked": "booked with {who} at {what}",
+    "kind_followup": "follow-up asked by {who}",
+    "kind_vaccine": "vaccine {what}",
+    "late": "{n} days late",
+    "none_next": "No next date on file",
+    "missed_door": "Missed their date",
+    "missed_n": "{n} children missed their follow-up",
+    "missed_hint": "Children a doctor asked back on a set day, and the day has passed with nobody seen and nothing booked. The same list as the visits' outstanding follow-ups, by child.",
+    "by_visit": "By visit"
   }
 }
