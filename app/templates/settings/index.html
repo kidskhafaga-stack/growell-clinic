@@ -191,6 +191,15 @@
          correct without this; it is needed the moment a stored moment has to
          be compared with a time somebody typed — "did the doctor start at
          10:00" being the first of them. #}
+      {# How the queue is ordered and numbered — a booking setting, so it is
+         here and not inside the WhatsApp settings: a clinic that never sends
+         a message still has a queue. #}
+      <div class="form-row" data-queue-mode-setting><label>{{ t('settings.queue_mode') }}</label>
+        <select class="select" name="queue_mode">
+          <option value="number" {{ 'selected' if values.get('queue_mode','number') != 'time' else '' }}>{{ t('settings.queue_number') }}</option>
+          <option value="time" {{ 'selected' if values.get('queue_mode') == 'time' else '' }}>{{ t('settings.queue_time') }}</option>
+        </select>
+        <div class="hint">{{ t('queue.mode_hint') }}</div></div>
       <div class="form-row"><label>{{ t('settings.timezone') }}</label>
         {% set tz = values.get('clinic_timezone') or default_tz %}
         <select class="select" name="clinic_timezone" dir="ltr">
@@ -325,6 +334,22 @@
       <button type="button" class="btn btn-outline btn-sm gc-press" onclick="document.getElementById('clinicAccent').value='#198754'">
         {{ t('settings.accent_reset') }}</button>
       <span class="hint" id="accentNote"></span>
+    </div>
+
+    {# The child's picture on every screen: round, as it always was, or
+       rounded corners. One choice for the whole program. #}
+    <hr style="border:none;border-top:1px solid var(--line);margin:18px 0;">
+    <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-person-square"></i> {{ t('settings.avatar_shape') }}</h3>
+    <p class="hint" style="margin-top:-6px;">{{ t('settings.avatar_shape_hint') }}</p>
+    {% set _shape = 'rounded' if values.get('avatar_shape') == 'rounded' else 'round' %}
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;" data-avatar-shape-setting>
+      {% for v, r in (('round', '50%'), ('rounded', '14px')) %}
+      <label style="display:flex;gap:10px;align-items:center;cursor:pointer;">
+        <input type="radio" name="avatar_shape" value="{{ v if v == 'rounded' else '' }}" {{ 'checked' if _shape == v else '' }}>
+        <span class="patient-avatar sm gender-male" style="border-radius:{{ r }};">ك</span>
+        <span class="patient-avatar sm gender-female" style="border-radius:{{ r }};">ل</span>
+        {{ t('settings.avatar_' ~ v) }}</label>
+      {% endfor %}
     </div>
     <script>
       // Live preview a chosen logo before saving, so it's obvious the file was
@@ -591,6 +616,19 @@
       <input class="input" type="number" min="0" max="365" step="1" id="card_wait_days" name="card_wait_days"
              value="{{ values.get('card_wait_days') or '' }}" placeholder="30"></div>
     <p class="hint">{{ t('card.wait_setting_hint') }}</p>
+    {# Changes to the books before the month is closed (utils/open_month_trail).
+       Every clinic gets the review; a hospital may keep the full book. #}
+    {% if trail_offered %}
+    <div class="form-row" style="max-width:560px;" data-trail-setting>
+      <label>{{ t('trail.setting') }}</label>
+      {% for v in ['', 'full'] %}
+      <label style="display:flex;gap:8px;align-items:flex-start;font-weight:400;margin:4px 0;">
+        <input type="radio" name="open_month_trail" value="{{ v }}" {{ 'checked' if (values.get('open_month_trail') or '') == v else '' }} style="margin-top:4px;">
+        <span>{{ t('trail.mode_' ~ (v or 'summary')) }}</span></label>
+      {% endfor %}
+      <div class="hint">{{ t('trail.setting_hint') }}</div>
+    </div>
+    {% endif %}
     <div style="display:flex;gap:10px;flex-wrap:wrap;" data-deposit-suggest>
       {% for setting in ['emergency', 'inpatient', 'nicu', 'icu'] %}
       <div class="form-row" style="max-width:170px;">

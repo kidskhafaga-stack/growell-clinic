@@ -20,7 +20,8 @@ def test_the_about_page_says_so(clinic, monkeypatch):
     monkeypatch.setattr(project, "python_past_security", lambda *a, **k: True)
     page = boss.get("/about").get_data(as_text=True)
     assert "data-python-old" in page
-    assert "start.bat" in page
+    # The way out is the ordinary update: it finds the newer Python itself.
+    assert "update.bat" in page
 
     monkeypatch.setattr(project, "python_past_security", lambda *a, **k: False)
     page = boss.get("/about").get_data(as_text=True)

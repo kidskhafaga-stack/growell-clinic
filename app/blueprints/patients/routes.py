@@ -133,6 +133,11 @@ def index():
             Patient.date_of_birth <= own_phone_cutoff(),
             db.or_(Patient.own_phone.is_(None), Patient.own_phone == ""),
         )
+    elif flag == "missed_checkup":
+        # The children a doctor asked back whose date has passed with nobody
+        # seen — the follow-ups screen's own answer (utils/followup).
+        from app.utils.checkup_dates import missed_patient_ids
+        query = query.filter(Patient.id.in_(missed_patient_ids() or [0]))
     pagination = paginate(query.order_by(Patient.created_at.desc()))
 
     stats = {
@@ -743,11 +748,15 @@ def view(patient_id):
     vlang = getattr(g, "lang", "ar")
     vaccine_plan = annotate_courses(patient_plan(patient, vlang))
     vaccine_next = next_due_dose(vaccine_plan)
+    # «بيعمل الفحص إمتى» — the last check-up and the next one, and why.
+    from app.utils.checkup_dates import for_patient as _checkup
+    checkup = _checkup(patient, vaccine_next=vaccine_next, lang=vlang)
 
     from app.utils import coverage_card as _card
 
     return render_template(
         "patients/profile.html",
+        checkup=checkup,
         # What this file still owes the clinic, worked out now rather than
         # kept anywhere — see `app/utils/patient_basics`.
         basics_missing=_basics.missing(patient),

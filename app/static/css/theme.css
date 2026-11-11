@@ -702,6 +702,10 @@ a:hover { color: var(--green-900); }
 /* Gender-coloured ring on photo avatars + side accent on patient rows. */
 img.patient-avatar.gender-male { border: 2px solid #3b82f6; }
 img.patient-avatar.gender-female { border: 2px solid #ec4899; }
+/* The child's picture is round unless the clinic chose rounded corners
+   (Settings → logo and look, `avatar_shape`). One switch, every screen. */
+:root[data-avatar="rounded"] .patient-avatar { border-radius: 12px; }
+:root[data-avatar="rounded"] .patient-avatar.lg { border-radius: 20px; }
 .patient-row.gm { border-inline-start: 3px solid #3b82f6; padding-inline-start: 9px; }
 .patient-row.gf { border-inline-start: 3px solid #ec4899; padding-inline-start: 9px; }
 .copyright {
@@ -725,6 +729,135 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 }
 .profile-header .meta-row { display: flex; gap: 8px 16px; flex-wrap: wrap; color: var(--muted); font-size: 0.9rem; margin-top: 6px; }
 .profile-header .meta-row b { color: var(--ink); }
+
+/* The child's file header, as the owner chose it: a soft blue-to-clinic-colour
+   wash with two faint waves in the corners, the photo as a rounded square,
+   the facts as pills, the next date in its own amber box, and two buttons
+   with everything else under «خيارات أخرى».
+
+   Every colour is mixed from the theme's tokens — the card, the line and the
+   clinic's own green (which the clinic's accent recolours) — so the same rules
+   give a dark header at night and follow a clinic that picked another colour.
+   Only the amber of «the next date» needs its own dark pair. */
+.profile-header.ph2 {
+  --ph2-blue: #3b82f6;
+  --ph2-amber-bg: #fff8e6; --ph2-amber-line: #f3d79a; --ph2-amber-ink: #7a4a00;
+  --ph2-amber-tag: #fde7b0; --ph2-amber-dot: #f59e0b;
+  position: relative; overflow: visible; isolation: isolate;
+  align-items: flex-start; gap: 18px; padding: 22px 24px; border-radius: 22px;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--ph2-blue) 8%, var(--card)) 0%,
+    var(--card) 50%,
+    color-mix(in srgb, var(--green-500) 11%, var(--card)) 100%);
+  border: 1px solid color-mix(in srgb, var(--ph2-blue) 16%, var(--line));
+  box-shadow: 0 14px 34px -18px color-mix(in srgb, var(--ph2-blue) 45%, transparent);
+}
+:root[data-theme="dark"] .profile-header.ph2 {
+  --ph2-amber-bg: #33280f; --ph2-amber-line: #5c4519; --ph2-amber-ink: #f3c66b;
+  --ph2-amber-tag: #4a3912; --ph2-amber-dot: #fbbf24;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--ph2-blue) 14%, var(--card)) 0%,
+    var(--card) 52%,
+    color-mix(in srgb, var(--green-500) 13%, var(--card)) 100%);
+  border-color: color-mix(in srgb, var(--ph2-blue) 22%, var(--line));
+  box-shadow: 0 16px 36px -20px rgba(0, 0, 0, 0.7);
+}
+/* The two waves: decoration only, behind everything, clipped to the card. */
+.ph2-waves { position: absolute; inset: 0; border-radius: inherit; overflow: hidden;
+  pointer-events: none; z-index: -1; }
+.ph2-waves svg { position: absolute; width: 360px; height: 360px; }
+.ph2-waves .w1 { top: -150px; inset-inline-end: -110px; color: color-mix(in srgb, var(--ph2-blue) 14%, transparent); }
+.ph2-waves .w2 { bottom: -170px; inset-inline-start: -80px; color: color-mix(in srgb, var(--green-500) 14%, transparent); }
+:root[data-theme="dark"] .ph2-waves .w1 { color: color-mix(in srgb, var(--ph2-blue) 12%, transparent); }
+:root[data-theme="dark"] .ph2-waves .w2 { color: color-mix(in srgb, var(--green-500) 10%, transparent); }
+
+.ph2 .patient-avatar.lg { width: 76px; height: 76px; font-size: 1.8rem;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent); box-shadow: none; }
+.ph2 img.patient-avatar.lg { object-fit: cover; }
+/* A photo keeps the boy's / girl's ring it has everywhere else. */
+.ph2 img.patient-avatar.gender-male { border: 3px solid #3b82f6; }
+.ph2 img.patient-avatar.gender-female { border: 3px solid #ec4899; }
+.ph2-body { flex: 1; min-width: 240px; display: grid; gap: 10px; }
+.ph2-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ph2-name h1 { margin: 0; font-size: 1.55rem; font-weight: 900; color: var(--ink); }
+.ph2-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 11px;
+  border-radius: 999px; font-size: 0.78rem; font-weight: 700; line-height: 1.5;
+  background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); }
+.ph2-pill.gender-male, .ph2-pill.gender-female { border-color: transparent; }
+.ph2-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  color: var(--muted); font-size: 0.9rem; }
+.ph2-line b { color: var(--ink); }
+.ph2-next { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 12px; border-radius: 12px; font-size: 0.88rem; font-weight: 600;
+  background: var(--ph2-amber-bg); border: 1px solid var(--ph2-amber-line); color: var(--ph2-amber-ink); }
+.ph2-next.calm { background: var(--surface-2); border-color: var(--line); color: var(--ink); }
+.ph2-next b { color: inherit; font-weight: 800; }
+.ph2-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ph2-amber-dot); flex: none; }
+.ph2-next.calm .ph2-dot { background: var(--green-600); }
+/* Moves only when the date has passed, and never for anybody who asked the
+   system to keep still — a doctor looks at this header all day. */
+@media (prefers-reduced-motion: no-preference) {
+  .ph2-next.late .ph2-dot { animation: ph2-pulse 1.8s ease-in-out infinite; }
+}
+@keyframes ph2-pulse { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--ph2-amber-dot) 25%, transparent); } }
+.ph2-late { margin-inline-start: auto; padding: 1px 8px; border-radius: 7px; font-size: 0.76rem;
+  font-weight: 800; background: var(--ph2-amber-tag); }
+
+.ph2-actions { display: flex; flex-direction: column; gap: 8px; width: 200px; flex: none; }
+.ph2-actions > .btn, .ph2-actions > form > .btn { width: 100%; justify-content: center; border-radius: 12px; padding-block: 9px; }
+/* An urgent triage level reads as a warning, on both grounds. */
+.ph2-pill.ph2-urgent { background: #fde2e1; color: #b42318; border-color: #f5b5b0; }
+:root[data-theme="dark"] .ph2-pill.ph2-urgent { background: #4a1d1d; color: #fca5a5; border-color: #7f2a2a; }
+.ph2-more { position: relative; }
+.ph2-more > summary { list-style: none; cursor: pointer; display: flex; align-items: center;
+  justify-content: space-between; gap: 6px; padding: 8px 12px; border-radius: 12px; font-size: 0.82rem;
+  font-weight: 700; background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); }
+.ph2-more > summary::-webkit-details-marker { display: none; }
+.ph2-more[open] > summary .bi-chevron-down { transform: rotate(180deg); }
+.ph2-menu { position: absolute; inset-inline: 0; top: calc(100% + 6px); z-index: 40;
+  min-width: 230px; background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: 0 18px 40px -12px rgba(15, 23, 42, 0.28); padding: 6px; display: grid; gap: 2px; }
+:root[data-theme="dark"] .ph2-menu { box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.8); }
+.ph2-menu > a, .ph2-menu > form > button, .ph2-menu .ph2-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
+  border-radius: 10px; font-size: 0.84rem; font-weight: 600; color: var(--ink);
+  background: none; border: 0; text-align: start; cursor: pointer; text-decoration: none; }
+.ph2-menu > a:hover, .ph2-menu > form > button:hover { background: var(--surface-2); }
+.ph2-menu > a .bi, .ph2-menu > form > button .bi { color: var(--muted); }
+.ph2-menu > form { margin: 0; }
+.ph2-menu .ph2-sep { height: 1px; background: var(--line); margin: 4px 2px; }
+.ph2-menu .ph2-danger, .ph2-menu .ph2-danger .bi { color: var(--danger); }
+.ph2-menu > form > button.ph2-danger:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.ph2-menu .ph2-admit { display: grid; gap: 6px; padding: 6px 8px; }
+@media (max-width: 760px) { .ph2-actions { width: 100%; } }
+/* The program's own mark, faint, in the empty corner under the buttons — never
+   behind a word: at the owner's first try (centred, 20%) it showed through the
+   allergy and the fever boxes, which are the two things on the screen that
+   must read first. Clipped by the card's own edge, so it reads as part of it. */
+.ph2-waves .ph2-logo { position: absolute; inset-inline-end: -46px; bottom: -70px;
+  width: 300px; height: auto; opacity: 0.12; transform: rotate(-10deg); }
+:root[data-theme="dark"] .ph2-waves .ph2-logo { opacity: 0.10; }
+/* The visit's safety strip, inside the header: the allergy alone and red on
+   top, then the long illnesses and this visit's vital-sign reading side by
+   side, then the problem list. */
+.ph2-safety { display: grid; gap: 8px; }
+.vs-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.vs-row > .vs-box { flex: 1; min-width: 220px; }
+.vs-box { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px;
+  border-radius: 12px; font-size: 0.9rem; font-weight: 600; }
+.vs-box b { font-weight: 800; }
+.vs-note { font-weight: 500; opacity: 0.85; font-size: 0.82rem; }
+.ph2 .vs-red { background: #fdecee; border: 1px solid #f5c2c7; color: #842029; }
+.ph2 .vs-amber { background: #fff8e6; border: 1px solid #f3d79a; color: #7a4a00; }
+:root[data-theme="dark"] .ph2 .vs-red { background: #3a1519; border-color: #6b2a31; color: #f5a8b0; }
+:root[data-theme="dark"] .ph2 .vs-amber { background: #33280f; border-color: #5c4519; color: #f3c66b; }
+/* The dark theme paints every link a light green (`:root[data-theme=dark] a`),
+   which is right for a link in a sentence and wrong for a button or a menu
+   item: «تعديل البيانات» came out pale on its own blue. Said here with the
+   same reach as that rule, so these read as what they are. */
+:root[data-theme="dark"] .ph2-actions > a.btn-primary { color: #fff; }
+:root[data-theme="dark"] .ph2-actions > a.btn-outline,
+:root[data-theme="dark"] .ph2-menu > a { color: var(--ink); }
 
 /* ---------- Alert pills ---------- */
 .alert-pill {

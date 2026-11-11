@@ -33,6 +33,12 @@ TEXT_KEYS = [
     "product_name", "product_name_en",
     "program_slogan_ar", "program_slogan_en", "thermal_footer_text",
     "clinic_accent",
+    # The child's picture: "round" (blank) or "rounded" corners.
+    "avatar_shape",
+    # Changes to the books before the month is closed: "summary" (blank) or
+    # the "full" book beside the ledger — offered where a hospital's parts
+    # are on (`utils/open_month_trail`).
+    "open_month_trail",
     # Under this, a partial refund does not wait for a manager. A full refund
     # always does. Zero makes every refund wait, which is how it behaved
     # before there was a line between them.
@@ -60,8 +66,10 @@ TEXT_KEYS = [
     # from ten years — and switching recomputes from the doses already on file
     # without re-entering one.
     "vaccine_guideline_profile",
-    # NOTE: WhatsApp / CRM settings (crm_mode, wa_*, queue_mode, templates) now
-    # live in the unified Patient Customer Service hub (messages.occasions).
+    # NOTE: WhatsApp / CRM settings (crm_mode, wa_*, templates) live in the
+    # unified Patient Customer Service hub (messages.occasions). `queue_mode`
+    # moved out of there to the clinic tab — it is how the queue is ordered,
+    # and a clinic that never sends a message still has a queue.
     # Visit quick-chips (one per line) — common complaints + exam findings.
     "visit_complaint_chips", "visit_exam_chips", "visit_plan_chips",
     # The patient file's chips: other allergies (foods, environment) and long
@@ -542,6 +550,14 @@ def index():
         # Worked out before anything is written, because it compares what was
         # posted against what is still saved.
         overrides = _provider_switch_fixups()
+        # The full book is a hospital's choice: a clinic that is not offered
+        # it keeps the review, whatever the form says (`open_month_trail`).
+        from app.utils import open_month_trail
+
+        if (request.form.get("open_month_trail") or "") not in ("", "full") or (
+                request.form.get("open_month_trail") == "full"
+                and not open_month_trail.offered()):
+            overrides["open_month_trail"] = open_month_trail.mode() if open_month_trail.mode() == "full" else ""
         # A blank secret box means "keep it", so it cannot be folded into the
         # plain text loop below — that one writes whatever was posted.
         overrides.update(_keep_or_clear_secrets())
@@ -579,6 +595,11 @@ def index():
 
         for key in TOGGLE_KEYS:
             Setting.set(key, "1" if request.form.get(key) else "0")
+
+        # «ترتيب الكشف» — written only when the form says one of the two, so
+        # a save from anywhere that does not carry it leaves it alone.
+        if request.form.get("queue_mode") in ("number", "time"):
+            Setting.set("queue_mode", request.form["queue_mode"])
 
         # Which details the clinic counts as basic. **Written whenever the
         # form carries the marker**, not only when something is ticked: a
@@ -654,10 +675,12 @@ def index():
                      if (values.get(k) or "").strip()}
     for key in SECRET_KEYS:
         values[key] = ""
-    from app.utils import numbering
+    from app.utils import numbering, open_month_trail
 
     return render_template(
         "settings/index.html", values=values, ai_providers=AI_PROVIDERS,
+        # The full book of changes before closing: a hospital's choice.
+        trail_offered=open_month_trail.offered(),
         saved_secrets=saved_secrets,
         # The file number's letters: what the clinic's name asks for, what is
         # actually in force, and every series that already exists in the

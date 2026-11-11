@@ -1543,6 +1543,11 @@ def change_status(appt_id):
     # to something that is not happening.
     reminders.resync(appt, user_id=current_user.id,
                      lang=getattr(g, "lang", "ar"))
+    # Somebody left the line (missed, cancelled, went in): the families behind
+    # them moved up, and «قرّب دورك» may now be due (utils/queue_turns).
+    from app.utils import queue_turns
+    queue_turns.after_change(appt, user_id=current_user.id,
+                             lang=getattr(g, "lang", "ar"))
     if new_status == "no_show":
         # The most important patient of the day, and the one the program used
         # to do nothing at all about.
@@ -2033,3 +2038,92 @@ def clinic_assign():
     db.session.commit()
     flash(t("rooms.assigned"), "success")
     return redirect(url_for("appointments.clinics", date=on_date.isoformat()))
+
+
+# ---------------------------------------------------------------------------
+# The queue at each doctor's door — the reception screen, «اللي بعده», and
+# «قرّب دورك» to the family (utils/queue_turns).
+# ---------------------------------------------------------------------------
+@appointments_bp.route("/queue")
+@module_required(MODULE)
+def queue():
+    """Today's queue per doctor: who is in, who is next, and the button that
+    calls them. A doctor sees their own first; reception sees everyone."""
+    from app.models import Setting
+    from app.utils import queue_turns
+
+    day = local_today()
+    doctor_id = request.args.get("doctor_id", type=int)
+    if doctor_id is None and current_user.role == "doctor" \
+            and request.args.get("all") is None:
+        doctor_id = current_user.id
+    rows = queue_turns.board(day, doctor_id)
+    if doctor_id and not rows:
+        doctor_id, rows = None, queue_turns.board(day)
+    return render_template(
+        "appointments/queue.html", rows=rows, doctor_id=doctor_id, day=day,
+        how=queue_turns.mode(), notify=queue_turns.notify_on(),
+        ahead=queue_turns.ahead_limit(),
+        # «قرّب دورك» goes by itself only when WhatsApp sends by itself; in
+        # manual mode it waits in the list for somebody to press it.
+        wa_auto=(Setting.get("crm_mode", "manual") == "automatic"))
+
+
+@appointments_bp.route("/queue/<int:doctor_id>/next", methods=["POST"])
+@module_required(MODULE)
+def queue_next(doctor_id):
+    """«اللي بعده» — call the next child who has arrived to the door."""
+    from app.utils import queue_turns
+
+    day = local_today()
+    appt = queue_turns.call_next(doctor_id, day)
+    if appt is None:
+        flash(t("queue.nobody_waiting"), "warning")
+    else:
+        ActivityLog.record("appointment.called", user_id=current_user.id,
+                           entity="appointment", entity_id=appt.id,
+                           ip_address=client_ip())
+        queue_turns.after_change(appt, user_id=current_user.id,
+                                 lang=getattr(g, "lang", "ar"))
+        now = queue_turns.state(doctor_id, day)["now"]
+        flash(t("queue.called", n=now[0] if now else ""), "success")
+    db.session.commit()
+    back = request.form.get("back") or ""
+    if back.startswith("/") and not back.startswith("//"):
+        return redirect(back)
+    return redirect(url_for("appointments.queue", doctor_id=doctor_id))
+
+
+@appointments_bp.route("/queue/settings", methods=["POST"])
+@module_required(MODULE)
+def queue_settings():
+    """«قرّب دورك» — on or off, and how close. (The queue's order itself is
+    a clinic setting: Settings → the clinic tab.)"""
+    from app.models import Setting
+    from app.utils import queue_turns
+
+    if not current_user.is_admin:
+        abort(403)
+    Setting.set(queue_turns.NOTIFY, "1" if request.form.get("notify") else "0")
+    try:
+        ahead = max(0, min(int(request.form.get("ahead") or queue_turns.DEFAULT_AHEAD), 10))
+    except ValueError:
+        ahead = queue_turns.DEFAULT_AHEAD
+    Setting.set(queue_turns.AHEAD, str(ahead))
+    ActivityLog.record("settings.queue", user_id=current_user.id,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("queue.saved"), "success")
+    return redirect(url_for("appointments.queue", all=1))
+
+
+@appointments_bp.route("/queue/screen")
+@module_required(MODULE)
+def queue_screen():
+    """The screen in the waiting room: per doctor, the number called in and
+    the next ones. No names — a waiting room is public. Refreshes itself."""
+    from app.utils import queue_turns
+
+    return render_template("appointments/queue_screen.html",
+                           rows=queue_turns.board(local_today()),
+                           how=queue_turns.mode())

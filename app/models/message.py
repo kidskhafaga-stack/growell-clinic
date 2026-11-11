@@ -68,6 +68,10 @@ SYSTEM_TEMPLATE_TYPES = [
     # confirmation goes out when the booking is made — often weeks earlier —
     # and by then it is a receipt, not a reminder.
     "appointment_reminder",
+    # «قرّب دورك» — a few children before them at the doctor's door, so the
+    # family can wait outside or set off in time. Off until the clinic turns
+    # it on, once per booking (utils/queue_turns).
+    "queue_near",
     # After the visit (DOCTOR_EASE_PLAN.md ب-٦): the doctor's own instructions
     # sent to the family, a reminder of the follow-up date while nothing is
     # booked, and «how is he doing?» a few days later. Each pressed or ticked
@@ -137,6 +141,7 @@ TEMPLATE_VARIABLES = {
     "visit_checkin": ["patient", "first_name", "doctor", "clinic"],
     "appointment_confirm": ["patient", "first_name", "clinic", "date", "time", "doctor", "queue"],
     "appointment_reminder": ["patient", "first_name", "clinic", "date", "time", "doctor"],
+    "queue_near": ["patient", "first_name", "doctor", "queue", "ahead", "clinic"],
     "no_show_followup": ["patient", "first_name", "clinic", "date", "doctor"],
     "patient_recall": ["patient", "first_name", "clinic", "date", "months"],
     "doctor_schedule": ["doctor", "date", "count", "list"],
@@ -230,6 +235,12 @@ TEMPLATE_DEFAULTS = {
         "{clinic} تحت أمركم — ردّوا على الرسالة وهنحجزلكم."
     ),
     "doctor_schedule": "د. {doctor}، جدول حجوزات اليوم {date} ({count} حجز):\n{list}",
+    # Says where they are in the line and nothing else: no promise of a time,
+    # because the clinic cannot keep one.
+    "queue_near": (
+        "{clinic}: دور {patient} عند {doctor} قرّب — رقم {queue}، "
+        "وفاضل قبلكم {ahead}.\nياريت تكونوا في العيادة."
+    ),
     "vaccine_given": (
         "تم بحمد الله تطعيم {patient} — {vaccine} ({dose}).\n"
         "الجرعة القادمة بتاريخ: {next_date}\nمع تحيات {clinic}."

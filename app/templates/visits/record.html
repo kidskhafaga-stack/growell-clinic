@@ -45,33 +45,100 @@
         {{ visit.vitals.weight_kg if (visit.vitals and visit.vitals.weight_kg) else 'null' }}, {{ visit.vitals.height_cm if (visit.vitals and visit.vitals.height_cm) else 'null' }})"
      x-init="restore()" style="padding-bottom:78px;">
 
-  <!-- Patient header -->
-  <div class="card profile-header gc-scale-in">
-    {{ patient_avatar(visit.patient, 'lg') }}
-    <div style="flex:1;min-width:220px;">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <h1 style="margin:0;font-size:1.4rem;">{{ visit.patient.display_name(current_lang) }}</h1>
-        <span class="badge badge--role">{{ visit.patient.patient_number }}</span>
+  <!-- Patient header — the file's design (theme.css «.ph2»), with what the
+       doctor must see before writing a word inside it: the allergy first and
+       red, then the long illnesses and this visit's own vital-sign reading,
+       then the problem list. It replaced a header and four cards stacked
+       above the work. -->
+  {% set _active_problems = visit.patient.problems | selectattr('status', 'equalto', 'active') | list %}
+  {% set _vp = visit.patient %}
+  <div class="card profile-header ph2 gc-scale-in" data-visit-header>
+    <div class="ph2-waves" aria-hidden="true">
+      <img class="ph2-logo" src="{{ url_for('static', filename='img/brand/pediapro-mark.png') }}" alt="">
+      <svg class="w1" viewBox="0 0 400 400" fill="currentColor"><path d="M0,100 C150,200 350,-50 500,100 L500,0 L0,0 Z"/></svg>
+      <svg class="w2" viewBox="0 0 400 400" fill="currentColor"><path d="M0,200 C200,100 250,350 400,200 L400,400 L0,400 Z"/></svg>
+    </div>
+    {{ patient_avatar(_vp, 'lg') }}
+    <div class="ph2-body">
+      <div class="ph2-name">
+        <h1>{{ _vp.display_name(current_lang) }}</h1>
+        <span class="badge badge--role">{{ _vp.patient_number }}</span>
         <span class="status-badge {{ 'st-completed' if visit.is_completed else 'st-in_progress' }}">
           {{ t('visits.completed_status') if visit.is_completed else t('visits.open') }}</span>
       </div>
-      <div class="meta-row">
-        <span><i class="bi bi-cake2"></i> {{ age_label(visit.patient) }}</span>
-        <span><i class="bi bi-gender-ambiguous"></i> {{ t('genders.' ~ visit.patient.gender) }}</span>
-        <span><i class="bi bi-calendar3"></i> {{ visit.visit_date.strftime('%Y-%m-%d') }}</span>
-        {% if visit.patient.has_alerts %}<span class="alert-pill danger"><i class="bi bi-exclamation-triangle"></i> {{ t('patients.medical_alerts') }}</span>{% endif %}
+      <div class="ph2-name" style="gap:6px;">
+        <span class="ph2-pill {{ 'gender-male' if _vp.gender == 'male' else 'gender-female' }}">
+          <i class="bi bi-gender-{{ 'male' if _vp.gender == 'male' else 'female' }}"></i> {{ t('genders.' ~ _vp.gender) }}</span>
+        <span class="ph2-pill"><i class="bi bi-cake2"></i> {{ age_label(_vp) }}</span>
+        {% if visit.vitals and visit.vitals.weight_kg %}<span class="ph2-pill" data-visit-weight><i class="bi bi-speedometer2"></i> <span dir="ltr">{{ visit.vitals.weight_kg }}</span> {{ t('visits.kg_unit') }}</span>{% endif %}
+        <span class="ph2-pill"><i class="bi bi-calendar3"></i> <span dir="ltr">{{ visit.visit_date.strftime('%Y-%m-%d') }}</span>{% if visit.doctor %} · {{ visit.doctor.display_name(current_lang) }}{% endif %}</span>
       </div>
+      {% if _vp.allergies or _vp.chronic_diseases or (red_flag and red_flag.level) or _active_problems %}
+      <div class="ph2-safety no-print" data-visit-safety>
+        {% if _vp.allergies %}
+        <div class="vs-box vs-red" data-visit-allergy><i class="bi bi-exclamation-octagon-fill"></i>
+          <b>{{ t('patients.allergies') }}:</b> <span dir="auto">{{ _vp.allergies }}</span></div>
+        {% endif %}
+        {% if _vp.chronic_diseases or (red_flag and red_flag.level) %}
+        <div class="vs-row">
+          {% if _vp.chronic_diseases %}
+          <div class="vs-box vs-amber" data-visit-chronic><i class="bi bi-heart-pulse-fill"></i>
+            <b>{{ t('patients.chronic_diseases') }}:</b> <span dir="auto">{{ _vp.chronic_diseases }}</span></div>
+          {% endif %}
+          {# The age-banded reading of this child's own vitals. It states the
+             limit it used, so a doctor who disagrees can see the rule rather
+             than argue with a colour. #}
+          {% if red_flag and red_flag.level %}
+          <div class="vs-box {{ 'vs-red' if red_flag.level == 'urgent' else 'vs-amber' }}" data-red-flag="{{ red_flag.level }}">
+            <i class="bi bi-{{ 'exclamation-octagon-fill' if red_flag.level == 'urgent' else 'thermometer-high' }}"></i>
+            <b>{{ t('redflags.level_' ~ red_flag.level) }}:</b>
+            <span>{% for why in red_flag.reasons %}{{ t('redflags.' ~ why) }}{% if not loop.last %} · {% endif %}{% endfor %}</span>
+            {% if red_flag.temp_limit %}
+            <span class="vs-note" dir="auto">({{ t('redflags.limits_for_age') }} {{ red_flag.temp_limit }}° / {{ red_flag.urgent_limit }}°)</span>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% if _active_problems %}
+        <div class="ph2-line" data-visit-problems><i class="bi bi-card-checklist"></i> {{ t('problems.title_list') }}:
+          {% for pr in _active_problems %}<span class="ph2-pill">{{ pr.display_title(current_lang) }}{% if pr.icd_code %} <span dir="ltr">({{ pr.icd_code }})</span>{% endif %}</span>{% set _ro = (rx_repeat_offers or {}).get(pr.id) %}{% if _ro %}
+    {# «Repeat the last prescription» for this problem (DOCTOR_EASE_PLAN.md
+       ب-٢): opens a new prescription with the old lines, the doses worked
+       out again on today's weight — reviewed and saved by the doctor. #}
+    <a class="md-chip rx-repeat-chip" data-repeat="{{ _ro.rx }}" title="{{ t('rx_repeat.chip_title', date=_ro.date, n=_ro.count) }}"
+       href="{{ url_for('prescriptions.new', patient_id=visit.patient_id, doctor_id=visit.doctor_id, visit_id=visit.id, repeat=_ro.rx) }}"
+       style="padding:3px 10px;font-size:.78rem;"><i class="bi bi-arrow-repeat"></i> {{ t('rx_repeat.chip') }}</a>{% endif %}{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.view', visit_id=visit.id) }}"><i class="bi bi-eye"></i> {{ t('visits.view_title') }}</a>
-      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=visit.patient_id) }}"><i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
+    <div class="ph2-actions" data-visit-actions>
+      <a class="btn btn-primary gc-press" href="{{ url_for('patients.view', patient_id=visit.patient_id) }}"><i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
+      <a class="btn btn-outline gc-press" href="{{ url_for('visits.view', visit_id=visit.id) }}"><i class="bi bi-eye"></i> {{ t('visits.view_title') }}</a>
       {# The payer's own form, filled for this visit (CONTRACTS_PLAN.md ع-٣) —
-         the doctor signs it. #}
-      {% for f in payer_forms_here or [] %}
-      <a class="btn btn-outline btn-sm gc-press no-print" target="_blank" href="{{ url_for('main.payer_form_print', form_id=f.id, visit=visit.id) }}" data-visit-payer-form="{{ f.id }}"><i class="bi bi-file-earmark-richtext"></i> {{ f.name }}</a>
+         the doctor signs it. Under «خيارات أخرى», only when there is one. #}
+      {% if payer_forms_here %}
+      <details class="ph2-more no-print" data-file-more>
+        <summary><span><i class="bi bi-three-dots-vertical"></i> {{ t('patients.more_actions') }}</span><i class="bi bi-chevron-down"></i></summary>
+        <div class="ph2-menu">
+          {% for f in payer_forms_here or [] %}
+      <a class="no-print" target="_blank" href="{{ url_for('main.payer_form_print', form_id=f.id, visit=visit.id) }}" data-visit-payer-form="{{ f.id }}"><i class="bi bi-file-earmark-richtext"></i> {{ f.name }}</a>
       {% endfor %}
+        </div>
+      </details>
+      {% endif %}
     </div>
   </div>
+  <script>
+  (function () {
+    var more = document.querySelector('[data-visit-actions] [data-file-more]');
+    if (!more) return;
+    document.addEventListener('click', function (e) { if (more.open && !more.contains(e.target)) more.open = false; });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') more.open = false; });
+  })();
+  </script>
 
   {# ع-٤ — what on this visit the payer wants an approval for, said now and
      not when the bill is made: one press opens the request. #}
@@ -93,42 +160,8 @@
   {% endif %}
 
   <!-- Clinical safety: allergies / chronic diseases, up front -->
-  {% with p = visit.patient %}{% include "_safety_banner.html" %}{% endwith %}
   {% with p = visit.patient %}{% include "_needs_line.html" %}{% endwith %}
 
-  {# The age-banded reading of this child's own vitals. The nurse's station has
-     shown this since it was written; the doctor's screen showed the numbers and
-     left the band unsaid — and the band is the part that is not obvious, since
-     38.6 is a cold in a four-year-old and a workup in a six-week-old. It states
-     the limit it used, so a doctor who disagrees can see the rule rather than
-     argue with a colour. #}
-  {% if red_flag and red_flag.level %}
-  <div class="alert-pill {{ 'danger' if red_flag.level == 'urgent' else 'warn' }} no-print gc-scale-in"
-       style="margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-    <i class="bi bi-{{ 'exclamation-octagon-fill' if red_flag.level == 'urgent' else 'exclamation-triangle-fill' }}"></i>
-    <strong>{{ t('redflags.level_' ~ red_flag.level) }}</strong>
-    <span>{% for why in red_flag.reasons %}{{ t('redflags.' ~ why) }}{% if not loop.last %} · {% endif %}{% endfor %}</span>
-    {% if red_flag.temp_limit %}
-    <span class="muted" style="font-size:0.8rem;" dir="auto">({{ t('redflags.limits_for_age') }}
-      {{ red_flag.temp_limit }}° / {{ red_flag.urgent_limit }}°)</span>
-    {% endif %}
-  </div>
-  {% endif %}
-
-  <!-- Active problem list (GAHAR continuity) -->
-  {% set _active_problems = visit.patient.problems | selectattr('status', 'equalto', 'active') | list %}
-  {% if _active_problems %}
-  <div class="card gc-scale-in no-print" style="border-inline-start:4px solid var(--warning);margin-bottom:14px;padding:10px 14px;">
-    <strong style="font-size:0.9rem;"><i class="bi bi-card-checklist"></i> {{ t('problems.title_list') }}:</strong>
-    {% for pr in _active_problems %}<span class="badge badge--muted" style="margin:2px;">{{ pr.display_title(current_lang) }}{% if pr.icd_code %} <span dir="ltr">({{ pr.icd_code }})</span>{% endif %}</span>{% set _ro = (rx_repeat_offers or {}).get(pr.id) %}{% if _ro %}
-    {# «Repeat the last prescription» for this problem (DOCTOR_EASE_PLAN.md
-       ب-٢): opens a new prescription with the old lines, the doses worked
-       out again on today's weight — reviewed and saved by the doctor. #}
-    <a class="md-chip rx-repeat-chip" data-repeat="{{ _ro.rx }}" title="{{ t('rx_repeat.chip_title', date=_ro.date, n=_ro.count) }}"
-       href="{{ url_for('prescriptions.new', patient_id=visit.patient_id, doctor_id=visit.doctor_id, visit_id=visit.id, repeat=_ro.rx) }}"
-       style="padding:3px 10px;font-size:.8rem;"><i class="bi bi-arrow-repeat"></i> {{ t('rx_repeat.chip') }}</a>{% endif %}{% endfor %}
-  </div>
-  {% endif %}
 
   <!-- Medication reconciliation reference: recent meds (GAHAR) -->
   {% if recent_meds %}

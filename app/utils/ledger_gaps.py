@@ -121,6 +121,9 @@ def clear_left_behind():
         if locked_period(entry.entry_date) is not None:
             kept += 1
             continue
+        from app.utils.accounting import record_removal
+
+        record_removal(entry)
         db.session.delete(entry)
         removed += 1
     return removed, kept

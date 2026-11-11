@@ -1,0 +1,107 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('trail.title') }}{% endblock %}
+{% block page_heading %}{{ t('trail.title') }}{% endblock %}
+
+{% block content %}
+{# «تعديلات قبل القفل» (utils/open_month_trail): every change to an entry while
+   its month was open. Nothing here changes the ledger; it is read before the
+   month is closed. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('trail.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:720px;">{{ t('trail.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.periods') }}"><i class="bi bi-calendar2-check"></i> {{ t('periods.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.journal') }}"><i class="bi bi-journal-text"></i> {{ t('journal.title') }}</a>
+  </div>
+</div>
+
+<form method="get" class="card gc-scale-in" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin-bottom:14px;" data-trail-filter>
+  <div class="form-row" style="margin:0;"><label for="tr_from">{{ t('trail.from') }}</label>
+    <input class="input" type="date" id="tr_from" name="from" value="{{ d_from.isoformat() }}" dir="ltr"></div>
+  <div class="form-row" style="margin:0;"><label for="tr_to">{{ t('trail.to') }}</label>
+    <input class="input" type="date" id="tr_to" name="to" value="{{ d_to.isoformat() }}" dir="ltr"></div>
+  <label style="display:flex;gap:6px;align-items:center;margin:0 0 8px;">
+    <input type="checkbox" name="all" value="1" {{ 'checked' if everything else '' }}> {{ t('trail.show_same_day') }}</label>
+  {% if full %}<input type="hidden" name="view" value="{{ view }}">{% endif %}
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('common.filter') }}</button>
+</form>
+
+{% if full %}
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;" data-trail-views>
+  {% set q = {'from': d_from.isoformat(), 'to': d_to.isoformat(), 'all': '1' if everything else ''} %}
+  <a class="btn btn-sm {{ 'btn-primary' if view == 'list' else 'btn-outline' }} gc-press" href="{{ url_for('finance.journal_changes', **q) }}"><i class="bi bi-list-ul"></i> {{ t('trail.view_list') }}</a>
+  <a class="btn btn-sm {{ 'btn-primary' if view == 'book' else 'btn-outline' }} gc-press" href="{{ url_for('finance.journal_changes', view='book', **q) }}" data-trail-book-door><i class="bi bi-journal-richtext"></i> {{ t('trail.view_book') }}</a>
+  <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('finance.journal_changes', format='csv', **q) }}" data-trail-csv><i class="bi bi-download"></i> {{ t('trail.download') }}</a>
+</div>
+{% endif %}
+
+{% if folded %}
+<p class="hint" data-trail-folded><i class="bi bi-info-circle"></i> {{ t('trail.folded', n=folded) }}</p>
+{% endif %}
+
+{% if not rows %}
+<div class="card"><p class="hint" style="margin:0;" data-trail-empty>{{ t('trail.empty') }}</p></div>
+{% elif view == 'book' %}
+<div class="card gc-scale-in" style="overflow-x:auto;" data-trail-book>
+  <table class="table">
+    <thead><tr><th>{{ t('trail.col_entry') }}</th><th>{{ t('trail.col_role') }}</th><th>{{ t('trail.col_date') }}</th>
+      <th>{{ t('trail.col_account') }}</th><th class="num">{{ t('trail.col_debit') }}</th><th class="num">{{ t('trail.col_credit') }}</th></tr></thead>
+    <tbody>
+      {% for item in book %}{% for ln in item.lines %}
+      <tr {% if loop.first %}style="border-top:2px solid var(--line);"{% endif %} data-book-role="{{ item.role }}">
+        <td dir="ltr">{% if loop.first %}{{ item.rev.entry_number }}{% endif %}</td>
+        <td>{% if loop.first %}<span class="badge {{ 'badge--danger' if item.role == 'reversal' else 'badge--role' }}">{{ t('trail.role_' ~ item.role) }}</span>{% endif %}</td>
+        <td dir="ltr">{% if loop.first and item.date %}{{ item.date.isoformat() }}{% endif %}</td>
+        <td><span dir="ltr">{{ ln.code }}</span> {{ ln.name }}</td>
+        <td class="num" dir="ltr">{{ '%.2f'|format(ln.debit) if ln.debit else '' }}</td>
+        <td class="num" dir="ltr">{{ '%.2f'|format(ln.credit) if ln.credit else '' }}</td>
+      </tr>
+      {% endfor %}{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card gc-scale-in" style="overflow-x:auto;" data-trail-list>
+  <table class="table">
+    <thead><tr><th>{{ t('trail.col_changed_at') }}</th><th>{{ t('trail.col_by') }}</th><th>{{ t('trail.col_document') }}</th>
+      <th>{{ t('trail.col_what') }}</th><th class="num">{{ t('trail.col_was') }}</th><th class="num">{{ t('trail.col_became') }}</th><th></th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr data-trail-row="{{ r.id }}" data-trail-kind="{{ r.kind }}">
+        <td dir="ltr">{{ r.created_at|clinic_stamp }}</td>
+        <td>{{ r.user.display_name(current_lang) if r.user else t('trail.by_program') }}</td>
+        <td>
+          {% if r.source_type == 'invoice' and r.source_id %}<a href="{{ url_for('finance.invoice_view', invoice_id=r.source_id) }}">{{ t('journal.src_invoice') }}</a>
+          {% elif r.source_type %}{{ t('journal.src_' ~ r.source_type) if t('journal.src_' ~ r.source_type) != 'journal.src_' ~ r.source_type else r.source_type }}{% endif %}
+          <span class="hint" dir="ltr" style="margin:0;">{{ r.entry_number }}</span></td>
+        <td>
+          {% if r.kind == 'removed' %}<span class="badge badge--danger">{{ t('trail.kind_removed') }}</span>
+          {% else %}<span class="badge badge--warn">{{ t('trail.kind_changed') }}</span>{% endif %}
+          {% if r.kind == 'changed' and r.old_date != r.new_date %}
+          <span class="hint" style="margin:0;" data-trail-date-moved>{{ t('trail.date_moved') }} <span dir="ltr">{{ r.old_date }} → {{ r.new_date }}</span></span>{% endif %}
+        </td>
+        <td class="num" dir="ltr">{{ '%.2f'|format(r.old_total or 0) }}</td>
+        <td class="num" dir="ltr">{{ '%.2f'|format(r.new_total or 0) if r.kind != 'removed' else '—' }}</td>
+        <td>
+          <details><summary class="hint" style="margin:0;cursor:pointer;">{{ t('trail.lines') }}</summary>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;min-width:420px;">
+              {% for label, lines in ((t('trail.col_was'), r.before()), (t('trail.col_became'), r.after())) %}
+              <div><b>{{ label }}</b>
+                {% for ln in lines %}<div style="font-size:.84rem;"><span dir="ltr">{{ ln.code }}</span> {{ ln.name }} ·
+                  <span dir="ltr">{{ '%.2f'|format(ln.debit) if ln.debit else '' }}{{ '(%.2f)'|format(ln.credit) if ln.credit else '' }}</span></div>
+                {% else %}<div class="hint" style="margin:0;">—</div>{% endfor %}
+              </div>
+              {% endfor %}
+            </div>
+          </details>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

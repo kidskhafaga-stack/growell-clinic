@@ -54,7 +54,7 @@ CHROME = (".sidebar", ".topbar", ".nav-tip", ".gc-live-note", ".gc-overlay",
 # was written about. So `.popform`'s 60 means "above the rest of my card" and
 # not "above the topbar". They are listed rather than pattern-matched so that a
 # new one has to be thought about.
-INSIDE_A_CARD = (".popform", ".gc-picker")
+INSIDE_A_CARD = (".popform", ".gc-picker", ".ph2-menu")
 
 
 def _rules():

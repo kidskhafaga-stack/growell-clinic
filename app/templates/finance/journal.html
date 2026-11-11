@@ -14,6 +14,8 @@
     <button type="button" class="btn btn-primary gc-press" onclick="document.getElementById('manual-je').style.display='block';this.style.display='none';">
       <i class="bi bi-plus-lg"></i> {{ t('manual_je.new') }}</button>
     {% endif %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.journal_changes') }}" data-trail-door>
+      <i class="bi bi-pencil-square"></i> {{ t('trail.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('finance.invoices') }}">
       <i class="bi bi-receipt"></i> {{ t('invoices.title') }}</a>
   </div>

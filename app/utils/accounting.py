@@ -253,9 +253,14 @@ def _restate(posted, built, memo, entry_date, user_id):
     target = entry_date or first.entry_date
     sealed = any(locked_period(e.entry_date) is not None for e in posted)
     if len(posted) == 1 and not sealed and locked_period(target) is None:
+        # What it said before goes to the separate book (ف-٧) — the ledger
+        # keeps one entry, the history is no longer lost.
+        before, before_date = lines_of(first.lines), first.entry_date
         first.lines = built
         first.memo = memo
         first.entry_date = target
+        record_revision(first, before, before_date, lines_of(built), target,
+                        user_id=user_id)
         db.session.commit()
         return first
     have = {}
@@ -291,6 +296,62 @@ def _restate(posted, built, memo, entry_date, user_id):
     claim(entry, "entry_number", _je_number)
     db.session.commit()
     return entry
+
+
+def lines_of(lines):
+    """An entry's lines as plain values, the way the separate book keeps them:
+    account code and name, cost centre, debit, credit — in a fixed order, so
+    two snapshots of the same lines compare equal."""
+    out = []
+    for ln in lines:
+        acc = ln.account if getattr(ln, "account", None) is not None else (
+            db.session.get(Account, ln.account_id) if ln.account_id else None)
+        out.append({"code": acc.code if acc else "", "name": acc.name if acc else "",
+                    "centre": ln.cost_centre_id,
+                    "debit": round(float(ln.debit or 0), 2),
+                    "credit": round(float(ln.credit or 0), 2)})
+    return sorted(out, key=lambda r: (r["code"], r["centre"] or 0, -r["debit"], -r["credit"]))
+
+
+def _who(user_id):
+    if user_id:
+        return user_id
+    try:
+        from flask_login import current_user
+
+        return current_user.id if current_user and current_user.is_authenticated else None
+    except Exception:  # noqa: BLE001 - outside a request (a script, a migration)
+        return None
+
+
+def record_revision(entry, before, before_date, after, after_date, user_id=None,
+                    kind="changed"):
+    """One row in the separate book (``JournalRevision``) for an entry that
+    changed in an open month — or nothing, when it was posted again with the
+    same lines and date (an invoice saved without a change)."""
+    from app.models.accounting import JournalRevision
+    import json
+
+    if kind == "changed" and before == after and before_date == after_date:
+        return None
+    row = JournalRevision(
+        entry_id=entry.id, entry_number=entry.entry_number,
+        source_type=entry.source_type, source_id=entry.source_id, kind=kind,
+        old_date=before_date, new_date=after_date,
+        old_lines=json.dumps(before, ensure_ascii=False),
+        new_lines=json.dumps(after, ensure_ascii=False),
+        old_total=round(sum(r["debit"] for r in before), 2),
+        new_total=round(sum(r["debit"] for r in after), 2),
+        entry_created_at=entry.created_at, user_id=_who(user_id))
+    db.session.add(row)
+    return row
+
+
+def record_removal(entry, user_id=None):
+    """An entry taken out of the ledger (its document deleted, or left behind
+    by one) — what it said stays in the separate book."""
+    return record_revision(entry, lines_of(entry.lines), entry.entry_date, [], None,
+                           user_id=user_id, kind="removed")
 
 
 def _vaccine_split(invoice):
@@ -415,6 +476,7 @@ def unpost(source_type, source_id):
     rows = JournalEntry.query.filter_by(source_type=source_type,
                                         source_id=source_id).all()
     for row in rows:
+        record_removal(row)
         db.session.delete(row)
     return len(rows)
 

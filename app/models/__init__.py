@@ -418,6 +418,7 @@ from app.models.accounting import (
     AccountingPeriod,
     JournalEntry,
     JournalLine,
+    JournalRevision,
 )
 from app.models.device import (
     CONNECTION_TYPES,
@@ -895,6 +896,7 @@ __all__ = [
     "Account",
     "JournalEntry",
     "JournalLine",
+    "JournalRevision",
     "ACCOUNT_TYPES",
     "LabAnalyte",
     "LabConsumable",

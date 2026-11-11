@@ -165,16 +165,21 @@
     <a href="{{ url_for('patients.view', patient_id=patient.merged_into) }}">{{ t('pmerge.open_kept') }}</a>
   </div>
   {% endif %}
-  <!-- Header -->
-  <div class="card profile-header gc-scale-in">
+  <!-- Header — the design the owner chose (theme.css «.ph2»): two buttons,
+       everything else under «خيارات أخرى». -->
+  <div class="card profile-header ph2 gc-scale-in" data-file-header>
+    <div class="ph2-waves" aria-hidden="true">
+      <img class="ph2-logo" src="{{ url_for('static', filename='img/brand/pediapro-mark.png') }}" alt="">
+      <svg class="w1" viewBox="0 0 400 400" fill="currentColor"><path d="M0,100 C150,200 350,-50 500,100 L500,0 L0,0 Z"/></svg>
+      <svg class="w2" viewBox="0 0 400 400" fill="currentColor"><path d="M0,200 C200,100 250,350 400,200 L400,400 L0,400 Z"/></svg>
+    </div>
     {{ patient_avatar(patient, 'lg') }}
-    <div style="flex:1;min-width:240px;">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <h1 style="margin:0;font-size:1.5rem;">{{ patient.display_name(current_lang) }}</h1>
+    <div class="ph2-body">
+      <div class="ph2-name">
+        <h1>{{ patient.display_name(current_lang) }}</h1>
         <span class="badge badge--role" title="{{ t('patients.system_number') }}">{{ patient.patient_number }}</span>
         {% if patient.reference_number %}<span class="badge badge--muted" title="{{ t('patients.reference_number') }}"><i class="bi bi-archive"></i> {{ patient.reference_number }}</span>{% endif %}
         {% if not patient.is_active %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}
-        {% if current_user.is_admin and patient.archive_reason != 'merged' %}<a class="badge badge--muted" href="{{ url_for('patients.merge_page', keep=patient.patient_number) }}" data-merge-from-file title="{{ t('pmerge.title') }}"><i class="bi bi-intersect"></i> {{ t('pmerge.from_file') }}</a>{% endif %}
         {% if patient.is_active and patient.archive_exempt %}<span class="badge badge--green"><i class="bi bi-pin-angle-fill"></i> {{ t('archive.exempt_badge') }}</span>{% endif %}
         {# A half-written file, said on the file itself — the one screen where
            somebody has everything in front of them to finish it. Derived on
@@ -186,14 +191,35 @@
           <i class="bi bi-person-exclamation"></i>
           {{ t('basics.missing_n', n=basics_missing|length) }}</a>
         {% endif %}
+        {% if current_user.is_admin and patient.archive_reason != 'merged' %}<a class="badge badge--muted" href="{{ url_for('patients.merge_page', keep=patient.patient_number) }}" data-merge-from-file title="{{ t('pmerge.title') }}"><i class="bi bi-intersect"></i> {{ t('pmerge.from_file') }}</a>{% endif %}
       </div>
-      <div class="meta-row">
-        <span class="badge {{ 'gender-male' if patient.gender == 'male' else 'gender-female' }}" style="border-radius:999px;">
+      <div class="ph2-name" style="gap:6px;">
+        <span class="ph2-pill {{ 'gender-male' if patient.gender == 'male' else 'gender-female' }}">
           <i class="bi bi-gender-{{ 'male' if patient.gender == 'male' else 'female' }}"></i> {{ t('genders.' ~ patient.gender) }}</span>
-        <span><i class="bi bi-cake2"></i> <b>{{ age_label(patient) }}</b></span>
-        {% if patient.blood_type %}<span><i class="bi bi-droplet"></i> <b>{{ patient.blood_type }}</b></span>{% endif %}
-        {% if patient.family %}<span><i class="bi bi-house-heart"></i> <b>{{ patient.family.display_name(current_lang) }}</b></span>{% endif %}
+        <span class="ph2-pill"><i class="bi bi-cake2"></i> {{ age_label(patient) }}</span>
+        {% if patient.blood_type %}<span class="ph2-pill"><i class="bi bi-droplet"></i> {{ patient.blood_type }}</span>{% endif %}
+        {% if patient.family %}<span class="ph2-pill"><i class="bi bi-house-heart"></i> {{ patient.family.display_name(current_lang) }}</span>{% endif %}
       </div>
+      {# «بيعمل الفحص إمتى»: the last check-up, and the next one with why —
+         a booking, a follow-up a doctor asked for, or a vaccine dose. #}
+      {% if checkup and (checkup.last or checkup.next) %}
+      <div style="display:grid;gap:8px;" data-checkup>
+        {% if checkup.last %}
+        <div class="ph2-line" data-checkup-last><i class="bi bi-clipboard2-pulse"></i>
+          {{ t('checkup.last') }}: <b dir="ltr">{{ checkup.last.date }}</b>{% if checkup.last.who %} — {{ checkup.last.who }}{% endif %}</div>
+        {% endif %}
+        {% if checkup.next %}{% set nx = checkup.next %}
+        <div class="ph2-next {{ 'late' if nx.late_days else 'calm' }}" data-checkup-next="{{ nx.kind }}"{% if nx.late_days %} data-checkup-late="{{ nx.late_days }}"{% endif %}>
+          <span class="ph2-dot" aria-hidden="true"></span>
+          <i class="bi bi-calendar-event"></i>
+          <span>{{ t('checkup.next') }}: <b dir="ltr">{{ nx.date }}</b> — {{ t('checkup.kind_' ~ nx.kind, who=nx.who, what=nx.what) }}</span>
+          {% if nx.late_days %}<span class="ph2-late">{{ t('checkup.late', n=nx.late_days) }}</span>{% endif %}
+        </div>
+        {% else %}
+        <div class="ph2-line" data-checkup-none><i class="bi bi-calendar"></i> {{ t('checkup.none_next') }}</div>
+        {% endif %}
+      </div>
+      {% endif %}
       {% if patient.has_alerts and current_user.can('patient_medical') %}
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
         {% if patient.allergies %}<span class="alert-pill danger"><i class="bi bi-exclamation-octagon"></i> {{ t('patients.allergies') }}</span>{% endif %}
@@ -207,44 +233,72 @@
       </div>
       {% endif %}
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('patients.edit', patient_id=patient.id) }}">
-        <i class="bi bi-pencil"></i> {{ t('common.edit') }}
-      </a>
-      {# The wristband — two identifiers, never the bed (GAHAR ACT.03). #}
-      <a class="btn btn-outline btn-sm gc-press" data-to-wristband href="{{ url_for('patients.wristband', patient_id=patient.id) }}">
-        <i class="bi bi-upc"></i> {{ t('wristband.print') }}</a>
-      {% if current_user.can('patient_medical') %}
-      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.report', patient_id=patient.id) }}" target="_blank">
-        <i class="bi bi-file-medical"></i> {{ t('report.title') }}</a>
-      <a class="btn btn-outline btn-sm gc-press" data-fhir-export
-         href="{{ url_for('patients.fhir_export', patient_id=patient.id) }}"
-         title="{{ t('fhir.export_hint') }}">
-        <i class="bi bi-filetype-json"></i> {{ t('fhir.export') }}</a>
-      <a class="btn btn-outline btn-sm gc-press" data-ips-export
-         href="{{ url_for('patients.fhir_export', patient_id=patient.id, format='ips') }}"
-         title="{{ t('fhir.ips_hint') }}">
-        <i class="bi bi-globe2"></i> {{ t('fhir.ips') }}</a>
-      {% endif %}
-      {% if current_user.can_access('prescriptions') %}
-      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.new', patient_id=patient.id) }}">
-        <i class="bi bi-prescription2"></i> {{ t('rx.new') }}</a>
-      {% endif %}
-      {# Admitting, from the file — the one screen where somebody is already
-         looking at the child they mean to admit. A stay that can only be
-         started from a board is a stay nobody starts.
 
-         A sibling of the other buttons and never nested inside one of them:
-         a form inside a form ends the outer one in the browser, which cost a
-         doctor every Save they pressed. See `test_a_form_inside_a_form.py`. #}
-      {% if module_enabled('beds') and current_user.can_access('beds') %}
+    {# Two buttons, then the rest in one menu. The column of a dozen buttons
+       beside the child's name was the busiest thing on the file. Every door
+       that was in it is in the menu, with the same condition it had. #}
+    <div class="ph2-actions" data-file-actions>
+      <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('patients.edit', patient_id=patient.id) }}">
+        <i class="bi bi-pencil"></i> {{ t('patients.edit_data') }}</a>
+      {% set rx_first = current_user.can_access('prescriptions') %}
+      {% if rx_first %}
+      <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.new', patient_id=patient.id) }}">
+        <i class="bi bi-prescription2"></i> {{ t('rx.new') }}</a>
+      {% elif current_user.can_access('appointments') %}
+      <a class="btn btn-outline gc-press" href="{{ url_for('appointments.create', patient_id=patient.id) }}" data-book-from-file>
+        <i class="bi bi-calendar-plus"></i> {{ t('appointments.new_appointment') }}</a>
+      {% endif %}
+      <details class="ph2-more" data-file-more>
+        <summary><span><i class="bi bi-three-dots-vertical"></i> {{ t('patients.more_actions') }}</span><i class="bi bi-chevron-down"></i></summary>
+        <div class="ph2-menu">
+          {% if rx_first and current_user.can_access('appointments') %}
+          <a href="{{ url_for('appointments.create', patient_id=patient.id) }}" data-book-from-file>
+            <i class="bi bi-calendar-plus"></i> {{ t('appointments.new_appointment') }}</a>
+          {% endif %}
+          {# The wristband — two identifiers, never the bed (GAHAR ACT.03). #}
+          <a data-to-wristband href="{{ url_for('patients.wristband', patient_id=patient.id) }}">
+            <i class="bi bi-upc"></i> {{ t('wristband.print') }}</a>
+          {% if current_user.can('patient_medical') %}
+          <a href="{{ url_for('patients.report', patient_id=patient.id) }}" target="_blank">
+            <i class="bi bi-file-medical"></i> {{ t('report.title') }}</a>
+          <a data-fhir-export href="{{ url_for('patients.fhir_export', patient_id=patient.id) }}" title="{{ t('fhir.export_hint') }}">
+            <i class="bi bi-filetype-json"></i> {{ t('fhir.export') }}</a>
+          <a data-ips-export href="{{ url_for('patients.fhir_export', patient_id=patient.id, format='ips') }}" title="{{ t('fhir.ips_hint') }}">
+            <i class="bi bi-globe2"></i> {{ t('fhir.ips') }}</a>
+          {% endif %}
+          {# The rounds, from the file — only where the clinic switched the module on. #}
+          {% if module_enabled('observations') and current_user.can_access('observations') %}
+          <a href="{{ url_for('observations.chart', patient_id=patient.id) }}">
+            <i class="bi bi-activity"></i> {{ t('nav.observations') }}</a>
+          {% endif %}
+          {# Assessments — the neurology and development specialties (ت-١). #}
+          {% if module_enabled('panels') and (current_user.can('patient_medical') or current_user.can('assessments')) %}
+          <a data-to-assessments href="{{ url_for('assessments.patient_list', patient_id=patient.id) }}">
+            <i class="bi bi-clipboard2-pulse"></i> {{ t('assessment.door') }}</a>
+          {% endif %}
+          {% if current_user.can_access('messages') and patient.contact_phone %}
+          <a title="{{ t('inbox.start_hint') }}" href="{{ url_for('messages.inbox_start', patient_id=patient.id) }}">
+            <i class="bi bi-whatsapp"></i> {{ t('inbox.start') }}</a>
+          {% endif %}
+          {# Anybody who works here may write down a complaint; a family who
+             would rather write it themselves gets a link. #}
+          <a data-log-complaint href="{{ url_for('complaints.new', patient_id=patient.id) }}">
+            <i class="bi bi-megaphone"></i> {{ t('cmp.register_btn') }}</a>
+          {% if patient.contact_phone %}
+          <form method="post" action="{{ url_for('complaints.invite', patient_id=patient.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" data-complaint-invite><i class="bi bi-link-45deg"></i> {{ t('cmp.send_link') }}</button>
+          </form>
+          {% endif %}
+          {# Admitting, from the file. A sibling of the other items and never
+             nested inside a form (see `test_a_form_inside_a_form.py`). #}
+          {% if module_enabled('beds') and current_user.can_access('beds') %}
         {% if open_admission %}
-        <a class="btn btn-outline btn-sm gc-press"
-           href="{{ url_for('beds.admission', admission_id=open_admission.id) }}">
+        <a href="{{ url_for('beds.admission', admission_id=open_admission.id) }}">
           <i class="bi bi-hospital"></i> {{ t('beds.stay') }}</a>
         {% elif free_beds %}
         <form method="post" action="{{ url_for('beds.admit', patient_id=patient.id) }}"
-              style="display:flex;flex-direction:column;gap:6px;">
+              class="ph2-admit">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <select class="select" name="bed_id" style="font-size:.82rem;">
             {% for bed in free_beds %}
@@ -261,77 +315,40 @@
         {# Only where there is a ward. With the module on and no beds made,
            this line sat on every child's file for ever, telling a clinic with
            no ward that its ward was full. #}
-        <p class="hint" style="margin:0;">{{ t('beds.no_free_bed') }}</p>
+        <p class="hint ph2-item" style="margin:0;">{{ t('beds.no_free_bed') }}</p>
         {% endif %}
       {% endif %}
-      {# The rounds, from the file. The board in the sidebar answers "who is
-         overdue"; this is the other direction — somebody is looking at a
-         child and wants to record or read their observations, and without
-         this the module could only be entered from a list they might not be
-         on yet. Only where the clinic switched the module on: a ward button
-         on an outpatient file is furniture. #}
-      {% if module_enabled('observations') and current_user.can_access('observations') %}
-      <a class="btn btn-outline btn-sm gc-press"
-         href="{{ url_for('observations.chart', patient_id=patient.id) }}">
-        <i class="bi bi-activity"></i> {{ t('nav.observations') }}</a>
-      {% endif %}
-      {# Assessments — the neurology and development specialties (ت-١). With
-         the specialties module only; a clinic without it has no such door. #}
-      {% if module_enabled('panels') and (current_user.can('patient_medical') or current_user.can('assessments')) %}
-      <a class="btn btn-outline btn-sm gc-press" data-to-assessments
-         href="{{ url_for('assessments.patient_list', patient_id=patient.id) }}">
-        <i class="bi bi-clipboard2-pulse"></i> {{ t('assessment.door') }}</a>
-      {% endif %}
-      {% if current_user.can_access('messages') and patient.contact_phone %}
-      <a class="btn btn-outline btn-sm gc-press" title="{{ t('inbox.start_hint') }}"
-         href="{{ url_for('messages.inbox_start', patient_id=patient.id) }}">
-        <i class="bi bi-whatsapp"></i> {{ t('inbox.start') }}</a>
-      {% endif %}
-      {# Anybody who works here may write down a complaint — the case then
-         goes to customer service. And a family who would rather write it
-         themselves gets a link. #}
-      <a class="btn btn-outline btn-sm gc-press" data-log-complaint
-         href="{{ url_for('complaints.new', patient_id=patient.id) }}">
-        <i class="bi bi-megaphone"></i> {{ t('cmp.register_btn') }}</a>
-      {% if patient.contact_phone %}
-      <form method="post" action="{{ url_for('complaints.invite', patient_id=patient.id) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn btn-outline btn-sm gc-press" type="submit" style="width:100%;" data-complaint-invite>
-          <i class="bi bi-link-45deg"></i> {{ t('cmp.send_link') }}</button>
-      </form>
-      {% endif %}
-      {% if patient.is_active %}
-      <form method="post" action="{{ url_for('patients.archive_one', patient_id=patient.id) }}"
-            onsubmit="return confirm('{{ t('archive.confirm_one') }}');">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn btn-outline btn-sm gc-press" type="submit" style="width:100%;">
-          <i class="bi bi-archive"></i> {{ t('archive.archive_btn') }}</button>
-      </form>
-      {# «ما يتأرشفش» from the file itself — the doctor who knows this child
-         is followed for years is the one looking at it here. #}
-      <form method="post" action="{{ url_for('patients.archive_exempt', patient_id=patient.id) }}">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="on" value="{{ '0' if patient.archive_exempt else '1' }}">
-        <button class="btn btn-outline btn-sm gc-press" type="submit" style="width:100%;"
-                data-archive-exempt="{{ '1' if patient.archive_exempt else '0' }}"
-                title="{{ t('archive.exempt_hint') }}">
-          <i class="bi bi-pin-angle{{ '-fill' if patient.archive_exempt else '' }}"></i>
-          {{ t('archive.lift_btn') if patient.archive_exempt else t('archive.exempt_btn') }}</button>
-      </form>
-      {% else %}
-      <form method="post" action="{{ url_for('patients.restore_one', patient_id=patient.id) }}">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn btn-primary btn-sm gc-press" type="submit" style="width:100%;">
-          <i class="bi bi-arrow-counterclockwise"></i> {{ t('archive.restore_btn') }}</button>
-      </form>
-      {% endif %}
-      <form method="post" action="{{ url_for('patients.delete', patient_id=patient.id) }}"
-            onsubmit="return confirm('{{ t('common.confirm') }}?');">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn btn-danger btn-sm gc-press" type="submit" style="width:100%;">
-          <i class="bi bi-trash"></i> {{ t('common.delete') }}
-        </button>
-      </form>
+          <div class="ph2-sep"></div>
+          {% if patient.is_active %}
+          <form method="post" action="{{ url_for('patients.archive_one', patient_id=patient.id) }}"
+                onsubmit="return confirm('{{ t('archive.confirm_one') }}');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit"><i class="bi bi-archive"></i> {{ t('archive.archive_btn') }}</button>
+          </form>
+          {# «ما يتأرشفش» from the file itself — the doctor who knows this child
+             is followed for years is the one looking at it here. #}
+          <form method="post" action="{{ url_for('patients.archive_exempt', patient_id=patient.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="on" value="{{ '0' if patient.archive_exempt else '1' }}">
+            <button type="submit" data-archive-exempt="{{ '1' if patient.archive_exempt else '0' }}"
+                    title="{{ t('archive.exempt_hint') }}">
+              <i class="bi bi-pin-angle{{ '-fill' if patient.archive_exempt else '' }}"></i>
+              {{ t('archive.lift_btn') if patient.archive_exempt else t('archive.exempt_btn') }}</button>
+          </form>
+          {% else %}
+          <form method="post" action="{{ url_for('patients.restore_one', patient_id=patient.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit"><i class="bi bi-arrow-counterclockwise"></i> {{ t('archive.restore_btn') }}</button>
+          </form>
+          {% endif %}
+          <div class="ph2-sep"></div>
+          <form method="post" action="{{ url_for('patients.delete', patient_id=patient.id) }}"
+                onsubmit="return confirm('{{ t('common.confirm') }}?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="ph2-danger"><i class="bi bi-trash"></i> {{ t('patients.delete_file') }}</button>
+          </form>
+        </div>
+      </details>
     </div>
   </div>
 

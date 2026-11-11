@@ -166,6 +166,8 @@
     <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.index', date=today, doctor_id=doctor_id) }}">{{ t('appointments.today_btn') }}</a>
     <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.clinics', date=on_date.isoformat()) }}">
       <i class="bi bi-door-open"></i> {{ t('rooms.title') }}</a>
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.queue') }}" data-queue-door>
+      <i class="bi bi-megaphone"></i> {{ t('queue.door') }}</a>
   </div>
   {% if doctor_locked %}
   <span class="badge badge--role" title="{{ t('appointments.own_board_only') }}">

@@ -124,9 +124,25 @@ if errorlevel 1 (
 
 :fetched
 
-REM --- 4) New dependencies ------------------------------------
+REM --- 4) A newer Python on this computer? ----------------------
+REM The program's libraries live in .venv, built once from whatever Python was
+REM installed the day the clinic was set up. Installing a newer Python later
+REM changes nothing for the program: it stays on the old one, which in time
+REM stops receiving security fixes. Moving over used to be by hand - delete
+REM .venv, run start.bat. Now this does it when it finds one, and only to a
+REM version the libraries are checked against (tools\newer_python.py).
+REM
+REM The old .venv is renamed, not deleted, and stays until the program has
+REM started on the new one: if anything fails, it is put back.
+set "PP_NEWPY="
+set "PP_SWITCHED="
+for /f "usebackq delims=" %%P in (`python tools\newer_python.py 2^>nul`) do set "PP_NEWPY=%%P"
+if defined PP_NEWPY call :switch_python
+
+REM --- 5) New dependencies ------------------------------------
 echo.
 echo [3/5] Installing dependencies...
+if defined PP_SWITCHED goto :deps_done
 python -m pip install --upgrade pip >nul 2>nul
 pip install -r requirements.txt
 if errorlevel 1 (
@@ -134,6 +150,7 @@ if errorlevel 1 (
   pause
   goto :die
 )
+:deps_done
 
 REM --- 5) Bring the database's shape up to the new code --------
 REM The step whose absence caused the trouble after a restore. Additive and
@@ -156,13 +173,25 @@ REM works", and the difference is only visible if somebody checks.
 echo.
 echo [5/5] Checking the program starts...
 python -c "from app import create_app; a=create_app(); c=a.test_client(); r=c.get('/login'); raise SystemExit(0 if r.status_code==200 else 1)"
-if errorlevel 1 (
-  echo.
-  echo [ERROR] The app did not start cleanly after the update.
-  echo         Restore the preupgrade backup from tools.bat before using it.
-  pause
-  goto :die
-)
+if not errorlevel 1 goto :started
+
+REM On a newer Python that it has never run on, the first suspect is the
+REM Python: go back to the one it had, give it the new libraries, ask again.
+if not defined PP_SWITCHED goto :not_started
+echo       It did not start on the newer Python - going back to the one it had.
+call :python_back
+pip install -r requirements.txt
+python -c "from app import create_app; a=create_app(); c=a.test_client(); r=c.get('/login'); raise SystemExit(0 if r.status_code==200 else 1)"
+if not errorlevel 1 goto :started
+
+:not_started
+echo.
+echo [ERROR] The app did not start cleanly after the update.
+echo         Restore the preupgrade backup from tools.bat before using it.
+pause
+goto :die
+
+:started
 
 REM --- 7) Write down what this copy now is ---------------------
 REM A clone can answer that itself; a downloaded copy cannot, so it is
@@ -183,6 +212,9 @@ REM download working at all - see the note beside the fetch. `record-version`
 REM asks the branch when there is no git to ask, which is the same answer by a
 REM route that cannot be mangled by a batch file.
 flask --app run record-version
+
+REM The program started on its new Python, so the old libraries can go.
+if exist ".venv.previous" rmdir /s /q ".venv.previous"
 
 echo.
 echo ============================================================
@@ -247,6 +279,49 @@ REM moment rather than from whenever the marker happens to expire.
 :die
 python -m app.update_guard done >nul 2>nul
 exit /b 1
+
+
+REM ============================================================
+REM   Moving the program onto a newer Python
+REM ============================================================
+REM Labels and goto rather than blocks: no bracket can close anything early.
+:switch_python
+echo.
+echo [3/5] A newer Python is installed on this computer:
+echo       %PP_NEWPY%
+echo       Setting the program's libraries up on it. The ones it has now are
+echo       kept until the program has started on the new ones.
+if exist ".venv.previous" rmdir /s /q ".venv.previous"
+call ".venv\Scripts\deactivate.bat" >nul 2>nul
+ren ".venv" ".venv.previous" >nul 2>nul
+if errorlevel 1 goto :switch_busy
+"%PP_NEWPY%" -m venv .venv
+if errorlevel 1 goto :switch_undo
+call ".venv\Scripts\activate.bat"
+python -m pip install --upgrade pip >nul 2>nul
+pip install -r requirements.txt
+if errorlevel 1 goto :switch_undo
+set "PP_SWITCHED=1"
+exit /b 0
+
+:switch_busy
+echo       The program's libraries are in use - is the program still open?
+echo       It stays on the Python it has. Close it and update again to move.
+call ".venv\Scripts\activate.bat"
+exit /b 0
+
+:switch_undo
+echo       That did not work, so the program stays on the Python it has.
+call :python_back
+exit /b 0
+
+:python_back
+call ".venv\Scripts\deactivate.bat" >nul 2>nul
+if exist ".venv" rmdir /s /q ".venv"
+ren ".venv.previous" ".venv"
+call ".venv\Scripts\activate.bat"
+set "PP_SWITCHED="
+exit /b 0
 
 
 REM ============================================================
@@ -431,7 +506,7 @@ REM and /NDL stay: the per-file list on a first-time copy is thousands of
 REM lines and would push everything else off the screen, which is its own way
 REM of telling somebody nothing.
 robocopy "%PP_SRC%" "%~dp0." /E ^
-  /XD data instance .venv .git uploads __pycache__ backups ^
+  /XD data instance .venv .venv.previous .git uploads __pycache__ backups ^
   /XF clinic.env *.db *.sqlite *.sqlite3 ^
   /NFL /NDL /NJH /NP
 REM robocopy reports 0-7 for success (0 = nothing to do, 1 = files copied).

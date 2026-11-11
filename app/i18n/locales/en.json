@@ -446,7 +446,10 @@
     "update_now": "Update now",
     "updated": "Patient updated successfully",
     "y_short": "y",
-    "years": "years"
+    "years": "years",
+    "edit_data": "Edit details",
+    "more_actions": "More options",
+    "delete_file": "Delete the file"
   },
   "import": {
     "title": "Import patient data",
@@ -982,7 +985,8 @@
     "er_treatment_why": "Reason (optional)",
     "er_treatment_pick": "Choose what should be given in emergency.",
     "er_treatment_ok": "The child was sent to emergency for «{what}», with the order written there in your name.",
-    "er_treatment_no_order": "The child was sent, but the order needs a doctor — the doctor in emergency will write it."
+    "er_treatment_no_order": "The child was sent, but the order needs a doctor — the doctor in emergency will write it.",
+    "kg_unit": "kg"
   },
   "diagnosis_types": {
     "working": "Working",
@@ -1745,7 +1749,11 @@
     "ai_lab_insert_hint": "An insert carries no child's data. The assistant copies only what is printed — the mean and SD on a control's insert, the reference table on a kit's — nothing is saved unless you tick it, and ranges stay drafts until the laboratory director approves.",
     "nav_title": "Side menu",
     "nav_find": "Search box at the top of the side menu (Ctrl+K)",
-    "nav_find_hint": "Finds pages, and children by name, file number or a parent's phone. Switched off, it disappears for every member of staff."
+    "nav_find_hint": "Finds pages, and children by name, file number or a parent's phone. Switched off, it disappears for every member of staff.",
+    "avatar_shape": "The child's picture",
+    "avatar_shape_hint": "Applies to the child's picture on every screen. The colour around it (blue for a boy, pink for a girl) stays in both.",
+    "avatar_round": "Round",
+    "avatar_rounded": "Rounded square"
   },
   "errors": {
     "403_title": "Forbidden",
@@ -3379,6 +3387,7 @@
     "occ_appointment_confirm": "Appointment confirm",
     "occ_appointment_reminder": "Appointment reminder",
     "occ_no_show_followup": "Missed-appointment follow-up",
+    "occ_queue_near": "Your turn is near",
     "occ_patient_recall": "Lapsed-patient recall",
     "occ_complaint_received": "Complaint received",
     "occ_complaint_answered": "Complaint answered",
@@ -5558,7 +5567,7 @@
     "link_user": "One of the program's users?",
     "not_a_user": "— not a user of the program —",
     "link_user_hint": "Pick a colleague and their name and photograph are read straight from their profile, so nothing here needs updating. Leave it empty for anybody without a login — a supervisor, the owner, somebody who helped.",
-    "python_old": "Python {version}, which the program runs on, no longer receives security fixes. Install Python 3.12 or newer from python.org, delete the .venv folder inside the program's folder, and run start.bat — it sets the libraries up again. The data is not touched."
+    "python_old": "Python {version}, which the program runs on, no longer receives security fixes. Install Python 3.12 or newer from python.org, then update the program (update.bat) — it finds the new Python by itself and sets the libraries up on it, and goes back to the old one if the program does not start on it. The data is not touched."
   },
   "history_import": {
     "title": "Import case history",
@@ -8606,7 +8615,8 @@
     "tab_care": "Nursing & assessment",
     "tab_treatment": "Treatment",
     "tab_safety": "Restraint & resuscitation",
-    "tab_discharge": "Discharge"
+    "tab_discharge": "Discharge",
+    "open_badge": "In hospital"
   },
   "specimen": {
     "title": "Specimens & pathology",
@@ -17236,5 +17246,79 @@
     "err_number": "A number does not make sense.",
     "err_dose": "Write the dose per kilo.",
     "err_range": "«Up to» must be above the dose."
+  },
+  "queue": {
+    "title": "Queue",
+    "sub": "Each doctor's line today: who is in and who is next. «Next» calls the first child who has arrived and not gone in, and the number shows on the reception screen.",
+    "all_doctors": "All doctors",
+    "open_screen": "Open the reception screen",
+    "empty": "No bookings today.",
+    "now": "Now",
+    "next": "Next",
+    "nobody_arrived": "Nobody has arrived yet",
+    "left": "{n} left",
+    "not_arrived": "{n} not arrived yet",
+    "call_next": "Next",
+    "called": "Number {n} called.",
+    "nobody_waiting": "Nobody has arrived and is waiting.",
+    "mode_hint": "«By number» shows the queue number sent to the family in the booking confirmation and on the reception screen; «by time» shows the booked time instead.",
+    "notify": "Send the family «your turn is near» on WhatsApp",
+    "ahead": "When this many or fewer are before them",
+    "notify_hint": "One message per booking once that many or fewer are still before them, so they can wait outside or leave home in time. The daily message cap, the sending hours and families who opted out are all respected.",
+    "notify_manual": "WhatsApp is set to manual here, so the message will wait in the sending list until someone presses it — set sending to automatic for it to go by itself.",
+    "saved": "Queue settings saved.",
+    "screen_title": "Queue",
+    "door": "Queue",
+    "change_in_settings": "change it in Settings → Clinic",
+    "notify_title": "«Your turn is near» on WhatsApp"
+  },
+  "checkup": {
+    "last": "Last check-up",
+    "next": "Next",
+    "kind_booked": "booked with {who} at {what}",
+    "kind_followup": "follow-up asked by {who}",
+    "kind_vaccine": "vaccine {what}",
+    "late": "{n} days late",
+    "none_next": "No next date on file",
+    "missed_door": "Missed their date",
+    "missed_n": "{n} children missed their follow-up",
+    "missed_hint": "Children a doctor asked back on a set day, and the day has passed with nobody seen and nothing booked. The same list as the visits' outstanding follow-ups, by child.",
+    "by_visit": "By visit"
+  },
+  "trail": {
+    "title": "Changes before closing",
+    "sub": "Every change made to the ledger while its month was still open: who, when, which bill or expense, and from how much to how much. The ledger and the reports do not change — this is for review before the month is closed.",
+    "from": "From",
+    "to": "To",
+    "show_same_day": "Also show same-day changes (a bill still being made)",
+    "folded": "{n} change(s) on the same day the entry was written (such as a test added while the child was still in the clinic) are folded away; tick «Also show same-day changes» to see them.",
+    "empty": "No changes in this period.",
+    "view_list": "Changes",
+    "view_book": "Full book",
+    "download": "Download the full book (CSV)",
+    "col_changed_at": "Changed at",
+    "col_by": "By",
+    "col_document": "Document",
+    "col_what": "What happened",
+    "col_was": "Was",
+    "col_became": "Became",
+    "col_entry": "Entry",
+    "col_role": "Kind",
+    "col_date": "Date",
+    "col_account": "Account",
+    "col_debit": "Debit",
+    "col_credit": "Credit",
+    "lines": "Lines",
+    "kind_changed": "Changed",
+    "kind_removed": "Removed (document deleted)",
+    "date_moved": "Date moved:",
+    "by_program": "The program",
+    "role_reversal": "Reversal of the old entry",
+    "role_restated": "The entry as changed",
+    "before_close": "{n} change(s) before closing — review",
+    "setting": "Changes to entries before the month is closed",
+    "mode_summary": "Review of changes (default): one entry per document in the ledger, and every change recorded on «Changes before closing» — who, when, from how much to how much.",
+    "mode_full": "Full book: the same, and every change also shown in a separate book as a reversal on its old date and a new entry on its new date, downloadable as a file for an outside auditor. The ledger and the reports stay as they are.",
+    "setting_hint": "Changes are recorded in both modes from this update on, so switching to the full book later shows what came before."
   }
 }

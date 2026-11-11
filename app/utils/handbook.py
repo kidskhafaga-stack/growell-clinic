@@ -168,6 +168,18 @@ SECTIONS = [
              "under Settings → Phrases. The drug allergies are deliberately "
              "not editable there: they come from the checker itself, so the "
              "chip and the check can never drift apart."),
+            ("<b>آخر كشف والجاي</b>: تحت اسم الطفل في ملفه سطر بيقول آخر مرة "
+             "اتكشف إمتى ومع مين، والميعاد الجاي إمتى وليه — حجز موجود، أو متابعة "
+             "طلبها الدكتور ولسه محدش جه، أو جرعة تطعيم — ولو الميعاد فات بيقول "
+             "من كام يوم. وفي قايمة المرضى زرار «فاتهم ميعادهم» بيجيب الأطفال "
+             "اللي الدكتور طلب يرجعوا واليوم فات ومحدش جه ولا اتحجز لهم.",
+             "<b>Last check-up and the next</b>: under the child's name on the "
+             "file, one line says when they were last seen and by whom, and when "
+             "the next date is and why — a booking, a follow-up a doctor asked "
+             "for that nobody has come for yet, or a vaccine dose — and how many "
+             "days late it is when the date has passed. On the patient list, "
+             "«Missed their date» shows the children a doctor asked back whose "
+             "day has passed with nobody seen and nothing booked."),
             ("<b>ملف الطفل لمستشفى تانية</b>: من صفحة المريض «ملف FHIR كامل» "
              "بينزّل الملف كله بصيغة FHIR R4، و«ملخص IPS» بينزّل ملخص المريض "
              "الدولي (المشاكل والحساسية والأدوية الحالية والتطعيمات "
@@ -188,6 +200,25 @@ SECTIONS = [
         "icon": "calendar-week",
         "title": ("المواعيد والدور", "Appointments & the queue"),
         "lines": [
+            ("<b>الطابور وشاشة الاستقبال</b> (المواعيد ← «الطابور»): لكل دكتور "
+             "النهارده مين جوه ومين اللي بعده، وزرار «اللي بعده» بينادي أول طفل "
+             "وصل ولسه ما دخلش. «افتح شاشة الاستقبال» بتفتح صفحة للتلفزيون فيها "
+             "الأرقام بس من غير أسامي، بتتحدّث لوحدها وبترن لما رقم جديد يتنادى. "
+             "والدكتور لما يفتح الكشف بيتحسب إنه نادى الطفل. «ترتيب الكشف» (بالدور "
+             "أو بالتوقيت) في الإعدادات ← العيادة. ولو العيادة بتبعت رسايل، "
+             "«قرّب دورك» في شاشة الطابور (للمدير): رسالة واتساب واحدة للأهل "
+             "لما يفضل قبلهم عدد تختاره، مقفولة لحد ما تفتحها.",
+             "<b>The queue and the reception screen</b> (Appointments → «Queue»): "
+             "for each doctor today, who is in and who is next, and «Next» calls "
+             "the first child who has arrived and not gone in. «Open the "
+             "reception screen» opens a page for a television with numbers only, "
+             "no names; it refreshes itself and chimes when a new number is "
+             "called. A doctor opening the visit counts as calling the child in. "
+             "The consultation order (by number or by time) is in Settings → "
+             "Clinic. Where the clinic sends messages, «your turn is near» is on "
+             "the queue page (administrators): one WhatsApp message to the "
+             "family once a number you choose are left before them, off until "
+             "you turn it on."),
             ("<b>لوحة اليوم</b>: تنقّل بين الأيام والأطباء والعيادات، وغيّر حالة "
              "الموعد (منتظر / جاري / مكتمل / لم يحضر).",
              "<b>Day board</b>: move between days, doctors and clinics, and "
@@ -3302,6 +3333,20 @@ SECTIONS = [
              "رجعي، و<b>الإقفال اليومي</b> بيربط التحصيل بالخزنة.",
              "<b>Accounting periods</b>: closing one blocks retroactive edits, "
              "and the <b>end-of-day</b> ties collections to the till."),
+            ("<b>تعديلات قبل القفل</b> (الحسابات ← القيود، وجنب كل فترة مفتوحة): "
+             "كل تعديل على فاتورة أو مصروف والشهر لسه مفتوح — مين وإمتى وكان كام "
+             "وبقى كام. الدفتر فيه قيد واحد لكل مستند والتقارير ما بتتغيّرش؛ "
+             "تعديلات نفس اليوم (الفاتورة وهي لسه بتتعمل) متخبية إلا لو طلبتها. "
+             "المستشفى تقدر من الإعدادات ← السياسات تختار «الدفتر الكامل»: كل "
+             "تعديل قيد عكسي بتاريخه القديم وقيد جديد، في دفتر منفصل بيتنزّل ملف.",
+             "<b>Changes before closing</b> (Accounts → journal, and beside each "
+             "open period): every change to a bill or expense while its month is "
+             "open — who, when, from how much to how much. The ledger keeps one "
+             "entry per document and the reports do not move; same-day changes "
+             "(a bill still being made) are folded away unless asked for. A "
+             "hospital may choose «full book» in Settings → policies: each change "
+             "as a reversal on its old date and a new entry, in a separate book "
+             "downloadable as a file."),
             ("<b>الفاتورة الإلكترونية (مصلحة الضرائب)</b>: فعّل الربط من "
              "الإعدادات، حوّل الفاتورة لفاتورة ضريبية، وتابع حالتها (مقبولة/"
              "مرفوضة) بالـUUID. فيه وضع تجريبي بدون اعتمادات.",
@@ -3921,6 +3966,17 @@ SECTIONS = [
              "<b>Facility identity</b>, logo and currency, plus a <b>first-run "
              "wizard</b> that sets up the specialty, services and visit types "
              "from the start."),
+            ("<b>شكل صورة الطفل</b> (الإعدادات ← اللوجو): دائرية زي ما كانت، "
+             "أو مربعة بزوايا مدوّرة — اختيار واحد بيتطبّق على كل الشاشات، "
+             "واللون حوالين الصورة (أزرق للولد وبمبي للبنت) فاضل في الاتنين. "
+             "وراس ملف الطفل بنفس الشكل في الكشف والطوارئ والإقامة والتطعيمات "
+             "ومنحنى النمو: الحساسية بالأحمر جوّاها، وباقي الأبواب تحت «خيارات أخرى».",
+             "<b>The child's picture</b> (Settings → logo): round, as it always "
+             "was, or a rounded square — one choice for every screen, and the "
+             "colour around it (blue for a boy, pink for a girl) stays in both. "
+             "The child's header looks the same on the visit, the emergency "
+             "attendance, the stay, the vaccinations and the growth chart: the "
+             "allergy in red inside it, the other doors under «More options»."),
             ("<b>تفعيل/تعطيل الموديولات</b>: العيادة الصغيرة بتقفل اللي "
              "مش محتاجاه فيختفي من كل الشاشات.",
              "<b>Enable or disable modules</b>: a small clinic switches off "

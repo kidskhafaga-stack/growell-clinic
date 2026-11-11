@@ -100,6 +100,11 @@ class Appointment(db.Model):
     # number covering two different queues — the one at reception and the one
     # at the doctor's door — and a clinic cannot tell which of them is slow.
     vitals_at = db.Column(db.DateTime)
+    # Called to the doctor's door — «اللي بعده» on the queue, which is what the
+    # reception screen shows as «دلوقتي» (utils/queue_turns).
+    called_at = db.Column(db.DateTime)
+    # «قرّب دورك» was sent to the family, once (utils/queue_turns).
+    near_sent_at = db.Column(db.DateTime)
     started_at = db.Column(db.DateTime)
     completed_at = db.Column(db.DateTime)
 

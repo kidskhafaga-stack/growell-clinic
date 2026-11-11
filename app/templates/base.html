@@ -4,6 +4,7 @@
 {% set _accent = (_u.accent_color if _u and _u.accent_color else program.accent) %}
 <html lang="{{ current_lang }}" dir="{{ direction }}"
       data-theme-mode="{{ _mode }}"
+      data-avatar="{{ 'rounded' if (program is defined and program.avatar_shape == 'rounded') else 'round' }}"
       class="fs-{{ _u.font_scale if _u and _u.font_scale else 'md' }}"
       {% if _accent %}style="--accent:{{ _accent }};"{% endif %}>
 <head>
