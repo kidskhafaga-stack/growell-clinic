@@ -1,0 +1,29 @@
+{# The child's card look (utils/card_look): the attributes every `.ph2`
+   header carries, and the mark in its background. The CSS reads the
+   attributes, so the settings page's live preview is the same markup with
+   the attributes bound to the form. #}
+{% macro card_attrs(c=None) -%}
+{%- set c = c or program.card -%}
+data-card-style="{{ c.style }}" data-card-src="{{ c.src }}" data-card-color="{{ c.color }}" data-card-pos="{{ c.pos }}" data-card-keys="{{ c.shortcuts }}" data-card-logo="{{ c.logo }}"
+{%- endmacro %}
+
+{% macro card_mark(c=None) -%}
+{%- set c = c or program.card -%}
+<span class="ph2-mark" style="--mark-op:{{ '%.2f'|format(c.opacity / 100) }};--mark-url:url('{{ c.url }}');">
+  <img class="ph2-mark-img" src="{{ c.url }}" alt="">
+  <span class="ph2-mark-mask"></span>
+  {{ mark_lines() }}
+</span>
+{%- endmacro %}
+
+{# The program's mark drawn in lines — the «fine-line stamp» of the design
+   the owner sent. Only the program's mark can be drawn this way; a clinic's
+   uploaded logo is a picture. #}
+{% macro mark_lines() -%}
+<svg class="ph2-mark-lines" viewBox="0 0 500 500" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M37 200 C37 100, 110 25, 200 25 C240 25, 270 45, 240 100 C210 150, 190 190, 235 240 C210 320, 160 400, 236 498 C150 430, 37 320, 37 200 Z"/>
+  <path class="g" d="M236 498 C270 420, 438 290, 438 180 C438 100, 350 105, 250 145 C230 110, 270 40, 250 105 C330 45, 438 90, 438 180 C438 310, 270 440, 236 498 Z"/>
+  <circle cx="155" cy="245" r="45"/>
+  <path d="M155 285 C195 285, 290 215, 295 215 C305 205, 290 190, 275 205 C250 230, 185 270, 155 270 C125 270, 60 230, 35 205"/>
+</svg>
+{%- endmacro %}

@@ -3966,17 +3966,22 @@ SECTIONS = [
              "<b>Facility identity</b>, logo and currency, plus a <b>first-run "
              "wizard</b> that sets up the specialty, services and visit types "
              "from the start."),
-            ("<b>شكل صورة الطفل</b> (الإعدادات ← اللوجو): دائرية زي ما كانت، "
-             "أو مربعة بزوايا مدوّرة — اختيار واحد بيتطبّق على كل الشاشات، "
-             "واللون حوالين الصورة (أزرق للولد وبمبي للبنت) فاضل في الاتنين. "
-             "وراس ملف الطفل بنفس الشكل في الكشف والطوارئ والإقامة والتطعيمات "
-             "ومنحنى النمو: الحساسية بالأحمر جوّاها، وباقي الأبواب تحت «خيارات أخرى».",
-             "<b>The child's picture</b> (Settings → logo): round, as it always "
-             "was, or a rounded square — one choice for every screen, and the "
-             "colour around it (blue for a boy, pink for a girl) stays in both. "
-             "The child's header looks the same on the visit, the emergency "
-             "attendance, the stay, the vaccinations and the growth chart: the "
-             "allergy in red inside it, the other doors under «More options»."),
+            ("<b>شكل كارت المريض</b> (الإعدادات ← اللوجو): التصميم (الجديد بالموجات، "
+             "الأصلي السادة، علامة ناعمة، ألوان الهوية، خطوط دقيقة، أو شريط جانبي)، "
+             "الشعار في الخلفية (شعار البرنامج أو شعار العيادة أو من غير)، لونه وشفافيته "
+             "ومكانه، والاختصارات (تحت «خيارات أخرى» أو كلها ظاهرة)، وشكل صورة الطفل — "
+             "والكارت جنب الاختيارات بيتغيّر قدامك. بيتطبّق على الملف والكشف والطوارئ "
+             "والإقامة والتطعيمات ومنحنى النمو؛ الحساسية والأمراض المزمنة جوّه الكارت "
+             "بالأحمر والأصفر في كل الأشكال.",
+             "<b>The patient card</b> (Settings → logo): the design (new with waves, "
+             "original plain, soft mark, brand colours, fine-line stamp or side bar), "
+             "the logo in the background (the program's, the clinic's or none), its "
+             "colour, strength and place, the shortcuts (under «More options» or all "
+             "shown) and the shape of the child's picture — with the card beside the "
+             "choices changing as you go. It applies to the file, the visit, the "
+             "emergency attendance, the stay, the vaccinations and the growth chart; "
+             "the allergy and chronic illness stay inside the card in red and amber "
+             "in every look."),
             ("<b>تفعيل/تعطيل الموديولات</b>: العيادة الصغيرة بتقفل اللي "
              "مش محتاجاه فيختفي من كل الشاشات.",
              "<b>Enable or disable modules</b>: a small clinic switches off "

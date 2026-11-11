@@ -35,6 +35,9 @@ TEXT_KEYS = [
     "clinic_accent",
     # The child's picture: "round" (blank) or "rounded" corners.
     "avatar_shape",
+    # The child's card: design, the mark (whose, colour, strength, where)
+    # and the shortcuts — read and checked by `utils/card_look`.
+    "card_style", "card_logo", "card_color", "card_opacity", "card_pos", "card_keys",
     # Changes to the books before the month is closed: "summary" (blank) or
     # the "full" book beside the ledger — offered where a hospital's parts
     # are on (`utils/open_month_trail`).

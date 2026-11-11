@@ -39,7 +39,7 @@ def test_the_emergency_attendance(clinic):
         rid = row.id
     page = clinic["sign_in"]("doc").get(f"/emergency/attendance/{rid}").get_data(as_text=True)
     head = _between(page, "data-er-header", "data-er-actions")
-    for piece in ("ph2-logo", "patient-avatar", "data-er-allergy", "بنسلين", "data-er-chronic",
+    for piece in ("ph2-mark", "patient-avatar", "data-er-allergy", "بنسلين", "data-er-chronic",
                   'data-er-level', "ph2-urgent"):
         assert piece in head, piece
     actions = page[page.index("data-er-actions"):]
@@ -66,7 +66,7 @@ def test_the_stay(clinic):
         sid = stay.id
     page = clinic["sign_in"]("boss").get(f"/beds/admission/{sid}").get_data(as_text=True)
     head = _between(page, "data-stay-hero", "</section>")
-    for piece in ("ph2-logo", "patient-avatar", "data-stay-allergy", "data-stay-length",
+    for piece in ("ph2-mark", "patient-avatar", "data-stay-allergy", "data-stay-length",
                   "data-stay-mrp", 'data-stay-consent="missing"', "التهاب رئوي"):
         assert piece in head, piece
     actions = head[head.index("data-stay-actions"):]
@@ -79,7 +79,7 @@ def test_the_growth_chart_and_the_vaccinations(clinic):
     _allergic(clinic)
     doc = clinic["sign_in"]("doc")
     growth = doc.get(f"/growth/{clinic['ids']['child']}").get_data(as_text=True)
-    assert "data-growth-header" in growth and "ph2-logo" in growth
+    assert "data-growth-header" in growth and "ph2-mark" in growth
     vacc = doc.get(f"/vaccinations/{clinic['ids']['child']}").get_data(as_text=True)
     assert "data-vacc-header" in vacc and "data-vacc-allergy" in vacc
     assert "/certificate" in _between(vacc, "data-vacc-header", "The agreed plan")

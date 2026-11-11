@@ -44,9 +44,10 @@ def test_the_program_s_mark_is_faint_and_behind(clinic):
     assert "img/brand/pediapro-mark.png" in page[page.index("data-visit-header"):page.index("data-visit-actions")]
     css = open(os.path.join(os.path.dirname(__file__), "..", "app", "static", "css", "theme.css"),
                encoding="utf-8").read()
-    rule = css[css.index(".ph2-waves .ph2-logo {"):]
+    rule = css[css.index(".ph2-mark {"):]
     rule = rule[:rule.index("}")]
-    assert "opacity: 0.12" in rule
+    assert "opacity: var(--mark-op, 0.12)" in rule, "12% unless the clinic chose otherwise"
+    assert "--mark-op:0.12" in page[page.index("data-visit-header"):page.index("data-visit-actions")]
     assert ':root[data-theme="dark"] .ph2 .vs-red' in css
 
 

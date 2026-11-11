@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% from "_card_look.html" import card_attrs, card_mark with context %}
 {% import "_pickers.html" as pickers with context %}
 {% from "patients/_macros.html" import patient_avatar, age_label with context %}
 {% import "labs/_values.html" as lab_values with context %}
@@ -107,9 +108,9 @@
    and whose patient; what must not be given and how to be approached; the
    arrest button always one press away. #}
 {% set _p = admission.patient %}
-<section class="card profile-header ph2 gc-scale-in" style="margin-bottom:14px;" data-stay-hero>
+<section class="card profile-header ph2 gc-scale-in" style="margin-bottom:14px;" data-stay-hero {{ card_attrs() }}>
   <div class="ph2-waves" aria-hidden="true">
-    <img class="ph2-logo" src="{{ url_for('static', filename='img/brand/pediapro-mark.png') }}" alt="">
+    {{ card_mark() }}
     <svg class="w1" viewBox="0 0 400 400" fill="currentColor"><path d="M0,100 C150,200 350,-50 500,100 L500,0 L0,0 Z"/></svg>
     <svg class="w2" viewBox="0 0 400 400" fill="currentColor"><path d="M0,200 C200,100 250,350 400,200 L400,400 L0,400 Z"/></svg>
   </div>
