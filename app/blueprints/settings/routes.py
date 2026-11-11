@@ -35,6 +35,10 @@ TEXT_KEYS = [
     "clinic_accent",
     # The child's picture: "round" (blank) or "rounded" corners.
     "avatar_shape",
+    # Changes to the books before the month is closed: "summary" (blank) or
+    # the "full" book beside the ledger — offered where a hospital's parts
+    # are on (`utils/open_month_trail`).
+    "open_month_trail",
     # Under this, a partial refund does not wait for a manager. A full refund
     # always does. Zero makes every refund wait, which is how it behaved
     # before there was a line between them.
@@ -546,6 +550,14 @@ def index():
         # Worked out before anything is written, because it compares what was
         # posted against what is still saved.
         overrides = _provider_switch_fixups()
+        # The full book is a hospital's choice: a clinic that is not offered
+        # it keeps the review, whatever the form says (`open_month_trail`).
+        from app.utils import open_month_trail
+
+        if (request.form.get("open_month_trail") or "") not in ("", "full") or (
+                request.form.get("open_month_trail") == "full"
+                and not open_month_trail.offered()):
+            overrides["open_month_trail"] = open_month_trail.mode() if open_month_trail.mode() == "full" else ""
         # A blank secret box means "keep it", so it cannot be folded into the
         # plain text loop below — that one writes whatever was posted.
         overrides.update(_keep_or_clear_secrets())
@@ -663,10 +675,12 @@ def index():
                      if (values.get(k) or "").strip()}
     for key in SECRET_KEYS:
         values[key] = ""
-    from app.utils import numbering
+    from app.utils import numbering, open_month_trail
 
     return render_template(
         "settings/index.html", values=values, ai_providers=AI_PROVIDERS,
+        # The full book of changes before closing: a hospital's choice.
+        trail_offered=open_month_trail.offered(),
         saved_secrets=saved_secrets,
         # The file number's letters: what the clinic's name asks for, what is
         # actually in force, and every series that already exists in the

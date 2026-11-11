@@ -105,6 +105,55 @@ class JournalLine(db.Model):
         return f"<JournalLine {self.account_id} D{self.debit} C{self.credit}>"
 
 
+class JournalRevision(db.Model):
+    """The separate book: every change to an entry while its month is still
+    open (MONEY_SAFETY_PLAN.md ف-٧, asked: «نخلي القيود الكاملة تتكتب في بند
+    تاني»).
+
+    In an open month an entry is rebuilt in place — one entry per document,
+    saying what the document says now, so the ledger and every report stay as
+    they were. What it said before was lost. Each change now leaves a row
+    here: who, when, the lines before and after, and the dates. Nothing in the
+    ledger reads this table, so it changes no total; it is read by the review
+    before closing the month and, where the clinic chose it, shown as the full
+    book — a reversal and a new entry for every change.
+
+    Written, never edited or deleted. ``entry_id`` is a plain number on
+    purpose: an entry taken out of the ledger leaves its history behind.
+    """
+
+    __tablename__ = "journal_revisions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    entry_id = db.Column(db.Integer, index=True)
+    entry_number = db.Column(db.String(30), index=True)
+    source_type = db.Column(db.String(20), index=True)
+    source_id = db.Column(db.Integer, index=True)
+    kind = db.Column(db.String(12), nullable=False, default="changed")   # changed | removed
+    old_date = db.Column(db.Date)
+    new_date = db.Column(db.Date)
+    old_lines = db.Column(db.Text)       # JSON: [{code, name, centre, debit, credit}]
+    new_lines = db.Column(db.Text)
+    old_total = db.Column(db.Float, default=0)
+    new_total = db.Column(db.Float, default=0)
+    entry_created_at = db.Column(db.DateTime)   # when the entry was first written
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    user = db.relationship("User")
+
+    def before(self):
+        import json
+        return json.loads(self.old_lines or "[]")
+
+    def after(self):
+        import json
+        return json.loads(self.new_lines or "[]")
+
+    def __repr__(self):
+        return f"<JournalRevision {self.entry_number} {self.kind}>"
+
+
 PERIOD_STATUSES = ["open", "closed"]
 
 

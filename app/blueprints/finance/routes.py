@@ -254,6 +254,43 @@ def journal_repair():
     return redirect(url_for("finance.journal"))
 
 
+@finance_bp.route("/journal/changes")
+@module_required(MODULE)
+def journal_changes():
+    """«تعديلات قبل القفل» — every change made to the books while their month
+    was still open (``utils/open_month_trail``, MONEY_SAFETY_PLAN.md ف-٧): who,
+    when, the document, from how much to how much. Read before closing the
+    month; where the clinic chose it, also as the full book and as a file."""
+    from flask import Response
+
+    from app.utils import open_month_trail as trail
+
+    d_from, d_to = trail.default_range()
+    try:
+        d_from = date.fromisoformat(request.args.get("from") or "") or d_from
+    except ValueError:
+        pass
+    try:
+        d_to = date.fromisoformat(request.args.get("to") or "") or d_to
+    except ValueError:
+        pass
+    if d_from > d_to:
+        d_from, d_to = d_to, d_from
+    everything = request.args.get("all") == "1"
+    rows, folded = trail.changes(d_from, d_to, everything=everything)
+    full = trail.full_book_on()
+    view = "book" if (full and request.args.get("view") == "book") else "list"
+    if full and request.args.get("format") == "csv":
+        return Response(trail.csv_text(rows, getattr(g, "lang", "ar")),
+                        mimetype="text/csv; charset=utf-8",
+                        headers={"Content-Disposition":
+                                 f"attachment; filename=journal-changes-{d_from}-{d_to}.csv"})
+    return render_template("finance/journal_changes.html", rows=rows, folded=folded,
+                           everything=everything, d_from=d_from, d_to=d_to,
+                           full=full, view=view,
+                           book=trail.book(rows) if view == "book" else [])
+
+
 @finance_bp.route("/journal/new", methods=["POST"])
 @module_required(MODULE)
 def journal_entry_new():
@@ -5100,9 +5137,15 @@ def periods():
             "collected": round(sum(i.paid for i in invoices), 2),
             "count": len(invoices),
         }
+    from app.utils import open_month_trail
+
+    changes = {p.id: open_month_trail.for_period(p) for p in rows if not p.is_closed}
     return render_template("finance/periods.html", periods=rows, year=year,
                            years=selectable_years(), totals=totals, kinds=KINDS,
-                           f_kind=kind, f_status=status, f_q=needle)
+                           f_kind=kind, f_status=status, f_q=needle,
+                           # How many changes each open period's entries had
+                           # while open — read before closing it.
+                           changes=changes, today=local_today())
 
 
 @finance_bp.route("/payers", methods=["GET", "POST"])

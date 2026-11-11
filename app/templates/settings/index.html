@@ -616,6 +616,19 @@
       <input class="input" type="number" min="0" max="365" step="1" id="card_wait_days" name="card_wait_days"
              value="{{ values.get('card_wait_days') or '' }}" placeholder="30"></div>
     <p class="hint">{{ t('card.wait_setting_hint') }}</p>
+    {# Changes to the books before the month is closed (utils/open_month_trail).
+       Every clinic gets the review; a hospital may keep the full book. #}
+    {% if trail_offered %}
+    <div class="form-row" style="max-width:560px;" data-trail-setting>
+      <label>{{ t('trail.setting') }}</label>
+      {% for v in ['', 'full'] %}
+      <label style="display:flex;gap:8px;align-items:flex-start;font-weight:400;margin:4px 0;">
+        <input type="radio" name="open_month_trail" value="{{ v }}" {{ 'checked' if (values.get('open_month_trail') or '') == v else '' }} style="margin-top:4px;">
+        <span>{{ t('trail.mode_' ~ (v or 'summary')) }}</span></label>
+      {% endfor %}
+      <div class="hint">{{ t('trail.setting_hint') }}</div>
+    </div>
+    {% endif %}
     <div style="display:flex;gap:10px;flex-wrap:wrap;" data-deposit-suggest>
       {% for setting in ['emergency', 'inpatient', 'nicu', 'icu'] %}
       <div class="form-row" style="max-width:170px;">

@@ -91,6 +91,13 @@
         <td>
           {% if p.is_closed %}<span class="badge badge--danger"><i class="bi bi-lock-fill"></i> {{ t('periods.closed') }}</span>
           {% else %}<span class="badge badge--green"><i class="bi bi-unlock"></i> {{ t('periods.open') }}</span>{% endif %}
+          {# The changes made to this period's entries while it was open —
+             read before closing it (utils/open_month_trail). #}
+          {% if not p.is_closed and changes.get(p.id) %}
+          <a class="badge badge--warn" style="text-decoration:none;" data-period-changes="{{ changes[p.id] }}"
+             href="{{ url_for('finance.journal_changes', **{'from': p.start_date.isoformat(), 'to': today.isoformat()}) }}">
+            <i class="bi bi-pencil-square"></i> {{ t('trail.before_close', n=changes[p.id]) }}</a>
+          {% endif %}
         </td>
         <td style="text-align:end;white-space:nowrap;">
           {% if current_user.is_admin %}

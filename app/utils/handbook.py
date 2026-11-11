@@ -3333,6 +3333,20 @@ SECTIONS = [
              "رجعي، و<b>الإقفال اليومي</b> بيربط التحصيل بالخزنة.",
              "<b>Accounting periods</b>: closing one blocks retroactive edits, "
              "and the <b>end-of-day</b> ties collections to the till."),
+            ("<b>تعديلات قبل القفل</b> (الحسابات ← القيود، وجنب كل فترة مفتوحة): "
+             "كل تعديل على فاتورة أو مصروف والشهر لسه مفتوح — مين وإمتى وكان كام "
+             "وبقى كام. الدفتر فيه قيد واحد لكل مستند والتقارير ما بتتغيّرش؛ "
+             "تعديلات نفس اليوم (الفاتورة وهي لسه بتتعمل) متخبية إلا لو طلبتها. "
+             "المستشفى تقدر من الإعدادات ← السياسات تختار «الدفتر الكامل»: كل "
+             "تعديل قيد عكسي بتاريخه القديم وقيد جديد، في دفتر منفصل بيتنزّل ملف.",
+             "<b>Changes before closing</b> (Accounts → journal, and beside each "
+             "open period): every change to a bill or expense while its month is "
+             "open — who, when, from how much to how much. The ledger keeps one "
+             "entry per document and the reports do not move; same-day changes "
+             "(a bill still being made) are folded away unless asked for. A "
+             "hospital may choose «full book» in Settings → policies: each change "
+             "as a reversal on its old date and a new entry, in a separate book "
+             "downloadable as a file."),
             ("<b>الفاتورة الإلكترونية (مصلحة الضرائب)</b>: فعّل الربط من "
              "الإعدادات، حوّل الفاتورة لفاتورة ضريبية، وتابع حالتها (مقبولة/"
              "مرفوضة) بالـUUID. فيه وضع تجريبي بدون اعتمادات.",
