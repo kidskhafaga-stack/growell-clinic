@@ -1749,7 +1749,11 @@
     "ai_lab_insert_hint": "An insert carries no child's data. The assistant copies only what is printed — the mean and SD on a control's insert, the reference table on a kit's — nothing is saved unless you tick it, and ranges stay drafts until the laboratory director approves.",
     "nav_title": "Side menu",
     "nav_find": "Search box at the top of the side menu (Ctrl+K)",
-    "nav_find_hint": "Finds pages, and children by name, file number or a parent's phone. Switched off, it disappears for every member of staff."
+    "nav_find_hint": "Finds pages, and children by name, file number or a parent's phone. Switched off, it disappears for every member of staff.",
+    "avatar_shape": "The child's picture",
+    "avatar_shape_hint": "Applies to the child's picture on every screen. The colour around it (blue for a boy, pink for a girl) stays in both.",
+    "avatar_round": "Round",
+    "avatar_rounded": "Rounded square"
   },
   "errors": {
     "403_title": "Forbidden",
@@ -8611,7 +8615,8 @@
     "tab_care": "Nursing & assessment",
     "tab_treatment": "Treatment",
     "tab_safety": "Restraint & resuscitation",
-    "tab_discharge": "Discharge"
+    "tab_discharge": "Discharge",
+    "open_badge": "In hospital"
   },
   "specimen": {
     "title": "Specimens & pathology",

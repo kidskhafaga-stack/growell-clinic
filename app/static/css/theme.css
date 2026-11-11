@@ -702,6 +702,10 @@ a:hover { color: var(--green-900); }
 /* Gender-coloured ring on photo avatars + side accent on patient rows. */
 img.patient-avatar.gender-male { border: 2px solid #3b82f6; }
 img.patient-avatar.gender-female { border: 2px solid #ec4899; }
+/* The child's picture is round unless the clinic chose rounded corners
+   (Settings → logo and look, `avatar_shape`). One switch, every screen. */
+:root[data-avatar="rounded"] .patient-avatar { border-radius: 12px; }
+:root[data-avatar="rounded"] .patient-avatar.lg { border-radius: 20px; }
 .patient-row.gm { border-inline-start: 3px solid #3b82f6; padding-inline-start: 9px; }
 .patient-row.gf { border-inline-start: 3px solid #ec4899; padding-inline-start: 9px; }
 .copyright {
@@ -767,9 +771,12 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 :root[data-theme="dark"] .ph2-waves .w1 { color: color-mix(in srgb, var(--ph2-blue) 12%, transparent); }
 :root[data-theme="dark"] .ph2-waves .w2 { color: color-mix(in srgb, var(--green-500) 10%, transparent); }
 
-.ph2 .patient-avatar.lg { width: 76px; height: 76px; border-radius: 20px; font-size: 1.8rem;
+.ph2 .patient-avatar.lg { width: 76px; height: 76px; font-size: 1.8rem;
   border: 1px solid color-mix(in srgb, currentColor 22%, transparent); box-shadow: none; }
 .ph2 img.patient-avatar.lg { object-fit: cover; }
+/* A photo keeps the boy's / girl's ring it has everywhere else. */
+.ph2 img.patient-avatar.gender-male { border: 3px solid #3b82f6; }
+.ph2 img.patient-avatar.gender-female { border: 3px solid #ec4899; }
 .ph2-body { flex: 1; min-width: 240px; display: grid; gap: 10px; }
 .ph2-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ph2-name h1 { margin: 0; font-size: 1.55rem; font-weight: 900; color: var(--ink); }
@@ -797,7 +804,10 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
   font-weight: 800; background: var(--ph2-amber-tag); }
 
 .ph2-actions { display: flex; flex-direction: column; gap: 8px; width: 200px; flex: none; }
-.ph2-actions > .btn { width: 100%; justify-content: center; border-radius: 12px; padding-block: 9px; }
+.ph2-actions > .btn, .ph2-actions > form > .btn { width: 100%; justify-content: center; border-radius: 12px; padding-block: 9px; }
+/* An urgent triage level reads as a warning, on both grounds. */
+.ph2-pill.ph2-urgent { background: #fde2e1; color: #b42318; border-color: #f5b5b0; }
+:root[data-theme="dark"] .ph2-pill.ph2-urgent { background: #4a1d1d; color: #fca5a5; border-color: #7f2a2a; }
 .ph2-more { position: relative; }
 .ph2-more > summary { list-style: none; cursor: pointer; display: flex; align-items: center;
   justify-content: space-between; gap: 6px; padding: 8px 12px; border-radius: 12px; font-size: 0.82rem;

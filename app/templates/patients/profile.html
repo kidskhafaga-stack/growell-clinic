@@ -351,15 +351,6 @@
       </details>
     </div>
   </div>
-  <script>
-  // «خيارات أخرى» closes when somebody clicks anywhere else, or presses Esc.
-  (function () {
-    var more = document.querySelector('[data-file-more]');
-    if (!more) return;
-    document.addEventListener('click', function (e) { if (more.open && !more.contains(e.target)) more.open = false; });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') more.open = false; });
-  })();
-  </script>
 
   <!-- Tabs -->
   <div class="card gc-animate" style="animation-delay:0.08s;">

@@ -33,6 +33,8 @@ TEXT_KEYS = [
     "product_name", "product_name_en",
     "program_slogan_ar", "program_slogan_en", "thermal_footer_text",
     "clinic_accent",
+    # The child's picture: "round" (blank) or "rounded" corners.
+    "avatar_shape",
     # Under this, a partial refund does not wait for a manager. A full refund
     # always does. Zero makes every refund wait, which is how it behaved
     # before there was a line between them.

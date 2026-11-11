@@ -3952,6 +3952,17 @@ SECTIONS = [
              "<b>Facility identity</b>, logo and currency, plus a <b>first-run "
              "wizard</b> that sets up the specialty, services and visit types "
              "from the start."),
+            ("<b>شكل صورة الطفل</b> (الإعدادات ← اللوجو): دائرية زي ما كانت، "
+             "أو مربعة بزوايا مدوّرة — اختيار واحد بيتطبّق على كل الشاشات، "
+             "واللون حوالين الصورة (أزرق للولد وبمبي للبنت) فاضل في الاتنين. "
+             "وراس ملف الطفل بنفس الشكل في الكشف والطوارئ والإقامة والتطعيمات "
+             "ومنحنى النمو: الحساسية بالأحمر جوّاها، وباقي الأبواب تحت «خيارات أخرى».",
+             "<b>The child's picture</b> (Settings → logo): round, as it always "
+             "was, or a rounded square — one choice for every screen, and the "
+             "colour around it (blue for a boy, pink for a girl) stays in both. "
+             "The child's header looks the same on the visit, the emergency "
+             "attendance, the stay, the vaccinations and the growth chart: the "
+             "allergy in red inside it, the other doors under «More options»."),
             ("<b>تفعيل/تعطيل الموديولات</b>: العيادة الصغيرة بتقفل اللي "
              "مش محتاجاه فيختفي من كل الشاشات.",
              "<b>Enable or disable modules</b>: a small clinic switches off "

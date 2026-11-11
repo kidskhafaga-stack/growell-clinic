@@ -935,3 +935,17 @@ window.gcPatientPicker = function (url, initialId, initialName, goUrl) {
     });
   });
 })();
+
+// «خيارات أخرى» on a patient header (`.ph2-more`, every screen that has one)
+// closes when somebody clicks anywhere else, or presses Esc.
+(function () {
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('details.ph2-more[open]').forEach(function (more) {
+      if (!more.contains(e.target)) more.open = false;
+    });
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    document.querySelectorAll('details.ph2-more[open]').forEach(function (more) { more.open = false; });
+  });
+})();

@@ -10,23 +10,30 @@
 <div x-data="growthChart({{ patient.id }}, '{{ url_for('growth.data', patient_id=patient.id) }}', '{{ default_ref }}', '{{ patient.gender }}')">
 
   <!-- Header -->
-  <div class="card profile-header gc-scale-in">
-    {{ patient_avatar(patient, 'lg') }}
-    <div style="flex:1;min-width:220px;">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <h1 style="margin:0;font-size:1.4rem;">{{ patient.display_name(current_lang) }}</h1>
-        <span class="badge badge--role">{{ patient.patient_number }}</span>
-      </div>
-      <div class="meta-row">
-        <span><i class="bi bi-cake2"></i> {{ age_label(patient) }}</span>
-        <span><i class="bi bi-gender-ambiguous"></i> {{ t('genders.' ~ patient.gender) }}</span>
-      </div>
+  {# The child's header in the file's design (`.ph2`). #}
+  <div class="card profile-header ph2 gc-scale-in" data-growth-header>
+  <div class="ph2-waves" aria-hidden="true">
+    <img class="ph2-logo" src="{{ url_for('static', filename='img/brand/pediapro-mark.png') }}" alt="">
+    <svg class="w1" viewBox="0 0 400 400" fill="currentColor"><path d="M0,100 C150,200 350,-50 500,100 L500,0 L0,0 Z"/></svg>
+    <svg class="w2" viewBox="0 0 400 400" fill="currentColor"><path d="M0,200 C200,100 250,350 400,200 L400,400 L0,400 Z"/></svg>
+  </div>
+  {{ patient_avatar(patient, 'lg') }}
+  <div class="ph2-body">
+    <div class="ph2-name">
+      <h1>{{ patient.display_name(current_lang) }}</h1>
+      <span class="badge badge--role">{{ patient.patient_number }}</span>
     </div>
-    <div class="no-print" style="display:flex;gap:8px;">
-      <button type="button" class="btn btn-outline btn-sm gc-press" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('growth.print') }}</button>
-      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=patient.id) }}">
-        <i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
+    <div class="ph2-name" style="gap:6px;">
+      <span class="ph2-pill {{ 'gender-male' if patient.gender == 'male' else 'gender-female' }}">
+        <i class="bi bi-gender-{{ 'male' if patient.gender == 'male' else 'female' }}"></i> {{ t('genders.' ~ patient.gender) }}</span>
+      <span class="ph2-pill"><i class="bi bi-cake2"></i> {{ age_label(patient) }}</span>
     </div>
+  </div>
+  <div class="ph2-actions no-print">
+    <a class="btn btn-primary gc-press" href="{{ url_for('patients.view', patient_id=patient.id) }}">
+      <i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
+    <button type="button" class="btn btn-outline gc-press" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('growth.print') }}</button>
+  </div>
   </div>
 
   <!-- Controls -->

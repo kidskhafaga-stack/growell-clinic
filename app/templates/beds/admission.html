@@ -1,5 +1,6 @@
 {% extends "shell.html" %}
 {% import "_pickers.html" as pickers with context %}
+{% from "patients/_macros.html" import patient_avatar, age_label with context %}
 {% import "labs/_values.html" as lab_values with context %}
 {% set active_module = 'beds' %}
 {% block title %}{{ t('beds.stay') }} — {{ admission.patient.display_name(current_lang) }}{% endblock %}
@@ -102,58 +103,85 @@
      }" x-on:submit.capture="remember()">
 
 {% set hold_patient_id = admission.patient_id %}{% include "_hold_banner.html" %}
-<section class="stay-hero gc-animate" data-stay-hero>
-  <div class="stay-hero__who">
-    <span class="stay-hero__icon" aria-hidden="true"><i class="bi bi-hospital"></i></span>
-    <div style="min-width:0;">
-      <h1 class="page-title" style="margin:0;">{{ admission.patient.display_name(current_lang) }}</h1>
-      <div class="stay-hero__facts">
-        {% if admission.is_open %}
-          {% if here_bed %}
-          <span class="stay-chip" data-stay-bed><i class="bi bi-geo-alt"></i>
-            {{ here_bed.unit.display_name(current_lang) }} · {{ here_bed.space.display_name(current_lang) }} · {{ here_bed.display_name(current_lang) }}</span>
-          {% else %}
-          <span class="stay-chip stay-chip--warn"><i class="bi bi-geo-alt"></i> {{ t('stay.no_bed') }}</span>
-          {% endif %}
+{# The child's header in the file's design (`.ph2`): who, where, how long
+   and whose patient; what must not be given and how to be approached; the
+   arrest button always one press away. #}
+{% set _p = admission.patient %}
+<section class="card profile-header ph2 gc-scale-in" style="margin-bottom:14px;" data-stay-hero>
+  <div class="ph2-waves" aria-hidden="true">
+    <img class="ph2-logo" src="{{ url_for('static', filename='img/brand/pediapro-mark.png') }}" alt="">
+    <svg class="w1" viewBox="0 0 400 400" fill="currentColor"><path d="M0,100 C150,200 350,-50 500,100 L500,0 L0,0 Z"/></svg>
+    <svg class="w2" viewBox="0 0 400 400" fill="currentColor"><path d="M0,200 C200,100 250,350 400,200 L400,400 L0,400 Z"/></svg>
+  </div>
+  {{ patient_avatar(_p, 'lg') }}
+  <div class="ph2-body">
+    <div class="ph2-name">
+      <h1 class="page-title" style="margin:0;">{{ _p.display_name(current_lang) }}</h1>
+      <span class="badge badge--role">{{ _p.patient_number }}</span>
+      {% if admission.is_open %}
+      <span class="status-badge st-in_progress" data-stay-open-badge><i class="bi bi-hospital"></i> {{ t('stay.open_badge') }}</span>
+      {% else %}
+      <span class="status-badge st-completed" data-stay-closed><i class="bi bi-box-arrow-right"></i>
+        {{ t('stay.closed') }} <span dir="ltr">{{ admission.discharged_at|clinic_stamp }}</span></span>
+      {% endif %}
+    </div>
+    <div class="ph2-name" style="gap:6px;">
+      <span class="ph2-pill {{ 'gender-male' if _p.gender == 'male' else 'gender-female' }}">
+        <i class="bi bi-gender-{{ 'male' if _p.gender == 'male' else 'female' }}"></i> {{ t('genders.' ~ _p.gender) }}</span>
+      <span class="ph2-pill"><i class="bi bi-cake2"></i> {{ age_label(_p) }}</span>
+      {% if admission.is_open %}
+        {% if here_bed %}
+        <span class="ph2-pill" data-stay-bed><i class="bi bi-geo-alt"></i>
+          {{ here_bed.unit.display_name(current_lang) }} · {{ here_bed.space.display_name(current_lang) }} · {{ here_bed.display_name(current_lang) }}</span>
         {% else %}
-          <span class="stay-chip stay-chip--muted" data-stay-closed><i class="bi bi-box-arrow-right"></i>
-            {{ t('stay.closed') }} <span dir="ltr">{{ admission.discharged_at|clinic_stamp }}</span></span>
+        <span class="ph2-pill ph2-urgent"><i class="bi bi-geo-alt"></i> {{ t('stay.no_bed') }}</span>
         {% endif %}
-        {% if stay_days is not none %}
-        <span class="stay-chip" data-stay-length><i class="bi bi-hourglass-split"></i>
-          {{ t('stay.length', d=stay_days, h=stay_hours) }}</span>
-        {% endif %}
-        {# The guardian's signature on the rules of the stay (bed map). #}
-        {% if admission_consent %}
-        <a class="stay-chip" data-stay-consent="signed" href="{{ url_for('patients.print_consent', consent_id=admission_consent.id) }}" target="_blank">
-          <i class="bi bi-pen"></i> {{ t('beds.consent_chip_signed') }}</a>
-        {% elif admission.is_open %}
-        <a class="stay-chip stay-chip--warn" data-stay-consent="missing" href="{{ url_for('beds.admission_consent', admission_id=admission.id) }}">
-          <i class="bi bi-pen"></i> {{ t('beds.consent_chip_missing') }}</a>
-        {% endif %}
-        {# An alert organism grew on this stay — open, or answered with more
+      {% endif %}
+      {% if stay_days is not none %}
+      <span class="ph2-pill" data-stay-length><i class="bi bi-hourglass-split"></i>
+        {{ t('stay.length', d=stay_days, h=stay_hours) }}</span>
+      {% endif %}
+      <span class="ph2-pill {{ '' if mrp_now else 'ph2-urgent' }}" data-stay-mrp>
+        <i class="bi bi-person-badge"></i>
+        {{ mrp_now.doctor.display_name(current_lang) if mrp_now else t('mrp.nobody') }}</span>
+    </div>
+    <div class="ph2-safety" data-stay-safety>
+      {% if _p.allergies %}
+      <div class="vs-box vs-red" data-stay-allergy><i class="bi bi-exclamation-octagon-fill"></i>
+        <b>{{ t('patients.allergies') }}:</b> <span dir="auto">{{ _p.allergies }}</span></div>
+      {% endif %}
+      {% if _p.chronic_diseases %}
+      <div class="vs-box vs-amber" data-stay-chronic><i class="bi bi-heart-pulse-fill"></i>
+        <b>{{ t('patients.chronic_diseases') }}:</b> <span dir="auto">{{ _p.chronic_diseases }}</span></div>
+      {% endif %}
+      {# An alert organism grew on this stay — open, or answered with more
            than standard precautions (`utils/ipc`). #}
         {% if admission.precaution_list %}
-        <a class="stay-chip stay-chip--danger" href="#precautions" data-stay-prec>
+        <a class="vs-box vs-red" href="#precautions" style="text-decoration:none;" data-stay-prec>
           <i class="bi bi-shield-exclamation"></i>
           {% for p in admission.precaution_list %}{{ t('theatre.precaution_' ~ p) }}{{ ' · ' if not loop.last }}{% endfor %}{% if admission.precautions_empiric %} · {{ t('theatre.precaution_empiric') }}{% endif %}</a>
         {% endif %}
         {% for pa in patient_precautions(admission.patient_id, admission.admitted_at) %}
-        <span class="stay-chip stay-chip--danger" data-stay-ipc="{{ 'open' if pa.is_open else 'answered' }}">
+        <span class="vs-box vs-red" data-stay-ipc="{{ 'open' if pa.is_open else 'answered' }}">
           <i class="bi bi-shield-exclamation"></i> <i dir="ltr">{{ pa.organism.name }}</i> ·
           {% if pa.is_open %}{{ t('ipc.chip_open') }}{% else %}{% for p in pa.precaution_list %}{{ t('theatre.precaution_' ~ p) }}{{ ' · ' if not loop.last }}{% endfor %}{% if pa.isolation %} · {{ t('ipc.iso_' ~ pa.isolation) }}{% endif %}{% endif %}</span>
         {% endfor %}
-        <span class="stay-chip {{ '' if mrp_now else 'stay-chip--danger' }}" data-stay-mrp>
-          <i class="bi bi-person-badge"></i>
-          {{ mrp_now.doctor.display_name(current_lang) if mrp_now else t('mrp.nobody') }}</span>
-      </div>
-      <p class="page-sub" style="margin:6px 0 0;">
+      <div class="ph2-line">
+        {# The guardian's signature on the rules of the stay (bed map). #}
+        {% if admission_consent %}
+        <a data-stay-consent="signed" href="{{ url_for('patients.print_consent', consent_id=admission_consent.id) }}" target="_blank">
+          <i class="bi bi-pen"></i> {{ t('beds.consent_chip_signed') }}</a> ·
+        {% elif admission.is_open %}
+        <a data-stay-consent="missing" style="color:var(--warning);font-weight:700;" href="{{ url_for('beds.admission_consent', admission_id=admission.id) }}">
+          <i class="bi bi-pen"></i> {{ t('beds.consent_chip_missing') }}</a> ·
+        {% endif %}
         {{ t('beds.admitted_at') }}
         <span dir="ltr">{{ admission.admitted_at|clinic_stamp }}</span>
-        {% if admission.reason %} · {{ admission.reason }}{% endif %}</p>
+        {% if admission.reason %} · <span dir="auto">{{ admission.reason }}</span>{% endif %}
+      </div>
     </div>
   </div>
-  <div class="stay-hero__actions">
+  <div class="ph2-actions" data-stay-actions>
     {% if admission.is_open %}
     {# الإنعاش على بُعد ضغطة من أي مكان في الورقة — مش جوّه تبويب حد
        لازم يفتكر اسمه وهو واقف قدام طفل وقف قلبه. #}
@@ -161,32 +189,32 @@
             x-on:click="open('safety', 'arrest')">
       <i class="bi bi-heart-pulse"></i> {{ t('stay.arrest') }}</button>
     {% endif %}
-    <a class="btn btn-outline gc-press"
+    <a class="btn btn-primary gc-press"
        href="{{ url_for('patients.view', patient_id=admission.patient_id) }}">
-      <i class="bi bi-person"></i> {{ t('beds.patient_file') }}</a>
-    <a class="btn btn-outline gc-press" data-to-wristband
-       href="{{ url_for('patients.wristband', patient_id=admission.patient_id) }}">
-      <i class="bi bi-upc"></i> {{ t('wristband.print') }}</a>
-    {# The rounds for this child, when the clinic runs them. The stay and the
-       observations are two halves of the same shift, and a screen that knows
-       where the child is and cannot reach what was measured sends somebody
-       hunting through the sidebar. #}
-    {% if module_enabled('observations') and current_user.can_access('observations') %}
-    <a class="btn btn-outline gc-press"
-       href="{{ url_for('observations.chart', patient_id=admission.patient_id) }}">
-      <i class="bi bi-activity"></i> {{ t('nav.observations') }}</a>
-    {% endif %}
-    {# ت-٦ب — the severity score on entering intensive care, for a stay that
+      <i class="bi bi-folder2-open"></i> {{ t('beds.patient_file') }}</a>
+    <details class="ph2-more no-print" data-file-more>
+      <summary><span><i class="bi bi-three-dots-vertical"></i> {{ t('patients.more_actions') }}</span><i class="bi bi-chevron-down"></i></summary>
+      <div class="ph2-menu">
+        <a data-to-wristband href="{{ url_for('patients.wristband', patient_id=admission.patient_id) }}">
+          <i class="bi bi-upc"></i> {{ t('wristband.print') }}</a>
+        {# The rounds for this child, when the clinic runs them. The stay and the
+           observations are two halves of the same shift. #}
+        {% if module_enabled('observations') and current_user.can_access('observations') %}
+        <a href="{{ url_for('observations.chart', patient_id=admission.patient_id) }}">
+          <i class="bi bi-activity"></i> {{ t('nav.observations') }}</a>
+        {% endif %}
+        {# ت-٦ب — the severity score on entering intensive care, for a stay that
        entered a unit whose module is on. #}
     {% if current_user.can('patient_medical') %}
     {% for kind in severity_units or [] %}
-    <a class="btn btn-outline gc-press" data-to-severity="{{ kind }}"
+    <a data-to-severity="{{ kind }}"
        href="{{ url_for('severity.admission', admission_id=admission.id, kind=kind) }}">
       <i class="bi bi-activity"></i> {{ t('severity.door_admission') }} · {{ t('severity.unit_' ~ kind) }}</a>
     {% endfor %}
     {% endif %}
-    <a class="btn btn-outline gc-press" href="{{ url_for('beds.index') }}">
-      <i class="bi bi-grid-3x3"></i> {{ t('beds.board') }}</a>
+        <a href="{{ url_for('beds.index') }}"><i class="bi bi-grid-3x3"></i> {{ t('beds.board') }}</a>
+      </div>
+    </details>
   </div>
 </section>
 

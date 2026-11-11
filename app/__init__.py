@@ -645,13 +645,18 @@ def create_app(config_name="default"):
                     # and looked nothing like its own logo.
                     "accent": ((rows.get("clinic_accent") or "").strip()
                                or BRAND_PRIMARY),
+                    # The child's picture: round (as it always was) or
+                    # rounded corners — the clinic's choice in Settings.
+                    "avatar_shape": ("rounded" if rows.get("avatar_shape") == "rounded"
+                                     else "round"),
                 },
             }
         except Exception:  # noqa: BLE001 - DB not ready yet (e.g. pre-init)
             return {"clinic": defaults, "product_name": product_default,
                     "program": {"name": product_default, "accent": BRAND_PRIMARY,
                                 "slogan": "حلول طب الأطفال الذكية",
-                                "logo_url": None, "accent": None}}
+                                "logo_url": None, "accent": None,
+                                "avatar_shape": "round"}}
 
     @app.before_request
     def _support_door():

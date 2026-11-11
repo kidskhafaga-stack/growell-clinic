@@ -1,5 +1,6 @@
 {% extends "shell.html" %}
 {% import "_waiting.html" as waits with context %}
+{% from "patients/_macros.html" import patient_avatar, age_label with context %}
 {% set active_module = 'emergency' %}
 {% block title %}{{ row.patient.display_name(current_lang) }} — {{ t('er_orders.title') }}{% endblock %}
 {% block page_heading %}{{ t('er_orders.title') }}{% endblock %}
@@ -45,54 +46,89 @@
 <p class="hint" data-pay-cleared><i class="bi bi-cash-coin"></i> {{ t('er_pay.cleared_line', who=row.pay_clearer.display_name(current_lang) if row.pay_clearer else '—', when=row.pay_cleared_at|clinic_stamp) }}</p>
 {% endif %}
 
-<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
-  <div>
-    <h1 class="page-title"><i class="bi bi-truck-front"></i>
-      <a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">{{ row.patient.display_name(current_lang) }}</a>
-      {% if row.patient.identity_provisional %}<span class="badge badge--danger" data-er-provisional>{{ t('er_quick.badge_provisional') }}</span>{% endif %}
-      <a class="btn btn-sm btn-outline gc-press" data-to-wristband href="{{ url_for('patients.wristband', patient_id=row.patient_id) }}"><i class="bi bi-upc"></i> {{ t('wristband.print') }}</a></h1>
-    <p class="page-sub" style="margin:0;">
-      <span dir="ltr">{{ row.arrived_at|clinic_stamp }}</span> · {{ t('emergency.arr_' ~ row.arrival) }}
-      · <span dir="ltr">{{ row.minutes }}′</span>
-      {% if row.treatment_only %} · <span class="badge badge--muted" data-walk-in>{{ t('er_orders.walk_in') }}</span>{% endif %}
-      {% if row.level %} · <span class="badge {{ 'badge--danger' if row.urgent else 'badge--muted' }}">{{ row.level }}</span>
-      {% else %} · <span class="hint" style="margin:0;">{{ t('emergency.not_triaged') }}</span>{% endif %}
-      {% if row.seen_at %} · <span data-seen>{{ t('er_seen.seen', when=row.seen_at|clinic_time, n=row.wait_to_doctor) }}</span>{% endif %}
-      {% if not row.is_open %} · <span class="badge badge--muted" data-left>{{ t('emergency.disp_' ~ row.disposition) if row.disposition else t('er_orders.left') }}</span>{% endif %}
-    </p>
+{# The child's header in the file's design (the same `.ph2` as the file and
+   the visit): who, how they came and how urgent, what must not be given,
+   and the next move on the side. #}
+{% set _p = row.patient %}
+<div class="card profile-header ph2 gc-scale-in" style="margin-bottom:16px;" data-er-header>
+  <div class="ph2-waves" aria-hidden="true">
+    <img class="ph2-logo" src="{{ url_for('static', filename='img/brand/pediapro-mark.png') }}" alt="">
+    <svg class="w1" viewBox="0 0 400 400" fill="currentColor"><path d="M0,100 C150,200 350,-50 500,100 L500,0 L0,0 Z"/></svg>
+    <svg class="w2" viewBox="0 0 400 400" fill="currentColor"><path d="M0,200 C200,100 250,350 400,200 L400,400 L0,400 Z"/></svg>
   </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;">
-  {# The assessment and the diagnosis the gaps below ask for are written on
-     the attendance's own encounter — this is its door (ط-٢). #}
-  {% if current_user.can_access('visits') %}
-  <form method="post" action="{{ url_for('emergency.write_visit', attendance_id=row.id) }}" style="margin:0;" data-write-visit>
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-clipboard2-pulse"></i> {{ t('er_orders.write_visit') }}</button>
-  </form>
-  {% endif %}
-  {# The paper the family takes home (ط-٦). #}
-  <a class="btn btn-outline gc-press" data-to-family-paper
-     href="{{ url_for('emergency.family_paper', attendance_id=row.id) }}">
-    <i class="bi bi-file-earmark-text"></i> {{ t('er_paper.door') }}</a>
-  {% if row.is_open and not row.seen_at %}
-  <form method="post" action="{{ url_for('emergency.seen', attendance_id=row.id) }}" style="margin:0;" data-seen-form>
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-person-check"></i> {{ t('er_seen.press') }}</button>
-  </form>
-  {% endif %}
-  <a class="btn btn-outline gc-press" href="{{ url_for('emergency.register') }}">
-    <i class="bi bi-list-ul"></i> {{ t('emergency.register_title') }}</a>
+  {{ patient_avatar(_p, 'lg') }}
+  <div class="ph2-body">
+    <div class="ph2-name">
+      <h1><a href="{{ url_for('patients.view', patient_id=row.patient_id) }}" style="color:inherit;">{{ _p.display_name(current_lang) }}</a></h1>
+      <span class="badge badge--role">{{ _p.patient_number }}</span>
+      {% if _p.identity_provisional %}<span class="badge badge--danger" data-er-provisional>{{ t('er_quick.badge_provisional') }}</span>{% endif %}
+      {% if row.is_open %}
+      <span class="status-badge st-in_progress"><i class="bi bi-truck-front"></i> {{ t('emergency.still_here') }}</span>
+      {% else %}
+      <span class="status-badge st-completed" data-left>{{ t('emergency.disp_' ~ row.disposition) if row.disposition else t('er_orders.left') }}</span>
+      {% endif %}
+    </div>
+    <div class="ph2-name" style="gap:6px;">
+      <span class="ph2-pill {{ 'gender-male' if _p.gender == 'male' else 'gender-female' }}">
+        <i class="bi bi-gender-{{ 'male' if _p.gender == 'male' else 'female' }}"></i> {{ t('genders.' ~ _p.gender) }}</span>
+      <span class="ph2-pill"><i class="bi bi-cake2"></i> {{ age_label(_p) }}</span>
+      <span class="ph2-pill"><i class="bi bi-clock"></i> <span dir="ltr">{{ row.arrived_at|clinic_stamp }}</span> · {{ t('emergency.arr_' ~ row.arrival) }}</span>
+      {% if row.level %}
+      <span class="ph2-pill {{ 'ph2-urgent' if row.urgent else '' }}" data-er-level><i class="bi bi-activity"></i> {{ row.level }}</span>
+      {% else %}
+      <span class="ph2-pill" data-er-level="none"><i class="bi bi-activity"></i> {{ t('emergency.not_triaged') }}</span>
+      {% endif %}
+      <span class="ph2-pill"><i class="bi bi-hourglass-split"></i> <span dir="ltr">{{ row.minutes }}′</span></span>
+      {% if row.treatment_only %}<span class="ph2-pill" data-walk-in>{{ t('er_orders.walk_in') }}</span>{% endif %}
+      {% if row.seen_at %}<span class="ph2-pill" data-seen><i class="bi bi-person-check"></i> {{ t('er_seen.seen', when=row.seen_at|clinic_time, n=row.wait_to_doctor) }}</span>{% endif %}
+    </div>
+    {% if _p.allergies or _p.chronic_diseases or row.from_visit %}
+    <div class="ph2-safety" data-er-file-safety>
+      {% if _p.allergies %}
+      <div class="vs-box vs-red" data-er-allergy><i class="bi bi-exclamation-octagon-fill"></i>
+        <b>{{ t('patients.allergies') }}:</b> <span dir="auto">{{ _p.allergies }}</span></div>
+      {% endif %}
+      {% if _p.chronic_diseases %}
+      <div class="vs-box vs-amber" data-er-chronic><i class="bi bi-heart-pulse-fill"></i>
+        <b>{{ t('patients.chronic_diseases') }}:</b> <span dir="auto">{{ _p.chronic_diseases }}</span></div>
+      {% endif %}
+      {# Sent down from a clinic visit in this hospital: who sent them and why. #}
+      {% if row.from_visit %}
+      <div class="ph2-line" data-from-clinic><i class="bi bi-hospital"></i> <b>{{ t('emergency.from_clinic') }}</b>
+        {% if row.from_visit.doctor %} — {{ row.from_visit.doctor.display_name(current_lang) }}{% endif %}
+        · {% if current_user.can_access('visits') %}<a href="{{ url_for('visits.record', visit_id=row.from_visit_id) }}">{{ t('emergency.from_clinic_visit') }}</a>{% else %}{{ t('emergency.from_clinic_visit') }}{% endif %}
+        {% if row.sent_reason %} · <span dir="auto">{{ row.sent_reason }}</span>{% endif %}</div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="ph2-actions" data-er-actions>
+    {% if row.is_open and not row.seen_at %}
+    <form method="post" action="{{ url_for('emergency.seen', attendance_id=row.id) }}" style="margin:0;" data-seen-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-primary gc-press" type="submit" style="width:100%;"><i class="bi bi-person-check"></i> {{ t('er_seen.press') }}</button>
+    </form>
+    {% endif %}
+    {# The assessment and the diagnosis the gaps below ask for are written on
+       the attendance's own encounter — this is its door (ط-٢). #}
+    {% if current_user.can_access('visits') %}
+    <form method="post" action="{{ url_for('emergency.write_visit', attendance_id=row.id) }}" style="margin:0;" data-write-visit>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn {{ 'btn-outline' if (row.is_open and not row.seen_at) else 'btn-primary' }} gc-press" type="submit" style="width:100%;"><i class="bi bi-clipboard2-pulse"></i> {{ t('er_orders.write_visit') }}</button>
+    </form>
+    {% endif %}
+    <details class="ph2-more no-print" data-file-more>
+      <summary><span><i class="bi bi-three-dots-vertical"></i> {{ t('patients.more_actions') }}</span><i class="bi bi-chevron-down"></i></summary>
+      <div class="ph2-menu">
+        {# The paper the family takes home (ط-٦). #}
+        <a data-to-family-paper href="{{ url_for('emergency.family_paper', attendance_id=row.id) }}"><i class="bi bi-file-earmark-text"></i> {{ t('er_paper.door') }}</a>
+        <a data-to-wristband href="{{ url_for('patients.wristband', patient_id=row.patient_id) }}"><i class="bi bi-upc"></i> {{ t('wristband.print') }}</a>
+        <a href="{{ url_for('patients.view', patient_id=row.patient_id) }}"><i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
+        <a href="{{ url_for('emergency.register') }}"><i class="bi bi-list-ul"></i> {{ t('emergency.register_title') }}</a>
+      </div>
+    </details>
   </div>
 </div>
-{# Sent down from a clinic visit in this hospital: who sent them and why. #}
-{% if row.from_visit %}
-<div class="card gc-scale-in" style="margin-bottom:12px;border-inline-start:4px solid var(--danger);" data-from-clinic>
-  <b><i class="bi bi-hospital"></i> {{ t('emergency.from_clinic') }}</b>
-  {% if row.from_visit.doctor %} — {{ row.from_visit.doctor.display_name(current_lang) }}{% endif %}
-  · {% if current_user.can_access('visits') %}<a href="{{ url_for('visits.record', visit_id=row.from_visit_id) }}">{{ t('emergency.from_clinic_visit') }}</a>{% else %}{{ t('emergency.from_clinic_visit') }}{% endif %}
-  {% if row.sent_reason %}<div dir="auto" style="margin-top:4px;">{{ row.sent_reason }}</div>{% endif %}
-</div>
-{% endif %}
 
 {# **Whose move it is.** Read off what was written and done — nobody types
    it — with a countdown while a timed treatment runs. #}
