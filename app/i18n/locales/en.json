@@ -985,7 +985,8 @@
     "er_treatment_why": "Reason (optional)",
     "er_treatment_pick": "Choose what should be given in emergency.",
     "er_treatment_ok": "The child was sent to emergency for «{what}», with the order written there in your name.",
-    "er_treatment_no_order": "The child was sent, but the order needs a doctor — the doctor in emergency will write it."
+    "er_treatment_no_order": "The child was sent, but the order needs a doctor — the doctor in emergency will write it.",
+    "kg_unit": "kg"
   },
   "diagnosis_types": {
     "working": "Working",

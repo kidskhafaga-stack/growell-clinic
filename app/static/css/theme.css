@@ -820,6 +820,27 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 .ph2-menu > form > button.ph2-danger:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .ph2-menu .ph2-admit { display: grid; gap: 6px; padding: 6px 8px; }
 @media (max-width: 760px) { .ph2-actions { width: 100%; } }
+/* The program's own mark, faint, in the empty corner under the buttons — never
+   behind a word: at the owner's first try (centred, 20%) it showed through the
+   allergy and the fever boxes, which are the two things on the screen that
+   must read first. Clipped by the card's own edge, so it reads as part of it. */
+.ph2-waves .ph2-logo { position: absolute; inset-inline-end: -46px; bottom: -70px;
+  width: 300px; height: auto; opacity: 0.12; transform: rotate(-10deg); }
+:root[data-theme="dark"] .ph2-waves .ph2-logo { opacity: 0.10; }
+/* The visit's safety strip, inside the header: the allergy alone and red on
+   top, then the long illnesses and this visit's vital-sign reading side by
+   side, then the problem list. */
+.ph2-safety { display: grid; gap: 8px; }
+.vs-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.vs-row > .vs-box { flex: 1; min-width: 220px; }
+.vs-box { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px;
+  border-radius: 12px; font-size: 0.9rem; font-weight: 600; }
+.vs-box b { font-weight: 800; }
+.vs-note { font-weight: 500; opacity: 0.85; font-size: 0.82rem; }
+.ph2 .vs-red { background: #fdecee; border: 1px solid #f5c2c7; color: #842029; }
+.ph2 .vs-amber { background: #fff8e6; border: 1px solid #f3d79a; color: #7a4a00; }
+:root[data-theme="dark"] .ph2 .vs-red { background: #3a1519; border-color: #6b2a31; color: #f5a8b0; }
+:root[data-theme="dark"] .ph2 .vs-amber { background: #33280f; border-color: #5c4519; color: #f3c66b; }
 /* The dark theme paints every link a light green (`:root[data-theme=dark] a`),
    which is right for a link in a sentence and wrong for a button or a menu
    item: «تعديل البيانات» came out pale on its own blue. Said here with the
