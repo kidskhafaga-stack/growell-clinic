@@ -35,7 +35,7 @@ from app.extensions import db
 from app.models import Appointment, MessageLog, SKIP_REASONS
 
 # Types whose message stops making sense once its appointment has passed.
-TIME_BOUND = ("appointment_reminder", "appointment_confirm")
+TIME_BOUND = ("appointment_reminder", "appointment_confirm", "queue_near")
 
 # How far back a retry is offered. Older than this, a failed message is
 # history: nobody wants yesterday's month of reminders going out at once.

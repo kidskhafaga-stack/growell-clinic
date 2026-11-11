@@ -3379,6 +3379,7 @@
     "occ_appointment_confirm": "Appointment confirm",
     "occ_appointment_reminder": "Appointment reminder",
     "occ_no_show_followup": "Missed-appointment follow-up",
+    "occ_queue_near": "Your turn is near",
     "occ_patient_recall": "Lapsed-patient recall",
     "occ_complaint_received": "Complaint received",
     "occ_complaint_answered": "Complaint answered",
@@ -17236,5 +17237,30 @@
     "err_number": "A number does not make sense.",
     "err_dose": "Write the dose per kilo.",
     "err_range": "«Up to» must be above the dose."
+  },
+  "queue": {
+    "title": "Queue",
+    "sub": "Each doctor's line today: who is in and who is next. «Next» calls the first child who has arrived and not gone in, and the number shows on the reception screen.",
+    "all_doctors": "All doctors",
+    "open_screen": "Open the reception screen",
+    "empty": "No bookings today.",
+    "now": "Now",
+    "next": "Next",
+    "nobody_arrived": "Nobody has arrived yet",
+    "left": "{n} left",
+    "not_arrived": "{n} not arrived yet",
+    "call_next": "Next",
+    "called": "Number {n} called.",
+    "nobody_waiting": "Nobody has arrived and is waiting.",
+    "settings": "Queue settings",
+    "mode_hint": "«By number» shows the queue number sent to the family in the booking confirmation; «by time» shows the booked time. This is the same «consultation order» setting that used to be inside the WhatsApp settings.",
+    "notify": "Send the family «your turn is near» on WhatsApp",
+    "ahead": "When this many or fewer are before them",
+    "notify_hint": "One message per booking once that many or fewer are still before them, so they can wait outside or leave home in time. The daily message cap, the sending hours and families who opted out are all respected.",
+    "notify_manual": "WhatsApp is set to manual here, so the message will wait in the sending list until someone presses it — set sending to automatic for it to go by itself.",
+    "saved": "Queue settings saved.",
+    "screen_title": "Queue",
+    "door": "Queue",
+    "lives_there": "this setting is also on the queue screen now, beside the reception screen and «your turn is near»."
   }
 }

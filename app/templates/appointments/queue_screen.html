@@ -1,0 +1,86 @@
+<!doctype html>
+{# The screen in the waiting room (utils/queue_turns). Its own page, no menu:
+   it hangs on a wall. Numbers, doctors and عيادات only — no names, because a
+   waiting room is public. Reloads itself every few seconds, and chimes when a
+   doctor calls a new number. #}
+<html lang="{{ current_lang }}" dir="{{ direction }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="8">
+<title>{{ t('queue.screen_title') }}</title>
+<style>
+  :root { --bg:#0f2027; --card:#16323d; --line:#24505f; --ink:#f4f8f9; --muted:#9fc1cb; --now:#ffd166; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font-family:"Cairo","Segoe UI",Tahoma,sans-serif; min-height:100vh; padding:24px; }
+  header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:20px; }
+  header h1 { margin:0; font-size:2rem; font-weight:800; }
+  header .clock { font-size:1.6rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:20px; }
+  .doc { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px 24px; }
+  .doc h2 { margin:0; font-size:1.6rem; }
+  .room { color:var(--muted); font-size:1.2rem; }
+  .now-label { margin-top:14px; color:var(--muted); font-size:1.2rem; }
+  .now { font-size:6.5rem; font-weight:900; line-height:1; color:var(--now);
+         font-variant-numeric:tabular-nums; }
+  .now.fresh { animation:pulse 1.2s ease-in-out 3; }
+  @keyframes pulse { 50% { transform:scale(1.08); } }
+  @media (prefers-reduced-motion: reduce) { .now.fresh { animation:none; } }
+  .next { margin-top:12px; font-size:1.5rem; color:var(--muted); }
+  .next b { color:var(--ink); font-variant-numeric:tabular-nums; margin-inline-end:10px; }
+  .empty { color:var(--muted); font-size:1.4rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>{{ t('queue.screen_title') }}</h1>
+  <span class="clock" id="clock" dir="ltr"></span>
+</header>
+{% if not rows %}<p class="empty" data-queue-screen-empty>{{ t('queue.empty') }}</p>{% endif %}
+<div class="grid">
+  {% for r in rows %}
+  <section class="doc" data-screen-doctor="{{ r.doctor.id }}">
+    <h2>{{ r.doctor.display_name(current_lang) }}</h2>
+    {% if r.room %}<div class="room">{{ r.room.display_name(current_lang) }}</div>{% endif %}
+    <div class="now-label">{{ t('queue.now') }}</div>
+    <div class="now" dir="ltr" data-now="{{ r.doctor.id }}:{{ r.now[0] if r.now else '' }}">{{ r.now[0] if r.now else '—' }}</div>
+    <div class="next">{{ t('queue.next') }}:
+      {% if r.next %}{% for lbl, a in r.next[:4] %}<b dir="ltr">{{ lbl }}</b>{% endfor %}
+      {% else %}—{% endif %}</div>
+  </section>
+  {% endfor %}
+</div>
+<script>
+(function () {
+  var c = document.getElementById("clock");
+  function tick() { var d = new Date(); c.textContent = d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}); }
+  tick(); setInterval(tick, 10000);
+  // A new number called since the last reload: chime once and pulse it.
+  var seen = {};
+  try { seen = JSON.parse(sessionStorage.getItem("queue-now") || "{}"); } catch (e) { seen = {}; }
+  var now = {}, changed = false;
+  document.querySelectorAll("[data-now]").forEach(function (el) {
+    var parts = el.getAttribute("data-now").split(":");
+    now[parts[0]] = parts[1];
+    if (parts[1] && seen[parts[0]] !== undefined && seen[parts[0]] !== parts[1]) {
+      el.classList.add("fresh"); changed = true;
+    }
+  });
+  try { sessionStorage.setItem("queue-now", JSON.stringify(now)); } catch (e) {}
+  if (changed) {
+    try {
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.35].forEach(function (at, i) {
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.frequency.value = i ? 660 : 880; o.connect(g); g.connect(ctx.destination);
+        g.gain.setValueAtTime(0.25, ctx.currentTime + at);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + at + 0.3);
+        o.start(ctx.currentTime + at); o.stop(ctx.currentTime + at + 0.32);
+      });
+    } catch (e) {}
+  }
+})();
+</script>
+</body>
+</html>

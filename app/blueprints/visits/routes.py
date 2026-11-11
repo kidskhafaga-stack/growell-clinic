@@ -222,6 +222,10 @@ def _stamp_consultation_start(visit):
     if not appt.can_transition_to("in_progress"):
         return
     appt.apply_status("in_progress")
+    # Opening the visit is calling them in: the families behind move up.
+    from app.utils import queue_turns
+    queue_turns.after_change(appt, user_id=current_user.id,
+                             lang=getattr(g, "lang", "ar"))
     db.session.commit()
 
 

@@ -26,6 +26,11 @@ chose to run it.
 
 # (table, column, column DDL type) introduced by later phases.
 ADDITIONS = [
+    # The reception screen and «قرّب دورك» (utils/queue_turns): when a family
+    # was called in, and whether the near-turn message went. Empty on every
+    # existing booking, which is true — nobody was called through this yet.
+    ("appointments", "called_at", "DATETIME"),
+    ("appointments", "near_sent_at", "DATETIME"),
     # مراقبة التقييد: قراءة عادية متعلّمة بالحدث. عيادة شغّالة بتاخد العمود
     # فاضي على كل صف موجود، وده الصح — مفيش قراية قديمة كانت أثناء تقييد.
     ("observations", "restraint_id", "INTEGER"),

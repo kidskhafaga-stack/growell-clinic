@@ -1,0 +1,70 @@
+{% extends "shell.html" %}
+{% set active_module = 'appointments' %}
+{% block title %}{{ t('queue.title') }}{% endblock %}
+{% block page_heading %}{{ t('queue.title') }}{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  <p class="hint" style="margin:0;max-width:640px;">{{ t('queue.sub') }}</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    {% if doctor_id %}
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.queue', all=1) }}" data-queue-all>
+      <i class="bi bi-people"></i> {{ t('queue.all_doctors') }}</a>
+    {% endif %}
+    <a class="btn btn-primary btn-sm gc-press" href="{{ url_for('appointments.queue_screen') }}" target="_blank" rel="noopener" data-queue-screen-door>
+      <i class="bi bi-tv"></i> {{ t('queue.open_screen') }}</a>
+  </div>
+</div>
+
+{% if not rows %}
+<div class="card"><p class="hint" style="margin:0;" data-queue-empty>{{ t('queue.empty') }}</p></div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;">
+  {% for r in rows %}
+  <div class="card gc-scale-in" data-queue-doctor="{{ r.doctor.id }}">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;">
+      <h2 class="section-title" style="margin:0;">{{ r.doctor.display_name(current_lang) }}</h2>
+      {% if r.room %}<span class="badge badge--muted">{{ r.room.display_name(current_lang) }}</span>{% endif %}
+    </div>
+    <div style="display:flex;align-items:baseline;gap:10px;margin:12px 0 6px;">
+      <span class="hint" style="margin:0;">{{ t('queue.now') }}</span>
+      <span style="font-size:2.4rem;font-weight:800;font-variant-numeric:tabular-nums;" dir="ltr" data-queue-now>
+        {{ r.now[0] if r.now else '—' }}</span>
+    </div>
+    <div class="hint" style="margin:0 0 10px;" data-queue-next>
+      {{ t('queue.next') }}:
+      {% if r.next %}{% for lbl, a in r.next[:6] %}<b dir="ltr">{{ lbl }}</b>{% if not loop.last %} · {% endif %}{% endfor %}
+      {% else %}{{ t('queue.nobody_arrived') }}{% endif %}
+    </div>
+    <div class="hint" style="margin:0 0 12px;">{{ t('queue.left', n=r.left) }} · {{ t('queue.not_arrived', n=r.not_arrived) }}</div>
+    <form method="post" action="{{ url_for('appointments.queue_next', doctor_id=r.doctor.id) }}" style="margin:0;" data-queue-call>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-primary gc-press" type="submit" {% if not r.next %}disabled{% endif %}>
+        <i class="bi bi-megaphone"></i> {{ t('queue.call_next') }}</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+
+{% if current_user.is_admin %}
+<details class="card" style="margin-top:18px;" data-queue-settings>
+  <summary style="cursor:pointer;font-weight:600;"><i class="bi bi-gear"></i> {{ t('queue.settings') }}</summary>
+  <form method="post" action="{{ url_for('appointments.queue_settings') }}" style="margin-top:12px;display:grid;gap:12px;max-width:560px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;"><label for="q_mode">{{ t('settings.queue_mode') }}</label>
+      <select class="select" id="q_mode" name="queue_mode">
+        <option value="number" {{ 'selected' if how == 'number' else '' }}>{{ t('settings.queue_number') }}</option>
+        <option value="time" {{ 'selected' if how == 'time' else '' }}>{{ t('settings.queue_time') }}</option>
+      </select>
+      <div class="hint">{{ t('queue.mode_hint') }}</div></div>
+    <label style="display:flex;gap:8px;align-items:center;">
+      <input type="checkbox" name="notify" value="1" {{ 'checked' if notify else '' }}> {{ t('queue.notify') }}</label>
+    <div class="form-row" style="margin:0;"><label for="q_ahead">{{ t('queue.ahead') }}</label>
+      <input class="input num" id="q_ahead" name="ahead" type="number" min="0" max="10" value="{{ ahead }}" style="max-width:90px;" dir="ltr">
+      <div class="hint">{{ t('queue.notify_hint') }}{% if not wa_auto %} {{ t('queue.notify_manual') }}{% endif %}</div></div>
+    <div><button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form>
+</details>
+{% endif %}
+{% endblock %}

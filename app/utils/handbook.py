@@ -188,6 +188,23 @@ SECTIONS = [
         "icon": "calendar-week",
         "title": ("المواعيد والدور", "Appointments & the queue"),
         "lines": [
+            ("<b>الطابور وشاشة الاستقبال</b> (المواعيد ← «الطابور»): لكل دكتور "
+             "النهارده مين جوه ومين اللي بعده، وزرار «اللي بعده» بينادي أول طفل "
+             "وصل ولسه ما دخلش. «افتح شاشة الاستقبال» بتفتح صفحة للتلفزيون فيها "
+             "الأرقام بس من غير أسامي، بتتحدّث لوحدها وبترن لما رقم جديد يتنادى. "
+             "والدكتور لما يفتح الكشف بيتحسب إنه نادى الطفل. ومن إعدادات الطابور "
+             "(للمدير): «ترتيب الكشف» بالدور أو بالتوقيت، و«قرّب دورك» — رسالة "
+             "واتساب واحدة للأهل لما يفضل قبلهم عدد تختاره، مقفولة لحد ما تفتحها.",
+             "<b>The queue and the reception screen</b> (Appointments → «Queue»): "
+             "for each doctor today, who is in and who is next, and «Next» calls "
+             "the first child who has arrived and not gone in. «Open the "
+             "reception screen» opens a page for a television with numbers only, "
+             "no names; it refreshes itself and chimes when a new number is "
+             "called. A doctor opening the visit counts as calling the child in. "
+             "In the queue settings (administrators): the consultation order, by "
+             "number or by time, and «your turn is near» — one WhatsApp message "
+             "to the family once a number you choose are left before them, off "
+             "until you turn it on."),
             ("<b>لوحة اليوم</b>: تنقّل بين الأيام والأطباء والعيادات، وغيّر حالة "
              "الموعد (منتظر / جاري / مكتمل / لم يحضر).",
              "<b>Day board</b>: move between days, doctors and clinics, and "
