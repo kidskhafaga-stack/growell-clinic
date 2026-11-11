@@ -446,7 +446,10 @@
     "update_now": "Update now",
     "updated": "Patient updated successfully",
     "y_short": "y",
-    "years": "years"
+    "years": "years",
+    "edit_data": "Edit details",
+    "more_actions": "More options",
+    "delete_file": "Delete the file"
   },
   "import": {
     "title": "Import patient data",
