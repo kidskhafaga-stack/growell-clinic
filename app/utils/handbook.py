@@ -1345,7 +1345,9 @@ SECTIONS = [
              "اللي عليه الدور بينوّر وجنبه «دخّله»؛ ولو مفيش، الشاشة بتقول "
              "«الطوارئ مليانة — كام في الطابور». الطفل اللي في بارتيشن لجلسة "
              "بيخلّيه مشغول في كل البرنامج (محدّش يحجز عليه)، و«خلّص — فضّى "
-             "البارتيشن» لما الجلسة تخلص والطفل لسه في القسم.",
+             "البارتيشن» لما الجلسة تخلص والطفل لسه في القسم. البارتيشن بيبان "
+             "باسمه («بارتشن 2») في الشاشة وفي قايمة «دخّله»، وعدد الأماكن مكتوب "
+             "في الإعدادات ← العيادة وجنبه «غيّر العدد».",
              "<b>Partitions and the queue number:</b> the top of the emergency "
              "screen shows the partitions built in the bed setup — who is in "
              "each (admitted or in a session) and how many are free. A child "
@@ -1356,7 +1358,9 @@ SECTIONS = [
              "full — N in the queue». A child seated for a session makes the "
              "partition taken everywhere in the program, and «Done — free the "
              "partition» frees it when the session is over and the child is "
-             "still in the department."),
+             "still in the department. A partition shows by its own name "
+             "(«Partition 2») on the screen and in the «Seat» list, and the "
+             "number of places is in Settings → Clinic with «Change the number»."),
             ("<b>«علاج بس في الطوارئ» من شاشة الكشف:</b> طبيب العيادة بيدوس "
              "بلاطة «تحويل للطوارئ» ويختار «علاج بس» واللي يتعمل (جلسة تنفس، "
              "حقنة، غيار) والتفاصيل. الطفل بيظهر هنا تحت «في القسم من غير سرير» "

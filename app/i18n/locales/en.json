@@ -16600,7 +16600,12 @@
     "unseat": "Done — free the partition",
     "seated": "The child is in {bed}.",
     "unseated": "The partition is free; the child is still in emergency.",
-    "no_place": "That partition is taken or out of service — choose another."
+    "no_place": "That partition is taken or out of service — choose another.",
+    "setting": "Emergency places for a session (partitions)",
+    "setting_count": "{n} partition(s)",
+    "setting_none": "Not set yet",
+    "setting_change": "Change the number",
+    "setting_hint": "The emergency screen counts «a place is free» and the queue numbers from this. It is changed in «Units and beds setup» → Emergency → How many partitions?"
   },
   "rca": {
     "title": "Cause analysis",

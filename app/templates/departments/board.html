@@ -107,7 +107,7 @@
   <div class="er-places__grid">
     {% for r in _pt.rows %}
     <div class="er-place er-place--{{ r.how }}" data-er-place="{{ r.bed.id }}" data-how="{{ r.how }}">
-      <b>{{ r.bed.display_name(current_lang) }}</b>
+      <b>{{ r.bed.place_name(current_lang) }}</b>
       {% if r.how == 'stay' %}<span>{{ r.who.display_name(current_lang) }}</span><span class="hint" style="margin:0;">{{ t('er_queue.how_stay') }}</span>
       {% elif r.how == 'session' %}<a href="{{ url_for('emergency.attendance', attendance_id=r.attendance.id) }}">{{ r.who.display_name(current_lang) }}</a><span class="hint" style="margin:0;" dir="ltr">{{ t('er_queue.how_session') }} · {{ r.attendance.placed_at|clinic_stamp('%H:%M') }}</span>
       {% elif r.how == 'free' %}<span class="hint" style="margin:0;">{{ t('beds.free') }}</span>
@@ -132,7 +132,7 @@
         {% if _n %}<span class="er-qno{{ ' is-turn' if _turn else '' }}" data-queue-no="{{ _n }}" title="{{ t('er_queue.number', n=_n) }}">{{ _n }}</span>{% endif %}
         <a href="{{ url_for('emergency.attendance', attendance_id=a.id) }}">{{ a.patient.display_name(current_lang) }}</a>
         {% if a.treatment_only %}<span class="badge badge--muted">{{ t('er_orders.walk_in') }}</span>{% endif %}
-        {% if a.place_bed_id and a.place_bed %}<span class="badge badge--green" data-in-place="{{ a.place_bed_id }}"><i class="bi bi-layout-split"></i> {{ a.place_bed.display_name(current_lang) }}</span>{% endif %}</div>
+        {% if a.place_bed_id and a.place_bed %}<span class="badge badge--green" data-in-place="{{ a.place_bed_id }}"><i class="bi bi-layout-split"></i> {{ a.place_bed.place_name(current_lang) }}</span>{% endif %}</div>
       <div class="hint" dir="ltr">{{ here_for(a.minutes) }} · {{ a.arrived_at|clinic_stamp }}</div>
       {% if a.level %}<div class="hint"><span class="badge {{ 'badge--danger' if a.urgent else 'badge--muted' }}">{{ a.level }}</span></div>{% endif %}
       {% if _turn %}<div class="hint er-turn" data-its-turn>{{ t('er_queue.its_turn') }}</div>
@@ -144,7 +144,7 @@
       <form method="post" action="{{ url_for('emergency.seat', attendance_id=a.id) }}" style="display:flex;gap:6px;margin:0;" data-seat-form>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <select class="input input-sm" name="bed_id" aria-label="{{ t('er_queue.places') }}" style="min-width:90px;">
-          {% for b in _pt.free %}<option value="{{ b.id }}">{{ b.display_name(current_lang) }}</option>{% endfor %}
+          {% for b in _pt.free %}<option value="{{ b.id }}">{{ b.place_name(current_lang) }}</option>{% endfor %}
         </select>
         <button class="btn btn-sm {{ 'btn-primary' if _turn else 'btn-outline' }} gc-press" type="submit"><i class="bi bi-box-arrow-in-down"></i> {{ t('er_queue.seat') }}</button>
       </form>

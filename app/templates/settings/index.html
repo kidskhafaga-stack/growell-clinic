@@ -201,6 +201,21 @@
           <option value="time" {{ 'selected' if values.get('queue_mode') == 'time' else '' }}>{{ t('settings.queue_time') }}</option>
         </select>
         <div class="hint">{{ t('queue.mode_hint') }}</div></div>
+      {# The emergency's places for a session — its partitions, built once in
+         the bed setup (utils/emergency). Said here so nobody has to know
+         that the number lives under the bed board; only where the
+         emergency module is on. #}
+      {% if er_places is defined and er_places %}
+      <div class="form-row" data-er-places-setting><label>{{ t('er_queue.setting') }}</label>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <b data-er-places-total="{{ er_places.n }}">{{ t('er_queue.setting_count', n=er_places.n) if er_places.n else t('er_queue.setting_none') }}</b>
+          {% if er_places.door %}
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('beds.setup') }}" data-er-places-door>
+            <i class="bi bi-layout-split"></i> {{ t('er_queue.setting_change') }}</a>
+          {% endif %}
+        </div>
+        <div class="hint">{{ t('er_queue.setting_hint') }}</div></div>
+      {% endif %}
       <div class="form-row"><label>{{ t('settings.timezone') }}</label>
         {% set tz = values.get('clinic_timezone') or default_tz %}
         <select class="select" name="clinic_timezone" dir="ltr">
