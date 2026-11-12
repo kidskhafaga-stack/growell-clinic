@@ -546,6 +546,20 @@ def _saved_tab():
     return tab if tab in SETTINGS_TABS else "clinic"
 
 
+
+
+def _er_places():
+    """The emergency's partitions, counted from the bed setup — ``None`` for
+    a clinic without an emergency (hospital parts follow their module)."""
+    from app.utils.facility import is_configured, module_enabled
+
+    if not (is_configured() and module_enabled("emergency")):
+        return None
+    from app.utils import emergency
+
+    # The number is built in the bed setup, a screen of the beds module.
+    return {"n": len(emergency.partitions()["rows"]), "door": module_enabled("beds")}
+
 @settings_bp.route("/", methods=["GET", "POST"])
 @admin_required
 def index():
@@ -684,6 +698,9 @@ def index():
         "settings/index.html", values=values, ai_providers=AI_PROVIDERS,
         # The full book of changes before closing: a hospital's choice.
         trail_offered=open_month_trail.offered(),
+        # How many places the emergency has for a session (its partitions),
+        # or None where there is no emergency to speak of.
+        er_places=_er_places(),
         saved_secrets=saved_secrets,
         # The file number's letters: what the clinic's name asks for, what is
         # actually in force, and every series that already exists in the

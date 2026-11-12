@@ -231,5 +231,18 @@ class Bed(db.Model):
             return self.name_en
         return self.name
 
+    def place_name(self, lang="ar"):
+        """What a person calls this place: the partition or room it stands
+        in, and the bed's own name only when there is more than one there.
+        Three ER partitions each with a «سرير 1» read as «سرير 1» three times
+        on the board — and in the list a child is seated from — when what
+        the nurse looks for is «بارتشن 2»."""
+        space = self.space
+        if space is None:
+            return self.display_name(lang)
+        if len(space.beds) > 1:
+            return f"{space.display_name(lang)} · {self.display_name(lang)}"
+        return space.display_name(lang)
+
     def __repr__(self):
         return f"<Bed {self.name} ({self.kind})>"

@@ -77,7 +77,7 @@ def seat(attendance_id):
         flash(t("er_queue.no_place"), "error")
         return redirect(url_for("emergency.index"))
     db.session.commit()
-    flash(t("er_queue.seated", bed=bed.display_name(getattr(g, "lang", "ar"))), "success")
+    flash(t("er_queue.seated", bed=bed.place_name(getattr(g, "lang", "ar"))), "success")
     return redirect(url_for("emergency.index"))
 
 
