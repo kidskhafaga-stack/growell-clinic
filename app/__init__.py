@@ -591,6 +591,8 @@ def create_app(config_name="default"):
         """Expose clinic identity/logo + product brand to all templates."""
         from flask import g, url_for
 
+        from app.utils import card_look
+
         product_default = "PediaPro"
         defaults = {
             "name": app.config.get("CLINIC_NAME", "PediaPro"),
@@ -649,6 +651,11 @@ def create_app(config_name="default"):
                     # rounded corners — the clinic's choice in Settings.
                     "avatar_shape": ("rounded" if rows.get("avatar_shape") == "rounded"
                                      else "round"),
+                    # How the child's card looks on every screen — the
+                    # clinic's choice in Settings (`utils/card_look`).
+                    "card": card_look.read(rows, logo_url=(
+                        url_for("static", filename="uploads/clinic/" + logo)
+                        if logo else None)),
                 },
             }
         except Exception:  # noqa: BLE001 - DB not ready yet (e.g. pre-init)
@@ -656,7 +663,8 @@ def create_app(config_name="default"):
                     "program": {"name": product_default, "accent": BRAND_PRIMARY,
                                 "slogan": "حلول طب الأطفال الذكية",
                                 "logo_url": None, "accent": None,
-                                "avatar_shape": "round"}}
+                                "avatar_shape": "round",
+                                "card": card_look.read({})}}
 
     @app.before_request
     def _support_door():

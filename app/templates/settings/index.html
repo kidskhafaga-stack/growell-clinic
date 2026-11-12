@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% from "_card_look.html" import mark_lines %}
 {% set active_module = 'settings' %}
 {% block title %}{{ t('nav.settings') }}{% endblock %}
 {% block page_heading %}{{ t('nav.settings') }}{% endblock %}
@@ -336,20 +337,123 @@
       <span class="hint" id="accentNote"></span>
     </div>
 
-    {# The child's picture on every screen: round, as it always was, or
-       rounded corners. One choice for the whole program. #}
+    {# The child's card (utils/card_look) — the controls of the design the
+       owner sent, with the card itself beside them changing as they move.
+       The preview is the same markup as the real headers, so what is seen
+       here is what every screen shows. #}
+    {% set _c = program.card %}
     <hr style="border:none;border-top:1px solid var(--line);margin:18px 0;">
-    <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-person-square"></i> {{ t('settings.avatar_shape') }}</h3>
-    <p class="hint" style="margin-top:-6px;">{{ t('settings.avatar_shape_hint') }}</p>
-    {% set _shape = 'rounded' if values.get('avatar_shape') == 'rounded' else 'round' %}
-    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;" data-avatar-shape-setting>
-      {% for v, r in (('round', '50%'), ('rounded', '14px')) %}
-      <label style="display:flex;gap:10px;align-items:center;cursor:pointer;">
-        <input type="radio" name="avatar_shape" value="{{ v if v == 'rounded' else '' }}" {{ 'checked' if _shape == v else '' }}>
-        <span class="patient-avatar sm gender-male" style="border-radius:{{ r }};">ك</span>
-        <span class="patient-avatar sm gender-female" style="border-radius:{{ r }};">ل</span>
-        {{ t('settings.avatar_' ~ v) }}</label>
-      {% endfor %}
+    <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-person-vcard"></i> {{ t('cardlook.title') }}</h3>
+    <p class="hint" style="margin-top:-6px;">{{ t('cardlook.hint') }}</p>
+    <div class="cardlook" data-card-look-setting
+         x-data="{ style: '{{ _c.style }}', logo: '{{ _c.logo }}', color: '{{ _c.color }}', op: {{ _c.opacity }},
+                   pos: '{{ _c.pos }}', keys: '{{ _c.shortcuts }}', shape: '{{ program.avatar_shape }}',
+                   prog: '{{ _c.program_url }}', clinic: '{{ _c.clinic_url or '' }}',
+                   get src() { return (this.logo === 'clinic' && this.clinic) ? 'clinic' : 'program' },
+                   get url() { return this.src === 'clinic' ? this.clinic : this.prog } }">
+      <div class="cardlook-controls">
+        <div class="cardlook-group"><b>{{ t('cardlook.style') }}</b>
+          <div class="cardlook-chips">
+            {% for v in ('waves', 'original', 'soft', 'brand', 'stroke', 'accent') %}
+            <label class="cardlook-chip" :class="style === '{{ v }}' && 'on'">
+              <input type="radio" name="card_style" value="{{ v }}" x-model="style">
+              <span>{{ t('cardlook.style_' ~ v) }}</span></label>
+            {% endfor %}
+          </div>
+          <div class="hint" style="margin:4px 0 0;" x-show="style === 'stroke' && src === 'clinic'" x-cloak>{{ t('cardlook.stroke_program_only') }}</div>
+        </div>
+        <div class="cardlook-group" x-show="style !== 'original'"><b>{{ t('cardlook.logo') }}</b>
+          <div class="cardlook-chips">
+            {% for v in ('program', 'clinic', 'none') %}
+            <label class="cardlook-chip" :class="logo === '{{ v }}' && 'on'">
+              <input type="radio" name="card_logo" value="{{ v }}" x-model="logo">
+              <span>{{ t('cardlook.logo_' ~ v) }}</span></label>
+            {% endfor %}
+          </div>
+          <div class="hint" style="margin:4px 0 0;" x-show="logo === 'clinic' && !clinic" x-cloak>{{ t('cardlook.no_clinic_logo') }}</div>
+        </div>
+        <div class="cardlook-group" x-show="style !== 'original' && logo !== 'none'"><b>{{ t('cardlook.color') }}</b>
+          <div class="cardlook-chips">
+            {% for v in ('brand', 'mono', 'white') %}
+            <label class="cardlook-chip" :class="color === '{{ v }}' && 'on'">
+              <input type="radio" name="card_color" value="{{ v }}" x-model="color">
+              <span>{{ t('cardlook.color_' ~ v) }}</span></label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="cardlook-group" x-show="style !== 'original' && logo !== 'none'"><b>{{ t('cardlook.opacity') }} <span dir="ltr" x-text="op + '%'">{{ _c.opacity }}%</span></b>
+          <input type="range" name="card_opacity" min="3" max="25" step="1" x-model.number="op" value="{{ _c.opacity }}" style="width:100%;">
+        </div>
+        <div class="cardlook-group" x-show="style !== 'original' && logo !== 'none'"><b>{{ t('cardlook.pos') }}</b>
+          <div class="cardlook-chips">
+            {% for v in ('corner', 'center', 'full') %}
+            <label class="cardlook-chip" :class="pos === '{{ v }}' && 'on'">
+              <input type="radio" name="card_pos" value="{{ v }}" x-model="pos">
+              <span>{{ t('cardlook.pos_' ~ v) }}</span></label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="cardlook-group"><b>{{ t('cardlook.keys') }}</b>
+          <div class="cardlook-chips">
+            {% for v in ('menu', 'all') %}
+            <label class="cardlook-chip" :class="keys === '{{ v }}' && 'on'">
+              <input type="radio" name="card_keys" value="{{ v }}" x-model="keys">
+              <span>{{ t('cardlook.keys_' ~ v) }}</span></label>
+            {% endfor %}
+          </div>
+        </div>
+        {# The child's picture: round, as it always was, or rounded corners. #}
+        <div class="cardlook-group" data-avatar-shape-setting><b>{{ t('settings.avatar_shape') }}</b>
+          <div class="cardlook-chips">
+            {% for v in ('round', 'rounded') %}
+            <label class="cardlook-chip" :class="shape === '{{ v }}' && 'on'">
+              <input type="radio" name="avatar_shape" value="{{ v if v == 'rounded' else '' }}" @change="shape = '{{ v }}'" {{ 'checked' if program.avatar_shape == v else '' }}>
+              <span>{{ t('settings.avatar_' ~ v) }}</span></label>
+            {% endfor %}
+          </div>
+          <div class="hint" style="margin:4px 0 0;">{{ t('settings.avatar_shape_hint') }}</div>
+        </div>
+      </div>
+      <div class="cardlook-stage">
+        <div class="hint" style="margin:0 0 8px;"><i class="bi bi-eye"></i> {{ t('cardlook.preview') }}</div>
+        <div class="card profile-header ph2" data-card-preview
+             :data-card-style="style" :data-card-src="src" :data-card-color="color" :data-card-pos="pos"
+             :data-card-keys="keys" :data-card-logo="logo"
+             x-effect="$el.querySelector('details.ph2-more').open = (keys === 'all')">
+          <div class="ph2-waves" aria-hidden="true">
+            <span class="ph2-mark" :style="`--mark-op:${op / 100};--mark-url:url('${url}');`">
+              <img class="ph2-mark-img" :src="url" alt="">
+              <span class="ph2-mark-mask"></span>
+              {{ mark_lines() }}
+            </span>
+            <svg class="w1" viewBox="0 0 400 400" fill="currentColor"><path d="M0,100 C150,200 350,-50 500,100 L500,0 L0,0 Z"/></svg>
+            <svg class="w2" viewBox="0 0 400 400" fill="currentColor"><path d="M0,200 C200,100 250,350 400,200 L400,400 L0,400 Z"/></svg>
+          </div>
+          <div class="patient-avatar lg gender-male" :style="shape === 'rounded' ? 'border-radius:20px' : 'border-radius:50%'">{{ t('cardlook.sample_initial') }}</div>
+          <div class="ph2-body">
+            <div class="ph2-name"><h1>{{ t('cardlook.sample_name') }}</h1><span class="badge badge--role">P11</span></div>
+            <div class="ph2-name" style="gap:6px;">
+              <span class="ph2-pill gender-male"><i class="bi bi-gender-male"></i> {{ t('genders.male') }}</span>
+              <span class="ph2-pill"><i class="bi bi-cake2"></i> {{ t('cardlook.sample_age') }}</span>
+            </div>
+            <div class="ph2-safety"><div class="vs-box vs-red"><i class="bi bi-exclamation-octagon-fill"></i>
+              <b>{{ t('patients.allergies') }}:</b> <span>{{ t('cardlook.sample_allergy') }}</span></div></div>
+          </div>
+          <div class="ph2-actions">
+            <span class="btn btn-primary"><i class="bi bi-pencil"></i> {{ t('patients.edit_data') }}</span>
+            <span class="btn btn-outline"><i class="bi bi-capsule"></i> {{ t('cardlook.sample_rx') }}</span>
+            <details class="ph2-more">
+              <summary><span><i class="bi bi-three-dots-vertical"></i> {{ t('patients.more_actions') }}</span><i class="bi bi-chevron-down"></i></summary>
+              <div class="ph2-menu">
+                <a><i class="bi bi-upc"></i> {{ t('wristband.print') }}</a>
+                <a><i class="bi bi-calendar-plus"></i> {{ t('cardlook.sample_book') }}</a>
+                <a><i class="bi bi-whatsapp"></i> {{ t('cardlook.sample_chat') }}</a>
+                <a><i class="bi bi-archive"></i> {{ t('cardlook.sample_archive') }}</a>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
     </div>
     <script>
       // Live preview a chosen logo before saving, so it's obvious the file was

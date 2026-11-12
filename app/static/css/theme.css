@@ -834,9 +834,76 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
    behind a word: at the owner's first try (centred, 20%) it showed through the
    allergy and the fever boxes, which are the two things on the screen that
    must read first. Clipped by the card's own edge, so it reads as part of it. */
-.ph2-waves .ph2-logo { position: absolute; inset-inline-end: -46px; bottom: -70px;
-  width: 300px; height: auto; opacity: 0.12; transform: rotate(-10deg); }
-:root[data-theme="dark"] .ph2-waves .ph2-logo { opacity: 0.10; }
+.ph2-mark { position: absolute; inset-inline-end: -46px; bottom: -70px; width: 300px; height: 300px;
+  opacity: var(--mark-op, 0.12); transform: rotate(-10deg); pointer-events: none; }
+:root[data-theme="dark"] .ph2-mark { opacity: calc(var(--mark-op, 0.12) * 0.85); }
+.ph2-waves .ph2-mark > * { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ph2-mark-img { object-fit: contain; }
+.ph2-mark-mask { display: none; background: #475569;
+  -webkit-mask: var(--mark-url) center / contain no-repeat; mask: var(--mark-url) center / contain no-repeat; }
+.ph2-waves .ph2-mark .ph2-mark-lines { display: none; color: #1478b4; }
+.ph2-mark-lines .g { stroke: #76bc21; }
+
+/* ---- The card's look: the clinic's choice (utils/card_look, Settings → logo).
+   Read from attributes on each header, so the settings page's preview is the
+   same markup. Defaults reproduce the card exactly as it was. ---- */
+/* Colour: brand = the logo's own colours; mono = one quiet colour; white. */
+.ph2[data-card-color="mono"] .ph2-mark-img, .ph2[data-card-color="white"] .ph2-mark-img,
+.ph2[data-card-style="soft"] .ph2-mark-img { display: none; }
+.ph2[data-card-color="mono"] .ph2-mark-mask, .ph2[data-card-color="white"] .ph2-mark-mask,
+.ph2[data-card-style="soft"] .ph2-mark-mask { display: block; }
+.ph2[data-card-style="soft"][data-card-color="brand"] .ph2-mark-mask { background: #1478b4; }
+.ph2[data-card-color="white"] .ph2-mark-mask { background: #fff; }
+:root[data-theme="dark"] .ph2[data-card-color="mono"] .ph2-mark-mask { background: #94a3b8; }
+/* The fine-line stamp: the program's mark drawn in lines. */
+.ph2[data-card-style="stroke"][data-card-src="program"] .ph2-mark-img,
+.ph2[data-card-style="stroke"][data-card-src="program"] .ph2-mark-mask { display: none; }
+.ph2[data-card-style="stroke"][data-card-src="program"] .ph2-waves .ph2-mark .ph2-mark-lines { display: block; }
+.ph2[data-card-color="mono"] .ph2-waves .ph2-mark .ph2-mark-lines { color: #475569; }
+.ph2[data-card-color="white"] .ph2-waves .ph2-mark .ph2-mark-lines { color: #fff; }
+.ph2[data-card-color="mono"] .ph2-mark-lines .g, .ph2[data-card-color="white"] .ph2-mark-lines .g { stroke: currentColor; }
+/* Where, and how big. */
+.ph2[data-card-pos="center"] .ph2-mark { inset-inline-end: auto; bottom: auto; top: 50%; left: 50%;
+  width: 280px; height: 280px; transform: translate(-50%, -50%); }
+.ph2[data-card-pos="full"] .ph2-mark { inset-inline-end: -40px; top: -40px; bottom: auto;
+  width: 520px; height: 520px; transform: none; }
+/* Without a mark, and the original card: plain, nothing in the background. */
+.ph2[data-card-logo="none"] .ph2-mark, .ph2[data-card-style="original"] .ph2-mark { display: none; }
+/* Every design but «waves» is a plain card: no wash, no waves. */
+:root .profile-header.ph2:not([data-card-style="waves"]),
+:root[data-theme="dark"] .profile-header.ph2:not([data-card-style="waves"]) { background: var(--card); }
+.ph2:not([data-card-style="waves"]) .ph2-waves > svg.w1,
+.ph2:not([data-card-style="waves"]) .ph2-waves > svg.w2 { display: none; }
+.profile-header.ph2[data-card-style="original"] { border-radius: var(--radius); }
+/* The side bar: blue to green down the starting edge. */
+.profile-header.ph2[data-card-style="accent"] { padding-inline-start: 34px; }
+.ph2[data-card-style="accent"] .ph2-waves::before { content: ""; position: absolute; inset-block: 0;
+  inset-inline-start: 0; width: 10px; background: linear-gradient(180deg, #1478b4, #10b981, #76bc21); }
+/* Shortcuts all shown: the menu's doors as a grid of small buttons beside
+   the two main ones, as the program had them first. */
+.ph2[data-card-keys="all"] .ph2-actions { width: 330px; }
+.ph2[data-card-keys="all"] .ph2-more > summary { display: none; }
+.ph2[data-card-keys="all"] .ph2-menu { position: static; min-width: 0; padding: 0; border: 0;
+  box-shadow: none; background: none; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ph2[data-card-keys="all"] .ph2-menu > a, .ph2[data-card-keys="all"] .ph2-menu > form > button {
+  border: 1px solid var(--line); background: var(--card); padding: 6px 8px; font-size: 0.78rem; }
+.ph2[data-card-keys="all"] .ph2-menu .ph2-sep { display: none; }
+.ph2[data-card-keys="all"] .ph2-menu .ph2-admit { grid-column: 1 / -1; }
+@media (max-width: 760px) { .ph2[data-card-keys="all"] .ph2-actions { width: 100%; } }
+/* The card's settings (Settings → logo): the controls beside a live card. */
+.cardlook { display: grid; grid-template-columns: minmax(260px, 360px) 1fr; gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .cardlook { grid-template-columns: 1fr; } }
+.cardlook-controls { display: grid; gap: 14px; }
+.cardlook-group { display: grid; gap: 6px; }
+.cardlook-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.cardlook-chip { display: inline-flex; align-items: center; padding: 5px 11px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface-2); font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; color: var(--ink); }
+.cardlook-chip input { position: absolute; opacity: 0; pointer-events: none; }
+.cardlook-chip.on { background: var(--accent, #1478b4); border-color: var(--accent, #1478b4); color: #fff; }
+.cardlook-chip:has(input:focus-visible) { outline: 2px solid var(--accent, #1478b4); outline-offset: 2px; }
+.cardlook-stage { min-width: 0; }
+.cardlook-stage .ph2-actions .btn { width: 100%; justify-content: center; border-radius: 12px; }
 /* The visit's safety strip, inside the header: the allergy alone and red on
    top, then the long illnesses and this visit's vital-sign reading side by
    side, then the problem list. */
