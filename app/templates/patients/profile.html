@@ -266,6 +266,12 @@
             <i class="bi bi-filetype-json"></i> {{ t('fhir.export') }}</a>
           <a data-ips-export href="{{ url_for('patients.fhir_export', patient_id=patient.id, format='ips') }}" title="{{ t('fhir.ips_hint') }}">
             <i class="bi bi-globe2"></i> {{ t('fhir.ips') }}</a>
+          {# Read by another system over the FHIR interface — only once the
+             administrator turned it on (utils/fhir_api). #}
+          {% if fhir_api_on() %}
+          <a data-fhir-share href="{{ url_for('interop.patient', patient_id=patient.id) }}">
+            <i class="bi bi-diagram-3"></i> {{ t('interop.share_door') }}</a>
+          {% endif %}
           {% endif %}
           {# The rounds, from the file — only where the clinic switched the module on. #}
           {% if module_enabled('observations') and current_user.can_access('observations') %}

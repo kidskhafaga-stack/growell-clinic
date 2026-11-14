@@ -175,12 +175,33 @@ def _codes(device):
     return {c.code.strip().lower(): c.analyte_id for c in device.codes}
 
 
+def _rows_of(device, data):
+    """``(shape, rows)`` — a result file, or a message in the device's own
+    protocol (``utils/lab_messages``), whose rows carry every specimen number
+    the message gave; the one that names exactly one order here is kept."""
+    from app.utils import lab_messages
+
+    protocol = (device.protocol or "file").strip().lower()
+    if protocol not in ("astm", "hl7"):
+        return read(device, data)
+    try:
+        rows = lab_messages.read(protocol, data)
+    except lab_messages.MessageError as exc:
+        raise ImportError_(str(exc)) from None
+    out = []
+    for n, candidates, code, value, unit, flag in rows:
+        sample = next((c for c in candidates if _order_for(c[:40]) is not None),
+                      candidates[0] if candidates else "")
+        out.append((n, sample, code, value, unit, flag))
+    return protocol, out
+
+
 def run(device, data, filename=None, user=None, now=None):
-    """Read a file and write what can be written. Returns the run. The caller
-    commits."""
+    """Read a file (or a device's message) and write what can be written.
+    Returns the run. The caller commits."""
     if device is None or not device.is_active:
         raise ImportError_("no_device")
-    shape, rows = read(device, data)
+    shape, rows = _rows_of(device, data)
     run_row = LabImportRun(device_id=device.id, filename=(filename or "")[:200] or None,
                            at=now or datetime.utcnow(), by_id=getattr(user, "id", None),
                            shape=shape)
@@ -266,6 +287,11 @@ def save_device(form, device=None):
         setattr(device, col, (form.get(col) or "").strip()[:60] or None)
     if "folder" in form:
         device.folder = (form.get("folder") or "").strip()[:400] or None
+    if "protocol" in form:
+        from app.utils.lab_messages import PROTOCOLS
+
+        protocol = (form.get("protocol") or "file").strip().lower()
+        device.protocol = protocol if protocol in PROTOCOLS else "file"
     if device.id is None:
         db.session.add(device)
     db.session.flush()
@@ -281,7 +307,7 @@ def save_device(form, device=None):
 # one, then moved to ``done`` (or ``failed``, with nothing written) beside it,
 # so a file is read once and the folder says what happened to each.
 
-FOLDER_EXT = (".csv", ".txt", ".tsv")
+FOLDER_EXT = (".csv", ".txt", ".tsv", ".astm", ".hl7", ".msg")
 SCAN_MINUTES = 2
 DONE, FAILED = "done", "failed"
 
@@ -372,3 +398,59 @@ def maybe_scan(min_gap_minutes=SCAN_MINUTES):
     except Exception:  # noqa: BLE001 — a heartbeat never breaks on a folder
         db.session.rollback()
         return None
+
+
+# ============================================ the laboratory's middleware ===
+#
+# The analyser speaks on the laboratory's network or a serial cable; the
+# program may be on a server elsewhere. So a small program on a computer in
+# the laboratory (``tools/lab_listener.py``) talks to the analyser in its own
+# protocol and posts each finished message here with the device's key, and
+# says every minute that it is running and whether the analyser answers — the
+# «devices» screen shows it.
+
+def new_key(device):
+    """Make the device's key; returned this once, kept only as its hash. The
+    caller commits."""
+    import hashlib
+    import secrets
+
+    key = "pplab_" + secrets.token_urlsafe(32)
+    device.key_hash = hashlib.sha256(key.encode("utf-8")).hexdigest()
+    device.key_hint = key[-4:]
+    return key
+
+
+def device_for(device_id, header):
+    """The active device whose key the ``Authorization`` header carries."""
+    import hashlib
+    import hmac
+
+    value = (header or "").strip()
+    if not value.lower().startswith("bearer "):
+        return None
+    digest = hashlib.sha256(value[7:].strip().encode("utf-8")).hexdigest()
+    device = db.session.get(LabDevice, device_id)
+    if (device is None or not device.is_active or not device.key_hash
+            or not hmac.compare_digest(device.key_hash, digest)):
+        return None
+    return device
+
+
+def alive(device, linked, now=None):
+    device.last_seen_at = now or datetime.utcnow()
+    device.linked = bool(linked)
+
+
+def status(device, now=None):
+    """``off`` (no middleware), ``down`` (not heard from in three minutes),
+    ``no_link`` (running, the analyser silent) or ``ok``."""
+    from datetime import timedelta
+
+    if not device.key_hash:
+        return "off"
+    now = now or datetime.utcnow()
+    if device.last_seen_at is None or now - device.last_seen_at > timedelta(minutes=3):
+        return "down"
+    return "ok" if device.linked else "no_link"
+

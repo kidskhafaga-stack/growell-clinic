@@ -36,6 +36,16 @@ class LabDevice(db.Model):
     folder = db.Column(db.String(400))
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    # What it speaks (``utils/lab_messages``): its own result file (empty or
+    # «file»), ASTM E1394, or HL7 v2 — the analyser's interface manual says.
+    protocol = db.Column(db.String(8))
+    # The middleware on the laboratory's computer posts the device's messages
+    # with this key (only its SHA-256 is kept), and says every minute that it
+    # is running and whether the analyser answers.
+    key_hash = db.Column(db.String(64), index=True)
+    key_hint = db.Column(db.String(8))
+    last_seen_at = db.Column(db.DateTime)
+    linked = db.Column(db.Boolean)
 
     codes = db.relationship("LabDeviceCode", back_populates="device",
                             cascade="all, delete-orphan", order_by="LabDeviceCode.code")
