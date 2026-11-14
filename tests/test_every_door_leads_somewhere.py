@@ -315,6 +315,10 @@ REACHED_WITHOUT_A_FORM = {
     "webhooks.tiktok_receive": "external webhook",
     # وبوابة الدفع بتبلّغ عن الدفع — البوابة بتبعتله، مش شاشة.
     "webhooks.pay_notify": "external webhook",
+    # والبرنامج الوسيط على كمبيوتر المعمل بيبعت رسايل الجهاز ونبضه —
+    # بمفتاح الجهاز، مش شاشة (tools/lab_listener.py).
+    "lab_intake.message": "the laboratory's middleware",
+    "lab_intake.alive": "the laboratory's middleware",
 }
 
 #: **مسارات كتابة يتيمة معروفة** — اتكتبت ومحدّش يقدر يوصلها.

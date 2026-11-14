@@ -243,6 +243,16 @@ DONE = [
      "A 58/80mm thermal receipt for fast collection"),
     ("قوالب القياس ونتائج الأجهزة بإدخال يدوي",
      "Measurement templates and device results, entered by hand"),
+    ("FHIR للأنظمة التانية: واجهة قراءة بس بمفتاح لكل جهة، والجهة بتقرا بس "
+     "الأطفال اللي اتشاركوا معاها من ملفهم ولحد تاريخ — مقفولة لحد ما المدير يشغّلها",
+     "FHIR for other systems: a read-only interface with a key per receiver, "
+     "reading only the children shared with it from their file, until a date "
+     "— off until the administrator turns it on"),
+    ("ربط أجهزة المعمل بـ ASTM وHL7: الجهاز بيبعت نتايجه لوحده عن طريق برنامج "
+     "وسيط على كمبيوتر المعمل، والنتيجة بتستنى الفني يراجعها",
+     "Analysers linked by ASTM and HL7: the analyser sends its results by "
+     "itself through a middleware on the laboratory's computer, and each "
+     "result waits for the technician to review it"),
 ]
 
 BUILDING = [
@@ -286,22 +296,20 @@ BUILDING = [
 # built, that test fails and this list has to be brought up to date before
 # anything else can be merged.
 NEXT = [
-    # Half of it is built: the child's record downloads as a FHIR file from
-    # the patient's page (docs/FHIR_EXPORT.md). What is left is the door —
-    # a read-only API another system can ask, which waits on knowing who.
-    ("FHIR للأنظمة التانية: واجهة قراءة فقط بمفتاح لكل جهة. ملف الطفل "
-     "بصيغة FHIR بيتنزّل من ملفه خلاص",
-     "FHIR for other systems: a read-only API with a key per receiver. The "
-     "child's record already downloads as a FHIR file from their page"),
+    # Empty, and checked to be: the last item — the FHIR interface — was
+    # built (utils/fhir_api) and moved to DONE. An item added here needs its
+    # own check in tests/test_the_list_that_kept_going_stale.py.
 ]
 
 # The section every roadmap leaves out. These are decisions, not gaps.
 DEFERRED = [
-    ("تكامل الأجهزة الفعلي (SDK/LAN) — النتائج دلوقتي بإدخال يدوي ومرفقات",
-     "Real device integration (SDK/LAN) — results are entered by hand with "
-     "attachments for now"),
-    ("HL7 / DICOM والتكامل الكتابي مع الأنظمة الخارجية",
-     "HL7 / DICOM and write integration with external systems"),
+    ("أجهزة بتكلّم بغير ASTM أو HL7 (SDK خاص بالمصنّع)، وسؤال الجهاز «العينة دي "
+     "عليها إيه؟» — كل واحد محتاج دليل واجهة الجهاز نفسه",
+     "Analysers that speak neither ASTM nor HL7 (a maker's own SDK), and the "
+     "analyser asking «what is on this sample?» — each needs that device's "
+     "own interface manual"),
+    ("DICOM والتكامل الكتابي مع الأنظمة الخارجية",
+     "DICOM and write integration with external systems"),
     ("تعدد الفروع والشركات بالكامل",
      "Full multi-branch and multi-company"),
     ("بوابة مريض وحجز أونلاين — محتاجة موقع عام واستضافة",
