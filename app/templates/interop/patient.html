@@ -1,0 +1,65 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('interop.share_title') }} — {{ patient.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ t('interop.share_title') }}{% endblock %}
+
+{% block content %}
+{# Which receivers may read this child over the FHIR interface, until when
+   (utils/fhir_api). Only the children shared here can be read at all. #}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-diagram-3"></i> {{ patient.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;max-width:720px;">{{ t('interop.share_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.view', patient_id=patient.id) }}"><i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
+</div>
+
+{% if not enabled %}
+<div class="card" style="margin-bottom:14px;" data-share-off><p class="hint" style="margin:0;"><i class="bi bi-slash-circle"></i> {{ t('interop.off_for_share') }}</p></div>
+{% elif not receivers %}
+<div class="card" style="margin-bottom:14px;" data-share-none><p class="hint" style="margin:0;">{{ t('interop.no_receivers_share') }}</p></div>
+{% else %}
+<form method="post" class="card gc-scale-in" style="margin-bottom:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;align-items:end;" data-share-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="form-row" style="margin:0;"><label for="s_r">{{ t('interop.receiver') }}</label>
+    <select class="select" id="s_r" name="receiver_id">
+      {% for r in receivers %}<option value="{{ r.id }}">{{ r.name }} — {{ t('interop.scope_' ~ r.scope) }}</option>{% endfor %}
+    </select></div>
+  <div class="form-row" style="margin:0;"><label for="s_d">{{ t('interop.days') }}</label>
+    <input class="input num" id="s_d" name="days" type="number" min="1" max="{{ max_days }}" value="{{ default_days }}" dir="ltr"></div>
+  <div class="form-row" style="margin:0;"><label for="s_reason">{{ t('interop.reason') }}</label>
+    <input class="input" id="s_reason" name="reason" maxlength="255"></div>
+  <div><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-share"></i> {{ t('interop.share') }}</button></div>
+</form>
+{% endif %}
+
+<div class="card gc-scale-in" data-shares>
+  <h2 class="section-title" style="margin-top:0;">{{ t('interop.shares') }}</h2>
+  <p class="hint" dir="ltr" style="margin:0 0 8px;">Patient/{{ patient_id_fhir }}</p>
+  {% if shares %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr><th>{{ t('interop.receiver') }}</th><th>{{ t('interop.until') }}</th><th>{{ t('interop.by') }}</th><th>{{ t('interop.reason') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for s in shares %}
+      {% set open = s.open_at(now) %}
+      <tr data-share="{{ s.id }}" data-open="{{ '1' if open else '0' }}" {% if not open %}style="opacity:.55;"{% endif %}>
+        <td>{{ s.receiver.name }}</td>
+        <td dir="ltr">{{ s.until|clinic_stamp }}</td>
+        <td>{{ s.sharer.display_name(current_lang) if s.sharer else '' }}</td>
+        <td>{{ s.reason or '' }}</td>
+        <td>{% if open %}
+          <form method="post" action="{{ url_for('interop.stop', share_id=s.id) }}" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit" data-stop><i class="bi bi-x-circle"></i> {{ t('interop.stop') }}</button>
+          </form>
+          {% elif s.revoked_at %}<span class="badge badge--muted">{{ t('interop.stopped_badge') }}</span>
+          {% else %}<span class="badge badge--muted">{{ t('interop.ended_badge') }}</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="hint" style="margin:0;">{{ t('interop.no_shares') }}</p>{% endif %}
+</div>
+{% endblock %}

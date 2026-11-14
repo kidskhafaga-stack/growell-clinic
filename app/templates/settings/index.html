@@ -709,6 +709,15 @@
   <div class="card gc-scale-in" x-show="tab==='policies'" x-cloak>
     <h2 class="section-title"><i class="bi bi-shield-lock"></i> {{ t('settings.policies_title') }}</h2>
     <p class="hint" style="margin-top:-4px;">{{ t('settings.policies_hint') }}</p>
+    {# Other systems reading shared records (utils/fhir_api) — its own screen. #}
+    <div class="form-row" data-interop-door>
+      <label>{{ t('interop.title') }}</label>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <span class="badge {{ 'badge--green' if fhir_api_on() else 'badge--muted' }}">{{ t('interop.is_on') if fhir_api_on() else t('interop.is_off') }}</span>
+        <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('interop.index') }}"><i class="bi bi-diagram-3"></i> {{ t('interop.open') }}</a>
+      </div>
+      <div class="hint">{{ t('interop.door_hint') }}</div>
+    </div>
     <div class="form-row checkbox">
       <input type="checkbox" id="doctors_see_own_only" name="doctors_see_own_only" value="1"
              {{ 'checked' if values.get('doctors_see_own_only','1') != '0' else '' }}>

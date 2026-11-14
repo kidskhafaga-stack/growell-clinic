@@ -192,6 +192,20 @@ SECTIONS = [
              "results) for a hospital meeting the child for the first time. "
              "A download only — nothing is sent — and every download is "
              "logged: who, whose record, and which shape."),
+            ("<b>الربط مع الأنظمة التانية (FHIR)</b> (الإعدادات ← السياسات): المستشفى "
+             "أو شركة التأمين تقرا ملف الطفل من نظامها — قراية بس، بمفتاح لكل جهة "
+             "بيظهر مرة واحدة. الجهة بتقرا **بس** الأطفال اللي اتشاركوا معاها من "
+             "ملفهم («شارك مع جهة (FHIR)» تحت «خيارات أخرى») ولحد تاريخ، الملخص "
+             "الدولي أو الملف كامل حسب الجهة. كل قراية بتتسجّل، والمشاركة أو الجهة "
+             "تتقفل في أي وقت. مقفولة لحد ما المدير يشغّلها.",
+             "<b>Other systems (FHIR)</b> (Settings → Policies): a hospital or an "
+             "insurer reads a child's record from its own system — read-only, with "
+             "a key per receiver shown once. A receiver reads **only** the children "
+             "shared with it from their file («Share with a receiver (FHIR)» under "
+             "«More options») until a date: the patient summary or the whole "
+             "record, as the receiver allows. Every read is recorded, and a share "
+             "or a receiver can be stopped at any time. Off until the "
+             "administrator turns it on."),
         ],
     },
     {
@@ -1765,6 +1779,20 @@ SECTIONS = [
              "minutes, reads any new file the same way, then moves it into a «done» folder beside "
              "it — or «failed» if it could not be read and nothing was written from it. A file "
              "still being written waits for the next look."),
+            ("<b>الربط المباشر بالجهاز (ASTM أو HL7):</b> في صفحة الجهاز اختار «بيتكلّم بإيه». "
+             "لو الجهاز بيكتب رسايله في فولدر، حط الفولدر وخلاص. ولو متوصّل بشبكة أو كابل، اعمل "
+             "مفتاح وشغّل البرنامج الوسيط (tools/lab_listener.py) على كمبيوتر المعمل: بيكلّم "
+             "الجهاز بلغته ويرد عليه، ويبعت كل نتيجة هنا، واللي ما وصلش بيحفظه ويبعته تاني. "
+             "الصفحة بتقول «متوصّل» أو «الجهاز مش بيرد» أو «الوسيط مش بيرد». النتيجة بتدخل زي "
+             "الملف بالظبط — مش مصدّقة، واللي ما يتعرفش بيستنى حد.",
+             "<b>The live link (ASTM or HL7):</b> on the analyser's page choose what it «speaks». "
+             "If it writes its messages into a folder, set the folder and that is all. If it is "
+             "on the network or a cable, make a key and run the middleware "
+             "(tools/lab_listener.py) on the laboratory's computer: it speaks the analyser's "
+             "protocol and answers it, posts each result here, and keeps and resends what did "
+             "not arrive. The page says «Connected», «the analyser does not answer» or «the "
+             "middleware does not answer». A result arrives exactly as from a file — not "
+             "verified, and anything unknown waits for a person."),
             ("<b>مكونات التحليل وأقسامه ومراجعه</b> (المعمل ← التحاليل): "
              "التحليل المعروف (بول، براز، صورة دم، صفراء، وظائف كبد وكلى، "
              "فيتامينات…) بيتعرض عليه مكوناته بأساميها ووحداتها من غير ولا "

@@ -440,6 +440,7 @@ from app.models.neonatal_event import NeonatalEvent
 from app.models.phototherapy import PhotoSession
 # LAB_GLAB360_PLAN م-٢ أ — the analysers and their result files.
 from app.models.lab_device import LabDevice, LabDeviceCode, LabImportLine, LabImportRun
+from app.models.interop import FhirReceiver, FhirShare
 
 __all__ = [
     "FluidEntry",
@@ -1002,4 +1003,6 @@ __all__ = [
     "LEAD_STAGES",
     "LOST_REASONS",
     "SOURCE_KINDS",
+    "FhirReceiver",
+    "FhirShare",
 ]

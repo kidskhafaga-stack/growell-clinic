@@ -3090,9 +3090,37 @@ def device(device_id):
         db.session.commit()
         flash(t("lab_device.saved"), "success")
         return redirect(url_for("labs.device", device_id=row.id))
+    return _device_page(row)
+
+
+def _device_page(row, new_key=None):
+    from app.models import LabAnalyte
+    from app.utils import lab_device_import as imp
+
     return render_template("labs/device.html", device=row,
                            analytes=LabAnalyte.query.order_by(LabAnalyte.name).all(),
-                           may_set_up=_may_set_up_devices())
+                           may_set_up=_may_set_up_devices(), new_key=new_key,
+                           link_status=imp.status(row),
+                           intake_url=url_for("lab_intake.message", device_id=row.id,
+                                              _external=True).rsplit("/message", 1)[0])
+
+
+@labs_bp.route("/devices/<int:device_id>/key", methods=["POST"])
+@module_required(MODULE)
+def device_key(device_id):
+    """Make (or replace) the key the laboratory's middleware posts with —
+    shown on the page this once, never in a flash."""
+    from app.models import ActivityLog, LabDevice
+    from app.utils import lab_device_import as imp
+
+    if not _may_set_up_devices():
+        abort(403)
+    row = db.get_or_404(LabDevice, device_id)
+    key = imp.new_key(row)
+    ActivityLog.record("lab.device_key", user_id=current_user.id, entity="lab_device",
+                       entity_id=row.id, detail=row.name[:120])
+    db.session.commit()
+    return _device_page(row, new_key=key)
 
 
 @labs_bp.route("/devices/<int:device_id>/import", methods=["POST"])

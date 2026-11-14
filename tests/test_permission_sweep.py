@@ -100,6 +100,16 @@ PUBLIC = {
     ("GET", "/book"),
     ("POST", "/book"),
     ("GET", "/book/done"),
+    # The FHIR interface (``utils/fhir_api``): another system reads a child's
+    # record with its own bearer key — no session by design. Off, every one
+    # answers 404 (which is why the sweep sees them run); on, no key is a
+    # 401, and a key reads only the children shared with that receiver.
+    # Read-only: anything but GET is refused.
+    ("GET", "/fhir/r4/metadata"),
+    ("GET", "/fhir/r4/Patient"),
+    ("GET", "/fhir/r4/Patient/<resource_id>"),
+    ("GET", "/fhir/r4/Patient/<resource_id>/$summary"),
+    ("GET", "/fhir/r4/Patient/<resource_id>/$everything"),
 }
 
 # The one place a capability stands in for a whole module: reception collects

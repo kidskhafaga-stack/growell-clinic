@@ -114,21 +114,23 @@ def test_the_ageing_that_exists_really_is_per_patient(app):
 
 
 # ---------------------------------------------------------- 3) FHIR --------
-def test_fhir_endpoints_are_still_not_built(app):
-    """The models carry the FHIR names already — ``Observation``,
-    ``Encounter``, ``Immunization`` — which is exactly what makes this easy to
-    believe is done. The endpoints are the thing, so the endpoints are what is
-    looked for.
+def test_the_fhir_interface_has_been_built_and_is_off_the_list(app):
+    """This one has flipped too, as written: it asserted no FHIR route but the
+    file's, and went red the day ``/fhir/r4`` landed (``utils/fhir_api``) —
+    the list was brought up to date before the merge.
 
-    **The file is not the door.** The child's record downloads as a FHIR
-    file from their page (``/patients/<id>/fhir``) — stage one, built and on
-    this list's own line as built. What is still to come is an API another
-    system asks, and that is what is looked for: any FHIR route but that one.
+    Kept as the mirror: the interface exists, NEXT no longer calls it to
+    come, and DONE says it is built.
     """
-    rules = [str(r) for r in app.url_map.iter_rules()]
-    fhir = [r for r in rules if "fhir" in r.lower()
-            and r != "/patients/<int:patient_id>/fhir"]
-    assert not fhir, STALE.format("FHIR for other systems") + f" ({fhir})"
+    from app.utils.project import DONE, NEXT
+
+    rules = {str(r) for r in app.url_map.iter_rules()}
+    assert "/fhir/r4/Patient/<resource_id>/$summary" in rules
+    assert "/fhir/r4/metadata" in rules
+    for arabic, english in NEXT:
+        assert "FHIR" not in arabic and "fhir" not in english.lower(), (
+            "the FHIR interface is built; NEXT still lists it")
+    assert any("FHIR" in arabic and "واجهة" in arabic for arabic, _e in DONE)
 
 
 def test_the_fhir_file_the_list_says_is_built_is_built(app):
@@ -145,7 +147,8 @@ def test_every_item_on_the_next_list_is_covered_here(app):
     """
     from app.utils.project import NEXT
 
-    assert len(NEXT) == 1, (
-        f"NEXT has {len(NEXT)} items; this file checks 1 (the FHIR API — cost "
-        "centres were built and left it). Add a check for the new one — an "
-        "unchecked item is how this list went stale twice.")
+    assert len(NEXT) == 0, (
+        f"NEXT has {len(NEXT)} items; this file checks none (cost centres, the "
+        "family statement and the FHIR interface were built and left it). Add "
+        "a check for the new one — an unchecked item is how this list went "
+        "stale twice.")

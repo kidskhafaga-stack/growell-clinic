@@ -203,6 +203,9 @@ def create_app(config_name="default"):
     from app.blueprints.quality import quality_bp
     from app.blueprints.ipc import ipc_bp
     from app.blueprints.webhooks import webhooks_bp
+    from app.blueprints.fhir_api import fhir_api_bp
+    from app.blueprints.interop import interop_bp
+    from app.blueprints.lab_intake import lab_intake_bp
     from app.blueprints.finance import finance_bp
     from app.blueprints.dentistry import dentistry_bp
     from app.blueprints.beds import beds_bp
@@ -284,6 +287,14 @@ def create_app(config_name="default"):
     # The providers post from their own servers and cannot carry a token of
     # ours; they prove themselves by signature instead (see webhook_auth).
     csrf.exempt(webhooks_bp)
+    # The FHIR interface: read-only, a bearer key per receiver
+    # (utils/fhir_api). Its screens are `interop`, behind a session.
+    app.register_blueprint(fhir_api_bp)
+    csrf.exempt(fhir_api_bp)
+    app.register_blueprint(interop_bp)
+    # The laboratory middleware's door: a key per analyser (lab_device_import).
+    app.register_blueprint(lab_intake_bp)
+    csrf.exempt(lab_intake_bp)
 
     # Template globals for navigation rendering.
     from app.models.permissions import MODULE_ICONS, MODULES
@@ -476,6 +487,15 @@ def create_app(config_name="default"):
             from app.utils import rca
             return rca.may_open(user)
         return {"rca_may_open": rca_may_open}
+
+    @app.context_processor
+    def inject_fhir_door():
+        """Whether the child's file offers «share over FHIR»: only once an
+        administrator turned the interface on (utils/fhir_api). Asked lazily."""
+        def fhir_api_on():
+            from app.utils import fhir_api
+            return fhir_api.enabled()
+        return {"fhir_api_on": fhir_api_on}
 
     @app.context_processor
     def inject_visit_types():
