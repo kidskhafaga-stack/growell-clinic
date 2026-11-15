@@ -214,7 +214,7 @@ def test_it_prints_on_a4_with_the_boxes_ticked(stay):
     html = stay["sign_in"]("chem").get(
         f"/pharmacy/interventions/{row_id}/print").get_data(as_text=True)
     assert 'data-cpi-print="PI-000001"' in html
-    assert "Clinical Pharmacy Intervention Form" in html
+    assert "استمارة تدخّل الصيدلي الإكلينيكي" in html
     assert "سلمى" in html and "٥٠ مجم/كجم" in html
     # Four ticks: the problem, its sub-kind, the urgency, the outcome.
     assert html.count("✓") == 4
