@@ -1,0 +1,86 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('cpi.report') }}{% endblock %}
+{% block page_heading %}{{ t('cpi.report') }}{% endblock %}
+
+{% block content %}
+<style>
+  .cpi-tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-bottom:14px; }
+  .cpi-tile { border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--surface,#fff); }
+  .cpi-tile b { display:block; font-size:1.6rem; font-variant-numeric:tabular-nums; }
+  .cpi-bar { height:8px; border-radius:4px; background:var(--green-600,#0e7490); }
+</style>
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-clipboard2-data"></i> {{ t('cpi.report') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('cpi.report_sub') }}</p>
+  </div>
+  <form method="get" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.from') }}</label><input class="input" type="date" name="from" value="{{ start }}" dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.to') }}</label><input class="input" type="date" name="to" value="{{ end }}" dir="ltr"></div>
+    {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('cpi.show') }}</button>
+  </form>
+</div>
+
+<div class="cpi-tiles" data-cpi-tiles>
+  <div class="cpi-tile"><span class="hint">{{ t('cpi.total') }}</span><b data-cpi-total>{{ total }}</b></div>
+  <div class="cpi-tile"><span class="hint">{{ t('cpi.s_high') }}</span><b>{{ by_severity.high }}</b></div>
+  <div class="cpi-tile"><span class="hint">{{ t('cpi.accepted_share') }}</span>
+    <b data-cpi-accepted>{{ (accepted_share|string ~ '%') if accepted_share is not none else '—' }}</b>
+    <span class="hint">{{ t('cpi.of_answered', n=answered) }}</span></div>
+  <div class="cpi-tile"><span class="hint">{{ t('cpi.r_pending') }}</span><b>{{ by_response.pending }}</b></div>
+</div>
+{% if total and total < 20 %}<p class="hint" data-cpi-few>{{ t('cpi.few') }}</p>{% endif %}
+
+<div class="form-grid" style="align-items:start;">
+  {% for title, data, prefix in ((t('cpi.problem'), by_problem, 'p_'), (t('cpi.severity'), by_severity, 's_'), (t('cpi.outcome'), by_outcome, 'o_'), (t('cpi.response'), by_response, 'r_')) %}
+  <div class="card">
+    <h2 class="section-title" style="margin-top:0;">{{ title }}</h2>
+    <table class="table">
+      {% for key, n in data.items() %}
+      <tr><td>{{ t('cpi.' ~ prefix ~ key) }}</td><td class="num" style="width:60px;">{{ n }}</td>
+        <td style="width:40%;"><div class="cpi-bar" style="width:{{ (100 * n / total)|round(0) if total else 0 }}%;"></div></td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endfor %}
+  <div class="card">
+    <h2 class="section-title" style="margin-top:0;">{{ t('cpi.by_unit') }}</h2>
+    <table class="table">
+      {% for name, n in by_unit.items() %}<tr><td>{{ name }}</td><td class="num">{{ n }}</td></tr>{% endfor %}
+    </table>
+    {% if by_detail %}
+    <h3 style="font-size:.95rem;margin:12px 0 4px;">{{ t('cpi.by_detail') }}</h3>
+    <table class="table">
+      {% for key, n in by_detail.items() %}{% set p, d = key.split('.') %}
+      <tr><td>{{ t('cpi.p_' ~ p) }} — {{ t('cpi.d_' ~ p ~ '_' ~ d) }}</td><td class="num">{{ n }}</td></tr>{% endfor %}
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card" style="margin-top:14px;">
+  <h2 class="section-title" style="margin-top:0;">{{ t('cpi.list') }}</h2>
+  {% if rows %}
+  <div class="table-wrap"><table class="table" data-cpi-list>
+    <thead><tr><th>{{ t('cpi.number') }}</th><th>{{ t('reports.date') }}</th><th>{{ t('invoices.patient') }}</th><th>{{ t('cpi.problem') }}</th><th>{{ t('cpi.severity') }}</th><th>{{ t('cpi.outcome') }}</th><th>{{ t('cpi.response') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td dir="ltr">{{ r.number }}</td>
+        <td dir="ltr">{{ r.created_at|clinic_stamp }}</td>
+        <td><a href="{{ url_for('pharmacy.chart', admission_id=r.admission_id) }}">{{ r.patient.display_name(current_lang) if r.patient else '' }}</a></td>
+        <td>{{ t('cpi.p_' ~ r.problem) }}{% if r.detail %} — {{ t('cpi.d_' ~ r.problem ~ '_' ~ r.detail) }}{% endif %}{% if r.order %} · {{ r.order.drug_name }}{% endif %}</td>
+        <td>{{ t('cpi.s_' ~ r.severity) }}</td>
+        <td>{{ t('cpi.o_' ~ r.outcome) }}</td>
+        <td>{{ t('cpi.r_' ~ r.response) }}</td>
+        <td><a class="btn btn-outline btn-sm" target="_blank" href="{{ url_for('pharmacy.intervention_print', row_id=r.id) }}"><i class="bi bi-printer"></i></a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="hint">{{ t('cpi.none') }}</p>{% endif %}
+</div>
+<p class="hint" style="margin-top:10px;">{{ t('cpi.report_note') }}</p>
+{% endblock %}

@@ -276,6 +276,7 @@ from app.models.invoice import (
     RefundRequest,
 )
 from app.models.service_change import ServiceChange
+from app.models.pharmacy_intervention import PharmacyIntervention
 from app.models.form_key import FormKey
 from app.models.payer import (
     CLAIM_STATUSES,
@@ -896,6 +897,7 @@ __all__ = [
     "IMPORT_MODES",
     "RefundRequest",
     "ServiceChange",
+    "PharmacyIntervention",
     "Account",
     "JournalEntry",
     "JournalLine",
