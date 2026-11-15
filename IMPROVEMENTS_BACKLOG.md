@@ -157,7 +157,7 @@ Vaccine.scope_max_age_days            = الجدول ده مبيوصفش أكب�
 | «انتهت مدته» | — | السداسي، الخماسي، Pentaxim، DT، MMRV، الروتا، A |
 | «خارج نطاق الجدول» | — | MMR، MENACWY |
 
-**✅ اتعمل (PR الجاي) — محرك سلسلة شلل الأطفال (OPV+IPV كوحدة واحدة)**
+**✅ اتعمل (PR #561) — محرك سلسلة شلل الأطفال (OPV+IPV كوحدة واحدة)**
 (`utils/polio_series.py`، `tests/test_polio_as_one_series.py`). المصدر: «Polio vaccines:
 WHO position paper – June 2022» (WER 97(25):277–300)، اتقرت من مستودع منظمة الصحة نفسه
 (`iris.who.int/handle/10665/357168`) يوم ١٥ نوفمبر ٢٠٢٦، وكل رقم في الكود جنبه الجملة اللي
