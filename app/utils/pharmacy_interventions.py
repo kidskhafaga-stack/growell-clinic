@@ -10,7 +10,7 @@ things and no clinical rule:
 * :func:`summary` — the month in numbers: by problem, by urgency, by expected
   outcome, by department, and how many the doctors accepted.
 """
-from datetime import datetime, time
+from datetime import datetime
 
 from app.extensions import db
 from app.models.pharmacy_intervention import (NO_ORDER, OUTCOMES, PROBLEMS,
@@ -134,11 +134,15 @@ def summary(start, end, kind=None):
     pending interventions are not rejections, and counting them so would
     make the newest pharmacist look the least listened to.
     """
+    from app.utils.live import day_bounds
+
+    # The clinic's days, as the UTC the rows are stored in — an intervention
+    # written at half past midnight belongs to the day the pharmacist was on.
+    lo, _ = day_bounds(start)
+    _, hi = day_bounds(end)
     rows = (PharmacyIntervention.query
-            .filter(PharmacyIntervention.created_at
-                    >= datetime.combine(start, time.min),
-                    PharmacyIntervention.created_at
-                    <= datetime.combine(end, time.max))
+            .filter(PharmacyIntervention.created_at >= lo,
+                    PharmacyIntervention.created_at <= hi)
             .order_by(PharmacyIntervention.created_at.desc()).all())
     if kind:
         rows = [r for r in rows if unit_of(r.admission)[0] == kind]
