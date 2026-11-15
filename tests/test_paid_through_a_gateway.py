@@ -48,6 +48,8 @@ def stand_in(monkeypatch):
         label_ar = "بوابة تجريبية"
         label_en = "Stand-in gateway"
         fields = (("merchant", False), ("secret", True))
+        # A stand-in, not a gateway: there is no test account to wait for.
+        sandbox_checked = "stand-in"
         refuse = None
 
         def checkout(self, payment, return_url, notify_url):
