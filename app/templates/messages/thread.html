@@ -364,9 +364,66 @@
   </div>
   {% endif %}
 
+  {# What the family asked, and what the person on this conversation can do
+     about it — with their own permissions, never open ones (HOSPITAL_PLAN.md
+     ٦, `utils/desk_actions`). It prepares; the person presses and sends. #}
+  {% if desk and (desk.bookings is not none or desk.tests is not none or desk.balance is not none) %}
+  {% set asked = desk.asked|map('first')|list %}
+  <div class="card gc-scale-in" style="margin-top:12px;" data-desk-actions>
+    <h3 style="margin:0 0 8px;font-size:1rem;"><i class="bi bi-lightning-charge"></i> {{ t('desk_act.title') }}</h3>
+    {% if desk.asked %}
+    <p style="margin:0 0 10px;" data-desk-asked="{{ asked|join(',') }}">{{ t('desk_act.seems') }}
+      {% for intent, word in desk.asked %}<span class="badge badge--warn" title="«{{ word }}»">{{ t('desk_act.i_' ~ intent) }}</span> {% endfor %}
+      <span class="hint">— {{ t('desk_act.seems_hint') }}</span></p>
+    {% endif %}
+
+    {% if desk.bookings is not none %}
+    <div style="margin-bottom:10px;{{ 'border-inline-start:3px solid #d97706;padding-inline-start:8px;' if 'cancel' in asked or 'reschedule' in asked else '' }}" data-desk-bookings>
+      <b>{{ t('desk_act.bookings') }}</b>
+      {% for a in desk.bookings %}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px;" data-desk-booking="{{ a.id }}">
+        <span>{{ desk.names.get(a.patient_id, '') }} · <span dir="ltr">{{ a.appt_date }} {{ a.time_label }}</span>{% if a.doctor %} · {{ a.doctor.display_name(current_lang) }}{% endif %}</span>
+        <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.index', date=a.appt_date.isoformat(), doctor_id=a.doctor_id) }}"><i class="bi bi-calendar2-week"></i> {{ t('desk_act.move') }}</a>
+        <form method="post" action="{{ url_for('messages.inbox_cancel', key=key, appt_id=a.id) }}" style="display:flex;gap:6px;align-items:center;"
+              onsubmit="return confirm({{ t('desk_act.cancel_confirm')|tojson|forceescape }});">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="input" name="reason" maxlength="200" placeholder="{{ t('desk_act.reason_default') }}" style="max-width:220px;">
+          <button class="btn btn-outline btn-sm gc-press" type="submit" data-desk-cancel style="color:#b91c1c;border-color:#b91c1c;"><i class="bi bi-x-circle"></i> {{ t('desk_act.cancel') }}</button>
+        </form>
+      </div>
+      {% else %}<p class="hint" style="margin:4px 0 0;">{{ t('desk_act.no_bookings') }}</p>{% endfor %}
+      {% if desk.drafts.booking %}<button type="button" class="btn btn-outline btn-sm gc-press" style="margin-top:6px;" x-data
+          @click="$dispatch('fill-reply', {text: {{ desk.drafts.booking|tojson|forceescape }}})"><i class="bi bi-pencil"></i> {{ t('desk_act.put_in_reply') }}</button>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if desk.tests is not none %}
+    <div style="margin-bottom:10px;{{ 'border-inline-start:3px solid #d97706;padding-inline-start:8px;' if 'result' in asked else '' }}" data-desk-tests>
+      <b>{{ t('desk_act.tests') }}</b> <span class="hint">{{ t('desk_act.tests_hint') }}</span>
+      {% for o, state in desk.tests %}
+      <div style="margin-top:4px;" data-desk-test="{{ state }}">{{ o.display_name(current_lang) }} — <span class="badge {{ 'badge--green' if state == 'ready' else 'badge--muted' }}">{{ t('desk_act.s_' ~ state) }}</span></div>
+      {% else %}<p class="hint" style="margin:4px 0 0;">{{ t('desk_act.no_tests') }}</p>{% endfor %}
+      {% if desk.drafts.result %}<button type="button" class="btn btn-outline btn-sm gc-press" style="margin-top:6px;" x-data
+          @click="$dispatch('fill-reply', {text: {{ desk.drafts.result|tojson|forceescape }}})"><i class="bi bi-pencil"></i> {{ t('desk_act.put_in_reply') }}</button>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if desk.balance is not none %}
+    <div style="{{ 'border-inline-start:3px solid #d97706;padding-inline-start:8px;' if 'balance' in asked else '' }}" data-desk-balance="{{ desk.balance.total }}">
+      <b>{{ t('desk_act.balance') }}</b> {{ desk.balance.total|money }}
+      {% if desk.balance.invoices %}<span class="hint">· {{ t('desk_act.n_bills', n=desk.balance.invoices|length) }}</span>{% endif %}
+      <button type="button" class="btn btn-outline btn-sm gc-press" x-data
+          @click="$dispatch('fill-reply', {text: {{ desk.drafts.balance|tojson|forceescape }}})"><i class="bi bi-pencil"></i> {{ t('desk_act.put_in_reply') }}</button>
+      {% if patient %}<a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.patient_account', patient_id=patient.id) }}"><i class="bi bi-wallet2"></i> {{ t('desk_act.account') }}</a>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <!-- Reply: canned answers, an AI draft, and the words the user sends -->
   <div class="card gc-scale-in" style="margin-top:12px;"
-       x-data="replyBox({{ canned|tojson|forceescape }})">
+       x-data="replyBox({{ canned|tojson|forceescape }}, {{ (fill|default(''))|tojson|forceescape }})"
+       @fill-reply.window="use($event.detail.text)">
     {% if canned %}
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
       <template x-for="(q, i) in canned" :key="i">
@@ -444,9 +501,9 @@
     };
   }
 
-  function replyBox(canned) {
+  function replyBox(canned, fill) {
     return {
-      canned: canned, text: '', busy: false, drafted: false, error: '', warn: '',
+      canned: canned, text: fill || '', busy: false, drafted: false, error: '', warn: '',
       use(body) { this.text = body; this.drafted = false; this.error = '';
                   this.warn = ''; this.$refs.box.focus(); },
       // The draft lands in the box. Nothing is sent until the user presses
