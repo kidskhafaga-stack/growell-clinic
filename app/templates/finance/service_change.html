@@ -1,0 +1,118 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('svcfix.change_service') }} — {{ invoice.invoice_number }}{% endblock %}
+{% block page_heading %}{{ t('svcfix.change_service') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('svcfix.change_service') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('svcfix.wizard_sub') }}
+      · {{ t('invoices.number') }} <strong dir="ltr">{{ invoice.invoice_number }}</strong>
+      · {{ invoice.patient.display_name(current_lang) if invoice.patient else '' }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.invoice_view', invoice_id=invoice.id) }}">
+    <i class="bi bi-receipt"></i> {{ t('invoices.invoice') }}</a>
+</div>
+
+{# ① Which line, and what the visit really was. A plain GET form: choosing
+   is asking, and asking changes nothing. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-step="1">
+  <h2 class="section-title" style="margin-top:0;"><span class="badge badge--role">1</span> {{ t('svcfix.step_pick') }}</h2>
+  <form method="get" action="{{ url_for('finance.service_change_wizard', invoice_id=invoice.id) }}" class="form-grid" style="align-items:end;">
+    {% if appt %}<input type="hidden" name="appt" value="{{ appt }}">{% endif %}
+    <div class="form-row"><label>{{ t('svcfix.the_line') }}</label>
+      <select class="input" name="item_id" required data-svcfix-line>
+        {% for it in lines %}
+        <option value="{{ it.id }}" {{ 'selected' if item and it.id == item.id else '' }}>{{ it.description }} — {{ it.net|money }}</option>
+        {% endfor %}
+      </select></div>
+    <div class="form-row"><label>{{ t('svcfix.pick_service') }}</label>
+      <input class="input" type="search" placeholder="{{ t('svcfix.search') }}" autocomplete="off"
+             oninput="(function(q){q=q.trim().toLowerCase();document.querySelectorAll('[data-svcfix-opt]').forEach(function(o){o.hidden=q&&o.textContent.toLowerCase().indexOf(q)===-1;});})(this.value)">
+      <select class="input" name="service_id" required size="6" style="margin-top:6px;" data-svcfix-service>
+        {% for s in services %}
+        <option data-svcfix-opt value="{{ s.id }}" {{ 'selected' if service and s.id == service.id else '' }}>{{ s.name }} — {{ s.price }}</option>
+        {% endfor %}
+      </select></div>
+    <div><button class="btn btn-outline gc-press" type="submit"><i class="bi bi-calculator"></i> {{ t('svcfix.work_it_out') }}</button></div>
+  </form>
+</div>
+
+{% if proposal %}
+{# ② What it does to the money — priced the way the till prices it. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-step="2" data-verdict="{{ proposal.verdict }}">
+  <h2 class="section-title" style="margin-top:0;"><span class="badge badge--role">2</span> {{ t('svcfix.step_money') }}</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th></th><th>{{ t('svcfix.before') }}</th><th>{{ t('svcfix.after') }}</th></tr></thead>
+      <tbody>
+        <tr><td>{{ t('invoices.description') }}</td><td>{{ proposal.before.description }}</td><td><strong>{{ proposal.after.description }}</strong></td></tr>
+        <tr><td>{{ t('invoices.unit_price') }}</td><td>{{ proposal.before.price|money }}</td><td>{{ proposal.after.price|money }}</td></tr>
+        {% if proposal.before.payer or proposal.after.payer %}
+        <tr><td>{{ t('svcfix.payer_share') }}</td><td>{{ proposal.before.payer|money }}</td><td>{{ proposal.after.payer|money }}</td></tr>
+        {% endif %}
+        {% if proposal.before.discount or proposal.after.discount %}
+        <tr><td>{{ t('invoices.discount') }}</td><td>{{ proposal.before.discount|money }}</td><td>{{ proposal.after.discount|money }}</td></tr>
+        {% endif %}
+        <tr><td><strong>{{ t('svcfix.family_pays') }}</strong></td><td>{{ proposal.before.family|money }}</td><td><strong>{{ proposal.after.family|money }}</strong></td></tr>
+        <tr><td>{{ t('invoices.paid') }}</td><td colspan="2">{{ proposal.collected|money }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="svcfix-says svcfix-{{ proposal.verdict }}" data-svcfix-says
+       style="margin-top:10px;padding:10px 12px;border-radius:8px;font-weight:700;background:var(--green-050);">
+    {{ t('svcfix.says_' ~ proposal.verdict, v=proposal.amount|money) }}</div>
+  {% if proposal.blocked %}
+  <p class="hint" style="color:#b91c1c;" data-svcfix-blocked>{{ t('svcfix.period_closed') }}</p>
+  {% endif %}
+</div>
+
+{% if not proposal.blocked and proposal.verdict != 'unbilled' %}
+{# ③ The money, the reason, and the paper. #}
+<div class="card gc-scale-in" data-step="3">
+  <h2 class="section-title" style="margin-top:0;"><span class="badge badge--role">3</span> {{ t('svcfix.step_confirm') }}</h2>
+  <form method="post" action="{{ url_for('finance.service_change_wizard', invoice_id=invoice.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="item_id" value="{{ item.id }}">
+    <input type="hidden" name="service_id" value="{{ service.id }}">
+    <div class="form-row"><label>{{ t('svcfix.reason') }} *</label>
+      <input class="input" name="reason" required maxlength="255" placeholder="{{ t('svcfix.reason_hint') }}" data-svcfix-reason></div>
+    {% if proposal.verdict in ('refund', 'collect') %}
+    <div class="form-grid" style="align-items:end;">
+      <div class="form-row"><label>{{ t('invoices.method') }}</label>
+        <select class="input" name="method">
+          {% for m in methods %}<option value="{{ m }}">{{ t('payment_methods.' ~ m) }}</option>{% endfor %}
+        </select></div>
+      {% if proposal.verdict == 'collect' %}
+      <div class="form-row"><label>{{ t('tills.choose') }}</label>
+        <select class="input" name="account_id"><option value="">—</option>
+          {% for a in tills %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row checkbox"><input type="checkbox" id="collect_now" name="collect_now" value="1" checked>
+        <label for="collect_now" style="margin:0;font-weight:400;">{{ t('svcfix.collect_now', v=proposal.amount|money) }}</label></div>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% if approval %}
+    <p class="hint" data-svcfix-approval><i class="bi bi-hourglass-split"></i> {{ t('svcfix.needs_approval') }}</p>
+    {% endif %}
+    <button class="btn btn-primary gc-press gc-ripple" type="submit" data-svcfix-confirm>
+      <i class="bi bi-check2-circle"></i> {{ t('svcfix.confirm_and_print') }}</button>
+  </form>
+</div>
+{% endif %}
+{% endif %}
+
+{% if changes %}
+<div class="card" style="margin-top:14px;">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-clock-history"></i> {{ t('svcfix.on_this_bill') }}</h2>
+  <ul style="margin:0;padding-inline-start:18px;">
+    {% for c in changes %}
+    <li><a dir="ltr" href="{{ url_for('finance.service_change_receipt', change_id=c.id) }}" target="_blank">{{ c.number }}</a>
+      — {{ c.old_description }} → {{ c.new_description }} · {{ t('svcfix.status_' ~ c.status) }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endblock %}

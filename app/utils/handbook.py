@@ -2891,6 +2891,25 @@ SECTIONS = [
              "الفاتورة.",
              "<b>Overpayment is refused</b> — the system will not leave an "
              "invoice with a negative balance."),
+            ("<b>تغيير الخدمة</b> (كشف طلع استشارة، أو أي خدمة تانية): من "
+             "الفاتورة ⇄ جنب السطر، أو «غيّر الخدمة» على صف الموعد — لصاحب "
+             "صلاحية «تغيير الخدمة على الفاتورة» بس. معالج بتلات خطوات: تختار "
+             "الخدمة اللي حصلت، يحسب الفرق بنفس تسعير الخزنة (سعر الدكتور، "
+             "التأمين، الخصم)، وتكتب السبب وتأكّد. بيرجّع الفرق أو يحصّله "
+             "(والاسترداد بيستنى موافقة المدير زي أي استرداد)، ويطبع إيصال "
+             "برقمه هو ورقم الإيصال الأصلي، والتغيير بيتطبع كمان على الفاتورة "
+             "الكبيرة. الشهر المقفول ما بيتعدّلش.",
+             "<b>Changing a service</b> (a consultation that turned out to "
+             "be a follow-up, or any other service): from the bill (⇄ beside "
+             "the line) or «Change service» on the appointment row — only for "
+             "whoever holds «Change a service on a bill». A three-step "
+             "wizard: choose what really happened, see the difference priced "
+             "the way the till prices (doctor's price, cover, discount), write "
+             "the reason and confirm. It gives back or collects the "
+             "difference (a refund waits for a manager like any refund) and "
+             "prints a voucher with its own number and the original receipt's "
+             "number; the A4 bill lists the change too. A closed month is not "
+             "changed."),
         ],
     },
     {
@@ -4127,6 +4146,9 @@ CAPABILITY_LABELS = {
                         "View the full medical file"),
     "cashier": ("تحصيل المدفوعات وطباعة الإيصالات",
                 "Collect payments and print receipts"),
+    "service_change": ("تغيير الخدمة على الفاتورة، وإرجاع أو تحصيل الفرق",
+                       "Change a service on a bill, and give back or collect "
+                       "the difference"),
     "finance_manage": ("إدارة المالية بالكامل (الخدمات، الجهات، الدفاتر)",
                        "Full finance (services, payers, ledgers)"),
     "treasury_move": ("تحريك أموال العيادة بين الخزن",

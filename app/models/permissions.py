@@ -360,6 +360,13 @@ CAPABILITIES = [
     # it, and choosing which one a unit uses (HOSPITAL_PLAN.md ت-٦ب). Every
     # change is in the activity log. The hospital names who holds it.
     "severity_scores",
+    # «تغيير الخدمة على الفاتورة» — the visit that turned out to be another
+    # service, and the difference that follows (MONEY_SAFETY_PLAN.md ف-٨).
+    # Not ``cashier``: rewriting what a family was charged is a price
+    # decision, and the person taking the money at the desk is not by that
+    # alone the person who may change it. Granted to whoever the clinic names;
+    # a refund it causes still waits for a manager as every refund does.
+    "service_change",
 ]
 
 ROLE_CAPABILITIES = {
@@ -369,7 +376,8 @@ ROLE_CAPABILITIES = {
     # They write into the child's clinical record — the vitals, the reason for
     # the visit — so they hold the medical capability and no money one.
     "nursing": ["patient_medical"],
-    "accountant": ["cashier", "finance_manage", "treasury_move"],
+    "accountant": ["cashier", "finance_manage", "treasury_move",
+                   "service_change"],
     "pharmacy": [],
 }
 

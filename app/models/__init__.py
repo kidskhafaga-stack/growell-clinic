@@ -275,6 +275,7 @@ from app.models.invoice import (
     Payment,
     RefundRequest,
 )
+from app.models.service_change import ServiceChange
 from app.models.form_key import FormKey
 from app.models.payer import (
     CLAIM_STATUSES,
@@ -894,6 +895,7 @@ __all__ = [
     "CONNECTION_TYPES",
     "IMPORT_MODES",
     "RefundRequest",
+    "ServiceChange",
     "Account",
     "JournalEntry",
     "JournalLine",
