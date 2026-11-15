@@ -705,7 +705,80 @@ def inbox_thread(key):
         topics=TRIAGE_TOPICS,
         conv_lead=_lead_for(key),
         siblings=siblings,
+        desk=_desk_actions(patient, siblings, msgs, lang),
+        fill=(request.args.get("fill") or "")[:1000],
         **_booking_from_thread(key, patient, phone, msgs, lang))
+
+
+def _family_asked(msgs):
+    """The family's words since the desk last wrote — what they are asking
+    now, not the whole history."""
+    asked = []
+    for m in reversed(msgs):
+        if m.direction != "in":
+            if asked:
+                break
+            continue
+        if m.body:
+            asked.append(m.body.strip())
+    return "\n".join(reversed(asked))
+
+
+def _desk_actions(patient, siblings, msgs, lang):
+    """What the person on this conversation can do about what the family
+    asked — with their own permissions (``utils/desk_actions``)."""
+    from app.utils import desk_actions
+
+    children = list(siblings) or ([patient] if patient is not None else [])
+    if not children:
+        return None
+    return desk_actions.panel(current_user, children, _family_asked(msgs),
+                              lang)
+
+
+@messages_bp.route("/inbox/<key>/cancel/<int:appt_id>", methods=["POST"])
+@module_required(MODULE)
+def inbox_cancel(key, appt_id):
+    """The family asked on the conversation to cancel; the person on it
+    confirms, here. Only a booking of a child on this conversation, and only
+    for somebody who could cancel it on the board."""
+    from flask import abort
+
+    from app.models import ActivityLog, Appointment
+    from app.utils import desk_actions
+    from app.utils.decorators import client_ip
+
+    if not desk_actions.may_book(current_user):
+        abort(403)
+    appt = db.get_or_404(Appointment, appt_id)
+    msgs = _thread_query(key).order_by(MessageLog.created_at).all()
+    patient = next((m.patient for m in msgs if m.patient), None)
+    phone = next((m.to_phone for m in reversed(msgs) if m.to_phone), None)
+    from app.utils.inbox import siblings_on_number
+
+    ids = {p for p in (siblings_on_number(patient, phone) if patient else [])}
+    if patient is not None:
+        ids.add(patient.id)
+    # A posted id is a number anybody types: only this family's booking.
+    if appt.patient_id not in ids:
+        abort(404)
+    lang = getattr(g, "lang", "ar")
+    reason = (request.form.get("reason") or "").strip() \
+        or t("desk_act.reason_default")
+    if not desk_actions.cancel(appt, current_user, reason=reason, lang=lang):
+        db.session.rollback()
+        flash(t("appointments.invalid_transition"), "warning")
+        return redirect(url_for("messages.inbox_thread", key=key))
+    ActivityLog.record("appointment.status", user_id=current_user.id,
+                       entity="appointment", entity_id=appt.id,
+                       detail=f"cancelled from conversation {key}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("desk_act.cancelled"), "success")
+    # The reply is the person's to send: the sentence is put in the box.
+    words = t("desk_act.d_cancelled", date=appt.appt_date.isoformat(),
+              time=appt.time_label)
+    return redirect(url_for("messages.inbox_thread", key=key, fill=words))
 
 
 def _social_state(key, channel, msgs):
@@ -752,16 +825,6 @@ def _booking_from_thread(key, patient, phone, msgs, lang):
     from app.utils.triage import URGENT_WORDS
 
     taken = br.for_conversation(key, patient.id if patient else None, phone)
-    # The family's words since the desk last wrote — what they are asking
-    # now, not the whole history. Edited before it is saved.
-    asked = []
-    for m in reversed(msgs):
-        if m.direction != "in":
-            if asked:
-                break
-            continue
-        if m.body:
-            asked.append(m.body.strip())
     return {
         "can_request": True,
         "conv_requests": [
@@ -770,7 +833,9 @@ def _booking_from_thread(key, patient, phone, msgs, lang):
              br.is_urgent(r)) for r in taken],
         "request_doctors": list_doctors(),
         "request_types": APPOINTMENT_TYPES,
-        "request_message": "\n".join(reversed(asked))[:1000],
+        # The family's words since the desk last wrote — the same reading
+        # the actions card takes (``_family_asked``). Edited before saving.
+        "request_message": _family_asked(msgs)[:1000],
         "request_today": local_today(),
         "request_tomorrow": local_today().fromordinal(
             local_today().toordinal() + 1),
@@ -836,7 +901,8 @@ def inbox_ai_suggest(key):
 
     msgs = _thread_query(key).order_by(MessageLog.created_at).all()
     patient = next((m.patient for m in msgs if m.patient), None)
-    result = draft_reply(msgs, patient, getattr(g, "lang", "ar"))
+    result = draft_reply(msgs, patient, getattr(g, "lang", "ar"),
+                         user=current_user)
     if not result.get("ok"):
         # This screen's own wording where the inbox has one — "there is
         # nothing here to answer" is about a thread, not about a provider —

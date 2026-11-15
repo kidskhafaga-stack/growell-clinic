@@ -338,7 +338,7 @@ def ai_available():
     return ai.is_ready()
 
 
-def draft_reply(msgs, patient=None, lang="ar"):
+def draft_reply(msgs, patient=None, lang="ar", user=None):
     """Ask the configured AI for a suggested reply → ``{ok, text|error}``.
 
     The draft goes into the reply box for a human to read, edit and send. It
@@ -361,7 +361,8 @@ def draft_reply(msgs, patient=None, lang="ar"):
 
     suspicious = any(looks_like_injection(m["content"])
                      for m in history if m["role"] == "user")
-    system = AI_SYSTEM + "\n\nClinic facts:\n" + "\n".join(clinic_facts(patient, lang))
+    system = AI_SYSTEM + "\n\nClinic facts:\n" + "\n".join(
+        clinic_facts(patient, lang, user=user))
     result = ai.chat(history, system=system, feature="service_desk")
     if not result.get("ok"):
         return result
@@ -369,7 +370,7 @@ def draft_reply(msgs, patient=None, lang="ar"):
             "suspicious": suspicious}
 
 
-def clinic_facts(patient=None, lang="ar"):
+def clinic_facts(patient=None, lang="ar", user=None):
     """What the clinic actually knows, so the reply stops leaving blanks.
 
     Reception's answers are mostly lookups — what a visit costs, when we're
@@ -398,7 +399,31 @@ def clinic_facts(patient=None, lang="ar"):
                      f"{patient.display_name(lang)}.")
         if ai.patient_context_enabled():
             facts += _patient_facts(patient, lang)
+            facts += _desk_facts(patient, lang, user)
     return facts
+
+
+def _desk_facts(patient, lang, user):
+    """What the person asking for the draft could see on their own screens —
+    a result's *state* and the balance — and nothing they could not
+    (``utils/desk_actions``, HOSPITAL_PLAN.md ٦). Never a result's value:
+    those reach the family the laboratory's way, after the doctor."""
+    if user is None:
+        return []
+    from app.utils import desk_actions
+
+    out = []
+    if desk_actions.may_see_results(user):
+        states = [(o.display_name(lang), desk_actions.result_state(o))
+                  for o in desk_actions.recent_tests([patient.id])[:5]]
+        if states:
+            out.append("Their recent tests (state only; never give or guess "
+                       "a value — say the clinic will send the report): "
+                       + "; ".join(f"{n} = {st}" for n, st in states))
+    if desk_actions.may_see_balance(user):
+        total, _rows = desk_actions.owed([patient.id])
+        out.append(f"Amount the family still owes the clinic: {total:g} EGP")
+    return out
 
 
 # Enough for reception's questions; not the whole catalogue, which would push
