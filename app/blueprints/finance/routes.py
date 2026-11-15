@@ -124,6 +124,9 @@ def refund_request_decide(req_id):
         req.status = "approved"
         req.decided_by = current_user.id
         req.decided_at = _dt.utcnow()
+        from app.blueprints.finance.service_change_routes import settle_request
+
+        settle_request(req, True, refund_pay)
         ActivityLog.record("refund.approve", user_id=current_user.id,
                            entity="invoice", detail=invoice.invoice_number,
                            ip_address=client_ip())
@@ -134,6 +137,9 @@ def refund_request_decide(req_id):
         req.status = "rejected"
         req.decided_by = current_user.id
         req.decided_at = _dt.utcnow()
+        from app.blueprints.finance.service_change_routes import settle_request
+
+        settle_request(req, False)
         ActivityLog.record("refund.reject", user_id=current_user.id,
                            entity="invoice",
                            detail=req.invoice.invoice_number if req.invoice else "",
@@ -2634,15 +2640,7 @@ def _line_discount_amount(item, disc):
 
     Returns 0 for a line the rule doesn't reach, or one that already carries a
     discount: nothing is ever stacked on top of an existing reduction."""
-    if (item.discount_value or 0) > 0:
-        return 0
-    if not disc.applies_to_line(item):
-        return 0
-    amount = disc.amount_for(item.gross)
-    service = item.service
-    if service is not None and service.max_discount:
-        amount = min(amount, money.percent(item.gross, service.max_discount))
-    return max(amount, 0)
+    return billing.named_discount_on_line(item, disc)
 
 
 def _discount_worth(invoice, disc):
@@ -4472,6 +4470,11 @@ def invoice_view(invoice_id):
         # here are their own nets added up, never a second figure.
         **_bill_shape(invoice),
         **_online_pay_card(invoice),
+        # Services changed on this bill, each with its voucher number — on
+        # the screen and on the A4 print (MONEY_SAFETY_PLAN.md ف-٨).
+        service_changes=_service_changes(invoice),
+        may_change_service=(current_user.is_admin
+                            or current_user.can("service_change")),
         **_credit_card(invoice),
     )
 
@@ -4485,6 +4488,13 @@ def _credit_card(invoice):
     held = patient_credit.balance(invoice.patient_id)
     return {"credit_held": held,
             "credit_shown": patient_credit.shown_for(invoice.patient_id, held)}
+
+
+def _service_changes(invoice):
+    from app.models import ServiceChange
+
+    return (ServiceChange.query.filter_by(invoice_id=invoice.id)
+            .order_by(ServiceChange.id).all())
 
 
 def _online_pay_card(invoice):

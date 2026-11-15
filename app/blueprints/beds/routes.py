@@ -1944,6 +1944,37 @@ def answer_query(order_id):
     return redirect(url_for("beds.admission", admission_id=row.admission_id))
 
 
+@beds_bp.route("/intervention/<int:row_id>/respond", methods=["POST"])
+@module_required(MODULE)
+def respond_intervention(row_id):
+    """The prescriber's answer to a clinical pharmacist's intervention (ص-١):
+    accepted, accepted with a change, or rejected — on the stay screen, for
+    the same reason the question is answered here. It changes no order: the
+    change itself is the doctor's, written where orders are written."""
+    from flask import abort
+
+    from app.models import ActivityLog, PharmacyIntervention
+    from app.utils import pharmacy_interventions as cpi
+
+    if not (current_user.is_admin or current_user.can("medication_order")):
+        abort(403)
+    row = db.get_or_404(PharmacyIntervention, row_id)
+    try:
+        cpi.respond(row, (request.form.get("response") or "").strip(),
+                    note=request.form.get("note"), user=current_user)
+    except cpi.InterventionError as err:
+        db.session.rollback()
+        flash(t(str(err)), "error")
+        return redirect(url_for("beds.admission",
+                                admission_id=row.admission_id))
+    ActivityLog.record("pharmacy.intervention_answer", user_id=current_user.id,
+                       entity="admission", entity_id=row.admission_id,
+                       detail=f"{row.number} {row.response}")
+    db.session.commit()
+    flash(t("cpi.answered", number=row.number), "success")
+    return redirect(url_for("beds.admission", admission_id=row.admission_id))
+
+
 # ------------------------------------------------------- the drug round -----
 @beds_bp.route("/drugs")
 @module_required(MODULE)

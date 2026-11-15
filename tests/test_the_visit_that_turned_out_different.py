@@ -456,45 +456,40 @@ def test_asking_changes_nothing(desk):
         assert Invoice.query.get(invoice_id).total == 200
 
 
-def test_agreeing_corrects_the_bill(desk):
+def test_agreeing_opens_the_wizard_and_changes_nothing_yet(desk):
+    """The board asks; the change is the wizard's (MONEY_SAFETY_PLAN.md ف-٨).
+    Agreeing on the board takes the desk to the wizard with the line and the
+    service chosen — and the bill is still what it was."""
     with desk["app"].app_context():
-        appt, invoice, _ = _billed(desk, paid=200)
+        appt, invoice, item = _billed(desk, paid=200)
         desk["db"].session.commit()
-        appt_id, review_id, invoice_id = appt.id, desk["ids"]["review"], invoice.id
+        appt_id, review_id = appt.id, desk["ids"]["review"]
+        invoice_id, item_id = invoice.id, item.id
     resp = _signed_in(desk).post(f"/appointments/{appt_id}/change-service",
                                  data={"service_id": review_id})
+    where = resp.headers.get("Location", "")
+    assert f"/finance/invoices/{invoice_id}/change-service" in where
+    assert f"item_id={item_id}" in where and f"service_id={review_id}" in where
+    with desk["app"].app_context():
+        from app.models import Invoice
+        assert Invoice.query.get(invoice_id).total == 200
+
+
+def test_confirming_in_the_wizard_corrects_the_bill(desk):
+    with desk["app"].app_context():
+        appt, invoice, item = _billed(desk, paid=200)
+        desk["db"].session.commit()
+        review_id, invoice_id, item_id = (desk["ids"]["review"], invoice.id,
+                                          item.id)
+    resp = _signed_in(desk).post(
+        f"/finance/invoices/{invoice_id}/change-service",
+        data={"item_id": item_id, "service_id": review_id,
+              "reason": "متابعة مش كشف", "method": "cash"})
     assert resp.status_code in (302, 303)
+    assert "/service-changes/" in resp.headers.get("Location", "")
     with desk["app"].app_context():
         from app.models import Invoice
         assert Invoice.query.get(invoice_id).total == 150
-
-
-def test_money_owed_lands_on_the_till_screen(desk):
-    """This route never hands money over. It corrects the line and sends the
-    desk to the screen that collects and refunds every other bill — with its
-    approval rule, its threshold and its notice to the doctor."""
-    with desk["app"].app_context():
-        appt, invoice, _ = _billed(desk, paid=200)
-        desk["db"].session.commit()
-        appt_id, free_id, invoice_id = appt.id, desk["ids"]["free"], invoice.id
-    resp = _signed_in(desk).post(f"/appointments/{appt_id}/change-service",
-                                 data={"service_id": free_id})
-    assert f"/invoice" in resp.headers.get("Location", "")
-    with desk["app"].app_context():
-        from app.models import Payment
-        assert Payment.query.filter_by(invoice_id=invoice_id,
-                                       kind="refund").count() == 0
-
-
-def test_a_change_that_costs_nothing_goes_back_to_the_board(desk):
-    """Nothing to hand over, so nobody is sent to the till."""
-    with desk["app"].app_context():
-        appt, _, _ = _billed(desk, paid=200)
-        desk["db"].session.commit()
-        appt_id, exam_id = appt.id, desk["ids"]["exam"]
-    resp = _signed_in(desk).post(f"/appointments/{appt_id}/change-service",
-                                 data={"service_id": exam_id})
-    assert "/invoice" not in resp.headers.get("Location", "")
 
 
 def test_a_visit_with_no_invoice_says_so_rather_than_failing(desk):

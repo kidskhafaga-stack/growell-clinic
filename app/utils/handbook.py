@@ -2165,6 +2165,27 @@ SECTIONS = [
              "question answerable only on a screen the person who has to "
              "answer it cannot reach is a question nobody answers, and the "
              "pharmacist waits with no way to tell that from being ignored."),
+            ("<b>وتدخّل الصيدلي بقى بيانات تتعد.</b> من ملف الطفل في الصيدلية "
+             "← «تدخّل الصيدلي الإكلينيكي»: نفس خانات الفورمة — نوع المشكلة "
+             "(مفيش دواعي، جرعة غلط: الجرعة/المرات/الطريقة/السرعة، تداخل: "
+             "دوا/دوا أو أكل أو تحليل، حالة من غير علاج، دوا اتكتب وما "
+             "اتداش، اختيار غلط، أعراض جانبية)، والأهمية، والنتيجة المتوقعة، "
+             "وتعليق لكل جزء — على أمر دوا أو جرعة أو من غيرهم. الطبيب بيرد "
+             "من صفحة الإقامة: قبل، قبل بتعديل، رفض. «تدخلات الصيدلي "
+             "الإكلينيكي» بتعد بالنوع والقسم ونسبة القبول، وكل تدخل بيتطبع "
+             "على ورقة A4 بلوجو العيادة. والدوا ما بيتوقفش بيه.",
+             "<b>And the pharmacist's intervention is now data that can be "
+             "counted.</b> From the child's chart in the pharmacy → "
+             "“Clinical pharmacist intervention”: the form's own "
+             "boxes — the problem (no indication; dosage: dose, frequency, "
+             "route, rate; interaction: drug/drug, food or lab; an untreated "
+             "condition; prescribed and not given; wrong drug; side effects), "
+             "the urgency, the expected outcome and a comment on each — "
+             "on an order, a dose, or neither. The doctor answers on the stay "
+             "screen: accepted, modified, rejected. “Clinical pharmacist "
+             "interventions” counts them by kind and department with the "
+             "share accepted, and each prints as an A4 form with the "
+             "clinic's logo. It never stops a drug."),
             ("<b>والنص التاني من الصيدلة الإكلينيكية شغل بنش مش قراية: "
              "تحضير أدوية العنابر.</b> قبل راوند الصبح حد بيحضّر جرعات كل "
              "طفل لليوم، مكتوب عليها اسمه. ده في أغلب المستشفيات الجزء "
@@ -2891,6 +2912,25 @@ SECTIONS = [
              "الفاتورة.",
              "<b>Overpayment is refused</b> — the system will not leave an "
              "invoice with a negative balance."),
+            ("<b>تغيير الخدمة</b> (كشف طلع استشارة، أو أي خدمة تانية): من "
+             "الفاتورة ⇄ جنب السطر، أو «غيّر الخدمة» على صف الموعد — لصاحب "
+             "صلاحية «تغيير الخدمة على الفاتورة» بس. معالج بتلات خطوات: تختار "
+             "الخدمة اللي حصلت، يحسب الفرق بنفس تسعير الخزنة (سعر الدكتور، "
+             "التأمين، الخصم)، وتكتب السبب وتأكّد. بيرجّع الفرق أو يحصّله "
+             "(والاسترداد بيستنى موافقة المدير زي أي استرداد)، ويطبع إيصال "
+             "برقمه هو ورقم الإيصال الأصلي، والتغيير بيتطبع كمان على الفاتورة "
+             "الكبيرة. الشهر المقفول ما بيتعدّلش.",
+             "<b>Changing a service</b> (a consultation that turned out to "
+             "be a follow-up, or any other service): from the bill (⇄ beside "
+             "the line) or «Change service» on the appointment row — only for "
+             "whoever holds «Change a service on a bill». A three-step "
+             "wizard: choose what really happened, see the difference priced "
+             "the way the till prices (doctor's price, cover, discount), write "
+             "the reason and confirm. It gives back or collects the "
+             "difference (a refund waits for a manager like any refund) and "
+             "prints a voucher with its own number and the original receipt's "
+             "number; the A4 bill lists the change too. A closed month is not "
+             "changed."),
         ],
     },
     {
@@ -4127,6 +4167,9 @@ CAPABILITY_LABELS = {
                         "View the full medical file"),
     "cashier": ("تحصيل المدفوعات وطباعة الإيصالات",
                 "Collect payments and print receipts"),
+    "service_change": ("تغيير الخدمة على الفاتورة، وإرجاع أو تحصيل الفرق",
+                       "Change a service on a bill, and give back or collect "
+                       "the difference"),
     "finance_manage": ("إدارة المالية بالكامل (الخدمات، الجهات، الدفاتر)",
                        "Full finance (services, payers, ledgers)"),
     "treasury_move": ("تحريك أموال العيادة بين الخزن",

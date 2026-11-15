@@ -57,7 +57,8 @@
      cancellation. The common case is a visit that went ahead and turned out
      to be a different service, and reception used to cancel and rebook to
      express that, which cuts the booking loose from its money. #}
-  {% if current_user.can_collect and p.state not in ['none', 'free'] %}
+  {% if current_user.can_collect and (current_user.is_admin or current_user.can('service_change'))
+        and p.state not in ['none', 'free'] %}
     <button type="button" class="btn btn-outline btn-sm gc-press svcfix-btn"
             x-on:click="openFix({{ appt.id }}, {{ appt.doctor_id or 'null' }})">
       <i class="bi bi-arrow-left-right"></i> {{ t('svcfix.change_service') }}</button>

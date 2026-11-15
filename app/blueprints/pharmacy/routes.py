@@ -193,7 +193,115 @@ def chart(admission_id):
     return render_template(
         "pharmacy/chart.html", admission=row,
         reviews=sorted(row.chart_reviews, key=lambda r: r.at, reverse=True),
+        **_intervention_form(row),
         **clinical_pharmacy.chart(row, lang=getattr(g, "lang", "ar")))
+
+
+# ------------------------------------- the intervention form (ص-١) -------
+def _intervention_form(admission):
+    """What the form on the chart offers: this stay's orders, the doses
+    recorded as not given, and the interventions already written."""
+    from datetime import datetime, timedelta
+
+    from app.models import PharmacyIntervention
+    from app.models.medication import GIVEN, MedicationDose, MedicationOrder
+    from app.models.pharmacy_intervention import (OUTCOMES, PROBLEMS,
+                                                  SEVERITIES)
+
+    since = datetime.utcnow() - timedelta(days=7)
+    missed = (MedicationDose.query.join(MedicationOrder)
+              .filter(MedicationOrder.admission_id == admission.id,
+                      MedicationDose.outcome != GIVEN,
+                      MedicationDose.at >= since)
+              .order_by(MedicationDose.at.desc()).limit(30).all())
+    return {
+        "cpi_problems": PROBLEMS, "cpi_severities": SEVERITIES,
+        "cpi_outcomes": OUTCOMES,
+        "cpi_orders": sorted(admission.medication_orders,
+                             key=lambda o: (not o.is_running, o.id)),
+        "cpi_missed": missed,
+        "cpi_rows": (PharmacyIntervention.query
+                     .filter_by(admission_id=admission.id)
+                     .order_by(PharmacyIntervention.created_at.desc()).all()),
+    }
+
+
+@pharmacy_bp.route("/ward/<int:admission_id>/intervention", methods=["POST"])
+@module_required(MODULE)
+def intervention_add(admission_id):
+    """The pharmacist fills the intervention form for one child in a bed."""
+    _ward_or_404()
+    from app.models import ActivityLog
+    from app.utils import pharmacy_interventions as cpi
+
+    row = db.get_or_404(Admission, admission_id)
+    try:
+        made = cpi.record(row, request.form, user=current_user)
+    except cpi.InterventionError as err:
+        db.session.rollback()
+        flash(t(str(err)), "error")
+        return redirect(url_for("pharmacy.chart", admission_id=row.id)
+                        + "#intervention")
+    ActivityLog.record("pharmacy.intervention", user_id=current_user.id,
+                       entity="admission", entity_id=row.id,
+                       detail=f"{made.number} {made.problem} {made.severity}")
+    db.session.commit()
+    flash(t("cpi.saved", number=made.number), "success")
+    return redirect(url_for("pharmacy.chart", admission_id=row.id)
+                    + "#intervention")
+
+
+@pharmacy_bp.route("/interventions")
+@module_required(MODULE)
+def interventions():
+    """The month's interventions in numbers — by problem, urgency, expected
+    outcome and department, and how many the doctors accepted."""
+    _ward_or_404()
+    from datetime import timedelta
+
+    from app.utils import pharmacy_interventions as cpi
+    from app.utils.clock import local_today
+
+    today = local_today()
+    start = _date_arg("from") or today.replace(day=1)
+    end = _date_arg("to") or today
+    if end < start:
+        start, end = end, start
+    kind = (request.args.get("kind") or "").strip() or None
+    return render_template(
+        "pharmacy/interventions.html", start=start, end=end, kind=kind,
+        prev_start=(start.replace(day=1) - timedelta(days=1)).replace(day=1),
+        **cpi.summary(start, end, kind=kind))
+
+
+def _date_arg(name):
+    from datetime import datetime
+
+    raw = (request.args.get(name) or "").strip()
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date() if raw else None
+    except ValueError:
+        return None
+
+
+@pharmacy_bp.route("/interventions/<int:row_id>/print")
+@module_required(MODULE)
+def intervention_print(row_id):
+    """The form on paper, ticked: the clinic's header and the child's label,
+    the boxes as the pharmacist chose them, the doctor's answer, and the two
+    names and dates the paper has."""
+    _ward_or_404()
+    from app.models import PharmacyIntervention
+    from app.models.pharmacy_intervention import (OUTCOMES, PROBLEMS,
+                                                  RESPONSES, SEVERITIES)
+    from app.utils import pharmacy_interventions as cpi
+
+    row = db.get_or_404(PharmacyIntervention, row_id)
+    return render_template(
+        "pharmacy/intervention_print.html", row=row,
+        unit=cpi.unit_of(row.admission)[1], problems=PROBLEMS,
+        severities=SEVERITIES, outcomes=OUTCOMES,
+        responses=[r for r in RESPONSES if r != "pending"])
 
 
 @pharmacy_bp.route("/ward/<int:admission_id>/reviewed", methods=["POST"])

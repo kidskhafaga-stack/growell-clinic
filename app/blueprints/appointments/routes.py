@@ -1471,41 +1471,26 @@ def service_proposal(appt_id):
 @module_required(MODULE)
 @cashier_access
 def change_service(appt_id):
-    """Correct the bill to the service the visit actually was.
+    """Take the board's choice to the service-change wizard.
 
-    **No money moves here.** The line is rewritten and the invoice is handed
-    to the screen that already collects and refunds — with its approval rule,
-    its threshold, its shift and its notice to the doctor, none of which this
-    gets to have an opinion about.
+    **Nothing is changed here** (MONEY_SAFETY_PLAN.md ف-٨). The board asks
+    and shows the sentence; the change itself — the reason, the refund or the
+    collection, and the numbered voucher — is the wizard's, behind the
+    ``service_change`` capability, the same from the board as from the bill.
     """
     service_id = request.form.get("service_id", type=int)
     appt, service, proposal, problem = _service_proposal(appt_id, service_id)
     if problem:
         flash(problem, "warning")
         return _back_to_board(appt)
-
-    from app.utils import service_settlement as settle
-
-    invoice = settle.apply(proposal, service=service, user_id=current_user.id)
-    if invoice is None:
-        flash(t("svcfix.cannot_apply"), "danger")
-        db.session.rollback()
+    if not (current_user.is_admin or current_user.can("service_change")):
+        flash(t("svcfix.no_permission"), "warning")
         return _back_to_board(appt)
-
-    ActivityLog.record(
-        "appointment.service_change", user_id=current_user.id,
-        entity="appointment", entity_id=appt.id,
-        detail=f"{proposal.was}->{proposal.becomes} {proposal.verdict}",
-        ip_address=client_ip(),
-    )
-    db.session.commit()
-    flash(t("svcfix.says_" + proposal.verdict,
-            v=format_money(proposal.amount)), "success")
-    # Anything owed or owing is the till's to hand over, on the screen that
-    # does that for every other bill in the clinic.
-    if proposal.verdict in ("refund", "collect"):
-        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
-    return _back_to_board(appt)
+    item = proposal.item
+    return redirect(url_for("finance.service_change_wizard",
+                            invoice_id=item.invoice_id, item_id=item.id,
+                            service_id=service.id if service else None,
+                            appt=appt.id))
 
 
 # -------------------------------------------------- status lifecycle -------

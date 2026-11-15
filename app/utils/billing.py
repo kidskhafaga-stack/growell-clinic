@@ -29,16 +29,21 @@ share of a vaccine is the brand's ``doctor_fee``, and a tidy-looking
 from app.extensions import db
 
 
-def apply_cash_prices(invoice):
+def apply_cash_prices(invoice, only=None):
     """Reprice the lines from the clinic's cash price list (التسعيرة النقدية).
 
     The cash agreement needs no membership card — it is what the walk-in
     patient pays — so it is applied to every invoice with no payer. Lines the
     user priced by hand (a manual discount) are left alone.
+
+    ``only`` limits it to those lines — a service changed on one line of a bill
+    must not reprice the others at today's list (`utils/service_settlement`).
     """
     from app.utils.pricing import cash_tariff
 
     for item in invoice.items:
+        if only is not None and item not in only:
+            continue
         if not item.service_id or (item.discount_value or 0) > 0:
             continue
         price = cash_tariff(item.service, invoice.invoice_date)
@@ -54,7 +59,7 @@ def apply_cash_prices(invoice):
                 item.net, item.doctor or invoice.doctor)
 
 
-def apply_coverage(invoice, patient, warn=None, then=None):
+def apply_coverage(invoice, patient, warn=None, then=None, only=None):
     """Auto-apply a member's per-service coverage to the invoice lines.
 
     For each covered line the entity's share becomes the line discount (so the
@@ -71,6 +76,10 @@ def apply_coverage(invoice, patient, warn=None, then=None):
     coverage is settled, and is where the screen applies its named discounts.
     Both default to doing nothing, which is what a ward round needs: it posts
     a bed charge with nobody standing in front of the screen.
+
+    ``only`` limits the repricing to those lines (the rest of the bill keeps
+    the prices it was charged at); the contract's per-bill terms are still
+    worked out on the whole bill, since they depend on all of it.
     """
     warn = warn or (lambda key: None)
     # The card that holds on the bill's day — a stay's first day for a stay's
@@ -89,7 +98,7 @@ def apply_coverage(invoice, patient, warn=None, then=None):
         # No payer → the clinic's own cash price list applies, automatically.
         # It is not a third party that pays, so no payer is stamped on the
         # invoice and nothing becomes claimable — it only sets the price.
-        apply_cash_prices(invoice)
+        apply_cash_prices(invoice, only=only)
         if then is not None:
             then(invoice, patient)
         return
@@ -111,6 +120,8 @@ def apply_coverage(invoice, patient, warn=None, then=None):
 
     contract = payer.active_contract(invoice.invoice_date) if payer.contracts else None
     for item in invoice.items:
+        if only is not None and item not in only:
+            continue
         # Every line is given a payer figure, 0 where the payer pays nothing,
         # so the claim reads the cover and never a cashier's discount.
         #
@@ -362,3 +373,21 @@ def stay_invoices(patient_ids):
         if round(invoice.total - invoice.paid, 2) > 0:
             found[invoice.patient_id] = invoice
     return found
+
+
+def named_discount_on_line(item, disc):
+    """What the named discount ``disc`` takes off one line — capped by the
+    service, and nothing on a line that already carries a reduction (never
+    stacked). The till's own rule, here so a corrected line gets the family's
+    discount the way the bill first did."""
+    from app.utils import money
+
+    if disc is None or (item.discount_value or 0) > 0:
+        return 0
+    if not disc.applies_to_line(item):
+        return 0
+    amount = disc.amount_for(item.gross)
+    service = item.service
+    if service is not None and service.max_discount:
+        amount = min(amount, money.percent(item.gross, service.max_discount))
+    return max(amount, 0)

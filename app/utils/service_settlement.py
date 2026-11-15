@@ -33,6 +33,16 @@ dearer service makes it that service's share — both without a line of code
 about commission. The vaccine version *zeroes* it, which is right for a vaccine
 (they carry none) and would quietly rob a doctor of their cut of a consultation.
 Recompute, never zero.
+
+**Priced the way the till prices it** (`MONEY_SAFETY_PLAN.md` ف-٨). The
+first version charged the new service at its list price, so the doctor's own
+price, the clinic's cash price list, the insurer's share and the family's
+named discount all fell off the corrected line: a covered child was suddenly
+paying the whole consultation and the claim still read the old figure. A
+service change now goes through :func:`reprice` — the till's own functions,
+on that one line — and the proposal is the same rewrite done inside a
+savepoint and rolled back, so the figure the desk agrees to and the figure
+that is written are one computation, not two that can drift.
 """
 from app.extensions import db
 
@@ -61,8 +71,15 @@ class Proposal:
     """
 
     def __init__(self, item, was, becomes, collected, verdict, amount,
-                 description=None):
+                 description=None, before=None, after=None, blocked=False):
         self.item = item
+        #: The line before and after, for the screen: price, payer's share,
+        #: discount, and what the family pays. Empty for a price-only
+        #: proposal.
+        self.before = before or {}
+        self.after = after or {}
+        #: The bill sits in a closed accounting period — nothing may change.
+        self.blocked = blocked
         self.was = was                  # what the line is worth now
         self.becomes = becomes          # what it should be worth
         self.collected = collected      # what the family has actually paid
@@ -85,7 +102,7 @@ def line_for(appointment):
     thing from one charged at zero — the first has nothing to settle and the
     second is a decision somebody made.
     """
-    from app.models import Invoice, InvoiceItem
+    from app.models import Invoice
 
     if appointment is None:
         return None
@@ -94,6 +111,15 @@ def line_for(appointment):
     invoice = (Invoice.query
                .filter_by(appointment_id=appointment.id)
                .order_by(Invoice.id.desc()).first())
+    if invoice is None:
+        # One bill per family per day: a second booking the same day is
+        # collected onto the bill the first one opened, which keeps the first
+        # booking's number. That booking was billed all the same.
+        invoice = (Invoice.query
+                   .filter(Invoice.patient_id == appointment.patient_id,
+                           Invoice.invoice_date == appointment.appt_date,
+                           Invoice.status != "refunded")
+                   .order_by(Invoice.id.desc()).first())
     if invoice is None or not invoice.items:
         return None
     # The visit's own charge is the line this booking is about. Anything else
@@ -103,10 +129,16 @@ def line_for(appointment):
     # mapping the till used to put the line there in the first place.
     base = service_for_visit_type(getattr(appointment, "appt_type", None))
     if base is not None:
-        for item in invoice.items:
-            if item.service_id == base.id:
-                return item
-    return invoice.items[0]
+        mine = [i for i in invoice.items if i.service_id == base.id]
+        # Two of the same visit on one bill: the one for this booking's
+        # doctor, and the last one if that still leaves two.
+        theirs = [i for i in mine
+                  if (i.doctor_id or invoice.doctor_id) == appointment.doctor_id]
+        if theirs or mine:
+            return (theirs or mine)[-1]
+    # Nothing marks the visit's line. One line is the visit; on a bill with
+    # several, guessing would rewrite somebody else's charge — the wizard asks.
+    return invoice.items[0] if len(invoice.items) == 1 else None
 
 
 def price_of(service, patient=None):
@@ -156,11 +188,107 @@ def propose(item, new_price, description=None):
 
 def propose_service_change(appointment, service, description=None):
     """The proposal for turning this booking into a different service."""
-    item = line_for(appointment)
-    label = description
-    if label is None and service is not None:
-        label = getattr(service, "name", None)
-    return propose(item, price_of(service), label)
+    return propose_line_change(line_for(appointment), service,
+                               description=description)
+
+
+def _doctor_of(item):
+    invoice = item.invoice
+    return item.doctor or (invoice.doctor if invoice is not None else None)
+
+
+def reprice(item, service, description=None, doctor=None):
+    """Make ``item`` the line the till would have written for ``service``.
+
+    The doctor's own price (`case_rates.price_for`), then — for this line
+    only — the payer's tariff and cover or the clinic's cash price list
+    (`billing.apply_coverage`), then the bill's named discount, then the
+    doctor's share. Anything typed by hand on the old line goes: it was a
+    decision about the old service.
+    """
+    from app.utils import billing, case_rates
+
+    invoice = item.invoice
+    doctor = doctor or _doctor_of(item)
+    item.service = service
+    item.service_id = service.id
+    item.description = (description or getattr(service, "name", None)
+                        or item.description)
+    item.quantity = 1
+    item.discount_value = 0
+    item.discount_is_percent = False
+    item.payer_amount = None
+    item.group_discount = None
+    item.cover_note = None
+    item.cover_cut = None
+    item.contract_group_id = None
+    item.unit_price = round(case_rates.price_for(service, doctor) or 0, 2)
+    db.session.flush()
+
+    def named(inv, _patient):
+        from app.models import NamedDiscount
+
+        disc = (db.session.get(NamedDiscount, inv.discount_id)
+                if inv.discount_id else None)
+        amount = billing.named_discount_on_line(item, disc)
+        if amount > 0:
+            item.discount_value = amount
+            item.discount_is_percent = False
+
+    billing.apply_coverage(invoice, invoice.patient, then=named, only=[item])
+    if not (item.payer_amount or 0) > 0:
+        # A covered line's share was written by the cover, on the price; any
+        # other line's is on what the family pays.
+        item.commission_amount = case_rates.share_for(service, item.net, doctor)
+    db.session.flush()
+    invoice.recalc_status()
+    return item
+
+
+def _state(item):
+    return {"description": item.description,
+            "price": _round(item.gross),
+            "payer": _round(item.payer_amount),
+            "discount": _round(_round(item.gross) - _round(item.net)
+                               - _round(item.payer_amount)),
+            "family": _round(item.net)}
+
+
+def _blocked(invoice):
+    from app.utils.periods import period_blocked
+
+    return bool(invoice is not None and invoice.invoice_date is not None
+                and period_blocked(invoice.invoice_date, flash_it=False))
+
+
+def propose_line_change(item, service, description=None):
+    """What changing ``item`` to ``service`` would do — worked out by doing it
+    inside a savepoint and rolling it back, so nothing is changed by asking."""
+    if item is None or item.invoice is None or service is None:
+        return Proposal(None, 0.0, 0.0, 0.0, "unbilled", 0.0)
+    invoice = item.invoice
+    before = _state(item)
+    collected = _round(invoice.paid)
+    savepoint = db.session.begin_nested()
+    try:
+        reprice(item, service, description)
+        after = _state(item)
+        owed_after = _round(invoice.total)
+    finally:
+        savepoint.rollback()
+    difference = _round(collected - owed_after)
+    same = all(before[k] == after[k] for k in ("price", "payer", "family"))
+    if same:
+        verdict = "nothing"
+    elif difference > 0:
+        verdict = "refund"
+    elif difference < 0:
+        verdict = "collect"
+    else:
+        verdict = "settled"
+    return Proposal(item, before["family"], after["family"], collected,
+                    verdict, abs(difference), after["description"],
+                    before=before, after=after, blocked=_blocked(invoice))
 
 
 def propose_cancellation(appointment):
@@ -179,6 +307,14 @@ def apply(proposal, doctor=None, service=None, user_id=None):
     item = proposal.item if proposal is not None else None
     if item is None or item.invoice is None or proposal.verdict == "unbilled":
         return None
+    # A closed month is closed for money — the same rule as editing a line
+    # from the bill (`periods.period_blocked`).
+    if _blocked(item.invoice):
+        return None
+
+    if service is not None and proposal.after:
+        reprice(item, service, proposal.description, doctor=doctor)
+        return item.invoice
 
     item.unit_price = proposal.becomes
     item.quantity = 1

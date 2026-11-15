@@ -1,0 +1,95 @@
+<!doctype html>
+<html dir="{{ direction }}" lang="{{ current_lang }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ t('svcfix.voucher_title_' ~ ('refund' if change.is_refund else 'collect')) }} {{ change.number }}</title>
+  <style>
+    @page { size: 80mm auto; margin: 3mm; }
+    * { box-sizing: border-box; }
+    body { width: 72mm; margin: 0 auto; color: #000;
+      font-family: "Tahoma", "Courier New", monospace; font-size: 12px; line-height: 1.45; }
+    .center { text-align: center; }
+    .logo { max-width: 58mm; max-height: 22mm; object-fit: contain; }
+    .prog-logo { max-width: 30mm; max-height: 9mm; object-fit: contain; margin-top: 4px; }
+    .clinic-name { font-weight: 700; font-size: 14px; margin-top: 3px; }
+    .title { display: inline-block; border: 1.5px solid #000; border-radius: 4px;
+      padding: 2px 10px; font-weight: 700; margin-top: 6px; font-size: 13px; }
+    .muted { color: #222; font-size: 10px; }
+    hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 1px 0; vertical-align: top; }
+    .r { text-align: end; } .b { font-weight: 700; }
+    .big { font-size: 14px; }
+    .foot { margin-top: 8px; font-size: 10.5px; white-space: pre-line; }
+    .sign { margin-top: 14px; display: flex; justify-content: space-between; font-size: 10.5px; }
+    @media screen { body { box-shadow: 0 0 0 1px #ccc; padding: 6mm; margin: 22px auto; } }
+    @media print { .noprint { display: none !important; } }
+  </style>
+</head>
+<body onload="setTimeout(function(){ window.print(); }, 200);">
+  <div class="center">
+    {% if clinic.logo_url %}<img class="logo" src="{{ clinic.logo_url }}" alt="">{% endif %}
+    <div class="clinic-name">{{ clinic.name_ar if current_lang=='ar' and clinic.name_ar else clinic.name }}</div>
+    {% if clinic.phone %}<div class="muted" dir="ltr">{{ clinic.phone }}</div>{% endif %}
+    <div class="title" data-voucher-kind="{{ 'refund' if change.is_refund else ('collect' if change.amount else 'nothing') }}">
+      {% if change.is_refund %}{{ t('svcfix.voucher_title_refund') }}
+      {% elif change.amount %}{{ t('svcfix.voucher_title_collect') }}
+      {% else %}{{ t('svcfix.voucher_title_nothing') }}{% endif %}</div>
+  </div>
+
+  <hr>
+  <table>
+    {# The voucher's own number is the refund's (or the difference's) number
+       — the one the family and the books quote. The till's row id below is
+       only for finding the movement. #}
+    <tr><td>{{ t('svcfix.voucher_number_refund') if change.is_refund else (t('svcfix.voucher_number_collect') if change.amount else t('svcfix.voucher_number')) }}</td>
+      <td class="r b" dir="ltr" data-voucher-number>{{ change.number }}</td></tr>
+    <tr><td>{{ t('svcfix.original_receipt') }}</td><td class="r b" dir="ltr" data-original-number>{{ invoice.invoice_number }}</td></tr>
+    {% if change.payment_id %}
+    <tr class="muted"><td>{{ t('svcfix.payment_ref') }}</td>
+      <td class="r" dir="ltr" data-money-ref>#{{ change.payment_id }}</td></tr>
+    {% elif change.refund_request_id %}
+    <tr><td>{{ t('svcfix.request_number') }}</td><td class="r b" dir="ltr" data-request-ref>R-{{ change.refund_request_id }}</td></tr>
+    {% endif %}
+    <tr><td>{{ t('invoices.date') }}</td><td class="r" dir="ltr">{{ change.created_at.strftime('%Y-%m-%d %H:%M') }}</td></tr>
+    <tr><td>{{ t('invoices.patient') }}</td><td class="r">{{ invoice.patient.display_name(current_lang) if invoice.patient else '' }}</td></tr>
+    {% if invoice.doctor %}<tr><td>{{ t('invoices.doctor') }}</td><td class="r">{{ invoice.doctor.doctor_print_name(current_lang) }}</td></tr>{% endif %}
+  </table>
+
+  <hr>
+  <table>
+    <tr><td class="b">{{ t('svcfix.from') }}</td><td class="r"></td></tr>
+    <tr><td>{{ change.old_description }}</td><td class="r" dir="ltr">{{ '%.2f'|format(change.old_family) }}</td></tr>
+    {% if change.old_payer %}<tr class="muted"><td>{{ t('svcfix.payer_share') }}</td><td class="r" dir="ltr">{{ '%.2f'|format(change.old_payer) }}</td></tr>{% endif %}
+    <tr><td class="b">{{ t('svcfix.to') }}</td><td class="r"></td></tr>
+    <tr><td>{{ change.new_description }}</td><td class="r" dir="ltr">{{ '%.2f'|format(change.new_family) }}</td></tr>
+    {% if change.new_payer %}<tr class="muted"><td>{{ t('svcfix.payer_share') }}</td><td class="r" dir="ltr">{{ '%.2f'|format(change.new_payer) }}</td></tr>{% endif %}
+  </table>
+
+  <hr>
+  <table>
+    <tr><td>{{ t('svcfix.paid_before') }}</td><td class="r" dir="ltr">{{ '%.2f'|format(change.collected) }}</td></tr>
+    <tr class="b big"><td>{{ t('svcfix.refunded') if change.is_refund else t('svcfix.collected_diff') }}</td>
+      <td class="r" dir="ltr" data-voucher-amount>{{ '%.2f'|format(change.amount) }}</td></tr>
+    {% if change.payment %}<tr><td>{{ t('invoices.method') }}</td><td class="r">{{ t('payment_methods.' ~ change.payment.method) }}</td></tr>{% endif %}
+    <tr><td>{{ t('svcfix.state') }}</td><td class="r">{{ t('svcfix.status_' ~ change.status) }}</td></tr>
+  </table>
+  <div class="muted" style="margin-top:4px;">{{ t('svcfix.reason') }}: {{ change.reason }}</div>
+  <div class="muted">{{ t('svcfix.by') }}: {{ change.creator.display_name(current_lang) if change.creator else '' }}</div>
+
+  <div class="sign"><span>{{ t('svcfix.sign_family') }} ............</span><span>{{ t('svcfix.sign_desk') }} ............</span></div>
+  <hr>
+
+  <div class="center">
+    {% if thermal_footer %}<div class="foot">{{ thermal_footer }}</div>{% endif %}
+    <img class="prog-logo" src="{{ url_for('static', filename='img/brand/pediapro-logo-black.png') }}" alt=""
+         onerror="this.style.display='none'">
+    <div class="muted">{{ program.name }} · {{ program.slogan }}</div>
+  </div>
+
+  <div class="noprint center" style="margin-top:14px;">
+    <button onclick="window.print()" style="padding:8px 16px;font-size:13px;cursor:pointer;">🖨 {{ t('invoices.print') }}</button>
+    <a href="{{ back_url }}" style="padding:8px 16px;font-size:13px;margin-inline-start:6px;text-decoration:none;border:1px solid #999;border-radius:4px;color:#000;">{{ t('invoices.invoice') }}</a>
+  </div>
+</body>
+</html>

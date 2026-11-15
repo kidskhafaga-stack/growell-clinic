@@ -1492,6 +1492,36 @@
   </form>
   {% endfor %}
 
+  {# The clinical pharmacist's interventions waiting for the prescriber (ص-١)
+     — here for the reason the question above is: this is where the doctor
+     is. Accept, accept with a change, or reject; the drug is never stopped
+     by it, and changing the order is done where orders are written. #}
+  {% for iv in admission.interventions if iv.is_open %}
+  <div class="alert-pill {{ 'danger' if iv.severity == 'high' else 'warn' }}" style="margin-bottom:6px;" data-open-intervention="{{ iv.number }}">
+    <i class="bi bi-clipboard2-plus"></i>
+    <b>{{ t('cpi.from_pharmacist') }} <span dir="ltr">{{ iv.number }}</span></b> —
+    {{ t('cpi.p_' ~ iv.problem) }}{% if iv.detail %} ({{ t('cpi.d_' ~ iv.problem ~ '_' ~ iv.detail) }}){% endif %}{% if iv.order %} · <b>{{ iv.order.drug_name }}</b>{% endif %}
+    · {{ t('cpi.s_' ~ iv.severity) }}{% if iv.problem_note %} — {{ iv.problem_note }}{% endif %}
+    {% if iv.pharmacist %}<span class="hint">{{ iv.pharmacist.display_name(current_lang) }}</span>{% endif %}
+  </div>
+  {% if current_user.is_admin or current_user.can('medication_order') %}
+  <form method="post" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:12px;"
+        action="{{ url_for('beds.respond_intervention', row_id=iv.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;flex:1;min-width:220px;">
+      <label for="ivn_{{ iv.id }}">{{ t('cpi.response_note') }}</label>
+      <input class="input" id="ivn_{{ iv.id }}" name="note" maxlength="255">
+    </div>
+    <button class="btn btn-outline gc-press" type="submit" name="response" value="accepted" data-iv-accept>
+      <i class="bi bi-check2"></i> {{ t('cpi.r_accepted') }}</button>
+    <button class="btn btn-outline gc-press" type="submit" name="response" value="modified">
+      <i class="bi bi-pencil"></i> {{ t('cpi.r_modified') }}</button>
+    <button class="btn btn-outline gc-press" type="submit" name="response" value="rejected">
+      <i class="bi bi-x"></i> {{ t('cpi.r_rejected') }}</button>
+  </form>
+  {% endif %}
+  {% endfor %}
+
   {% if safety and safety.interactions %}
   <div class="alert-pill danger" style="margin-bottom:12px;" data-interaction>
     <i class="bi bi-exclamation-octagon"></i>
