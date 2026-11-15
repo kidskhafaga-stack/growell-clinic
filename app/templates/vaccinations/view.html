@@ -72,7 +72,7 @@
       {% for row, why, kind in polio.not_counted %}{{ row.vaccine.display_name(current_lang) if row.vaccine else '' }} <span dir="ltr">{{ row.given_date }}</span> ({{ t('polio.nc_' ~ why) }}){% if not loop.last %} · {% endif %}{% endfor %}</p>
     {% endif %}
     {% if polio.fewer_ipv %}
-    <p style="margin:8px 0 0;color:#b45309;" data-polio-fewer-ipv><i class="bi bi-exclamation-triangle"></i> {{ t('polio.fewer_ipv', clinic=polio.clinic_ipv, who=polio.need.ipv) }}</p>
+    <p style="margin:8px 0 0;color:#b45309;" data-polio-fewer-ipv><i class="bi bi-info-circle"></i> {{ t('polio.fewer_ipv', clinic=polio.clinic_ipv, who=polio.need.ipv) }}</p>
     {% endif %}
     <p class="hint" style="margin:8px 0 0;">{{ t('polio.no_ceiling') }} · {{ t('polio.source') }}:
       <a href="{{ polio.source.url }}" target="_blank" rel="noopener">{{ polio.source.title }}</a> — {{ polio.source.citation }}</p>
