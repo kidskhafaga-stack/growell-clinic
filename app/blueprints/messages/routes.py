@@ -825,16 +825,6 @@ def _booking_from_thread(key, patient, phone, msgs, lang):
     from app.utils.triage import URGENT_WORDS
 
     taken = br.for_conversation(key, patient.id if patient else None, phone)
-    # The family's words since the desk last wrote — what they are asking
-    # now, not the whole history. Edited before it is saved.
-    asked = []
-    for m in reversed(msgs):
-        if m.direction != "in":
-            if asked:
-                break
-            continue
-        if m.body:
-            asked.append(m.body.strip())
     return {
         "can_request": True,
         "conv_requests": [
@@ -843,7 +833,9 @@ def _booking_from_thread(key, patient, phone, msgs, lang):
              br.is_urgent(r)) for r in taken],
         "request_doctors": list_doctors(),
         "request_types": APPOINTMENT_TYPES,
-        "request_message": "\n".join(reversed(asked))[:1000],
+        # The family's words since the desk last wrote — the same reading
+        # the actions card takes (``_family_asked``). Edited before saving.
+        "request_message": _family_asked(msgs)[:1000],
         "request_today": local_today(),
         "request_tomorrow": local_today().fromordinal(
             local_today().toordinal() + 1),
