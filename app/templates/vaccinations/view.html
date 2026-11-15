@@ -44,6 +44,41 @@
   </div>
   </div>
 
+  {# Polio as one series (OPV + IPV), by WHO's position paper — advice beside
+     the schedule; it changes no date on it (`utils/polio_series`). #}
+  {% if polio %}
+  <div class="card gc-scale-in" style="margin-top:18px;" data-polio-series="{{ 'complete' if polio.complete else 'open' }}">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <h2 style="margin:0;font-size:1.05rem;"><i class="bi bi-shield-plus"></i> {{ t('polio.title') }}</h2>
+      <span class="badge {{ 'badge--green' if polio.complete else 'badge--warn' }}">{{ t('polio.complete') if polio.complete else t('polio.open') }}</span>
+    </div>
+    <p class="hint" style="margin:6px 0 10px;">{{ t('polio.hint') }}</p>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;">
+      <div data-polio-opv="{{ polio.opv|length }}"><b>bOPV</b> {{ polio.opv|length }} / {{ polio.need.opv }}
+        {% if polio.zero %}<span class="hint">+ {{ t('polio.zero_dose') }}</span>{% endif %}</div>
+      <div data-polio-ipv="{{ polio.ipv|length }}"><b>IPV</b> {{ polio.ipv|length }} / {{ polio.need.ipv }}
+        <span class="hint">{{ t('polio.ipv_incl') }}</span></div>
+    </div>
+    {% if polio.next %}
+    <ul style="margin:8px 0 0;padding-inline-start:18px;">
+      {% for n in polio.next %}
+      <li data-polio-next="{{ n.kind }}">{{ t('polio.next_' ~ n.kind, n=n.number) }} — {{ t('polio.from') }} <span dir="ltr">{{ n.earliest }}</span>
+        {% if n.why %}<span class="hint">({{ t('polio.why_' ~ n.why) }})</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if polio.not_counted %}
+    <p class="hint" style="margin:8px 0 0;" data-polio-not-counted>{{ t('polio.not_counted') }}:
+      {% for row, why, kind in polio.not_counted %}{{ row.vaccine.display_name(current_lang) if row.vaccine else '' }} <span dir="ltr">{{ row.given_date }}</span> ({{ t('polio.nc_' ~ why) }}){% if not loop.last %} · {% endif %}{% endfor %}</p>
+    {% endif %}
+    {% if polio.fewer_ipv %}
+    <p style="margin:8px 0 0;color:#b45309;" data-polio-fewer-ipv><i class="bi bi-exclamation-triangle"></i> {{ t('polio.fewer_ipv', clinic=polio.clinic_ipv, who=polio.need.ipv) }}</p>
+    {% endif %}
+    <p class="hint" style="margin:8px 0 0;">{{ t('polio.no_ceiling') }} · {{ t('polio.source') }}:
+      <a href="{{ polio.source.url }}" target="_blank" rel="noopener">{{ polio.source.title }}</a> — {{ polio.source.citation }}</p>
+  </div>
+  {% endif %}
+
   <!-- The agreed plan: what the doctor and the family settled on -->
   <div class="card gc-scale-in" style="margin-top:18px;">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">

@@ -104,8 +104,14 @@ def view(patient_id):
     from app.utils import vaccine_protocols
 
     courses = vaccine_protocols.cards(plan, patient.id)
+    # Polio as one series, OPV and IPV read together by WHO's own rule — an
+    # advice card beside the schedule, which it does not change.
+    from app.utils import polio_series
+
+    polio = (polio_series.status(patient)
+             if patient.date_of_birth is not None else None)
     return render_template(
-        "vaccinations/view.html",
+        "vaccinations/view.html", polio=polio,
         patient=patient, plan=plan, summary=summary, next_due=nxt,
         agreed=agreed, offerable=offerable, courses=courses,
         rig_states=vaccine_protocols.RIG_STATES,
