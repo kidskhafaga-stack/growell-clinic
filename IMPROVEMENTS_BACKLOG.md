@@ -111,6 +111,24 @@ InstaPay شخصي)، فيها اللي موجود في البرنامج فعلا
 مرشحين للمراجعة: MENACWY (Menactra/Menveo لحد ٥٥ سنة)، BCG، OPV/IPV، HBV0،
 MMR، MEASLES.
 
+**✅ اتعمل (PR الجاي) — النشرات اتقرت واحدة واحدة** (`app/data/egypt_vaccines.json` ←
+`label_age` لكل مستحضر، `tests/test_each_brand_says_its_own_age.py`). اتقرت نشرة EMA
+(Product Information) ونشرة FDA (Package Insert) يوم ١٦ نوفمبر ٢٠٢٦، والجملة نفسها
+متكتبة جنب كل مستحضر بلينكها:
+* **سقف اتكتب:** Menactra — «approved for use in individuals 9 months through 55 years of
+  age» (نشرة FDA) ← لحد ٥٥ سنة شاملة، بنفس طريقة Priorix Tetra.
+* **النشرة بتقول «من غير سن أقصى»** (ودي معلومة اتقرت، مش خانة فاضية): Nimenrix، Prevenar 13،
+  Prevenar 20، Vaxneuvance، Varivax، MMR II، Priorix، Fluarix Tetra، Typhim Vi، Rabipur
+  (على نشرة RabAvert، نفس اللقاح في أمريكا)، Dukoral.
+* **النشرتين مختلفين — ومفيش رقم لحد ما الدكاترة يقولوا مصر ماشية على أنهي نشرة:**
+  Menveo (أوروبا: من سنتين من غير حد؛ أمريكا: من شهرين لحد ٥٥ سنة)، Bexsero (أوروبا: من
+  شهرين من غير حد؛ أمريكا: ١٠ لـ٢٥ سنة).
+* **ما اتقرتش، وكل واحد متكتب في الاختبار وليه:** منتجات البرنامج القومي (BCG، HBV0،
+  OPV، IPV، الحصبة، MMR الحكومي، فيتامين أ — مرجعها جدول الوزارة)؛ Varilrix وVaxigrip
+  وInfluvac Tetra وPneumo 23 وVerorab وStamaril وMencevax (مرخّصين قومياً في أوروبا ومش
+  في أمريكا — محتاجين نشرة العلبة)؛ Typbar TCV (نشرته على موقع التأهيل المسبق بتاع منظمة
+  الصحة).
+
 ---
 
 ### 0.2) سقف الترخيص ≠ سقف نطاق الجدول — اتعمل ✅

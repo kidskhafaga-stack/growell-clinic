@@ -199,7 +199,15 @@
           "doses_age_months": [
             12,
             18
-          ]
+          ],
+          "label_age": {
+            "label": "FDA package insert (DailyMed)",
+            "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=95c6fdb6-b587-4413-92f9-d592b9f7a23e",
+            "quote": "PRIORIX is a vaccine indicated for active immunization for the prevention of measles, mumps, and rubella in individuals 12 months of age and older.",
+            "upper": null,
+            "read_on": "2026-11-16"
+          },
+          "max_age_final_dose_label": "من غير سن أقصى في نشرته (FDA package insert (DailyMed))"
         },
         {
           "name": "MMR II",
@@ -207,7 +215,15 @@
           "doses_age_months": [
             12,
             18
-          ]
+          ],
+          "label_age": {
+            "label": "FDA package insert",
+            "url": "https://www.fda.gov/media/75191/download",
+            "quote": "M-M-R II is a vaccine indicated for active immunization for the prevention of measles, mumps, and rubella in individuals 12 months of age and older.",
+            "upper": null,
+            "read_on": "2026-11-16"
+          },
+          "max_age_final_dose_label": "من غير سن أقصى في نشرته (FDA package insert)"
         }
       ],
       "route": "SC",
@@ -338,13 +354,20 @@
           ],
           "valency": "13-valent PCV",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "غير محدد",
+          "max_age_final_dose_label": "من غير سن أقصى في نشرته (EMA SmPC)",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
           "source_url": "https://www.pfizer.com/products/product-detail/prevnar_13",
-          "interchange_to": "full"
+          "interchange_to": "full",
+          "label_age": {
+            "label": "EMA SmPC",
+            "url": "https://www.ema.europa.eu/en/documents/product-information/prevenar-13-epar-product-information_en.pdf",
+            "quote": "Active immunisation for the prevention of invasive disease and pneumonia caused by Streptococcus pneumoniae in adults ≥18 years of age and the elderly.",
+            "upper": null,
+            "read_on": "2026-11-16"
+          }
         },
         {
           "name": "Synflorix",
@@ -380,13 +403,25 @@
           "manufacturer": "MSD / Merck",
           "valency": "15-valent PCV",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "غير محدد",
+          "max_age_final_dose_label": "من غير سن أقصى في نشرته (FDA package insert)",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
           "source_url": "https://www.fda.gov/vaccines-blood-biologics/vaccines/vaxneuvance",
-          "interchange_to": "full"
+          "interchange_to": "full",
+          "label_age": {
+            "label": "FDA package insert",
+            "url": "https://www.fda.gov/media/150819/download",
+            "quote": "in individuals 6 weeks of age and older.",
+            "upper": null,
+            "read_on": "2026-11-16",
+            "other_label": {
+              "label": "EMA SmPC",
+              "url": "https://www.ema.europa.eu/en/documents/product-information/vaxneuvance-epar-product-information_en.pdf",
+              "quote": "in individuals 18 years of age and older."
+            }
+          }
         },
         {
           "name": "Prevenar 20",
@@ -400,14 +435,21 @@
           "manufacturer": "Pfizer",
           "valency": "20-valent PCV; 20 serotypes",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "غير محدد",
+          "max_age_final_dose_label": "من غير سن أقصى في نشرته (EMA SmPC)",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
           "source_url": "https://www.edaegypt.gov.eg/ar/",
           "interchange_to": "conditional",
-          "interchange_flag_under_months": 15
+          "interchange_flag_under_months": 15,
+          "label_age": {
+            "label": "EMA SmPC",
+            "url": "https://www.ema.europa.eu/en/documents/product-information/prevenar-20-epar-product-information_en.pdf",
+            "quote": "Active immunisation for the prevention of invasive disease and pneumonia caused by Streptococcus pneumoniae in individuals 18 years of age and older.",
+            "upper": null,
+            "read_on": "2026-11-16"
+          }
         }
       ],
       "route": "IM",
@@ -486,12 +528,19 @@
           "manufacturer": "MSD / Merck",
           "valency": "Live attenuated varicella Oka/Merck strain",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "غير محدد",
+          "max_age_final_dose_label": "من غير سن أقصى في نشرته (FDA package insert)",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": false,
           "reminder_scope": "routine",
-          "source_url": "https://www.fda.gov/vaccines-blood-biologics/vaccines/varivax"
+          "source_url": "https://www.fda.gov/vaccines-blood-biologics/vaccines/varivax",
+          "label_age": {
+            "label": "FDA package insert",
+            "url": "https://www.fda.gov/media/76000/download",
+            "quote": "VARIVAX is a vaccine indicated for active immunization for the prevention of varicella in individuals 12 months of age and older.",
+            "upper": null,
+            "read_on": "2026-11-16"
+          }
         }
       ],
       "route": "SC",
@@ -619,12 +668,20 @@
           "manufacturer": "GSK",
           "valency": "Quadrivalent inactivated influenza vaccine",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "غير محدد",
+          "max_age_final_dose_label": "من غير سن أقصى في نشرته (FDA package insert)",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "seasonal",
-          "source_url": "https://www.gsk.com/en-gb/products/"
+          "source_url": "https://www.gsk.com/en-gb/products/",
+          "label_age": {
+            "label": "FDA package insert",
+            "url": "https://www.fda.gov/media/79278/download",
+            "quote": "FLUARIX QUADRIVALENT is approved for use in persons aged 6 months and older.",
+            "upper": null,
+            "read_on": "2026-11-16",
+            "note": "Read on the US label of the same product, sold in the US as Fluarix Quadrivalent."
+          }
         }
       ],
       "route": "IM",
@@ -782,12 +839,20 @@
           "manufacturer": "Sanofi",
           "valency": "4-valent conjugate; A,C,W,Y",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "غير محدد",
+          "max_age_final_dose_label": "لحد 55 سنة (شاملة) — نشرة FDA",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "risk",
-          "source_url": "https://www.fda.gov/vaccines-blood-biologics/vaccines/menactra"
+          "source_url": "https://www.fda.gov/vaccines-blood-biologics/vaccines/menactra",
+          "label_age": {
+            "label": "FDA package insert",
+            "url": "https://www.fda.gov/media/75619/download",
+            "quote": "Menactra is approved for use in individuals 9 months through 55 years of age.",
+            "upper": "55 years (inclusive)",
+            "read_on": "2026-11-16"
+          },
+          "max_age_final_dose_days": 20454
         },
         {
           "name": "Menveo",
@@ -798,12 +863,25 @@
           "manufacturer": "GSK",
           "valency": "4-valent conjugate; A,C,W,Y",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "غير محدد",
+          "max_age_final_dose_label": "النشرتين مختلفين — شوف label_age",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "risk",
-          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/menveo"
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/menveo",
+          "label_age": {
+            "label": "EMA SmPC",
+            "url": "https://www.ema.europa.eu/en/documents/product-information/menveo-epar-product-information_en.pdf",
+            "quote": "Menveo is indicated for active immunization of children (from 2 years of age), adolescents and adults at risk of exposure to Neisseria meningitidis groups A, C, W-135 and Y",
+            "upper": null,
+            "read_on": "2026-11-16",
+            "other_label": {
+              "label": "FDA package insert",
+              "url": "https://www.fda.gov/media/78514/download",
+              "quote": "in individuals 2 months through 55 years of age."
+            },
+            "note": "The two labels disagree (EU: from 2 years, no upper age; US: 2 months through 55 years). No ceiling is written until the clinic's doctors say which label Egypt follows."
+          }
         },
         {
           "name": "Nimenrix",
@@ -814,12 +892,19 @@
           "manufacturer": "GSK",
           "valency": "4-valent conjugate; A,C,W,Y",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "غير محدد",
+          "max_age_final_dose_label": "من غير سن أقصى في نشرته (EMA SmPC)",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "risk",
-          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/nimenrix"
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/nimenrix",
+          "label_age": {
+            "label": "EMA SmPC",
+            "url": "https://www.ema.europa.eu/en/documents/product-information/nimenrix-epar-product-information_en.pdf",
+            "quote": "Nimenrix is indicated for active immunisation of individuals from the age of 6 weeks",
+            "upper": null,
+            "read_on": "2026-11-16"
+          }
         },
         {
           "name": "Mencevax",
@@ -864,12 +949,25 @@
           "manufacturer": "GSK",
           "valency": "MenB 4-component recombinant vaccine",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "غير محدد",
+          "max_age_final_dose_label": "النشرتين مختلفين — شوف label_age",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "risk",
-          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/bexsero"
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/bexsero",
+          "label_age": {
+            "label": "EMA SmPC",
+            "url": "https://www.ema.europa.eu/en/documents/product-information/bexsero-epar-product-information_en.pdf",
+            "quote": "Bexsero is indicated for active immunisation of individuals from 2 months of age and older",
+            "upper": null,
+            "read_on": "2026-11-16",
+            "other_label": {
+              "label": "FDA package insert (DailyMed)",
+              "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=f70cf2fc-6e6d-4a74-9f7a-db8fec072fd7",
+              "quote": "BEXSERO is approved for use in individuals aged 10 through 25 years."
+            },
+            "note": "The two labels disagree (EU: from 2 months, no upper age; US: 10 through 25 years). No ceiling is written until the clinic's doctors say which label Egypt follows."
+          }
         },
         {
           "name": "Trumenba",
@@ -978,12 +1076,19 @@
           "manufacturer": "Sanofi",
           "valency": "Vi polysaccharide typhoid vaccine",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "غير محدد",
+          "max_age_final_dose_label": "من غير سن أقصى في نشرته (FDA package insert)",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": false,
           "reminder_scope": "travel",
-          "source_url": "https://www.sanofi.com/en/products/vaccines"
+          "source_url": "https://www.sanofi.com/en/products/vaccines",
+          "label_age": {
+            "label": "FDA package insert",
+            "url": "https://www.fda.gov/media/75993/download",
+            "quote": "is approved for use in persons two years of age or older.",
+            "upper": null,
+            "read_on": "2026-11-16"
+          }
         }
       ],
       "booster": false,
@@ -1022,12 +1127,20 @@
           "manufacturer": "Bavarian Nordic",
           "valency": "Inactivated rabies vaccine; purified chick embryo cell culture",
           "dose_volume": "1.0 mL",
-          "max_age_final_dose_label": "غير محدد",
+          "max_age_final_dose_label": "من غير سن أقصى في نشرته (FDA package insert)",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": false,
           "reminder_scope": "event",
-          "source_url": "https://www.bavarian-nordic.com/what-we-do/our-products.aspx"
+          "source_url": "https://www.bavarian-nordic.com/what-we-do/our-products.aspx",
+          "label_age": {
+            "label": "FDA package insert",
+            "url": "https://www.fda.gov/media/83874/download",
+            "quote": "RabAvert is indicated for preexposure vaccination, in both primary series and booster dose, and for postexposure prophylaxis against rabies in all age groups.",
+            "upper": null,
+            "read_on": "2026-11-16",
+            "note": "Read on the US label of the same vaccine, sold in the US as RabAvert."
+          }
         }
       ],
       "booster": false,
@@ -1080,12 +1193,19 @@
           "manufacturer": "Valneva Sweden AB",
           "valency": "Inactivated oral cholera O1 + recombinant B-subunit",
           "dose_volume": "3 mL final mixed dose",
-          "max_age_final_dose_label": "غير محدد",
+          "max_age_final_dose_label": "من غير سن أقصى في نشرته (EMA SmPC)",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "travel",
-          "source_url": "https://www.who.int/news/item/21-03-2019-medical-product-alert-n-4-2019"
+          "source_url": "https://www.who.int/news/item/21-03-2019-medical-product-alert-n-4-2019",
+          "label_age": {
+            "label": "EMA SmPC",
+            "url": "https://www.ema.europa.eu/en/documents/product-information/dukoral-epar-product-information_en.pdf",
+            "quote": "Dukoral is indicated for active immunisation against disease caused by Vibrio cholerae serogroup O1 in adults and children from 2 years of age",
+            "upper": null,
+            "read_on": "2026-11-16"
+          }
         }
       ],
       "max_age_months": 24,
