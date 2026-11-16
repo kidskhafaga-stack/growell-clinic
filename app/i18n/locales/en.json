@@ -17613,5 +17613,25 @@
     "d_result_ready": "{test}: the result is ready and the laboratory will send it to you.",
     "d_balance": "The amount still owed is {v}.",
     "d_balance_none": "Nothing is owed on the account."
+  },
+  "polio": {
+    "title": "Polio — one series (OPV + IPV)",
+    "hint": "Oral and injected doses (with the hexavalent and pentavalent that contain IPV) counted together by WHO's position paper. Advice beside the schedule — it changes no date on it; the doctor decides.",
+    "complete": "Series complete",
+    "open": "Series not complete",
+    "zero_dose": "birth dose (not part of the primary series)",
+    "ipv_incl": "(including IPV inside a hexavalent or pentavalent)",
+    "next_opv": "bOPV dose {n}",
+    "next_ipv": "IPV dose {n}",
+    "from": "from",
+    "why_late_start": "started after 3 months — first IPV at the first contact",
+    "why_preferred_first": "first IPV from 14 weeks",
+    "why_preferred_second": "the second at least 4 months after the first",
+    "not_counted": "Not counted in the series",
+    "nc_too_young": "before the minimum age",
+    "nc_too_soon": "before the minimum interval",
+    "fewer_ipv": "The clinic's schedule has {clinic} IPV dose(s); the paper says {who} — to review against the national programme.",
+    "no_ceiling": "The paper sets no upper age for completing the series",
+    "source": "Source"
   }
 }

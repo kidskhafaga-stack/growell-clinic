@@ -2406,6 +2406,20 @@ SECTIONS = [
              "قابلة للطباعة.",
              "<b>An age-based schedule per child</b> with dose recording and a "
              "printable vaccination certificate."),
+            ("<b>شلل الأطفال سلسلة واحدة (OPV + IPV):</b> كارت في صفحة تطعيمات "
+             "الطفل بيعدّ الفموي والحقن مع بعض (والـIPV اللي جوه السداسي أو "
+             "الخماسي) بقاعدة نشرة منظمة الصحة العالمية (يونيو ٢٠٢٢): ٣ bOPV "
+             "و٢ IPV، وجرعة الولادة ما بتتحسبش منهم. بيقول اللي اتحسب واللي "
+             "ما اتحسبش وليه، والناقص، وأول يوم ممكن للجرعة الجاية، وإن النشرة "
+             "ما فيهاش سن أقصى. رأي جنب الجدول — ما بيغيّرش أي ميعاد فيه.",
+             "<b>Polio as one series (OPV + IPV):</b> a card on the child's "
+             "vaccination page counts oral and injected doses together (with "
+             "the IPV inside a hexavalent or pentavalent) by WHO's position "
+             "paper (June 2022): 3 bOPV and 2 IPV, the birth dose not counted "
+             "among them. It says what counted and what did not and why, what "
+             "is missing, the earliest day for the next dose, and that the "
+             "paper sets no upper age. Advice beside the schedule — it "
+             "changes no date on it."),
             ("<b>داء الكلب كورس مش جرعة:</b> مش في الجدول بالسن. من صفحة تطعيمات الطفل ← «كورس "
              "داء الكلب» الدكتور يختار البروتوكول — بعد التعرّض: منظمة الصحة (٤ جرعات: ٠، ٣، ٧، ١٤) "
              "أو المصري (٥ جرعات: ٠، ٣، ٧، ١٤، ٢٨)، أو متطعّم قبل كده (٠، ٣)، أو قبل التعرّض (٠، ٧) — "
