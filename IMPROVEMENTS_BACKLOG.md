@@ -111,7 +111,7 @@ InstaPay شخصي)، فيها اللي موجود في البرنامج فعلا
 مرشحين للمراجعة: MENACWY (Menactra/Menveo لحد ٥٥ سنة)، BCG، OPV/IPV، HBV0،
 MMR، MEASLES.
 
-**✅ اتعمل (PR الجاي) — النشرات اتقرت واحدة واحدة** (`app/data/egypt_vaccines.json` ←
+**✅ اتعمل (PR #562) — النشرات اتقرت واحدة واحدة** (`app/data/egypt_vaccines.json` ←
 `label_age` لكل مستحضر، `tests/test_each_brand_says_its_own_age.py`). اتقرت نشرة EMA
 (Product Information) ونشرة FDA (Package Insert) يوم ١٦ نوفمبر ٢٠٢٦، والجملة نفسها
 متكتبة جنب كل مستحضر بلينكها:
