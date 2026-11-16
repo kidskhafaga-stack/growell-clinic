@@ -1,0 +1,26 @@
+{# Who is calling — what the layout's pop-up shows (utils/telephony.card).
+   The panel is the chat's own, so each block is there only when this person
+   could have seen it on its own screen. A result's state, never its value. #}
+{% for c in cards %}
+<div class="gc-call-card" data-ringing="{{ c.call.id }}">
+  <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+    <strong><i class="bi bi-telephone-inbound"></i> {{ t('calls.ringing') }}</strong>
+    <span dir="ltr">{{ c.call.raw_number or c.call.number }}</span>
+  </div>
+  {% if c.patients %}
+  <ul style="margin:6px 0;padding-inline-start:18px;">
+    {% for k in c.patients[:4] %}<li><a href="{{ url_for('patients.view', patient_id=k.id) }}">{{ k.display_name(current_lang) }}</a> <span class="hint">({{ k.patient_number }})</span></li>{% endfor %}
+  </ul>
+  {% set p = c.panel %}
+  {% if p and p.bookings %}<div class="hint" data-ringing-booking><i class="bi bi-calendar-event"></i> {{ t('calls.next_booking') }}: {{ p.bookings[0].appt_date.isoformat() }} {{ p.bookings[0].time_label }}</div>{% endif %}
+  {% if p and p.tests %}<div class="hint" data-ringing-tests><i class="bi bi-eyedropper"></i> {% for o, state in p.tests[:3] %}{{ o.display_name(current_lang) }}: {{ t('desk_act.s_' ~ state) }}{% if not loop.last %} · {% endif %}{% endfor %}</div>{% endif %}
+  {% if p and p.balance and p.balance.total %}<div class="hint" data-ringing-balance><i class="bi bi-cash-coin"></i> {{ t('calls.owes') }}: {{ p.balance.total|money }}</div>{% endif %}
+  {% else %}
+  <div class="hint" style="margin:6px 0;">{{ t('calls.unknown') }}</div>
+  {% endif %}
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+    {% if c.patients %}<a class="btn btn-sm btn-primary gc-press" href="{{ url_for('patients.view', patient_id=c.patients[0].id) }}"><i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>{% endif %}
+    <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('messages.calls') }}"><i class="bi bi-telephone"></i> {{ t('calls.title') }}</a>
+  </div>
+</div>
+{% endfor %}

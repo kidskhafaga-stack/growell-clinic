@@ -30,6 +30,38 @@
   color: #fff;
   background: var(--green-600, #16a34a);
 }
+/* Who is calling — the telephone's pop-up (CONNECTHUB_PLAN.md stage 6). */
+.gc-ringing {
+  position: fixed;
+  inset-inline-end: 16px;
+  bottom: 16px;
+  width: min(92vw, 360px);
+  z-index: 950;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: gcLiveNoteIn 0.25s ease-out;
+}
+.gc-ringing[hidden] { display: none; }
+.gc-call-card {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--card, #fff);
+  border: 1px solid var(--line, #e5e7eb);
+  border-inline-start: 4px solid var(--green-600, #16a34a);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  font-size: 0.9rem;
+}
+.gc-ringing-close {
+  align-self: flex-end;
+  border: 0;
+  background: var(--card, #fff);
+  border-radius: 999px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
+}
 @keyframes gcLiveNoteIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: none; }

@@ -17,7 +17,10 @@ GROUPED_PREFIXES = ("mod_enabled:", "risk:", "panel_edit:")
 # was the fourth single read on every screen; folded in with the other three
 # the page costs fewer reads than before it existed.
 EVERY_PAGE = ("facility_configured", "clinic_timezone", "update_check",
-              "nav_find")
+              "nav_find",
+              # The layout asks it on every page, for the «who is calling»
+              # pop-up (utils/telephony) — so it rides the one query.
+              "telephony_enabled")
 _EVERY_PAGE = "settings:every_page"
 
 

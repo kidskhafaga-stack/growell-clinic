@@ -116,6 +116,12 @@ def connection(key):
     if key == "email":
         from app.utils.mail_channel import ready
         return "connected" if ready() else "manual"
+    if key == "phone":
+        # The switchboard, through the clinic's own door (utils/telephony):
+        # connected once it is on and has a key to knock with.
+        from app.utils import telephony
+        return ("connected" if telephony.enabled() and telephony.key_hint()
+                else "manual")
     return "manual"
 
 

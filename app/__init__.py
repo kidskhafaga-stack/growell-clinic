@@ -206,6 +206,7 @@ def create_app(config_name="default"):
     from app.blueprints.fhir_api import fhir_api_bp
     from app.blueprints.interop import interop_bp
     from app.blueprints.lab_intake import lab_intake_bp
+    from app.blueprints.telephony import telephony_bp
     from app.blueprints.finance import finance_bp
     from app.blueprints.dentistry import dentistry_bp
     from app.blueprints.beds import beds_bp
@@ -295,6 +296,9 @@ def create_app(config_name="default"):
     # The laboratory middleware's door: a key per analyser (lab_device_import).
     app.register_blueprint(lab_intake_bp)
     csrf.exempt(lab_intake_bp)
+    # The switchboard's door: the clinic's telephone key (utils/telephony).
+    app.register_blueprint(telephony_bp)
+    csrf.exempt(telephony_bp)
 
     # Template globals for navigation rendering.
     from app.models.permissions import MODULE_ICONS, MODULES
@@ -457,6 +461,23 @@ def create_app(config_name="default"):
         except Exception:  # noqa: BLE001
             verdict = Licence("dormant")
         return {"licence": verdict}
+
+    @app.context_processor
+    def inject_telephone():
+        """Whether the layout asks «is a call ringing for me?» — only with the
+        telephone on and for someone who works the messages (utils/telephony).
+        A function, so pages that never render the layout never read it."""
+        def calls_popup():
+            from flask_login import current_user as who
+
+            if not getattr(who, "is_authenticated", False):
+                return False
+            from app.utils import telephony
+            from app.utils.facility import module_enabled
+
+            return (module_enabled("messages") and who.can_access("messages")
+                    and telephony.enabled())
+        return {"calls_popup": calls_popup}
 
     @app.context_processor
     def inject_paging():
