@@ -120,6 +120,12 @@ def _fill_brand_facts(brand, data):
         value = data.get(field)
         if value is None:
             continue
+        # A clinic that chose a label, or wrote its own limit, decided this
+        # one — including «no upper age», which is blank and would otherwise
+        # read as "never filled" and be overwritten (utils/vaccine_labels.py).
+        if field == "max_age_final_dose_days" \
+                and getattr(brand, "age_label_choice", None):
+            continue
         current = getattr(brand, field, None)
         blank = current is None or current == ""
         if field in _FACTS_FILLED_OVER_FALSE:

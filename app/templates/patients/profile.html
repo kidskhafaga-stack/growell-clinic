@@ -283,6 +283,11 @@
           <a data-to-assessments href="{{ url_for('assessments.patient_list', patient_id=patient.id) }}">
             <i class="bi bi-clipboard2-pulse"></i> {{ t('assessment.door') }}</a>
           {% endif %}
+          {# The clinic's own forms (FORM_BUILDER_PLAN.md). #}
+          {% if forms_door('patient') or forms_door('visit') or forms_door('admission') %}
+          <a data-to-forms href="{{ url_for('forms.for_patient', patient_id=patient.id) }}">
+            <i class="bi bi-ui-checks"></i> {{ t('forms.title') }}</a>
+          {% endif %}
           {% if current_user.can_access('messages') and patient.contact_phone %}
           <a title="{{ t('inbox.start_hint') }}" href="{{ url_for('messages.inbox_start', patient_id=patient.id) }}">
             <i class="bi bi-whatsapp"></i> {{ t('inbox.start') }}</a>

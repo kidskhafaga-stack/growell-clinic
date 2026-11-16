@@ -35,6 +35,7 @@
         {% elif k in ('messenger', 'instagram', 'telegram', 'tiktok', 'email') %}
           {% if current_user.is_admin %}<a class="hint" href="#connect-{{ k }}" data-channel-settings="{{ k }}"><i class="bi bi-gear"></i> {{ t('channels.connect_settings') }}</a>
           {% else %}<span class="hint" data-channel-settings="{{ k }}">{{ t('channels.connect_by_admin') }}</span>{% endif %}
+        {% elif k == 'phone' %}<a class="hint" href="{{ url_for('messages.calls_setup') }}" data-channel-settings="phone"><i class="bi bi-gear"></i> {{ t('calls.setup') }}</a>
         {% else %}<span class="hint" data-channel-settings="{{ k }}">{{ t('channels.no_settings') }}</span>{% endif %}</td>
     </tr>
     {% endfor %}

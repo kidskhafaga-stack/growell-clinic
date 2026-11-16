@@ -1,0 +1,36 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ entry.form.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ entry.form.display_name(current_lang) }}{% endblock %}
+
+{# FORM_BUILDER_PLAN.md — one filled form, read on the shape it was filled
+   on (its snapshot), whatever the form became since. #}
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-ui-checks"></i> {{ entry.form.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;"><a href="{{ url_for('patients.view', patient_id=entry.patient_id) }}">{{ entry.patient.display_name(current_lang) }}</a> ({{ entry.patient.patient_number }})
+      · {{ entry.created_at|clinic_stamp }} · {{ t('forms.version', n=entry.form_version) }}
+      {% if entry.updated_at %} · {{ t('forms.amended', at=entry.updated_at|clinic_stamp) }}{% endif %}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('forms.for_patient', patient_id=entry.patient_id) }}"><i class="bi bi-list"></i> {{ t('forms.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('forms.entry', entry_id=entry.id, edit=1) }}"><i class="bi bi-pencil"></i> {{ t('forms.amend') }}</a>
+    <a class="btn btn-primary gc-press" href="{{ url_for('forms.entry_print', entry_id=entry.id) }}" target="_blank" data-print-entry><i class="bi bi-printer"></i> {{ t('forms.print') }}</a>
+  </div>
+</div>
+
+<div class="card gc-scale-in" data-entry-view="{{ entry.id }}">
+  {% set answers = entry.answers %}
+  {% for f in fields %}
+    {% if f.type == 'heading' %}
+    <h3 style="margin:14px 0 6px;">{{ cf.label(f, current_lang) }}</h3>
+    {% elif not f.hidden or answers.get(f.key) %}
+    <div style="display:flex;gap:12px;padding:6px 0;border-bottom:1px solid var(--border);">
+      <div style="flex:0 0 40%;color:var(--muted);">{{ cf.label(f, current_lang) }}</div>
+      <div data-answer="{{ f.key }}">{{ cf.shown_value(f, answers.get(f.key), current_lang) or '—' }}</div>
+    </div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endblock %}

@@ -667,7 +667,26 @@ def manage():
                            guideline_profiles=VaccineScheduleTemplate.GUIDELINE_PROFILES,
                            guideline_current=guideline_profile(),
                            load_gov=Setting.get("load_gov_vaccines", "1") != "0",
-                           load_optional=Setting.get("load_optional_vaccines", "1") != "0")
+                           load_optional=Setting.get("load_optional_vaccines", "1") != "0",
+                           age_labels=_age_label_states(vaccines),
+                           can_set_age=current_user.can("medication_order"))
+
+
+def _age_label_states(vaccines):
+    """Each shown brand's label state, with the name of whoever chose last."""
+    from app.models import User
+    from app.utils import vaccine_labels
+
+    out = {}
+    for vaccine in vaccines:
+        for brand in vaccine.brands:
+            out[brand.id] = vaccine_labels.state(brand)
+    ids = {s["by"] for s in out.values() if s["by"]}
+    names = {u.id: u.full_name or u.username
+             for u in User.query.filter(User.id.in_(ids)).all()} if ids else {}
+    for s in out.values():
+        s["by_name"] = names.get(s["by"])
+    return out
 
 
 @vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/offered",
@@ -1198,6 +1217,39 @@ def brand_edit(brand_id):
     db.session.commit()
     flash(t("vaccinations.brand_updated"), "success")
     return redirect(url_for("vaccinations.manage"))
+
+
+@vaccinations_bp.route("/manage/brand/<int:brand_id>/age-limit", methods=["POST"])
+@module_required(MODULE)
+def brand_age_limit(brand_id):
+    """Which label's age limit this clinic follows, or its own — and why.
+
+    A ceiling is what turns a course into «too late for this product», so
+    it is the prescriber's to set (``medication_order``: the doctors, and
+    the administrator), not everybody who can edit a price.
+    """
+    from app.utils import vaccine_labels
+
+    brand = db.get_or_404(VaccineBrand, brand_id)
+    if not current_user.can("medication_order"):
+        abort(403)
+    before = brand.max_age_final_dose_days
+    try:
+        vaccine_labels.choose(brand, request.form, user=current_user)
+    except vaccine_labels.LabelChoiceError as exc:
+        db.session.rollback()
+        flash(t(str(exc)), "danger")
+        return redirect(url_for("vaccinations.manage", cat=request.args.get("cat")))
+    ActivityLog.record(
+        "vaccine.brand_age_limit", user_id=current_user.id,
+        entity="vaccine_brand", entity_id=brand.id,
+        detail=(f"{brand.name}: {before}→{brand.max_age_final_dose_days} "
+                f"[{brand.age_label_choice}/{brand.age_change_kind}] "
+                f"{brand.age_change_note or ''}").strip()[:500],
+        ip_address=client_ip())
+    db.session.commit()
+    flash(t("vlabel.saved"), "success")
+    return redirect(url_for("vaccinations.manage", cat=request.args.get("cat")))
 
 
 @vaccinations_bp.route("/manage/brand/<int:brand_id>/prefer", methods=["POST"])

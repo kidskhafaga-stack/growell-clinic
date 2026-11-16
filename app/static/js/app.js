@@ -957,3 +957,36 @@ window.gcPatientPicker = function (url, initialId, initialName, goUrl) {
     document.querySelectorAll('details.ph2-more[open]').forEach(function (more) { if (shut(more)) more.open = false; });
   });
 })();
+
+// Who is calling (CONNECTHUB_PLAN.md stage 6). The switchboard tells the
+// server a call is ringing; this asks the server every few seconds whether a
+// call rings for this person and shows the card it rendered. Nothing is
+// decided here: the card, its links and what it may show come from the
+// server, by the person's own permissions.
+window.gcCallPopup = function (url) {
+  var box = document.getElementById("gc-ringing");
+  if (!box) return;
+  var shownFor = "";
+  var closedFor = "";
+  function ask() {
+    if (document.hidden) return;
+    fetch(url, { headers: { "X-Requested-With": "fetch" } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        var key = j && j.ids && j.ids.length ? j.ids.join(",") : "";
+        if (!key || key === closedFor) { box.hidden = true; shownFor = ""; return; }
+        if (key !== shownFor) {
+          box.innerHTML =
+            '<button type="button" class="gc-ringing-close" aria-label="×">×</button>' + j.html;
+          box.querySelector(".gc-ringing-close").addEventListener("click", function () {
+            closedFor = key; box.hidden = true;
+          });
+          shownFor = key;
+        }
+        box.hidden = false;
+      })
+      .catch(function () {});
+  }
+  ask();
+  setInterval(ask, 4000);
+};

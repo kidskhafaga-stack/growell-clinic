@@ -259,6 +259,23 @@ class VaccineBrand(db.Model):
     reminder_scope = db.Column(db.String(40))         # see REMINDER_SCOPES
     source_url = db.Column(db.String(255))            # where the fact came from
 
+    # ── Which label's age limit this clinic follows, and why ──────────
+    #
+    # The catalogue quotes each brand's label (``label_age`` in
+    # ``egypt_vaccines.json``); where the EU and US labels disagree it quotes
+    # both and defaults to the EU one. A clinic or hospital may adopt the
+    # other label, or write its own number — and when it writes its own, it
+    # says whether **the label itself changed** or this is **its own
+    # decision**, because those are different facts for whoever reads the
+    # ceiling next. Blank = never decided here, so the catalogue's ceiling
+    # applies and a re-seed may fill it; set = the clinic decided, and a
+    # re-seed leaves the ceiling alone (`utils/vaccine_labels.py`).
+    age_label_choice = db.Column(db.String(12))     # default | other | own
+    age_change_kind = db.Column(db.String(16))      # adopted | label_changed | clinic_own
+    age_change_note = db.Column(db.String(255))
+    age_changed_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    age_changed_at = db.Column(db.DateTime)
+
     # ── Switching **to** this product, never away from it ──────────────
     #
     # Read as: *the next dose is this brand and the earlier ones were not —

@@ -90,6 +90,11 @@
     {# The wording of the certificates doctors issue from the visit (ب-٣). #}
     <a class="btn btn-outline gc-press" href="{{ url_for('visits.cert_texts') }}" data-to-cert-texts>
       <i class="bi bi-file-earmark-text"></i> {{ t('cert.texts_title') }}</a>
+    {# The clinic's own forms (FORM_BUILDER_PLAN.md), for whoever designs them. #}
+    {% if current_user.can('forms_design') %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('forms.index') }}" data-to-form-builder>
+      <i class="bi bi-ui-checks"></i> {{ t('forms.builder') }}</a>
+    {% endif %}
     <a class="btn btn-outline gc-press" href="{{ url_for('settings.data_tools') }}">
       <i class="bi bi-database-gear"></i> {{ t('data_tools.open') }}</a>
     {% if current_user.is_owner %}

@@ -1,0 +1,62 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ form.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ form.display_name(current_lang) }}{% endblock %}
+
+{# FORM_BUILDER_PLAN.md ن-٢ — filling one of the clinic's forms, or
+   correcting an entry on the shape it was filled on. #}
+{% macro lbl(f) -%}{{ (f.label_en if current_lang == 'en' and f.label_en else f.label_ar) }}{%- endmacro %}
+{% macro opt(o) -%}{{ (o.en if current_lang == 'en' and o.en else o.ar) }}{%- endmacro %}
+{% block content %}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title"><i class="bi bi-ui-checks"></i> {{ form.display_name(current_lang) }}</h1>
+  <p class="page-sub" style="margin:0;">
+    <a href="{{ url_for('patients.view', patient_id=patient.id) }}">{{ patient.display_name(current_lang) }}</a> ({{ patient.patient_number }})
+    {% if visit %} · {{ t('forms.place_visit') }} {{ visit.visit_date.isoformat() if visit.visit_date else '' }}{% endif %}
+    {% if admission %} · {{ t('forms.place_admission') }}{% endif %}</p>
+  {% if form.note %}<p class="hint">{{ form.note }}</p>{% endif %}
+</div>
+
+<form method="post" class="card gc-scale-in" data-fill-form="{{ form.id }}"
+      action="{{ url_for('forms.entry', entry_id=entry.id) if entry else url_for('forms.fill', form_id=form.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if not entry %}
+  <input type="hidden" name="patient_id" value="{{ patient.id }}">
+  {% if visit %}<input type="hidden" name="visit_id" value="{{ visit.id }}">{% endif %}
+  {% if admission %}<input type="hidden" name="admission_id" value="{{ admission.id }}">{% endif %}
+  {% endif %}
+  {% for f in fields %}
+    {% set name = 'a_' ~ f.key %}
+    {% set v = values.get(name) if values else none %}
+    {% if f.type == 'heading' %}
+    <h3 style="margin:16px 0 6px;border-bottom:1px solid var(--border);padding-bottom:4px;">{{ lbl(f) }}</h3>
+    {% else %}
+    <div class="form-row" data-fill-field="{{ f.key }}">
+      <label for="{{ name }}">{{ lbl(f) }}{% if f.required %} <span style="color:#b91c1c;">*</span>{% endif %}
+        {% if f.type == 'number' and f.unit %}<span class="hint">({{ f.unit }})</span>{% endif %}</label>
+      {% if f.type == 'text' %}<input class="input" id="{{ name }}" name="{{ name }}" maxlength="300" value="{{ v or '' }}" {% if f.required %}required{% endif %}>
+      {% elif f.type == 'textarea' %}<textarea class="input" id="{{ name }}" name="{{ name }}" rows="3" {% if f.required %}required{% endif %}>{{ v or '' }}</textarea>
+      {% elif f.type == 'number' %}<input class="input" id="{{ name }}" name="{{ name }}" type="number" step="any" style="max-width:200px;"
+          {% if f.min is not none %}min="{{ f.min }}"{% endif %} {% if f.max is not none %}max="{{ f.max }}"{% endif %} value="{{ v if v is not none else '' }}" {% if f.required %}required{% endif %}>
+      {% elif f.type == 'date' %}<input class="input" id="{{ name }}" name="{{ name }}" type="date" style="max-width:200px;" value="{{ v or '' }}" {% if f.required %}required{% endif %}>
+      {% elif f.type == 'yesno' %}
+        <div style="display:flex;gap:14px;">
+          <label class="checkbox"><input type="radio" name="{{ name }}" value="yes" {% if v == 'yes' %}checked{% endif %}> {{ t('forms.yes') }}</label>
+          <label class="checkbox"><input type="radio" name="{{ name }}" value="no" {% if v == 'no' %}checked{% endif %}> {{ t('forms.no') }}</label></div>
+      {% elif f.type == 'choice' %}
+        <select class="select" id="{{ name }}" name="{{ name }}" style="max-width:360px;"><option value="">—</option>
+          {% for o in f.options or [] %}<option value="{{ o.key }}" {% if v == o.key %}selected{% endif %}>{{ opt(o) }}</option>{% endfor %}</select>
+      {% elif f.type == 'multi' %}
+        {% set chosen = (values.getlist(name) if values and values.getlist is defined else (v or [])) %}
+        <div style="display:flex;gap:6px 16px;flex-wrap:wrap;">
+          {% for o in f.options or [] %}<label class="checkbox"><input type="checkbox" name="{{ name }}" value="{{ o.key }}" {% if o.key in chosen %}checked{% endif %}> {{ opt(o) }}</label>{% endfor %}</div>
+      {% endif %}
+    </div>
+    {% endif %}
+  {% endfor %}
+  <div class="panel-actions">
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('forms.entry', entry_id=entry.id) if entry else url_for('forms.for_patient', patient_id=patient.id) }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+{% endblock %}

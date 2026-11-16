@@ -252,6 +252,7 @@
   <!-- Brands -->
   <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
     {% for brand in vaccine.brands %}
+    {% set al = age_labels.get(brand.id) %}
     <div class="brand-block" x-data="{ edit: false }">
     <div class="window-pill" style="justify-content:space-between;width:100%;border-radius:10px;padding:10px 12px;">
       <span>
@@ -309,7 +310,48 @@
           <button class="btn btn-outline btn-sm gc-press" type="button" x-on:click="edit = false">{{ t('common.cancel') }}</button>
         </div>
       </form>
+      {% if can_set_age %}
+      <form method="post" action="{{ url_for('vaccinations.brand_age_limit', brand_id=brand.id, cat=cat) }}"
+            data-age-limit-form x-data="{ choice: '{{ al.choice if al and al.choice else 'own' }}' }"
+            style="margin-top:12px;border-top:1px dashed var(--border);padding-top:10px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <strong><i class="bi bi-calendar2-x"></i> {{ t('vlabel.title') }}</strong>
+        <p class="hint" style="margin:4px 0 8px;">{{ t('vlabel.hint') }}</p>
+        {% for lb in (al.labels if al else []) %}
+        <label class="form-row checkbox" style="align-items:flex-start;">
+          <input type="radio" name="choice" value="{{ lb.key }}" x-model="choice">
+          <span><strong>{{ lb.label }}</strong>{% if lb.key == 'default' %} ({{ t('vlabel.default') }}){% endif %} —
+            {% if lb.upper_days %}{{ t('vlabel.before_age', age=lb.before) }}{% else %}{{ t('vlabel.no_upper') }}{% endif %}<br>
+            <span class="hint" dir="ltr" style="display:block;text-align:start;">“{{ lb.quote }}”</span>
+            <a href="{{ lb.url }}" target="_blank" rel="noopener" class="hint" style="display:block;"><i class="bi bi-box-arrow-up-right"></i> {{ t('vlabel.read_it') }}{% if lb.read_on %} · {{ lb.read_on }}{% endif %}</a></span>
+        </label>
+        {% endfor %}
+        <label class="form-row checkbox"><input type="radio" name="choice" value="own" x-model="choice"> <span>{{ t('vlabel.own') }}</span></label>
+        <div x-show="choice === 'own'" x-cloak data-age-limit-own>
+          <div class="form-row"><label>{{ t('vlabel.years') }}</label>
+            <input class="input" type="number" min="0" max="120" name="years" style="max-width:140px;" placeholder="{{ t('vlabel.years_blank') }}"></div>
+          <div class="form-row"><label>{{ t('vlabel.kind_q') }} *</label>
+            <label class="checkbox"><input type="radio" name="kind" value="label_changed"> {{ t('vlabel.kind_label_changed') }}</label>
+            <label class="checkbox"><input type="radio" name="kind" value="clinic_own"> {{ t('vlabel.kind_clinic_own') }}</label></div>
+        </div>
+        <div class="form-row"><label>{{ t('vlabel.note') }}<span x-show="choice === 'own'"> *</span></label>
+          <input class="input" name="note" maxlength="255" placeholder="{{ t('vlabel.note_ph') }}"></div>
+        <div class="panel-actions">
+          <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('vlabel.save') }}</button>
+        </div>
+      </form>
+      {% endif %}
     </div>
+    {% if al and (al.labels or al.decided) %}
+    <div class="brand-catchup" data-age-limit="{{ al.choice or '' }}" data-age-ceiling="{{ al.ceiling or '' }}">
+      <i class="bi bi-calendar2-x"></i>
+      <strong>{{ t('vlabel.title') }}:</strong>
+      {% if al.ceiling %}{{ t('vlabel.before_age', age=al.before) }}{% else %}{{ t('vlabel.no_upper') }}{% endif %}
+      · {% if al.choice == 'own' %}{{ t('vlabel.kind_' ~ al.kind) }}{% elif al.choice %}{% for lb in al.labels if lb.key == al.choice %}{{ lb.label }}{% endfor %}{% if al.choice == 'default' and not al.decided %} ({{ t('vlabel.default') }}){% endif %}{% endif %}
+      {% if al.disagree %}<span class="badge badge--role" data-age-labels-disagree>{{ t('vlabel.disagree') }}</span>{% endif %}
+      {% if al.decided %}<span style="color:var(--muted);">— {{ al.by_name or '' }}{% if al.at %} · {{ al.at.strftime('%Y-%m-%d') }}{% endif %}{% if al.note %} · «{{ al.note }}»{% endif %}</span>{% endif %}
+    </div>
+    {% endif %}
     {% if brand.catch_up_notes %}
     <div class="brand-catchup"><i class="bi bi-arrow-counterclockwise"></i>
       <strong>{{ t('vaccinations.catch_up') }} ({{ brand.display_name(current_lang) }}):</strong> {{ brand.catch_up_notes }}</div>

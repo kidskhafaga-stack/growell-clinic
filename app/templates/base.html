@@ -184,5 +184,12 @@
 {% block body %}{% endblock %}
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 {% block scripts %}{% endblock %}
+{% if calls_popup() %}
+{# Who is calling (CONNECTHUB_PLAN.md stage 6): asks every few seconds while
+   the page is visible; shows the card the server rendered, by this person's
+   permissions, and goes away when the call stops ringing. #}
+<div id="gc-ringing" class="gc-ringing" role="status" aria-live="polite" hidden></div>
+<script>gcCallPopup({{ url_for('messages.calls_ringing')|tojson }});</script>
+{% endif %}
 </body>
 </html>

@@ -118,6 +118,10 @@
     <div class="ph2-actions" data-visit-actions>
       <a class="btn btn-primary gc-press" href="{{ url_for('patients.view', patient_id=visit.patient_id) }}"><i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
       <a class="btn btn-outline gc-press" href="{{ url_for('visits.view', visit_id=visit.id) }}"><i class="bi bi-eye"></i> {{ t('visits.view_title') }}</a>
+      {# The clinic's own forms filled on a visit (FORM_BUILDER_PLAN.md). #}
+      {% if forms_door('visit') %}
+      <a class="btn btn-outline gc-press" data-to-forms href="{{ url_for('forms.for_patient', patient_id=visit.patient_id, visit_id=visit.id) }}"><i class="bi bi-ui-checks"></i> {{ t('forms.title') }}</a>
+      {% endif %}
       {# The payer's own form, filled for this visit (CONTRACTS_PLAN.md ع-٣) —
          the doctor signs it. Under «خيارات أخرى», only when there is one. #}
       {% if payer_forms_here %}
