@@ -55,7 +55,7 @@ Authorization: Bearer pptel_…</pre>
     <thead><tr><th>{{ t('calls.person') }}</th><th>{{ t('calls.ext') }}</th></tr></thead>
     <tbody>
     {% for u in users %}
-    <tr><td>{{ u.full_name }} <span class="hint">({{ u.role }})</span></td>
+    <tr><td>{{ u.display_name(current_lang) }} <span class="hint">({{ u.role }})</span></td>
       <td><input class="input" name="ext_{{ u.id }}" value="{{ u.phone_extension or '' }}" maxlength="20" dir="ltr" style="max-width:120px;"></td></tr>
     {% endfor %}
     </tbody>

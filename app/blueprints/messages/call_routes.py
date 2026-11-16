@@ -40,7 +40,10 @@ def calls():
         key = call.raw_number or call.number
         if key and key not in names:
             names[key] = telephony.who(key)
-    staff = {u.id: u.full_name for u in User.query.filter(
+    from flask import g
+
+    lang = getattr(g, "lang", "ar")
+    staff = {u.id: u.display_name(lang) for u in User.query.filter(
         User.id.in_({c.returned_by for c in rows if c.returned_by})).all()}
     return render_template("messages/calls.html", rows=rows, missed=missed,
                            names=names, staff=staff, days=days,
