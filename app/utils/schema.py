@@ -58,6 +58,9 @@ ADDITIONS = [
     ("vaccine_brands", "max_discount", "FLOAT"),
     ("vaccine_brands", "doses_per_vial", "INTEGER DEFAULT 1"),
     ("vaccine_brands", "doctor_fee", "FLOAT"),
+    # The switchboard extension a person answers on, so «who is calling»
+    # reaches the one whose phone is ringing (utils/telephony.py).
+    ("users", "phone_extension", "VARCHAR(20)"),
     # Which classification a problem's code came from. The list held the
     # code alone, and "CA23" and "J45" are each just a string until something
     # says which book they belong to — which started mattering the moment a

@@ -1,0 +1,73 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('calls.title') }}{% endblock %}
+{% block page_heading %}{{ t('calls.title') }}{% endblock %}
+
+{# CONNECTHUB_PLAN.md stage 6 — the calls the switchboard reported, and the
+   missed ones nobody has returned. Rules in utils/telephony. #}
+{% macro who(call) -%}
+  {% set kids = names.get(call.raw_number or call.number) or [] %}
+  {% if kids %}{% for k in kids[:3] %}<a href="{{ url_for('patients.view', patient_id=k.id) }}">{{ k.display_name(current_lang) }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
+  {% else %}<span class="hint">{{ t('calls.unknown') }}</span>{% endif %}
+{%- endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-telephone"></i> {{ t('calls.title') }}</h1>
+    <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('calls.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.inbox') }}"><i class="bi bi-chat-dots"></i> {{ t('inbox.title') }}</a>
+    {% if can_setup %}<a class="btn btn-outline gc-press" data-to-calls-setup href="{{ url_for('messages.calls_setup') }}"><i class="bi bi-gear"></i> {{ t('calls.setup') }}</a>{% endif %}
+  </div>
+</div>
+
+{% if not on %}
+<div class="notice" style="margin-bottom:14px;" data-calls-off><i class="bi bi-info-circle"></i> {{ t('calls.off') }}</div>
+{% endif %}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-missed="{{ missed|length }}">
+  <h3 style="margin-top:0;"><i class="bi bi-telephone-x"></i> {{ t('calls.missed', n=missed|length) }}</h3>
+  {% if not missed %}<p class="hint" style="margin:0;">{{ t('calls.missed_none') }}</p>{% endif %}
+  {% for call in missed %}
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--border);" data-missed-call="{{ call.id }}">
+    <a class="btn btn-sm btn-primary gc-press" href="tel:+{{ call.number or '' }}" dir="ltr"><i class="bi bi-telephone-outbound"></i> {{ call.raw_number or call.number }}</a>
+    <span>{{ who(call) }}</span>
+    <span class="hint">{{ call.started_at|clinic_stamp }}{% if call.extension %} · {{ t('calls.ext') }} {{ call.extension }}{% endif %}</span>
+    <form method="post" action="{{ url_for('messages.call_returned', call_id=call.id) }}" style="display:flex;gap:6px;margin-inline-start:auto;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="note" maxlength="255" placeholder="{{ t('calls.note_ph') }}" style="min-width:200px;">
+      <button class="btn btn-sm btn-outline gc-press" type="submit"><i class="bi bi-check2"></i> {{ t('calls.returned') }}</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card gc-scale-in">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+    <h3 style="margin:0;"><i class="bi bi-journal-text"></i> {{ t('calls.log') }}</h3>
+    <div style="display:flex;gap:6px;">
+      {% for d in (1, 2, 7, 30) %}<a class="btn btn-sm gc-press {{ 'btn-primary' if days == d else 'btn-outline' }}" href="{{ url_for('messages.calls', days=d) }}">{{ t('calls.days', n=d) }}</a>{% endfor %}
+    </div>
+  </div>
+  <div style="overflow-x:auto;"><table class="table" style="min-width:640px;" data-call-log>
+    <thead><tr><th>{{ t('calls.when') }}</th><th>{{ t('calls.number') }}</th><th>{{ t('calls.who') }}</th><th>{{ t('calls.ext') }}</th><th>{{ t('calls.status') }}</th></tr></thead>
+    <tbody>
+    {% for call in rows %}
+    <tr data-call="{{ call.status }}">
+      <td>{{ call.started_at|clinic_stamp }}</td>
+      <td dir="ltr"><i class="bi {{ 'bi-telephone-inbound' if call.direction == 'in' else 'bi-telephone-outbound' }}"></i> {{ call.raw_number or call.number or '—' }}</td>
+      <td>{{ who(call) }}</td>
+      <td>{{ call.extension or '—' }}</td>
+      <td><span class="badge {{ 'badge--danger' if call.status == 'missed' and not call.returned_at else ('badge--green' if call.status in ('answered', 'ended') else 'badge--muted') }}">{{ t('calls.st_' ~ call.status) }}</span>
+        {% if call.seconds is not none %}<span class="hint">{{ (call.seconds // 60) }}:{{ '%02d' % (call.seconds % 60) }}</span>{% endif %}
+        {% if call.returned_at %}<div class="hint">{{ t('calls.returned_by', who=staff.get(call.returned_by, '')) }}{% if call.returned_note %} · «{{ call.returned_note }}»{% endif %}</div>{% endif %}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="hint">{{ t('calls.none') }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

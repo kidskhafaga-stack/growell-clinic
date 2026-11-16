@@ -13,6 +13,8 @@
   <div style="display:flex;gap:8px;">
     <a class="btn btn-outline gc-press" data-to-leads href="{{ url_for('messages.leads_board') }}">
       <i class="bi bi-person-lines-fill"></i> {{ t('leads.title') }}</a>
+    <a class="btn btn-outline gc-press" data-to-calls href="{{ url_for('messages.calls') }}">
+      <i class="bi bi-telephone"></i> {{ t('calls.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('messages.service_board') }}">
       <i class="bi bi-speedometer2"></i> {{ t('service.nav') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('messages.index') }}">
