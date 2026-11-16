@@ -137,3 +137,123 @@ def test_the_ceiling_reaches_the_clinic_on_the_next_seed(clinic):
                    .filter(Vaccine.code == "MENB",
                            VaccineBrand.name == "Bexsero").first())
         assert bexsero.max_age_final_dose_days is None
+
+
+# ------------------------------------------------------------------------
+# The clinic's own label — the owner's decision, 16 November 2026:
+# «امشي على النشرة الأوروبية اكتب الاثنين النشرتين وخلى الديفولت الاوربية
+# وينفع اي مستشفى تغير او عيادة حسب النشرة المعتمده لديها او تقدر تعدل ولما
+# يعدل يقول هل حصل تعديل فى النشرة ولا ده تعديل خاص بالعيادة او المستشفى»
+
+
+@pytest.fixture()
+def seeded(clinic):
+    from app.extensions import db
+    from app.utils.vaccines import seed_vaccines
+
+    with clinic["app"].app_context():
+        seed_vaccines()
+        db.session.commit()
+    return clinic
+
+
+def _db_brand(c, code, name):
+    from app.models import Vaccine, VaccineBrand
+
+    with c["app"].app_context():
+        row = (VaccineBrand.query.join(Vaccine)
+               .filter(Vaccine.code == code, VaccineBrand.name == name)
+               .first())
+        return {"id": row.id, "ceiling": row.max_age_final_dose_days,
+                "choice": row.age_label_choice, "kind": row.age_change_kind,
+                "note": row.age_change_note, "by": row.age_changed_by}
+
+
+def _post(c, who, brand_id, **form):
+    return c["sign_in"](who).post(
+        f"/vaccinations/manage/brand/{brand_id}/age-limit", data=form)
+
+
+def test_the_eu_label_is_the_default_and_both_are_written(seeded):
+    from app.utils.vaccine_labels import days_through
+
+    for code, name, us in (("MENACWY", "Menveo", 55), ("MENB", "Bexsero", 25)):
+        brand = _brand(code, name)
+        assert brand["label_age"]["label"] == "EMA SmPC"
+        assert brand["label_age"]["upper_days"] is None
+        assert brand["label_age"]["other_label"]["upper_days"] == \
+            days_through(us)
+        assert "Default: the EU label" in brand["label_age"]["note"]
+    page = seeded["sign_in"]("doc").get("/vaccinations/manage") \
+        .get_data(as_text=True)
+    assert 'data-age-limit="default" data-age-ceiling=""' in page
+    assert "data-age-labels-disagree" in page
+    assert "BEXSERO is approved for use in individuals aged 10 through 25" \
+        in page
+    assert "data-age-limit-form" in page
+
+
+def test_a_clinic_adopts_the_other_label(seeded):
+    from app.models import ActivityLog
+    from app.utils.vaccine_labels import days_through
+
+    bexsero = _db_brand(seeded, "MENB", "Bexsero")
+    _post(seeded, "doc", bexsero["id"], choice="other")
+    got = _db_brand(seeded, "MENB", "Bexsero")
+    assert (got["ceiling"], got["choice"], got["kind"]) == \
+        (days_through(25), "other", "adopted")
+    assert got["by"] == seeded["ids"]["doctor"]
+    with seeded["app"].app_context():
+        assert ActivityLog.query.filter_by(
+            action="vaccine.brand_age_limit").count() == 1
+    # And back to the default, which has no upper age.
+    _post(seeded, "doc", bexsero["id"], choice="default")
+    assert _db_brand(seeded, "MENB", "Bexsero")["ceiling"] is None
+
+
+def test_its_own_number_must_say_label_changed_or_clinics_own(seeded):
+    from app.utils.vaccine_labels import days_through
+
+    menveo = _db_brand(seeded, "MENACWY", "Menveo")
+    # Not said which — refused.
+    _post(seeded, "boss", menveo["id"], choice="own", years="18",
+          note="لجنة الأدوية")
+    # Said which, but no words — refused.
+    _post(seeded, "boss", menveo["id"], choice="own", years="18",
+          kind="clinic_own", note="")
+    assert _db_brand(seeded, "MENACWY", "Menveo")["choice"] is None
+    _post(seeded, "boss", menveo["id"], choice="own", years="18",
+          kind="clinic_own", note="لجنة الأدوية في المستشفى")
+    got = _db_brand(seeded, "MENACWY", "Menveo")
+    assert (got["ceiling"], got["kind"], got["note"]) == \
+        (days_through(18), "clinic_own", "لجنة الأدوية في المستشفى")
+    page = seeded["sign_in"]("boss").get("/vaccinations/manage") \
+        .get_data(as_text=True)
+    assert "تعديل خاص بالعيادة / المستشفى" in page
+    assert "لجنة الأدوية في المستشفى" in page
+
+
+def test_a_newer_label_with_no_upper_age_survives_a_reseed(seeded):
+    """«No upper age» is blank in the column — and blank is what a re-seed
+    fills. Once the clinic has said it, the catalogue does not undo it."""
+    from app.extensions import db
+    from app.utils.vaccines import seed_vaccines
+
+    menactra = _db_brand(seeded, "MENACWY", "Menactra")
+    assert menactra["ceiling"] == round(56 * 365.25)
+    _post(seeded, "doc", menactra["id"], choice="own", years="",
+          kind="label_changed", note="نشرة العلبة ٢٠٢٦ من غير سن أقصى")
+    with seeded["app"].app_context():
+        seed_vaccines()
+        db.session.commit()
+    got = _db_brand(seeded, "MENACWY", "Menactra")
+    assert (got["ceiling"], got["kind"]) == (None, "label_changed")
+
+
+def test_only_a_prescriber_sets_it(seeded):
+    bexsero = _db_brand(seeded, "MENB", "Bexsero")
+    resp = _post(seeded, "desk", bexsero["id"], choice="other")
+    assert resp.status_code in (302, 403, 404)
+    assert _db_brand(seeded, "MENB", "Bexsero")["choice"] is None
+    page = seeded["sign_in"]("desk").get("/vaccinations/manage")
+    assert "data-age-limit-form" not in page.get_data(as_text=True)

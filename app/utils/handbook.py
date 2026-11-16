@@ -2475,6 +2475,27 @@ SECTIONS = [
              "الزمنية — كلها من الشاشة.",
              "<b>Manage vaccinations</b>: vaccines, brands and schedules — all "
              "from the screen."),
+            ("<b>سن المستحضر من نشرته:</b> تحت كل صنف تجاري سطر بيقول آخر سن "
+             "تتاخد فيه الجرعة ومصدره. نشرة الصنف (EMA أو FDA) مكتوبة بجملتها "
+             "ولينكها، ولو النشرة الأوروبية والأمريكية مختلفين (Menveo وBexsero) "
+             "الاتنين مكتوبين والأوروبية هي الافتراضي. الدكتور أو المدير يفتح "
+             "«تعديل» على الصنف ← «سن المستحضر» ويختار النشرة المعتمدة عندهم، "
+             "أو يكتب سن بنفسه — وساعتها لازم يقول: <u>النشرة نفسها اتغيرت</u> "
+             "ولا ده <u>تعديل خاص بالعيادة أو المستشفى</u>، ويكتب السبب. مين "
+             "غيّر وإمتى وليه بيظهر تحت الصنف، وتحميل الكتالوج تاني ما بيمسحش "
+             "اختيارهم.",
+             "<b>A product's age limit, from its label:</b> under each brand a "
+             "line says the last age a dose may be given and where that comes "
+             "from. The brand's label (EMA or FDA) is quoted with its link; "
+             "where the EU and US labels disagree (Menveo, Bexsero) both are "
+             "quoted and the EU one is the default. A doctor or the "
+             "administrator opens «Edit» on the brand → «Product age limit» "
+             "and chooses the label their clinic follows, or writes their own "
+             "limit — and then must say whether <u>the label itself "
+             "changed</u> or this is <u>the clinic's or hospital's own "
+             "decision</u>, with the reason. Who changed it, when and why "
+             "shows under the brand, and reloading the catalogue keeps their "
+             "choice."),
             ("<b>الجداول المزروعة تتعدّل.</b> البرنامج بيزرع جداول من "
              "المرجع، وبيعلّم عليها «للمراجعة» لأنها <u>متوقّع</u> إنها "
              "تحتاج تظبيط: النشرة بتتغيّر، والعيادة ممكن تمشي على CDC مش "

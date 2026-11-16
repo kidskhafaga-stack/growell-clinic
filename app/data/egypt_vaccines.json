@@ -205,7 +205,8 @@
             "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=95c6fdb6-b587-4413-92f9-d592b9f7a23e",
             "quote": "PRIORIX is a vaccine indicated for active immunization for the prevention of measles, mumps, and rubella in individuals 12 months of age and older.",
             "upper": null,
-            "read_on": "2026-11-16"
+            "read_on": "2026-11-16",
+            "upper_days": null
           },
           "max_age_final_dose_label": "من غير سن أقصى في نشرته (FDA package insert (DailyMed))"
         },
@@ -221,7 +222,8 @@
             "url": "https://www.fda.gov/media/75191/download",
             "quote": "M-M-R II is a vaccine indicated for active immunization for the prevention of measles, mumps, and rubella in individuals 12 months of age and older.",
             "upper": null,
-            "read_on": "2026-11-16"
+            "read_on": "2026-11-16",
+            "upper_days": null
           },
           "max_age_final_dose_label": "من غير سن أقصى في نشرته (FDA package insert)"
         }
@@ -366,7 +368,8 @@
             "url": "https://www.ema.europa.eu/en/documents/product-information/prevenar-13-epar-product-information_en.pdf",
             "quote": "Active immunisation for the prevention of invasive disease and pneumonia caused by Streptococcus pneumoniae in adults ≥18 years of age and the elderly.",
             "upper": null,
-            "read_on": "2026-11-16"
+            "read_on": "2026-11-16",
+            "upper_days": null
           }
         },
         {
@@ -419,8 +422,10 @@
             "other_label": {
               "label": "EMA SmPC",
               "url": "https://www.ema.europa.eu/en/documents/product-information/vaxneuvance-epar-product-information_en.pdf",
-              "quote": "in individuals 18 years of age and older."
-            }
+              "quote": "in individuals 18 years of age and older.",
+              "upper_days": null
+            },
+            "upper_days": null
           }
         },
         {
@@ -448,7 +453,8 @@
             "url": "https://www.ema.europa.eu/en/documents/product-information/prevenar-20-epar-product-information_en.pdf",
             "quote": "Active immunisation for the prevention of invasive disease and pneumonia caused by Streptococcus pneumoniae in individuals 18 years of age and older.",
             "upper": null,
-            "read_on": "2026-11-16"
+            "read_on": "2026-11-16",
+            "upper_days": null
           }
         }
       ],
@@ -539,7 +545,8 @@
             "url": "https://www.fda.gov/media/76000/download",
             "quote": "VARIVAX is a vaccine indicated for active immunization for the prevention of varicella in individuals 12 months of age and older.",
             "upper": null,
-            "read_on": "2026-11-16"
+            "read_on": "2026-11-16",
+            "upper_days": null
           }
         }
       ],
@@ -680,7 +687,8 @@
             "quote": "FLUARIX QUADRIVALENT is approved for use in persons aged 6 months and older.",
             "upper": null,
             "read_on": "2026-11-16",
-            "note": "Read on the US label of the same product, sold in the US as Fluarix Quadrivalent."
+            "note": "Read on the US label of the same product, sold in the US as Fluarix Quadrivalent.",
+            "upper_days": null
           }
         }
       ],
@@ -850,7 +858,8 @@
             "url": "https://www.fda.gov/media/75619/download",
             "quote": "Menactra is approved for use in individuals 9 months through 55 years of age.",
             "upper": "55 years (inclusive)",
-            "read_on": "2026-11-16"
+            "read_on": "2026-11-16",
+            "upper_days": 20454
           },
           "max_age_final_dose_days": 20454
         },
@@ -863,7 +872,7 @@
           "manufacturer": "GSK",
           "valency": "4-valent conjugate; A,C,W,Y",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "النشرتين مختلفين — شوف label_age",
+          "max_age_final_dose_label": "النشرة الأوروبية (الافتراضي): من غير سن أقصى — والأمريكية متكتبة جنبها",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": true,
@@ -878,9 +887,11 @@
             "other_label": {
               "label": "FDA package insert",
               "url": "https://www.fda.gov/media/78514/download",
-              "quote": "in individuals 2 months through 55 years of age."
+              "quote": "in individuals 2 months through 55 years of age.",
+              "upper_days": 20454
             },
-            "note": "The two labels disagree (EU: from 2 years, no upper age; US: 2 months through 55 years). No ceiling is written until the clinic's doctors say which label Egypt follows."
+            "note": "The two labels disagree (EU: no upper age; US: an upper age). Default: the EU label, by the clinic owner's decision on 2026-11-16. A clinic or hospital may adopt the US label, or write its own, on the vaccines management screen.",
+            "upper_days": null
           }
         },
         {
@@ -903,7 +914,8 @@
             "url": "https://www.ema.europa.eu/en/documents/product-information/nimenrix-epar-product-information_en.pdf",
             "quote": "Nimenrix is indicated for active immunisation of individuals from the age of 6 weeks",
             "upper": null,
-            "read_on": "2026-11-16"
+            "read_on": "2026-11-16",
+            "upper_days": null
           }
         },
         {
@@ -949,7 +961,7 @@
           "manufacturer": "GSK",
           "valency": "MenB 4-component recombinant vaccine",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "النشرتين مختلفين — شوف label_age",
+          "max_age_final_dose_label": "النشرة الأوروبية (الافتراضي): من غير سن أقصى — والأمريكية متكتبة جنبها",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": true,
@@ -964,9 +976,11 @@
             "other_label": {
               "label": "FDA package insert (DailyMed)",
               "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=f70cf2fc-6e6d-4a74-9f7a-db8fec072fd7",
-              "quote": "BEXSERO is approved for use in individuals aged 10 through 25 years."
+              "quote": "BEXSERO is approved for use in individuals aged 10 through 25 years.",
+              "upper_days": 9497
             },
-            "note": "The two labels disagree (EU: from 2 months, no upper age; US: 10 through 25 years). No ceiling is written until the clinic's doctors say which label Egypt follows."
+            "note": "The two labels disagree (EU: no upper age; US: an upper age). Default: the EU label, by the clinic owner's decision on 2026-11-16. A clinic or hospital may adopt the US label, or write its own, on the vaccines management screen.",
+            "upper_days": null
           }
         },
         {
@@ -1087,7 +1101,8 @@
             "url": "https://www.fda.gov/media/75993/download",
             "quote": "is approved for use in persons two years of age or older.",
             "upper": null,
-            "read_on": "2026-11-16"
+            "read_on": "2026-11-16",
+            "upper_days": null
           }
         }
       ],
@@ -1139,7 +1154,8 @@
             "quote": "RabAvert is indicated for preexposure vaccination, in both primary series and booster dose, and for postexposure prophylaxis against rabies in all age groups.",
             "upper": null,
             "read_on": "2026-11-16",
-            "note": "Read on the US label of the same vaccine, sold in the US as RabAvert."
+            "note": "Read on the US label of the same vaccine, sold in the US as RabAvert.",
+            "upper_days": null
           }
         }
       ],
@@ -1204,7 +1220,8 @@
             "url": "https://www.ema.europa.eu/en/documents/product-information/dukoral-epar-product-information_en.pdf",
             "quote": "Dukoral is indicated for active immunisation against disease caused by Vibrio cholerae serogroup O1 in adults and children from 2 years of age",
             "upper": null,
-            "read_on": "2026-11-16"
+            "read_on": "2026-11-16",
+            "upper_days": null
           }
         }
       ],
