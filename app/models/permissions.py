@@ -367,6 +367,11 @@ CAPABILITIES = [
     # alone the person who may change it. Granted to whoever the clinic names;
     # a refund it causes still waits for a manager as every refund does.
     "service_change",
+    # «تصميم الاستمارات» — drawing the clinic's own forms (FORM_BUILDER_PLAN.md):
+    # their fields, where they are filled and by whom. Not filling one — that
+    # follows the form's own audience. A form is the clinic's paperwork, so
+    # the administrator holds this and grants it to whoever keeps the paper.
+    "forms_design",
 ]
 
 ROLE_CAPABILITIES = {

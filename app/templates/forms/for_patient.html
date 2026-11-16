@@ -1,0 +1,42 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('forms.title') }} — {{ patient.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ t('forms.title') }}{% endblock %}
+
+{# FORM_BUILDER_PLAN.md ن-٢ — the forms this person may fill for this child
+   here (the file, a visit, or a stay), and what was filled before. #}
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-ui-checks"></i> {{ t('forms.title') }}</h1>
+    <p class="page-sub" style="margin:0;"><a href="{{ url_for('patients.view', patient_id=patient.id) }}">{{ patient.display_name(current_lang) }}</a> ({{ patient.patient_number }}) · {{ t('forms.place_' ~ place) }}</p>
+  </div>
+  {% if current_user.can('forms_design') %}<a class="btn btn-outline gc-press" href="{{ url_for('forms.index') }}"><i class="bi bi-pencil-square"></i> {{ t('forms.design') }}</a>{% endif %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-forms-here="{{ forms|length }}">
+  <h3 style="margin-top:0;">{{ t('forms.to_fill') }}</h3>
+  {% for f in forms %}
+  <a class="btn btn-outline gc-press" style="margin:0 6px 6px 0;" data-fill="{{ f.id }}"
+     href="{{ url_for('forms.fill', form_id=f.id, patient_id=patient.id, visit_id=visit.id if visit else None, admission_id=admission.id if admission else None) }}">
+    <i class="bi bi-pencil"></i> {{ f.display_name(current_lang) }}</a>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('forms.none_here') }}</p>
+  {% endfor %}
+</div>
+
+<div class="card gc-scale-in">
+  <h3 style="margin-top:0;">{{ t('forms.filled_before') }}</h3>
+  <div style="overflow-x:auto;"><table class="table" style="min-width:480px;">
+    <thead><tr><th>{{ t('forms.when') }}</th><th>{{ t('forms.name') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for e in entries %}
+    <tr data-entry="{{ e.id }}"><td>{{ e.created_at|clinic_stamp }}</td><td>{{ e.form.display_name(current_lang) }}</td>
+      <td><a href="{{ url_for('forms.entry', entry_id=e.id) }}">{{ t('forms.open_entry') }}</a> · <a href="{{ url_for('forms.entry_print', entry_id=e.id) }}" target="_blank">{{ t('forms.print') }}</a></td></tr>
+    {% else %}
+    <tr><td colspan="3" class="hint">{{ t('forms.no_entries') }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

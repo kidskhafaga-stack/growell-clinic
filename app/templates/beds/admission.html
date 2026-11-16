@@ -196,6 +196,11 @@
     <details class="ph2-more no-print" data-file-more>
       <summary><span><i class="bi bi-three-dots-vertical"></i> {{ t('patients.more_actions') }}</span><i class="bi bi-chevron-down"></i></summary>
       <div class="ph2-menu">
+        {# The clinic's own forms filled on a stay (FORM_BUILDER_PLAN.md). #}
+        {% if forms_door('admission') %}
+        <a data-to-forms href="{{ url_for('forms.for_patient', patient_id=admission.patient_id, admission_id=admission.id) }}">
+          <i class="bi bi-ui-checks"></i> {{ t('forms.title') }}</a>
+        {% endif %}
         <a data-to-wristband href="{{ url_for('patients.wristband', patient_id=admission.patient_id) }}">
           <i class="bi bi-upc"></i> {{ t('wristband.print') }}</a>
         {# The rounds for this child, when the clinic runs them. The stay and the
