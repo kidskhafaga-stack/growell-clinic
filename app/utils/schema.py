@@ -58,6 +58,17 @@ ADDITIONS = [
     ("vaccine_brands", "max_discount", "FLOAT"),
     ("vaccine_brands", "doses_per_vial", "INTEGER DEFAULT 1"),
     ("vaccine_brands", "doctor_fee", "FLOAT"),
+    # The switchboard extension a person answers on, so «who is calling»
+    # reaches the one whose phone is ringing (utils/telephony.py).
+    ("users", "phone_extension", "VARCHAR(20)"),
+    # Which label's age limit the clinic follows, and whether a number it
+    # wrote was the label changing or its own decision. Empty on every
+    # existing brand, which is true: nobody had chosen yet.
+    ("vaccine_brands", "age_label_choice", "VARCHAR(12)"),
+    ("vaccine_brands", "age_change_kind", "VARCHAR(16)"),
+    ("vaccine_brands", "age_change_note", "VARCHAR(255)"),
+    ("vaccine_brands", "age_changed_by", "INTEGER"),
+    ("vaccine_brands", "age_changed_at", "DATETIME"),
     # Which classification a problem's code came from. The list held the
     # code alone, and "CA23" and "J45" are each just a string until something
     # says which book they belong to — which started mattering the moment a

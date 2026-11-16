@@ -274,9 +274,11 @@ def test_every_ceiling_written_is_one_a_label_states(seeded):
 
     # Rotavirus, hepatitis A, Synflorix, ProQuad, Trumenba and HPV were
     # already capped from their own labels; this branch added the DTaP family
-    # and Priorix Tetra.
+    # and Priorix Tetra. MENACWY joined when the labels were read one by one
+    # (test_each_brand_says_its_own_age.py): Menactra's package insert says
+    # «9 months through 55 years of age», quoted in the catalogue.
     expected = {"ROTA", "HAV", "PCV", "MMRV", "MENB", "HPV",
-                "HEXA", "PENTAXIM", "PENTA", "DTP_B", "DT"}
+                "HEXA", "PENTAXIM", "PENTA", "DTP_B", "DT", "MENACWY"}
     assert capped == expected, \
         f"the set of products carrying a licensed-age ceiling changed: {capped}"
 

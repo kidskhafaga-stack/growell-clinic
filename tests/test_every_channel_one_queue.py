@@ -185,12 +185,13 @@ def test_the_public_page_takes_a_request_and_confirms_nothing(clinic):
 
 def test_every_channel_row_says_where_it_is_set_up(clinic):
     """WhatsApp has its own screen; the accounts the clinic connects jump to
-    their own box in «connect» on the same page; the phone and the walk-in
-    need nothing. A row with no way to its settings read as «there are none»."""
+    their own box in «connect» on the same page; the phone has its own screen
+    for the switchboard (CONNECTHUB stage 6); the walk-in needs nothing. A
+    row with no way to its settings read as «there are none»."""
     page = clinic["sign_in"]().get("/messages/channels").get_data(as_text=True)
     assert 'data-channel-settings="whatsapp"' in page
     for k in ("messenger", "instagram", "telegram", "tiktok", "email"):
         assert f'href="#connect-{k}" data-channel-settings="{k}"' in page
         assert f'id="connect-{k}"' in page
-    for k in ("phone", "walk_in"):
-        assert f'<span class="hint" data-channel-settings="{k}">' in page
+    assert '/messages/calls/setup" data-channel-settings="phone"' in page
+    assert '<span class="hint" data-channel-settings="walk_in">' in page

@@ -91,6 +91,8 @@ class User(UserMixin, db.Model):
         return role == "doctor" or bool(is_practitioner)
     email = db.Column(db.String(120))
     phone = db.Column(db.String(30))
+    # The switchboard extension this person answers on (utils/telephony).
+    phone_extension = db.Column(db.String(20))
     # Preferred UI language, applied on login (doctors default to English).
     language = db.Column(db.String(5))
 

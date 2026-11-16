@@ -278,6 +278,7 @@ from app.models.invoice import (
 from app.models.service_change import ServiceChange
 from app.models.pharmacy_intervention import PharmacyIntervention
 from app.models.custom_form import CustomForm, FormEntry
+from app.models.phone_call import PhoneCall
 from app.models.form_key import FormKey
 from app.models.payer import (
     CLAIM_STATUSES,
@@ -901,6 +902,7 @@ __all__ = [
     "PharmacyIntervention",
     "CustomForm",
     "FormEntry",
+    "PhoneCall",
     "Account",
     "JournalEntry",
     "JournalLine",
