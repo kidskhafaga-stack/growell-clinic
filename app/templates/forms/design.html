@@ -1,0 +1,116 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ form.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ t('forms.design') }}{% endblock %}
+
+{# FORM_BUILDER_PLAN.md ن-١ — a form's own fields. Keys and kinds are fixed
+   once made; a field with answers hides, an option somebody chose stays. #}
+{% macro field_box(f) -%}
+  <div class="form-grid">
+    <div class="form-row"><label>{{ t('forms.label_ar') }} *</label><input class="input" name="label_ar" required maxlength="300" value="{{ f.label_ar or '' }}"></div>
+    <div class="form-row"><label>{{ t('forms.label_en') }}</label><input class="input" name="label_en" maxlength="300" dir="ltr" value="{{ f.label_en or '' }}"></div>
+    {% if f.type != 'heading' %}
+    <div class="form-row checkbox"><input type="checkbox" name="required" value="1" id="rq_{{ f.key or 'new' }}" {% if f.required %}checked{% endif %}>
+      <label for="rq_{{ f.key or 'new' }}" style="margin:0;font-weight:400;">{{ t('forms.required') }}</label></div>
+    {% endif %}
+    {% if f.type == 'number' %}
+    <div class="form-row"><label>{{ t('forms.unit') }}</label><input class="input" name="unit" maxlength="20" value="{{ f.unit or '' }}" dir="ltr"></div>
+    <div class="form-row"><label>{{ t('forms.min') }}</label><input class="input" name="min" type="number" step="any" value="{{ f.min if f.min is not none else '' }}"></div>
+    <div class="form-row"><label>{{ t('forms.max') }}</label><input class="input" name="max" type="number" step="any" value="{{ f.max if f.max is not none else '' }}"></div>
+    {% endif %}
+    {% if f.type in ('choice', 'multi') %}
+    <div class="form-row"><label>{{ t('forms.options_ar') }}</label><textarea class="input" name="options_ar" rows="4">{% for o in f.options or [] %}{{ o.ar }}
+{% endfor %}</textarea></div>
+    <div class="form-row"><label>{{ t('forms.options_en') }}</label><textarea class="input" name="options_en" rows="4" dir="ltr">{% for o in f.options or [] %}{{ o.en or '' }}
+{% endfor %}</textarea></div>
+    {% endif %}
+  </div>
+{%- endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-ui-checks"></i> {{ form.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('forms.place_' ~ form.place) }} · {{ t('forms.aud_' ~ form.audience) }} · {{ t('forms.version', n=form.version) }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('forms.index') }}"><i class="bi bi-list"></i> {{ t('forms.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('forms.summary', form_id=form.id) }}"><i class="bi bi-bar-chart"></i> {{ t('forms.summary') }}</a>
+    <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="{{ 'close' if form.is_active else 'open' }}">
+      <button class="btn btn-outline gc-press" type="submit" data-form-active="{{ 1 if form.is_active else 0 }}">{{ t('forms.close' if form.is_active else 'forms.open') }}</button></form>
+  </div>
+</div>
+
+<details class="card gc-scale-in" style="margin-bottom:14px;">
+  <summary style="cursor:pointer;font-weight:700;"><i class="bi bi-gear"></i> {{ t('forms.form_settings') }}</summary>
+  <form method="post" class="form-grid" style="margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="form">
+    <div class="form-row"><label>{{ t('forms.name_ar') }} *</label><input class="input" name="name_ar" required maxlength="160" value="{{ form.name_ar }}"></div>
+    <div class="form-row"><label>{{ t('forms.name_en') }}</label><input class="input" name="name_en" maxlength="160" dir="ltr" value="{{ form.name_en or '' }}"></div>
+    <div class="form-row"><label>{{ t('forms.place') }}</label>
+      <select class="select" name="place" {% if has_entries %}disabled title="{{ t('forms.place_fixed') }}"{% endif %}>{% for p in places %}<option value="{{ p }}" {% if p == form.place %}selected{% endif %}>{{ t('forms.place_' ~ p) }}</option>{% endfor %}</select>
+      {% if has_entries %}<input type="hidden" name="place" value="{{ form.place }}">{% endif %}</div>
+    <div class="form-row"><label>{{ t('forms.audience') }}</label>
+      <select class="select" name="audience">{% for a in ('clinical', 'desk') %}<option value="{{ a }}" {% if a == form.audience %}selected{% endif %}>{{ t('forms.aud_' ~ a) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="grid-column:1/-1;"><label>{{ t('forms.note') }}</label><input class="input" name="note" maxlength="500" value="{{ form.note or '' }}"></div>
+    <div class="panel-actions"><button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button></div>
+  </form>
+</details>
+
+<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;" data-fields="{{ form.fields|length }}">
+  {% for f in form.fields %}
+  <div class="card" id="f-{{ f.key }}" data-field="{{ f.key }}:{{ f.type }}" x-data="{ open: false }" {% if f.hidden %}style="opacity:.55;"{% endif %}>
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;">
+      <div>
+        {% if f.type == 'heading' %}<strong style="font-size:1.05rem;">{{ f.label_ar }}</strong>
+        {% else %}<strong>{{ f.label_ar }}</strong>{% if f.required %} <span style="color:#b91c1c;">*</span>{% endif %}{% endif %}
+        <span class="badge badge--muted">{{ t('forms.type_' ~ f.type) }}</span>
+        {% if f.hidden %}<span class="badge badge--muted">{{ t('forms.hidden') }}</span>{% endif %}
+        <span class="hint" dir="ltr">{{ f.key }}</span>
+      </div>
+      <div style="display:flex;gap:4px;">
+        {% for act, icon in (('up', 'bi-arrow-up'), ('down', 'bi-arrow-down')) %}
+        <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="{{ act }}"><input type="hidden" name="key" value="{{ f.key }}">
+          <button class="btn-x" type="submit" title="{{ t('forms.' ~ act) }}"><i class="bi {{ icon }}"></i></button></form>
+        {% endfor %}
+        <button class="btn-x" type="button" x-on:click="open = !open" title="{{ t('common.edit') }}"><i class="bi bi-pencil"></i></button>
+        <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="{{ 'show' if f.hidden else 'hide' }}"><input type="hidden" name="key" value="{{ f.key }}">
+          <button class="btn-x" type="submit" title="{{ t('forms.show' if f.hidden else 'forms.hide') }}"><i class="bi {{ 'bi-eye' if f.hidden else 'bi-eye-slash' }}"></i></button></form>
+      </div>
+    </div>
+    <form method="post" x-show="open" x-cloak style="margin-top:10px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="field"><input type="hidden" name="key" value="{{ f.key }}">
+      {{ field_box(f) }}
+      <div class="panel-actions"><button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button></div>
+    </form>
+  </div>
+  {% else %}
+  <p class="hint">{{ t('forms.no_fields') }}</p>
+  {% endfor %}
+</div>
+
+<div class="card gc-scale-in" x-data="{ kind: 'text' }" data-add-field>
+  <h3 style="margin-top:0;"><i class="bi bi-plus-circle"></i> {{ t('forms.add_field') }}</h3>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="add">
+    <div class="form-row"><label>{{ t('forms.type') }}</label>
+      <select class="select" name="type" x-model="kind" style="max-width:260px;">{% for k in types %}<option value="{{ k }}">{{ t('forms.type_' ~ k) }}</option>{% endfor %}</select></div>
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('forms.label_ar') }} *</label><input class="input" name="label_ar" required maxlength="300"></div>
+      <div class="form-row"><label>{{ t('forms.label_en') }}</label><input class="input" name="label_en" maxlength="300" dir="ltr"></div>
+      <div class="form-row checkbox" x-show="kind !== 'heading'"><input type="checkbox" name="required" value="1" id="rq_add"><label for="rq_add" style="margin:0;font-weight:400;">{{ t('forms.required') }}</label></div>
+      <template x-if="kind === 'number'"><div class="form-row"><label>{{ t('forms.unit') }}</label><input class="input" name="unit" maxlength="20" dir="ltr"></div></template>
+      <template x-if="kind === 'number'"><div class="form-row"><label>{{ t('forms.min') }}</label><input class="input" name="min" type="number" step="any"></div></template>
+      <template x-if="kind === 'number'"><div class="form-row"><label>{{ t('forms.max') }}</label><input class="input" name="max" type="number" step="any"></div></template>
+      <template x-if="kind === 'choice' || kind === 'multi'"><div class="form-row"><label>{{ t('forms.options_ar') }}</label><textarea class="input" name="options_ar" rows="4" placeholder="{{ t('forms.options_hint') }}"></textarea></div></template>
+      <template x-if="kind === 'choice' || kind === 'multi'"><div class="form-row"><label>{{ t('forms.options_en') }}</label><textarea class="input" name="options_en" rows="4" dir="ltr"></textarea></div></template>
+    </div>
+    <div class="panel-actions"><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('forms.add_field') }}</button></div>
+  </form>
+  <p class="hint" style="margin-bottom:0;">{{ t('forms.keys_fixed') }}</p>
+</div>
+{% endblock %}

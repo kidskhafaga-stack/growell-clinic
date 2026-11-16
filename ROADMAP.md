@@ -230,7 +230,7 @@ CRM واتساب متكامل (ميزة تنافسية قلّما موجودة) 
 | لوحة التزام تطعيمات على مستوى العيادة (population health) | eClinicalWorks | Phase 3 (صغيرة) |
 | توليد ملاحظات/ملخصات AI | Tebra 2026 | Phase 3 (عندنا الأساس) |
 | بوابة مريض/حجز أونلاين | Vezeeta/CliniDo | v3 (محتاجة موقع عام) |
-| Form/Template Builder | DrChrono | v3 (مؤجّل صراحةً) |
+| Form/Template Builder | DrChrono | ✅ اتعمل (PR #564) — اتفتح بقرار ١٦ نوفمبر ٢٠٢٦، `FORM_BUILDER_PLAN.md` |
 
 ### 🌐 سؤال FHIR — الإجابة الصريحة
 **حاليًا النظام لا يتبع FHIR** — الـ schema علائقي خاص بنا ومفيش FHIR endpoints.

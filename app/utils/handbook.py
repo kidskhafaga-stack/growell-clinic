@@ -97,6 +97,27 @@ SECTIONS = [
              "تحت نفس اسم العائلة.",
              "<b>New patient</b> from Patients → \"New patient\". Siblings are "
              "linked automatically under the same family name."),
+            ("<b>استمارات العيادة</b> (الإعدادات ← «منشئ الاستمارات»، لصاحب صلاحية "
+             "«تصميم الاستمارات»): اعمل استمارة باسمها، وقول بتتملا فين (ملف الطفل، "
+             "الكشف، أو الإقامة لو الأسرّة مفتوحة) ومين بيملاها (طبية أو "
+             "الاستقبال)، وضيف خانات: عنوان قسم، نص، رقم بوحدة ومدى، تاريخ، نعم/لا، "
+             "اختيار واحد أو متعدد — عربي وإنجليزي، وإجبارية ولا لأ، وبالترتيب. "
+             "الاستمارة بتتملا من «الاستمارات» في ملف الطفل أو الكشف أو الإقامة، "
+             "وبتتطبع A4، و«الأرقام» بتعدّ كل خانة بفترة وبتصدّر CSV. كود الخانة "
+             "ونوعها ما بيتغيّروش، والخانة اللي اتملت بتتخبّى مش بتتمسح، وكل "
+             "استمارة متملية بتفضل بشكلها وقت ما اتملت.",
+             "<b>The clinic's forms</b> (Settings → «Form builder», for whoever "
+             "holds «Design the clinic's forms»): make a form with its name, "
+             "say where it is filled (the child's file, a visit, or a stay "
+             "where the wards are on) and who fills it (clinical or the "
+             "desk), and add fields: a section heading, text, a number with "
+             "unit and range, a date, yes/no, one or several choices — Arabic "
+             "and English, required or not, in order. It is filled from "
+             "«Forms» on the child's file, the visit or the stay, prints on "
+             "A4, and «Numbers» counts each field over a period and exports "
+             "CSV. A field's code and kind never change, a field with answers "
+             "is hidden rather than deleted, and each filled form keeps the "
+             "shape it was filled on."),
             ("<b>ملف المريض</b>: البيانات، أولياء الأمور، الإخوة، التنبيهات "
              "الطبية، والتأمين/العضوية.",
              "<b>Patient file</b>: details, guardians, siblings, medical "

@@ -1,0 +1,51 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('forms.title') }}{% endblock %}
+{% block page_heading %}{{ t('forms.title') }}{% endblock %}
+
+{# FORM_BUILDER_PLAN.md — the clinic's own forms. Rules: utils/custom_forms. #}
+{% block content %}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title"><i class="bi bi-ui-checks"></i> {{ t('forms.title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('forms.sub') }}</p>
+</div>
+
+{% if designer %}
+<details class="card gc-scale-in" style="margin-bottom:14px;" {% if not rows %}open{% endif %} data-new-form>
+  <summary style="cursor:pointer;font-weight:700;"><i class="bi bi-plus-circle"></i> {{ t('forms.new') }}</summary>
+  <form method="post" action="{{ url_for('forms.new') }}" class="form-grid" style="margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row"><label>{{ t('forms.name_ar') }} *</label><input class="input" name="name_ar" required maxlength="160"></div>
+    <div class="form-row"><label>{{ t('forms.name_en') }}</label><input class="input" name="name_en" maxlength="160" dir="ltr"></div>
+    <div class="form-row"><label>{{ t('forms.place') }}</label>
+      <select class="select" name="place">{% for p in places %}<option value="{{ p }}">{{ t('forms.place_' ~ p) }}</option>{% endfor %}</select></div>
+    <div class="form-row"><label>{{ t('forms.audience') }}</label>
+      <select class="select" name="audience"><option value="clinical">{{ t('forms.aud_clinical') }}</option><option value="desk">{{ t('forms.aud_desk') }}</option></select></div>
+    <div class="form-row" style="grid-column:1/-1;"><label>{{ t('forms.note') }}</label><input class="input" name="note" maxlength="500"></div>
+    <div class="panel-actions"><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('forms.create') }}</button></div>
+  </form>
+</details>
+{% endif %}
+
+<div class="card gc-scale-in">
+  <div style="overflow-x:auto;"><table class="table" style="min-width:560px;" data-forms-list>
+    <thead><tr><th>{{ t('forms.name') }}</th><th>{{ t('forms.place') }}</th><th>{{ t('forms.audience') }}</th><th>{{ t('forms.entries') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for f in rows %}
+    <tr data-form="{{ f.id }}" {% if not f.is_active %}style="opacity:.6;"{% endif %}>
+      <td><strong>{{ f.display_name(current_lang) }}</strong>{% if not f.is_active %} <span class="badge badge--muted">{{ t('forms.closed') }}</span>{% endif %}
+        {% if f.note %}<div class="hint">{{ f.note }}</div>{% endif %}</td>
+      <td>{{ t('forms.place_' ~ f.place) }}</td>
+      <td>{{ t('forms.aud_' ~ f.audience) }}</td>
+      <td>{{ counts[f.id] }}</td>
+      <td style="white-space:nowrap;">
+        {% if designer %}<a class="btn btn-sm btn-outline gc-press" href="{{ url_for('forms.design', form_id=f.id) }}"><i class="bi bi-pencil"></i> {{ t('forms.design') }}</a>{% endif %}
+        <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('forms.summary', form_id=f.id) }}"><i class="bi bi-bar-chart"></i> {{ t('forms.summary') }}</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="hint">{{ t('forms.none') }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('forms.summary') }} — {{ form.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ t('forms.summary') }}{% endblock %}
+
+{# FORM_BUILDER_PLAN.md ن-٤ — the entries of one form over a period, counted
+   per field on the form as it is now (utils/custom_forms.summary). #}
+{% macro opt(o) -%}{{ (o.en if current_lang == 'en' and o.en else o.ar) }}{%- endmacro %}
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-bar-chart"></i> {{ form.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;">{{ start.isoformat() }} — {{ end.isoformat() }} · <b data-form-total>{{ got.total }}</b> {{ t('forms.entries') }}</p>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+    {% for d in (7, 30, 90, 365) %}<a class="btn btn-sm gc-press {{ 'btn-primary' if days == d else 'btn-outline' }}" href="{{ url_for('forms.summary', form_id=form.id, days=d) }}">{{ t('forms.days', n=d) }}</a>{% endfor %}
+    <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('forms.summary_csv', form_id=form.id, days=days) }}" data-form-csv><i class="bi bi-download"></i> CSV</a>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">
+  {% for item in got.fields %}
+  {% set f = item.field %}
+  <div class="card" data-sum-field="{{ f.key }}">
+    <strong>{{ (f.label_en if current_lang == 'en' and f.label_en else f.label_ar) }}</strong>
+    {% if f.hidden %}<span class="badge badge--muted">{{ t('forms.hidden') }}</span>{% endif %}
+    <div class="hint">{{ t('forms.answered_n', n=item.answered, total=got.total) }}</div>
+    {% if item.counts is defined %}
+      <ul style="margin:6px 0 0;padding-inline-start:18px;">
+      {% if f.type == 'yesno' %}
+        <li>{{ t('forms.yes') }}: <b data-sum="{{ f.key }}:yes">{{ item.counts.yes }}</b></li>
+        <li>{{ t('forms.no') }}: <b data-sum="{{ f.key }}:no">{{ item.counts.no }}</b></li>
+      {% else %}
+        {% for o in f.options or [] %}<li>{{ opt(o) }}: <b data-sum="{{ f.key }}:{{ o.key }}">{{ item.counts.get(o.key, 0) }}</b></li>{% endfor %}
+      {% endif %}
+      </ul>
+    {% elif item.mean is defined %}
+      <div style="margin-top:6px;" data-sum-num="{{ f.key }}">{{ t('forms.mean') }} <b>{{ item.mean }}</b> · {{ t('forms.least') }} {{ item.least }} · {{ t('forms.most') }} {{ item.most }} {{ f.unit or '' }}</div>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="hint">{{ t('forms.no_fields') }}</p>
+  {% endfor %}
+</div>
+{% endblock %}
