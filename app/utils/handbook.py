@@ -3528,6 +3528,23 @@ SECTIONS = [
         "icon": "bar-chart-line",
         "title": ("التقارير", "Reports"),
         "lines": [
+            ("<b>تصدير الأرقام لـ BigQuery</b> (التقارير ← «تصدير الأرقام لـ BigQuery»، "
+             "للمدير بس): لمجموعة فروع عايزة تحلّل في BigQuery. <u>مقفول</u> لحد ما "
+             "المدير يكتب مرجع قرار المستشفى ومرجع الرأي القانوني. بعدها بينزّل ملف "
+             "zip لفترة: أرقام لكل يوم بس (الكشوفات، الملفات الجديدة، المواعيد، "
+             "التشخيصات بفصل ICD، الجرعات، الفلوس، والدخول والخروج في المستشفى) — من "
+             "غير أسماء ولا أرقام ملفات، وأي عدد ناس أقل من الحد بيطلع محجوب. "
+             "البرنامج مش بيبعت حاجة؛ الملف فيه طريقة تحميله بـ bq load.",
+             "<b>Counts export for BigQuery</b> (Reports → «Counts export for "
+             "BigQuery», administrator only): for a group of branches that "
+             "analyses in BigQuery. <u>Shut</u> until the administrator records "
+             "the hospital's decision reference and the legal opinion "
+             "reference. Then a zip for a period: only counts per day (visits, "
+             "new files, bookings, diagnoses by ICD chapter, doses, money, and "
+             "admissions and discharges in a hospital) — no names, no file "
+             "numbers, and any count of people under the threshold is held "
+             "back. The program sends nothing; the file says how to load it "
+             "with bq load."),
             ("<b>كل التقارير في صفحة واحدة:</b> شاشة التقارير فيها تقاريرها وتقارير "
              "الأقسام (الإحالات، زمن المعمل والأشعة، الصيدلية، العمليات، رضا المرضى…) "
              "متقسمة مالية وطبية وتشغيل وجودة، وكل واحد بيشوف اللي يقدر يفتحه بس. "

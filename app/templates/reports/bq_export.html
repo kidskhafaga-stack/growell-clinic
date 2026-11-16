@@ -1,0 +1,71 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('bqx.title') }}{% endblock %}
+{% block page_heading %}{{ t('bqx.title') }}{% endblock %}
+
+{# REPORTS_PLAN.md ت-٥ — counts per day for BigQuery, shut until the
+   hospital's decision and its legal opinion are on record. The rules are in
+   utils/bq_export; the program hands a file, it sends nothing. #}
+{% block content %}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title"><i class="bi bi-cloud-arrow-up"></i> {{ t('bqx.title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:78ch;">{{ t('bqx.sub') }}</p>
+</div>
+
+{% if not decision %}
+<form method="post" class="card gc-scale-in" style="margin-bottom:14px;" data-bqx="closed">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="action" value="decide">
+  <h3 style="margin-top:0;"><i class="bi bi-lock"></i> {{ t('bqx.closed') }}</h3>
+  <p class="hint">{{ t('bqx.closed_why') }}</p>
+  <div class="form-grid">
+    <div class="form-row"><label>{{ t('bqx.hospital_ref') }} *</label><input class="input" name="hospital_ref" required maxlength="200" placeholder="{{ t('bqx.hospital_ph') }}"></div>
+    <div class="form-row"><label>{{ t('bqx.legal_ref') }} *</label><input class="input" name="legal_ref" required maxlength="200" placeholder="{{ t('bqx.legal_ph') }}"></div>
+  </div>
+  <div class="panel-actions"><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-unlock"></i> {{ t('bqx.open') }}</button></div>
+</form>
+{% else %}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-bqx="open">
+  <h3 style="margin-top:0;"><i class="bi bi-unlock"></i> {{ t('bqx.opened') }}</h3>
+  <p style="margin:0;">{{ t('bqx.hospital_ref') }}: <b>{{ decision.hospital_ref }}</b> · {{ t('bqx.legal_ref') }}: <b>{{ decision.legal_ref }}</b></p>
+  <p class="hint">{{ by.display_name(current_lang) if by else '' }} · {{ decision.at }}</p>
+  <form method="post" onsubmit="return confirm({{ t('bqx.withdraw_q')|tojson|forceescape }});">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="withdraw">
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-lock"></i> {{ t('bqx.withdraw') }}</button>
+  </form>
+</div>
+
+<form method="get" action="{{ url_for('reports.bq_export_file') }}" class="card gc-scale-in" style="margin-bottom:14px;" data-bqx-download>
+  <h3 style="margin-top:0;"><i class="bi bi-download"></i> {{ t('bqx.download') }}</h3>
+  <div class="form-grid">
+    <div class="form-row"><label>{{ t('bqx.from') }}</label><input class="input" type="date" name="start" value="{{ start.isoformat() }}" required></div>
+    <div class="form-row"><label>{{ t('bqx.to') }}</label><input class="input" type="date" name="end" value="{{ end.isoformat() }}" required></div>
+  </div>
+  <p class="hint">{{ t('bqx.download_hint') }}</p>
+  <div class="panel-actions"><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-file-zip"></i> {{ t('bqx.download_btn') }}</button></div>
+</form>
+{% endif %}
+
+<form method="post" class="card gc-scale-in" style="margin-bottom:14px;" data-bqx-settings>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="action" value="settings">
+  <h3 style="margin-top:0;"><i class="bi bi-sliders"></i> {{ t('bqx.settings') }}</h3>
+  <div class="form-grid">
+    <div class="form-row"><label>{{ t('bqx.site') }}</label><input class="input" name="site" maxlength="60" value="{{ site }}" dir="ltr" placeholder="branch-01"></div>
+    <div class="form-row"><label>{{ t('bqx.min_cell') }}</label><input class="input" type="number" min="1" name="min_cell" value="{{ k }}" style="max-width:120px;"></div>
+  </div>
+  <p class="hint">{{ t('bqx.min_cell_hint') }}</p>
+  <div class="panel-actions"><button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button></div>
+</form>
+
+<div class="card gc-scale-in">
+  <h3 style="margin-top:0;"><i class="bi bi-table"></i> {{ t('bqx.what_leaves') }}</h3>
+  <ul style="margin:0;padding-inline-start:18px;">
+    {% for m in ('visits', 'new_files', 'bookings', 'diagnoses', 'doses_given', 'money_taken', 'admissions') %}<li>{{ t('bqx.m_' ~ m) }}</li>{% endfor %}
+  </ul>
+  <p class="hint">{{ t('bqx.never') }}</p>
+  <pre dir="ltr" style="white-space:pre-wrap;font-size:0.82rem;" data-bqx-schema>{% for c in schema %}{{ c.name }}  {{ c.type }}  {{ c.mode }}
+{% endfor %}</pre>
+</div>
+{% endblock %}
