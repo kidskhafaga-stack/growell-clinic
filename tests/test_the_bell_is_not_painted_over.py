@@ -45,7 +45,10 @@ CSS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # itself, and full-screen overlays which are meant to cover everything. Adding
 # to this list is how you say "this is chrome", deliberately.
 CHROME = (".sidebar", ".topbar", ".nav-tip", ".gc-live-note", ".gc-overlay",
-          ".gc-modal")
+          ".gc-modal",
+          # «Who is calling» (utils/telephony): a ringing phone is meant to be
+          # seen over whatever page is open, like the live note beside it.
+          ".gc-ringing")
 
 # ...and the ones whose number never reaches the page at all, because they sit
 # inside a card and a card is always a stacking context: every card on these

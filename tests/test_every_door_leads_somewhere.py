@@ -319,6 +319,9 @@ REACHED_WITHOUT_A_FORM = {
     # بمفتاح الجهاز، مش شاشة (tools/lab_listener.py).
     "lab_intake.message": "the laboratory's middleware",
     "lab_intake.alive": "the laboratory's middleware",
+    # والسنترال بيبلّغ إن مكالمة رنّت أو اتردت أو خلصت — بمفتاح العيادة، مش
+    # شاشة (utils/telephony، CONNECTHUB م٦).
+    "telephony.event": "the clinic's switchboard",
 }
 
 #: **مسارات كتابة يتيمة معروفة** — اتكتبت ومحدّش يقدر يوصلها.
