@@ -110,6 +110,11 @@ PUBLIC = {
     ("GET", "/fhir/r4/Patient/<resource_id>"),
     ("GET", "/fhir/r4/Patient/<resource_id>/$summary"),
     ("GET", "/fhir/r4/Patient/<resource_id>/$everything"),
+    # The clinic's switchboard (``utils/telephony``, CONNECTHUB م٦): a call
+    # event, and the names on a number for the handset — with the clinic's
+    # key, no session by design. Off, both answer 404; on, no key is a 401.
+    ("POST", "/telephony/event"),
+    ("GET", "/telephony/lookup"),
 }
 
 # The one place a capability stands in for a whole module: reception collects
