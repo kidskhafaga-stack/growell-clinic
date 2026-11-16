@@ -103,6 +103,10 @@ CATALOG = [
      _reports_and(lambda u: u.is_admin)),
     ("facility.index", QUALITY, "building-check", "facility.title", "facility.desc",
      _reports_and(lambda u: u.is_admin)),
+    # REPORTS_PLAN.md ت-٥ — counts for BigQuery, shut until the hospital's
+    # decision is on record (utils/bq_export). The administrator's alone.
+    ("reports.bq_export", OPERATIONS, "cloud-arrow-up", "bqx.title", "bqx.desc",
+     _reports_and(lambda u: u.is_admin)),
     ("hand_hygiene.index", QUALITY, "droplet-half", "hh.title", "hh.desc", _reports_and()),
     ("theatres.site_marking_report", QUALITY, "geo-alt", "allrep.site_marking", "allrep.site_marking_d",
      _opens("theatres")),
