@@ -136,10 +136,11 @@ def nutrition_history(stay, review=None):
     review = review_for(stay.id) if review is None else review
     if review is not None and (review.nutrition_history or "").strip():
         return ("review", review.nutrition_history.strip())
-    latest = nutrition.latest_assessment(stay.patient_id)
-    if latest is not None and latest.admission_id == stay.id \
-            and (latest.findings or "").strip():
-        return ("nutrition", latest.findings.strip())
+    # This stay's own assessments, newest first — not the child's latest,
+    # which may be a clinic visit's or another stay's.
+    for row in nutrition.assessments_for(stay.patient_id, limit=200):
+        if row.admission_id == stay.id and (row.findings or "").strip():
+            return ("nutrition", row.findings.strip())
     return None
 
 

@@ -166,6 +166,10 @@ def test_lama_from_the_emergency_chairs_and_left_unseen_apart(ward):
     doc.post(f"/emergency/depart/{bid}", data={"disposition": "left_unseen"})
     with ward["app"].app_context():
         assert ward["db"].session.get(EmergencyVisit, aid).disposition == "self_discharge"
+        # The doctor who wrote the form is the discharge order's doctor on the
+        # ER examination sheet — the exit that most needs a named one.
+        assert ward["db"].session.get(EmergencyVisit, aid).discharge_doctor_id == \
+            ward["ids"]["doctor"]
         assert ward["db"].session.get(EmergencyVisit, bid).disposition == "left_unseen"
         data = ama.report(local_today() - timedelta(days=1), local_today())
         assert data["lama"] == 1 and data["complete"] == 1 and [u.id for u in data["unseen"]] == [bid]

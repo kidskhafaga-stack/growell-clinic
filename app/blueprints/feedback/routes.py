@@ -139,10 +139,14 @@ def case_new(token):
     from app.models.complaint import KINDS, SIDES
     from app.utils import complaint_cases as cases
 
+    from app.utils.facility import module_enabled
+
     lang = getattr(g, "lang", "ar")
     pid = cases.read_invite(token)
     patient = db.session.get(Patient, pid) if pid else None
-    if patient is None:
+    # A clinic that switched its complaints book off reads no case: one
+    # written here would be a numbered complaint nobody can open or answer.
+    if patient is None or not module_enabled("complaints"):
         return render_template("feedback/case_new.html", patient=None,
                                clinic=_clinic_name(lang)), 404
     if request.method == "POST":

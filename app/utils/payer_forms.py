@@ -172,7 +172,7 @@ def facts(patient, payer=None, visit=None, appointment=None, approval=None, lang
         "diagnosis_code": ", ".join(d.code for d in dx if d.code),
         "services": "، ".join(services),
         "approval_number": (approval.approval_number or "") if approval is not None else "",
-        "estimate": (f"{approval.estimate:g}" if approval is not None and approval.estimate else ""),
+        "estimate": (_amount(approval.estimate) if approval is not None and approval.estimate else ""),
         "doctor_name": doctor.display_name(lang) if doctor is not None else "",
         "doctor_specialty": (getattr(doctor, "specialty", None) or "") if doctor is not None else "",
         "date": on.isoformat(),
@@ -184,6 +184,13 @@ def facts(patient, payer=None, visit=None, appointment=None, approval=None, lang
         visit = approval.visit
     out.update(_claim_facts(patient, card, visit, approval, lang))
     return out
+
+
+def _amount(value):
+    """Pounds as a form wants them: «450», «12345.67» — never «12345.7» or
+    «1.23457e+06», which is what ``:g`` makes of a hospital bill."""
+    text = f"{float(value):.2f}"
+    return text[:-3] if text.endswith(".00") else text
 
 
 def _lines(values):
@@ -211,7 +218,7 @@ def _claim_facts(patient, card, visit, approval, lang):
         bills = [b for b in Invoice.query.filter_by(visit_id=visit.id)
                  if b.status != "refunded"]
         if bills:
-            amount = f"{sum(b.total for b in bills):g}"
+            amount = _amount(sum(b.total for b in bills))
     plan = []
     if visit is not None:
         plan = [(visit.plan or "").strip(), (visit.followup_instructions or "").strip()]

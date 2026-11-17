@@ -237,3 +237,23 @@ def test_a_broken_inbox_never_costs_the_rating(survey, monkeypatch):
         fb = Feedback.query.filter_by(token="tok-complaint").first()
         assert fb.status == "submitted", "the rating was lost"
         assert fb.doctor_rating == 1
+
+
+def test_with_the_complaints_book_off_the_inbox_still_hears_it(survey):
+    """Found in the review: a clinic that switched its complaints book off
+    still had a numbered case opened behind every low rating — one nobody
+    could ever open. The thread stays (the inbox answers it); the case does
+    not, and the family's own complaint page is shut too."""
+    from app.models import Complaint, Patient, Setting
+    from app.utils import complaint_cases as cases
+
+    with survey["app"].app_context():
+        Setting.set("mod_enabled:complaints", "0")
+        survey["db"].session.commit()
+    _rate(survey, doctor=1, service=1, nps=0, comment="مش راضي")
+    with survey["app"].app_context():
+        assert len(_threads(survey)) == 1
+        assert Complaint.query.count() == 0
+        token = cases.invite_token(Patient.query.first())
+    page = survey["app"].test_client().get(f"/feedback/c/new/{token}")
+    assert page.status_code == 404

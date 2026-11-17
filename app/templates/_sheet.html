@@ -1,0 +1,25 @@
+{# The hospital's paper forms printed from the record — the ER examination
+   sheet, the medical history record. One look for all of them: a bar
+   heading each section (ruled on paper, which is ink-only), a box under it,
+   ruled lines where the record has nothing and a pen writes instead.
+
+   ``root`` is the sheet's own class; its ``-line`` class is the blank line. #}
+{% macro sheet_css(root) %}
+<style>
+  .{{ root }} h3 { margin: 12px 0 0; padding: 4px 10px; background: var(--green-800, #1e3a5f); color: #fff;
+            font-size: .85rem; text-align: center; letter-spacing: .02em; border-radius: 3px 3px 0 0; }
+  .{{ root }} .{{ root }}-body { border: 1px solid var(--line); border-top: 0; padding: 8px 10px; min-height: 30px; }
+  .{{ root }} .{{ root }}-line { border-bottom: 1px dotted var(--line); height: 24px; }
+  .{{ root }} .k { color: var(--muted); font-size: .8rem; }
+  .{{ root }} table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  .{{ root }} th, .{{ root }} td { border: 1px solid var(--line); padding: 4px 6px; vertical-align: top; text-align: start; }
+  /* Paper is ink-only (print.css takes every background away), so the bar
+     each section starts with would print as nothing: on paper a ruled
+     heading keeps the sections apart instead. */
+  @media print { .{{ root }} h3 { border: 1px solid #000; border-bottom-width: 2px; border-radius: 0; } }
+</style>
+{% endmacro %}
+{% macro lines(n, root) %}{% for _ in range(n) %}<div class="{{ root }}-line"></div>{% endfor %}{% endmacro %}
+{% macro blank(w, root) %}<span class="{{ root }}-line" style="display:inline-block;width:{{ w }}px;"></span>{% endmacro %}
+{% macro box(on) %}<span style="font-size:1.05rem;" aria-hidden="true">{{ '☑' if on else '☐' }}</span>{% endmacro %}
+{% macro who(u) %}{{ u.display_name(current_lang) if u else '' }}{% endmacro %}

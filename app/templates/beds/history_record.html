@@ -10,26 +10,17 @@
    hospital's two pages (`utils/history_record`). What the record holds is
    printed; what it does not is ruled lines for a pen. #}
 {% set p = r.patient %}
-{% macro lines(n) %}{% for _ in range(n) %}<div class="mhr-line"></div>{% endfor %}{% endmacro %}
-{% macro box(on) %}<span aria-hidden="true">{{ '☑' if on else '☐' }}</span>{% endmacro %}
-{% macro who(u) %}{{ u.display_name(current_lang) if u else '' }}{% endmacro %}
-{% macro blank(w=120) %}<span class="mhr-line" style="display:inline-block;width:{{ w }}px;"></span>{% endmacro %}
+{% from "_sheet.html" import sheet_css, box, who with context %}
+{% from "_sheet.html" import lines as _lines, blank as _blank %}
+{% macro lines(n) %}{{ _lines(n, 'mhr') }}{% endmacro %}
+{% macro blank(w=120) %}{{ _blank(w, 'mhr') }}{% endmacro %}
+{{ sheet_css('mhr') }}
 <style>
-  .mhr h3 { margin: 12px 0 0; padding: 4px 10px; background: var(--green-800, #1e3a5f); color: #fff;
-            font-size: .85rem; text-align: center; border-radius: 3px 3px 0 0; }
-  .mhr .mhr-body { border: 1px solid var(--line); border-top: 0; padding: 8px 10px; min-height: 30px; }
-  .mhr .mhr-line { border-bottom: 1px dotted var(--line); height: 24px; }
   .mhr .row { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 4px 0; }
-  .mhr .k { color: var(--muted); font-size: .8rem; }
   .mhr .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 10px; }
-  .mhr table { width: 100%; border-collapse: collapse; font-size: .85rem; }
-  .mhr th, .mhr td { border: 1px solid var(--line); padding: 4px 6px; vertical-align: top; text-align: start; }
   .mhr .sign { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-top: 14px; }
   .mhr .page2 { margin-top: 26px; }
-  @media print {
-    .mhr h3 { border: 1px solid #000; border-bottom-width: 2px; border-radius: 0; }
-    .mhr .page2 { break-before: page; margin-top: 0; }
-  }
+  @media print { .mhr .page2 { break-before: page; margin-top: 0; } }
   @media (max-width: 640px) { .mhr .three { grid-template-columns: 1fr; } }
 </style>
 
