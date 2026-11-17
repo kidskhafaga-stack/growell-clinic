@@ -294,6 +294,7 @@
           {% endif %}
           {# Anybody who works here may write down a complaint; a family who
              would rather write it themselves gets a link. #}
+          {% if module_enabled('complaints') %}
           <a data-log-complaint href="{{ url_for('complaints.new', patient_id=patient.id) }}">
             <i class="bi bi-megaphone"></i> {{ t('cmp.register_btn') }}</a>
           {% if patient.contact_phone %}
@@ -301,6 +302,7 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" data-complaint-invite><i class="bi bi-link-45deg"></i> {{ t('cmp.send_link') }}</button>
           </form>
+          {% endif %}
           {% endif %}
           {# Admitting, from the file. A sibling of the other items and never
              nested inside a form (see `test_a_form_inside_a_form.py`). #}

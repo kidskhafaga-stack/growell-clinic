@@ -214,7 +214,10 @@
     "sec_money": "Money and stock",
     "sec_quality": "Quality",
     "sec_reports": "Reports and messages",
-    "sec_admin": "Administration"
+    "sec_admin": "Administration",
+    "complaints": "Complaints",
+    "quality": "Quality & patient safety (incidents, root causes)",
+    "ipc": "Infection control"
   },
   "auth": {
     "login": "Login",

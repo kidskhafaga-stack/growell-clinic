@@ -1238,7 +1238,10 @@ def satisfaction():
     start, end = cs_board.period(request.args.get("from"), request.args.get("to"))
     centre_id = request.args.get("centre", type=int)
     tab = request.args.get("tab") or "all"
-    can_complaints = current_user.can("complaints_manage")
+    from app.utils.facility import module_enabled
+
+    can_complaints = (current_user.can("complaints_manage")
+                      and module_enabled("complaints"))
     if tab not in ("all", "units", "complaints") or (
             tab == "complaints" and not can_complaints):
         tab = "all"

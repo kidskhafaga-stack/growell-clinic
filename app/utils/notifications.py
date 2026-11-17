@@ -281,8 +281,10 @@ def _compute():
     try:
         from app.utils.complaint_cases import open_counts
 
+        from app.utils.facility import module_enabled
+
         c = open_counts()
-        if c["attention"]:
+        if c["attention"] and module_enabled("complaints"):
             items.append({"key": "complaints", "module": "dashboard",
                           "capability": "complaints_manage", "icon": "megaphone",
                           "severity": "danger" if c["late"] else "warning",
@@ -296,8 +298,10 @@ def _compute():
     try:
         from app.utils.incidents import open_counts as incident_counts
 
+        from app.utils.facility import module_enabled
+
         c = incident_counts()
-        if c["attention"]:
+        if c["attention"] and module_enabled("quality"):
             items.append({"key": "incidents", "module": "dashboard",
                           "capability": "incident_manage", "icon": "exclamation-triangle",
                           "severity": "danger" if c["serious"] else "warning",
@@ -312,8 +316,10 @@ def _compute():
     try:
         from app.utils.ipc import open_count as ipc_open
 
+        from app.utils.facility import module_enabled
+
         n = ipc_open()
-        if n:
+        if n and module_enabled("ipc"):
             items.append({"key": "ipc_alerts", "module": "dashboard",
                           "capability": "infection_control", "icon": "shield-exclamation",
                           "severity": "danger", "count": n,
@@ -326,7 +332,10 @@ def _compute():
     try:
         from app.models import DiseaseReport
 
-        n = DiseaseReport.query.filter(DiseaseReport.reported_on.is_(None)).count()
+        from app.utils.facility import module_enabled
+
+        n = (DiseaseReport.query.filter(DiseaseReport.reported_on.is_(None))
+             .count() if module_enabled("ipc") else 0)
         if n:
             items.append({"key": "disease_reports", "module": "dashboard",
                           "capability": "infection_control", "icon": "send-exclamation",
