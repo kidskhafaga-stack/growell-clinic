@@ -176,6 +176,11 @@ MODULE_ICONS = {
     "messages": "whatsapp",
     "users": "person-gear",
     "settings": "gear",
+    # Facility parts (``utils/facility.FACILITY_PARTS``): switched in the same
+    # grid as the modules, with no module door of their own.
+    "complaints": "megaphone",
+    "quality": "clipboard2-pulse",
+    "ipc": "shield-exclamation",
 }
 
 # Access matrix: which modules each role may reach. ``admin`` is granted every

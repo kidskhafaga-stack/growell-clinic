@@ -4153,6 +4153,19 @@ SECTIONS = [
              "<b>Facility identity</b>, logo and currency, plus a <b>first-run "
              "wizard</b> that sets up the specialty, services and visit types "
              "from the start."),
+            ("<b>الشكاوى والجودة ومكافحة العدوى</b> بقوا في «تجهيز المنشأة» ← «الموديولز "
+             "المفعّلة» زي أي موديول: الشكاوى شغالة من الأول وتقدر تقفلها، و«الجودة "
+             "وسلامة المرضى» (الحوادث وتحليل الأسباب واللجان والأدلة) و«مكافحة العدوى» "
+             "(ونظافة الأيدي) بتوع المستشفى: بيشتغلوا لوحدهم لما تختار عنبر أو عناية أو "
+             "حضّانات أو طوارئ أو عمليات، والعيادة اللي من غير أسرّة ما بتشوفهمش. المقفول "
+             "مالوش باب في القايمة ولا لينك ولا جرس.",
+             "<b>Complaints, quality and infection control</b> are now in «Facility "
+             "setup» → «Enabled modules» like any module: complaints are on from "
+             "the start and can be switched off; «Quality & patient safety» "
+             "(incidents, root causes, committees, guidelines) and «Infection "
+             "control» (and hand hygiene) are a hospital's: they come on with a "
+             "ward, ICU, NICU, emergency room or theatre, and a clinic without "
+             "beds does not see them. What is off has no door, link or bell."),
             ("<b>شكل كارت المريض</b> (الإعدادات ← اللوجو): التصميم (الجديد بالموجات، "
              "الأصلي السادة، علامة ناعمة، ألوان الهوية، خطوط دقيقة، أو شريط جانبي)، "
              "الشعار في الخلفية (شعار البرنامج أو شعار العيادة أو من غير)، لونه وشفافيته "

@@ -133,27 +133,30 @@
     {% endif %}
     {# The complaints book, for whoever handles complaints. Not a module: GAHAR
        (PCC.16) does not let a clinic opt out of handling them. #}
-    {% if current_user.can('complaints_manage') %}
+    {% if current_user.can('complaints_manage') and module_enabled('complaints') %}
     {% set _ = doors.append({'key': 'complaints', 'href': url_for('complaints.index'),
                              'icon': 'megaphone', 'label': t('cmp.nav'), 'mark': 'data-nav-complaints'}) %}
     {% endif %}
     {# GAHAR QPI.10 — anybody who works here reports an incident, from any
        screen; the board is for whoever reviews them. A flag, not the warning
        triangle: that one means «look at this» on the screens it is on. #}
+    {# A part (utils/facility.FACILITY_PARTS): a hospital's, off where it is. #}
+    {% if module_enabled('quality') %}
     {% set _ = doors.append({'key': 'incident_report', 'href': url_for('incidents.report'),
                              'icon': 'flag', 'label': t('incident.nav_report'), 'mark': 'data-nav-incident-report'}) %}
-    {% if current_user.can('incident_manage') %}
+    {% endif %}
+    {% if current_user.can('incident_manage') and module_enabled('quality') %}
     {% set _ = doors.append({'key': 'incidents', 'href': url_for('incidents.index'),
                              'icon': 'clipboard2-pulse', 'label': t('incident.nav_board'), 'mark': 'data-nav-incidents'}) %}
     {% endif %}
     {# «تحليل الأسباب» (RCA_PLAN.md) — the quality team and the
        administration, and each department's head for their own. #}
-    {% if rca_may_open(current_user) %}
+    {% if module_enabled('quality') and rca_may_open(current_user) %}
     {% set _ = doors.append({'key': 'rca', 'href': url_for('quality.rca'),
                              'icon': 'diagram-2', 'label': t('rca.title'), 'mark': 'data-nav-rca'}) %}
     {% endif %}
     {# An alert organism grew — infection control's answer (`utils/ipc`). #}
-    {% if current_user.can('infection_control') %}
+    {% if current_user.can('infection_control') and module_enabled('ipc') %}
     {% set _ = doors.append({'key': 'ipc', 'href': url_for('ipc.index'),
                              'icon': 'shield-exclamation', 'label': t('ipc.nav'), 'mark': 'data-nav-ipc'}) %}
     {% endif %}
@@ -260,8 +263,10 @@
         {% endif %}
 
         {# «سجّل شكوى» from any screen: whoever hears it writes it down. #}
+        {% if module_enabled('complaints') %}
         <a class="theme-toggle" href="{{ url_for('complaints.new') }}" data-topbar-complaint
            title="{{ t('cmp.register_btn') }}" aria-label="{{ t('cmp.register_btn') }}"><i class="bi bi-megaphone"></i></a>
+        {% endif %}
 
         <div class="notif-wrap" x-data="{ open: false }" x-on:keydown.escape.window="open=false">
           <button type="button" class="theme-toggle" x-on:click="open=!open"

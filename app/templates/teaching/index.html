@@ -18,8 +18,10 @@
   <span class="badge {{ 'badge--warn' if data.unevaluated else 'badge--green' }}" data-unevaluated="{{ data.unevaluated|length }}">{{ t('teach.unevaluated_n', n=data.unevaluated|length) }}</span>
   <span class="badge {{ 'badge--warn' if concerns.open else 'badge--muted' }}" data-concerns-open="{{ concerns.open|length }}">{{ t('teach.concerns_open_n', n=concerns.open|length) }}</span>
   {% if research.lapsed_with_children %}<span class="badge badge--danger" data-lapsed="{{ research.lapsed_with_children|length }}">{{ t('teach.lapsed_n', n=research.lapsed_with_children|length) }}</span>{% endif %}
+  {% if module_enabled('quality') %}
   <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('quality.committee', c='education') }}"><i class="bi bi-people"></i> {{ t('gov.c_education') }}</a>
   <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('quality.committee', c='research_ethics') }}"><i class="bi bi-people"></i> {{ t('gov.c_research_ethics') }}</a>
+  {% endif %}
 </div>
 
 <div class="card gc-scale-in" id="trainees" style="margin-bottom:14px;" data-trainees>

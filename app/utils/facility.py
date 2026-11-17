@@ -36,8 +36,29 @@ OPT_IN_MODULES = {"dentistry", "panels", "observations", "beds",
                   "imaging", "pharmacy", "duty", "programs", "ambulance",
                   "telemedicine", "teaching"}
 
-# Modules an admin may turn on/off.
-TOGGLEABLE_MODULES = [m for m in MODULES if m not in ALWAYS_ON]
+# **Parts of the program that are not modules** — they have no screen in the
+# side menu of their own and no row in the roles table, but a clinic still
+# decides whether it runs them. The owner, on a single-doctor clinic: «الجزء
+# ده باين ليه فى العيادة ده شغل بتاع مستشفيات؟ وليه مش بيان فى المديولز؟» —
+# the incident book, the root-cause analysis and infection control were
+# showing to a clinic without a bed, and nothing let it switch them off.
+#
+# * ``complaints`` — the complaints book. On unless switched off, as it
+#   always was: clinics take complaints too.
+# * ``quality`` — incidents, root-cause analysis, the committees, the
+#   measures and the guidelines (GAHAR QPI).
+# * ``ipc`` — infection control: alert organisms, bundles, cleaning,
+#   sterilisation, outbreaks and hand hygiene.
+#
+# ``quality`` and ``ipc`` are a hospital's: on a configured copy that never
+# said, they follow the wards (``beds``) — a hospital that has them keeps
+# them, a clinic without a bed does not see them. Ticking a ward, an ICU, an
+# NICU, an emergency room or a theatre in the wizard switches them on.
+FACILITY_PARTS = ["complaints", "quality", "ipc"]
+HOSPITAL_PARTS = ("quality", "ipc")
+
+# Modules an admin may turn on/off — and the parts, in the same grid.
+TOGGLEABLE_MODULES = [m for m in MODULES if m not in ALWAYS_ON] + FACILITY_PARTS
 
 # Every facility gets these regardless of capabilities.
 #
@@ -55,7 +76,10 @@ TOGGLEABLE_MODULES = [m for m in MODULES if m not in ALWAYS_ON]
 # Writing the paper is not that, and a clinic whose families fill their
 # prescriptions outside still writes them.
 BASE_MODULES = ["patients", "appointments", "finance", "reports", "messages",
-                "ai", "prescriptions"]
+                "ai", "prescriptions",
+                # The complaints book — a part, not a module; every facility
+                # takes complaints (see FACILITY_PARTS).
+                "complaints"]
 
 # --- Layer 1: administrative facility types (NOT services) -----------------
 # Each carries a default capability set the wizard pre-ticks; fully editable.
@@ -118,7 +142,7 @@ CAPABILITY_MODULES = {
     # And the rota with it: a department that is open at three in the
     # morning is a department somebody is covering, and the shift they work
     # is the one thing about it the program could not pay for.
-    "emergency_care": {"visits", "observations", "beds", "emergency", "duty"},
+    "emergency_care": {"visits", "observations", "beds", "emergency", "duty", "quality", "ipc"},
     "home_care": {"visits"},
     "ecg": {"visits"}, "echo": {"visits"}, "eeg": {"visits"},
     "spirometry": {"visits"}, "audiology": {"visits"}, "vision_screening": {"visits"},
@@ -156,14 +180,14 @@ CAPABILITY_MODULES = {
     # slow ones: a hospital ticked "ward" in the wizard, got the bed board and
     # the rounds, and had nowhere that answered "who has nobody been round to
     # this morning" — the capability was real and the door to it was missing.
-    "ward": {"visits", "observations", "beds", "ward", "duty"},
-    "nicu": {"visits", "observations", "beds", "nicu", "duty"},
-    "icu": {"visits", "observations", "beds", "icu", "duty"},
+    "ward": {"visits", "observations", "beds", "ward", "duty", "quality", "ipc"},
+    "nicu": {"visits", "observations", "beds", "nicu", "duty", "quality", "ipc"},
+    "icu": {"visits", "observations", "beds", "icu", "duty", "quality", "ipc"},
     # The theatre list, and the bed the child wakes up in. `beds` because
     # ``recovery`` has been a unit kind since the wards were built and that is
     # where a case goes afterwards; `observations` because a recovery room is
     # readings at a five-minute interval and nothing else.
-    "surgery": {"visits", "observations", "beds", "theatres"},
+    "surgery": {"visits", "observations", "beds", "theatres", "quality", "ipc"},
 }
 
 # Ready-made presets: type + capabilities (modules derived).
@@ -258,6 +282,8 @@ def module_enabled(module):
     """
     if module in ALWAYS_ON:
         return True
+    if module in FACILITY_PARTS:
+        return _part_enabled(module)
     # The licence narrows, it never widens. A clinic that has not switched a
     # specialty on does not get it because a licence mentions it, and one
     # that has switched it on loses it if the licence does not — so both
@@ -285,6 +311,20 @@ def module_enabled(module):
     if not is_configured():
         return True
     return switches.get(f"mod_enabled:{module}") != "0"
+
+
+def _part_enabled(part):
+    """A part's switch; if never set, ``complaints`` is on and the hospital
+    parts follow the wards on a configured copy (on before the wizard ran,
+    as everything is). Not narrowed by the licence: these were never
+    licensed separately, and a clinic must not lose its complaints book to a
+    licence signed before the switch existed."""
+    value = Setting.group("mod_enabled").get(f"mod_enabled:{part}")
+    if value is not None:
+        return value == "1"
+    if part in HOSPITAL_PARTS and is_configured():
+        return module_enabled("beds")
+    return True
 
 
 def enabled_modules():

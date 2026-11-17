@@ -31,6 +31,12 @@ def _consumption(u):
                                       or u.can_open("ai") or u.can("finance_manage"))
 
 
+def _part(name):
+    from app.utils.facility import module_enabled
+
+    return module_enabled(name)
+
+
 def _hospital():
     from app.utils.hospital_kpis import any_part
 
@@ -107,7 +113,8 @@ CATALOG = [
     # decision is on record (utils/bq_export). The administrator's alone.
     ("reports.bq_export", OPERATIONS, "cloud-arrow-up", "bqx.title", "bqx.desc",
      _reports_and(lambda u: u.is_admin)),
-    ("hand_hygiene.index", QUALITY, "droplet-half", "hh.title", "hh.desc", _reports_and()),
+    ("hand_hygiene.index", QUALITY, "droplet-half", "hh.title", "hh.desc",
+     _reports_and(lambda u: _part("ipc"))),
     ("theatres.site_marking_report", QUALITY, "geo-alt", "allrep.site_marking", "allrep.site_marking_d",
      _opens("theatres")),
 ]
