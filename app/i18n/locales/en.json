@@ -17795,7 +17795,7 @@
     "doors": "The doors the switchboard calls",
     "doors_hint": "The ring, answer and hang-up of one call send the same call_id. JSON or form fields both work. lookup returns only the children's names and file numbers, for the handset display.",
     "extensions": "Who answers which extension",
-    "extensions_hint": "A call pops up for whoever's extension rings. If the switchboard sends no extension, it pops up for everyone with none set.",
+    "extensions_hint": "A call pops up for whoever's extension rings. If the switchboard sends no extension, or one nobody here answers on (such as the clinic's own number), it pops up for everyone without an extension — or for everyone, if all have one.",
     "person": "Person",
     "setup_saved": "Saved."
   },
@@ -17821,7 +17821,7 @@
     "settings": "Settings",
     "site": "This branch's label in the file",
     "min_cell": "Smallest count released",
-    "min_cell_hint": "A count of people under this leaves empty, marked suppressed: in a small clinic «one child with this diagnosis on this day» can be recognised. Money is not a count of people and is not held back.",
+    "min_cell_hint": "A count of people under this leaves empty, marked suppressed: in a small clinic «one child with this diagnosis on this day» can be recognised. Money is held back too when fewer payments than this make it up — one family's payment on a quiet day is that family's bill.",
     "saved": "Saved.",
     "what_leaves": "What leaves in the file",
     "m_visits": "Visits per day, by kind (clinic, online…)",

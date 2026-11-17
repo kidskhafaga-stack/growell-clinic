@@ -35,11 +35,8 @@ def calls():
     rows = (PhoneCall.query.filter(PhoneCall.started_at >= since)
             .order_by(PhoneCall.started_at.desc()).limit(500).all())
     missed = telephony.missed()
-    names = {}
-    for call in rows + missed:
-        key = call.raw_number or call.number
-        if key and key not in names:
-            names[key] = telephony.who(key)
+    names = telephony.who_many(
+        {call.raw_number or call.number for call in rows + missed})
     from flask import g
 
     lang = getattr(g, "lang", "ar")

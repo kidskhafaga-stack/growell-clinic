@@ -20,8 +20,9 @@ So:
 * **Small numbers are held back.** A count of people under the clinic's
   threshold (five unless it says otherwise) leaves as ``null`` with
   ``suppressed = true``: in a small clinic «one child with this diagnosis
-  on this day» can be a child somebody recognises. Money is not a count of
-  people and is not held back.
+  on this day» can be a child somebody recognises. Money is held back the
+  same way when fewer payments than that make it up: one family's card
+  payment on a quiet Friday is that family's bill.
 * **The program sends nothing.** It hands the administrator one file to
   load, in the shape Google's own documentation describes (read from
   docs.cloud.google.com on 16 November 2026): newline-delimited JSON, «Each
@@ -126,8 +127,8 @@ def _local_day(moment):
 
 
 def counts(start, end):
-    """``{(day, measure, dimension): value}`` for the clinic's days
-    ``start``..``end``, both included."""
+    """``({(day, measure, dimension): value}, {same key: records behind
+    it})`` for the clinic's days ``start``..``end``, both included."""
     from app.extensions import db
     from app.models import (Admission, Appointment, Diagnosis, Patient,
                             PatientVaccine, Payment, Vaccine, Visit)
@@ -137,12 +138,16 @@ def counts(start, end):
     lo, _ = day_bounds(start)
     _, hi = day_bounds(end)
     out = {}
+    # How many records are behind each figure — the people counted, or the
+    # payments summed — which is what the threshold is held against.
+    support = {}
 
     def add(day, measure, dim, value=1):
         if day is None or day < start or day > end:
             return
         key = (day, measure, dim)
         out[key] = out.get(key, 0) + value
+        support[key] = support.get(key, 0) + 1
 
     for (d, ch) in db.session.query(Visit.visit_date, Visit.channel).filter(
             Visit.visit_date >= start, Visit.visit_date <= end):
@@ -181,7 +186,7 @@ def counts(start, end):
         for (at,) in db.session.query(Admission.discharged_at).filter(
                 Admission.discharged_at >= lo, Admission.discharged_at <= hi):
             add(_local_day(at), "discharges", None)
-    return out
+    return out, support
 
 
 def rows(start, end):
@@ -193,10 +198,11 @@ def rows(start, end):
     k = min_cell()
     label = site()
     out = []
+    values, support = counts(start, end)
     for (day, measure, dim), value in sorted(
-            counts(start, end).items(),
+            values.items(),
             key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or "")):
-        held = measure in PEOPLE_MEASURES and 0 < value < k
+        held = 0 < support[(day, measure, dim)] < k
         out.append({"day": day.isoformat(), "site": label,
                     "measure": measure, "dimension": dim,
                     "value": None if held else value,

@@ -246,18 +246,22 @@ def hide_field(row, key, hidden=True):
     _bump(row, fields)
 
 
+def _entries_with(row, key):
+    """Entries whose stored answers name this field — found in the database
+    by the key as it is written in the JSON (``"f3":``), not by decoding
+    every entry the form ever had. ``"f1":`` does not match ``"f10":``."""
+    return row.entries.filter(FormEntry.answers_json.like(f'%"{key}":%'))
+
+
 def answered(row, key):
-    for entry in row.entries:
-        value = entry.answers.get(key)
-        if value not in (None, "", []):
-            return True
-    return False
+    """Only non-empty answers are stored, so a key on file is an answer."""
+    return _entries_with(row, key).first() is not None
 
 
 def used_options(old):
     row, key = old
     used = set()
-    for entry in row.entries:
+    for entry in _entries_with(row, key):
         value = entry.answers.get(key)
         if isinstance(value, list):
             used.update(value)

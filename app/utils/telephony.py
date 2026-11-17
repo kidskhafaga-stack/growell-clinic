@@ -134,15 +134,20 @@ def receive(data, now=None):
         call.extension = extension
     if event == "answer" and call.answered_at is None:
         call.answered_at = now
-        call.status = "answered"
         if extension:
             # Answered at the extension that picked up, which on a ring
             # group is not the one the ring was sent to.
             call.extension = extension
     elif event == "hangup" and call.ended_at is None:
         call.ended_at = now
+    # The status follows from the times, whatever order the events came in:
+    # a retried «answer» that lands after the «hangup» is still a call that
+    # was answered and has ended — not one still talking, and not missed.
+    if call.ended_at is not None:
         call.status = "ended" if call.answered_at else (
             "missed" if call.direction == "in" else "ended")
+    elif call.answered_at is not None:
+        call.status = "answered"
     return call
 
 
@@ -160,6 +165,52 @@ def who(number):
     return [known] if known is not None else []
 
 
+def who_many(numbers):
+    """``{number: [children]}`` for many numbers at once — one pass over the
+    phones on file, not one per number (the call log asks for hundreds)."""
+    from app.models import Parent, Patient
+    from app.utils.inbox import known_patient_for_phone
+
+    wanted = {}
+    for raw in numbers:
+        norm = _number(raw) if raw else None
+        if norm:
+            wanted.setdefault(norm, []).append(raw)
+    out = {raw: [] for raw in numbers if raw}
+    if not wanted:
+        return out
+    families = {}
+    for parent in Parent.query.filter(Parent.phone.isnot(None)).all():
+        if not parent.family_id:
+            continue
+        for phone in (parent.phone, parent.phone_alt):
+            norm = _number(phone) if phone else None
+            if norm in wanted:
+                families.setdefault(norm, set()).add(parent.family_id)
+    found = {norm: {} for norm in wanted}
+    fam_ids = set().union(*families.values()) if families else set()
+    if fam_ids:
+        by_family = {}
+        for kid in Patient.query.filter(Patient.family_id.in_(fam_ids)).all():
+            by_family.setdefault(kid.family_id, []).append(kid)
+        for norm, fams in families.items():
+            for fam in fams:
+                for kid in by_family.get(fam, []):
+                    found[norm][kid.id] = kid
+    for kid in Patient.query.filter(Patient.own_phone.isnot(None)).all():
+        norm = _number(kid.own_phone)
+        if norm in found:
+            found[norm][kid.id] = kid
+    for norm, raws in wanted.items():
+        kids = [found[norm][i] for i in sorted(found[norm])]
+        if not kids:
+            known = known_patient_for_phone(norm)
+            kids = [known] if known is not None else []
+        for raw in raws:
+            out[raw] = kids
+    return out
+
+
 def lookup(number):
     """For the switchboard's handset display: names and file numbers only —
     nothing medical, nothing owed."""
@@ -171,24 +222,41 @@ def lookup(number):
 
 
 def ringing_for(user, now=None):
-    """Calls ringing now that this person should see: on their extension,
-    or — when the switchboard sent none — on every answering desk."""
+    """Calls ringing now that this person should see.
+
+    * A call to an extension somebody here answers on goes to that person.
+    * Any other call — no extension sent, or one nobody here has (a
+      switchboard that puts the clinic's own number in «to») — goes to the
+      people with no extension of their own: the desk that answers the main
+      line. If everyone has an extension, it goes to everyone, because a
+      ringing phone nobody is shown is the one failure this exists to stop.
+    """
+    from app.models import User
+
     now = now or datetime.utcnow()
     rows = (PhoneCall.query
             .filter(PhoneCall.status == "ringing",
                     PhoneCall.direction == "in",
                     PhoneCall.started_at >= now - RINGING_FOR)
             .order_by(PhoneCall.started_at.desc()).all())
+    if not rows:
+        return []
+    owned = {(u.phone_extension or "").strip()
+             for u in User.query.filter(User.is_active.is_(True),
+                                        User.phone_extension.isnot(None))}
+    owned.discard("")
     mine = (getattr(user, "phone_extension", None) or "").strip()
+    everyone_has_one = not User.query.filter(
+        User.is_active.is_(True),
+        (User.phone_extension.is_(None)) | (User.phone_extension == "")
+    ).first()
     out = []
     for call in rows:
-        if call.extension and mine and call.extension != mine:
-            continue
-        if call.extension and not mine:
-            # This person answers no extension; a call sent to one is not
-            # theirs to pop up for.
-            continue
-        out.append(call)
+        if call.extension and call.extension in owned:
+            if call.extension == mine:
+                out.append(call)
+        elif not mine or everyone_has_one:
+            out.append(call)
     return out
 
 
