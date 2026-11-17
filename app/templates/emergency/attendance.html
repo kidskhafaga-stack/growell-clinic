@@ -123,6 +123,8 @@
       <div class="ph2-menu">
         {# The paper the family takes home (ط-٦). #}
         <a data-to-family-paper href="{{ url_for('emergency.family_paper', attendance_id=row.id) }}"><i class="bi bi-file-earmark-text"></i> {{ t('er_paper.door') }}</a>
+        {# The department's own record of the attendance, on one A4 page. #}
+        <a data-to-exam-sheet href="{{ url_for('emergency.exam_sheet', attendance_id=row.id) }}"><i class="bi bi-file-earmark-medical"></i> {{ t('er_sheet.door') }}</a>
         <a data-to-wristband href="{{ url_for('patients.wristband', patient_id=row.patient_id) }}"><i class="bi bi-upc"></i> {{ t('wristband.print') }}</a>
         <a href="{{ url_for('patients.view', patient_id=row.patient_id) }}"><i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
         <a href="{{ url_for('emergency.register') }}"><i class="bi bi-list-ul"></i> {{ t('emergency.register_title') }}</a>
@@ -196,6 +198,7 @@
       <form method="post" action="{{ url_for('emergency.record_weight', attendance_id=row.id) }}" style="display:flex;gap:4px;margin:0;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input class="input" type="number" step="0.01" min="0.3" max="200" name="weight_kg" placeholder="{{ t('er_dose.kg') }}" style="max-width:90px;" required>
+        <input class="input" type="number" step="0.1" min="30" max="220" name="height_cm" placeholder="{{ t('er_sheet.cm') }}" style="max-width:80px;" data-er-height>
         <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('er_dose.save_weight') }}</button>
       </form>
       {% endif %}
@@ -534,6 +537,18 @@
     <select class="select" name="disposition" style="max-width:150px;" x-model="d">
       {% for d in dispositions %}<option value="{{ d }}">{{ t('emergency.disp_' ~ d) }}</option>{% endfor %}
     </select>
+    <select class="select" name="admitted_to" style="max-width:150px;" aria-label="{{ t('er_sheet.admitted_to') }}"
+            x-show="d === 'admitted'" x-cloak data-admitted-to>
+      <option value="">{{ t('er_sheet.admitted_to') }}</option>
+      {% for a in admit_to %}<option value="{{ a }}">{{ t('er_sheet.to_' ~ a) }}</option>{% endfor %}
+    </select>
+    {% if not is_doctor %}
+    {# «Discharge order by the treating doctor»: the nurse names whose order it was. #}
+    <select class="select" name="discharge_doctor_id" style="max-width:170px;" aria-label="{{ t('er_sheet.discharge_doctor') }}" data-discharge-doctor>
+      <option value="">{{ t('er_sheet.discharge_doctor') }}</option>
+      {% for u in doctors %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}
+    </select>
+    {% endif %}
     <input class="input" name="condition" style="max-width:180px;" placeholder="{{ t('emergency.condition_ph') }}">
     <input class="input" name="followup" style="max-width:200px;" placeholder="{{ t('emergency.followup_ph') }}">
     <select class="select" name="leave_reason" style="max-width:160px;" aria-label="{{ t('leave.why') }}"

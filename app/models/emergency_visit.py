@@ -55,6 +55,12 @@ SELF_DISCHARGE, LEFT_UNSEEN, DIED = ("self_discharge", "left_unseen", "died")
 DISPOSITIONS = (HOME, ADMITTED, TRANSFERRED, SELF_DISCHARGE, LEFT_UNSEEN,
                 DIED)
 
+#: «اتحجز» فين — نفس خانات ورقة كشف الطوارئ الورقية: «Admitted: PICU ·
+#: NICU · INP · Surgical intervention». فاضي = محدّش قال، وده الصح على كل
+#: حضور قديم.
+PICU, NICU, INPATIENT, SURGERY = ("picu", "nicu", "inp", "surgery")
+ADMIT_TO = (PICU, NICU, INPATIENT, SURGERY)
+
 
 class EmergencyVisit(db.Model):
     """One attendance at the emergency department."""
@@ -116,6 +122,14 @@ class EmergencyVisit(db.Model):
     # البرنامج بيقول رأي مالوش.
     condition = db.Column(db.String(200))
     followup_instructions = db.Column(db.Text)
+    # «Admitted» — to where (``ADMIT_TO``). Only with ``disposition ==
+    # "admitted"``; empty otherwise and on every attendance before it.
+    admitted_to = db.Column(db.String(12))
+    # «Discharge order by the treating doctor» — the doctor whose word the
+    # child left on. ``by_id`` is whoever pressed the button, who may be the
+    # nurse; this is the doctor, and never guessed: the doctor who pressed
+    # it, or the one the nurse named.
+    discharge_doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"))
 
     by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime, default=datetime.utcnow,
@@ -146,6 +160,8 @@ class EmergencyVisit(db.Model):
     triaged_by = db.relationship("User", foreign_keys=[triaged_by_id])
     seen_by = db.relationship("User", foreign_keys=[seen_by_id])
     by = db.relationship("User", foreign_keys=[by_id])
+    discharge_doctor = db.relationship("User",
+                                       foreign_keys=[discharge_doctor_id])
     pay_clearer = db.relationship("User", foreign_keys=[pay_cleared_by])
 
     @property

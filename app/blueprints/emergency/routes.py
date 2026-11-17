@@ -27,7 +27,7 @@ from app.blueprints.emergency import emergency_bp
 from app.extensions import db
 from app.i18n import t
 from app.models.admission import Admission
-from app.models.emergency_visit import ARRIVALS, DISPOSITIONS
+from app.models.emergency_visit import ADMIT_TO, ARRIVALS, DISPOSITIONS
 from app.utils import beds as ward
 from app.utils.decorators import capability_required, module_required
 from app.utils.sequences import retry_on_number_clash
@@ -137,6 +137,11 @@ def register():
                            level_color=_triage().color_of,
                            incomplete=er.incomplete_departed(),
                            dispositions=DISPOSITIONS, arrivals=ARRIVALS,
+                           admit_to=ADMIT_TO,
+                           # A nurse closing the attendance names the doctor
+                           # whose order it was; a doctor is that doctor.
+                           discharge_doctors=([] if eo.is_doctor(current_user)
+                                              else eo.doctors()),
                            leave_reasons=_reasons(), asked_on=_asked_on(),
                            provisional_n=len(_provisional()))
 
@@ -308,7 +313,9 @@ def depart(visit_id):
     try:
         er.depart(row, (request.form.get("disposition") or "").strip(),
                   condition=request.form.get("condition"),
-                  followup=request.form.get("followup"), user=current_user)
+                  followup=request.form.get("followup"), user=current_user,
+                  admitted_to=(request.form.get("admitted_to") or "").strip(),
+                  doctor=_discharging_doctor())
     except ValueError:
         db.session.rollback()
         return _back(t("emergency.not_saved"), "error")
@@ -327,6 +334,20 @@ def depart(visit_id):
         flash(t("ama.write_it_now"), "warning")
         return redirect(url_for("beds.against_advice", kind="er", episode_id=row.id))
     return _back(t("emergency.departed"), "success")
+
+
+def _discharging_doctor():
+    """«Discharge order by the treating doctor»: the doctor who presses
+    «خرج», or — when a nurse does — the doctor the nurse names. Nobody named
+    is nobody: the sheet leaves the line for a pen."""
+    from app.models import User
+    from app.utils import emergency_orders as eo
+
+    if eo.is_doctor(current_user):
+        return current_user
+    named = request.form.get("discharge_doctor_id", type=int)
+    doctor = db.session.get(User, named) if named else None
+    return doctor if eo.is_doctor(doctor) else None
 
 
 def _tri(raw):
@@ -489,7 +510,7 @@ def attendance(attendance_id):
         store_items=_shelf(), routes=ROUTES, sources=SOURCES,
         may_order=current_user.can("medication_order"),
         is_doctor=eo.is_doctor(current_user),
-        dispositions=DISPOSITIONS, leave_reasons=_reasons(),
+        dispositions=DISPOSITIONS, leave_reasons=_reasons(), admit_to=ADMIT_TO,
         asked_on=_asked_on())
 
 
@@ -522,9 +543,13 @@ def record_weight(attendance_id):
     if kg is None or not (0.3 <= kg <= 200):
         flash(t("er_dose.err_weight"), "error")
         return _to_attendance(row.id)
+    # The height, when it was measured too (the examination sheet asks for
+    # it); a number outside a child's range is not saved, never corrected.
+    cm = request.form.get("height_cm", type=float)
+    cm = round(cm, 1) if cm is not None and 30 <= cm <= 220 else None
     db.session.add(GrowthRecord(patient_id=row.patient_id, visit_id=row.visit_id,
                                 record_date=local_today(), weight_kg=round(kg, 2),
-                                source="emergency"))
+                                height_cm=cm, source="emergency"))
     db.session.commit()
     flash(t("er_dose.weight_saved", kg=round(kg, 2)), "success")
     return _to_attendance(row.id)
@@ -579,6 +604,27 @@ def family_paper(attendance_id):
         "emergency/family_paper.html", row=row, visit=visit, diagnoses=diagnoses,
         given=given, return_signs=(Setting.get("er_return_signs") or "").strip(),
         printed_at=_now_local())
+
+
+@emergency_bp.route("/attendance/<int:attendance_id>/sheet")
+@module_required(MODULE)
+def exam_sheet(attendance_id):
+    """«Child Examination (ER)» — the department's record of one attendance
+    on one A4 page, in the order the paper form has it (``utils/er_sheet``).
+    What the file holds is printed; what it does not is a blank line for a
+    pen. Nothing on it is the program's own words."""
+    from app.models import EmergencyVisit
+    from app.utils import er_sheet
+
+    if request.args.get("lang") in ("ar", "en"):
+        from app.i18n import get_direction
+
+        g.lang = request.args["lang"]
+        g.direction = get_direction(g.lang)
+    row = db.get_or_404(EmergencyVisit, attendance_id)
+    return render_template("emergency/exam_sheet.html", row=row,
+                           s=er_sheet.build(row, lang=getattr(g, "lang", "ar")),
+                           admit_to=ADMIT_TO, printed_at=_now_local())
 
 
 def _now_local():
