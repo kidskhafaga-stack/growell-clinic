@@ -213,3 +213,53 @@ def test_the_screens_have_their_doors(phone):
     assert "data-to-calls-setup" in calls
     # And the pop-up is on every page once the telephone is on.
     assert 'id="gc-ringing"' in calls
+
+
+# ------------------------------------------------ found in the review ---
+def test_a_call_to_a_number_nobody_answers_on_reaches_the_desk(phone):
+    """A switchboard that puts the clinic's own number in «to», with no
+    extensions set in the program: the desk without an extension sees it —
+    a ringing phone nobody is shown is the failure this exists to stop."""
+    from app.extensions import db
+    from app.models import User
+
+    with phone["app"].app_context():
+        db.session.get(User, phone["ids"]["desk"]).phone_extension = None
+        db.session.commit()
+    _event(phone, event="ring", call_id="d1", **{"from": NUMBER},
+           to="0225551234", direction="in")
+    assert phone["sign_in"]("desk").get("/messages/calls/ringing") \
+        .get_json()["ids"]
+    # And an extension somebody owns still goes to that person alone.
+    with phone["app"].app_context():
+        db.session.get(User, phone["ids"]["admin"]).phone_extension = "305"
+        db.session.commit()
+    _event(phone, event="ring", call_id="d2", **{"from": NUMBER},
+           extension="305")
+    desk_sees = phone["sign_in"]("desk").get("/messages/calls/ringing") \
+        .get_json()["ids"]
+    boss_sees = phone["sign_in"]("boss").get("/messages/calls/ringing") \
+        .get_json()["ids"]
+    with phone["app"].app_context():
+        from app.models import PhoneCall
+        d2 = PhoneCall.query.filter_by(call_ref="d2").one().id
+    assert d2 in boss_sees and d2 not in desk_sees
+
+
+def test_an_answer_that_arrives_after_the_hangup(phone):
+    """Retried webhooks arrive out of order; the status follows the times."""
+    _event(phone, event="ring", call_id="o1", **{"from": NUMBER})
+    _event(phone, event="hangup", call_id="o1")
+    _event(phone, event="answer", call_id="o1", extension="201")
+    [(_ref, status, _ext, _num)] = _calls(phone)
+    assert status == "ended"
+
+
+def test_the_log_finds_names_in_one_pass(phone):
+    from app.utils import telephony
+
+    with phone["app"].app_context():
+        many = telephony.who_many({NUMBER, "01099999999", None})
+        assert [k.id for k in many[NUMBER]] == \
+            [k.id for k in telephony.who(NUMBER)]
+        assert many["01099999999"] == []

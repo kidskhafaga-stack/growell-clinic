@@ -682,7 +682,8 @@ def _age_label_states(vaccines):
         for brand in vaccine.brands:
             out[brand.id] = vaccine_labels.state(brand)
     ids = {s["by"] for s in out.values() if s["by"]}
-    names = {u.id: u.full_name or u.username
+    lang = getattr(g, "lang", "ar")
+    names = {u.id: u.display_name(lang)
              for u in User.query.filter(User.id.in_(ids)).all()} if ids else {}
     for s in out.values():
         s["by_name"] = names.get(s["by"])

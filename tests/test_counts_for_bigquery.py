@@ -7,7 +7,8 @@
   the legal opinion, both by reference; withdrawn, it shuts again;
 * only the administrator reaches it;
 * only counts per day leave — no name, no file number, no diagnosis code;
-* a small count of people is held back; money is not;
+* a small count of people is held back, and so is money that fewer
+  payments than the threshold make up;
 * the file is the shape Google's documentation describes: one JSON object
   per line, a schema that is a JSON array of name/type/mode;
 * every step is in the activity log, and the reports page has its door.
@@ -112,9 +113,9 @@ def test_only_counts_leave_and_small_ones_are_held_back(counted):
     rash = got[("diagnoses", "L")]
     assert (rash["value"], rash["suppressed"]) == (None, True)
     assert got[("visits", "clinic")]["value"] == 7
-    # Money is not a count of people.
+    # One family's payment on a day is that family's bill: held back too.
     money = got[("money_taken", "cash")]
-    assert (money["value"], money["suppressed"]) == (200.0, False)
+    assert (money["value"], money["suppressed"]) == (None, True)
 
 
 def test_the_file_is_the_shape_bigquery_reads(counted):
@@ -159,3 +160,21 @@ def test_logged_and_has_its_door(counted):
     resp = counted["sign_in"]("boss").get(
         f"/reports/bigquery/export?start={start}&end={local_today()}")
     assert resp.status_code == 302
+
+
+def test_money_from_enough_payments_leaves(counted):
+    """Five payments make the day's cash figure — it leaves."""
+    from app.extensions import db
+    from app.models import Invoice, Payment
+
+    with counted["app"].app_context():
+        inv = Invoice.query.filter_by(invoice_number="INV-BQ").one()
+        for _ in range(4):
+            db.session.add(Payment(invoice_id=inv.id, amount=100,
+                                   method="cash", kind="payment"))
+        db.session.commit()
+    _open(counted)
+    _z, rows = _zip(counted)
+    got = {(r["measure"], r["dimension"]): r for r in rows}
+    money = got[("money_taken", "cash")]
+    assert (money["value"], money["suppressed"]) == (600.0, False)
