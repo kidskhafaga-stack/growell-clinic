@@ -193,3 +193,30 @@ def test_what_the_file_says_reaches_the_sheet(er):
     assert "J45.9" in page.split("data-sheet-dx", 1)[1].split("</ul>", 1)[0]
     assert "Penicillin" in page.split("data-sheet-allergy", 1)[1][:40]
     assert "☑" in page.split("data-sheet-dama-before", 1)[1][:80]
+
+
+def test_portion_no_is_the_partition_the_child_sat_in(er):
+    """«Portion no.» — the owner: «ده رقم البارتشن الى كان محجوز فيه».
+    Never sat: a blank for the pen."""
+    from app.models import EmergencyVisit
+    from app.models.place import Bed, Space, Unit
+    from app.utils import emergency as util
+
+    att = _attendance(er)
+    assert "ers-line" in _sheet(er, att).split("data-sheet-partition", 1)[1][:400]
+    with er["app"].app_context():
+        db = er["db"]
+        unit = Unit(name="الطوارئ", kind="emergency")
+        db.session.add(unit)
+        db.session.flush()
+        space = Space(unit_id=unit.id, name="بارتشن ٣", kind="partition")
+        db.session.add(space)
+        db.session.flush()
+        bed = Bed(space_id=space.id, name="سرير ١")
+        db.session.add(bed)
+        db.session.flush()
+        util.seat(db.session.get(EmergencyVisit, att), bed)
+        db.session.commit()
+    part = _sheet(er, att).split("data-sheet-partition", 1)[1][:400]
+    assert "بارتشن ٣" in part
+    assert "Portion no." in _sheet(er, att, lang="en")

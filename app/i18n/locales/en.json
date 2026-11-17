@@ -17907,6 +17907,7 @@
     "at": "Time",
     "signature": "Signature",
     "condition_h": "Patient condition at discharge",
-    "followup_h": "Follow-up care instructions"
+    "followup_h": "Follow-up care instructions",
+    "partition": "Portion no."
   }
 }

@@ -1393,7 +1393,7 @@ SECTIONS = [
              "in settings. The program writes no signs of its own: left empty, a blank space "
              "is printed for the doctor to write by hand."),
             ("<b>ورقة كشف الطوارئ (للملف):</b> من صفحة الحضور ← «المزيد» ← «ورقة كشف الطوارئ» — "
-             "ورقة A4 بترتيب ورقة الطوارئ المعروفة: الطفل ووقت الوصول والخروج، الحرارة والوزن "
+             "ورقة A4 بترتيب ورقة الطوارئ المعروفة: الطفل والبارتيشن اللي قعد فيه ووقت الوصول والخروج، الحرارة والوزن "
              "والطول اللي اتاخدوا في الحضور ده بس (سجّل الطول جنب الوزن)، التاريخ المرضي "
              "والحساسية والأمراض المزمنة، الفحص، التشخيص المبدئي جنب الفحوصات ونتايجها، كل أمر "
              "علاج بوقت كتابته واسم اللي كتبه ووقت إعطائه واسم اللي ادّاه، المآل، وأمر الخروج "
@@ -1401,8 +1401,8 @@ SECTIONS = [
              "تدخّل جراحي)، ولو اللي بيقفل الحضور مش دكتور يختار الدكتور اللي أمر بالخروج. "
              "اللي مش متسجّل بيتطبع سطور فاضية للقلم — البرنامج ما بيكتبش حاجة من عنده.",
              "<b>ER examination sheet (for the file):</b> on the attendance, More → «ER "
-             "examination sheet» — one A4 page in the order of the familiar ER form: the child "
-             "and the arrival and discharge times, the temperature, weight and height taken "
+             "examination sheet» — one A4 page in the order of the familiar ER form: the child, "
+             "the partition they sat in («Portion no.»), the arrival and discharge times, the temperature, weight and height taken "
              "during this attendance only (record the height beside the weight), the history, "
              "allergies and chronic illness, the examination, the provisional diagnosis beside "
              "the investigations and their results, every drug order with when it was written "
