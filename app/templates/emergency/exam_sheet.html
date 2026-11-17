@@ -52,6 +52,7 @@
     <div><span class="k">{{ t('er_sheet.gender') }}:</span> {{ t('genders.' ~ p.gender) if p and p.gender in ('male', 'female') else '' }}</div>
     <div><span class="k">{{ t('er_sheet.age') }}:</span> {{ age_label(p) if p else '' }}</div>
     <div><span class="k">{{ t('er_sheet.file_no') }}:</span> <b dir="ltr">{{ p.patient_number if p else '' }}</b></div>
+    <div data-sheet-partition><span class="k">{{ t('er_sheet.partition') }}:</span> {% if s.partition %}<b dir="auto">{{ s.partition }}</b>{% else %}<span class="ers-line" style="display:inline-block;width:80px;"></span>{% endif %}</div>
   </div>
   <div class="ers-row" data-sheet-measures>
     <div><span class="k">{{ t('er_sheet.temp') }}:</span> {% if s.temperature is not none %}<span dir="ltr" data-sheet-temp>{{ s.temperature }} °C</span>{% else %}<span class="ers-line" style="display:inline-block;width:80px;"></span>{% endif %}</div>

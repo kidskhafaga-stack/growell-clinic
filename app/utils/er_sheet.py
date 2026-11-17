@@ -80,6 +80,20 @@ def _dama_before(row):
     return sorted((d for d in dates if d), reverse=True)
 
 
+def _partition(row, lang):
+    """«Portion no.» — the partition the child sat in here (the owner: «ده
+    رقم البارتشن الى كان محجوز فيه»): the place of the attendance's session,
+    or the emergency bed of a stay it became. ``None`` — never sat — is a
+    blank for the pen."""
+    bed = row.place_bed
+    if bed is None and row.admission is not None:
+        stay_bed = row.admission.bed
+        unit = getattr(getattr(stay_bed, "space", None), "unit", None)
+        if stay_bed is not None and getattr(unit, "kind", None) == "emergency":
+            bed = stay_bed
+    return bed.place_name(lang) if bed is not None else None
+
+
 def build(row, lang="ar"):
     """Everything the sheet prints, in the paper's order."""
     from app.models import Visit
@@ -104,6 +118,7 @@ def build(row, lang="ar"):
         "patient": p,
         "visit": visit,
         "date": _local_date(row.arrived_at),
+        "partition": _partition(row, lang),
         "temperature": _first_temperature(row),
         "weight": weight,
         "height": height,
