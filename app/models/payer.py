@@ -634,6 +634,10 @@ class PatientCoverage(db.Model):
     # holds the subscription (the father employed by the company…).
     issue_date = db.Column(db.Date)
     plan_name = db.Column(db.String(80))
+    # A claim form's «Policy/Group no» and «Group/Company name» — the
+    # employer's or the group's policy the child is on. Empty until written.
+    policy_number = db.Column(db.String(60))
+    group_name = db.Column(db.String(120))
     holder_name = db.Column(db.String(120))
     holder_relation = db.Column(db.String(30))
     # The card itself, front and back (uploads/patient_docs, like an

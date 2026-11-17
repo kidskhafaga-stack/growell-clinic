@@ -1900,6 +1900,8 @@
                 <div style="color:var(--muted);font-size:0.85rem;margin-top:2px;display:flex;gap:4px 12px;flex-wrap:wrap;">
                   {% if cov.membership_number %}<span>{{ t('coverage.card') }}: <bdi dir="ltr">{{ cov.membership_number }}</bdi></span>{% endif %}
                   {% if cov.plan_name %}<span>{{ t('card.plan') }}: {{ cov.plan_name }}</span>{% endif %}
+                  {% if cov.policy_number %}<span data-card-policy>{{ t('card.policy') }}: <bdi dir="ltr">{{ cov.policy_number }}</bdi></span>{% endif %}
+                  {% if cov.group_name %}<span>{{ t('card.group') }}: {{ cov.group_name }}</span>{% endif %}
                   {% if cov.holder_name %}<span>{{ t('card.holder') }}: {{ cov.holder_name }}{% if cov.holder_relation %} ({{ cov.holder_relation }}){% endif %}</span>{% endif %}
                   {% if cov.issue_date %}<span>{{ t('card.issue') }}: <bdi dir="ltr">{{ cov.issue_date }}</bdi></span>{% endif %}
                   {% if cov.expiry_date %}<span>{{ t('coverage.expiry') }}: <bdi dir="ltr">{{ cov.expiry_date }}</bdi></span>{% endif %}
@@ -1915,6 +1917,20 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn btn-outline btn-sm gc-press" type="submit" aria-label="{{ t('common.delete') }}"><i class="bi bi-trash"></i></button></form>
             </div>
+            {# What a claim form asks that the card itself does not carry —
+               written here without renewing the card. #}
+            <details data-claim-details="{{ cov.id }}" style="margin-bottom:6px;">
+              <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;width:max-content;"><i class="bi bi-file-earmark-text"></i> {{ t('card.claim_details') }}</summary>
+              <form method="post" action="{{ url_for('patients.coverage_claim_details', coverage_id=cov.id) }}" style="margin-top:8px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="{{ back_to }}">
+                <div class="form-grid">
+                  <div class="form-row"><label>{{ t('card.policy') }}</label><input class="input" name="policy_number" maxlength="60" dir="ltr" value="{{ cov.policy_number or '' }}"></div>
+                  <div class="form-row"><label>{{ t('card.group') }}</label><input class="input" name="group_name" maxlength="120" value="{{ cov.group_name or '' }}"></div>
+                </div>
+                <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+              </form>
+            </details>
             <details {{ 'open' if request.args.get('renew')|int == cov.id }} data-renew="{{ cov.id }}">
               <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;width:max-content;"><i class="bi bi-arrow-repeat"></i> {{ t('card.renew') }}</summary>
               <form method="post" enctype="multipart/form-data" action="{{ url_for('patients.renew_coverage', coverage_id=cov.id) }}" style="margin-top:8px;">
@@ -1926,6 +1942,8 @@
                   <div class="form-row"><label>{{ t('card.issue') }}</label><input class="input" type="date" name="issue_date"></div>
                   <div class="form-row"><label>{{ t('coverage.expiry') }} *</label><input class="input" type="date" name="expiry_date" required></div>
                   <div class="form-row"><label>{{ t('card.plan') }}</label><input class="input" name="plan_name" maxlength="80" value="{{ cov.plan_name or '' }}"></div>
+                  <div class="form-row"><label>{{ t('card.policy') }}</label><input class="input" name="policy_number" maxlength="60" dir="ltr" value="{{ cov.policy_number or '' }}"></div>
+                  <div class="form-row"><label>{{ t('card.group') }}</label><input class="input" name="group_name" maxlength="120" value="{{ cov.group_name or '' }}"></div>
                   <div class="form-row"><label>{{ t('card.card_front') }} *</label><input class="input" type="file" name="card_front" accept="image/*,application/pdf" required></div>
                   <div class="form-row"><label>{{ t('card.card_back') }}</label><input class="input" type="file" name="card_back" accept="image/*,application/pdf"></div>
                 </div>
@@ -1967,6 +1985,8 @@
               <div class="form-row"><label>{{ t('card.issue') }}</label><input class="input" type="date" name="issue_date"></div>
               <div class="form-row"><label>{{ t('coverage.expiry') }}</label><input class="input" type="date" name="expiry_date"></div>
               <div class="form-row"><label>{{ t('card.plan') }}</label><input class="input" name="plan_name" maxlength="80"></div>
+              <div class="form-row"><label>{{ t('card.policy') }}</label><input class="input" name="policy_number" maxlength="60" dir="ltr"></div>
+              <div class="form-row"><label>{{ t('card.group') }}</label><input class="input" name="group_name" maxlength="120"></div>
               <div class="form-row"><label>{{ t('card.holder') }}</label><input class="input" name="holder_name" maxlength="120"></div>
               <div class="form-row"><label>{{ t('card.relation') }}</label><input class="input" name="holder_relation" maxlength="30" list="card-relations">
                 <datalist id="card-relations">{% for r in ('father', 'mother', 'self', 'other') %}<option value="{{ t('card.rel_' ~ r) }}">{% endfor %}</datalist></div>
