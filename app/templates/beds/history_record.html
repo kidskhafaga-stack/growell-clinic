@@ -1,0 +1,149 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import age_label with context %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('mhr.title') }}{% endblock %}
+{% block page_heading %}{{ t('mhr.title') }}{% endblock %}
+
+{% block content %}
+{# «Medical History Record» (MR 4-1) — the stay's admission history on the
+   hospital's two pages (`utils/history_record`). What the record holds is
+   printed; what it does not is ruled lines for a pen. #}
+{% set p = r.patient %}
+{% macro lines(n) %}{% for _ in range(n) %}<div class="mhr-line"></div>{% endfor %}{% endmacro %}
+{% macro box(on) %}<span aria-hidden="true">{{ '☑' if on else '☐' }}</span>{% endmacro %}
+{% macro who(u) %}{{ u.display_name(current_lang) if u else '' }}{% endmacro %}
+{% macro blank(w=120) %}<span class="mhr-line" style="display:inline-block;width:{{ w }}px;"></span>{% endmacro %}
+<style>
+  .mhr h3 { margin: 12px 0 0; padding: 4px 10px; background: var(--green-800, #1e3a5f); color: #fff;
+            font-size: .85rem; text-align: center; border-radius: 3px 3px 0 0; }
+  .mhr .mhr-body { border: 1px solid var(--line); border-top: 0; padding: 8px 10px; min-height: 30px; }
+  .mhr .mhr-line { border-bottom: 1px dotted var(--line); height: 24px; }
+  .mhr .row { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 4px 0; }
+  .mhr .k { color: var(--muted); font-size: .8rem; }
+  .mhr .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 10px; }
+  .mhr table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  .mhr th, .mhr td { border: 1px solid var(--line); padding: 4px 6px; vertical-align: top; text-align: start; }
+  .mhr .sign { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-top: 14px; }
+  .mhr .page2 { margin-top: 26px; }
+  @media print {
+    .mhr h3 { border: 1px solid #000; border-bottom-width: 2px; border-radius: 0; }
+    .mhr .page2 { break-before: page; margin-top: 0; }
+  }
+  @media (max-width: 640px) { .mhr .three { grid-template-columns: 1fr; } }
+</style>
+
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('beds.admission', admission_id=stay.id) }}#medical-initial">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if current_lang == 'ar' else 'btn-outline' }}"
+       href="{{ url_for('beds.history_record', admission_id=stay.id, lang='ar') }}">العربية</a>
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if current_lang == 'en' else 'btn-outline' }}"
+       href="{{ url_for('beds.history_record', admission_id=stay.id, lang='en') }}">English</a>
+    <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+  </div>
+</div>
+
+<div class="card gc-scale-in print-area mhr" data-history-record>
+  {{ print_header(t('mhr.title'), '<span dir="ltr">' ~ printed_at.strftime('%Y-%m-%d %H:%M') ~ '</span>') }}
+
+  <div class="row"><div style="flex:1;"><span class="k">{{ t('mhr.name') }}:</span> <b>{{ p.display_name(current_lang) }}</b></div></div>
+  <div class="row">
+    <div><span class="k">{{ t('mhr.gender') }}:</span> {{ t('genders.' ~ p.gender) if p.gender in ('male', 'female') else '' }}</div>
+    <div><span class="k">{{ t('mhr.age') }}:</span> {{ age_label(p) }}</div>
+    <div><span class="k">{{ t('mhr.mrn') }}:</span> <b dir="ltr">{{ p.patient_number }}</b></div>
+    <div data-mhr-room><span class="k">{{ t('mhr.room') }}:</span> {% if r.room %}<b dir="auto">{{ r.room }}</b>{% else %}{{ blank(80) }}{% endif %}</div>
+  </div>
+  <div class="row">
+    <div data-mhr-doctor><span class="k">{{ t('mhr.doctor') }}:</span> {% if r.doctor %}<b>{{ who(r.doctor) }}</b>{% else %}{{ blank(160) }}{% endif %}</div>
+    <div><span class="k">{{ t('mhr.department') }}:</span> {% if r.department %}<span dir="auto">{{ r.department }}</span>{% else %}{{ blank(120) }}{% endif %}</div>
+  </div>
+  <div class="row">
+    <div><span class="k">{{ t('mhr.admitted') }}:</span> <span dir="ltr">{{ stay.admitted_at|clinic_stamp }}</span></div>
+    <div data-mhr-diet><span class="k">{{ t('mhr.diet') }}:</span> {% if r.diet %}<span dir="auto">{{ r.diet }}</span>{% else %}{{ blank(120) }}{% endif %}</div>
+  </div>
+  <div class="row" data-mhr-measures>
+    <div><span class="k">{{ t('mhr.weight') }}:</span> {% if r.weight %}<span dir="ltr">{{ r.weight }} kg</span>{% else %}{{ blank(80) }}{% endif %}</div>
+    <div><span class="k">{{ t('mhr.height') }}:</span> {% if r.height %}<span dir="ltr">{{ r.height }} cm</span>{% else %}{{ blank(80) }}{% endif %}</div>
+  </div>
+
+  <h3>{{ t('mhr.complaints_h') }}</h3>
+  <div class="mhr-body" data-mhr-complaint>
+    {% if r.complaint %}<p style="margin:0;white-space:pre-line;" dir="auto">{{ r.complaint }}</p>{% endif %}
+    {% if r.circumstance %}<p style="margin:4px 0 0;" dir="auto"><span class="k">{{ t('mhr.circumstance') }}:</span> {{ r.circumstance }}</p>{% endif %}
+    {% if not r.complaint and not r.circumstance %}{{ lines(3) }}{% endif %}
+  </div>
+
+  <h3>{{ t('mhr.hpi_h') }}</h3>
+  <div class="mhr-body" data-mhr-hpi>
+    {% if r.present_illness %}<p style="margin:0;white-space:pre-line;" dir="auto">{{ r.present_illness }}</p>{% else %}{{ lines(4) }}{% endif %}
+  </div>
+
+  <div class="three">
+    {% for key, val in (('past_h', r.past_history), ('family_h', r.family), ('nutrition_h', r.nutrition)) %}
+    <div>
+      <h3>{{ t('mhr.' ~ key) }}</h3>
+      <div class="mhr-body" data-mhr-{{ key }}>{% if val %}<p style="margin:0;white-space:pre-line;" dir="auto">{{ val }}</p>{% else %}{{ lines(4) }}{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="sign">
+    <div><span class="k">{{ t('mhr.physician') }}:</span> {% if r.assessed_by %}<b>{{ who(r.assessed_by) }}</b>{% endif %} ____________________</div>
+    <div><span class="k">{{ t('mhr.date') }}:</span> {% if r.assessed_at %}<span dir="ltr">{{ r.assessed_at|clinic_stamp }}</span>{% else %}{{ blank(120) }}{% endif %}</div>
+  </div>
+
+  {# ---- page 2 ---- #}
+  <div class="page2">
+  <h3>{{ t('mhr.recon_h') }}</h3>
+  <table data-mhr-recon>
+    <thead><tr><th style="width:5%;">#</th><th>{{ t('mhr.drug') }}</th><th style="width:14%;">{{ t('mhr.dose') }}</th>
+      <th style="width:9%;">{{ t('mhr.continued') }}</th><th style="width:9%;">{{ t('mhr.modify') }}</th><th style="width:9%;">{{ t('mhr.stopped') }}</th>
+      <th style="width:22%;">{{ t('mhr.remarks') }}</th></tr></thead>
+    <tbody>
+      {% for row in r.reconciliation %}
+      <tr data-mhr-recon-row="{{ row.decision }}">
+        <td>{{ loop.index }}</td>
+        <td dir="auto">{{ row.name }}</td>
+        <td dir="auto">{{ row.home_med.dose if row.home_med and row.home_med.dose else '' }}</td>
+        <td style="text-align:center;">{{ box(row.decision == 'continue') }}</td>
+        <td style="text-align:center;">{{ box(row.decision == 'modify') }}</td>
+        <td style="text-align:center;">{{ box(row.decision == 'stop') }}</td>
+        <td dir="auto">{{ row.note or '' }}</td>
+      </tr>
+      {% endfor %}
+      {% for _ in range(2 if r.reconciliation else 6) %}<tr><td style="height:24px;">{{ r.reconciliation|length + loop.index }}</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>{% endfor %}
+    </tbody>
+  </table>
+  <div class="mhr-body" style="border-top:1px solid var(--line);margin-top:6px;" data-mhr-drps>
+    <span class="k">{{ t('mhr.drps') }}:</span>
+    {% if r.drps %}
+    <ul style="margin:4px 0 0;padding-inline-start:18px;">
+      {% for d in r.drps %}<li><span dir="ltr">{{ d.number }}</span> · {{ t('cpi.p_' ~ d.problem) }}{% if d.order %} — <span dir="auto">{{ d.order.drug_name }}</span>{% endif %}{% if d.problem_note %}: <span dir="auto">{{ d.problem_note }}</span>{% endif %}</li>{% endfor %}
+    </ul>
+    {% else %}{{ lines(2) }}{% endif %}
+  </div>
+
+  <h3>{{ t('mhr.systems_h') }}</h3>
+  <div class="mhr-body" style="padding:0;">
+    <p class="hint" style="margin:6px 10px;">{{ t('mhr.systems_note') }}</p>
+    <table data-mhr-systems>
+      <tbody>
+        {% for k in systems %}
+        <tr data-mhr-system="{{ k }}{{ ':on' if r.systems.get(k) else '' }}">
+          <td style="width:32%;">{{ loop.index }}. {{ t('mhr.sys_' ~ k) }}</td>
+          <td dir="auto">{{ r.systems.get(k) or '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="sign">
+    <div><span class="k">{{ t('mhr.physician') }}:</span> {% if r.reviewed_by %}<b>{{ who(r.reviewed_by) }}</b>{% endif %} ____________________</div>
+    <div><span class="k">{{ t('mhr.date') }}:</span> {% if r.reviewed_at %}<span dir="ltr">{{ r.reviewed_at|clinic_stamp }}</span>{% else %}{{ blank(120) }}{% endif %}</div>
+  </div>
+  </div>
+</div>
+{% endblock %}

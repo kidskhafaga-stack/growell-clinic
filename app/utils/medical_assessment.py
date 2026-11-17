@@ -121,4 +121,54 @@ def save(stay, form, user):
     return row
 
 
-__all__ = ["AssessmentError", "assembled", "clock", "done_at", "for_stay", "missing", "save"]
+# ------------------------------------------- the Medical History Record ---
+def review_for(stay_id):
+    from app.models.medical_assessment import HistoryReview
+
+    return HistoryReview.query.filter_by(admission_id=stay_id).first()
+
+
+def nutrition_history(stay, review=None):
+    """``(source, text)`` — what was written here, else the dietitian's
+    findings on the stay (``Nutrition`` assessment), else ``None``."""
+    from app.utils import nutrition
+
+    review = review_for(stay.id) if review is None else review
+    if review is not None and (review.nutrition_history or "").strip():
+        return ("review", review.nutrition_history.strip())
+    latest = nutrition.latest_assessment(stay.patient_id)
+    if latest is not None and latest.admission_id == stay.id \
+            and (latest.findings or "").strip():
+        return ("nutrition", latest.findings.strip())
+    return None
+
+
+def save_review(stay, form, user):
+    """The nutritional history and the review of systems. Written over as
+    often as the doctor edits them — the paper is filled in over the stay —
+    and an emptied box is emptied."""
+    import json
+
+    from app.models.medical_assessment import SYSTEMS, HistoryReview
+
+    row = review_for(stay.id)
+    if row is None:
+        row = HistoryReview(patient_id=stay.patient_id, admission_id=stay.id,
+                            by_id=getattr(user, "id", None))
+        db.session.add(row)
+    else:
+        row.updated_at = datetime.utcnow()
+        row.by_id = getattr(user, "id", None) or row.by_id
+    row.nutrition_history = _text(form.get("nutrition_history"))
+    systems = {k: _text(form.get("sys_" + k)) for k in SYSTEMS}
+    row.systems_json = json.dumps({k: v for k, v in systems.items() if v},
+                                  ensure_ascii=False)
+    if row.id is None and not (row.nutrition_history or row.systems):
+        db.session.expunge(row)
+        raise AssessmentError("empty")
+    db.session.flush()
+    return row
+
+
+__all__ = ["AssessmentError", "assembled", "clock", "done_at", "for_stay", "missing",
+           "nutrition_history", "review_for", "save", "save_review"]
