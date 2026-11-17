@@ -156,6 +156,8 @@ def details_from(form):
             "issue_date": _day(form.get("issue_date")),
             "expiry_date": _day(form.get("expiry_date")),
             "plan_name": text("plan_name", 80),
+            "policy_number": text("policy_number", 60),
+            "group_name": text("group_name", 120),
             "holder_name": text("holder_name", 120),
             "holder_relation": text("holder_relation", 30)}
 
@@ -191,7 +193,8 @@ def renew(card, form, files, user):
     for key, value in details.items():
         setattr(new, key, value)
     # What the renewal form left empty is the old card's.
-    for key in ("membership_number", "plan_name", "holder_name", "holder_relation"):
+    for key in ("membership_number", "plan_name", "policy_number", "group_name",
+                "holder_name", "holder_relation"):
         if getattr(new, key) is None:
             setattr(new, key, getattr(card, key))
     from app.models import Patient

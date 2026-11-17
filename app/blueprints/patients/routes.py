@@ -1681,8 +1681,8 @@ def add_coverage(patient_id):
         row = PatientCoverage(patient_id=tgt.id, payer_id=payer.id,
                               expiry_date=expiry, is_active=True)
         if mine:
-            for key in ("membership_number", "issue_date", "plan_name", "holder_name",
-                        "holder_relation"):
+            for key in ("membership_number", "issue_date", "plan_name", "policy_number",
+                        "group_name", "holder_name", "holder_relation"):
                 setattr(row, key, details[key])
             try:
                 coverage_card.save_pictures(row, request.files)
@@ -1791,6 +1791,25 @@ def remind_all_cards():
     db.session.commit()
     flash(t("card.remind_sent", n=len(logs)), "success")
     return redirect(url_for("messages.index"))
+
+
+@patients_bp.route("/coverage/<int:coverage_id>/claim-details", methods=["POST"])
+@module_required(MODULE)
+def coverage_claim_details(coverage_id):
+    """«Policy/Group no» and «Group/Company name» — what a claim form asks
+    that the card does not carry. Written on the card as it is: neither
+    changes what the payer covers, so nothing is renewed."""
+    from app.models import ActivityLog, PatientCoverage
+
+    cov = db.get_or_404(PatientCoverage, coverage_id)
+    cov.policy_number = (request.form.get("policy_number") or "").strip()[:60] or None
+    cov.group_name = (request.form.get("group_name") or "").strip()[:120] or None
+    ActivityLog.record("coverage.claim_details", user_id=current_user.id,
+                       entity="patient_coverage", entity_id=cov.id)
+    db.session.commit()
+    flash(t("common.saved"), "success")
+    back = _safe_next(request.form.get("next"))
+    return redirect(back or url_for("patients.view", patient_id=cov.patient_id) + "#coverage")
 
 
 @patients_bp.route("/coverage/<int:coverage_id>/delete", methods=["POST"])

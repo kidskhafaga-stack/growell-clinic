@@ -25,7 +25,16 @@ FIELDS = ("patient_name", "patient_name_en", "patient_number", "birth_date", "ag
           "membership_number", "plan_name", "holder_name", "holder_relation", "card_expiry",
           "payer_name", "service_type", "diagnosis", "diagnosis_code", "services",
           "approval_number", "estimate", "doctor_name", "doctor_specialty", "date",
-          "clinic_name", "check")
+          "clinic_name", "check",
+          # What a claim form asks (AXA's reimbursement form, and others like
+          # it): the card's policy and group, how to reach the family, the
+          # encounter's own words, the treatment line by line — and in four
+          # columns, so dose, frequency and duration land under their headings —
+          # the bill, the stay's dates, and the clinic's address.
+          "policy_number", "group_name", "guardian_phone",
+          "symptoms", "investigations", "drugs", "drug_names", "drug_doses",
+          "drug_frequencies", "drug_durations", "procedures", "plan", "amount",
+          "admission_date", "discharge_date", "clinic_address", "clinic_phone")
 #: The page sizes offered, in millimetres.
 PAGES = {"A4": (210, 297), "A5": (148, 210), "Letter": (216, 279)}
 ALIGNS = ("right", "center", "left")
@@ -171,7 +180,72 @@ def facts(patient, payer=None, visit=None, appointment=None, approval=None, lang
         or Setting.get("clinic_name") or "",
         "check": "✓",
     }
+    if visit is None and approval is not None:
+        visit = approval.visit
+    out.update(_claim_facts(patient, card, visit, approval, lang))
     return out
+
+
+def _lines(values):
+    return "\n".join(v for v in values if v)
+
+
+def _claim_facts(patient, card, visit, approval, lang):
+    """The facts a claim form asks for. Each is what the file says, or an
+    empty string — the date the symptoms began, which the program does not
+    keep, is not among them: the doctor writes it by hand."""
+    from app.models import Invoice, Setting
+
+    items = []
+    if visit is not None:
+        for rx in sorted(getattr(visit, "prescriptions", []) or [], key=lambda r: r.id):
+            items += [i for i in rx.items if i.printed]
+    investigations = []
+    services = []
+    if visit is not None:
+        investigations = [x.display_name(lang) for x in visit.investigations]
+        services = [vs.name for vs in visit.services
+                    if vs.service is not None and vs.service.service_type == "procedure"]
+    amount = ""
+    if visit is not None:
+        bills = [b for b in Invoice.query.filter_by(visit_id=visit.id)
+                 if b.status != "refunded"]
+        if bills:
+            amount = f"{sum(b.total for b in bills):g}"
+    plan = []
+    if visit is not None:
+        plan = [(visit.plan or "").strip(), (visit.followup_instructions or "").strip()]
+    stay = None
+    if approval is not None and approval.admission_id:
+        from app.models import Admission
+
+        stay = db.session.get(Admission, approval.admission_id)
+    return {
+        "policy_number": (card.policy_number or "") if card else "",
+        "group_name": (card.group_name or "") if card else "",
+        "guardian_phone": patient.contact_phone or "",
+        "symptoms": ((visit.chief_complaint or "").strip() if visit is not None else ""),
+        "investigations": _lines(investigations),
+        "drugs": _lines(" — ".join(x for x in (i.drug_name, i.dose, i.frequency, i.duration) if x)
+                        for i in items),
+        "drug_names": _lines(i.drug_name for i in items),
+        # One line per drug in every column, empty where the doctor wrote
+        # nothing, so the rows stay level across the columns.
+        "drug_doses": "\n".join(i.dose or "" for i in items),
+        "drug_frequencies": "\n".join(i.frequency or "" for i in items),
+        "drug_durations": "\n".join(i.duration or "" for i in items),
+        "procedures": _lines(services),
+        "plan": _lines(plan),
+        "amount": amount,
+        "admission_date": (stay.admitted_at.date().isoformat()
+                           if stay is not None and stay.admitted_at else ""),
+        "discharge_date": (stay.discharged_at.date().isoformat()
+                           if stay is not None and stay.discharged_at else ""),
+        "clinic_address": ((Setting.get("clinic_address") if lang == "ar" else
+                            (Setting.get("clinic_address_en") or Setting.get("clinic_address")))
+                           or ""),
+        "clinic_phone": Setting.get("clinic_phone") or "",
+    }
 
 
 # ------------------------------------------------------------ early (ع-٤) --

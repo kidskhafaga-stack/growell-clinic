@@ -1146,6 +1146,9 @@ ADDITIONS = [
     # The ER examination sheet: «Admitted» to where, and the doctor whose
     # discharge order the child left on. Empty on every attendance before it,
     # which is true — nobody had said.
+    # A claim form's «Policy/Group no» and «Group/Company name» on the card.
+    ("patient_coverages", "policy_number", "VARCHAR(60)"),
+    ("patient_coverages", "group_name", "VARCHAR(120)"),
     ("emergency_visits", "admitted_to", "VARCHAR(12)"),
     ("emergency_visits", "discharge_doctor_id", "INTEGER"),
     # «تحليل الأسباب» (RCA_PLAN.md): the head of each part of the hospital,

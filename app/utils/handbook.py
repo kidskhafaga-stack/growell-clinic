@@ -3289,6 +3289,23 @@ SECTIONS = [
              "payer's printed form with the facts alone — and the doctor signs. "
              "«PDF» makes it a PDF file to save or send — the same file that goes "
              "to the payer."),
+            ("<b>استمارات المطالبة (زي استرداد AXA):</b> في «استمارات الشركات» بقى فيه "
+             "خانات للأقسام الطبية: الأعراض (الشكوى من الكشف)، الفحوصات المطلوبة، الأدوية "
+             "(سطر لكل دوا، أو أربع أعمدة: الاسم والجرعة وعدد المرات والمدة — اسحب كل عمود "
+             "تحت عنوانه)، الإجراءات، الخطة والمتابعة، إجمالي الفاتورة، تليفون ولي الأمر، "
+             "عنوان العيادة وتليفونها، وتاريخ الدخول والخروج لو الطلب على إقامة. ورقم "
+             "البوليصة/المجموعة وجهة العمل بيتكتبوا على كارنيه التأمين في ملف الطفل ← "
+             "«بيانات المطالبة» من غير تجديد الكارنيه. تاريخ بداية الأعراض البرنامج ما "
+             "بيحفظوش، فالدكتور بيكتبه بإيده.",
+             "<b>Claim forms (like AXA's reimbursement form):</b> «Payer forms» now has "
+             "facts for the medical sections: symptoms (the visit's complaint), investigations "
+             "requested, drugs (one per line, or four columns — name, dose, frequency, "
+             "duration — each dragged under its heading), procedures, plan and follow-up, the "
+             "invoice total, the guardian's phone, the clinic's address and phone, and the "
+             "admission and discharge dates when the request is for a stay. The policy/group "
+             "number and the group or company are written on the child's insurance card → "
+             "«Claim details», without renewing the card. The date the symptoms began is not "
+             "kept by the program; the doctor writes it by hand."),
             ("<b>الموافقة بدري، والإرسال للشركة:</b> لو خدمة على الكشف محتاجة موافقة في "
              "العقد، الكشف بيقول كده وفيه «اطلب الموافقة»؛ والحجز بيفتح الطلب لوحده "
              "ويقول للاستقبال. من «الموافقات» اطبع الاستمارة أو ابعتها لإيميل أو واتساب "

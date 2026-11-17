@@ -15661,7 +15661,10 @@
     "remind_all_confirm": "A reminder goes to every family on the list not reminded this week. Go ahead?",
     "reminded_on": "Reminded",
     "remind_none": "No family to remind — all were reminded this week or have no number.",
-    "remind_sent": "{n} reminders prepared — follow them on the messages page."
+    "remind_sent": "{n} reminders prepared — follow them on the messages page.",
+    "policy": "Policy/group no.",
+    "group": "Group/company",
+    "claim_details": "Claim details"
   },
   "ask": {
     "title": "Ask the reports",
@@ -16902,7 +16905,24 @@
     "err_no_address": "This payer has no approvals email or WhatsApp — add it under Payers.",
     "err_no_mailbox": "The clinic's mailbox is not set up — connect it under the channels settings.",
     "err_not_sent": "Sending failed — try again or print the form.",
-    "pdf": "Save as PDF"
+    "pdf": "Save as PDF",
+    "f_policy_number": "Policy/group no.",
+    "f_group_name": "Group/company name",
+    "f_guardian_phone": "Guardian's phone",
+    "f_symptoms": "Symptoms (complaint)",
+    "f_investigations": "Investigations requested",
+    "f_drugs": "Drugs (one per line)",
+    "f_drug_names": "Column: drug name",
+    "f_drug_doses": "Column: dose",
+    "f_drug_frequencies": "Column: frequency",
+    "f_drug_durations": "Column: duration",
+    "f_procedures": "Procedures",
+    "f_plan": "Plan and follow-up",
+    "f_amount": "Invoice total",
+    "f_admission_date": "Date of admission",
+    "f_discharge_date": "Date of discharge",
+    "f_clinic_address": "Clinic address",
+    "f_clinic_phone": "Clinic phone"
   },
   "vcourse": {
     "title": "{vaccine} course — after or before exposure",
