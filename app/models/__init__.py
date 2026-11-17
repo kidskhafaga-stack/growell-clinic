@@ -185,7 +185,7 @@ from app.models.palliative import PalliativePlan, PalliativeReview
 from app.models.tranquilization import RapidTranquilization
 from app.models.care_program import ProgramEnrollment, ProgramSession, ViralMarker
 from app.models.needs_screen import NeedsScreen
-from app.models.medical_assessment import MedicalAssessment
+from app.models.medical_assessment import HistoryReview, MedicalAssessment
 from app.models.mdt import MdtMeeting
 from app.models.stay_leave import StayLeave
 from app.models.stay_transport import StayTransport
@@ -671,6 +671,7 @@ __all__ = [
     "ProgramEnrollment",
     "NeedsScreen",
     "MedicalAssessment",
+    "HistoryReview",
     "MdtMeeting",
     "StayLeave",
     "StayTransport",

@@ -41,5 +41,30 @@
   </form>
   </details>
   {% endif %}
+  {# The hospital's «Medical History Record» (MR 4-1): what it asks beyond the
+     ten — the nutritional history and the review of systems — and the paper
+     itself, both pages, from the record. #}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">
+    <a class="btn btn-sm btn-outline gc-press" data-to-history-record
+       href="{{ url_for('beds.history_record', admission_id=admission.id) }}"><i class="bi bi-file-earmark-medical"></i> {{ t('mhr.door') }}</a>
+    {% set _rv = history_review %}
+    <details data-history-review style="flex-basis:100%;">
+      <summary class="btn btn-sm btn-outline gc-press" style="display:inline-flex;list-style:none;width:max-content;">
+        <i class="bi bi-list-check"></i>&nbsp;{{ t('mhr.write') }}{% if _rv and _rv.systems %} ({{ _rv.systems|length }}/16){% endif %}</summary>
+      <form method="post" action="{{ url_for('beds.history_review', admission_id=admission.id) }}" style="display:grid;gap:8px;margin-top:10px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div><label class="label" for="mhr_nutrition">{{ t('mhr.nutrition') }}</label>
+          <textarea class="input" id="mhr_nutrition" name="nutrition_history" rows="2" dir="auto">{{ _rv.nutrition_history if _rv and _rv.nutrition_history else '' }}</textarea></div>
+        <p class="hint" style="margin:0;">{{ t('mhr.systems_hint') }}</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:6px 12px;">
+        {% for k in history_systems %}
+          <div><label class="label" for="mhr_{{ k }}">{{ loop.index }}. {{ t('mhr.sys_' ~ k) }}</label>
+            <input class="input" id="mhr_{{ k }}" name="sys_{{ k }}" dir="auto" value="{{ (_rv.systems.get(k) if _rv else '') or '' }}"></div>
+        {% endfor %}
+        </div>
+        <div><button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('medass.save') }}</button></div>
+      </form>
+    </details>
+  </div>
   {% if medical_row and medical_row.by %}<p class="hint" style="margin:8px 0 0;">{{ medical_row.by.display_name(current_lang) }} · <span dir="ltr">{{ medical_row.at|clinic_stamp }}</span></p>{% endif %}
 </div>

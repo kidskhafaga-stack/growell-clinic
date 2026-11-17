@@ -35,6 +35,7 @@ from app.models.admission import OUTCOMES, Admission
 from app.models.blood import PRODUCTS as BLOOD_PRODUCTS
 from app.models.blood import URGENCIES as BLOOD_URGENCIES
 from app.models.discharge_summary import DischargeSummary
+from app.models.medical_assessment import SYSTEMS as _HISTORY_SYSTEMS
 from app.models.medication import (DOSE_OUTCOMES, ROUTES, MedicationOrder)
 from app.models.place import BED_KINDS, SPACE_KINDS, UNIT_KINDS, Bed, Space, Unit
 from app.models.prescription import Drug
@@ -836,6 +837,8 @@ def admission(admission_id):
         # holds, what is still to write, and the standard's 24 hours.
         medical_known=_medass.assembled(row),
         medical_row=_medass.for_stay(row.id),
+        history_review=_medass.review_for(row.id),
+        history_systems=_HISTORY_SYSTEMS,
         medical_clock=_medass.clock(row),
         # `ICD.08` — functional, psychosocial, discharge and abuse screens.
         needs=_needs.for_stay(row),

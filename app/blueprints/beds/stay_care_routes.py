@@ -46,6 +46,41 @@ def medical_initial(admission_id):
     return _back(stay.id, "medical-initial")
 
 
+@beds_bp.route("/admission/<int:admission_id>/history-review", methods=["POST"])
+@module_required("beds")
+def history_review(admission_id):
+    """The nutritional history and the review of systems — what the
+    hospital's «Medical History Record» asks beyond the ten (ICD.06)."""
+    stay = _stay(admission_id)
+    try:
+        medass.save_review(stay, request.form, current_user)
+    except medass.AssessmentError as err:
+        return _back(stay.id, "medical-initial", "medass", err)
+    return _back(stay.id, "medical-initial")
+
+
+@beds_bp.route("/admission/<int:admission_id>/history-record")
+@module_required("beds")
+def history_record(admission_id):
+    """«Medical History Record» (MR 4-1) — the admission history on the
+    hospital's two pages (``utils/history_record``)."""
+    from flask import g
+
+    from app.models.medical_assessment import SYSTEMS
+    from app.utils import history_record as hr
+    from app.utils.clock import local_now
+
+    if request.args.get("lang") in ("ar", "en"):
+        from app.i18n import get_direction
+
+        g.lang = request.args["lang"]
+        g.direction = get_direction(g.lang)
+    stay = _stay(admission_id)
+    return render_template("beds/history_record.html", stay=stay,
+                           r=hr.build(stay, lang=getattr(g, "lang", "ar")),
+                           systems=SYSTEMS, printed_at=local_now())
+
+
 # ================================================================ ICD.08 ==
 @beds_bp.route("/admission/<int:admission_id>/needs", methods=["POST"])
 @module_required("beds")
