@@ -114,3 +114,11 @@ def test_a_hospital_that_never_said_keeps_them(clinic):
         assert not facility.module_enabled("quality")
         assert not facility.module_enabled("ipc")
         assert facility.module_enabled("complaints")
+
+
+def test_the_spill_button_follows_quality(single_doctor):
+    """Found in the review: the hazardous-materials screen still linked
+    «report a spill» to the incidents book that answers 404 here."""
+    page = single_doctor["sign_in"]("boss").get("/facility/hazmat")
+    assert page.status_code == 200
+    assert "/incidents/" not in page.get_data(as_text=True)

@@ -43,26 +43,6 @@ def _first_temperature(row):
     return obs.temperature_c if obs is not None else None
 
 
-def _measured_here(row):
-    """``(weight_kg, height_cm)`` measured during this attendance — the
-    latest of each, or ``None``."""
-    from app.models import GrowthRecord
-
-    start = _local_date(row.arrived_at)
-    q = GrowthRecord.query.filter(GrowthRecord.patient_id == row.patient_id,
-                                  GrowthRecord.record_date >= start)
-    if row.departed_at:
-        q = q.filter(GrowthRecord.record_date <= _local_date(row.departed_at))
-    weight = height = None
-    for rec in q.order_by(GrowthRecord.record_date.desc(),
-                          GrowthRecord.id.desc()):
-        if weight is None and rec.weight_kg:
-            weight = rec.weight_kg
-        if height is None and rec.height_cm:
-            height = rec.height_cm
-    return weight, height
-
-
 def _dama_before(row):
     """Earlier times this child left against medical advice — from
     emergency, or from a stay. ``[date]``, newest first."""
@@ -101,7 +81,10 @@ def build(row, lang="ar"):
 
     p = row.patient
     visit = db.session.get(Visit, row.visit_id) if row.visit_id else None
-    weight, height = _measured_here(row)
+    from app.utils import measurements
+
+    weight, height = measurements.during(row.patient_id, row.arrived_at,
+                                         row.departed_at)
     diagnoses = []
     if visit is not None:
         diagnoses = sorted(visit.diagnoses,

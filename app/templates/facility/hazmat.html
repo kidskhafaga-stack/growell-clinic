@@ -20,7 +20,7 @@
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
     <span class="badge {{ 'badge--danger' if data.no_sds else 'badge--green' }}" data-no-sds="{{ data.no_sds|length }}">{{ t('facility.no_sds_n', n=data.no_sds|length) }}</span>
     <span class="badge {{ 'badge--danger' if data.unlabelled else 'badge--green' }}" data-unlabelled="{{ data.unlabelled|length }}">{{ t('facility.unlabelled_n', n=data.unlabelled|length) }}</span>
-    <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('incidents.index') }}"><i class="bi bi-clipboard2-pulse"></i> {{ t('facility.report_spill') }}</a>
+    {% if module_enabled('quality') %}<a class="btn btn-sm btn-outline gc-press" href="{{ url_for('incidents.index') }}"><i class="bi bi-clipboard2-pulse"></i> {{ t('facility.report_spill') }}</a>{% endif %}
   </div>
   {% if data.rows %}
   <div style="overflow-x:auto;"><table class="table" style="min-width:860px;">

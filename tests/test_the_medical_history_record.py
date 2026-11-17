@@ -158,3 +158,43 @@ def test_the_weight_on_admission_is_measured_on_this_stay(ward):
         ward["db"].session.commit()
     measures = _after(_page(ward, stay), "data-mhr-measures", 400)
     assert "13.5 kg" in measures and "92.0 cm" in measures
+
+
+# ------------------------------------------------ found in the review ---
+def test_this_stay_s_dietitian_even_after_a_later_assessment(ward):
+    """The child's *latest* assessment may be a clinic visit's; the stay's
+    own findings are still its nutritional history."""
+    from app.models.admission import Admission
+    from app.utils import nutrition
+
+    pid = _child(ward, "سما")
+    stay = _admit(ward, pid)
+    with ward["app"].app_context():
+        admission = ward["db"].session.get(Admission, stay)
+        nutrition.assess(admission.patient, findings="على الرضاعة الصناعية",
+                         admission=admission)
+        from datetime import datetime, timedelta
+        nutrition.assess(admission.patient, findings="زيارة عيادة",
+                         at=datetime.utcnow() + timedelta(days=1))
+        ward["db"].session.commit()
+    assert "على الرضاعة الصناعية" in _after(_page(ward, stay), "data-mhr-nutrition_h")
+
+
+def test_the_diet_is_on_the_record_printed_after_discharge(ward):
+    from datetime import datetime
+
+    from app.models.admission import Admission
+    from app.utils import nutrition
+
+    pid = _child(ward, "حمزة")
+    stay = _admit(ward, pid)
+    with ward["app"].app_context():
+        from app.models.lookup import Lookup
+        ward["db"].session.add(Lookup(domain=nutrition.DIET_DOMAIN, key="low_salt",
+                                      name_ar="قليل الملح", name_en="Low salt"))
+        admission = ward["db"].session.get(Admission, stay)
+        nutrition.order(admission.patient, "low_salt", admission=admission)
+        ward["db"].session.flush()
+        admission.discharged_at = datetime.utcnow()
+        ward["db"].session.commit()
+    assert "قليل الملح" in _after(_page(ward, stay), "data-mhr-diet", 200)

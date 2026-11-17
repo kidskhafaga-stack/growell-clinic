@@ -63,8 +63,14 @@ def against_advice(kind, episode_id):
                 from app.utils import emergency as er
                 from app.utils import leave_reasons
 
+                from app.utils import emergency_orders as eo
+
+                # The doctor who writes the against-advice form is the one
+                # whose word the child left on (the ER sheet's «discharge
+                # order by the treating doctor»); anybody else names nobody.
                 er.depart(row, ama.AGAINST_ADVICE, condition=request.form.get("condition_now"),
-                          followup=request.form.get("followup_plan"), user=current_user)
+                          followup=request.form.get("followup_plan"), user=current_user,
+                          doctor=current_user if eo.is_doctor(current_user) else None)
                 leave_reasons.record(row, row.disposition, request.form.get("leave_reason"),
                                      request.form.get("leave_note"))
                 db.session.flush()

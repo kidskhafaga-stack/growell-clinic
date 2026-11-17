@@ -160,7 +160,11 @@ def raise_from_feedback(fb, lang="ar"):
     # And a numbered case beside the thread: the thread is where the family
     # is talked to, the case is what was found, done and answered, and the
     # number is what they are sent so they know it was written down.
+    # Not with the complaints book switched off: the thread is still the
+    # inbox's to answer, but a case would be one nobody can open.
     from app.utils.complaint_cases import from_feedback
+    from app.utils.facility import module_enabled
     db.session.flush()
-    from_feedback(fb, lang)
+    if module_enabled("complaints"):
+        from_feedback(fb, lang)
     return row

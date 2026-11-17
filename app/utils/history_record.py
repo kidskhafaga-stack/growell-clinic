@@ -18,27 +18,20 @@ review of systems had nowhere to go, and now have ``HistoryReview``.
 is printed with the hospital's own wording; what it does not is ruled lines
 for a pen.
 """
-from app.extensions import db
 
 
-def _measures(stay):
-    """``(weight_kg, height_cm)`` measured since the child was admitted —
-    the first of each, which is what «on admission» means — or ``None``."""
-    from app.models import GrowthRecord
-    from app.utils.clock import local_date
+def _diet(stay):
+    """The diet ordered on this stay — the latest — or, while it is open,
+    the one the child is on now. A record printed after discharge (the
+    usual time) still says what the child ate."""
+    from app.models.nutrition import DietOrder
+    from app.utils import nutrition
 
-    start = local_date(stay.admitted_at)
-    q = GrowthRecord.query.filter(GrowthRecord.patient_id == stay.patient_id,
-                                  GrowthRecord.record_date >= start)
-    if stay.discharged_at:
-        q = q.filter(GrowthRecord.record_date <= local_date(stay.discharged_at))
-    weight = height = None
-    for rec in q.order_by(GrowthRecord.record_date.asc(), GrowthRecord.id.asc()):
-        if weight is None and rec.weight_kg:
-            weight = rec.weight_kg
-        if height is None and rec.height_cm:
-            height = rec.height_cm
-    return weight, height
+    row = (DietOrder.query.filter(DietOrder.admission_id == stay.id)
+           .order_by(DietOrder.ordered_at.desc(), DietOrder.id.desc()).first())
+    if row is None and stay.is_open:
+        row = nutrition.current_diet(stay.patient_id)
+    return row
 
 
 def _bed(stay):
@@ -69,17 +62,19 @@ def _reconciliation(stay):
 def build(stay, lang="ar"):
     from app.models.pharmacy_intervention import PharmacyIntervention
     from app.utils import medical_assessment as medass
-    from app.utils import nutrition
 
     known = medass.assembled(stay)
     review = medass.review_for(stay.id)
     row = medass.for_stay(stay.id)
-    weight, height = _measures(stay)
+    from app.utils import measurements
+
+    weight, height = measurements.during(stay.patient_id, stay.admitted_at,
+                                         stay.discharged_at, which="first")
     bed = _bed(stay)
     unit = getattr(getattr(bed, "space", None), "unit", None)
     complaint = known.get("complaint", (None, None))[1]
     circumstance = (stay.reason or "").strip() or None
-    diet = nutrition.current_diet(stay.patient_id) if stay.is_open else None
+    diet = _diet(stay)
 
     def text(element):
         got = known.get(element)

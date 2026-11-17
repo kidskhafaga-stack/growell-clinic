@@ -140,3 +140,14 @@ def test_the_designer_offers_them_and_the_form_prints_them(insured):
         .get_data(as_text=True)
     assert "Fever and ear pain for 3 days" in printed
     assert "7.5 ml" in printed
+
+
+def test_an_amount_prints_to_the_piastre():
+    """``:g`` kept six figures: a 12,345.67 bill printed «12345.7» and a
+    million «1.23457e+06» (found in the review)."""
+    from app.utils.payer_forms import _amount
+
+    assert _amount(450) == "450"
+    assert _amount(12345.67) == "12345.67"
+    assert _amount(1234567) == "1234567"
+    assert _amount(99.5) == "99.50"
