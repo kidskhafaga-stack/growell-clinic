@@ -314,15 +314,25 @@ def triage(row, level=None, scale=None, urgent=None, note=None, user=None,
 
 
 def depart(row, disposition, condition=None, followup=None, user=None,
-           at=None, admission=None):
-    """الطفل مشي — البنود iv و v و vii و viii. المتصل بيعمل commit."""
+           at=None, admission=None, admitted_to=None, doctor=None):
+    """الطفل مشي — البنود iv و v و vii و viii. المتصل بيعمل commit.
+
+    ``admitted_to`` — «اتحجز» فين (``ADMIT_TO``)، وبيتشال لو المآل مش
+    «اتحجز». ``doctor`` — الطبيب اللي أمر بالخروج.
+    """
     from datetime import datetime
+
+    from app.models.emergency_visit import ADMIT_TO, ADMITTED
 
     if row is None:
         raise ValueError("no visit")
     if disposition not in DISPOSITIONS:
         raise ValueError("unknown disposition")
     row.disposition = disposition
+    row.admitted_to = (admitted_to if disposition == ADMITTED
+                       and admitted_to in ADMIT_TO else None)
+    if doctor is not None:
+        row.discharge_doctor_id = doctor.id
     row.condition = (condition or "").strip()[:200] or None
     row.followup_instructions = (followup or "").strip() or None
     row.departed_at = at or datetime.utcnow()

@@ -248,6 +248,17 @@
               <option value="{{ d }}">{{ t('emergency.disp_' ~ d) }}</option>
               {% endfor %}
             </select>
+            <select class="select" name="admitted_to" style="max-width:130px;" aria-label="{{ t('er_sheet.admitted_to') }}"
+                    x-show="d === 'admitted'" x-cloak data-admitted-to>
+              <option value="">{{ t('er_sheet.admitted_to') }}</option>
+              {% for a in admit_to %}<option value="{{ a }}">{{ t('er_sheet.to_' ~ a) }}</option>{% endfor %}
+            </select>
+            {% if discharge_doctors %}
+            <select class="select" name="discharge_doctor_id" style="max-width:150px;" aria-label="{{ t('er_sheet.discharge_doctor') }}" data-discharge-doctor>
+              <option value="">{{ t('er_sheet.discharge_doctor') }}</option>
+              {% for u in discharge_doctors %}<option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>{% endfor %}
+            </select>
+            {% endif %}
             <input class="input" name="condition" style="max-width:150px;"
                    placeholder="{{ t('emergency.condition_ph') }}" data-condition>
             <input class="input" name="followup" style="max-width:170px;"

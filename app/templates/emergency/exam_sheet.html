@@ -1,0 +1,172 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import age_label with context %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'emergency' %}
+{% block title %}{{ t('er_sheet.title') }}{% endblock %}
+{% block page_heading %}{{ t('er_sheet.title') }}{% endblock %}
+
+{% block content %}
+{# «Child Examination (ER)» — the department's record of one attendance, in
+   the order of the paper form (`utils/er_sheet`). What the file has is
+   printed; what it has not is ruled lines for a pen. #}
+{% set p = s.patient %}
+{% macro lines(n) %}{% for _ in range(n) %}<div class="ers-line"></div>{% endfor %}{% endmacro %}
+{% macro box(on) %}<span class="ers-box" aria-hidden="true">{{ '☑' if on else '☐' }}</span>{% endmacro %}
+{% macro who(u) %}{{ u.display_name(current_lang) if u else '' }}{% endmacro %}
+<style>
+  .ers h3 { margin: 12px 0 0; padding: 4px 10px; background: var(--green-800, #1e3a5f); color: #fff;
+            font-size: .85rem; text-align: center; letter-spacing: .02em; border-radius: 3px 3px 0 0; }
+  .ers .ers-body { border: 1px solid var(--line); border-top: 0; padding: 8px 10px; min-height: 30px; }
+  .ers .ers-line { border-bottom: 1px dotted var(--line); height: 24px; }
+  .ers .ers-row { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 4px 0; }
+  .ers .ers-row > div { min-width: 140px; }
+  .ers .k { color: var(--muted); font-size: .8rem; }
+  .ers table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  .ers th, .ers td { border: 1px solid var(--line); padding: 4px 6px; vertical-align: top; text-align: start; }
+  .ers .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+  .ers .ers-box { font-size: 1.05rem; }
+  @media print { .ers h3 { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style>
+
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('emergency.attendance', attendance_id=row.id) }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <div class="btn-group" style="display:flex;gap:4px;">
+      <a class="btn btn-sm gc-press {{ 'btn-primary' if current_lang == 'ar' else 'btn-outline' }}"
+         href="{{ url_for('emergency.exam_sheet', attendance_id=row.id, lang='ar') }}">العربية</a>
+      <a class="btn btn-sm gc-press {{ 'btn-primary' if current_lang == 'en' else 'btn-outline' }}"
+         href="{{ url_for('emergency.exam_sheet', attendance_id=row.id, lang='en') }}">English</a>
+    </div>
+    <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+  </div>
+</div>
+
+<div class="card gc-scale-in print-area ers" data-exam-sheet>
+  {{ print_header(t('er_sheet.title'), '<span dir="ltr">' ~ printed_at.strftime('%Y-%m-%d %H:%M') ~ '</span>') }}
+
+  {# ---- the child and the times ---- #}
+  <div class="ers-row"><div><span class="k">{{ t('er_sheet.date') }}:</span> <b dir="ltr">{{ s.date }}</b></div>
+    <div style="flex:1;"><span class="k">{{ t('er_sheet.name') }}:</span> <b>{{ p.display_name(current_lang) if p else '' }}</b></div></div>
+  <div class="ers-row">
+    <div><span class="k">{{ t('er_sheet.gender') }}:</span> {{ t('genders.' ~ p.gender) if p and p.gender in ('male', 'female') else '' }}</div>
+    <div><span class="k">{{ t('er_sheet.age') }}:</span> {{ age_label(p) if p else '' }}</div>
+    <div><span class="k">{{ t('er_sheet.file_no') }}:</span> <b dir="ltr">{{ p.patient_number if p else '' }}</b></div>
+  </div>
+  <div class="ers-row" data-sheet-measures>
+    <div><span class="k">{{ t('er_sheet.temp') }}:</span> {% if s.temperature is not none %}<span dir="ltr" data-sheet-temp>{{ s.temperature }} °C</span>{% else %}<span class="ers-line" style="display:inline-block;width:80px;"></span>{% endif %}</div>
+    <div><span class="k">{{ t('er_sheet.weight') }}:</span> {% if s.weight %}<span dir="ltr" data-sheet-weight>{{ s.weight }} kg</span>{% else %}<span class="ers-line" style="display:inline-block;width:80px;"></span>{% endif %}</div>
+    <div><span class="k">{{ t('er_sheet.height') }}:</span> {% if s.height %}<span dir="ltr" data-sheet-height>{{ s.height }} cm</span>{% else %}<span class="ers-line" style="display:inline-block;width:80px;"></span>{% endif %}</div>
+  </div>
+  <div class="ers-row">
+    <div><span class="k">{{ t('er_sheet.arrival') }}:</span> <span dir="ltr">{{ row.arrived_at|clinic_stamp }}</span></div>
+    <div><span class="k">{{ t('er_sheet.discharge') }}:</span> {% if row.departed_at %}<span dir="ltr">{{ row.departed_at|clinic_stamp }}</span>{% else %}{{ t('er_paper.still_here') }}{% endif %}</div>
+  </div>
+
+  {# ---- brief history ---- #}
+  <h3>{{ t('er_sheet.history_h') }}</h3>
+  <div class="ers-body" data-sheet-history>
+    {% if s.history %}<p style="margin:0 0 6px;white-space:pre-line;" dir="auto">{{ s.history }}</p>{% else %}{{ lines(2) }}{% endif %}
+    <div class="ers-row">
+      <div>{{ box(s.allergies) }} {{ t('er_sheet.allergies') }}: {% if s.allergies %}<b dir="auto" data-sheet-allergy>{{ s.allergies }}</b>{% else %}……………{% endif %}</div>
+      <div>{{ box(false) }} {{ t('er_sheet.medication') }}: ……………</div>
+      <div data-sheet-dama-before>{{ box(s.dama_before) }} {{ t('er_sheet.dama') }}{% if s.dama_before %}: <span dir="ltr">{{ s.dama_before[0] }}</span>{% else %}: ……………{% endif %}</div>
+    </div>
+    <div class="ers-row">
+      <div>{{ box(s.chronic) }} {{ t('er_sheet.chronic') }}: {% if s.chronic %}<b dir="auto">{{ s.chronic }}</b>{% else %}……………{% endif %}</div>
+      <div>{{ box(false) }} {{ t('er_sheet.other') }}: ……………</div>
+    </div>
+  </div>
+
+  {# ---- examination ---- #}
+  <h3>{{ t('er_sheet.exam_h') }}</h3>
+  <div class="ers-body" data-sheet-exam>
+    {% if s.exam %}<p style="margin:0;white-space:pre-line;" dir="auto">{{ s.exam }}</p>{% else %}{{ lines(5) }}{% endif %}
+  </div>
+
+  {# ---- diagnosis | investigations ---- #}
+  <div class="two">
+    <div>
+      <h3>{{ t('er_sheet.dx_h') }}</h3>
+      <div class="ers-body" data-sheet-dx>
+        {% if s.diagnoses %}
+        <ul style="margin:0;padding-inline-start:18px;">
+          {% for d in s.diagnoses %}<li dir="auto">{{ d.display_title(current_lang) }}{% if d.code %} <span dir="ltr" class="hint" style="margin:0;">({{ d.code }})</span>{% endif %}</li>{% endfor %}
+        </ul>
+        {% else %}{{ lines(4) }}{% endif %}
+      </div>
+    </div>
+    <div>
+      <h3>{{ t('er_sheet.inv_h') }}</h3>
+      <div class="ers-body" data-sheet-tests>
+        {% if s.tests %}
+        <ul style="margin:0;padding-inline-start:18px;">
+          {% for x in s.tests %}<li><span dir="auto">{{ x.display_name(current_lang) }}</span>
+            {% if x.status == 'resulted' %}{% if x.result_value is not none %}: <b dir="ltr">{{ x.result_value }}{% if x.result_unit %} {{ x.result_unit }}{% endif %}</b>{% endif %}
+            {% if x.result_text %} — <span dir="auto">{{ x.result_text }}</span>{% endif %}
+            {% else %}<span class="hint" style="margin:0;">({{ t('er_sheet.pending') }})</span>{% endif %}</li>{% endfor %}
+        </ul>
+        {% else %}{{ lines(4) }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ---- drug orders: each dated, timed and signed ---- #}
+  <h3>{{ t('er_sheet.orders_h') }}</h3>
+  <table data-sheet-orders>
+    <thead><tr><th style="width:28%;">{{ t('er_sheet.drug') }}</th><th>{{ t('er_sheet.order_col') }}</th><th style="width:14%;">{{ t('er_sheet.route') }}</th></tr></thead>
+    <tbody>
+      {% for o in s.orders %}
+      <tr data-sheet-order>
+        <td><b dir="auto">R/ {{ o.name }}</b>{% if o.dose %}<br><span dir="auto">{{ o.dose }}</span>{% endif %}</td>
+        <td>
+          {% if o.note %}<div dir="auto">{{ o.note }}</div>{% endif %}
+          <div><span class="k">{{ t('er_sheet.written') }}:</span> <span dir="ltr">{{ o.created_at|clinic_stamp }}</span> ·
+            {% if o.source == 'outside_rx' %}{{ t('er_sheet.outside') }}{% if o.outside_doctor %} — <span dir="auto">{{ o.outside_doctor }}</span>{% endif %}{% if o.approver %} · {{ t('er_sheet.approved_by') }} {{ who(o.approver) }}{% endif %}
+            {% else %}{{ who(o.prescriber) }}{% endif %}</div>
+          {% if o.given_at %}<div><span class="k">{{ t('er_sheet.given') }}:</span> <span dir="ltr">{{ o.given_at|clinic_stamp }}</span>{% if o.giver %} · {{ who(o.giver) }}{% endif %}</div>{% endif %}
+        </td>
+        <td>{{ t('meds.route_' ~ o.route) if o.route else '' }}</td>
+      </tr>
+      {% endfor %}
+      {% for _ in range(3 if s.orders else 6) %}<tr><td style="height:24px;"></td><td></td><td></td></tr>{% endfor %}
+    </tbody>
+  </table>
+
+  {# ---- disposition ---- #}
+  <h3>{{ t('er_sheet.disp_h') }}</h3>
+  <div class="ers-body" data-sheet-disposition="{{ s.disposition or '' }}">
+    <div class="ers-row">
+      <div>{{ box(s.disposition == 'admitted') }} <b>{{ t('er_sheet.admitted') }}</b></div>
+      {% for a in admit_to %}<div data-sheet-admit="{{ a }}{{ ':on' if s.admitted_to == a else '' }}">{{ box(s.admitted_to == a) }} {{ t('er_sheet.to_' ~ a) }}</div>{% endfor %}
+    </div>
+    <div class="ers-row">
+      <div>{{ box(s.disposition == 'home') }} {{ t('er_sheet.home') }}</div>
+      <div>{{ box(s.disposition == 'transferred') }} {{ t('er_sheet.transferred') }}</div>
+      <div>{{ box(s.disposition == 'self_discharge') }} {{ t('er_sheet.dama_disp') }}</div>
+      {% if s.disposition in ('left_unseen', 'died') %}<div>{{ box(true) }} {{ t('emergency.disp_' ~ s.disposition) }}</div>{% endif %}
+    </div>
+  </div>
+
+  <h3>{{ t('er_sheet.order_h') }}</h3>
+  <div class="ers-body" data-sheet-discharge-order>
+    <div class="ers-row">
+      <div><span class="k">{{ t('er_sheet.doctor') }}:</span> {% if s.discharge_doctor %}<b data-sheet-discharge-doctor>{{ who(s.discharge_doctor) }}</b>{% else %}<span class="ers-line" style="display:inline-block;width:180px;"></span>{% endif %}</div>
+      <div><span class="k">{{ t('er_sheet.at') }}:</span> {% if row.departed_at %}<span dir="ltr">{{ row.departed_at|clinic_stamp }}</span>{% else %}<span class="ers-line" style="display:inline-block;width:120px;"></span>{% endif %}</div>
+      <div><span class="k">{{ t('er_sheet.signature') }}:</span> ____________________</div>
+    </div>
+  </div>
+
+  <h3>{{ t('er_sheet.condition_h') }}</h3>
+  <div class="ers-body" data-sheet-condition>
+    {% if s.condition %}<p style="margin:0;" dir="auto">{{ s.condition }}</p>{% else %}{{ lines(2) }}{% endif %}
+  </div>
+
+  <h3>{{ t('er_sheet.followup_h') }}</h3>
+  <div class="ers-body" data-sheet-followup>
+    {% for text in s.followups %}<p style="margin:0 0 4px;white-space:pre-line;" dir="auto">{{ text }}</p>{% endfor %}
+    {% if s.followup_due %}<p style="margin:0;"><b>{{ t('er_paper.followup_due') }}:</b> <span dir="ltr">{{ s.followup_due }}</span></p>{% endif %}
+    {% if not s.followups and not s.followup_due %}{{ lines(3) }}{% endif %}
+  </div>
+</div>
+{% endblock %}
