@@ -77,7 +77,12 @@ tested + committed + reviewed. **Reuses existing models — no duplication.**
 
 ### Stocktake
 - Store stocktake exists (Inventory → Store → Stocktake) for general items.
-- A vaccine-batch stocktake (count vs system per batch) is still TODO.
+- ✅ اتعمل (PR #498) — the vaccine-batch stocktake (Inventory → Vaccine stocktake):
+  one warehouse at a time (the fridge first), a row per batch with its lot
+  number, and a difference becomes a numbered adjustment document per batch
+  (what the shelf held, what was counted, when, by whom). Checked on 17 Nov
+  2026 against `inventory.vaccine_stocktake` and `tests/test_fridge_and_item_card.py`;
+  this line had still said TODO.
 
 ## Open decisions
 - Refund on exam→consult: actual cash back vs paper drawer adjustment.
