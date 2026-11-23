@@ -1,0 +1,38 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('dq.c_' ~ check.key) }}{% endblock %}
+{% block page_heading %}{{ t('dq.title') }}{% endblock %}
+
+{# The records behind one data-quality check — each opens where a person
+   fixes it. The program fixes nothing itself. #}
+{% block content %}
+<div class="gc-animate" style="margin-bottom:14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">
+  <div>
+    <h1 class="page-title" style="margin:0;"><i class="bi bi-wrench"></i> {{ t('dq.c_' ~ check.key) }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('dq.sec_' ~ section.key) }} · <span dir="ltr">{{ check.bad }} / {{ check.total }}</span></p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('reports.data_quality') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('reports.data_quality_sheet', key=check.key) }}" data-dq-sheet><i class="bi bi-file-earmark-spreadsheet"></i> {{ t('dq.sheet') }}</a>
+  </div>
+</div>
+<div class="card gc-scale-in">
+  {% if rows %}
+  <div style="overflow-x:auto;"><table class="table" data-dq-rows="{{ rows|length }}">
+    <thead><tr><th>{{ t('patients.file_number') }}</th><th>{{ t('appointments.patient') }}</th><th>{{ t('dq.when') }}</th><th>{{ t('dq.detail') }}</th><th></th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td dir="ltr">{{ r.patient.patient_number if r.patient else '' }}</td>
+        <td>{{ r.patient.display_name(current_lang) if r.patient else '' }}</td>
+        <td dir="ltr">{{ (r.when|string)[:16] if r.when else '' }}</td>
+        <td dir="auto">{{ r.detail or '' }}</td>
+        <td><a class="btn btn-sm btn-outline gc-press" href="{{ url_for(r.endpoint, **r.kwargs) }}{{ r.anchor }}" data-dq-open><i class="bi bi-box-arrow-up-right"></i> {{ t('dq.open') }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% if rows|length >= limit %}<p class="hint">{{ t('dq.first_n', n=limit) }}</p>{% endif %}
+  {% else %}<p style="margin:0;">{{ t('dq.nothing') }}</p>{% endif %}
+</div>
+{% endblock %}

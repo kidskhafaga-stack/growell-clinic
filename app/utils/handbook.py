@@ -3605,6 +3605,21 @@ SECTIONS = [
              "numbers, and any count of people under the threshold is held "
              "back. The program sends nothing; the file says how to load it "
              "with bq load."),
+            ("<b>جودة البيانات</b> (التقارير ← «جودة البيانات»): درجة من 0 لـ 100 لكل قسم شغال "
+             "عندك (ملف المريض، العيادات، التطعيمات، والطوارئ لو شغالة) ودرجة كلية: ملف المريض "
+             "وزنه 30 والباقي على الأقسام بنسبة شغلها آخر 3 شهور. كل فحص بيقول كام سجل محتاج "
+             "يتصلّح من كام — زي «كشف مقفول من غير تشخيص» أو «جرعة من غير رقم تشغيلة» أو «ملفات "
+             "شكلها مكررة» — و«إصلاح» بيفتح السجلات دي، وكل سجل بيفتح في مكانه وإنت اللي بتصلّحه، "
+             "و«شيت إكسيل» بينزّلها. الدرجة بتتسجّل كل يوم وبيظهر منحنى آخر 120 يوم. المدير بيغيّر "
+             "وزن أي فحص من تحت.",
+             "<b>Data quality</b> (Reports → «Data quality»): a score from 0 to 100 for each "
+             "department you run (patient file, clinics, vaccinations, and emergency where it "
+             "runs) and overall: the patient file weighs 30 and the rest is shared by each "
+             "department's work over the last 3 months. Each check says how many records need "
+             "fixing out of how many — «completed visit without a diagnosis», «dose without a "
+             "lot number», «files that look duplicated» — and «Fix» opens them, each where it "
+             "is fixed by a person; «Excel sheet» downloads them. The score is kept daily with "
+             "a 120-day line. The administrator changes any check's weight at the bottom."),
             ("<b>كل التقارير في صفحة واحدة:</b> شاشة التقارير فيها تقاريرها وتقارير "
              "الأقسام (الإحالات، زمن المعمل والأشعة، الصيدلية، العمليات، رضا المرضى…) "
              "متقسمة مالية وطبية وتشغيل وجودة، وكل واحد بيشوف اللي يقدر يفتحه بس. "

@@ -73,6 +73,9 @@ CATALOG = [
     # ت-٨: visits by type against the time booked, the day's work and gaps,
     # and a tab for each department this copy runs.
     ("reports.performance_board", OPERATIONS, "speedometer2", "perf.title", "perf.desc", _reports_and()),
+    # SMART_PATTERNS_PLAN ج-١: a score per department this copy runs, each
+    # check opening the records a person fixes.
+    ("reports.data_quality", OPERATIONS, "clipboard-data", "dq.title", "dq.desc", _reports_and()),
     # The hospital's indicators (ت-٦) — only with a hospital department on.
     ("reports.hospital_board", MEDICAL, "hospital", "hosp_kpi.title", "hosp_kpi.desc",
      _reports_and(lambda u: _hospital())),

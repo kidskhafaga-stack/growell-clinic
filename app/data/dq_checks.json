@@ -1,0 +1,48 @@
+{
+  "_about": "Data-quality checks (SMART_PATTERNS_PLAN.md ج-١). Each section shows only where its module runs; weights inside a section add up to 100. 'kind' names the check function in utils/data_quality.py; 'better' is 'higher' (the share that is right) or 'lower' (the share that is wrong) — both are counted as records that need fixing. 'window_days' limits a check to recent records. Weights may be changed in settings without touching code.",
+  "window_days": 90,
+  "patient_weight": 30,
+  "sections": [
+    {
+      "key": "patient",
+      "module": null,
+      "checks": [
+        {"key": "guardian_phone", "kind": "patient_no_phone", "better": "higher", "weight": 30},
+        {"key": "duplicates", "kind": "patient_duplicates", "better": "lower", "weight": 20},
+        {"key": "provisional", "kind": "patient_provisional", "better": "lower", "weight": 20},
+        {"key": "dob_estimated", "kind": "patient_dob_estimated", "better": "lower", "weight": 15},
+        {"key": "family_linked", "kind": "patient_no_family", "better": "higher", "weight": 15}
+      ]
+    },
+    {
+      "key": "clinic",
+      "module": "visits",
+      "checks": [
+        {"key": "visit_no_dx", "kind": "visit_no_diagnosis", "better": "lower", "weight": 30},
+        {"key": "dx_no_code", "kind": "visit_diagnosis_no_code", "better": "lower", "weight": 25},
+        {"key": "visit_no_weight", "kind": "visit_no_weight", "better": "lower", "weight": 25},
+        {"key": "visit_open", "kind": "visit_left_open", "better": "lower", "weight": 20}
+      ]
+    },
+    {
+      "key": "vaccines",
+      "module": "vaccinations",
+      "checks": [
+        {"key": "dose_no_lot", "kind": "dose_no_lot", "better": "lower", "weight": 35},
+        {"key": "dose_same_day", "kind": "dose_same_day", "better": "lower", "weight": 25},
+        {"key": "dose_before_birth", "kind": "dose_before_birth", "better": "lower", "weight": 20},
+        {"key": "dose_no_doctor", "kind": "dose_no_doctor", "better": "lower", "weight": 20}
+      ]
+    },
+    {
+      "key": "emergency",
+      "module": "emergency",
+      "checks": [
+        {"key": "er_no_triage", "kind": "er_no_triage", "better": "lower", "weight": 30},
+        {"key": "er_not_seen", "kind": "er_not_seen", "better": "lower", "weight": 30},
+        {"key": "er_no_disposition", "kind": "er_no_disposition", "better": "lower", "weight": 25},
+        {"key": "er_no_diagnosis", "kind": "er_no_diagnosis", "better": "lower", "weight": 15}
+      ]
+    }
+  ]
+}
