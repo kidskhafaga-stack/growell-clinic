@@ -263,9 +263,50 @@ def _programs(d_from, d_to):
     sessions = ProgramSession.query.filter(ProgramSession.at >= start,
                                            ProgramSession.at < end).all()
     enrolled = ProgramEnrollment.query.count()
-    return {"sessions": len(sessions),
-            "children": len({s.enrollment_id for s in sessions}),
-            "enrolled": enrolled}
+    out = {"sessions": len(sessions),
+           "children": len({s.enrollment_id for s in sessions}),
+           "enrolled": enrolled}
+    out.update(_program_flow(d_from, d_to))
+    return out
+
+
+#: A child whose last session was longer ago than this, and who had no more
+#: than ``EARLY_SESSIONS``, has stopped coming (SMART_PATTERNS ج-٢).
+GONE_DAYS = 30
+EARLY_SESSIONS = 3
+
+
+def _program_flow(d_from, d_to):
+    """The session programmes' own measures (SMART_PATTERNS ج-٢): the wait
+    from enrolment to the first session (enrolments started in the period),
+    children who stopped after the first three sessions (enrolments still
+    open, last session over 30 days ago), and — where a protocol says how
+    many cycles — the cycles given of those planned."""
+    from app.models.care_program import ProgramEnrollment, ProgramSession
+    from app.utils.clock import local_date, local_today
+
+    today = local_today()
+    by_enrolment = {}
+    for enrolment_id, at in ProgramSession.query.with_entities(
+            ProgramSession.enrollment_id, ProgramSession.at):
+        by_enrolment.setdefault(enrolment_id, []).append(local_date(at))
+    waits, open_with, stopped, planned, given = [], 0, 0, 0, 0
+    for e in ProgramEnrollment.query.all():
+        days = sorted(by_enrolment.get(e.id, []))
+        if d_from <= e.started_on <= d_to and days:
+            waits.append(max((days[0] - e.started_on).days, 0))
+        if e.ended_on is None and days:
+            open_with += 1
+            if len(days) <= EARLY_SESSIONS and (today - days[-1]).days > GONE_DAYS:
+                stopped += 1
+        if e.cycles:
+            planned += e.cycles
+            given += min(len(days), e.cycles)
+    return {"first_wait": _median(waits), "first_wait_n": len(waits),
+            "stopped": stopped, "stopped_pct": (round(100.0 * stopped / open_with, 1)
+                                                if open_with else None),
+            "cycles_pct": round(100.0 * given / planned, 1) if planned else None,
+            "cycles_given": given, "cycles_planned": planned}
 
 
 def _ambulance(d_from, d_to):
@@ -289,6 +330,8 @@ PARTS = (
     ("imaging", ("imaging",), "radioactive"),
     ("pharmacy", ("pharmacy",), "capsule"),
     ("store", ("inventory",), "box-seam"),
+    # SMART_PATTERNS ج-٢ — whether families come back to the schedule.
+    ("vaccines", ("vaccinations",), "shield-plus"),
     ("programs", ("programs",), "calendar2-heart"),
     ("ambulance", ("ambulance",), "truck"),
 )
@@ -319,6 +362,10 @@ def part(key, d_from, d_to):
         return _pharmacy(d_from, d_to)
     if key == "store":
         return _store()
+    if key == "vaccines":
+        from app.utils import vaccine_kpis
+
+        return vaccine_kpis.board(d_from, d_to)
     if key == "programs":
         return _programs(d_from, d_to)
     if key == "ambulance":

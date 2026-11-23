@@ -16327,7 +16327,8 @@
     "children_n": "{n} children",
     "enrolled": "Enrolled",
     "calls": "Calls",
-    "reach": "To the scene (median)"
+    "reach": "To the scene (median)",
+    "part_vaccines": "Vaccinations"
   },
   "severity": {
     "title": "Severity scores",
@@ -18009,5 +18010,24 @@
     "c_er_no_disposition": "Departure without a disposition",
     "c_er_no_diagnosis": "Attendance without a diagnosis",
     "desc": "A score for each department you run and overall; each check opens the records that need fixing."
+  },
+  "vkpi": {
+    "doses": "Doses given",
+    "return": "Back for the next dose",
+    "on_time": "On time",
+    "series": "Series completed",
+    "reminder": "Reminders that worked",
+    "target_n": "target {n}%",
+    "last_year": "last year {n}%",
+    "counts": "{due} next doses fell due and {came} were given within 30 days · {started} series started 6–12 months ago and {done} completed · {sent} reminded and {rem_came} came within 14 days.",
+    "month": "Month",
+    "rules": "«Back» = of the next doses due in the period (from the brand's schedule and the date of birth), how many were given within 30 days; a due date less than 30 days ago is not counted. «On time» = of those back, how many within 14 days. A dose given elsewhere counts. «—» = nothing to count.",
+    "set_targets": "Targets",
+    "targets_saved": "Targets saved.",
+    "first_wait": "Wait for the first session",
+    "days": "days",
+    "stopped": "Stopped after the first 3 sessions",
+    "cycles": "Cycles given of those planned",
+    "cycles_n": "{given} of {planned}"
   }
 }
