@@ -1,0 +1,85 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('dq.title') }}{% endblock %}
+{% block page_heading %}{{ t('dq.title') }}{% endblock %}
+
+{# SMART_PATTERNS_PLAN ج-١ — one score per department this copy runs, and in
+   all; every check opens its records, each record opens where it is fixed.
+   The rules are in utils/data_quality; the checks in app/data/dq_checks.json. #}
+{% macro badge(score, col, big=false) %}<span class="dq-score dq-{{ col }}{{ ' dq-big' if big else '' }}" data-dq-colour="{{ col }}">{{ '—' if score is none else score|round|int }}</span>{% endmacro %}
+{% block content %}
+<style>
+  .dq-score { display:inline-block; min-width:3.2em; text-align:center; font-weight:700; border-radius:8px; padding:2px 8px; }
+  .dq-green { background: #dcfce7; color: #166534; }
+  .dq-amber { background: #fef3c7; color: #92400e; }
+  .dq-red   { background: #fee2e2; color: #991b1b; }
+  .dq-none  { background: var(--line); color: var(--muted); }
+  .dq-big   { font-size: 2rem; padding: 6px 16px; }
+</style>
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title"><i class="bi bi-clipboard-data"></i> {{ t('dq.title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:80ch;">{{ t('dq.sub') }}</p>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;" data-dq-overall="{{ data.overall if data.overall is not none else '' }}">
+  <div>{{ badge(data.overall, data.colour, big=true) }}</div>
+  <div style="flex:1;min-width:240px;">
+    <b>{{ t('dq.overall') }}</b>
+    <p class="hint" style="margin:4px 0 0;">{{ t('dq.overall_hint') }}</p>
+    {% if history|length > 1 %}
+    {% set pts = history|selectattr('score')|list %}
+    {% if pts|length > 1 %}
+    <svg viewBox="0 0 300 50" width="300" height="50" role="img" aria-label="{{ t('dq.history') }}" data-dq-history="{{ pts|length }}" style="display:block;margin-top:6px;">
+      <polyline fill="none" stroke="currentColor" stroke-width="2"
+        points="{% for h in pts %}{{ (loop.index0 * 300 / (pts|length - 1))|round(1) }},{{ (50 - h.score / 2)|round(1) }} {% endfor %}"/>
+    </svg>
+    <span class="hint" style="margin:0;">{{ t('dq.history') }}</span>
+    {% endif %}{% endif %}
+  </div>
+</div>
+
+{% for s in data.sections %}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-dq-section="{{ s.key }}">
+  <h2 class="section-title" style="margin-top:0;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    {{ badge(s.score, s.colour) }} {{ t('dq.sec_' ~ s.key) }}
+    <span class="hint" style="margin:0;">{{ t('dq.share', n='%g'|format(s.share)) }}</span>
+  </h2>
+  <div style="overflow-x:auto;"><table class="table">
+    <thead><tr><th>{{ t('dq.check') }}</th><th>{{ t('dq.weight') }}</th><th>{{ t('dq.to_fix') }}</th><th>{{ t('dq.score') }}</th><th></th></tr></thead>
+    <tbody>
+      {% for c in s.checks %}
+      <tr data-dq-check="{{ c.key }}">
+        <td>{{ t('dq.c_' ~ c.key) }}<div class="hint" style="margin:0;">{{ t('dq.better_' ~ c.better) }}</div></td>
+        <td class="num">{{ c.weight }}</td>
+        <td class="num" dir="ltr" data-dq-bad="{{ c.bad }}">{{ c.bad }} / {{ c.total }}</td>
+        <td>{{ badge(c.score, c.colour) }}</td>
+        <td>{% if c.bad %}<a class="btn btn-sm btn-outline gc-press" href="{{ url_for('reports.data_quality_check', key=c.key) }}" data-dq-fix="{{ c.key }}"><i class="bi bi-wrench"></i> {{ t('dq.fix') }}</a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endfor %}
+
+<p class="hint">{{ t('dq.how', steep=steep, green=green, amber=amber) }}</p>
+
+{% if current_user.is_admin %}
+<details class="card" data-dq-weights>
+  <summary style="cursor:pointer;font-weight:600;"><i class="bi bi-sliders"></i> {{ t('dq.weights') }}</summary>
+  <form method="post" style="margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <p class="hint" style="margin-top:0;">{{ t('dq.weights_hint') }}</p>
+    {% for s in data.sections %}
+    <h3 style="margin:10px 0 4px;font-size:.95rem;">{{ t('dq.sec_' ~ s.key) }}</h3>
+    <div class="form-grid">
+      {% for c in s.checks %}
+      <div class="form-row"><label>{{ t('dq.c_' ~ c.key) }}</label>
+        <input class="input" type="number" min="0" max="100" name="w_{{ c.key }}" value="{{ c.weight }}" style="max-width:110px;"></div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+    <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+</details>
+{% endif %}
+{% endblock %}
