@@ -22,7 +22,7 @@ the family did come back to the schedule. A figure with nothing behind it is
 vaccination program's (45 %, 85 %, 70 %, 40 %).
 """
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from app.models import Setting
 
@@ -173,13 +173,15 @@ def reminders(d_from, d_to, today=None):
     last = min(d_to, today - timedelta(days=REMINDER_DAYS))
     if last < d_from:
         return {"reminder": None, "sent": 0, "came": 0}
-    start = datetime.combine(d_from, datetime.min.time()) - timedelta(days=1)
-    end = datetime.combine(last, datetime.max.time()) + timedelta(days=1)
+    from app.utils.med_board import utc
+
+    # The clinic's days, as stored UTC moments (end exclusive).
+    start, end = utc(d_from, last)
     first_sent = {}
     for pid, at in (MessageLog.query
                     .filter(MessageLog.template_type == REMINDER_TYPE,
                             MessageLog.patient_id.isnot(None),
-                            MessageLog.created_at >= start, MessageLog.created_at <= end)
+                            MessageLog.created_at >= start, MessageLog.created_at < end)
                     .with_entities(MessageLog.patient_id, MessageLog.created_at)):
         day = (to_local(at) or at).date()
         if d_from <= day <= last and (pid not in first_sent or day < first_sent[pid]):
