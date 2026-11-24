@@ -170,8 +170,14 @@ def test_the_link_asks_the_birth_date_and_shows_the_report_as_written(sending):
     token = _shares(sending)[0][2]
     anon = sending["app"].test_client()
     page = anon.get(f"/labs/r/{token}").get_data(as_text=True)
-    # Before the date: not the child's name, not a result.
-    assert "data-public-ask" in page and "سليم" not in page and "P1" not in page
+    # Before the date: not the child's name, not a result. The page carries
+    # random strings — the link's token, which the form posts back to, and
+    # the form's own CSRF token — and one held «P1» by chance on CI, so they
+    # are taken out before looking for the file number.
+    assert "data-public-ask" in page and "سليم" not in page
+    import re
+    shown = re.sub(r'name="csrf_token" value="[^"]*"', "", page.replace(token, ""))
+    assert "P1" not in shown
     assert "data-card" not in page
     wrong = anon.post(f"/labs/r/{token}", data={"born": "2024-02-02"}).get_data(as_text=True)
     assert "data-public-wrong" in wrong and "data-card" not in wrong

@@ -33,8 +33,12 @@ from app.utils.clock import local_today  # noqa: E402
 
 
 @pytest.fixture()
-def counting(clinic):
-    """Counts SQL statements while something is worked out."""
+def counting(clinic, bell_held_warm):
+    """Counts SQL statements while something is worked out.
+
+    With the bell held warm (``conftest.bell_held_warm``): the desk draws the
+    bell, and a cache that runs out inside the measurement made CI count 71
+    queries against 40 — the clock, not the code."""
     from sqlalchemy import event
 
     from app.extensions import db
