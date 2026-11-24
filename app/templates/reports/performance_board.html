@@ -247,11 +247,57 @@
   </div>
   <p class="hint" style="margin:0;">{{ t('perf.store_note') }}</p>
 </section>
+{% elif tab == 'vaccines' %}
+{% set v = part %}
+{% macro goal(key, value, before_v) %}
+<div class="mb-kpi" data-kpi="{{ key }}" data-target="{{ v.targets[key] }}"{% if value is not none %} data-met="{{ 'yes' if value >= v.targets[key] else 'no' }}"{% endif %}>
+  <span class="l">{{ t('vkpi.' ~ key) }}</span>
+  <span class="v num" style="color:{{ 'var(--muted)' if value is none else ('#166534' if value >= v.targets[key] else '#991b1b') }};">{% if value is none %}—{% else %}{{ value }}<small> %</small>{% endif %}</span>
+  <span class="row">
+    <small class="hint" style="margin:0;">{{ t('vkpi.target_n', n=v.targets[key]) }}</small>
+    {% if before_v is not none %}<small class="hint num" style="margin:0;">{{ t('vkpi.last_year', n=before_v) }}</small>{% endif %}
+  </span>
+</div>
+{% endmacro %}
+<section class="card gc-scale-in" data-part-body="vaccines">
+  <div class="mb-kpis">
+    {{ tile('doses', t('vkpi.doses'), v.doses, None, None, v.doses_before) }}
+    {{ goal('return', v['return'], v.before['return']) }}
+    {{ goal('on_time', v.on_time, v.before.on_time) }}
+    {{ goal('series', v.series, None) }}
+    {{ goal('reminder', v.reminder, v.before.reminder) }}
+  </div>
+  <p class="hint" style="margin:6px 0 0;" data-vkpi-counts>{{ t('vkpi.counts', due=v.due, came=v.came, started=v.started, done=v.done, sent=v.sent, rem_came=v.rem_came) }}</p>
+  <div style="overflow-x:auto;margin-top:10px;"><table class="table" data-vkpi-months style="min-width:520px;">
+    <thead><tr><th>{{ t('vkpi.month') }}</th>{% for m0, n, r in v.months %}<th class="num" dir="ltr">{{ m0.strftime('%m/%y') }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      <tr><td>{{ t('vkpi.doses') }}</td>{% for m0, n, r in v.months %}<td class="num">{{ n }}</td>{% endfor %}</tr>
+      <tr><td>{{ t('vkpi.return') }}</td>{% for m0, n, r in v.months %}<td class="num">{{ '—' if r is none else r ~ '%' }}</td>{% endfor %}</tr>
+    </tbody>
+  </table></div>
+  <p class="hint" style="margin:6px 0 0;">{{ t('vkpi.rules') }}</p>
+  {% if current_user.is_admin %}
+  <details style="margin-top:8px;" data-vkpi-targets>
+    <summary style="cursor:pointer;">{{ t('vkpi.set_targets') }}</summary>
+    <form method="post" action="{{ url_for('reports.performance_targets') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% for key in ('return', 'on_time', 'series', 'reminder') %}
+      <label style="display:grid;gap:2px;font-size:.85rem;">{{ t('vkpi.' ~ key) }}
+        <input class="input" type="number" min="0" max="100" name="t_{{ key }}" value="{{ v.targets[key] }}" style="max-width:110px;"></label>
+      {% endfor %}
+      <button class="btn btn-sm btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+    </form>
+  </details>
+  {% endif %}
+</section>
 {% elif tab == 'programs' %}
 <section class="card gc-scale-in" data-part-body="programs">
   <div class="mb-kpis">
     {{ tile('sessions', t('perf.sessions'), part.sessions, None, t('perf.children_n', n=part.children)) }}
     {{ tile('enrolled', t('perf.enrolled'), part.enrolled) }}
+    {{ tile('first_wait', t('vkpi.first_wait'), part.first_wait, t('vkpi.days'), t('hosp_kpi.of_n', n=part.first_wait_n)) }}
+    {{ tile('stopped', t('vkpi.stopped'), part.stopped, None, (part.stopped_pct ~ '%') if part.stopped_pct is not none else None) }}
+    {{ tile('cycles', t('vkpi.cycles'), part.cycles_pct, '%', t('vkpi.cycles_n', given=part.cycles_given, planned=part.cycles_planned) if part.cycles_planned else None) }}
   </div>
 </section>
 {% elif tab == 'ambulance' %}

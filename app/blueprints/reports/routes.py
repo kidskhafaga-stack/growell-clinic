@@ -1426,6 +1426,28 @@ def performance_board():
                                        ("doctor", doctor_id)) if v})
 
 
+@reports_bp.route("/performance/targets", methods=["POST"])
+@module_required(MODULE)
+def performance_targets():
+    """The clinic's own targets for the vaccination indicators
+    (SMART_PATTERNS ج-٢) — the administrator's."""
+    from flask import abort
+
+    from app.models import ActivityLog
+    from app.utils import vaccine_kpis
+
+    if not current_user.is_admin:
+        abort(403)
+    for key in vaccine_kpis.TARGETS:
+        raw = request.form.get(f"t_{key}")
+        if raw not in (None, ""):
+            vaccine_kpis.set_target(key, raw)
+    ActivityLog.record("reports.kpi_targets", user_id=current_user.id, entity="settings")
+    db.session.commit()
+    flash(t("vkpi.targets_saved"), "success")
+    return redirect(url_for("reports.performance_board", tab="vaccines"))
+
+
 @reports_bp.route("/medical/diagnoses.csv")
 @module_required(MODULE)
 def medical_board_diagnoses():

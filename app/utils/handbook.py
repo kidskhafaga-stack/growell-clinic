@@ -3690,6 +3690,21 @@ SECTIONS = [
              "occupancy), theatres, laboratory and imaging (orders and turnaround), pharmacy, the "
              "store (its value now and what is running low), programmes and the ambulance. The "
              "page is not a ranking of doctors by speed."),
+            ("<b>مؤشرات التطعيمات</b> (الأداء ← تبويب «التطعيمات»): الجرعات اللي اتدّت قصاد نفس "
+             "الفترة السنة اللي فاتت، و«الرجوع للجرعة الجاية» (من الجرعات اللي ميعادها استحق في "
+             "الفترة من جدول الماركة وتاريخ الميلاد، كام اتدّت خلال 30 يوم)، و«الالتزام بالميعاد» "
+             "(خلال 14 يوم)، و«إكمال السلسلة» (اللي بدأوا من 6–12 شهر وخلّصوا)، و«التذكير اللي جاب "
+             "نتيجة» (اتبعتله تذكير وجه خلال 14 يوم). كل رقم جنبه هدف يتلوّن أخضر لو وصله، والمدير "
+             "بيغيّر الأهداف من «الأهداف»، وتحت جدول آخر 12 شهر. وفي تبويب «البرامج»: الانتظار لأول "
+             "جلسة، واللي وقفوا بعد أول 3 جلسات، والدورات اللي اتدّت من المخططة.",
+             "<b>Vaccination indicators</b> (Performance → «Vaccinations» tab): doses given against "
+             "the same period last year, «back for the next dose» (of the next doses due in the "
+             "period by the brand's schedule and the date of birth, how many were given within 30 "
+             "days), «on time» (within 14 days), «series completed» (started 6–12 months ago and "
+             "finished) and «reminders that worked» (reminded and came within 14 days). Each has a "
+             "target, green when met; the administrator sets them under «Targets»; a 12-month table "
+             "below. The «Programmes» tab adds the wait for the first session, the children who "
+             "stopped after the first 3 sessions, and the cycles given of those planned."),
             ("<b>الوفيات قصاد المتوقع</b> (مؤشرات المستشفى ← «الوفيات قصاد المتوقع»، بس مع العناية أو "
              "الحضانة): البرنامج ما فيهوش أي مقياس خطورة جاهز. اللي ماسك «مقاييس الخطورة» بيدخّل المقياس "
              "من ورقته الأصلية: القراءات، والمعاملات أو جدول النقط، ونافذة الوقت، وقيمة القراءة اللي ما "
