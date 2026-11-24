@@ -1,0 +1,79 @@
+{# «عادتك مع التشخيص ده» — SMART_PATTERNS_PLAN ج-٣ (utils/doctor_patterns).
+   Drawn only for the visit's own doctor. A count of what he (or the
+   clinics' doctors together) did with this diagnosis — not advice — and
+   nothing is saved without his press: a test goes through ordering a test,
+   a medicine through writing a medicine, so the allergy and interaction
+   checks run as always. A medicine's dose is this child's, from today's
+   weight, or left for the doctor. #}
+{% if habits %}
+<div class="habits" data-habits>
+  {% for grp in habits %}
+  <div class="habits__group" data-habit-dx="{{ grp.dx_key }}" data-habit-source="{{ grp.source }}">
+    <div class="habits__head">
+      <i class="bi bi-arrow-repeat"></i>
+      <strong>{{ t('habits.title_' ~ grp.source) }}</strong>
+      <span class="badge badge--muted">{{ grp.dx_key }} · {{ grp.title }}</span>
+      <span class="hint">{{ t('habits.out_of', n=grp.visits) }}</span>
+    </div>
+    <div class="habits__chips">
+      {% for it in grp['items'] %}
+      <div class="habits__chip{% if not it.habit %} habits__chip--faded{% endif %}"
+           data-habit-item="{{ it.kind }}:{{ it.item_id }}" data-habit-strong="{{ 1 if it.habit else 0 }}">
+        <form method="post" action="{{ url_for('visits.add_investigation' if it.kind == 'test' else 'visits.add_medication', visit_id=visit.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="habit_dx" value="{{ grp.dx_key }}">
+          {% if it.kind == 'test' %}
+          <input type="hidden" name="investigation_id" value="{{ it.item_id }}">
+          {% else %}
+          <input type="hidden" name="drug_id" value="{{ it.item_id }}">
+          <input type="hidden" name="dose" value="{{ it.dose or '' }}">
+          <input type="hidden" name="frequency" value="{{ it.frequency or '' }}">
+          <input type="hidden" name="duration" value="{{ it.duration or '' }}">
+          {% endif %}
+          <button type="submit" class="habits__add gc-press" title="{{ t('habits.add') }}">
+            <i class="bi bi-{{ 'clipboard2-plus' if it.kind == 'test' else 'capsule' }}"></i>
+            <span>{{ it.name }}</span>
+            <span class="habits__share">{{ it.share }}%</span>
+            {% if it.kind == 'drug' %}
+            <span class="habits__how">
+              {% if it.dose %}<bdi dir="ltr">{{ it.dose }}</bdi>{% else %}{{ t('habits.dose_yours') }}{% endif %}{% if it.frequency %} · {{ it.frequency }}{% endif %}{% if it.duration %} · {{ it.duration }}{% endif %}
+            </span>
+            {% endif %}
+          </button>
+        </form>
+        <form method="post" action="{{ url_for('visits.habit_never', visit_id=visit.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="habit_dx" value="{{ grp.dx_key }}">
+          <input type="hidden" name="kind" value="{{ it.kind }}">
+          <input type="hidden" name="item_id" value="{{ it.item_id }}">
+          <button type="submit" class="btn-x" title="{{ t('habits.never') }}" aria-label="{{ t('habits.never') }}"><i class="bi bi-x"></i></button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% if grp.offer_preset %}
+    <form method="post" action="{{ url_for('visits.habit_preset', visit_id=visit.id) }}" class="habits__preset">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="habit_dx" value="{{ grp.dx_key }}">
+      <button type="submit" class="btn btn-outline btn-sm gc-press" data-habit-preset><i class="bi bi-bookmark-plus"></i> {{ t('habits.save_preset') }}</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+  <p class="hint habits__foot">{{ t('habits.foot') }} · <a href="{{ url_for('visits.my_habits') }}">{{ t('habits.mine_link') }}</a></p>
+</div>
+<style>
+  .habits{border:1px dashed var(--border);border-radius:12px;padding:10px 12px;margin-bottom:16px;background:var(--surface-2, transparent);}
+  .habits__group+.habits__group{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
+  .habits__head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  .habits__chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .habits__chip{display:flex;align-items:center;gap:2px;border:1px solid var(--accent, var(--border));border-radius:999px;padding:2px 4px 2px 2px;}
+  .habits__chip form{margin:0;display:inline;}
+  .habits__chip--faded{opacity:.6;border-style:dashed;}
+  .habits__add{background:none;border:0;display:flex;align-items:center;gap:6px;padding:4px 8px;cursor:pointer;color:inherit;font:inherit;}
+  .habits__share{font-size:.8em;color:var(--muted);}
+  .habits__how{font-size:.8em;color:var(--muted);}
+  .habits__preset{margin-top:8px;}
+  .habits__foot{margin:8px 0 0;}
+</style>
+{% endif %}

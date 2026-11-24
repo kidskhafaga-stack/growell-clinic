@@ -18029,5 +18029,28 @@
     "stopped": "Stopped after the first 3 sessions",
     "cycles": "Cycles given of those planned",
     "cycles_n": "{given} of {planned}"
+  },
+  "habits": {
+    "title_mine": "Your habit with this diagnosis",
+    "title_colleagues": "Your colleagues with this diagnosis",
+    "out_of": "of {n} visits",
+    "add": "Press to add it to the visit",
+    "dose_yours": "Dose: yours to write",
+    "never": "Not this — don't show it again with this diagnosis",
+    "hidden": "Done, it won't be shown again with this diagnosis.",
+    "save_preset": "Save these as a ready prescription?",
+    "preset_not": "Not enough recurring medicines to save, or already saved.",
+    "foot": "A count of what was done before, not advice — nothing is saved without your press. The dose is from today's weight.",
+    "mine_link": "My habits",
+    "mine_title": "My habits by diagnosis",
+    "mine_sub": "What you order and write with each diagnosis over the last 18 months, counted once a day. A habit = {n} visits or more and the item in {p}% of them; faded from {s}%. Nobody else sees this page.",
+    "use_title": "Are the suggestions used?",
+    "use_line": "Last 90 days: shown {shown} · added {taken} · «not this» {never}",
+    "use_clinic": "The whole clinic (no names): shown {shown} · added {taken} · refused {never}",
+    "none": "No diagnosis of yours has {n} visits or more in the last 18 months yet.",
+    "thresholds": "What counts as a habit",
+    "min_visits": "Fewest visits with the diagnosis",
+    "share": "Share ordered (%)",
+    "thresholds_hint": "Applies from tomorrow's count. The owner's decision: 10 visits and 60%."
   }
 }

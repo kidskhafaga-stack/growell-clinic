@@ -435,8 +435,14 @@ def record(visit_id):
     er_here = module_enabled("emergency")
     from app.utils import emergency as _er
 
+    # «عادتك مع التشخيص ده» — the visit's own doctor, his own habits (ج-٣).
+    from app.utils import doctor_patterns
+    habits = doctor_patterns.for_visit(visit, current_user)
+    doctor_patterns.note_shown(visit, current_user, habits)
+
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
+        habits=habits,
         fall_on=fall_on, er_here=er_here,
         er_sent=_er.sent_from(visit) if er_here else None,
         **_payer_bits(visit),
@@ -1182,6 +1188,9 @@ def add_investigation(visit_id):
         # unticked is «nobody said», which the lab reads as routine.
         urgent=True if request.form.get("urgent") == "1" else None,
     ))
+    # From «عادتك» (SMART_PATTERNS ج-٣): counted as taken.
+    from app.utils import doctor_patterns
+    doctor_patterns.note_taken(visit, current_user, request.form, "test", inv_id)
     db.session.commit()
     flash(t("visits.inv_added"), "success")
     return redirect(url_for("visits.record", visit_id=visit.id) + "#inv")
@@ -1279,6 +1288,8 @@ def add_medication(visit_id):
         instructions=(request.form.get("instructions") or "").strip() or None,
     )
     db.session.add(med)
+    from app.utils import doctor_patterns
+    doctor_patterns.note_taken(visit, current_user, request.form, "drug", med.drug_id)
     db.session.commit()
     # Say it now, in the room: a dose flag or a clash with what's already written.
     from app.utils.rx_safety import check as rx_check
@@ -3539,3 +3550,67 @@ def aftercare(visit_id):
                        entity_id=visit.id, ip_address=client_ip())
     db.session.commit()
     return redirect(url_for("visits.record", visit_id=visit.id) + "#aftercare")
+
+
+# ------------------------------------------ «عادتك» — SMART_PATTERNS ج-٣ ----
+@visits_bp.route("/<int:visit_id>/habits/never", methods=["POST"])
+@module_required(MODULE)
+def habit_never(visit_id):
+    """«مش عايز ده»: this item stops being shown to this doctor with this
+    diagnosis."""
+    from app.utils import doctor_patterns
+
+    visit = db.get_or_404(Visit, visit_id)
+    if visit.doctor_id != current_user.id:
+        abort(403)
+    if doctor_patterns.refuse(visit, current_user, (request.form.get("habit_dx") or "").strip(),
+                              request.form.get("kind"), request.form.get("item_id", type=int)):
+        db.session.commit()
+        flash(t("habits.hidden"), "info")
+    return redirect(url_for("visits.record", visit_id=visit.id) + "#dx")
+
+
+@visits_bp.route("/<int:visit_id>/habits/preset", methods=["POST"])
+@module_required(MODULE)
+def habit_preset(visit_id):
+    """«تحب تحفظها روشتة جاهزة؟» — saved on the doctor's press."""
+    from app.utils import doctor_patterns
+
+    visit = db.get_or_404(Visit, visit_id)
+    if visit.doctor_id != current_user.id:
+        abort(403)
+    preset = doctor_patterns.save_preset(visit, current_user,
+                                         (request.form.get("habit_dx") or "").strip(),
+                                         getattr(g, "lang", "ar"))
+    if preset is None:
+        flash(t("habits.preset_not"), "warning")
+    else:
+        db.session.commit()
+        flash(t("presets.saved", name=preset.name), "success")
+    return redirect(url_for("visits.record", visit_id=visit.id) + "#dx")
+
+
+@visits_bp.route("/my-habits", methods=["GET", "POST"])
+@module_required(MODULE)
+def my_habits():
+    """A doctor's own habits by diagnosis and how much the strip is used —
+    his and no one else's. The administrator sets the thresholds here and
+    sees the clinic's use together, never doctor by doctor."""
+    from app.utils import doctor_patterns
+
+    is_admin = current_user.is_admin
+    if request.method == "POST":
+        if not is_admin:
+            abort(403)
+        if doctor_patterns.set_thresholds(request.form.get("min_visits"),
+                                          request.form.get("share")):
+            db.session.commit()
+            flash(t("common.saved"), "success")
+        return redirect(url_for("visits.my_habits"))
+    min_visits, share = doctor_patterns.thresholds()
+    return render_template("visits/my_habits.html",
+                           groups=doctor_patterns.mine(current_user.id),
+                           use=doctor_patterns.usage(current_user.id),
+                           clinic_use=doctor_patterns.usage() if is_admin else None,
+                           is_admin=is_admin, min_visits=min_visits, share=share,
+                           sometimes=doctor_patterns.SOMETIMES_SHARE)
