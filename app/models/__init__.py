@@ -280,6 +280,7 @@ from app.models.pharmacy_intervention import PharmacyIntervention
 from app.models.custom_form import CustomForm, FormEntry
 from app.models.phone_call import PhoneCall
 from app.models.data_quality import DqDaily
+from app.models.vaccine_pattern import VaccinePattern
 from app.models.form_key import FormKey
 from app.models.payer import (
     CLAIM_STATUSES,
@@ -906,6 +907,7 @@ __all__ = [
     "FormEntry",
     "PhoneCall",
     "DqDaily",
+    "VaccinePattern",
     "Account",
     "JournalEntry",
     "JournalLine",

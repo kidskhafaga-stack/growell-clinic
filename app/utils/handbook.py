@@ -2470,6 +2470,24 @@ SECTIONS = [
              "قابلة للطباعة.",
              "<b>An age-based schedule per child</b> with dose recording and a "
              "printable vaccination certificate."),
+            ("<b>«تبدأ بأنهي تطعيم؟»:</b> في صفحة تطعيمات الطفل، تحت «خطة "
+             "التطعيمات المتفق عليها»، التطعيمات الاختيارية لسنّه مترتبة بدرجة: "
+             "السن (مناسب دلوقتي 50، فات بس ينفع 35، جاي بعدين 10)، وأخ أو أخت "
+             "<b>مربوط في ملف العيلة</b> أخده +30، و«اللي أخدوا A عندنا أخدوا X» لحد +25 "
+             "(لو A أخده 150 طفل فأكتر وX في 35% منهم ومرة ونص أكتر من العادي، بيتحسب "
+             "مرة كل يوم). عالية من 75 ومتوسطة من 55، وجنب كل واحد السبب. «أضف للخطة» "
+             "بضغطتك، و«رسالة للأهل» بتفتح رسالة تقدر تعدّلها قبل الواتساب — وسطر الأخ "
+             "ما بيتكتبش غير لو الربط في ملف العيلة. التطعيم الحكومي الإجباري مش فيها.",
+             "<b>«Which vaccine first?»:</b> on the child's vaccination page, under "
+             "the agreed plan, the optional vaccines for the child's age are ranked: "
+             "the age (right now 50, passed but still allowed 35, later 10), a brother "
+             "or sister <b>linked in the family file</b> who had it +30, and «those who "
+             "had A here had X» up to +25 (when A was given to 150 children or more, X "
+             "to 35% of them and 1.5 times the usual; counted once a day). High from 75, "
+             "medium from 55, each with its reason. «Add to plan» is your press, and "
+             "«Message to parents» opens a message you can change before WhatsApp — the "
+             "sibling line is written only when the family file links them. The "
+             "national vaccines are not in it."),
             ("<b>شلل الأطفال سلسلة واحدة (OPV + IPV):</b> كارت في صفحة تطعيمات "
              "الطفل بيعدّ الفموي والحقن مع بعض (والـIPV اللي جوه السداسي أو "
              "الخماسي) بقاعدة نشرة منظمة الصحة العالمية (يونيو ٢٠٢٢): ٣ bOPV "

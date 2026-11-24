@@ -110,8 +110,19 @@ def view(patient_id):
 
     polio = (polio_series.status(patient)
              if patient.date_of_birth is not None else None)
+    # Which optional vaccine to offer first, and why (SMART_PATTERNS ج-٥ أ):
+    # the age, a brother or sister linked in the family file, the clinic's
+    # own pattern. With the parents' message, for a person to read and send.
+    from app.utils import vaccine_suggest
+    from app.utils.whatsapp import normalize_phone, wa_link
+
+    ranked = vaccine_suggest.for_patient(patient, plan, on_plan)
+    phone = normalize_phone(patient.contact_phone) if patient.contact_phone else None
+    for s in ranked:
+        s["message"] = vaccine_suggest.message(patient, s, lang)
     return render_template(
-        "vaccinations/view.html", polio=polio,
+        "vaccinations/view.html", polio=polio, ranked=ranked, wa_phone=phone,
+        wa_base=wa_link(phone, "") if phone else None,
         patient=patient, plan=plan, summary=summary, next_due=nxt,
         agreed=agreed, offerable=offerable, courses=courses,
         rig_states=vaccine_protocols.RIG_STATES,
