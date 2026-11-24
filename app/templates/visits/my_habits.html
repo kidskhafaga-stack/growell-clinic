@@ -1,0 +1,59 @@
+{% extends "shell.html" %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('habits.mine_title') }}{% endblock %}
+{% block page_heading %}{{ t('habits.mine_title') }}{% endblock %}
+
+{% block content %}
+{# A doctor's own habits by diagnosis (SMART_PATTERNS ج-٣) — his, and no
+   one else's: there is no screen that puts two doctors side by side. #}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title"><i class="bi bi-arrow-repeat"></i> {{ t('habits.mine_title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:72ch;">{{ t('habits.mine_sub', n=min_visits, p=share, s=sometimes) }}</p>
+</div>
+
+<div class="card" data-habits-use style="margin-bottom:14px;">
+  <h2 class="section-title"><i class="bi bi-graph-up"></i> {{ t('habits.use_title') }}</h2>
+  <p>{{ t('habits.use_line', shown=use.shown, taken=use.taken, never=use.never) }}
+    · <strong data-habits-taken>{{ use.taken_pct if use.taken_pct is not none else '—' }}{% if use.taken_pct is not none %}%{% endif %}</strong></p>
+  {% if clinic_use %}
+  <p class="hint" data-habits-clinic>{{ t('habits.use_clinic', shown=clinic_use.shown, taken=clinic_use.taken, never=clinic_use.never) }}</p>
+  {% endif %}
+</div>
+
+{% if groups %}
+<div class="card" style="margin-bottom:14px;">
+  {% for grp in groups %}
+  <div data-habits-row="{{ grp.dx_key }}" style="padding:8px 0;{% if not loop.first %}border-top:1px solid var(--border);{% endif %}">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
+      <span class="badge badge--role">{{ grp.dx_key }}</span>
+      <strong>{{ grp.title }}</strong>
+      <span class="hint">{{ t('habits.out_of', n=grp.visits) }}</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      {% for it in grp['items'] %}
+      <span class="badge {{ 'badge--green' if it.habit else 'badge--muted' }}">
+        <i class="bi bi-{{ 'clipboard2-plus' if it.kind == 'test' else 'capsule' }}"></i>
+        {{ it.name }} · {{ it.share }}%{% if it.frequency %} · {{ it.frequency }}{% endif %}{% if it.duration %} · {{ it.duration }}{% endif %}
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="margin-bottom:14px;"><p class="hint" data-habits-none>{{ t('habits.none', n=min_visits) }}</p></div>
+{% endif %}
+
+{% if is_admin %}
+<form method="post" class="card" data-habits-thresholds>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 class="section-title"><i class="bi bi-sliders"></i> {{ t('habits.thresholds') }}</h2>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+    <label>{{ t('habits.min_visits') }} <input type="number" name="min_visits" min="3" max="500" value="{{ min_visits }}"></label>
+    <label>{{ t('habits.share') }} <input type="number" name="share" min="{{ sometimes + 1 }}" max="100" value="{{ share }}"></label>
+    <button class="btn btn-primary gc-press" type="submit">{{ t('common.save') }}</button>
+  </div>
+  <p class="hint">{{ t('habits.thresholds_hint') }}</p>
+</form>
+{% endif %}
+{% endblock %}
