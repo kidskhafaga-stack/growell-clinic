@@ -18052,5 +18052,25 @@
     "min_visits": "Fewest visits with the diagnosis",
     "share": "Share ordered (%)",
     "thresholds_hint": "Applies from tomorrow's count. The owner's decision: 10 visits and 60%."
+  },
+  "vsuggest": {
+    "title": "Which vaccine first?",
+    "hint": "The optional vaccines for the child's age in order: the age, brothers and sisters linked in the family file, and the clinic's pattern. An order with its reasons; agreeing is your press.",
+    "p_high": "High priority",
+    "p_medium": "Medium priority",
+    "p_low": "Usual priority",
+    "age_now": "The right age now",
+    "age_late": "Its time has passed but it may still be given",
+    "age_later": "Its time comes later",
+    "why_pattern": "{pct}% of the children who had {a} here had it ({n} children)",
+    "to_parents": "Message to parents",
+    "send": "Open WhatsApp",
+    "msg_open_now": "Hello 🌸 {child} is at the right age for {vaccine} now; if you'd like to know more about it, we are here.",
+    "msg_open_late": "Hello 🌸 {child}'s time for {vaccine} has passed but it may still be given; if you'd like to know more, we are here.",
+    "msg_open_later": "Hello 🌸 a reminder that {child}'s time for {vaccine} is coming; if you'd like to know more, we are here.",
+    "msg_sibling_male": "{sibling} had {vaccine} with us before.",
+    "msg_sibling_female": "{sibling} had {vaccine} with us before.",
+    "why_sibling_male": "{name} had it — linked in the family file",
+    "why_sibling_female": "{name} had it — linked in the family file"
   }
 }

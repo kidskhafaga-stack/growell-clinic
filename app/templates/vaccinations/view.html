@@ -129,6 +129,53 @@
           <i class="bi bi-plus-lg"></i> {{ t('vplan.add') }}</button>
       </form>
     {% endif %}
+
+    {# Which optional vaccine first, and why — SMART_PATTERNS ج-٥ أ
+       (utils/vaccine_suggest): the age 50/35/10, a brother or sister linked
+       in the family file +30, the clinic's pattern up to +25. It orders and
+       explains; agreeing is still the press above, and the message is the
+       sender's to read and change. #}
+    {% if ranked %}
+    <div class="vsug" data-vsuggest style="margin-top:14px;">
+      <h3 style="margin:0 0 4px;font-size:.98rem;"><i class="bi bi-stars"></i> {{ t('vsuggest.title') }}</h3>
+      <p class="hint" style="margin:0 0 10px;">{{ t('vsuggest.hint') }}</p>
+      {% for s in ranked %}
+      <div class="vsug__row" data-vsuggest-row="{{ s.vaccine.code or s.vaccine.id }}" data-priority="{{ s.priority }}" data-score="{{ s.score }}"
+           x-data='{ "open": false, "text": {{ s.message|tojson }} }'>
+        <div class="vsug__head">
+          <span class="badge badge--{{ {'high':'green','medium':'warn','low':'muted'}[s.priority] }}">{{ t('vsuggest.p_' ~ s.priority) }} · {{ s.score }}</span>
+          <strong>{{ s.vaccine.display_name(current_lang) }}</strong>
+          <form method="post" action="{{ url_for('vaccinations.plan_add', patient_id=patient.id) }}" style="display:inline;margin-inline-start:auto;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="vaccine_id" value="{{ s.vaccine.id }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('vplan.add') }}</button>
+          </form>
+          {% if wa_base %}
+          <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="open = !open" data-vsuggest-msg><i class="bi bi-whatsapp"></i> {{ t('vsuggest.to_parents') }}</button>
+          {% endif %}
+        </div>
+        <ul class="vsug__why">
+          <li>{{ t('vsuggest.age_' ~ s.age) }}</li>
+          {% for b in s.siblings[:2] %}<li data-vsuggest-sibling>{{ t('vsuggest.why_sibling_' ~ ('female' if b.gender == 'female' else 'male'), name=b.display_name(current_lang)) }}</li>{% endfor %}
+          {% if s.pattern %}<li data-vsuggest-pattern>{{ t('vsuggest.why_pattern', pct=(s.pattern.share * 100)|round|int, a=s.a_vaccine.display_name(current_lang), n=s.pattern.with_a) }}</li>{% endif %}
+        </ul>
+        {% if wa_base %}
+        <div x-show="open" x-cloak class="vsug__msg">
+          <textarea class="input" rows="4" x-model="text" data-vsuggest-text>{{ s.message }}</textarea>
+          <a class="btn btn-primary btn-sm gc-press" target="_blank" rel="noopener"
+             x-bind:href="'{{ wa_base }}' + encodeURIComponent(text)" href="{{ wa_base }}{{ s.message|urlencode }}"><i class="bi bi-send"></i> {{ t('vsuggest.send') }}</a>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <style>
+      .vsug__row{border-top:1px solid var(--border);padding:8px 0;}
+      .vsug__head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+      .vsug__why{margin:4px 0 0;padding-inline-start:20px;color:var(--muted);font-size:.88rem;}
+      .vsug__msg{display:flex;flex-direction:column;gap:6px;margin-top:6px;max-width:60ch;}
+    </style>
+    {% endif %}
   </div>
 
   {# Courses counted from day 0 — rabies (utils/vaccine_protocols). Not a

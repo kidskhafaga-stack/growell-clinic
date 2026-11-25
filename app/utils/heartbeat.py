@@ -30,6 +30,9 @@ def _beat():
     # A doctor's habits with each diagnosis (SMART_PATTERNS ج-٣), once a day.
     from app.utils import doctor_patterns
     doctor_patterns.maybe_refresh()
+    # «اللي أخدوا A أخدوا X» — the clinic's vaccine pattern, once a day.
+    from app.utils import vaccine_suggest
+    vaccine_suggest.maybe_refresh()
     # The analysers' folders (LAB_GLAB360_PLAN م-٢ أ), every few minutes.
     from app.utils.facility import module_enabled
 
