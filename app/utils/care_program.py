@@ -46,9 +46,14 @@ def enroll(form, user):
         raise ProgramError("plan")
     if ProgramEnrollment.query.filter_by(patient_id=patient.id, program=program, ended_on=None).first():
         raise ProgramError("already")
+    planned = _int(form.get("planned_sessions")) if program == "rehab" else None
     row = ProgramEnrollment(patient_id=patient.id, program=program,
                             started_on=_day(form.get("started_on")) or date.today(), plan=plan,
                             cycles=_int(form.get("cycles")) if program == "chemo" else None,
+                            # Rehabilitation's diagnosis and planned sessions (ج-٤ هـ).
+                            dx_code=((form.get("dx_code") or "").strip().upper()[:12] or None)
+                            if program == "rehab" else None,
+                            planned_sessions=planned if planned and 0 < planned <= 500 else None,
                             by_id=getattr(user, "id", None))
     db.session.add(row)
     db.session.flush()

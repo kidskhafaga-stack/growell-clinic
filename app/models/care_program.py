@@ -38,6 +38,11 @@ class ProgramEnrollment(db.Model):
     plan = db.Column(db.Text, nullable=False)
     #: Chemotherapy: how many cycles the protocol has, if it says.
     cycles = db.Column(db.Integer)
+    #: Rehabilitation (behaviour therapy among it): the diagnosis the plan is
+    #: for, and how many sessions the therapist plans — both optional, and
+    #: what the therapist's habits are counted by (SMART_PATTERNS ج-٤ هـ).
+    dx_code = db.Column(db.String(12))
+    planned_sessions = db.Column(db.Integer)
     educated_at = db.Column(db.DateTime)
     educated_whom = db.Column(db.String(120))
     discharge_plan = db.Column(db.Text)

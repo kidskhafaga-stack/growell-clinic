@@ -43,13 +43,22 @@
 
 <details class="card" {{ 'open' if not rows }}>
   <summary>{{ t('prog.enroll') }}</summary>
-  <form method="post" action="{{ url_for('programs.enroll') }}" style="display:grid;gap:10px;margin-top:10px;">
+  <form method="post" action="{{ url_for('programs.enroll') }}" style="display:grid;gap:10px;margin-top:10px;"
+        {% if program == 'rehab' %}x-data='{ "habits": {{ habits|tojson }}, "dx": "", "used": [], "sessions": "" }'{% endif %}>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="program" value="{{ program }}">
     {{ pickers.patient_picker('patient_id', None, label=t('prog.patient'), required=True) }}
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <div><label class="label" for="e_s">{{ t('prog.since') }}</label><input class="input" type="date" id="e_s" name="started_on"></div>
       {% if program == 'chemo' %}<div><label class="label" for="e_c">{{ t('prog.cycles') }}</label><input class="input" type="number" min="1" id="e_c" name="cycles" style="max-width:100px;"></div>{% endif %}
+      {% if program == 'rehab' %}
+      <div><label class="label" for="e_dx">{{ t('prog.dx_code') }}</label>
+        <input class="input" id="e_dx" name="dx_code" dir="ltr" maxlength="12" placeholder="F84.0" style="max-width:120px;"
+               x-model="dx" x-on:input="dx = dx.toUpperCase()"></div>
+      <div><label class="label" for="e_n">{{ t('prog.planned_sessions') }}</label>
+        <input class="input" type="number" min="1" max="500" id="e_n" name="planned_sessions" style="max-width:100px;" x-model="sessions"></div>
+      {% endif %}
     </div>
+    {% if program == 'rehab' %}{% include "programs/_habits.html" %}{% endif %}
     <div><label class="label" for="e_p">{{ t('prog.plan_' ~ program) }}</label><textarea class="input" id="e_p" name="plan" rows="3" required dir="auto"></textarea></div>
     <div><button class="btn btn-primary gc-press" type="submit">{{ t('prog.enroll') }}</button></div>
   </form>

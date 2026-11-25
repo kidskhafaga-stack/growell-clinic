@@ -207,6 +207,9 @@ def departments():
     # The sentences a reporter usually writes for each kind of study (ج-٤ د).
     if module_enabled("imaging"):
         out.append("imaging")
+    # A therapist's usual goals and sessions with a diagnosis (ج-٤ هـ).
+    if module_enabled("programs"):
+        out.append("rehab")
     return tuple(out)
 
 
@@ -287,6 +290,8 @@ def _refresh_dept(dept, today=None):
 
     if dept == "imaging":
         return _refresh_imaging(today or local_today())
+    if dept == "rehab":
+        return _refresh_rehab(today or local_today())
 
     today = today or local_today()
     min_visits, _share = thresholds()
@@ -519,6 +524,7 @@ def _preset_note(key):
 
 # --------------------------------------------------------- the measuring --
 def _feedback(user_id, visit_id, key, kind, item_id, action):
+    visit_id = getattr(visit_id, "id", visit_id)
     from app.models import SuggestionFeedback
 
     db.session.add(SuggestionFeedback(doctor_id=user_id, visit_id=visit_id, dx_key=key[:12],
@@ -545,15 +551,16 @@ def note_shown(visit, user, groups):
 
 
 def note_taken(visit, user, form, kind, item_id):
-    """Called by the add-a-test and add-a-medicine routes: the press came
-    from the strip when the form carries ``habit_dx``."""
+    """Called by the routes that write what the strip offered: the press
+    came from the strip when the form carries ``habit_dx``. ``visit`` may
+    be ``None`` where there is none (a programme's plan)."""
     key = (form.get("habit_dx") or "").strip()
     if key and item_id and user is not None:
-        _feedback(user.id, visit.id, key, kind, item_id, "taken")
+        _feedback(user.id, visit, key, kind, item_id, "taken")
 
 
 def refuse(visit, user, key, kind, item_id):
-    if kind not in ("test", "drug", "phrase") or not key or not item_id:
+    if kind not in ("test", "drug", "phrase", "sessions") or not key or not item_id:
         return False
     _feedback(user.id, visit.id, key, kind, item_id, "never")
     return True
@@ -590,7 +597,7 @@ def mine(doctor_id):
         g["items"].append({"kind": r.kind, "name": r.name, "share": round(r.share),
                            "habit": r.share >= share,
                            # A sentence's «frequency» is which box it goes in.
-                           "frequency": r.frequency if r.kind != "phrase" else None,
+                           "frequency": r.frequency if r.kind in ("test", "drug") else None,
                            "duration": r.duration, "route": r.route})
     titles = {}
     if groups:
@@ -738,3 +745,74 @@ def for_report(order, user):
         return []
     return [{"dx_key": key, "source": source, "visits": rows[0].visits, "items": items,
              "dept": "imaging"}]
+
+
+# ------------------------------------- behaviour therapy, in rehab (ج-٤ هـ) --
+def _refresh_rehab(today):
+    """Rehabilitation plans with a diagnosis, by the therapist who wrote
+    them: the goals (each line of the plan) and the planned sessions."""
+    from app.models import OrderPattern
+    from app.models.care_program import ProgramEnrollment
+
+    min_visits, _share = thresholds()
+    counts = Counter()
+    seen = defaultdict(Counter)
+    for who, code, plan, planned in (ProgramEnrollment.query
+                                     .filter(ProgramEnrollment.program == "rehab",
+                                             ProgramEnrollment.dx_code.isnot(None),
+                                             ProgramEnrollment.started_on >= today - timedelta(days=WINDOW_DAYS),
+                                             ProgramEnrollment.started_on < today)
+                                     .with_entities(ProgramEnrollment.by_id, ProgramEnrollment.dx_code,
+                                                    ProgramEnrollment.plan,
+                                                    ProgramEnrollment.planned_sessions)):
+        items = {("phrase", "goal", x) for x in phrases(plan)}
+        if planned:
+            items.add(("sessions", "sessions", str(planned)))
+        for key in _keys(code):
+            for owner in ((who, None) if who is not None else (None,)):
+                counts[(owner, key)] += 1
+                seen[(owner, key)].update(items)
+    now = datetime.utcnow()
+    kept = 0
+    for (owner, key), n in counts.items():
+        if n < min_visits:
+            continue
+        for (kind, box, text), k in seen[(owner, key)].items():
+            share = 100.0 * k / n
+            if share >= SOMETIMES_SHARE:
+                db.session.add(OrderPattern(
+                    dept="rehab", doctor_id=owner, dx_key=key, kind=kind,
+                    item_id=int(text) if kind == "sessions" else phrase_id(box, text),
+                    name=text, frequency=box, visits=n, seen=k, share=round(share, 1),
+                    computed_at=now))
+                kept += 1
+    return kept
+
+
+def for_enroll(user):
+    """For the rehabilitation form: ``{dx_key: {source, visits, goals,
+    sessions}}`` — the therapist's own habits by diagnosis, and the
+    department's together for a diagnosis he has none of. Shown when the
+    diagnosis is typed; nothing is written until the form is sent."""
+    from app.models import OrderPattern
+
+    if user is None or "rehab" not in departments():
+        return {}
+    _min, share = thresholds()
+    refused = _refused(user.id)
+    out = {}
+    for owner, source in ((user.id, "mine"), (None, "colleagues")):
+        q = OrderPattern.query.filter(OrderPattern.dept == "rehab")
+        q = q.filter(OrderPattern.doctor_id.is_(None) if owner is None
+                     else OrderPattern.doctor_id == owner)
+        for r in q.order_by(OrderPattern.share.desc()):
+            if (r.dx_key, r.kind, r.item_id) in refused:
+                continue
+            if r.dx_key in out and out[r.dx_key]["source"] != source:
+                continue
+            g = out.setdefault(r.dx_key, {"source": source, "visits": r.visits,
+                                          "goals": [], "sessions": []})
+            entry = {"id": r.item_id, "text": r.name, "share": round(r.share),
+                     "habit": r.share >= share}
+            (g["sessions"] if r.kind == "sessions" else g["goals"]).append(entry)
+    return out

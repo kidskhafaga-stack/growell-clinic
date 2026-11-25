@@ -23,8 +23,13 @@ def _refused(err, where):
 @module_required(MODULE)
 def index():
     program = request.args.get("p") if request.args.get("p") in PROGRAMS else "dialysis"
+    # A therapist's usual goals and sessions by diagnosis (SMART_PATTERNS ج-٤ هـ).
+    from app.utils import doctor_patterns
+
+    habits = doctor_patterns.for_enroll(current_user) if program == "rehab" else {}
     return render_template("programs/index.html", program=program, programs=PROGRAMS,
-                           rows=cp.board(program), marker_days=cp.marker_days())
+                           rows=cp.board(program), marker_days=cp.marker_days(),
+                           habits=habits)
 
 
 @programs_bp.route("/enroll", methods=["POST"])
@@ -32,6 +37,14 @@ def index():
 def enroll():
     try:
         row = cp.enroll(request.form, current_user)
+        # The usual goals and sessions pressed into the plan (ج-٤ هـ).
+        from app.utils import doctor_patterns
+
+        for pid in {int(x) for x in request.form.getlist("habit_phrase") if x.isdigit()}:
+            doctor_patterns.note_taken(None, current_user, request.form, "phrase", pid)
+        n = request.form.get("habit_sessions", type=int)
+        if n:
+            doctor_patterns.note_taken(None, current_user, request.form, "sessions", n)
     except cp.ProgramError as err:
         return _refused(err, url_for("programs.index", p=request.form.get("program")))
     db.session.commit()

@@ -9,7 +9,7 @@ from datetime import datetime
 
 from app.extensions import db
 
-KINDS = ("test", "drug", "phrase")
+KINDS = ("test", "drug", "phrase", "sessions")
 DEPTS = ("clinic", "emergency")
 ACTIONS = ("shown", "taken", "never")
 
