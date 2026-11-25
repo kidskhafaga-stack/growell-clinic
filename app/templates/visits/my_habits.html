@@ -26,14 +26,14 @@
   <div data-habits-row="{{ grp.dx_key }}" data-habits-dept="{{ grp.dept }}" style="padding:8px 0;{% if not loop.first %}border-top:1px solid var(--border);{% endif %}">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
       {% if grp.dept != 'clinic' %}<span class="badge badge--warn"><i class="bi bi-heart-pulse"></i> {{ t('habits.dept_' ~ grp.dept) }}</span>{% endif %}
-      <span class="badge badge--role">{{ grp.dx_key }}</span>
+      {% if grp.dept != 'imaging' %}<span class="badge badge--role">{{ grp.dx_key }}</span>{% endif %}
       <strong>{{ grp.title }}</strong>
       <span class="hint">{{ t('habits.out_of', n=grp.visits) }}</span>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;">
       {% for it in grp['items'] %}
       <span class="badge {{ 'badge--green' if it.habit else 'badge--muted' }}">
-        <i class="bi bi-{{ 'clipboard2-plus' if it.kind == 'test' else 'capsule' }}"></i>
+        <i class="bi bi-{{ {'test': 'clipboard2-plus', 'phrase': 'chat-quote'}.get(it.kind, 'capsule') }}"></i>
         {{ it.name }} · {{ it.share }}%{% if it.route %} · {{ t('meds.route_' ~ it.route) }}{% endif %}{% if it.frequency and grp.dept in ('ward', 'icu', 'nicu') %} · {{ t('habits.prn') if it.frequency == 'prn' else t('habits.every_hours', n=it.frequency) }}{% elif it.frequency %} · {{ it.frequency }}{% endif %}{% if it.duration %} · {{ it.duration }}{% endif %}
       </span>
       {% endfor %}

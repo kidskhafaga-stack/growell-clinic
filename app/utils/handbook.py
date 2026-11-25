@@ -2184,6 +2184,16 @@ SECTIONS = [
              "report.</b> «Done» records when the film was taken — a film has "
              "no sample number. The report is written on the order screen and "
              "reaches the doctor in the results inbox."),
+            ("<b>«جملك المعتادة مع الفحص ده»:</b> فوق خانات التقرير في صفحة الفحص، الجمل اللي "
+             "بتكتبها في أغلب تقاريرك لنفس نوع الفحص (10 تقارير و60%، والباهت من 30%)، للنتيجة "
+             "وللانطباع كل واحدة لوحدها — من التقارير المكتوبة في البرنامج بس (الـ PDF مفيهوش "
+             "كلام يتعدّ). ضغطة بتحط الجملة في خانتها، والتقرير ما بيتحفظش غير بـ«حفظ». «×» "
+             "ما تظهرش تاني.",
+             "<b>«Your usual sentences with this study»:</b> above the report boxes on the scan's "
+             "page, the sentences you write in most of your reports of the same kind of study (10 "
+             "reports and 60%, faded from 30%), findings and impression apart — counted from "
+             "reports written in the program only (a PDF has no text to count). A press puts the "
+             "sentence in its box, and the report is saved only by «Save». «×» never again."),
             ("<b>الإيكو والسونار ورسم القلب ورسم المخ وقياس التنفس مش هنا.</b> "
              "دول دراسات أجهزة بتتعمل في أي عيادة وجنب أي سرير، وليهم شاشة "
              "«الفحوصات التشخيصية» جنب الكشف، بالحجز وقالب كل جهاز.",

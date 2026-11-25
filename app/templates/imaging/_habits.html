@@ -1,0 +1,64 @@
+{# «جملك المعتادة» with this kind of study — SMART_PATTERNS_PLAN ج-٤ د
+   (utils/doctor_patterns.for_report). The sentences this reporter writes
+   in most of their reports of this study — or the department's together,
+   without names — counted from reports written here (a PDF has none). A
+   press puts the sentence in its box; nothing is saved until «Save». #}
+{% if habits %}{% set grp = habits[0] %}
+<div class="habits" data-habits data-habits-dept="imaging" style="margin-bottom:12px;">
+  <div class="habits__head">
+    <i class="bi bi-arrow-repeat"></i>
+    <strong>{{ t('habits.phrases_' ~ grp.source) }}</strong>
+    <span class="hint">{{ t('habits.out_of_reports', n=grp.visits) }}</span>
+  </div>
+  {% for box in ('text', 'comment') %}{% set mine = grp['items']|selectattr('box', 'equalto', box)|list %}
+  {% if mine %}
+  <div class="hint" style="margin:6px 0 4px;">{{ t('imaging.findings') if box == 'text' else t('imaging.impression') }}</div>
+  <div class="habits__chips">
+    {% for it in mine %}
+    <div class="habits__chip{% if not it.habit %} habits__chip--faded{% endif %}" data-habit-item="phrase:{{ it.item_id }}">
+      <button type="button" class="habits__add gc-press" data-habit-phrase="{{ it.item_id }}" data-box="{{ box }}"
+              data-text="{{ it.name }}" title="{{ t('habits.add_phrase') }}">
+        <i class="bi bi-plus-lg"></i><span dir="auto">{{ it.name }}</span><span class="habits__share">{{ it.share }}%</span>
+      </button>
+      <form method="post" action="{{ url_for('imaging.habit_never', order_id=order.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="item_id" value="{{ it.item_id }}">
+        <button type="submit" class="btn-x" title="{{ t('habits.never') }}" aria-label="{{ t('habits.never') }}"><i class="bi bi-x"></i></button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endfor %}
+  <p class="hint habits__foot">{{ t('habits.foot_phrases') }} · <a href="{{ url_for('visits.my_habits') }}">{{ t('habits.mine_link') }}</a></p>
+</div>
+<style>
+  .habits__head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
+  .habits__chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .habits__chip{display:flex;align-items:center;gap:2px;border:1px solid var(--accent, var(--border));border-radius:999px;padding:2px 4px 2px 2px;}
+  .habits__chip form{margin:0;display:inline;}
+  .habits__chip--faded{opacity:.6;border-style:dashed;}
+  .habits__chip.is-used{opacity:.4;}
+  .habits__add{background:none;border:0;display:flex;align-items:center;gap:6px;padding:4px 8px;cursor:pointer;color:inherit;font:inherit;text-align:start;}
+  .habits__share{font-size:.8em;color:var(--muted);}
+  .habits__foot{margin:8px 0 0;}
+</style>
+<script>
+document.querySelectorAll('[data-habit-phrase]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var form = document.getElementById('report-form');
+    var box = form.querySelector('textarea[name="result_' + b.dataset.box + '"]');
+    var text = b.dataset.text;
+    if (box.value.indexOf(text) === -1) {
+      box.value = (box.value.trim() ? box.value.replace(/\s+$/, '') + '\n' : '') + text;
+    }
+    if (!form.querySelector('input[name="habit_phrase"][value="' + b.dataset.habitPhrase + '"]')) {
+      var h = document.createElement('input');
+      h.type = 'hidden'; h.name = 'habit_phrase'; h.value = b.dataset.habitPhrase;
+      form.appendChild(h);
+    }
+    b.closest('.habits__chip').classList.add('is-used');
+  });
+});
+</script>
+{% endif %}

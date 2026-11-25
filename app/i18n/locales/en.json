@@ -18059,7 +18059,13 @@
     "every_hours": "every {n} hours",
     "dept_ward": "Ward",
     "dept_icu": "Intensive care",
-    "dept_nicu": "Neonatal unit"
+    "dept_nicu": "Neonatal unit",
+    "phrases_mine": "Your usual sentences with this study",
+    "phrases_colleagues": "Your colleagues' usual sentences with this study",
+    "out_of_reports": "of {n} reports",
+    "add_phrase": "Press to put it in the report",
+    "foot_phrases": "A count of what was written here before; nothing is saved until you press «Save report».",
+    "dept_imaging": "Imaging"
   },
   "vsuggest": {
     "title": "Which vaccine first?",

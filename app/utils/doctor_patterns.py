@@ -204,6 +204,9 @@ def departments():
     for dept in ("icu", "nicu"):
         if module_enabled(dept):
             out.append(dept)
+    # The sentences a reporter usually writes for each kind of study (ج-٤ د).
+    if module_enabled("imaging"):
+        out.append("imaging")
     return tuple(out)
 
 
@@ -281,6 +284,9 @@ def refresh(today=None):
 def _refresh_dept(dept, today=None):
     from app.models import OrderPattern
     from app.utils.clock import local_today
+
+    if dept == "imaging":
+        return _refresh_imaging(today or local_today())
 
     today = today or local_today()
     min_visits, _share = thresholds()
@@ -547,7 +553,7 @@ def note_taken(visit, user, form, kind, item_id):
 
 
 def refuse(visit, user, key, kind, item_id):
-    if kind not in ("test", "drug") or not key:
+    if kind not in ("test", "drug", "phrase") or not key or not item_id:
         return False
     _feedback(user.id, visit.id, key, kind, item_id, "never")
     return True
@@ -582,7 +588,9 @@ def mine(doctor_id):
         g = groups.setdefault((dept, r.dx_key), {"dx_key": r.dx_key, "dept": dept,
                                                  "visits": r.visits, "items": []})
         g["items"].append({"kind": r.kind, "name": r.name, "share": round(r.share),
-                           "habit": r.share >= share, "frequency": r.frequency,
+                           "habit": r.share >= share,
+                           # A sentence's «frequency» is which box it goes in.
+                           "frequency": r.frequency if r.kind != "phrase" else None,
                            "duration": r.duration, "route": r.route})
     titles = {}
     if groups:
@@ -591,13 +599,23 @@ def mine(doctor_id):
                             .with_entities(Diagnosis.code, Diagnosis.title)):
             titles.setdefault((code or "").upper(), title)
     # A category with the same visits as one code under it says nothing new.
-    for dept, key in [k for k in groups if "." not in k[1]]:
+    for dept, key in [k for k in groups if "." not in k[1] and k[0] != "imaging"]:
         if any(d == dept and k != key and k.startswith(key)
                and g["visits"] == groups[(dept, key)]["visits"]
                for (d, k), g in groups.items()):
             del groups[(dept, key)]
     for (_d, key), g in groups.items():
         g["title"] = titles.get(key, "")
+    # A report's sentences are kept by the kind of study, named here.
+    studies = [int(k[1:]) for d, k in groups if d == "imaging" and k[1:].isdigit()]
+    if studies:
+        from app.models import Investigation
+
+        names = {f"i{r.id}": r.name_ar or r.name_en or "" for r in
+                 Investigation.query.filter(Investigation.id.in_(studies))}
+        for (d, key), g in groups.items():
+            if d == "imaging":
+                g["title"] = names.get(key, "")
     return sorted(groups.values(), key=lambda g: (g["dept"] != "clinic", -g["visits"]))
 
 
@@ -620,3 +638,103 @@ def save_preset(visit, user, key, lang="ar"):
                                          frequency=r.frequency, duration=r.duration))
     db.session.add(preset)
     return preset
+
+
+# ------------------------------------------------ imaging reports (ج-٤ د) --
+#: The two boxes of a report.
+BOXES = ("text", "comment")
+PHRASE_MIN, PHRASE_MAX = 8, 200
+
+
+def phrases(text):
+    """A report's sentences, as a reporter would recognise them again:
+    one per line or per full stop, spaces folded, the stop dropped."""
+    import re
+
+    out = []
+    for line in re.split(r"[\n\r]+|(?<=[.!؟?])\s+", text or ""):
+        line = " ".join(line.split()).strip(" .-•*")
+        if PHRASE_MIN <= len(line) <= PHRASE_MAX and line not in out:
+            out.append(line)
+    return out
+
+
+def phrase_id(box, sentence):
+    import zlib
+
+    return zlib.crc32(f"{box}|{sentence}".encode("utf-8")) & 0x7FFFFFFF
+
+
+def _study_key(investigation_id):
+    return f"i{investigation_id}"[:12]
+
+
+def _refresh_imaging(today):
+    """Reports written in the program — a PDF has no sentences to count —
+    by their reporter, per kind of study."""
+    from app.models import OrderPattern, VisitInvestigation
+    from app.utils.med_board import utc
+
+    min_visits, _share = thresholds()
+    start, end = utc(today - timedelta(days=WINDOW_DAYS), today - timedelta(days=1))
+    counts = Counter()
+    seen = defaultdict(Counter)
+    for who, inv, text, comment in (VisitInvestigation.query
+                                    .filter(VisitInvestigation.kind == "imaging",
+                                            VisitInvestigation.investigation_id.isnot(None),
+                                            VisitInvestigation.resulted_at >= start,
+                                            VisitInvestigation.resulted_at < end,
+                                            VisitInvestigation.result_text.isnot(None))
+                                    .with_entities(VisitInvestigation.resulted_by,
+                                                   VisitInvestigation.investigation_id,
+                                                   VisitInvestigation.result_text,
+                                                   VisitInvestigation.result_comment)):
+        sentences = {("text", x) for x in phrases(text)} | {("comment", x) for x in phrases(comment)}
+        if not sentences:
+            continue
+        for owner in ((who, None) if who is not None else (None,)):
+            counts[(owner, inv)] += 1
+            seen[(owner, inv)].update(sentences)
+    now = datetime.utcnow()
+    kept = 0
+    for (owner, inv), n in counts.items():
+        if n < min_visits:
+            continue
+        for (box, sentence), k in seen[(owner, inv)].items():
+            share = 100.0 * k / n
+            if share >= SOMETIMES_SHARE:
+                db.session.add(OrderPattern(
+                    dept="imaging", doctor_id=owner, dx_key=_study_key(inv), kind="phrase",
+                    item_id=phrase_id(box, sentence), name=sentence, frequency=box,
+                    visits=n, seen=k, share=round(share, 1), computed_at=now))
+                kept += 1
+    return kept
+
+
+def for_report(order, user):
+    """The reporter's usual sentences for this kind of study, or the
+    department's together without names — for the boxes of the report.
+    Nothing already in the report, nothing refused."""
+    if order is None or user is None or not order.investigation_id \
+            or "imaging" not in departments():
+        return []
+    key = _study_key(order.investigation_id)
+    _min, share = thresholds()
+    refused = _refused(user.id)
+    written = {"text": set(phrases(order.result_text)),
+               "comment": set(phrases(order.result_comment))}
+    for owner, source in ((user.id, "mine"), (None, "colleagues")):
+        rows = _rows(owner, key, "imaging")
+        if rows:
+            break
+    else:
+        return []
+    items = [{"kind": "phrase", "item_id": r.item_id, "name": r.name, "box": r.frequency,
+              "share": round(r.share), "habit": r.share >= share}
+             for r in rows
+             if r.name not in written.get(r.frequency, set())
+             and (key, "phrase", r.item_id) not in refused]
+    if not items:
+        return []
+    return [{"dx_key": key, "source": source, "visits": rows[0].visits, "items": items,
+             "dept": "imaging"}]
