@@ -6,7 +6,7 @@
    so the stay's safety checks run as always. The dose is this child's from
    today's weight, or left for the doctor. #}
 {% if habits %}
-<div class="card gc-scale-in habits" data-habits data-habits-dept="ward" style="margin-bottom:16px;">
+<div class="card gc-scale-in habits" data-habits data-habits-dept="{{ habits[0].dept }}" style="margin-bottom:16px;">
   {% for grp in habits %}
   <div class="habits__group" data-habit-dx="{{ grp.dx_key }}" data-habit-source="{{ grp.source }}">
     <div class="habits__head">

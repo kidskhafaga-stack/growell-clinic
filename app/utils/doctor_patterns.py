@@ -37,6 +37,8 @@ CHANNELS_LEFT_OUT = ("emergency", "lab", "ward")
 KEY_MIN_VISITS = "habits:min_visits"
 KEY_SHARE = "habits:share"
 TICK = "habits:computed_on"
+#: The departments counted from stays, by the unit of the child's bed.
+STAY_DEPTS = ("ward", "icu", "nicu")
 
 
 # ------------------------------------------------------------ thresholds --
@@ -197,10 +199,30 @@ def departments():
         out.append("emergency")
     if module_enabled("beds"):
         out.append("ward")
+    # Intensive care and the incubators, each its own habits (ج-٤ ج): a
+    # neonate's orders are not a ward child's.
+    for dept in ("icu", "nicu"):
+        if module_enabled(dept):
+            out.append(dept)
     return tuple(out)
 
 
-def _ward(since, today):
+def _setting_of(dept):
+    from app.utils import care_setting
+
+    return {"ward": care_setting.INPATIENT, "icu": care_setting.ICU,
+            "nicu": care_setting.NICU}[dept]
+
+
+def dept_of_stay(admission):
+    """``ward``, ``icu`` or ``nicu`` — the unit of the child's bed."""
+    from app.utils import care_setting
+
+    return {care_setting.INPATIENT: "ward", care_setting.ICU: "icu",
+            care_setting.NICU: "nicu"}.get(care_setting.of_admission(admission))
+
+
+def _ward(since, today, dept="ward"):
     """The ward's stays admitted from ``since`` to yesterday and ended, in a
     ward bed
     (intensive care and the incubators are their own part, later): the
@@ -216,7 +238,7 @@ def _ward(since, today):
     stays = [a for a in Admission.query.filter(Admission.admitted_at >= start,
                                                Admission.admitted_at < end,
                                                Admission.discharged_at.isnot(None))
-             if a.visit_id and care_setting.of_admission(a) == care_setting.INPATIENT]
+             if a.visit_id and care_setting.of_admission(a) == _setting_of(dept)]
     owners = {a.id: a.doctor_id or (a.visit.doctor_id if a.visit else None) for a in stays}
     visit_of = {a.id: a.visit_id for a in stays}
     by_visit = defaultdict(list)
@@ -263,8 +285,8 @@ def _refresh_dept(dept, today=None):
     today = today or local_today()
     min_visits, _share = thresholds()
     since = today - timedelta(days=WINDOW_DAYS)
-    if dept == "ward":
-        visits, dx, orders = _ward(since, today)
+    if dept in STAY_DEPTS:
+        visits, dx, orders = _ward(since, today, dept)
     else:
         visits = _visits(since, today, dept)
         ids = list(visits)
@@ -407,17 +429,19 @@ def for_attendance(attendance, user):
 
 
 def for_stay(admission, user):
-    """The strip on a stay in a ward bed (ج-٤): the diagnosis written on
-    the stay's encounter, the habits of the doctor looking at it — each his
-    own — and nothing the stay already has running or ordered."""
+    """The strip on a stay (ج-٤): the ward's, intensive care's or the
+    incubators' habits by the unit of the child's bed; the diagnosis written
+    on the stay's encounter, the habits of the doctor looking at it — each
+    his own — and nothing the stay already has running or ordered."""
     from app.models import VisitInvestigation
-    from app.utils import care_setting
     from app.utils import emergency_orders as eo
 
     visit = getattr(admission, "visit", None)
     if (admission is None or not admission.is_open or visit is None or not visit.diagnoses
-            or not eo.is_doctor(user)
-            or care_setting.of_admission(admission) != care_setting.INPATIENT):
+            or not eo.is_doctor(user)):
+        return []
+    dept = dept_of_stay(admission)
+    if dept not in departments():
         return []
     have = ({("drug", o.drug_id) for o in admission.medication_orders
              if o.drug_id and o.is_running}
@@ -425,7 +449,7 @@ def for_stay(admission, user):
                .filter(VisitInvestigation.admission_id == admission.id,
                        VisitInvestigation.investigation_id.isnot(None))
                .with_entities(VisitInvestigation.investigation_id)})
-    return _suggest(visit, user, "ward", have)
+    return _suggest(visit, user, dept, have)
 
 
 def _suggest(visit, user, dept, have):
