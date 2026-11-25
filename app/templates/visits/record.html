@@ -73,6 +73,9 @@
         <span class="ph2-pill"><i class="bi bi-cake2"></i> {{ age_label(_vp) }}</span>
         {% if visit.vitals and visit.vitals.weight_kg %}<span class="ph2-pill" data-visit-weight><i class="bi bi-speedometer2"></i> <span dir="ltr">{{ visit.vitals.weight_kg }}</span> {{ t('visits.kg_unit') }}</span>{% endif %}
         <span class="ph2-pill"><i class="bi bi-calendar3"></i> <span dir="ltr">{{ visit.visit_date.strftime('%Y-%m-%d') }}</span>{% if visit.doctor %} · {{ visit.doctor.display_name(current_lang) }}{% endif %}</span>
+        {# Three emergency visits or more in 90 days (SMART_PATTERNS ج-٥ ب):
+           a count for the doctor who follows the child — no judgement. #}
+        {% if er_count %}<span class="ph2-pill" data-er-count="{{ er_count }}"><i class="bi bi-heart-pulse"></i> {{ t('ppat.er_pill', n=er_count) }}</span>{% endif %}
       </div>
       {% if _vp.allergies or _vp.chronic_diseases or (red_flag and red_flag.level) or _active_problems %}
       <div class="ph2-safety no-print" data-visit-safety>

@@ -433,6 +433,7 @@ def record(visit_id):
     # «طوارئ المستشفى عندنا» — offered only where the hospital runs its own
     # emergency department.
     er_here = module_enabled("emergency")
+    from app.utils import patient_patterns
     from app.utils import emergency as _er
 
     # «عادتك مع التشخيص ده» — the visit's own doctor, his own habits (ج-٣).
@@ -442,6 +443,7 @@ def record(visit_id):
 
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
+        er_count=patient_patterns.er_visits(visit.patient_id) if er_here else 0,
         habits=habits,
         fall_on=fall_on, er_here=er_here,
         er_sent=_er.sent_from(visit) if er_here else None,
