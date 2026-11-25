@@ -161,9 +161,10 @@
 </div>
 
 {# ---- the report -------------------------------------------------------- #}
-<div class="card gc-scale-in" data-report>
+<div class="card gc-scale-in" data-report id="report">
   <h2 class="section-title" style="margin-top:0;"><i class="bi bi-file-medical"></i> {{ t('imaging.report_title') }}</h2>
-  <form method="post" action="{{ url_for('imaging.report', order_id=order.id) }}" style="display:grid;gap:10px;">
+  {% include "imaging/_habits.html" %}
+  <form method="post" id="report-form" action="{{ url_for('imaging.report', order_id=order.id) }}" style="display:grid;gap:10px;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row" style="margin:0;"><label>{{ t('imaging.findings') }}</label>
       <textarea class="input" name="result_text" rows="5" dir="auto">{{ order.result_text or '' }}</textarea></div>

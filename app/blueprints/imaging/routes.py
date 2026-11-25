@@ -127,8 +127,14 @@ def order(order_id):
 
     is_mri = rs.is_mri(row)
     screening = rs.last_screening(row) if is_mri else None
+    # «جملك المعتادة» with this kind of study (SMART_PATTERNS ج-٤ د).
+    from app.utils import doctor_patterns
+
+    habits = doctor_patterns.for_report(row, current_user)
+    if habits:
+        doctor_patterns.note_shown(row.visit, current_user, habits)
     return render_template(
-        "imaging/order.html", order=row, bench=bench, radiation=radiation,
+        "imaging/order.html", order=row, bench=bench, radiation=radiation, habits=habits,
         # GAHAR DAS.09 (f) — the hospital's MRI screening questions, only on an
         # MRI and only where the hospital wrote them.
         is_mri=is_mri, mri_questions=rs.mri_questions() if is_mri else [],
@@ -152,6 +158,14 @@ def report(order_id):
     bench.record(row, text=request.form.get("result_text") or "",
                  comment=request.form.get("result_comment") or "",
                  user=current_user)
+    # The usual sentences pressed into the report (ج-٤ د), counted as taken.
+    if row.investigation_id:
+        from app.utils import doctor_patterns
+
+        key = doctor_patterns._study_key(row.investigation_id)
+        for pid in {int(x) for x in request.form.getlist("habit_phrase") if x.isdigit()}:
+            doctor_patterns.note_taken(row.visit, current_user, {"habit_dx": key},
+                                       "phrase", pid)
     db.session.commit()
     flash(t("imaging.reported") if row.status == bench.RESULTED
           else t("lab.result_cleared"), "success")
@@ -223,3 +237,19 @@ def dose_units():
     db.session.commit()
     flash(t("radiation.units_saved"), "success")
     return redirect(url_for("imaging.doses"))
+
+
+@imaging_bp.route("/order/<int:order_id>/habit-never", methods=["POST"])
+@module_required(MODULE)
+def habit_never(order_id):
+    """«مش عايز ده» on a usual sentence: not offered again to this reporter
+    with this kind of study."""
+    from app.utils import doctor_patterns
+
+    row = _scan(order_id)
+    if row.investigation_id and doctor_patterns.refuse(
+            row.visit, current_user, doctor_patterns._study_key(row.investigation_id),
+            "phrase", request.form.get("item_id", type=int)):
+        db.session.commit()
+        flash(t("habits.hidden"), "info")
+    return redirect(url_for("imaging.order", order_id=row.id) + "#report")
