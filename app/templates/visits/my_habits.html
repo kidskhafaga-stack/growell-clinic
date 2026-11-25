@@ -23,8 +23,9 @@
 {% if groups %}
 <div class="card" style="margin-bottom:14px;">
   {% for grp in groups %}
-  <div data-habits-row="{{ grp.dx_key }}" style="padding:8px 0;{% if not loop.first %}border-top:1px solid var(--border);{% endif %}">
+  <div data-habits-row="{{ grp.dx_key }}" data-habits-dept="{{ grp.dept }}" style="padding:8px 0;{% if not loop.first %}border-top:1px solid var(--border);{% endif %}">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
+      {% if grp.dept != 'clinic' %}<span class="badge badge--warn"><i class="bi bi-heart-pulse"></i> {{ t('habits.dept_' ~ grp.dept) }}</span>{% endif %}
       <span class="badge badge--role">{{ grp.dx_key }}</span>
       <strong>{{ grp.title }}</strong>
       <span class="hint">{{ t('habits.out_of', n=grp.visits) }}</span>
@@ -33,7 +34,7 @@
       {% for it in grp['items'] %}
       <span class="badge {{ 'badge--green' if it.habit else 'badge--muted' }}">
         <i class="bi bi-{{ 'clipboard2-plus' if it.kind == 'test' else 'capsule' }}"></i>
-        {{ it.name }} · {{ it.share }}%{% if it.frequency %} · {{ it.frequency }}{% endif %}{% if it.duration %} · {{ it.duration }}{% endif %}
+        {{ it.name }} · {{ it.share }}%{% if it.route %} · {{ t('meds.route_' ~ it.route) }}{% endif %}{% if it.frequency %} · {{ it.frequency }}{% endif %}{% if it.duration %} · {{ it.duration }}{% endif %}
       </span>
       {% endfor %}
     </div>

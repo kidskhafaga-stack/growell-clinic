@@ -3560,13 +3560,21 @@ def habit_never(visit_id):
     diagnosis."""
     from app.utils import doctor_patterns
 
+    from app.utils import emergency_orders as eo
+
     visit = db.get_or_404(Visit, visit_id)
-    if visit.doctor_id != current_user.id:
+    # In emergency (ج-٤) the strip is drawn for any of our doctors on the
+    # shift, each with his own habits; in the clinic, for the visit's doctor.
+    er = visit.channel == eo.EMERGENCY
+    if not (visit.doctor_id == current_user.id or (er and eo.is_doctor(current_user))):
         abort(403)
     if doctor_patterns.refuse(visit, current_user, (request.form.get("habit_dx") or "").strip(),
                               request.form.get("kind"), request.form.get("item_id", type=int)):
         db.session.commit()
         flash(t("habits.hidden"), "info")
+    attendance = request.form.get("attendance_id", type=int)
+    if er and attendance:
+        return redirect(url_for("emergency.attendance", attendance_id=attendance))
     return redirect(url_for("visits.record", visit_id=visit.id) + "#dx")
 
 

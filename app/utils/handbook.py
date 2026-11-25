@@ -476,6 +476,21 @@ SECTIONS = [
              "your habits</b>; «My habits» (under «Ready visits») lists them with "
              "how much you use the strip, and the administrator sets the threshold "
              "there."),
+            ("<b>«عادتك» في الطوارئ:</b> في صفحة حضور الطفل، لما التشخيص يتكتب في «اكتب الكشف»، "
+             "بيظهر نفس الشريط بعادات الطبيب اللي فاتح الصفحة — أي طبيب من بتوعنا في الشيفت، "
+             "كل واحد بعاداته هو — من أوامره هو في الطوارئ: التحاليل، والأدوية بطريقة إعطائها "
+             "المعتادة (بخاخة، وريد، عضل…) والجرعة من وزن الطفل النهارده. الضغطة بتكتب أمر "
+             "بتاعنا من نفس الصفحة، فالحساسية والتداخلات والجرعة بتتراجع زي ما هي. الأمر "
+             "اللي اتلغى وروشتة الطبيب اللي من برّه مش بيتعدّوا عادة. وفي «عاداتي» عادات "
+             "الطوارئ ليها علامة لوحدها.",
+             "<b>«Your habit» in emergency:</b> on the child's attendance page, once the "
+             "diagnosis is written under «Write the visit», the same strip shows the habits "
+             "of the doctor looking at the page — any of our doctors on the shift, each his "
+             "own — from his own emergency orders: the tests, and the medicines with their "
+             "usual route (nebuliser, IV, IM…) and the dose from today's weight. A press "
+             "writes our order from the same page, so the allergy, interaction and dose "
+             "checks run as always. A cancelled order and an outside doctor's paper are not "
+             "a habit. «My habits» marks the emergency ones."),
             ("<b>تكرار روشتة المرض المزمن:</b> جنب كل مشكلة نشطة في قايمة مشاكل "
              "المريض زرار «كرر آخر روشتة» — في الكشف وفي شاشة الروشتة. بيفتح روشتة "
              "جديدة فيها نفس الأدوية: اللي جرعته بالوزن بتتحسب من جديد على وزن "

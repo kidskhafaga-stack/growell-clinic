@@ -18051,7 +18051,9 @@
     "thresholds": "What counts as a habit",
     "min_visits": "Fewest visits with the diagnosis",
     "share": "Share ordered (%)",
-    "thresholds_hint": "Applies from tomorrow's count. The owner's decision: 10 visits and 60%."
+    "thresholds_hint": "Applies from tomorrow's count. The owner's decision: 10 visits and 60%.",
+    "dept_emergency": "Emergency",
+    "dept_clinic": "Clinics"
   },
   "vsuggest": {
     "title": "Which vaccine first?",

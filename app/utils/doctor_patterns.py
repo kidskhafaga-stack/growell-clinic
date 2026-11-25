@@ -83,15 +83,16 @@ def _keys(code):
 
 
 # ----------------------------------------------------------- the counting --
-def _visits(since, today):
-    """The clinics' visits from ``since`` to yesterday — today's are still
-    being written."""
+def _visits(since, today, dept="clinic"):
+    """The department's visits from ``since`` to yesterday — today's are
+    still being written. An emergency attendance's diagnosis lives on its
+    own encounter, ``channel="emergency"``."""
     from app.models import Visit
 
-    return dict(Visit.query
-                .filter(Visit.visit_date >= since, Visit.visit_date < today,
-                        Visit.channel.notin_(CHANNELS_LEFT_OUT))
-                .with_entities(Visit.id, Visit.doctor_id))
+    q = Visit.query.filter(Visit.visit_date >= since, Visit.visit_date < today)
+    q = (q.filter(Visit.channel == "emergency") if dept == "emergency"
+         else q.filter(Visit.channel.notin_(CHANNELS_LEFT_OUT)))
+    return dict(q.with_entities(Visit.id, Visit.doctor_id))
 
 
 def _diagnoses(visit_ids):
@@ -104,18 +105,45 @@ def _diagnoses(visit_ids):
     return out
 
 
-def _orders(visit_ids):
-    """``{visit_id: {(kind, item_id): (frequency, duration)}}``."""
-    from app.models import (Prescription, PrescriptionItem, VisitInvestigation,
-                            VisitMedication)
+def _tests(visit_ids, out):
+    from app.models import VisitInvestigation
 
-    out = defaultdict(dict)
     for vid, inv in (VisitInvestigation.query
                      .filter(VisitInvestigation.visit_id.in_(visit_ids),
                              VisitInvestigation.investigation_id.isnot(None))
                      .with_entities(VisitInvestigation.visit_id,
                                     VisitInvestigation.investigation_id)):
-        out[vid][("test", inv)] = (None, None)
+        out[vid][("test", inv)] = (None, None, None)
+
+
+def _orders_er(visit_ids):
+    """The emergency department's: tests on the encounter, and what our
+    doctors wrote on the attendance — not a cancelled line, not an outside
+    doctor's paper. ``{visit_id: {(kind, item_id): (None, None, route)}}``."""
+    from app.models import EmergencyOrder, EmergencyVisit
+    from app.models.emergency_order import OUTSIDE_RX
+
+    out = defaultdict(dict)
+    _tests(visit_ids, out)
+    for vid, drug, route in (EmergencyOrder.query
+                             .join(EmergencyVisit,
+                                   EmergencyVisit.id == EmergencyOrder.emergency_visit_id)
+                             .filter(EmergencyVisit.visit_id.in_(visit_ids),
+                                     EmergencyOrder.drug_id.isnot(None),
+                                     EmergencyOrder.cancelled_at.is_(None),
+                                     EmergencyOrder.source != OUTSIDE_RX)
+                             .with_entities(EmergencyVisit.visit_id, EmergencyOrder.drug_id,
+                                            EmergencyOrder.route)):
+        out[vid][("drug", drug)] = (None, None, route)
+    return out
+
+
+def _orders(visit_ids):
+    """``{visit_id: {(kind, item_id): (frequency, duration, route)}}``."""
+    from app.models import Prescription, PrescriptionItem, VisitMedication
+
+    out = defaultdict(dict)
+    _tests(visit_ids, out)
     for vid, drug, freq, dur in (VisitMedication.query
                                  .filter(VisitMedication.visit_id.in_(visit_ids),
                                          VisitMedication.drug_id.isnot(None))
@@ -123,7 +151,7 @@ def _orders(visit_ids):
                                                 VisitMedication.drug_id,
                                                 VisitMedication.frequency,
                                                 VisitMedication.duration)):
-        out[vid][("drug", drug)] = (freq, dur)
+        out[vid][("drug", drug)] = (freq, dur, None)
     for vid, drug, freq, dur in (PrescriptionItem.query
                                  .join(Prescription,
                                        Prescription.id == PrescriptionItem.prescription_id)
@@ -135,7 +163,7 @@ def _orders(visit_ids):
                                                 PrescriptionItem.duration)):
         # The prescription is the last word on a medicine written in the room.
         if ("drug", drug) not in out[vid] or freq or dur:
-            out[vid][("drug", drug)] = (freq, dur)
+            out[vid][("drug", drug)] = (freq, dur, None)
     return out
 
 
@@ -159,21 +187,36 @@ def _usual(values):
     return seen.most_common(1)[0][0] if seen else None
 
 
+def departments():
+    """The clinics always; the emergency department where it runs (ج-٤)."""
+    from app.utils.facility import module_enabled
+
+    return ("clinic", "emergency") if module_enabled("emergency") else ("clinic",)
+
+
 def refresh(today=None):
-    """Count everything again; the rows before are replaced. Returns how
-    many patterns were kept."""
+    """Count everything again, department by department; the rows before
+    are replaced. Returns how many patterns were kept."""
+    from app.models import OrderPattern
+
+    OrderPattern.query.delete()
+    return sum(_refresh_dept(dept, today) for dept in departments())
+
+
+def _refresh_dept(dept, today=None):
     from app.models import OrderPattern
     from app.utils.clock import local_today
 
     today = today or local_today()
     min_visits, _share = thresholds()
-    visits = _visits(today - timedelta(days=WINDOW_DAYS), today)
+    visits = _visits(today - timedelta(days=WINDOW_DAYS), today, dept)
     ids = list(visits)
     dx, orders = {}, {}
+    read = _orders_er if dept == "emergency" else _orders
     for i in range(0, len(ids), 500):
         chunk = ids[i:i + 500]
         dx.update(_diagnoses(chunk))
-        orders.update(_orders(chunk))
+        orders.update(read(chunk))
 
     # (doctor or None, dx key) → visits, and → item → [(freq, dur)]
     counts = Counter()
@@ -195,13 +238,13 @@ def refresh(today=None):
                 kept.append((group, item, n, len(written), round(share, 1), written))
     names = _names({item for _g, item, *_ in kept})
     now = datetime.utcnow()
-    OrderPattern.query.delete()
     for (owner, key), (kind, item_id), n, seen, share, written in kept:
         db.session.add(OrderPattern(
-            doctor_id=owner, dx_key=key, kind=kind, item_id=item_id,
+            dept=dept, doctor_id=owner, dx_key=key, kind=kind, item_id=item_id,
             name=names.get((kind, item_id), "—")[:200],
             frequency=_usual(w[0] for w in written) if kind == "drug" else None,
             duration=_usual(w[1] for w in written) if kind == "drug" else None,
+            route=_usual(w[2] for w in written) if kind == "drug" else None,
             visits=n, seen=seen, share=share, computed_at=now))
     return len(kept)
 
@@ -263,10 +306,14 @@ def _refused(doctor_id):
                            SuggestionFeedback.item_id)}
 
 
-def _rows(owner, key):
+def _rows(owner, key, dept="clinic"):
+    from sqlalchemy import or_
+
     from app.models import OrderPattern
 
     q = OrderPattern.query.filter(OrderPattern.dx_key == key)
+    q = q.filter(OrderPattern.dept == dept if dept != "clinic"
+                 else or_(OrderPattern.dept == "clinic", OrderPattern.dept.is_(None)))
     q = q.filter(OrderPattern.doctor_id.is_(None) if owner is None
                  else OrderPattern.doctor_id == owner)
     return q.order_by(OrderPattern.share.desc(), OrderPattern.name).all()
@@ -275,13 +322,37 @@ def _rows(owner, key):
 def for_visit(visit, user):
     """The strip for this visit, or ``[]``. Drawn only for the visit's own
     doctor, from his own habits first — never another doctor's by name."""
-    from app.models import Drug
-
     if visit is None or user is None or visit.doctor_id != getattr(user, "id", None):
         return []
-    _min, share = thresholds()
+    # An emergency encounter's strip is on its attendance page, where the
+    # department's own orders are written (``for_attendance``).
+    if visit.channel == "emergency":
+        return []
     have = ({("test", i.investigation_id) for i in visit.investigations if i.investigation_id}
             | {("drug", m.drug_id) for m in visit.medications if m.drug_id})
+    return _suggest(visit, user, "clinic", have)
+
+
+def for_attendance(attendance, user):
+    """The strip on an emergency attendance (ج-٤): the diagnosis written on
+    its encounter, the habits of the doctor looking at it — any of our
+    doctors on the shift, each his own — and nothing already written for
+    this child here."""
+    from app.utils import emergency_orders as eo
+
+    visit = getattr(attendance, "visit", None)
+    if visit is None or not visit.diagnoses or not eo.is_doctor(user):
+        return []
+    have = ({("test", i.investigation_id) for i in visit.investigations if i.investigation_id}
+            | {("drug", o.drug_id) for o in eo.for_attendance(attendance)
+               if o.drug_id and o.cancelled_at is None})
+    return _suggest(visit, user, "emergency", have)
+
+
+def _suggest(visit, user, dept, have):
+    from app.models import Drug
+
+    _min, share = thresholds()
     refused = _refused(user.id)
     shown, out = set(), []
     for dx in visit.diagnoses:
@@ -291,7 +362,7 @@ def for_visit(visit, user):
         found = None
         for owner, source in ((user.id, "mine"), (None, "colleagues")):
             for key in keys:
-                rows = _rows(owner, key)
+                rows = _rows(owner, key, dept)
                 if rows:
                     found = (source, key, rows)
                     break
@@ -309,7 +380,8 @@ def for_visit(visit, user):
             entry = {"kind": row.kind, "item_id": row.item_id, "name": row.name,
                      "share": round(row.share), "seen": row.seen,
                      "habit": row.share >= share,
-                     "frequency": row.frequency, "duration": row.duration, "dose": None}
+                     "frequency": row.frequency, "duration": row.duration,
+                     "route": row.route, "dose": None}
             if row.kind == "drug":
                 entry["dose"] = _dose(db.session.get(Drug, row.item_id), visit.patient)
             items.append(entry)
@@ -317,8 +389,9 @@ def for_visit(visit, user):
             continue
         habit_drugs = [i for i in items if i["kind"] == "drug" and i["habit"]]
         out.append({"dx_key": key, "title": dx.display_title(), "source": source,
-                    "visits": rows[0].visits, "items": items,
-                    "offer_preset": (source == "mine" and len(habit_drugs) >= 2
+                    "visits": rows[0].visits, "items": items, "dept": dept,
+                    "offer_preset": (dept == "clinic" and source == "mine"
+                                     and len(habit_drugs) >= 2
                                      and not _has_preset(user.id, key))})
     return out
 
@@ -393,7 +466,8 @@ def usage(doctor_id=None, days=90):
 
 
 def mine(doctor_id):
-    """A doctor's own habits, by diagnosis — his screen, no one else's."""
+    """A doctor's own habits, by department and diagnosis — his screen, no
+    one else's."""
     from app.models import Diagnosis, OrderPattern
 
     _min, share = thresholds()
@@ -401,23 +475,27 @@ def mine(doctor_id):
             .order_by(OrderPattern.dx_key, OrderPattern.share.desc()).all())
     groups = {}
     for r in rows:
-        g = groups.setdefault(r.dx_key, {"dx_key": r.dx_key, "visits": r.visits, "items": []})
+        dept = r.dept or "clinic"
+        g = groups.setdefault((dept, r.dx_key), {"dx_key": r.dx_key, "dept": dept,
+                                                 "visits": r.visits, "items": []})
         g["items"].append({"kind": r.kind, "name": r.name, "share": round(r.share),
                            "habit": r.share >= share, "frequency": r.frequency,
-                           "duration": r.duration})
+                           "duration": r.duration, "route": r.route})
     titles = {}
     if groups:
-        for code, title in (Diagnosis.query.filter(Diagnosis.code.in_(list(groups)))
+        codes = list({k for _d, k in groups})
+        for code, title in (Diagnosis.query.filter(Diagnosis.code.in_(codes))
                             .with_entities(Diagnosis.code, Diagnosis.title)):
             titles.setdefault((code or "").upper(), title)
     # A category with the same visits as one code under it says nothing new.
-    for key in [k for k in groups if "." not in k]:
-        if any(k != key and k.startswith(key) and g["visits"] == groups[key]["visits"]
-               for k, g in groups.items()):
-            del groups[key]
-    for key, g in groups.items():
+    for dept, key in [k for k in groups if "." not in k[1]]:
+        if any(d == dept and k != key and k.startswith(key)
+               and g["visits"] == groups[(dept, key)]["visits"]
+               for (d, k), g in groups.items()):
+            del groups[(dept, key)]
+    for (_d, key), g in groups.items():
         g["title"] = titles.get(key, "")
-    return sorted(groups.values(), key=lambda g: -g["visits"])
+    return sorted(groups.values(), key=lambda g: (g["dept"] != "clinic", -g["visits"]))
 
 
 def save_preset(visit, user, key, lang="ar"):
