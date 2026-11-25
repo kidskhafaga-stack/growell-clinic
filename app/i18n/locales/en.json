@@ -18057,7 +18057,9 @@
     "out_of_stays": "of {n} stays",
     "prn": "as needed",
     "every_hours": "every {n} hours",
-    "dept_ward": "Ward"
+    "dept_ward": "Ward",
+    "dept_icu": "Intensive care",
+    "dept_nicu": "Neonatal unit"
   },
   "vsuggest": {
     "title": "Which vaccine first?",
