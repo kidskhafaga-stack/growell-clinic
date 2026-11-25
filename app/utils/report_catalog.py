@@ -76,6 +76,9 @@ CATALOG = [
     # SMART_PATTERNS_PLAN ج-١: a score per department this copy runs, each
     # check opening the records a person fixes.
     ("reports.data_quality", OPERATIONS, "clipboard-data", "dq.title", "dq.desc", _reports_and()),
+    # SMART_PATTERNS_PLAN ج-٥ ب: who will probably not come, the series about
+    # to drop, the emergency regulars, and next month in the years before.
+    ("reports.patient_patterns", OPERATIONS, "people", "ppat.title", "ppat.desc", _reports_and()),
     # The hospital's indicators (ت-٦) — only with a hospital department on.
     ("reports.hospital_board", MEDICAL, "hospital", "hosp_kpi.title", "hosp_kpi.desc",
      _reports_and(lambda u: _hospital())),

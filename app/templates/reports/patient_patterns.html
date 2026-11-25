@@ -1,0 +1,111 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('ppat.title') }}{% endblock %}
+{% block page_heading %}{{ t('ppat.title') }}{% endblock %}
+
+{# SMART_PATTERNS_PLAN ج-٥ ب — utils/patient_patterns. Each line carries its
+   reason; nothing here is recorded by the program, it is a list for a
+   person to call, remind or plan from. #}
+{% macro phone(p) %}{% if p.contact_phone %}<a href="tel:{{ p.contact_phone }}" dir="ltr" class="hint">{{ p.contact_phone }}</a>{% else %}<span class="badge badge--warn">{{ t('ppat.no_phone') }}</span>{% endif %}{% endmacro %}
+{% block content %}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title"><i class="bi bi-people"></i> {{ t('ppat.title') }}</h1>
+  <p class="page-sub" style="margin:0;max-width:80ch;">{{ t('ppat.sub') }}</p>
+</div>
+
+<div class="tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+  {% for k in tabs %}
+  <a class="btn {{ 'btn-primary' if k == tab else 'btn-outline' }} btn-sm gc-press" data-ppat-tab="{{ k }}"
+     href="{{ url_for('reports.patient_patterns', tab=k) }}">{{ t('ppat.tab_' ~ k) }}</a>
+  {% endfor %}
+</div>
+
+<div class="card" data-ppat-body="{{ tab }}">
+  <p class="hint" style="margin-top:0;">{{ t('ppat.hint_' ~ tab) }}</p>
+
+  {% if tab == 'no_show' %}
+    {% if data.rows %}
+    <table class="table">
+      <thead><tr><th>{{ t('ppat.when') }}</th><th>{{ t('ppat.patient') }}</th><th>{{ t('ppat.doctor') }}</th><th>{{ t('ppat.why') }}</th><th></th></tr></thead>
+      <tbody>
+      {% for r in data.rows %}{% set a = r.appt %}
+      <tr data-ppat-appt="{{ a.id }}" data-level="{{ r.level }}">
+        <td dir="ltr">{{ a.appt_date }} {{ a.appt_time.strftime('%H:%M') }}</td>
+        <td><a href="{{ url_for('patients.view', patient_id=a.patient_id) }}">{{ a.patient.display_name(current_lang) }}</a><br>{{ phone(a.patient) }}</td>
+        <td>{{ a.doctor.display_name(current_lang) if a.doctor else '' }}</td>
+        <td><span class="badge badge--{{ 'danger' if r.level == 'high' else 'warn' }}">{{ t('ppat.level_' ~ r.level) }}</span>
+          <ul style="margin:4px 0 0;padding-inline-start:18px;">
+          {% for key, args in r.reasons %}<li class="hint">{{ t('ppat.why_' ~ key, **args) }}</li>{% endfor %}
+          </ul></td>
+        <td><a class="btn btn-outline btn-sm" title="{{ t('ppat.to_board') }}" href="{{ url_for('appointments.index', date=a.appt_date.isoformat()) }}"><i class="bi bi-calendar-event"></i></a></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="hint" data-ppat-none>{{ t('ppat.none') }}</p>{% endif %}
+
+  {% elif tab == 'series' %}
+    {% if data.series %}
+    <h3 style="font-size:1rem;">{{ t('ppat.series_title') }}</h3>
+    <table class="table">
+      <thead><tr><th>{{ t('ppat.patient') }}</th><th>{{ t('ppat.vaccine') }}</th><th>{{ t('ppat.due') }}</th><th>{{ t('ppat.why') }}</th></tr></thead>
+      <tbody>
+      {% for r in data.series %}
+      <tr data-ppat-series="{{ r.patient.id }}">
+        <td><a href="{{ url_for('vaccinations.view', patient_id=r.patient.id) }}">{{ r.patient.display_name(current_lang) }}</a><br>{{ phone(r.patient) }}</td>
+        <td>{{ r.vaccine.display_name(current_lang) if r.vaccine else '' }}</td>
+        <td dir="ltr">{{ r.due }}{% if r.overdue %} <span class="badge badge--danger">{{ t('ppat.overdue') }}</span>{% endif %}</td>
+        <td class="hint">{% if r.late_before %}{{ t('ppat.why_late_before', days=r.late_before) }}{% endif %}{% if r.late_before and r.no_phone %} · {% endif %}{% if r.no_phone %}{{ t('ppat.no_phone') }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    {% if data.programs %}
+    <h3 style="font-size:1rem;">{{ t('ppat.programs_title') }}</h3>
+    <table class="table">
+      <thead><tr><th>{{ t('ppat.patient') }}</th><th>{{ t('ppat.program') }}</th><th>{{ t('ppat.last_session') }}</th></tr></thead>
+      <tbody>
+      {% for r in data.programs %}{% set e = r.enrollment %}
+      <tr data-ppat-program="{{ e.id }}">
+        <td><a href="{{ url_for('patients.view', patient_id=e.patient_id) }}">{{ e.patient.display_name(current_lang) if e.patient else e.patient_id }}</a></td>
+        <td>{{ e.program }}</td>
+        <td>{{ t('ppat.days_ago', n=r.days) }}{% if not r.last %} · {{ t('ppat.never_came') }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    {% if not data.series and not data.programs %}<p class="hint" data-ppat-none>{{ t('ppat.none') }}</p>{% endif %}
+
+  {% elif tab == 'er' %}
+    {% if data.rows %}
+    <table class="table">
+      <thead><tr><th>{{ t('ppat.patient') }}</th><th>{{ t('ppat.er_count') }}</th></tr></thead>
+      <tbody>
+      {% for p, n in data.rows %}
+      <tr data-ppat-er="{{ p.id }}"><td><a href="{{ url_for('patients.view', patient_id=p.id) }}">{{ p.display_name(current_lang) }}</a></td><td>{{ n }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="hint" data-ppat-none>{{ t('ppat.none') }}</p>{% endif %}
+
+  {% else %}{% set s = data.season %}
+    <h3 style="font-size:1rem;" data-ppat-month="{{ s.month.month }}">{{ t('ppat.season_for', month=s.month.strftime('%Y-%m')) }}</h3>
+    {% if s.years %}
+    <p data-ppat-average="{{ s.average }}">{{ t('ppat.season_visits', n=s.average) }}
+      <span class="hint">({% for y, n in s.years %}{{ y }}: {{ n }}{% if not loop.last %} · {% endif %}{% endfor %})</span></p>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:260px;">
+        <b>{{ t('ppat.season_dx') }}</b>
+        <ol>{% for code, title, n in s.diagnoses %}<li><span dir="ltr">{{ code }}</span> {{ title }} — {{ n }}</li>{% endfor %}</ol>
+      </div>
+      <div style="flex:1;min-width:260px;">
+        <b>{{ t('ppat.season_drugs') }}</b>
+        <ol>{% for name, n in s.drugs %}<li data-ppat-drug><span dir="auto">{{ name }}</span> — {{ n }}</li>{% endfor %}</ol>
+      </div>
+    </div>
+    {% else %}<p class="hint" data-ppat-none>{{ t('ppat.season_none') }}</p>{% endif %}
+  {% endif %}
+</div>
+{% endblock %}
