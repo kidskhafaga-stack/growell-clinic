@@ -10,6 +10,7 @@ from datetime import datetime
 from app.extensions import db
 
 KINDS = ("test", "drug")
+DEPTS = ("clinic", "emergency")
 ACTIONS = ("shown", "taken", "never")
 
 
@@ -17,6 +18,9 @@ class OrderPattern(db.Model):
     __tablename__ = "order_patterns"
 
     id = db.Column(db.Integer, primary_key=True)
+    #: Which department's habit: ``clinic`` (the visit screen) or
+    #: ``emergency`` (the attendance page) — SMART_PATTERNS ج-٤.
+    dept = db.Column(db.String(12), default="clinic", index=True)
     #: ``None`` — the clinic's doctors together («زملاءك»).
     doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     #: The ICD code as written, or its three-character category.
@@ -29,6 +33,8 @@ class OrderPattern(db.Model):
     #: its dose, which is this child's, from today's weight.
     frequency = db.Column(db.String(120))
     duration = db.Column(db.String(120))
+    #: In emergency, the drug's usual route (IV, IM, neb…).
+    route = db.Column(db.String(16))
     #: Visits with the diagnosis, and how many of them had this item.
     visits = db.Column(db.Integer, nullable=False)
     seen = db.Column(db.Integer, nullable=False)

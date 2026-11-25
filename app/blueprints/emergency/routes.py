@@ -478,6 +478,12 @@ def attendance(attendance_id):
 
     row = db.get_or_404(EmergencyVisit, attendance_id)
     orders = eo.for_attendance(row)
+    # «عادتك مع التشخيص ده» in emergency (SMART_PATTERNS ج-٤).
+    from app.utils import doctor_patterns
+
+    habits = doctor_patterns.for_attendance(row, current_user) if row.is_open else []
+    if habits:
+        doctor_patterns.note_shown(row.visit, current_user, habits)
     waiting = waiting_on.for_attendances([row]).get(row.id)
     session = waiting_on.running_session(orders)
     services = (Service.query.filter(Service.is_active.is_(True))
@@ -485,7 +491,7 @@ def attendance(attendance_id):
                     ("consultation", "followup", "vaccination")))
                 .order_by(Service.name).all())
     return render_template(
-        "emergency/attendance.html", row=row, orders=orders,
+        "emergency/attendance.html", row=row, orders=orders, habits=habits,
         waiting=waiting, session=session,
         # «Pay first» for a child triaged non-urgent (`utils/er_pay_first`).
         pay_waits=_pay_waits(row),
@@ -740,7 +746,7 @@ def write_order(attendance_id):
 
         er.mark_seen(row, current_user)
     try:
-        eo.write(row, current_user, source=source,
+        written = eo.write(row, current_user, source=source,
                  name=request.form.get("name"), drug=pick(Drug, "drug_id"),
                  service=pick(Service, "service_id"),
                  dose=request.form.get("dose"),
@@ -750,6 +756,11 @@ def write_order(attendance_id):
                  note=request.form.get("note"),
                  prescriber=pick(User, "prescriber_id"),
                  outside_doctor=request.form.get("outside_doctor"))
+        # From «عادتك» (ج-٤): counted as taken.
+        if source == OURS and row.visit is not None:
+            from app.utils import doctor_patterns
+            doctor_patterns.note_taken(row.visit, current_user, request.form, "drug",
+                                       getattr(written, "drug_id", None))
     except eo.Closed:
         db.session.rollback()
         flash(t("er_orders.closed"), "error")
@@ -980,6 +991,10 @@ def order_test(attendance_id):
                       else None,
                       urgent=(request.form.get("urgent") == "1")
                       if request.form.get("urgent") in ("0", "1") else None)
+        if investigation is not None and row.visit is not None:
+            from app.utils import doctor_patterns
+            doctor_patterns.note_taken(row.visit, current_user, request.form, "test",
+                                       investigation.id)
     except eo.Closed:
         db.session.rollback()
         flash(t("er_orders.closed"), "error")

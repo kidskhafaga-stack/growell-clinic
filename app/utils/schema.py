@@ -1201,6 +1201,10 @@ ADDITIONS = [
     ("visit_investigations", "verified_by_rules", "BOOLEAN"),
     # LAB_GLAB360_PLAN م-٢ أ — the folder an analyser drops its files into.
     ("lab_devices", "folder", "VARCHAR(400)"),
+    # SMART_PATTERNS ج-٤ — a doctor's habits by department, and the usual
+    # route of a drug given in emergency. Every row before was the clinics'.
+    ("order_patterns", "dept", "VARCHAR(12) DEFAULT 'clinic'"),
+    ("order_patterns", "route", "VARCHAR(16)"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"
