@@ -18053,7 +18053,11 @@
     "share": "Share ordered (%)",
     "thresholds_hint": "Applies from tomorrow's count. The owner's decision: 10 visits and 60%.",
     "dept_emergency": "Emergency",
-    "dept_clinic": "Clinics"
+    "dept_clinic": "Clinics",
+    "out_of_stays": "of {n} stays",
+    "prn": "as needed",
+    "every_hours": "every {n} hours",
+    "dept_ward": "Ward"
   },
   "vsuggest": {
     "title": "Which vaccine first?",

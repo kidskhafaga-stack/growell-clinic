@@ -491,6 +491,17 @@ SECTIONS = [
              "writes our order from the same page, so the allergy, interaction and dose "
              "checks run as always. A cancelled order and an outside doctor's paper are not "
              "a habit. «My habits» marks the emergency ones."),
+            ("<b>«عادتك» في الداخلي:</b> في ملف الإقامة (تبويب العلاج)، لما يكون فيه تشخيص على "
+             "زيارة الإقامة والطفل على سرير في الداخلي، بيظهر الشريط بعادات الطبيب اللي فاتح الملف "
+             "من الإقامات اللي خلصت: التحاليل، والأوامر الثابتة بطريقة إعطائها وكل كام ساعة. "
+             "الضغطة بتكتب الأمر من نفس فورمة الإقامة بالجرعة من وزن النهارده، والعناية "
+             "والحضّانة ليهم دورهم بعدين.",
+             "<b>«Your habit» on the ward:</b> on the stay (treatment tab), when the stay's visit "
+             "has a diagnosis and the child is in a ward bed, the strip shows the habits of the "
+             "doctor looking at it, from stays that ended: the tests, and the standing orders with "
+             "their route and every how many hours. A press writes the order through the stay's "
+             "own form with the dose from today's weight; intensive care and the incubators come "
+             "later."),
             ("<b>تكرار روشتة المرض المزمن:</b> جنب كل مشكلة نشطة في قايمة مشاكل "
              "المريض زرار «كرر آخر روشتة» — في الكشف وفي شاشة الروشتة. بيفتح روشتة "
              "جديدة فيها نفس الأدوية: اللي جرعته بالوزن بتتحسب من جديد على وزن "

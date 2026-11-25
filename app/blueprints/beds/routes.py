@@ -762,8 +762,14 @@ def admission(admission_id):
     span_hours = max(int((end - row.admitted_at).total_seconds() // 3600), 0) \
         if row.admitted_at else None
     from app.utils import severity as _sev
+    # «عادتك مع التشخيص ده» on a ward stay (SMART_PATTERNS ج-٤).
+    from app.utils import doctor_patterns
+
+    habits = doctor_patterns.for_stay(row, current_user)
+    if habits:
+        doctor_patterns.note_shown(row.visit, current_user, habits)
     return render_template(
-        "beds/admission.html", admission=row,
+        "beds/admission.html", admission=row, habits=habits,
         severity_units=[k for k in _sev.units_on() if _sev.entered(row, k)],
         admission_consent=signed_admission_consent(row.id),
         stay_days=(span_hours // 24) if span_hours is not None else None,
@@ -2038,7 +2044,7 @@ def add_medication(admission_id):
     row = Admission.query.get_or_404(admission_id)
     drug = db.session.get(Drug, request.form.get("drug_id", type=int))
     try:
-        drug_round.order(
+        written = drug_round.order(
             row,
             (request.form.get("drug_name") or "").strip() or (
                 drug.trade_name if drug else ""),
@@ -2059,6 +2065,11 @@ def add_medication(admission_id):
             max_per_day=request.form.get("max_per_day"),
             rate=request.form.get("rate"),
             course_days=request.form.get("course_days", type=int))
+        # From «عادتك» (ج-٤): counted as taken.
+        if row.visit is not None:
+            from app.utils import doctor_patterns
+            doctor_patterns.note_taken(row.visit, current_user, request.form, "drug",
+                                       getattr(written, "drug_id", None))
     except ValueError as why:
         db.session.rollback()
         # Each refusal names itself. "You did not say which drug" and "you did
@@ -2235,6 +2246,9 @@ def order_test(admission_id):
             outside=(asked == "1") if asked is not None else None,
             outside_place=request.form.get("outside_place"),
             urgent=request.form.get("urgent") == "1")
+        if picked is not None and row.visit is not None:
+            from app.utils import doctor_patterns
+            doctor_patterns.note_taken(row.visit, current_user, request.form, "test", picked.id)
     except stay_orders.StayClosed:
         db.session.rollback()
         flash(t("stay_tests.closed"), "error")
