@@ -33,7 +33,7 @@ WINDOW_DAYS = 548                 # 18 months
 MIN_VISITS = 10
 HABIT_SHARE = 60
 SOMETIMES_SHARE = 30
-CHANNELS_LEFT_OUT = ("emergency", "lab")
+CHANNELS_LEFT_OUT = ("emergency", "lab", "ward")
 KEY_MIN_VISITS = "habits:min_visits"
 KEY_SHARE = "habits:share"
 TICK = "habits:computed_on"
@@ -188,10 +188,63 @@ def _usual(values):
 
 
 def departments():
-    """The clinics always; the emergency department where it runs (ج-٤)."""
+    """The clinics always; the emergency department and the ward where they
+    run (ج-٤)."""
     from app.utils.facility import module_enabled
 
-    return ("clinic", "emergency") if module_enabled("emergency") else ("clinic",)
+    out = ["clinic"]
+    if module_enabled("emergency"):
+        out.append("emergency")
+    if module_enabled("beds"):
+        out.append("ward")
+    return tuple(out)
+
+
+def _ward(since, today):
+    """The ward's stays admitted from ``since`` to yesterday and ended, in a
+    ward bed
+    (intensive care and the incubators are their own part, later): the
+    diagnosis on the stay's encounter, the tests the stay owns, and the
+    standing orders — each drug with its usual interval and route.
+    ``(owners, dx, orders)`` keyed by the stay."""
+    from app.models import Admission, MedicationOrder, VisitInvestigation
+    from app.utils import care_setting
+    from app.utils.med_board import utc
+
+    start, end = utc(since, today - timedelta(days=1))
+    # A stay still open is still being written: only the ones that ended.
+    stays = [a for a in Admission.query.filter(Admission.admitted_at >= start,
+                                               Admission.admitted_at < end,
+                                               Admission.discharged_at.isnot(None))
+             if a.visit_id and care_setting.of_admission(a) == care_setting.INPATIENT]
+    owners = {a.id: a.doctor_id or (a.visit.doctor_id if a.visit else None) for a in stays}
+    visit_of = {a.id: a.visit_id for a in stays}
+    by_visit = defaultdict(list)
+    for a in stays:
+        by_visit[a.visit_id].append(a.id)
+    dx, orders = {}, defaultdict(dict)
+    ids = list(owners)
+    for i in range(0, len(ids), 500):
+        chunk = ids[i:i + 500]
+        for vid, keys in _diagnoses([visit_of[a] for a in chunk]).items():
+            for aid in by_visit[vid]:
+                dx[aid] = keys
+        for aid, inv in (VisitInvestigation.query
+                         .filter(VisitInvestigation.admission_id.in_(chunk),
+                                 VisitInvestigation.investigation_id.isnot(None))
+                         .with_entities(VisitInvestigation.admission_id,
+                                        VisitInvestigation.investigation_id)):
+            orders[aid][("test", inv)] = (None, None, None)
+        for aid, drug, every, prn, route in (
+                MedicationOrder.query
+                .filter(MedicationOrder.admission_id.in_(chunk),
+                        MedicationOrder.drug_id.isnot(None))
+                .with_entities(MedicationOrder.admission_id, MedicationOrder.drug_id,
+                               MedicationOrder.every_hours, MedicationOrder.is_prn,
+                               MedicationOrder.route)):
+            often = "prn" if prn else (str(every) if every else None)
+            orders[aid][("drug", drug)] = (often, None, route)
+    return owners, dx, orders
 
 
 def refresh(today=None):
@@ -209,20 +262,24 @@ def _refresh_dept(dept, today=None):
 
     today = today or local_today()
     min_visits, _share = thresholds()
-    visits = _visits(today - timedelta(days=WINDOW_DAYS), today, dept)
-    ids = list(visits)
-    dx, orders = {}, {}
-    read = _orders_er if dept == "emergency" else _orders
-    for i in range(0, len(ids), 500):
-        chunk = ids[i:i + 500]
-        dx.update(_diagnoses(chunk))
-        orders.update(read(chunk))
+    since = today - timedelta(days=WINDOW_DAYS)
+    if dept == "ward":
+        visits, dx, orders = _ward(since, today)
+    else:
+        visits = _visits(since, today, dept)
+        ids = list(visits)
+        dx, orders = {}, {}
+        read = _orders_er if dept == "emergency" else _orders
+        for i in range(0, len(ids), 500):
+            chunk = ids[i:i + 500]
+            dx.update(_diagnoses(chunk))
+            orders.update(read(chunk))
 
     # (doctor or None, dx key) → visits, and → item → [(freq, dur)]
     counts = Counter()
     items = defaultdict(lambda: defaultdict(list))
     for vid, keys in dx.items():
-        for owner in (visits[vid], None):
+        for owner in ((visits[vid], None) if visits.get(vid) is not None else (None,)):
             for key in keys:
                 counts[(owner, key)] += 1
                 for item, written in orders.get(vid, {}).items():
@@ -324,9 +381,9 @@ def for_visit(visit, user):
     doctor, from his own habits first — never another doctor's by name."""
     if visit is None or user is None or visit.doctor_id != getattr(user, "id", None):
         return []
-    # An emergency encounter's strip is on its attendance page, where the
-    # department's own orders are written (``for_attendance``).
-    if visit.channel == "emergency":
+    # An emergency or ward encounter's strip is on its attendance or stay
+    # page, where the department's own orders are written.
+    if visit.channel in ("emergency", "ward"):
         return []
     have = ({("test", i.investigation_id) for i in visit.investigations if i.investigation_id}
             | {("drug", m.drug_id) for m in visit.medications if m.drug_id})
@@ -347,6 +404,28 @@ def for_attendance(attendance, user):
             | {("drug", o.drug_id) for o in eo.for_attendance(attendance)
                if o.drug_id and o.cancelled_at is None})
     return _suggest(visit, user, "emergency", have)
+
+
+def for_stay(admission, user):
+    """The strip on a stay in a ward bed (ج-٤): the diagnosis written on
+    the stay's encounter, the habits of the doctor looking at it — each his
+    own — and nothing the stay already has running or ordered."""
+    from app.models import VisitInvestigation
+    from app.utils import care_setting
+    from app.utils import emergency_orders as eo
+
+    visit = getattr(admission, "visit", None)
+    if (admission is None or not admission.is_open or visit is None or not visit.diagnoses
+            or not eo.is_doctor(user)
+            or care_setting.of_admission(admission) != care_setting.INPATIENT):
+        return []
+    have = ({("drug", o.drug_id) for o in admission.medication_orders
+             if o.drug_id and o.is_running}
+            | {("test", inv) for (inv,) in VisitInvestigation.query
+               .filter(VisitInvestigation.admission_id == admission.id,
+                       VisitInvestigation.investigation_id.isnot(None))
+               .with_entities(VisitInvestigation.investigation_id)})
+    return _suggest(visit, user, "ward", have)
 
 
 def _suggest(visit, user, dept, have):

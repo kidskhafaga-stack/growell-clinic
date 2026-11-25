@@ -3568,12 +3568,21 @@ def habit_never(visit_id):
     # In emergency (ج-٤) the strip is drawn for any of our doctors on the
     # shift, each with his own habits; in the clinic, for the visit's doctor.
     er = visit.channel == eo.EMERGENCY
-    if not (visit.doctor_id == current_user.id or (er and eo.is_doctor(current_user))):
+    # And on a ward stay, for any of our doctors looking at it.
+    from app.models import Admission
+
+    stay_id = request.form.get("admission_id", type=int)
+    stay = db.session.get(Admission, stay_id) if stay_id else None
+    on_stay = stay is not None and stay.visit_id == visit.id
+    if not (visit.doctor_id == current_user.id
+            or ((er or on_stay) and eo.is_doctor(current_user))):
         abort(403)
     if doctor_patterns.refuse(visit, current_user, (request.form.get("habit_dx") or "").strip(),
                               request.form.get("kind"), request.form.get("item_id", type=int)):
         db.session.commit()
         flash(t("habits.hidden"), "info")
+    if on_stay:
+        return redirect(url_for("beds.admission", admission_id=stay.id))
     attendance = request.form.get("attendance_id", type=int)
     if er and attendance:
         return redirect(url_for("emergency.attendance", attendance_id=attendance))
