@@ -17,33 +17,50 @@
 </div>
 
 <div class="sv-stack">
-{% if done %}
-  <section class="card gc-scale-in sv-card" data-severity-done>
+{# Each score the unit runs is its own card and its own result — in the
+   incubators SNAPPE-II and CRIB-II, never added or averaged, and one may
+   be written without the other. A result written stays as it was. #}
+{% if not cards %}
+  <div class="sv-lock" data-severity-locked><i class="bi bi-lock"></i><p style="margin:0;">{{ t('severity.unit_locked') }}</p></div>
+{% endif %}
+{% if cards|length > 1 %}<p class="sv-note" data-apart>{{ t('severity.apart_note') }}</p>{% endif %}
+{% for c in cards %}
+{% set score = c.score %}
+{% if c.done %}
+  {% set done = c.done %}
+  <section class="card gc-scale-in sv-card" data-severity-done="{{ score.key }}">
     <h2><i class="bi bi-check2-circle"></i> {{ done.score.display_name(current_lang) }}</h2>
     <div class="sv-grid">
       {% if done.probability is not none %}<div><div class="hint">{{ t('severity.expected_risk') }}</div><strong class="num" dir="ltr" style="font-size:1.4rem;">{{ '%.1f'|format(done.probability * 100) }}%</strong></div>{% endif %}
       {% if done.points is not none %}<div><div class="hint">{{ t('severity.points') }}</div><strong class="num" dir="ltr" style="font-size:1.4rem;">{{ '%g'|format(done.points) }}</strong></div>{% endif %}
       <div><div class="hint">{{ t('severity.measured_at') }}</div><span dir="ltr">{{ done.measured_at|clinic_stamp }}</span></div>
-      <div><div class="hint">{{ t('severity.by') }}</div>{{ done.recorder.display_name(current_lang) if done.recorder else '—' }}</div>
+      <div><div class="hint">{{ t('severity.by') }}</div>{{ done.recorder.display_name(current_lang) if done.recorder else '—' }} · <span dir="ltr">{{ done.recorded_at|clinic_stamp }}</span></div>
     </div>
     {% if done.missing %}<p class="hint" style="margin:10px 0 0;" data-missing>{{ t('severity.missing_used', n=done.missing|length) }}: <span dir="ltr">{{ done.missing|join(', ') }}</span></p>{% endif %}
+    <p class="hint" style="margin:8px 0 0;" data-source>{{ t('severity.from_version', v=done.score.version) }}{% if done.score.source %} — <span dir="auto">{{ done.score.source }}</span>{% endif %}</p>
   </section>
-  <p class="sv-note">{{ t('severity.not_a_prediction') }}</p>
-{% elif not score %}
-  <div class="sv-lock" data-severity-locked><i class="bi bi-lock"></i><p style="margin:0;">{{ t('severity.unit_locked') }}</p></div>
 {% else %}
-  <form method="post" class="card gc-scale-in sv-card" data-severity-form>
+  <form method="post" class="card gc-scale-in sv-card" data-severity-form="{{ score.key }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="score_key" value="{{ score.key }}">
     <h2><i class="bi bi-clipboard2-pulse"></i> {{ score.display_name(current_lang) }}</h2>
-    <p class="hint" style="margin:0 0 10px;">{{ t('severity.window_is') }} <span dir="ltr">{{ start.strftime('%Y-%m-%d %H:%M') }} – {{ end.strftime('%Y-%m-%d %H:%M') }}</span></p>
+    <p class="hint" style="margin:0 0 10px;">{{ t('severity.window_is') }} <span dir="ltr">{{ c.start.strftime('%Y-%m-%d %H:%M') }} – {{ c.end.strftime('%Y-%m-%d %H:%M') }}</span></p>
+    {% if score.applies_if %}<p class="hint" style="margin:0 0 10px;" data-applies>{{ t('severity.applies_note') }} <span dir="ltr">{% for code, lo, hi in score.applies_if %}{{ code }} {{ '%g'|format(lo) if lo is not none else '' }}–{{ '%g'|format(hi) if hi is not none else '' }}{% if not loop.last %} · {% endif %}{% endfor %}</span></p>{% endif %}
     <div class="sv-grid">
-      <div class="form-row"><label for="m_at">{{ t('severity.measured_at') }}</label>
-        <input class="input" type="datetime-local" id="m_at" name="measured_at" required dir="ltr" value="{{ now.strftime('%Y-%m-%dT%H:%M') if now else '' }}"></div>
+      <div class="form-row"><label for="m_at_{{ score.key }}">{{ t('severity.measured_at') }}</label>
+        <input class="input" type="datetime-local" id="m_at_{{ score.key }}" name="measured_at" required dir="ltr" value="{{ now.strftime('%Y-%m-%dT%H:%M') if now else '' }}"></div>
+      {% for code, lo, hi in c.applies %}
+      <div class="form-row" data-applies-input="{{ code }}"><label for="a_{{ score.key }}_{{ code }}">{{ t('severity.applies_reading') }} <span dir="ltr">{{ code }}</span></label>
+        <input class="input" id="a_{{ score.key }}_{{ code }}" name="a_{{ code }}" inputmode="decimal" dir="ltr" required>
+        <span class="hint">{{ t('severity.required') }}</span></div>
+      {% endfor %}
       {% for r in score.inputs %}
       <div class="form-row" data-input="{{ r.code }}">
         <label>{{ r[current_lang] or r.ar }}{% if r.unit %} <span class="hint" dir="ltr">({{ r.unit }})</span>{% endif %}</label>
         {% if r.type == 'yesno' %}
         <select class="select" name="v_{{ r.code }}"><option value="">—</option><option value="1">{{ t('severity.yes') }}</option><option value="0">{{ t('severity.no') }}</option></select>
+        {% elif r.type == 'choice' %}
+        <select class="select" name="v_{{ r.code }}" dir="ltr"><option value="">—</option>{% for k in r.options %}<option value="{{ k }}">{{ k }}</option>{% endfor %}</select>
         {% elif r.type == 'ratio' %}
         <div style="display:flex;gap:6px;align-items:center;" dir="ltr"><input class="input" name="v_{{ r.code }}_top" inputmode="decimal"> / <input class="input" name="v_{{ r.code }}_bottom" inputmode="decimal"></div>
         {% else %}
@@ -56,5 +73,7 @@
     <div style="margin-top:12px;"><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-save"></i> {{ t('severity.calculate') }}</button></div>
   </form>
 {% endif %}
+{% endfor %}
+{% if cards %}<p class="sv-note">{{ t('severity.not_a_prediction') }}</p>{% endif %}
 </div>
 {% endblock %}

@@ -81,17 +81,19 @@ def _stay(fx, hours_ago=2, outcome=None, left_hours_ago=None):
         return adm.id, came
 
 
-def _draft(fx, client, key="test_eq", examples=EXAMPLES, licence=True):
+def _draft(fx, client, key="test_eq", examples=EXAMPLES, licence=True, unit_kind="icu",
+           inputs=INPUTS, applies=""):
     from app.models import SeverityScore
 
-    client.post("/severity/new", data={"key": key, "name_ar": "مقياس تجريبي", "kind": "equation"})
+    client.post("/severity/new", data={"key": key, "name_ar": "مقياس تجريبي", "kind": "equation",
+                                       "unit_kind": unit_kind})
     with fx["app"].app_context():
         sid = SeverityScore.query.filter_by(key=key).first().id
     client.post(f"/severity/{sid}", data={
         "name_ar": "مقياس تجريبي", "source": "أرقام مخترعة للاختبار — مش مقياس منشور",
         "licence_holder": "اختبار" if licence else "", "licence_ref": "T-1" if licence else "",
         "window_before_h": "1", "window_after_h": "1", "intercept": "-2", "tolerance": "0.0001",
-        "inputs": INPUTS, "examples": examples})
+        "unit_kind": unit_kind, "applies_if": applies, "inputs": inputs, "examples": examples})
     return sid
 
 

@@ -57,10 +57,16 @@ def index():
     from app.models import SeverityScore
 
     scores = SeverityScore.query.order_by(SeverityScore.key, SeverityScore.version.desc()).all()
-    units = [{"kind": k, "now": sev.choice(k), "history": sev.history(k)} for k in sev.units_on()]
-    return render_template("severity/index.html", scores=scores, units=units,
-                           active=[s for s in scores if s.status == "active"],
-                           kinds=("equation", "points"))
+    active = [s for s in scores if s.status == "active"]
+    units = []
+    for k in sev.units_on():
+        now = sev.choices(k)
+        running = {s.key for s in now}
+        # What this unit may add: written for it, approved, not running.
+        units.append({"kind": k, "now": now, "history": sev.history(k),
+                      "may_add": [s for s in active if s.unit_kind == k and s.key not in running]})
+    return render_template("severity/index.html", scores=scores, units=units, active=active,
+                           kinds=("equation", "points"), all_units=sev.UNITS)
 
 
 @severity_bp.route("/new", methods=["POST"])
@@ -73,7 +79,9 @@ def new():
     key = (request.form.get("key") or "").strip().lower()
     name = (request.form.get("name_ar") or "").strip()
     kind = request.form.get("kind")
-    if not re.match(r"^[a-z][a-z0-9_]{1,39}$", key) or not name or kind not in ("equation", "points"):
+    unit_kind = request.form.get("unit_kind") or None
+    if (not re.match(r"^[a-z][a-z0-9_]{1,39}$", key) or not name or kind not in ("equation", "points")
+            or (unit_kind and unit_kind not in sev.UNITS)):
         flash(t("severity.err_new"), "warning")
         return redirect(url_for("severity.index"))
     if SeverityScore.query.filter_by(key=key).first():
@@ -81,7 +89,8 @@ def new():
         return redirect(url_for("severity.index"))
     row = SeverityScore(key=key, version=1, name_ar=name[:120],
                         name_en=(request.form.get("name_en") or "").strip()[:120] or None,
-                        kind=kind, inputs=[], examples=[], created_by=current_user.id)
+                        kind=kind, unit_kind=unit_kind, inputs=[], examples=[],
+                        created_by=current_user.id)
     db.session.add(row)
     db.session.flush()
     ActivityLog.record("severity.new", user_id=current_user.id, entity="severity_score",
@@ -105,14 +114,20 @@ def score(score_id):
     row = _score(score_id)
     inputs_raw = sev.inputs_text(row.inputs, row.kind)
     examples_raw = sev.examples_text(row.examples)
+    applies_raw = sev.applies_text(row.applies_if)
     problems = {}
     if request.method == "POST":
         if row.status != "draft":
             abort(409)
         inputs_raw = request.form.get("inputs") or ""
         examples_raw = request.form.get("examples") or ""
+        applies_raw = request.form.get("applies_if") or ""
         inputs, bad_in = sev.parse_inputs(inputs_raw, row.kind)
         examples, bad_ex = sev.parse_examples(examples_raw)
+        applies, bad_ap = sev.parse_applies(applies_raw)
+        unit_kind = request.form.get("unit_kind") or None
+        if unit_kind and unit_kind not in sev.UNITS:
+            problems["numbers"] = True
         try:
             numbers = {k: _float(k) for k in ("window_before_h", "window_after_h",
                                               "intercept", "slope", "tolerance")}
@@ -122,7 +137,11 @@ def score(score_id):
             problems["inputs"] = bad_in
         if bad_ex:
             problems["examples"] = bad_ex
+        if bad_ap:
+            problems["applies"] = bad_ap
         if not problems:
+            row.unit_kind = unit_kind
+            row.applies_if = applies or None
             row.name_ar = (request.form.get("name_ar") or row.name_ar).strip()[:120]
             row.name_en = (request.form.get("name_en") or "").strip()[:120] or None
             row.source = (request.form.get("source") or "").strip()[:4000] or None
@@ -144,7 +163,8 @@ def score(score_id):
             return redirect(url_for("severity.score", score_id=row.id))
         flash(t("severity.err_lines"), "warning")
     return render_template("severity/score.html", row=row, inputs_raw=inputs_raw,
-                           examples_raw=examples_raw, problems=problems,
+                           examples_raw=examples_raw, applies_raw=applies_raw, problems=problems,
+                           all_units=sev.UNITS,
                            blockers=sev.blockers(row) if row.status == "draft" else [],
                            transforms=list(sev.TRANSFORMS), min_examples=sev.MIN_EXAMPLES)
 
@@ -186,7 +206,9 @@ def unit(kind):
     except ValueError:
         flash(t("severity.err_since"), "warning")
         return redirect(url_for("severity.index"))
-    problem = sev.choose(kind, row, since, current_user, request.form.get("note"))
+    stop = (request.form.get("stop_key") or "").strip().lower() or None
+    problem = sev.choose(kind, None if stop else row, since, current_user,
+                         request.form.get("note"), stop_key=stop)
     if problem:
         db.session.rollback()
         flash(t("severity.err_" + problem), "warning")
@@ -200,6 +222,8 @@ def unit(kind):
 @severity_bp.route("/admission/<int:admission_id>/<kind>", methods=["GET", "POST"])
 @_clinical
 def admission(admission_id, kind):
+    """Each score the unit runs, on its own card: the incubators' SNAPPE-II
+    and CRIB-II are two results, never one; the one first written stays."""
     from app.models import Admission, SeverityRecord
     from app.utils.clock import local_date, to_local, to_utc
 
@@ -209,12 +233,21 @@ def admission(admission_id, kind):
     came = sev.entered(stay, kind)
     if came is None:
         abort(404)
-    done = SeverityRecord.query.filter_by(admission_id=stay.id, unit_kind=kind).first()
-    score = done.score if done else sev.choice(kind, on=local_date(came))
-    if request.method == "POST" and not done:
+    done = {r.score_key or r.score.key: r for r in
+            SeverityRecord.query.filter_by(admission_id=stay.id, unit_kind=kind)
+            .order_by(SeverityRecord.id)}
+    running = sev.choices(kind, on=local_date(came))
+    if request.method == "POST":
+        key = (request.form.get("score_key") or "").strip().lower()
+        score = next((s for s in running if s.key == key), None)
+        if score is None and len(running) == 1 and not key:
+            score = running[0]
+        if score is None or score.key in done:
+            flash(t("severity.err_" + ("already" if score else "no_score")), "warning")
+            return redirect(url_for("severity.admission", admission_id=stay.id, kind=kind))
         values = {}
         try:
-            for r in (score.inputs if score else []):
+            for r in score.inputs:
                 if r["type"] == "ratio":
                     top = sev._num(request.form.get(f"v_{r['code']}_top"))
                     bottom = sev._num(request.form.get(f"v_{r['code']}_bottom"))
@@ -224,15 +257,26 @@ def admission(admission_id, kind):
                     raw = request.form.get(f"v_{r['code']}")
                     if raw in ("0", "1"):
                         values[r["code"]] = float(raw)
+                elif r["type"] == "choice":
+                    raw = (request.form.get(f"v_{r['code']}") or "").strip().lower()
+                    if raw:
+                        values[r["code"]] = raw
                 else:
                     v = sev._num(request.form.get(f"v_{r['code']}"))
                     if v is not None:
                         values[r["code"]] = v
+            # Who the paper built the score on — kept with the result.
+            for code in sev.applies_codes(score):
+                if code not in values:
+                    v = sev._num(request.form.get(f"a_{code}"))
+                    if v is not None:
+                        values[code] = v
             moment = datetime.strptime(request.form.get("measured_at") or "", "%Y-%m-%dT%H:%M")
         except ValueError:
             flash(t("severity.err_number"), "warning")
             return redirect(url_for("severity.admission", admission_id=stay.id, kind=kind))
-        row, problem = sev.record(stay, kind, to_utc(moment).replace(tzinfo=None), values, current_user)
+        row, problem = sev.record(stay, kind, to_utc(moment).replace(tzinfo=None), values,
+                                  current_user, score_key=score.key)
         if problem:
             db.session.rollback()
             flash(t("severity.err_" + problem), "warning")
@@ -240,11 +284,18 @@ def admission(admission_id, kind):
             db.session.commit()
             flash(t("severity.recorded"), "success")
         return redirect(url_for("severity.admission", admission_id=stay.id, kind=kind))
-    start, end = sev.window(score, came) if score else (None, None)
+    cards = []
+    for s in running:
+        start, end = sev.window(s, came)
+        input_codes = {r["code"] for r in s.inputs or []}
+        cards.append({"score": s, "done": done.get(s.key), "start": to_local(start),
+                      "end": to_local(end),
+                      "applies": [a for a in s.applies_if or [] if a[0] not in input_codes]})
+    # A result whose score the unit has since stopped is still shown.
+    keys = {s.key for s in running}
+    cards += [{"score": r.score, "done": r} for k, r in done.items() if k not in keys]
     return render_template("severity/record.html", stay=stay, kind=kind, came=to_local(came),
-                           score=score, done=done, start=to_local(start) if start else None,
-                           end=to_local(end) if end else None,
-                           now=to_local(datetime.utcnow()))
+                           cards=cards, now=to_local(datetime.utcnow()))
 
 
 # ------------------------------------------------------------- the unit --
@@ -256,6 +307,15 @@ def board():
     kind = kind if kind in units else (units[0] if units else None)
     if kind is None:
         abort(404)
-    return render_template("severity/board.html", units=units, kind=kind,
-                           data=sev.board(kind), now=sev.choice(kind),
+    # One score at a time: SNAPPE-II's expected deaths are never added to
+    # CRIB-II's. The keys are those the unit runs or has results for.
+    from app.models import SeverityRecord
+
+    keys = sorted({k for (k,) in db.session.query(SeverityRecord.score_key)
+                   .filter(SeverityRecord.unit_kind == kind, SeverityRecord.score_key.isnot(None))
+                   .distinct()} | {s.key for s in sev.choices(kind)})
+    key = request.args.get("score")
+    key = key if key in keys else (keys[0] if keys else None)
+    return render_template("severity/board.html", units=units, kind=kind, keys=keys, key=key,
+                           data=sev.board(kind, score_key=key), now=sev.choices(kind),
                            may_manage=_may_manage(current_user))

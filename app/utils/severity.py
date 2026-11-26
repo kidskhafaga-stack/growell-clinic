@@ -23,7 +23,15 @@ Two shapes:
     each reading falls in a band worth some points; the total, and — when the
     paper gives the line — ``1 / (1 + e^-(intercept + slope × total))``.
 
-A reading is a number, a yes/no, or a ratio of two numbers times a scale.
+A reading is a number, a yes/no, a ratio of two numbers times a scale, or
+one of several named options, each with its own coefficient or points.
+
+**A unit may run more than one score, each on its own** (the owner, 26 Nov
+2026): the incubators SNAPPE-II and CRIB-II side by side — two results,
+never added, averaged or one in place of the other — intensive care PIM3.
+A score is written for one kind of unit, and the other may not choose it.
+A child the paper did not build the score on (``applies_if``) is «not
+computable», with the reason.
 A score with another shape is code, once.
 
 **What the board says, and what it does not.** Deaths against the deaths the
@@ -54,7 +62,7 @@ TRANSFORMS = {
     "square_div1000": lambda x: x * x / 1000.0,
     "ln": lambda x: math.log(x),
 }
-TYPES = ("number", "yesno", "ratio")
+TYPES = ("number", "yesno", "ratio", "choice")
 
 #: How many worked examples a score must reproduce before it may run.
 MIN_EXAMPLES = 3
@@ -125,12 +133,33 @@ def parse_inputs(text, kind):
             except ValueError:
                 problems.append((n, "type"))
                 continue
-        elif kind_raw in ("number", "yesno"):
+        elif kind_raw in ("number", "yesno", "choice"):
             row["type"] = kind_raw
         else:
             problems.append((n, "type"))
             continue
         try:
+            if row["type"] == "choice":
+                # One of several, each with its own coefficient (equation)
+                # or points: PIM3's diagnosis group, its recovery after a
+                # procedure. ``key=number; key=number``; «if not measured»
+                # names an option, or is blank.
+                try:
+                    row["options"] = _options(parts[6] if kind == "equation" else parts[5])
+                except ValueError:
+                    problems.append((n, "options"))
+                    continue
+                if kind == "equation":
+                    row["transform"], row["coef"] = "value", None
+                else:
+                    row["bands"], row["yes"] = [], None
+                miss = (parts[7] if kind == "equation" else parts[6]).strip().lower()
+                if miss and miss not in row["options"]:
+                    problems.append((n, "option"))
+                    continue
+                row["missing"] = miss or None
+                out.append(row)
+                continue
             if kind == "equation":
                 if parts[5] not in TRANSFORMS:
                     problems.append((n, "transform"))
@@ -152,6 +181,24 @@ def parse_inputs(text, kind):
             continue
         out.append(row)
     return out, problems
+
+
+def _options(text):
+    out = {}
+    for piece in (text or "").split(";"):
+        if not piece.strip():
+            continue
+        key, _, num = piece.partition("=")
+        key = key.strip().lower()
+        if not re.match(r"^[a-z_][a-z0-9_]{0,29}$", key) or key in out:
+            raise ValueError(piece)
+        value = _num(num)
+        if value is None:
+            raise ValueError(piece)
+        out[key] = value
+    if len(out) < 2:
+        raise ValueError(text)
+    return out
 
 
 def _bands(text, kind):
@@ -180,6 +227,13 @@ def inputs_text(inputs, kind):
     lines = []
     for r in inputs or []:
         t = r["type"] if r["type"] != "ratio" else f"ratio:{n(r.get('scale'))}"
+        if r["type"] == "choice":
+            opts = "; ".join(f"{k}={n(v)}" for k, v in r["options"].items())
+            miss = r.get("missing") or ""
+            parts = ([r["code"], r["ar"], r["en"], t, r["unit"], "value", opts, miss]
+                     if kind == "equation" else [r["code"], r["ar"], r["en"], t, r["unit"], opts, miss])
+            lines.append(" | ".join(parts))
+            continue
         if kind == "equation":
             parts = [r["code"], r["ar"], r["en"], t, r["unit"], r["transform"], n(r["coef"]), n(r.get("missing"))]
         else:
@@ -209,6 +263,9 @@ def parse_examples(text):
                     continue
                 k, _, v = pair.partition("=")
                 v = v.strip()
+                if re.match(r"^[a-z_][a-z0-9_]*$", v.lower()):
+                    values[k.strip().lower()] = v.lower()      # a choice's option
+                    continue
                 values[k.strip().lower()] = ([_num(x) for x in v.split("/", 1)] if "/" in v else _num(v))
             out.append({"values": values, "what": m.group(1).lower(), "expected": _num(m.group(2))})
         except ValueError:
@@ -218,6 +275,8 @@ def parse_examples(text):
 
 def examples_text(examples):
     def v(x):
+        if isinstance(x, str):
+            return x
         return "/".join("%g" % y for y in x) if isinstance(x, list) else ("%g" % x if x is not None else "")
 
     return "\n".join(", ".join(f"{k}={v(x)}" for k, x in e["values"].items())
@@ -228,6 +287,8 @@ def examples_text(examples):
 def _reading(row, raw):
     if raw is None:
         return None
+    if row["type"] == "choice":
+        return str(raw).strip().lower() or None
     if row["type"] == "ratio":
         top, bottom = raw if isinstance(raw, (list, tuple)) and len(raw) == 2 else (None, None)
         if top is None or not bottom:
@@ -260,6 +321,14 @@ def compute(score, values):
             missing.append(row["code"])
         if row["type"] == "yesno" and x not in (0.0, 1.0):
             return {"error": "yesno", "code": row["code"]}
+        if row["type"] == "choice":
+            if x not in row["options"]:
+                return {"error": "option", "code": row["code"]}
+            if kind == "equation":
+                logit += row["options"][x]
+            else:
+                total += row["options"][x]
+            continue
         if kind == "equation":
             try:
                 logit += row["coef"] * TRANSFORMS[row["transform"]](x)
@@ -315,6 +384,10 @@ def blockers(score):
     out = []
     if score.status != "draft":
         out.append("not_draft")
+    if score.unit_kind not in UNITS:
+        # PIM3 is for intensive care, SNAPPE-II and CRIB-II for the
+        # incubators — a score says which before it may run.
+        out.append("unit")
     if not score.inputs:
         out.append("inputs")
     if score.kind == "equation" and score.intercept is None:
@@ -356,7 +429,8 @@ def new_version(score, user):
            .filter(SeverityScore.key == score.key).scalar() or 0)
     copy = SeverityScore(
         key=score.key, version=top + 1, name_ar=score.name_ar, name_en=score.name_en,
-        kind=score.kind, source=score.source, licence_holder=score.licence_holder,
+        kind=score.kind, unit_kind=score.unit_kind,
+        applies_if=list(score.applies_if) if score.applies_if else None, source=score.source, licence_holder=score.licence_holder,
         licence_ref=score.licence_ref, window_before_h=score.window_before_h,
         window_after_h=score.window_after_h, intercept=score.intercept, slope=score.slope,
         inputs=list(score.inputs or []), examples=list(score.examples or []),
@@ -365,33 +439,111 @@ def new_version(score, user):
     return copy
 
 
+# ------------------------------------------------------ who it applies to --
+def parse_applies(text):
+    """``code lo..hi`` a line — who the paper built the score on (CRIB-II:
+    birth weight and weeks of gestation). Either end may be blank. A child
+    outside is «not computable», with the reason. ``(rules, problems)``."""
+    rules, problems = [], []
+    for n, line in enumerate((text or "").translate(_DIGITS).splitlines(), 1):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        code, _, rng = line.partition(" ")
+        lo, sep, hi = rng.strip().partition("..")
+        code = code.strip().lower()
+        if not sep or not re.match(r"^[a-z][a-z0-9_]{0,29}$", code):
+            problems.append((n, "applies"))
+            continue
+        try:
+            lo, hi = _num(lo), _num(hi)
+        except ValueError:
+            problems.append((n, "applies"))
+            continue
+        if lo is None and hi is None:
+            problems.append((n, "applies"))
+            continue
+        rules.append([code, lo, hi])
+    return rules, problems
+
+
+def applies_text(rules):
+    def n(x):
+        return "" if x is None else "%g" % x
+    return "\n".join(f"{c} {n(lo)}..{n(hi)}" for c, lo, hi in rules or [])
+
+
+def applies_codes(score):
+    return [c for c, _, _ in score.applies_if or []]
+
+
+def fits(score, values):
+    """``None`` when the child is one the score was built on, else
+    ``(why, code)`` — ``applies_missing`` (not entered) or ``not_eligible``."""
+    for code, lo, hi in score.applies_if or []:
+        raw = values.get(code)
+        if raw is None or raw == "":
+            return "applies_missing", code
+        try:
+            x = float(raw)
+        except (TypeError, ValueError):
+            return "applies_missing", code
+        if (lo is not None and x < lo) or (hi is not None and x > hi):
+            return "not_eligible", code
+    return None
+
+
 # ------------------------------------------------------- which unit uses --
-def choice(unit_kind, on=None):
-    """The score this unit uses on that day (``None`` when it uses none)."""
+def choices(unit_kind, on=None):
+    """The scores this unit runs on that day, each on its own — the
+    incubators may keep SNAPPE-II and CRIB-II side by side; intensive care
+    PIM3. ``[]`` when it runs none."""
     from app.models import SeverityUnitChoice
     from app.utils.clock import local_today
 
     on = on or local_today()
-    row = (SeverityUnitChoice.query
-           .filter(SeverityUnitChoice.unit_kind == unit_kind, SeverityUnitChoice.since <= on)
-           .order_by(SeverityUnitChoice.since.desc(), SeverityUnitChoice.id.desc()).first())
-    return row.score if row and row.score and row.score.status == "active" else None
+    rows = (SeverityUnitChoice.query
+            .filter(SeverityUnitChoice.unit_kind == unit_kind, SeverityUnitChoice.since <= on)
+            .order_by(SeverityUnitChoice.since, SeverityUnitChoice.id).all())
+    running = {}
+    for row in rows:
+        if row.score_key is None:
+            # A row from before scores were kept apart: the whole set.
+            running = {row.score.key: row.score} if row.score else {}
+        elif row.score is None:
+            running.pop(row.score_key, None)
+        else:
+            running[row.score_key] = row.score
+    return [running[k] for k in sorted(running) if running[k].status == "active"]
 
 
-def choose(unit_kind, score, since, user, note=None):
-    """From ``since`` this unit uses ``score`` (or none). Earlier children
-    keep the score they were scored with."""
+def choice(unit_kind, on=None):
+    """The first score this unit runs that day (``None`` when none)."""
+    got = choices(unit_kind, on)
+    return got[0] if got else None
+
+
+def choose(unit_kind, score, since, user, note=None, stop_key=None):
+    """From ``since`` this unit runs ``score`` too — beside the others, not
+    in their place — or stops ``stop_key``. Earlier children keep the
+    results they were scored with."""
     from app.models import ActivityLog, SeverityUnitChoice
 
     if unit_kind not in UNITS:
         return "unit"
-    if score is not None and score.status != "active":
-        return "not_active"
+    if score is None and not stop_key:
+        return "nothing"
+    if score is not None:
+        if score.status != "active":
+            return "not_active"
+        if score.unit_kind and score.unit_kind != unit_kind:
+            return "other_unit"
+    key = score.key if score is not None else stop_key
     db.session.add(SeverityUnitChoice(unit_kind=unit_kind, score_id=score.id if score else None,
-                                      since=since, set_by=user.id,
+                                      score_key=key, since=since, set_by=user.id,
                                       note=(note or "").strip()[:255] or None))
     ActivityLog.record("severity.unit_choice", user_id=user.id, entity="severity_unit",
-                       detail=f"{unit_kind}: {score.key + ' v' + str(score.version) if score else '—'} from {since}")
+                       detail=f"{unit_kind}: {score.key + ' v' + str(score.version) if score else key + ' stopped'} from {since}")
     return None
 
 
@@ -421,32 +573,44 @@ def window(score, moment):
             moment + timedelta(hours=score.window_after_h or 0))
 
 
-def record(admission, unit_kind, measured_at, values, user):
-    """Score this child on entering the unit. ``(row, None)`` or
-    ``(None, why)``. Refused outside the score's window, and refused when a
-    required reading is missing — never filled in."""
+def record(admission, unit_kind, measured_at, values, user, score_key=None):
+    """Score this child on entering the unit, with one of the unit's scores
+    (``score_key``; the only one when the unit runs one). ``(row, None)`` or
+    ``(None, why)``. Refused outside the score's window, for a child the
+    score was not built on, and when a required reading is missing — never
+    filled in. Each score's result stands alone and is never replaced."""
     from app.models import SeverityRecord
     from app.utils.clock import local_date
 
     came = entered(admission, unit_kind)
     if came is None:
         return None, "not_in_unit"
-    score = choice(unit_kind, on=local_date(came))
+    running = choices(unit_kind, on=local_date(came))
+    if not running:
+        return None, "no_score"
+    if score_key:
+        score = next((s for s in running if s.key == score_key), None)
+    else:
+        score = running[0] if len(running) == 1 else None
     if score is None:
         return None, "no_score"
-    if SeverityRecord.query.filter_by(admission_id=admission.id, unit_kind=unit_kind).first():
+    if SeverityRecord.query.filter_by(admission_id=admission.id, unit_kind=unit_kind,
+                                      score_key=score.key).first():
         return None, "already"
     start, end = window(score, came)
     if not start <= measured_at <= end:
         return None, "window"
+    out = fits(score, values)
+    if out:
+        return None, out[0]
     got = compute(score, values)
     if got.get("error"):
         return None, got["error"]
     row = SeverityRecord(admission_id=admission.id, patient_id=admission.patient_id,
-                         unit_kind=unit_kind, score_id=score.id, entered_at=came,
-                         measured_at=measured_at, values=values, missing=got["missing"],
-                         points=got["points"], probability=got["probability"],
-                         recorded_by=user.id)
+                         unit_kind=unit_kind, score_id=score.id, score_key=score.key,
+                         entered_at=came, measured_at=measured_at, values=values,
+                         missing=got["missing"], points=got["points"],
+                         probability=got["probability"], recorded_by=user.id)
     db.session.add(row)
     return row, None
 
@@ -470,8 +634,9 @@ def interval(observed, expected):
     return round(low / expected, 2), round(high / expected, 2)
 
 
-def board(unit_kind, today=None, months=12):
-    """The unit over the last ``months`` months, by the day each child left:
+def board(unit_kind, today=None, months=12, score_key=None):
+    """The unit over the last ``months`` months, by the day each child left —
+    one score at a time (``score_key``), never two added together:
     children, deaths, expected deaths, SMR with its interval, the VLAD line
     and — with enough children — expected against observed in five groups."""
     from app.models import Admission, SeverityRecord
@@ -482,8 +647,10 @@ def board(unit_kind, today=None, months=12):
     start = to_utc(datetime.combine(since, datetime.min.time())).replace(tzinfo=None)
     rows = (SeverityRecord.query.join(Admission, SeverityRecord.admission_id == Admission.id)
             .filter(SeverityRecord.unit_kind == unit_kind,
-                    Admission.discharged_at.isnot(None), Admission.discharged_at >= start)
-            .order_by(Admission.discharged_at, SeverityRecord.id).all())
+                    Admission.discharged_at.isnot(None), Admission.discharged_at >= start))
+    if score_key:
+        rows = rows.filter(SeverityRecord.score_key == score_key)
+    rows = (rows.order_by(Admission.discharged_at, SeverityRecord.id).all())
     scored = [r for r in rows if r.probability is not None]
     n = len(scored)
     observed = sum(1 for r in scored if r.admission.outcome == "died")
@@ -508,4 +675,4 @@ def board(unit_kind, today=None, months=12):
     return {"n": n, "observed": observed, "expected": expected, "smr": smr,
             "low": low, "high": high, "vlad": vlad, "groups": groups,
             "few": n < FEW, "since": since, "to": today, "versions": versions,
-            "unscored": len(rows) - n}
+            "unscored": len(rows) - n, "key": score_key}
