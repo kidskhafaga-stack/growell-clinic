@@ -1217,6 +1217,13 @@ ADDITIONS = [
     # sessions, what the therapist's habits are counted by.
     ("program_enrollments", "dx_code", "VARCHAR(12)"),
     ("program_enrollments", "planned_sessions", "INTEGER"),
+    # HOSPITAL_PLAN ت-٦ب — the owner's routing (26 Nov 2026): a score is for
+    # one kind of unit, says who it applies to, and a unit runs several each
+    # on its own. severity_records.score_key and its unique key are moved by
+    # migration 0002 (SQLite cannot drop the old constraint in place).
+    ("severity_scores", "unit_kind", "VARCHAR(12)"),
+    ("severity_scores", "applies_if", "JSON"),
+    ("severity_unit_choices", "score_key", "VARCHAR(40)"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"
