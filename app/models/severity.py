@@ -37,6 +37,13 @@ class SeverityScore(db.Model):
     name_ar = db.Column(db.String(120), nullable=False)
     name_en = db.Column(db.String(120))
     kind = db.Column(db.String(10), nullable=False, default="equation")
+    # The one kind of unit this score is for (``icu``/``nicu``) — PIM3 is not
+    # chosen for the incubators, nor CRIB-II for intensive care. ``None``:
+    # written before units were named; any unit may still choose it.
+    unit_kind = db.Column(db.String(12))
+    # Who the score applies to, from the paper: ``[[code, lo, hi], …]`` — a
+    # child outside is «not computable», with the reason, never forced in.
+    applies_if = db.Column(db.JSON)
     # Where every number came from, and on whose permission it is used.
     source = db.Column(db.Text)
     licence_holder = db.Column(db.String(200))
@@ -79,6 +86,11 @@ class SeverityUnitChoice(db.Model):
     unit_kind = db.Column(db.String(12), nullable=False, index=True)
     # None: the unit stopped scoring from that day.
     score_id = db.Column(db.Integer, db.ForeignKey("severity_scores.id"))
+    # The score this row is about. A unit may run several at once (the
+    # incubators: SNAPPE-II and CRIB-II, each on its own); a row with a key
+    # starts or stops that one only. ``None`` — a row from before, which
+    # stood for the unit's whole set.
+    score_key = db.Column(db.String(40), index=True)
     since = db.Column(db.Date, nullable=False)
     set_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     set_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -90,13 +102,18 @@ class SeverityUnitChoice(db.Model):
 
 class SeverityRecord(db.Model):
     __tablename__ = "severity_records"
-    __table_args__ = (db.UniqueConstraint("admission_id", "unit_kind", name="uq_severity_stay_unit"),)
+    # One result per child, unit **and score** — the incubators keep a
+    # SNAPPE-II and a CRIB-II side by side, never one in place of the other
+    # (migration 0002 moved older databases to this key).
+    __table_args__ = (db.UniqueConstraint("admission_id", "unit_kind", "score_key",
+                                          name="uq_severity_stay_unit_score"),)
 
     id = db.Column(db.Integer, primary_key=True)
     admission_id = db.Column(db.Integer, db.ForeignKey("admissions.id"), nullable=False, index=True)
     patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False, index=True)
     unit_kind = db.Column(db.String(12), nullable=False, index=True)
     score_id = db.Column(db.Integer, db.ForeignKey("severity_scores.id"), nullable=False)
+    score_key = db.Column(db.String(40), index=True)
     entered_at = db.Column(db.DateTime, nullable=False)
     measured_at = db.Column(db.DateTime, nullable=False)
     values = db.Column(db.JSON, nullable=False, default=dict)

@@ -30,7 +30,7 @@
   <section class="card gc-scale-in sv-card" data-blockers>
     <h2><i class="bi bi-shield-lock"></i> {{ t('severity.before_running') }}</h2>
     <ul class="sv-checks">
-      {% for need in ('inputs', 'intercept', 'window', 'source', 'licence', 'examples', 'test') if not (need == 'intercept' and row.kind == 'points') %}
+      {% for need in ('unit', 'inputs', 'intercept', 'window', 'source', 'licence', 'examples', 'test') if not (need == 'intercept' and row.kind == 'points') %}
       {% set met = (row.test_ok and not 'examples' in blockers) if need == 'test' else need not in blockers %}
       <li data-need="{{ need }}"{% if met %} data-met{% endif %}><i class="bi bi-{{ 'check-circle-fill' if met else 'x-circle' }}"></i> {{ t('severity.need_' ~ need, n=min_examples) }}</li>
       {% endfor %}
@@ -72,6 +72,12 @@
     <div class="sv-grid">
       <div class="form-row"><label for="f_name_ar">{{ t('severity.name_ar') }}</label><input class="input" id="f_name_ar" name="name_ar" value="{{ row.name_ar }}" maxlength="120"></div>
       <div class="form-row"><label for="f_name_en">{{ t('severity.name_en') }}</label><input class="input" id="f_name_en" name="name_en" value="{{ row.name_en or '' }}" maxlength="120" dir="ltr"></div>
+      <div class="form-row"><label for="f_unit">{{ t('severity.for_unit') }}</label>
+        <select class="select" id="f_unit" name="unit_kind" data-score-unit>
+          <option value="">—</option>
+          {% for k in all_units %}<option value="{{ k }}"{{ ' selected' if row.unit_kind == k else '' }}>{{ t('severity.unit_' ~ k) }}</option>{% endfor %}
+        </select>
+        <span class="hint">{{ t('severity.for_unit_help') }}</span></div>
       <div class="form-row wide"><label for="f_source">{{ t('severity.source') }}</label><textarea class="input" id="f_source" name="source" rows="2" dir="auto" placeholder="{{ t('severity.source_ph') }}">{{ row.source or '' }}</textarea></div>
       <div class="form-row"><label for="f_lh">{{ t('severity.licence_holder') }}</label><input class="input" id="f_lh" name="licence_holder" value="{{ row.licence_holder or '' }}" maxlength="200" dir="auto"></div>
       <div class="form-row"><label for="f_lr">{{ t('severity.licence_ref') }}</label><input class="input" id="f_lr" name="licence_ref" value="{{ row.licence_ref or '' }}" maxlength="200" dir="auto"></div>
@@ -85,7 +91,12 @@
     <div class="form-row"><label for="f_inputs">{{ t('severity.inputs') }}</label>
       <textarea class="input sv-mono" id="f_inputs" name="inputs" rows="8" spellcheck="false">{{ inputs_raw }}</textarea>
       <span class="hint">{{ t('severity.inputs_help_' ~ row.kind) }} <span dir="ltr">{{ transforms|join(', ') }}</span></span>
+      <span class="hint" data-choice-help>{{ t('severity.choice_help_' ~ row.kind) }}</span>
       {% if problems.inputs %}<span class="hint" style="color:var(--danger);" data-bad-inputs>{% for n, why in problems.inputs %}{{ t('severity.bad_line', n=n, why=t('severity.why_' ~ why)) }}{% if not loop.last %} · {% endif %}{% endfor %}</span>{% endif %}</div>
+    <div class="form-row"><label for="f_applies">{{ t('severity.applies_if') }}</label>
+      <textarea class="input sv-mono" id="f_applies" name="applies_if" rows="2" spellcheck="false" dir="ltr">{{ applies_raw }}</textarea>
+      <span class="hint">{{ t('severity.applies_help') }}</span>
+      {% if problems.applies %}<span class="hint" style="color:var(--danger);" data-bad-applies>{% for n, why in problems.applies %}{{ t('severity.bad_line', n=n, why=t('severity.why_' ~ why)) }}{% if not loop.last %} · {% endif %}{% endfor %}</span>{% endif %}</div>
     <div class="form-row"><label for="f_examples">{{ t('severity.examples') }}</label>
       <textarea class="input sv-mono" id="f_examples" name="examples" rows="5" spellcheck="false">{{ examples_raw }}</textarea>
       <span class="hint">{{ t('severity.examples_help', n=min_examples) }}</span>

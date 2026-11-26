@@ -35,12 +35,17 @@
 
 <div class="sv-stack">
   <p class="sv-note" data-disclaimer>{{ t('severity.disclaimer') }}</p>
+  {% if keys|length > 1 %}
+  {# One score at a time — the incubators' two are never added together. #}
+  <nav class="sv-tabs" data-score-tabs>{% for k in keys %}<a href="{{ url_for('severity.board', unit=kind, score=k) }}"{% if k == key %} aria-current="page"{% endif %} dir="ltr">{{ k }}</a>{% endfor %}</nav>
+  <p class="hint" style="margin:0;">{{ t('severity.board_apart') }}</p>
+  {% endif %}
   {% if not now and not data.n %}
   <div class="sv-lock" data-board-locked><i class="bi bi-lock"></i><p style="margin:0;">{{ t('severity.board_locked') }}</p></div>
   {% endif %}
 
   <section class="card gc-scale-in sv-card" data-board-figures>
-    <h2>{{ t('severity.unit_' ~ kind) }} — {{ t('severity.last_12') }} <span class="hint" dir="ltr" style="font-weight:400;">{{ data.since.isoformat() }} – {{ data.to.isoformat() }}</span></h2>
+    <h2>{{ t('severity.unit_' ~ kind) }}{% if key %} · <span dir="ltr">{{ key }}</span>{% endif %} — {{ t('severity.last_12') }} <span class="hint" dir="ltr" style="font-weight:400;">{{ data.since.isoformat() }} – {{ data.to.isoformat() }}</span></h2>
     <div class="sv-kpis">
       <div class="sv-kpi" data-kpi="n"><span class="l">{{ t('severity.children') }}</span><span class="v">{{ data.n }}</span></div>
       <div class="sv-kpi" data-kpi="observed"><span class="l">{{ t('severity.observed') }}</span><span class="v">{{ data.observed }}</span></div>
