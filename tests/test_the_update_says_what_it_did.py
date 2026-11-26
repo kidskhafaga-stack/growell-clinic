@@ -73,6 +73,15 @@ def test_the_file_is_still_readable_by_windows(clinic):
 
 # ------------------------------------------------------------- step 4 ---
 
+def _numbered(apply_schema):
+    """The fixture builds its tables from the models but never numbers them,
+    so the first upgrade treats it as a clinic from before the numbered
+    migrations: stamped at the baseline, then every later revision runs
+    (0002 finds the shape already right and only fills ``score_key``). One
+    upgrade first, and the database is current in both senses."""
+    apply_schema()
+
+
 def test_nothing_missing_says_how_much_was_checked(clinic):
     """The heart of it. "0 column(s) added" is silence; "every one of 1,300
     columns is already there" is an answer."""
@@ -80,6 +89,7 @@ def test_nothing_missing_says_how_much_was_checked(clinic):
 
     said = []
     with clinic["app"].app_context():
+        _numbered(apply_schema)
         applied = apply_schema(report=said.append)
 
     assert applied == 0, "the fixture's database was not already current"
@@ -141,4 +151,5 @@ def test_the_report_is_optional_as_it_always_was(clinic):
     from app.utils.schema import apply_schema
 
     with clinic["app"].app_context():
+        _numbered(apply_schema)
         assert apply_schema() == 0
