@@ -450,9 +450,13 @@ def test_a_visit_with_no_instruction_carries_no_badge(seen):
     assert 'data-followup="none"' not in body
 
 
-def test_the_file_costs_one_query_however_many_visits(seen):
+def test_the_file_costs_one_query_however_many_visits(seen, bell_held_warm):
     """A child with three years on the books is a hundred encounters, and a
-    state asked per row is a hundred queries on one page."""
+    state asked per row is a hundred queries on one page.
+
+    With the bell held warm (``conftest.bell_held_warm``): the bell counts
+    today's appointments, and a cache that ran out inside the measurement
+    made CI count 4 where the file asked 3 — the clock, not the code."""
     from sqlalchemy import event
     from sqlalchemy.engine import Engine
 

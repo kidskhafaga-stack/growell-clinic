@@ -11,7 +11,7 @@
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
   <div>
     <h1 class="page-title"><i class="bi bi-clipboard2-heart"></i> {{ enr.patient.display_name(current_lang) }} · {{ t('prog.p_' ~ enr.program) }}</h1>
-    <p class="page-sub" style="margin:0;">{{ t('prog.since') }} <span dir="ltr">{{ enr.started_on }}</span>{% if enr.cycles %} · {{ t('prog.cycles') }} <span dir="ltr">{{ enr.cycles }}</span>{% endif %}{% if not enr.is_active %} · <span class="badge badge--muted">{{ t('prog.ended') }} <span dir="ltr">{{ enr.ended_on }}</span></span>{% endif %}</p>
+    <p class="page-sub" style="margin:0;">{{ t('prog.since') }} <span dir="ltr">{{ enr.started_on }}</span>{% if enr.cycles %} · {{ t('prog.cycles') }} <span dir="ltr">{{ enr.cycles }}</span>{% endif %}{% if enr.dx_code %} · <span data-enr-dx dir="ltr">{{ enr.dx_code }}</span>{% endif %}{% if enr.planned_sessions %} · {{ t('prog.planned_sessions') }} <span dir="ltr" data-enr-planned>{{ enr.planned_sessions }}</span>{% endif %}{% if not enr.is_active %} · <span class="badge badge--muted">{{ t('prog.ended') }} <span dir="ltr">{{ enr.ended_on }}</span></span>{% endif %}</p>
   </div>
   <a class="btn btn-outline gc-press" href="{{ url_for('programs.index', p=enr.program) }}"><i class="bi bi-clipboard2-heart"></i> {{ t('prog.p_' ~ enr.program) }}</a>
 </div>

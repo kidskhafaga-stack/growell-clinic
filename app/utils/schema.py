@@ -1205,6 +1205,10 @@ ADDITIONS = [
     # route of a drug given in emergency. Every row before was the clinics'.
     ("order_patterns", "dept", "VARCHAR(12) DEFAULT 'clinic'"),
     ("order_patterns", "route", "VARCHAR(16)"),
+    # SMART_PATTERNS ج-٤ هـ — a rehabilitation plan's diagnosis and planned
+    # sessions, what the therapist's habits are counted by.
+    ("program_enrollments", "dx_code", "VARCHAR(12)"),
+    ("program_enrollments", "planned_sessions", "INTEGER"),
 ]
 
 SPLIT_IMAGING_KEY = "split_done:imaging"

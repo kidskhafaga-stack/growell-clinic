@@ -13361,7 +13361,9 @@
     "err_whom": "Enter who was educated.",
     "err_discharge_plan": "Rehabilitation needs a discharge plan.",
     "err_markers": "Record at least one result.",
-    "err_days": "The interval must be a number above zero."
+    "err_days": "The interval must be a number above zero.",
+    "dx_code": "Diagnosis (code)",
+    "planned_sessions": "Planned sessions"
   },
   "qual": {
     "title": "Quality programme",
@@ -18065,7 +18067,11 @@
     "out_of_reports": "of {n} reports",
     "add_phrase": "Press to put it in the report",
     "foot_phrases": "A count of what was written here before; nothing is saved until you press «Save report».",
-    "dept_imaging": "Imaging"
+    "dept_imaging": "Imaging",
+    "out_of_plans": "of {n} plans",
+    "sessions_n": "{n} sessions",
+    "foot_plan": "A count of rehabilitation plans written before with a diagnosis; nothing is saved until the form is sent.",
+    "dept_rehab": "Rehabilitation"
   },
   "vsuggest": {
     "title": "Which vaccine first?",

@@ -1,0 +1,47 @@
+{# «عادتك مع التشخيص ده» for a rehabilitation plan — SMART_PATTERNS_PLAN
+   ج-٤ هـ (utils/doctor_patterns.for_enroll). The therapist's usual goals
+   and planned sessions with the diagnosis typed above, or the department's
+   together without names. A press puts a goal in the plan or the number in
+   its box; nothing is written until the form is sent. #}
+<template x-if="dx && (habits[dx] || habits[dx.split('.')[0]])">
+  <div class="habits" data-habits data-habits-dept="rehab"
+       x-data="{ get g() { return habits[dx] || habits[dx.split('.')[0]]; }, get key() { return habits[dx] ? dx : dx.split('.')[0]; } }">
+    <input type="hidden" name="habit_dx" :value="key">
+    <div class="habits__head">
+      <i class="bi bi-arrow-repeat"></i>
+      <strong x-text="g.source === 'mine' ? {{ t('habits.title_mine')|tojson|forceescape }} : {{ t('habits.title_colleagues')|tojson|forceescape }}"></strong>
+      <span class="hint" x-text="{{ t('habits.out_of_plans')|tojson|forceescape }}.replace('{n}', g.visits)"></span>
+    </div>
+    <div class="habits__chips">
+      <template x-for="s in g.sessions" :key="'s' + s.id">
+        <button type="button" class="habits__chip habits__add gc-press" :class="!s.habit && 'habits__chip--faded'"
+                data-habit-sessions x-on:click="sessions = s.id; $refs.sessionsTaken.value = s.id">
+          <i class="bi bi-calendar2-check"></i><span x-text="{{ t('habits.sessions_n')|tojson|forceescape }}.replace('{n}', s.text)"></span>
+          <span class="habits__share" x-text="s.share + '%'"></span>
+        </button>
+      </template>
+      <template x-for="p in g.goals" :key="'p' + p.id">
+        <button type="button" class="habits__chip habits__add gc-press" :class="[!p.habit && 'habits__chip--faded', used.includes(p.id) && 'is-used']"
+                data-habit-goal x-on:click="
+                  const box = document.getElementById('e_p');
+                  if (!box.value.includes(p.text)) box.value = (box.value.trim() ? box.value.replace(/\s+$/, '') + '\n' : '') + p.text;
+                  if (!used.includes(p.id)) used.push(p.id);">
+          <i class="bi bi-plus-lg"></i><span dir="auto" x-text="p.text"></span><span class="habits__share" x-text="p.share + '%'"></span>
+        </button>
+      </template>
+    </div>
+    <template x-for="id in used" :key="'u' + id"><input type="hidden" name="habit_phrase" :value="id"></template>
+    <input type="hidden" name="habit_sessions" x-ref="sessionsTaken" value="">
+    <p class="hint habits__foot">{{ t('habits.foot_plan') }} · <a href="{{ url_for('visits.my_habits') }}">{{ t('habits.mine_link') }}</a></p>
+  </div>
+</template>
+<style>
+  .habits{border:1px dashed var(--border);border-radius:12px;padding:10px 12px;}
+  .habits__head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
+  .habits__chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .habits__chip{display:flex;align-items:center;gap:6px;border:1px solid var(--accent, var(--border));border-radius:999px;padding:4px 10px;background:none;color:inherit;font:inherit;cursor:pointer;}
+  .habits__chip--faded{opacity:.6;border-style:dashed;}
+  .habits__chip.is-used{opacity:.4;}
+  .habits__share{font-size:.8em;color:var(--muted);}
+  .habits__foot{margin:8px 0 0;}
+</style>

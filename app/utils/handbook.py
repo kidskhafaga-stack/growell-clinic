@@ -2194,6 +2194,15 @@ SECTIONS = [
              "reports and 60%, faded from 30%), findings and impression apart — counted from "
              "reports written in the program only (a PDF has no text to count). A press puts the "
              "sentence in its box, and the report is saved only by «Save». «×» never again."),
+            ("<b>«عادتك» في خطة التأهيل (وتعديل السلوك جواها):</b> خطة التأهيل بقى فيها خانتين "
+             "اختياريتين: التشخيص (كود) وعدد الجلسات المخطط. لما تكتب التشخيص بيظهر تحته الأهداف "
+             "اللي بتكتبها عادةً معاه وعدد الجلسات المعتاد (أو زملاءك من غير أسماء). ضغطة على "
+             "هدف بتحطه في الخطة، وعلى العدد بيتكتب في خانته — ومفيش حاجة بتتحفظ غير لما تبعت.",
+             "<b>«Your habit» in a rehabilitation plan (behaviour therapy within it):</b> the plan "
+             "now has two optional boxes: the diagnosis (a code) and the planned sessions. Once the "
+             "diagnosis is typed, the goals you usually write with it and your usual number of "
+             "sessions appear under it (or your colleagues', no names). A press puts a goal in the "
+             "plan or the number in its box — nothing is saved until you send it."),
             ("<b>الإيكو والسونار ورسم القلب ورسم المخ وقياس التنفس مش هنا.</b> "
              "دول دراسات أجهزة بتتعمل في أي عيادة وجنب أي سرير، وليهم شاشة "
              "«الفحوصات التشخيصية» جنب الكشف، بالحجز وقالب كل جهاز.",

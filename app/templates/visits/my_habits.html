@@ -33,8 +33,8 @@
     <div style="display:flex;flex-wrap:wrap;gap:6px;">
       {% for it in grp['items'] %}
       <span class="badge {{ 'badge--green' if it.habit else 'badge--muted' }}">
-        <i class="bi bi-{{ {'test': 'clipboard2-plus', 'phrase': 'chat-quote'}.get(it.kind, 'capsule') }}"></i>
-        {{ it.name }} · {{ it.share }}%{% if it.route %} · {{ t('meds.route_' ~ it.route) }}{% endif %}{% if it.frequency and grp.dept in ('ward', 'icu', 'nicu') %} · {{ t('habits.prn') if it.frequency == 'prn' else t('habits.every_hours', n=it.frequency) }}{% elif it.frequency %} · {{ it.frequency }}{% endif %}{% if it.duration %} · {{ it.duration }}{% endif %}
+        <i class="bi bi-{{ {'test': 'clipboard2-plus', 'phrase': 'chat-quote', 'sessions': 'calendar2-check'}.get(it.kind, 'capsule') }}"></i>
+        {{ t('habits.sessions_n', n=it.name) if it.kind == 'sessions' else it.name }} · {{ it.share }}%{% if it.route %} · {{ t('meds.route_' ~ it.route) }}{% endif %}{% if it.frequency and grp.dept in ('ward', 'icu', 'nicu') %} · {{ t('habits.prn') if it.frequency == 'prn' else t('habits.every_hours', n=it.frequency) }}{% elif it.frequency %} · {{ it.frequency }}{% endif %}{% if it.duration %} · {{ it.duration }}{% endif %}
       </span>
       {% endfor %}
     </div>
