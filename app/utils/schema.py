@@ -529,6 +529,14 @@ ADDITIONS = [
     ("vaccine_schedule_templates", "requires_previous_doses", "VARCHAR(10)"),
     ("vaccine_schedule_templates", "first_gap_min_days", "INTEGER"),
     ("vaccine_schedule_templates", "first_gap_max_days", "INTEGER"),
+    # Bexsero by the Egyptian leaflet (26 Nov 2026): intervals and the gap
+    # between the first two doses in calendar months, and the booster's last
+    # day. Blank on every other schedule, which therefore reads as before.
+    ("vaccine_schedule_templates", "first_gap_min_months", "INTEGER"),
+    ("vaccine_schedule_templates", "first_gap_max_months", "INTEGER"),
+    ("vaccine_schedule_doses", "min_interval_months", "INTEGER"),
+    ("vaccine_schedule_doses", "latest_age_months", "INTEGER"),
+    ("vaccine_schedule_doses", "latest_after_months", "INTEGER"),
     ("vaccine_schedule_templates", "previous_doses_min", "INTEGER"),
     ("vaccine_schedule_templates", "previous_doses_max", "INTEGER"),
     ("vaccine_schedule_templates", "match_age_on", "VARCHAR(8) DEFAULT 'start'"),

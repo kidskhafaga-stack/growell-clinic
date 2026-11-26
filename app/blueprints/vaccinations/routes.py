@@ -1100,7 +1100,10 @@ def template_dose_add(template_id):
         dose_number=dose_number,
         recommended_age_months=request.form.get("recommended_age_months", type=int),
         min_interval_days=request.form.get("min_interval_days", type=int),
+        min_interval_months=request.form.get("min_interval_months", type=int),
         max_interval_days=request.form.get("max_interval_days", type=int),
+        latest_age_months=request.form.get("latest_age_months", type=int),
+        latest_after_months=request.form.get("latest_after_months", type=int),
         booster_required=bool(request.form.get("booster_required")),
     ))
     db.session.commit()
@@ -1141,6 +1144,11 @@ def template_dose_edit(dose_id):
     dose.recommended_age_months = f.get("recommended_age_months", type=int)
     dose.min_interval_days = f.get("min_interval_days", type=int)
     dose.max_interval_days = f.get("max_interval_days", type=int)
+    # The month interval and the last day (Bexsero's leaflet). Only where the
+    # form carries the box: an older page left open must not clear them.
+    for name in ("min_interval_months", "latest_age_months", "latest_after_months"):
+        if name in f:
+            setattr(dose, name, f.get(name, type=int))
     dose.booster_required = bool(f.get("booster_required"))
 
     ActivityLog.record("vaccine.schedule_dose_edit", user_id=current_user.id,

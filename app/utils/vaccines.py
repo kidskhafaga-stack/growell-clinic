@@ -171,6 +171,19 @@ _RETAGGED_BANDS = {
 }
 
 
+# Seeded bands replaced by a corrected set under new codes, with the doses
+# they were seeded with. Retired only while still exactly as seeded: a band a
+# doctor edited is theirs and stays on.
+_REPLACED_BANDS = {
+    # Bexsero by the Egyptian leaflet (26 Nov 2026) — see the MENB-EG rows.
+    "MENB-2-5": [(2, None), (3, 28), (4, 28), (12, 180)],
+    "MENB-6-11": [(6, None), (8, 60), (13, 60)],
+    "MENB-12-23": [(12, None), (14, 60), (26, 365)],
+    "MENB-2-10Y": [(24, None), (25, 28)],
+    "MENB-11Y": [(132, None), (133, 28)],
+}
+
+
 def retag_moved_bands():
     """Retire seeded schedule bands whose reference was corrected.
 
@@ -192,6 +205,14 @@ def retag_moved_bands():
                     changed += 1
             elif tpl.source != moved_to:
                 tpl.source = moved_to
+                changed += 1
+    for code, seeded in _REPLACED_BANDS.items():
+        for tpl in VaccineScheduleTemplate.query.filter_by(
+                code=code, is_seeded=True, is_active=True).all():
+            now = [(d.recommended_age_months, d.min_interval_days)
+                   for d in sorted(tpl.doses, key=lambda d: d.dose_number)]
+            if now == seeded:
+                tpl.is_active = False
                 changed += 1
     return changed
 
@@ -375,9 +396,8 @@ def seed_vaccines():
 # a third for turning fifteen in between, which is why the band is matched on
 # the age at the first dose and never on the age today.
 #
-# Bexsero is deliberately absent. Its dose count also varies with starting age
-# and the exact bands need the GSK leaflet, so it keeps one standard course
-# and carries the warning until somebody reads it.
+# Bexsero is here too, from its Egyptian leaflet as the owner set it out on
+# 26 Nov 2026 — see the MenB rows below.
 #
 # ``doses`` are ``(recommended_age_months, min_interval_days_from_previous)``.
 # ``brand`` names the trade name a band belongs to; omitted, it is the
@@ -423,26 +443,68 @@ _AGE_BANDED = {
          "label": "CDC — 16–23 سنة (يُفضّل 16–18): قرار طبي مشترك — "
                   "جرعتان بفاصل 6 شهور — للمراجعة",
          "doses": [(192, None), (198, 180)]},
-        {"code": "MENB-2-5", "min": 2, "max": 5, "sort_order": 0,
+        # ------------------------------------------- the Egyptian leaflet
+        #
+        # Bexsero's leaflet approved by the Egyptian Drug Authority
+        # (10/1/2024), table 1 «posology summary» and the notes under it, as
+        # the clinic's owner set it out on 26 Nov 2026 with ten worked
+        # cases (tests/test_bexsero_by_the_egyptian_leaflet.py):
+        #
+        #   2–5 months   3 doses a month apart, or 2 doses two months apart;
+        #                booster from 12 months and 6 months after the last
+        #                primary dose, no later than 24 months
+        #   6–11 months  2 doses two months apart; booster in the second
+        #                year and 2 months after the last, before 24 months
+        #   12–23 months 2 doses two months apart; booster 12 to 23 months
+        #                after the last primary dose
+        #   2 years +    2 doses a month apart; no routine booster
+        #
+        # The band is the age at the **first** dose, for the whole series.
+        # Intervals are calendar months, not days. At two to five months the
+        # course is told apart by the gap actually given between the first
+        # two doses; with one dose only, the owner chose 2+1 (the leaflet
+        # allows either). A dose given sooner than its interval goes to the
+        # doctor (`short_interval`). A booster past its last day is expired —
+        # not chased.
+        #
+        # These replace MENB-2-5 … MENB-11Y, which counted every interval as
+        # 28 days, had no 2+1, put the 6–11 booster at 13 months and the
+        # 12–23 booster nine months after the last dose (see _REPLACED_BANDS).
+        {"code": "MENB-EG-2-5-3", "min": 2, "max": 5, "sort_order": 0,
+         "brand": "Bexsero", "gap_max_months": 2,
+         "label": "نشرة هيئة الدواء: بدء 2–5 شهور، 3 جرعات بينهم شهر + منشّط من 12 شهر "
+                  "وبعد آخر جرعة بـ 6 شهور، وآخر حد 24 شهر",
+         "doses": [{"age": 2}, {"age": 3, "iv_months": 1}, {"age": 4, "iv_months": 1},
+                   {"age": 12, "iv_months": 6, "latest_age": 24}]},
+        {"code": "MENB-EG-2-5-2", "min": 2, "max": 5, "sort_order": 1,
+         "brand": "Bexsero", "gap_min_months": 2,
+         "label": "نشرة هيئة الدواء: بدء 2–5 شهور، جرعتين بينهم شهرين + منشّط من 12 شهر "
+                  "وبعد آخر جرعة بـ 6 شهور، وآخر حد 24 شهر",
+         "doses": [{"age": 2}, {"age": 4, "iv_months": 2},
+                   {"age": 12, "iv_months": 6, "latest_age": 24}]},
+        {"code": "MENB-EG-6-11", "min": 6, "max": 11, "sort_order": 2,
          "brand": "Bexsero",
-         "label": "بدء 2–5 شهور: 3 أساسية + منشّط 12–15 شهر — للمراجعة",
-         "doses": [(2, None), (3, 28), (4, 28), (12, 180)]},
-        {"code": "MENB-6-11", "min": 6, "max": 11, "sort_order": 1,
+         "label": "نشرة هيئة الدواء: بدء 6–11 شهر، جرعتين بينهم شهرين + منشّط في السنة "
+                  "التانية وبعد آخر جرعة بشهرين، قبل 24 شهر",
+         "doses": [{"age": 6}, {"age": 8, "iv_months": 2},
+                   {"age": 12, "iv_months": 2, "latest_age": 24}]},
+        {"code": "MENB-EG-12-23", "min": 12, "max": 23, "sort_order": 3,
          "brand": "Bexsero",
-         "label": "بدء 6–11 شهر: جرعتان + منشّط في السنة الثانية — للمراجعة",
-         "doses": [(6, None), (8, 60), (13, 60)]},
-        {"code": "MENB-12-23", "min": 12, "max": 23, "sort_order": 2,
+         "label": "نشرة هيئة الدواء: بدء 12–23 شهر، جرعتين بينهم شهرين + منشّط بعد آخر "
+                  "جرعة بـ 12 لـ 23 شهر",
+         "doses": [{"age": 12}, {"age": 14, "iv_months": 2},
+                   {"age": 26, "iv_months": 12, "latest_after": 23}]},
+        # A first dose before two months is not in the leaflet: the doctor
+        # decides (the owner's case list). Only once a dose is on file — a
+        # newborn with none is simply not due yet.
+        {"code": "MENB-EG-UNDER-2", "max": 1, "sort_order": 5,
+         "brand": "Bexsero", "previous_min": 1, "review": True,
+         "label": "أول جرعة Bexsero قبل شهرين — النشرة ما بتسمحش، القرار للطبيب",
+         "doses": []},
+        {"code": "MENB-EG-2Y", "min": 24, "max": None, "sort_order": 4,
          "brand": "Bexsero",
-         "label": "بدء 12–23 شهر: جرعتان + منشّط بعد 12–23 شهر — للمراجعة",
-         "doses": [(12, None), (14, 60), (26, 365)]},
-        {"code": "MENB-2-10Y", "min": 24, "max": 131, "sort_order": 3,
-         "brand": "Bexsero",
-         "label": "بدء 2–10 سنوات: جرعتان (المنشّط عند استمرار الخطر) — للمراجعة",
-         "doses": [(24, None), (25, 28)]},
-        {"code": "MENB-11Y", "min": 132, "max": None, "sort_order": 4,
-         "brand": "Bexsero",
-         "label": "بدء 11 سنة فأكثر: جرعتان بلا منشّط روتيني — للمراجعة",
-         "doses": [(132, None), (133, 28)]},
+         "label": "نشرة هيئة الدواء: من سنتين وطالع، جرعتين بينهم شهر، من غير منشّط روتيني",
+         "doses": [{"age": 24}, {"age": 25, "iv_months": 1}]},
     ],
     # Vaxneuvance (PCV15), from Merck's own leaflet. On the brand and not the
     # vaccine on purpose: WHO speaks about pneumococcal conjugate as a class
@@ -864,7 +926,8 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
                    requires_previous_doses=None, first_gap_min_days=None,
                    first_gap_max_days=None, previous_doses_min=None,
                    previous_doses_max=None, match_age_on="start",
-                   starts_fresh=False, needs_review=False):
+                   starts_fresh=False, needs_review=False,
+                   first_gap_min_months=None, first_gap_max_months=None):
     """Create one seeded schedule template if a seeded one of the same
     (code, source) isn't already there. ``doses`` is a list of
     ``(recommended_age_months, min_interval_days)`` tuples. Returns 1 if a new
@@ -881,6 +944,8 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
         requires_previous_doses=requires_previous_doses,
         first_gap_min_days=first_gap_min_days,
         first_gap_max_days=first_gap_max_days,
+        first_gap_min_months=first_gap_min_months,
+        first_gap_max_months=first_gap_max_months,
         previous_doses_min=previous_doses_min,
         previous_doses_max=previous_doses_max,
         match_age_on=match_age_on,
@@ -889,10 +954,19 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
     )
     db.session.add(tpl)
     db.session.flush()
-    for i, (age, min_iv) in enumerate(doses, start=1):
+    for i, dose in enumerate(doses, start=1):
+        # A tuple ``(age, min interval days)``, or a dict for a leaflet that
+        # says months and a last day (Bexsero): age, iv_days, iv_months,
+        # latest_age, latest_after.
+        if not isinstance(dose, dict):
+            dose = {"age": dose[0], "iv_days": dose[1]}
         db.session.add(VaccineScheduleDose(
             template_id=tpl.id, dose_number=i,
-            recommended_age_months=age, min_interval_days=min_iv,
+            recommended_age_months=dose["age"],
+            min_interval_days=dose.get("iv_days"),
+            min_interval_months=dose.get("iv_months"),
+            latest_age_months=dose.get("latest_age"),
+            latest_after_months=dose.get("latest_after"),
         ))
     return 1
 
@@ -965,6 +1039,8 @@ def seed_vaccine_schedules():
                 requires_previous_doses=band.get("previous"),
                 first_gap_min_days=band.get("gap_min"),
                 first_gap_max_days=band.get("gap_max"),
+                first_gap_min_months=band.get("gap_min_months"),
+                first_gap_max_months=band.get("gap_max_months"),
                 previous_doses_min=band.get("previous_min"),
                 previous_doses_max=band.get("previous_max"),
                 match_age_on=band.get("match_on", "start"),
@@ -1190,7 +1266,7 @@ def _course_start(bands, brand_first, given_dates):
 
 
 def _pick_band(bands, dob, start, previous, today, first_gap=None,
-               given_count=0):
+               given_count=0, first_two=None):
     """The first band whose age range and history condition both match.
 
     Returns the **band**, not its doses: the caller needs to know whether it
@@ -1252,6 +1328,18 @@ def _pick_band(bands, dob, start, previous, today, first_gap=None,
                 continue
             if high_gap is not None and first_gap >= high_gap:
                 continue
+        # The same question in calendar months — "the second dose two months
+        # or more after the first", which is how the Bexsero leaflet asks it.
+        low_m, high_m = band.get("gap_min_months"), band.get("gap_max_months")
+        if first_two is None:
+            if high_m is not None:
+                continue
+        else:
+            first, second = first_two
+            if low_m is not None and second < add_months(first, low_m):
+                continue
+            if high_m is not None and second >= add_months(first, high_m):
+                continue
         return band
     return None
 
@@ -1291,6 +1379,12 @@ def mixed_series_note(brand, previous_brand_ids, dob, switched_on):
                     "months": under}
         return None
     return {"level": "conditional", "reason": "review"}
+
+
+def _first_two(given_dates):
+    """The first two dates given, or None until the second exists."""
+    dates = sorted(d for d in given_dates.values() if d)
+    return (dates[0], dates[1]) if len(dates) >= 2 else None
 
 
 def _achieved_first_gap(given_dates):
@@ -1384,7 +1478,8 @@ def course_for(vaccine, brand, dob, given_dates, today=None,
         start = _course_start(bands, brand_first, given_dates)
     picked = _pick_band(bands, dob, start, previous, today or local_today(),
                         first_gap=_achieved_first_gap(given_dates),
-                        given_count=len(given_dates))
+                        given_count=len(given_dates),
+                        first_two=_first_two(given_dates))
     if picked is not None:
         return picked["doses"], picked
     # The guideline speaks about this product and says nothing about a child
@@ -1506,13 +1601,26 @@ def _banded_templates():
                           VaccineScheduleTemplate.id).all())
         if not rows:
             return out
-        doses = {}
+        doses, rules = {}, {}
         for row in (VaccineScheduleDose.query
                     .filter(VaccineScheduleDose.template_id.in_(
                         [t.id for t in rows]))
                     .order_by(VaccineScheduleDose.dose_number).all()):
             doses.setdefault(row.template_id, []).append(
                 (row.dose_number, row.recommended_age_months))
+            # A dose's own spacing and last day, where the band states them
+            # in the shape the course engine reads — see `course_dates`.
+            # Only the Bexsero bands carry them today; a band without them
+            # is spaced by the vaccine's interval exactly as before.
+            rule = {k: getattr(row, attr) for k, attr in (
+                ("iv_months", "min_interval_months"),
+                ("latest_age", "latest_age_months"),
+                ("latest_after", "latest_after_months"))
+                if getattr(row, attr, None) is not None}
+            if rule:
+                if row.min_interval_days is not None:
+                    rule["iv_days"] = row.min_interval_days
+                rules.setdefault(row.template_id, {})[row.dose_number] = rule
         # The chosen profile wins wherever it speaks; the leaflet fills the
         # rest. Grouped per (vaccine, brand) so a profile covering one product
         # does not silence the leaflet's schedule for its neighbours.
@@ -1542,6 +1650,9 @@ def _banded_templates():
                 "previous": template.requires_previous_doses,
                 "gap_min": template.first_gap_min_days,
                 "gap_max": template.first_gap_max_days,
+                "gap_min_months": template.first_gap_min_months,
+                "gap_max_months": template.first_gap_max_months,
+                "rules": rules.get(template.id, {}),
                 "previous_min": template.previous_doses_min,
                 "previous_max": template.previous_doses_max,
                 "match_on": template.match_age_on or "start",
@@ -1576,7 +1687,31 @@ REVIEW_REASONS = {
     "more_than_scheduled": "جرعات أكثر مما يسمح به الجدول",
     # The child's own record contradicts the order of the schedule.
     "out_of_order": "تواريخ الجرعات مش بترتيب أرقامها",
+    # A dose given sooner after the one before than its schedule allows
+    # (Bexsero's leaflet: a month, two months, six months). Counted or
+    # repeated is the doctor's call, not the program's — the owner's choice
+    # on 26 Nov 2026.
+    "short_interval": "جرعة اتاخدت قبل المسافة اللي الجدول بيطلبها — الدكتور يقرر تتحسب ولا تتعاد",
 }
+
+
+def short_interval(given_dates, rules):
+    """Whether a dose on file came sooner than its schedule's own spacing.
+
+    Only where the schedule states that spacing per dose (``rules``, from
+    an age-banded schedule); every other course is judged as before."""
+    if not rules:
+        return False
+    numbers = sorted(n for n, d in given_dates.items() if d)
+    for before, number in zip(numbers, numbers[1:]):
+        rule = rules.get(number) or {}
+        prev, when = given_dates[before], given_dates[number]
+        if rule.get("iv_months") is not None and when < add_months(prev, rule["iv_months"]):
+            return True
+        if (rule.get("iv_months") is None and rule.get("iv_days") is not None
+                and (when - prev).days < rule["iv_days"]):
+            return True
+    return False
 
 
 def needs_clinical_review(dob, schedule, given_rows, repeatable=False):
@@ -1615,7 +1750,7 @@ def needs_clinical_review(dob, schedule, given_rows, repeatable=False):
 
 def course_dates(dob, schedule, given, planned, min_interval,
                  earliest_live, closed_after, today, start_closed_after=None,
-                 scope_after=None):
+                 scope_after=None, rules=None):
     """When each dose of one course falls due, and what it is today.
 
     The whole scheduling rule, in one place and over plain values: a birthday,
@@ -1629,8 +1764,16 @@ def course_dates(dob, schedule, given, planned, min_interval,
     a schedule eventually disagree in front of a family — so the loading is
     what differs between them and this is not.
 
+    ``rules`` — ``{dose_number: {iv_months, iv_days, latest_age,
+    latest_after}}`` from an age-banded schedule that states them (Bexsero,
+    by its leaflet): the gap from the dose before in calendar months or days
+    instead of the vaccine's one interval, and the last day the dose may
+    still be given — by age, or counted from the dose before. Past that day
+    the dose is expired, not overdue. A dose without a rule reads as before.
+
     Returns ``{dose_number: (due_date | None, status)}``.
     """
+    rules = rules or {}
     out = {}
     prev_date = None
     # A series nobody has begun, whose window for beginning has shut. Judged
@@ -1654,6 +1797,16 @@ def course_dates(dob, schedule, given, planned, min_interval,
     for dose_number, age_months in schedule:
         given_date = given.get(dose_number)
         due = add_months(dob, age_months) if dob else None
+        rule = rules.get(dose_number) or {}
+        dose_closed = closed_after
+        latest = None
+        if rule.get("latest_age") is not None and dob:
+            latest = add_months(dob, rule["latest_age"])
+        if rule.get("latest_after") is not None and prev_date:
+            after = add_months(prev_date, rule["latest_after"])
+            latest = after if latest is None else min(latest, after)
+        if latest is not None:
+            dose_closed = latest if dose_closed is None else min(dose_closed, latest)
         if given_date is not None:
             effective = given_date
         else:
@@ -1663,7 +1816,12 @@ def course_dates(dob, schedule, given, planned, min_interval,
             # projected one otherwise. A child who started late gets correctly
             # spaced dates rather than the raw age dates.
             if due and prev_date:
-                earliest = prev_date + timedelta(days=min_interval)
+                if rule.get("iv_months") is not None:
+                    earliest = add_months(prev_date, rule["iv_months"])
+                elif rule.get("iv_days") is not None:
+                    earliest = prev_date + timedelta(days=rule["iv_days"])
+                else:
+                    earliest = prev_date + timedelta(days=min_interval)
                 if earliest > due:
                     due = earliest
             if due and earliest_live and earliest_live > due:
@@ -1675,7 +1833,7 @@ def course_dates(dob, schedule, given, planned, min_interval,
             effective = due
         prev_date = effective
         out[dose_number] = (due, _status(due, given_date is not None, today,
-                                         closed_after=closed_after,
+                                         closed_after=dose_closed,
                                          cannot_start=cannot_start,
                                          scope_after=scope_after))
     return out
@@ -1890,6 +2048,9 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
         # is that the guideline *does* recommend something here.
         if band is not None and band.get("review") and not review:
             review = "guideline_unsettled"
+        if (band is not None and band is not SILENT and not review
+                and short_interval(given_dates, band.get("rules"))):
+            review = "short_interval"
         # Did the course change product, and does the destination's leaflet
         # have anything to say about that?
         earlier_brands = {row.brand_id for (vid, _n), row in given_index.items()
@@ -1901,7 +2062,8 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
         timings = course_dates(dob, rota, given_dates, planned_dates, min_iv,
                                earliest_live, closed_after, today,
                                start_closed_after=start_closed_after,
-                               scope_after=scope_after)
+                               scope_after=scope_after,
+                               rules=(band or {}).get("rules"))
         # A course the doctor opened on a protocol: its doses are the
         # protocol's, dated from day 0 — not from the birthday, and not one
         # dose at birth. Read last so nothing above can move its dates.
@@ -3051,7 +3213,8 @@ def _banded_for(vaccine_id, brand_id, dob, given_dates, today,
         start = _course_start(bands, brand_first, given_dates)
     picked = _pick_band(bands, dob, start, previous, today,
                         first_gap=_achieved_first_gap(given_dates),
-                        given_count=len(given_dates))
+                        given_count=len(given_dates),
+                        first_two=_first_two(given_dates))
     if picked is None and any(b.get("authoritative") for b in bands):
         return [], SILENT
     return (picked["doses"] if picked else None), picked
@@ -3174,12 +3337,15 @@ def scan_due(dob, doses, today, agreed=None, courses=None):
             earliest_live = max(earliest_live or today, today)
         if rota is None:
             rota = brand["doses"]
+        if band is not None and short_interval(mine, band.get("rules")):
+            continue        # the file asks the doctor; no message meanwhile
         timings = course_dates(dob, rota, mine,
                                planned.get(vaccine_id, {}),
                                meta["min_interval"], earliest_live,
                                closed_after, today,
                                start_closed_after=start_closed_after,
-                               scope_after=scope_after)
+                               scope_after=scope_after,
+                               rules=(band or {}).get("rules"))
 
         if meta["seasonal"]:
             # A seasonal course is one dose a year for almost everybody, and
