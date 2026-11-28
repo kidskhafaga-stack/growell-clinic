@@ -2623,6 +2623,21 @@ SECTIONS = [
              "الزمنية — كلها من الشاشة.",
              "<b>Manage vaccinations</b>: vaccines, brands and schedules — all "
              "from the screen."),
+            ("<b>Bexsero (السحائي B) من نشرة هيئة الدواء:</b> عدد الجرعات والمسافات "
+             "والمنشطة بيتحددوا من سن الطفل يوم أول جرعة، والمسافة بشهور التقويم. في ٢–٥ "
+             "شهور المسافة بين أول جرعتين بتحدد 3+1 ولا 2+1 (جرعة واحدة بس = 2+1). كل "
+             "منشطة ليها آخر حد، وبعده تظهر «فاتت» ومفيش تذكير. الجرعة اللي اتاخدت قبل "
+             "ميعادها، أو أول جرعة قبل شهرين، تظهر «محتاج مراجعة طبيب». الأرقام في «إدارة "
+             "التطعيمات» ← الجداول: «أقل فاصل (شهور)» و«آخر حد».",
+             "<b>Bexsero (MenB) by the Egyptian Drug Authority's leaflet:</b> the "
+             "number of doses, the intervals and the booster follow the child's age "
+             "on the day of the first dose, and intervals are calendar months. At "
+             "2–5 months the gap between the first two doses tells 3+1 from 2+1 "
+             "(one dose only = 2+1). Each booster has a last day; after it the dose "
+             "reads «expired» and no reminder is sent. A dose given before its "
+             "time, or a first dose before two months, reads «needs a doctor's "
+             "review». The numbers are under «Manage vaccinations» → schedules: "
+             "«Min interval (months)» and «Last day»."),
             ("<b>سن المستحضر من نشرته:</b> تحت كل صنف تجاري سطر بيقول آخر سن "
              "تتاخد فيه الجرعة ومصدره. نشرة الصنف (EMA أو FDA) مكتوبة بجملتها "
              "ولينكها، ولو النشرة الأوروبية والأمريكية مختلفين (Menveo وBexsero) "

@@ -222,7 +222,10 @@
   <table class="table" style="margin-top:10px;">
     <thead><tr>
       <th>{{ t('vaccinations.dose_no') }}</th><th>{{ t('vaccinations.reco_age') }}</th>
-      <th>{{ t('vaccinations.min_interval') }}</th><th>{{ t('vaccinations.max_interval') }}</th>
+      <th>{{ t('vaccinations.min_interval') }}</th><th>{{ t('vaccinations.min_interval_months') }}</th>
+      <th>{{ t('vaccinations.max_interval') }}</th>
+      <th title="{{ t('vaccinations.latest_help') }}">{{ t('vaccinations.latest_age') }}</th>
+      <th title="{{ t('vaccinations.latest_help') }}">{{ t('vaccinations.latest_after') }}</th>
       <th>{{ t('vaccinations.booster') }}</th><th></th>
     </tr></thead>
     <tbody>
@@ -247,10 +250,25 @@
                    form="dose{{ d.id }}" name="min_interval_days"
                    placeholder="{{ t('vaccinations.days_short') }}"
                    value="{{ d.min_interval_days if d.min_interval_days is not none else '' }}"></td>
+        {# In calendar months where the leaflet says months (Bexsero); it wins
+           over days for this dose. The last day: by age, or counted from the
+           dose before — past it the dose is expired, not chased. #}
+        <td><input class="input" type="number" min="0" style="width:80px;"
+                   form="dose{{ d.id }}" name="min_interval_months" data-dose-months
+                   placeholder="{{ t('vaccinations.months_short') }}"
+                   value="{{ d.min_interval_months if d.min_interval_months is not none else '' }}"></td>
         <td><input class="input" type="number" min="0" style="width:95px;"
                    form="dose{{ d.id }}" name="max_interval_days"
                    placeholder="{{ t('vaccinations.days_short') }}"
                    value="{{ d.max_interval_days if d.max_interval_days is not none else '' }}"></td>
+        <td><input class="input" type="number" min="0" style="width:80px;"
+                   form="dose{{ d.id }}" name="latest_age_months"
+                   placeholder="{{ t('vaccinations.months_short') }}"
+                   value="{{ d.latest_age_months if d.latest_age_months is not none else '' }}"></td>
+        <td><input class="input" type="number" min="0" style="width:80px;"
+                   form="dose{{ d.id }}" name="latest_after_months"
+                   placeholder="{{ t('vaccinations.months_short') }}"
+                   value="{{ d.latest_after_months if d.latest_after_months is not none else '' }}"></td>
         <td><input type="checkbox" form="dose{{ d.id }}" name="booster_required"
                    value="1" {{ 'checked' if d.booster_required else '' }}></td>
         <td style="text-align:end;white-space:nowrap;">
@@ -267,7 +285,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="6" class="placeholder-soft">{{ t('vaccinations.tpl_no_doses') }}</td></tr>
+      <tr><td colspan="9" class="placeholder-soft">{{ t('vaccinations.tpl_no_doses') }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -278,7 +296,10 @@
     <div class="form-row" style="margin:0;"><label>{{ t('vaccinations.dose_no') }}</label><input class="input" type="number" name="dose_number" style="width:90px;" placeholder="auto"></div>
     <div class="form-row" style="margin:0;"><label>{{ t('vaccinations.reco_age') }}</label><input class="input" type="number" name="recommended_age_months" style="width:110px;"></div>
     <div class="form-row" style="margin:0;"><label>{{ t('vaccinations.min_interval') }}</label><input class="input" type="number" name="min_interval_days" style="width:110px;"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('vaccinations.min_interval_months') }}</label><input class="input" type="number" name="min_interval_months" style="width:110px;"></div>
     <div class="form-row" style="margin:0;"><label>{{ t('vaccinations.max_interval') }}</label><input class="input" type="number" name="max_interval_days" style="width:110px;"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('vaccinations.latest_age') }}</label><input class="input" type="number" name="latest_age_months" style="width:110px;"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('vaccinations.latest_after') }}</label><input class="input" type="number" name="latest_after_months" style="width:110px;"></div>
     <label class="checkbox" style="font-weight:400;"><input type="checkbox" name="booster_required" value="1"> {{ t('vaccinations.booster') }}</label>
     <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('vaccinations.tpl_add_dose') }}</button>
   </form>

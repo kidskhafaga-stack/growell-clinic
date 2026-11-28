@@ -241,8 +241,11 @@ def test_every_reason_it_can_give_has_words(seeded):
     """A flag with no explanation sends somebody hunting for what is wrong."""
     from app.utils.vaccines import REVIEW_REASONS
 
+    # short_interval: a dose sooner than its schedule's own spacing
+    # (Bexsero's leaflet, 26 Nov 2026).
     assert set(REVIEW_REASONS) == {"undated_dose", "duplicate_dose",
-                                   "more_than_scheduled", "out_of_order"}
+                                   "more_than_scheduled", "out_of_order",
+                                   "short_interval"}
     for reason, text in REVIEW_REASONS.items():
         assert text and len(text) > 10, reason
 

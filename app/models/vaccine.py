@@ -517,6 +517,13 @@ class VaccineScheduleTemplate(db.Model):
     # schedule chosen once at the first dose cannot express it.
     first_gap_min_days = db.Column(db.Integer)
     first_gap_max_days = db.Column(db.Integer)   # exclusive
+    # The same, in calendar months, where the leaflet says months: Bexsero
+    # started at two to five months is 2+1 when the second dose came two
+    # months or more after the first and 3+1 when sooner. Days cannot say
+    # "two months" — 59 days is two months from 1 January and not from
+    # 15 March.
+    first_gap_min_months = db.Column(db.Integer)
+    first_gap_max_months = db.Column(db.Integer)  # exclusive
     # "…and has had fewer than two before" — a count, which `requires_previous_
     # doses` (none / some) cannot say. Influenza needs it: under nine, a child
     # with none and a child with one both owe two doses this season, and a
@@ -644,6 +651,14 @@ class VaccineScheduleDose(db.Model):
     recommended_age_months = db.Column(db.Integer)    # العمر الموصى به
     min_interval_days = db.Column(db.Integer)         # أدنى فاصل من الجرعة السابقة
     max_interval_days = db.Column(db.Integer)         # أقصى فاصل من الجرعة السابقة
+    # Read by the course engine for an age-banded schedule (see
+    # ``utils/vaccines.course_dates``): the interval in calendar months when
+    # the leaflet gives months, and the last day this dose may still be given
+    # — by age, or counted from the dose before it. Past it the dose is
+    # expired, not overdue: Bexsero's booster after two years is not chased.
+    min_interval_months = db.Column(db.Integer)
+    latest_age_months = db.Column(db.Integer)
+    latest_after_months = db.Column(db.Integer)
     booster_required = db.Column(db.Boolean, default=False, nullable=False)
 
     template = db.relationship("VaccineScheduleTemplate", back_populates="doses")

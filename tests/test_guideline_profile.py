@@ -134,7 +134,9 @@ def test_switching_the_profile_recomputes_the_same_records(seeded):
     references agree on. A three-month-old is where they part.
     """
     _follow(seeded, "manufacturer")
-    assert _bexsero(seeded, "a", 0.25, 1.0) == 4
+    # One dose at three months: 2+1 by the Egyptian leaflet (the second dose
+    # decides between 3+1 and 2+1; with one only, the owner chose 2+1).
+    assert _bexsero(seeded, "a", 0.25, 1.0) == 3
 
     _follow(seeded, "cdc")
     assert _bexsero(seeded, "b", 0.25, 1.0) == 0, \

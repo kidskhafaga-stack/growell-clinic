@@ -1310,7 +1310,11 @@
     "put_away_count": "{n} vaccine(s) put away",
     "show_put_away": "show them",
     "hide_put_away": "hide them",
-    "showing_put_away": "Showing the ones put away"
+    "showing_put_away": "Showing the ones put away",
+    "min_interval_months": "Min interval (months)",
+    "latest_age": "Last day (age, months)",
+    "latest_after": "Last day (months after the one before)",
+    "latest_help": "The last day this dose may still be given — by age, or in months after the dose before. After it the dose has expired and no reminder is sent."
   },
   "vstatus": {
     "done": "Done",
@@ -6032,7 +6036,8 @@
     "why_guideline_silent": "The reference this clinic follows does not cover this case, and the program will not guess.",
     "why_guideline_unsettled": "The reference recommends vaccinating at this age but does not fix the number of doses — the doctor decides.",
     "unsettled_title": "Recommended — schedule not specified",
-    "hint": "This record cannot be scheduled from — the program will not guess."
+    "hint": "This record cannot be scheduled from — the program will not guess.",
+    "why_short_interval": "A dose was given sooner after the one before than its schedule allows — the doctor decides whether it counts or is repeated."
   },
   "vlate": {
     "due": "Due now",

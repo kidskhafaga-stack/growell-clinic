@@ -282,14 +282,18 @@ def _brand_kid(seeded, code, brand_name, age_years, tag, start_years=None):
 
 
 @pytest.mark.parametrize("start_years,expected", [
-    (0.25, 4),      # 3 months  -> 3 primary + booster
+    # 3 months, one dose so far -> 2 + booster: the Egyptian leaflet allows
+    # 3+1 or 2+1 there, the second dose decides, and with one dose only the
+    # owner chose 2+1 (26 Nov 2026 — test_bexsero_by_the_egyptian_leaflet).
+    (0.25, 3),
     (0.67, 3),      # 8 months  -> 2 + booster
     (1.17, 3),      # 14 months -> 2 + booster
     (5.0, 2),       # 5 years   -> 2, booster only on continued risk
     (12.0, 2),      # 12 years  -> 2, no routine booster
 ])
 def test_bexsero_follows_the_european_label_bands(seeded, start_years, expected):
-    """Five bands, one per row of the leaflet the clinic follows.
+    """One band per row of the leaflet the clinic follows (Bexsero's Egyptian
+    leaflet since 26 Nov 2026; it was the European one's before).
 
     The FDA licenses the same product from ten years only, so a clinic
     following the CDC wants different numbers here — which is the reason these
@@ -372,16 +376,17 @@ def test_the_bands_can_be_changed_without_touching_code(seeded):
     with seeded["app"].app_context():
         menb = Vaccine.query.filter_by(code="MENB").first()
         band = (VaccineScheduleTemplate.query
-                .filter_by(vaccine_id=menb.id, code="MENB-11Y").first())
+                .filter_by(vaccine_id=menb.id, code="MENB-EG-2Y").first())
         assert band is not None, "the seeded band is not there to edit"
         band_id = band.id
         vaccine_id = menb.id
+        brand_id = band.brand_id
 
     # Exactly what the screen posts.
     seeded["sign_in"]("boss").post(
         f"/vaccinations/manage/schedules/{band_id}/edit",
         data={"start_age_min_months": "120", "start_age_max_months": "",
-              "source": "manufacturer", "is_active": "1",
+              "source": "manufacturer", "is_active": "1", "brand_id": brand_id,
               "label": "CDC: from 10 years"}, follow_redirects=True)
 
     with seeded["app"].app_context():
