@@ -103,8 +103,16 @@ def test_the_card_says_age_and_last_visit(desk):
 
 
 def test_the_dose_is_the_one_the_childs_own_plan_says(desk):
-    """A baby of ten weeks, whose first dose is due: the card names the dose
-    the file's "next due" card names — not a second opinion."""
+    """A baby of seven weeks, whose first optional doses fall due at two
+    months: the card names the dose the file's "next due" card names — not a
+    second opinion.
+
+    It was ten weeks, and what made a dose "due" then was Bexsero's second
+    dose at three months — the old 3+1 projection for a baby with none yet.
+    By the Egyptian leaflet (26 Nov 2026) an unstarted baby projects 2+1, so
+    the second falls at four months and nothing was due; the national doses
+    read «national», given at the health office, not here. Seven weeks keeps
+    what the test is about: a first dose inside its window."""
     from app.extensions import db
     from app.models import Patient
     from app.utils.clock import local_today
@@ -116,12 +124,12 @@ def test_the_dose_is_the_one_the_childs_own_plan_says(desk):
         seed_vaccines()
         seed_vaccine_schedules()
         baby = Patient(patient_number="P9", full_name="رضيع", gender="male",
-                       date_of_birth=local_today() - timedelta(days=70))
+                       date_of_birth=local_today() - timedelta(days=50))
         db.session.add(baby)
         db.session.commit()
         baby_id = baby.id
         due = next_due_dose(patient_plan(baby, "ar"))
-    assert due is not None, "the national schedule has a dose due by ten weeks"
+    assert due is not None, "a first dose falls due at two months"
     rid = _take(desk, patient_id=baby_id)
     row = _row(_page(desk), rid)
     assert f'data-card-dose="{due[3]["status"]}"' in row
